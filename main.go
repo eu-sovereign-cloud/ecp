@@ -1,6 +1,6 @@
 package main
 
-import "ecp/cmd"
+import "github.com/eu-sovereign-cloud/ecp/cmd"
 
 func main() {
 	cmd.Execute()

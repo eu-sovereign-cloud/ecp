@@ -3,7 +3,7 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
-	"ecp/pkg/apiserver"
+	"github.com/eu-sovereign-cloud/ecp/pkg/apiserver"
 )
 
 var (

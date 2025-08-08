@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"ecp/pkg/logger"
+	"github.com/eu-sovereign-cloud/ecp/pkg/logger"
 )
 
 // Start starts the backend HTTP server on the given address.

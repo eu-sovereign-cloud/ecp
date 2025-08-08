@@ -3,8 +3,8 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
-	"ecp/pkg/kubeclient"
-	"ecp/pkg/logger"
+	"github.com/eu-sovereign-cloud/ecp/pkg/kubeclient"
+	"github.com/eu-sovereign-cloud/ecp/pkg/logger"
 )
 
 var dynamicKubeCMD = &cobra.Command{
