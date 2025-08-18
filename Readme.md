@@ -1,6 +1,6 @@
 # Control plane
 
-API Server and control plane for SECA.
+API Servers and control plane for SECA.
 
 ## Overview
 
@@ -8,27 +8,48 @@ API Server and control plane for SECA.
 ## Prerequisites
 
 - Go 1.24.5 or later
-- kubectl
+- Docker
 
 ## Project Structure
 ```
 .
-├── api/
-│   └── handlers - api server related handlers
-├── cmd - cobra command lines for each tool
-├── config - kubernetes resources
-├── internal
-│   └── validation - validation logic for rest requests
-├── pkg
-│   ├── apiserver - API server for handling requests
-│   ├── kubeclient - client for managing Kubernetes resources(xrds, secrets, etc.)
+├── apis                \- Kubernetes API types and generated CRDs
+│   ├── generated       \- Generated CRDs
+│   └── regions
+│       └── v1          \- API types and generated methods for regions
+├── build               \- Dockerfiles for building images
+├── cmd                 \- Command-line entry points
+├── config              \- Kubernetes resource manifests
+│   └── setup           \ - Setup manifests for dev clusters
+├── internal            \- Internal logic (handlers, clients, providers, validation, logger)
+│   ├── handler         \- HTTP handlers for API endpoints
+│   ├── kubeclient      \ - Kubernetes client utilities using dynamic client
 │   ├── logger
-│   └── providers - provider related logic
-│       └── ...
+│   ├── provider
+│   │   ├── globalprovider \ - Global provider logic
+│   │   └── regionalprovider \- Regional provider logic
+│   └── validation
+├── scripts             \- Utility scripts
+├── tools               \- Tool dependencies
 ```
 ### Setup Local Development Environment
 
-#### Create Kind cluster with Crossplane and IONOS provider
+### Create development kind clusters for global and regional control planes
+```bash
+make setup-dev-clusters
+```
+
+#### Create Kind cluster with Crossplane
 ```bash
 make crossplane-local-dev
+```
+
+### Generate crds from Spec
+```bash
+make generate-crds
+```
+
+### Build docker images
+```bash
+make docker-build-images
 ```

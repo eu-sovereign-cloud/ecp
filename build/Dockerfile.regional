@@ -1,0 +1,30 @@
+# --- Build Stage ---
+FROM golang:1.24-alpine AS build
+
+# Set the working directory inside the container
+WORKDIR /app
+
+# Copy go.mod and go.sum to leverage Docker cache for dependencies
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy the rest of the source code
+COPY . .
+
+# Run tests to ensure the code is working correctly
+RUN go test ./...
+
+# Build the application binary.
+# This creates a static binary named 'server'.
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /server .
+
+# --- Runtime Stage ---
+FROM alpine:latest
+
+COPY --from=build /server /server
+
+EXPOSE 8080
+
+# Set the entrypoint to the server binary and the command to run the specific subcommand
+ENTRYPOINT ["/server"]
+CMD ["regionalapiserver"]

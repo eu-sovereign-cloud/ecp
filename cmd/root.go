@@ -9,10 +9,10 @@ import (
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "ecp",
-	Short: "starts an API server",
+	Short: "starts the global API server",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
-		apiServerCMD.Run(cmd, args)
+		globalAPIServerCMD.Run(cmd, args)
 	},
 }
 
