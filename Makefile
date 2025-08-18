@@ -58,7 +58,7 @@ generate-regions-crd:
 
 .PHONY: setup-dev-clusters
 # Sets up one global and one regional cluster for development purposes
-setup-dev-clusters:
+setup-dev-clusters: docker-build-images
 	@echo "Executing development cluster setup script..."
 	@./scripts/setup-dev-clusters.sh
 

@@ -19,9 +19,7 @@ sed -i 's/time\.Time/metav1.Time/g' "$API_FILE_PATH"
 sed -i '/"time"/d' "$API_FILE_PATH"
 
 # Add metav1 import if it's not already there
-if ! grep -q 'metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"' "$API_FILE_PATH"; then
-  sed -i '/"encoding\/json"/a \\tmetav1 "k8s.io/apimachinery/pkg/apis/meta/v1"' "$API_FILE_PATH"
-fi
+sed -i 's|.*"time".*|	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"|' "$API_FILE_PATH"
 
 echo "Generating CRD from $API_PACKAGE_PATH..."
 # Clean up and create the output directory

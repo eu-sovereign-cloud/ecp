@@ -54,6 +54,16 @@ kind get kubeconfig --name "${REGIONAL_CLUSTER_NAME}" > "${REGIONAL_KUBECONFIG_P
 echo "Global kubeconfig saved to: ${GLOBAL_KUBECONFIG_PATH}"
 echo "Regional kubeconfig saved to: ${REGIONAL_KUBECONFIG_PATH}"
 
+# Wait for nodes to be ready
+echo "--- Waiting for clusters to be ready ---"
+echo "Waiting for global cluster nodes..."
+kubectl --kubeconfig "${GLOBAL_KUBECONFIG_PATH}" wait --for=condition=Ready node --all --timeout=300s
+echo "Global cluster is ready."
+
+echo "Waiting for regional cluster nodes..."
+kubectl --kubeconfig "${REGIONAL_KUBECONFIG_PATH}" wait --for=condition=Ready node --all --timeout=300s
+echo "Regional cluster is ready."
+
 # 4. Load local Docker images into the clusters
 echo "--- Step 3: Loading local Docker images into clusters ---"
 kind load docker-image "${GLOBAL_IMAGE}" --name "${GLOBAL_CLUSTER_NAME}"

@@ -1,9 +1,6 @@
-# Control plane
-
-API Servers and control plane for SECA.
-
 ## Overview
-
+This repository contains the control plane components for the SECA API specification, including global and regional API servers. 
+It is designed to manage resources across multiple regions and provide a unified interface for interacting with the SECA ecosystem.
 
 ## Prerequisites
 
@@ -32,9 +29,27 @@ API Servers and control plane for SECA.
 ├── scripts             \- Utility scripts
 ├── tools               \- Tool dependencies
 ```
+
+## Generate Kubernetes code and CRDs with controller-gen:
+
+See following pages to learning how it is done:
+- https://kubebuilder.io/reference/generating-crd.html
+- https://kubebuilder.io/reference/markers.html
+
+When you make changes to the auto-generated code, you'll need to regenerate the code and CRDs using the following command:
+
+```bash
+make generate-crds
+```
+
+## Building
+
+See `make help` for a list of build targets.
+
 ### Setup Local Development Environment
 
 ### Create development kind clusters for global and regional control planes
+Note: also builds the docker images for the control plane components.
 ```bash
 make setup-dev-clusters
 ```
@@ -53,3 +68,11 @@ make generate-crds
 ```bash
 make docker-build-images
 ```
+
+
+# Run/Debug API Server locally 
+```bash
+make setup-dev-clusters
+```
+Start `globalapiserver` or `regionalapiserver` in debug mode.
+Set the environment variable `KUBECONFIG` to point to the kubeconfig file of the kind cluster you want to use.

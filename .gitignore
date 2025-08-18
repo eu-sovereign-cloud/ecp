@@ -1,0 +1,26 @@
+# Go build outputs
+*.out
+*.test
+*.prof
+
+# Go dependencies
+vendor/
+
+# Generated files - kubebuilder
+apis/generated/
+*zz_generated.deepcopy.go
+
+# Local binaries and tools
+kind
+bin/
+
+# IDE-specific files
+.idea
+.kind
+.work
+.cache
+.public
+.vscode
+
+# OS-specific files
+.DS_Store
