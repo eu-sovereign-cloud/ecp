@@ -1,14 +1,13 @@
 # Go build outputs
-*.out
+*.exe
 *.test
 *.prof
+*.pprof
+*.out
+*.log
 
 # Go dependencies
-vendor/
-
-# Generated files - kubebuilder
-apis/generated/
-*zz_generated.deepcopy.go
+vendor
 
 # Local binaries and tools
 kind
