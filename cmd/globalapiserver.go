@@ -59,6 +59,7 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
 	globalServer, err := globalprovider.NewController(logger, config)
 	if err != nil {
 		logger.Error("failed to create global server", slog.Any("error", err))
+		log.Fatal(err, " - failed to create global server")
 	}
 
 	regionalHandler := handler.NewRegionHandler(logger, globalServer)

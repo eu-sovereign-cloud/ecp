@@ -9,7 +9,7 @@ func New(env string) *slog.Logger {
 	var handler slog.Handler
 	opts := &slog.HandlerOptions{}
 
-	if env == "development" {
+	if env == "dev" {
 		opts.Level = slog.LevelDebug
 		handler = slog.NewTextHandler(os.Stdout, opts)
 	} else {

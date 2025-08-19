@@ -93,9 +93,9 @@ func (c *RegionController) ListRegions(ctx context.Context, params region.ListRe
 	// Define the GroupVersionResource for the Region CRD.
 
 	gvr := schema.GroupVersionResource{
-		Group:    regionsv1.GroupVersion.Group,
-		Version:  "v1",
-		Resource: "regions",
+		Group:    regionsv1.Group,
+		Version:  regionsv1.Version,
+		Resource: regionsv1.Resource,
 	}
 
 	// Fetch the list of Regions custom resources from the Kubernetes API server.

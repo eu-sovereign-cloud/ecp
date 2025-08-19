@@ -26,6 +26,9 @@ func New() (*KubeClient, error) {
 
 // NewFromConfig creates a KubeClient using the provided rest.Config.
 func NewFromConfig(cfg *rest.Config) (*KubeClient, error) {
+	if cfg == nil {
+		return nil, fmt.Errorf("rest.Config cannot be nil")
+	}
 	c := &KubeClient{}
 	if c.Client == nil {
 		client, err := dynamic.NewForConfig(cfg)

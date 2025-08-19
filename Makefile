@@ -49,21 +49,22 @@ generate-crds: generate-regions-crd
 # Generate CRDs for the regions API from the regions package.
 .PHONY: generate-regions-crd
 generate-regions-crd:
-		@GO_TOOL="$(GO_TOOL)" ./scripts/prepare-generate-crd.sh \
-			./apis/regions/v1/region.go \
-			./apis/regions/v1 \
-			./apis/generated/regions
+	$(GO_TOOL) -mod=mod github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen --generate=types -o ./apis/regions/v1/zz_generated_region.go -package v1 ./apis/regions/v1/foundation.region.v1.yaml
+	@GO_TOOL="$(GO_TOOL)" ./scripts/prepare-generate-crd.sh \
+		./apis/regions/v1/zz_generated_region.go \
+		./apis/regions/v1 \
+		./apis/generated/regions
 	$(GO_TOOL) -mod=mod sigs.k8s.io/controller-tools/cmd/controller-gen object paths=./apis/regions/v1/; \
 	$(GO_TOOL) -mod=mod sigs.k8s.io/controller-tools/cmd/controller-gen crd paths=./apis/regions/v1/... output:crd:artifacts:config=./apis/generated/regions
 
-.PHONY: setup-dev-clusters
+.PHONY: create-dev-clusters
 # Sets up one global and one regional cluster for development purposes
-setup-dev-clusters: docker-build-images
+create-dev-clusters: docker-build-images
 	@echo "Executing development cluster setup script..."
 	@./scripts/setup-dev-clusters.sh
 
-.PHONY: remove-dev-clusters
-remove-dev-clusters:
+.PHONY: clean-dev-clusters
+clean-dev-clusters:
 	@echo "Executing development cluster cleanup script..."
 	@./scripts/remove-dev-clusters.sh
 
@@ -75,18 +76,18 @@ docker-build-images:
 
 define ECP_MAKE_HELP
 ECP Targets:
+	generate-crds          Generate CRDs for the regions API
+	run-global-server      Run the global API server locally
+	create-dev-clusters    Set up one global and one regional cluster for development purposes
+	clean-dev-clusters     Remove the global and regional clusters set up for development
+	docker-build-images    Build Docker images for the provider components
 	crossplane-local-dev   Set up a local Crossplane development environment with kind and Helm
 	ensure-kind            Ensure kind is installed
 	ensure-helm            Ensure Helm is installed
 	kind-create            Create a kind cluster for Crossplane development
 	crossplane-install     Install Crossplane into the kind cluster
-	run-global-server      Run the global API server locally
 	clean-crossplane-dev   Clean up the Crossplane development environment
-	generate-crds          Generate CRDs for the regions API
 	generate-regions-crd   Generate CRDs for the regions API from the regions package
-	setup-dev-clusters     Set up one global and one regional cluster for development purposes
-	remove-dev-clusters    Remove the global and regional clusters set up for development
-	docker-build-images    Build Docker images for the provider components
 endef
 
 export ECP_MAKE_HELP

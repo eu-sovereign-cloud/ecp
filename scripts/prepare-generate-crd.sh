@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# prepare-generate-crd.sh
+# This script prepares the environment for generating CRDs by patching Go types
+# and ensuring the necessary imports are in place.
+# Replaces time.Time with metav1.Time
+# and handles map[string]interface{} to map[string]string conversion to avoid generation errors.
+
 # Exit immediately if a command exits with a non-zero status.
 set -e
 
@@ -15,8 +21,9 @@ CRD_OUTPUT_DIR="$3"
 echo "Patching Go types for CRD generation in $API_FILE_PATH..."
 # Replace time.Time with metav1.Time for proper CRD generation
 sed -i 's/time\.Time/metav1.Time/g' "$API_FILE_PATH"
-# Remove the now-unused time import
-sed -i '/"time"/d' "$API_FILE_PATH"
+
+# Workaround - Replace map[string]interface{} with map[string]string to avoid generation errors
+sed -i 's/*map\[string\]interface{}/\*map[string]string/g' "$API_FILE_PATH"
 
 # Add metav1 import if it's not already there
 sed -i 's|.*"time".*|	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"|' "$API_FILE_PATH"

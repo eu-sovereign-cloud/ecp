@@ -51,7 +51,7 @@ See `make help` for a list of build targets.
 ### Create development kind clusters for global and regional control planes
 Note: also builds the docker images for the control plane components.
 ```bash
-make setup-dev-clusters
+make create-dev-clusters
 ```
 
 #### Create Kind cluster with Crossplane
