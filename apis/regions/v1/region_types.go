@@ -13,7 +13,6 @@ type Regions struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	// Status reflects the observed state of a SGDbOps.
 	Spec RegionSpec `json:"spec,omitempty"`
 }
 
