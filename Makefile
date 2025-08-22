@@ -57,6 +57,19 @@ generate-regions-crd:
 	$(GO_TOOL) -mod=mod sigs.k8s.io/controller-tools/cmd/controller-gen object paths=./apis/regions/v1/; \
 	$(GO_TOOL) -mod=mod sigs.k8s.io/controller-tools/cmd/controller-gen crd paths=./apis/regions/v1/... output:crd:artifacts:config=./apis/generated/regions
 
+
+# Generate CRDs for the instance API from the compute package.
+.PHONY: generate-storage-crd
+generate-storage-crd:
+#	$(GO_TOOL) -mod=mod github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen --generate=types -o ./apis/instances/v1/zz_generated_instance.go -package v1 ./apis/instances/v1/foundation.compute.v1.yaml
+	@GO_TOOL="$(GO_TOOL)" ./scripts/prepare-generate-crd.sh \
+		./apis/regional/storage/v1/storage_spec.go \
+		./apis/regional/storage/v1 \
+		./apis/generated/regional/storage
+	$(GO_TOOL) -mod=mod sigs.k8s.io/controller-tools/cmd/controller-gen object paths=./apis/regional/storage/v1/; \
+	$(GO_TOOL) -mod=mod github.com/crossplane/crossplane-tools/cmd/angryjet generate-methodsets --header-file=.github/boilerplate.go.txt ./apis/regional/storage/v1; \
+	$(GO_TOOL) -mod=mod sigs.k8s.io/controller-tools/cmd/controller-gen crd paths=./apis/regional/storage/v1/... output:crd:artifacts:config=./apis/generated/regional/storage
+
 .PHONY: create-dev-clusters
 # Sets up one global and one regional cluster for development purposes
 create-dev-clusters: docker-build-images

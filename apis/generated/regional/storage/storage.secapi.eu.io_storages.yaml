@@ -1,0 +1,84 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.18.0
+  name: storages.storage.secapi.eu.io
+spec:
+  group: storage.secapi.eu.io
+  names:
+    categories:
+    - crossplane
+    - managed
+    - secapi.eu
+    kind: Storage
+    listKind: StorageList
+    plural: storages
+    singular: storage
+  scope: Cluster
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        description: Storage is the Schema for the storages API. It represents a composite
+          resource.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              name:
+                description: Name is the user-defined name of the resource.
+                type: string
+              region:
+                description: Region is the identifier for the region where this resource
+                  is located.
+                type: string
+              sizeGB:
+                description: Size of the storage in gigabytes
+                format: int64
+                maximum: 10000
+                minimum: 1
+                type: integer
+              sku:
+                description: SKU of the storage
+                type: string
+              tenant:
+                description: Tenant is the identifier for the tenant that owns this
+                  resource.
+                type: string
+              workspace:
+                description: Workspace is the identifier for the workspace this resource
+                  belongs to.
+                type: string
+              zone:
+                description: |-
+                  Zone is the identifier for the availability zone within the region.
+                  This field is optional.
+                type: string
+            required:
+            - name
+            - region
+            - sizeGB
+            - tenant
+            - workspace
+            type: object
+        type: object
+    served: true
+    storage: true

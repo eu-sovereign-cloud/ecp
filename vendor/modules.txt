@@ -1,3 +1,5 @@
+# dario.cat/mergo v1.0.1
+## explicit; go 1.13
 # github.com/alecthomas/kingpin/v2 v2.4.0
 ## explicit; go 1.17
 github.com/alecthomas/kingpin/v2
@@ -7,6 +9,8 @@ github.com/alecthomas/units
 # github.com/apapsch/go-jsonmerge/v2 v2.0.0
 ## explicit; go 1.12
 github.com/apapsch/go-jsonmerge/v2
+# github.com/crossplane/crossplane-runtime v1.20.0
+## explicit; go 1.23.0
 # github.com/crossplane/crossplane-tools v0.0.0-20250731192036-00d407d8b7ec
 ## explicit; go 1.23.0
 github.com/crossplane/crossplane-tools/cmd/angryjet
@@ -182,6 +186,8 @@ gopkg.in/inf.v0
 # gopkg.in/yaml.v3 v3.0.1
 ## explicit
 gopkg.in/yaml.v3
+# k8s.io/api v0.33.4
+## explicit; go 1.24.0
 # k8s.io/apimachinery v0.33.4
 ## explicit; go 1.24.0
 k8s.io/apimachinery/pkg/api/errors
@@ -274,6 +280,8 @@ k8s.io/utils/ptr
 # sigs.k8s.io/controller-runtime v0.21.0
 ## explicit; go 1.24.0
 sigs.k8s.io/controller-runtime/pkg/scheme
+# sigs.k8s.io/controller-tools v0.16.0
+## explicit; go 1.22.0
 # sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730
 ## explicit; go 1.23
 sigs.k8s.io/json
