@@ -1,5 +1,5 @@
 // +kubebuilder:object:generate=true
-// +groupName=regions.secapi.eu.io
+// +groupName=v1.secapi.cloud
 // +versionName=v1
 
 package v1
@@ -11,7 +11,7 @@ import (
 
 const (
 	// Group is the group name used in this package
-	Group = "regions.secapi.eu.io"
+	Group = "v1.secapi.cloud"
 	// Version is the version of the API
 	Version = "v1"
 	// Resource is the resource name for regions

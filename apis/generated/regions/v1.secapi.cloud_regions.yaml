@@ -4,9 +4,9 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.18.0
-  name: regions.regions.secapi.eu.io
+  name: regions.v1.secapi.cloud
 spec:
-  group: regions.secapi.eu.io
+  group: v1.secapi.cloud
   names:
     kind: Regions
     listKind: RegionsList
@@ -37,7 +37,8 @@ spec:
           metadata:
             type: object
           spec:
-            description: Status reflects the observed state of a SGDbOps.
+            description: RegionSpec The specification of a region, including the available
+              zones and providers.
             properties:
               availableZones:
                 description: AvailableZones The list of zones available in the region.

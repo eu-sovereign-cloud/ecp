@@ -16,6 +16,8 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/internal/kubeclient"
 )
 
+const ProviderRegionName = "seca.region/v1"
+
 // RegionProvider defines the interface for interacting with regions in the ECP.
 type RegionProvider interface {
 	GetRegion(ctx context.Context, name string) (*region.Region, error)
@@ -80,8 +82,10 @@ func (c *RegionController) GetRegion(ctx context.Context, regionName string) (*r
 			Providers:      providers,
 		},
 		Metadata: &region.GlobalResourceMetadata{
-			Kind: region.GlobalResourceMetadataKindRegion,
-			Name: crdRegion.Name,
+			CreatedAt: crdRegion.GetCreationTimestamp().Time,
+			Kind:      region.GlobalResourceMetadataKindRegion,
+			Name:      crdRegion.Name,
+			Provider:  ProviderRegionName,
 		},
 	}
 
@@ -127,8 +131,11 @@ func (c *RegionController) ListRegions(ctx context.Context, params region.ListRe
 				Providers:      providers,
 			},
 			Metadata: &region.GlobalResourceMetadata{
-				Kind: region.GlobalResourceMetadataKindRegion,
-				Name: crdRegion.Name,
+				CreatedAt: crdRegion.GetCreationTimestamp().Time,
+				Verb:      "get",
+				Name:      crdRegion.Name,
+				Kind:      region.GlobalResourceMetadataKindRegion,
+				Provider:  ProviderRegionName,
 			},
 		}
 		sdkRegions = append(sdkRegions, sdkRegion)

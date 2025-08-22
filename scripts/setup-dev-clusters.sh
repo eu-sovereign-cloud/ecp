@@ -19,7 +19,7 @@ REGIONAL_IMAGE="regional-server:latest"
 # Deployment and CRD files
 GLOBAL_DEPLOYMENT_YAML="config/k8s-dev-setup/global-deployment.yaml"
 REGIONAL_DEPLOYMENT_YAML="config/k8s-dev-setup/regional-deployment.yaml"
-REGION_CRD_YAML="apis/generated/regions/regions.secapi.eu.io_regions.yaml" # Assumes you have the CRD definition here
+REGION_CRD_YAML="apis/generated/regions/v1.secapi.cloud_regions.yaml" # Assumes you have the CRD definition here
 RBAC_YAML="config/k8s-dev-setup/rbac.yaml"
 
 # Region Details
@@ -107,7 +107,7 @@ echo "Constructed Regional API Endpoint: ${REGIONAL_API_ENDPOINT}"
 # 8. Generate and apply the Region CR to the global cluster
 echo "--- Step 7: Registering regional cluster in the global cluster ---"
 cat <<EOF | kubectl --kubeconfig "${GLOBAL_KUBECONFIG_PATH}" apply -f -
-apiVersion: regions.secapi.eu.io/v1
+apiVersion: v1.secapi.cloud/v1
 kind: Regions
 metadata:
   name: "${REGION_NAME}"
