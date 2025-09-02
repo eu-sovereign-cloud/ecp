@@ -9,6 +9,10 @@ GO := go
 GO_TOOL := $(GO) run $(TOOLS_GOMOD)
 crossplane-local-dev: ensure-kind ensure-helm kind-create crossplane-install
 
+submodules:
+	@git submodule sync
+	@git submodule update --init --recursive
+
 ensure-kind:
 	@command -v kind >/dev/null 2>&1 || { \
 		echo "kind not found, installing..."; \
@@ -56,6 +60,10 @@ generate-regions-crd:
 		./apis/generated/regions
 	$(GO_TOOL) -mod=mod sigs.k8s.io/controller-tools/cmd/controller-gen object paths=./apis/regions/v1/; \
 	$(GO_TOOL) -mod=mod sigs.k8s.io/controller-tools/cmd/controller-gen crd paths=./apis/regions/v1/... output:crd:artifacts:config=./apis/generated/regions
+
+.PHONY: generate-commons
+generate-commons:
+	@GO_TOOL="$(GO_TOOL)" ./scripts/generate-common-models.sh
 
 .PHONY: create-dev-clusters
 # Sets up one global and one regional cluster for development purposes
