@@ -22,7 +22,6 @@ mkdir -p ${out_dir}
 echo "Generating OpenAPI dummy spec files for common models..."
 echo '{"dir": "'${schemas_dir}'", "file": "errors.yaml"}' | gomplate -f ${template_file} -o ${out_dir}/dummy-errors-spec.yaml -d data=spec/spec/schemas/errors.yaml -d path=stdin:path.json
 echo '{"dir": "'${schemas_dir}'", "file": "resource.yaml"}' | gomplate -f ${template_file} -o ${out_dir}/dummy-resources-spec.yaml -d data=spec/spec/schemas/resource.yaml -d path=stdin:path.json
-#echo '{"dir": "'${schemas_dir}'", "file": "parameters.yaml"}' | gomplate -f ${template_file} -o ${out_dir}/dummy-parameters-spec.yaml -d data=spec/spec/schemas/parameters.yaml -d path=stdin:path.json
 
 echo -e "${GREEN}✅ Dummy OpenAPI spec files generated successfully.${RESET}"
 echo "Bundling dummy OpenAPI spec files into a single file with models..."
@@ -31,7 +30,6 @@ schemas=$(find ${out_dir}/schemas -type f)
 
 npx @redocly/cli bundle --remove-unused-components ${out_dir}/dummy-errors-spec.yaml -o ${out_dir}/errors-bundled.yaml
 npx @redocly/cli bundle --remove-unused-components ${out_dir}/dummy-resources-spec.yaml -o ${out_dir}/resources-bundled.yaml
-#npx @redocly/cli bundle ${out_dir}/dummy-parameters-spec.yaml -o ${out_dir}/parameters-bundled.yaml
 
 echo -e "${GREEN}✅ Bundling completed successfully.${RESET}"
 
@@ -45,7 +43,6 @@ echo "Generating Go code from bundled OpenAPI spec files for common models..."
 
 mkdir -p apis/common/errors
 mkdir -p apis/common/resources
-#mkdir -p apis/common/parameters
 
 ${GO_TOOL} -mod=mod github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen --generate=types \
   --exclude-schemas=${excluded_schemas} \
@@ -55,8 +52,27 @@ ${GO_TOOL} -mod=mod github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen --g
   --exclude-schemas=${excluded_schemas} \
   -o apis/common/resources/zz_generated_resources.go -package resources ${out_dir}/resources-bundled.yaml
 
-#${GO_TOOL} -mod=mod github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen --generate=types \
-#  --exclude-schemas=${excluded_schemas} \
-#  -o apis/common/parameters/zz_generated_parameters.go -package parameters ${out_dir}/parameters-bundled.yaml
-
 echo -e "${GREEN}✅ Go code generated successfully.${RESET}"
+echo "Replacing time package types with metav1 package time types and fixing map types..."
+
+sed -i 's/time\.Time/metav1.Time/g' apis/common/resources/zz_generated_resources.go
+sed -i 's/map\[string\]interface{}/\*map[string]string/g' apis/common/resources/zz_generated_resources.go
+sed -i 's|.*"time".*|	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"|' apis/common/resources/zz_generated_resources.go
+
+sed -i 's/time\.Time/metav1.Time/g' apis/common/errors/zz_generated_errors.go
+sed -i 's/map\[string\]interface{}/\*map[string]string/g' apis/common/errors/zz_generated_errors.go
+sed -i 's|.*"time".*|	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"|' apis/common/errors/zz_generated_errors.go
+
+echo -e "${GREEN}✅ Type replacements completed successfully.${RESET}"
+
+echo "Add +kubebuilder:object:root=true annotations to common packages..."
+sed -i '/^package resources/a\// +kubebuilder:object:generate=true' apis/common/resources/zz_generated_resources.go
+sed -i '/^package errors/a\// +kubebuilder:object:generate=true' apis/common/errors/zz_generated_errors.go
+echo -e "${GREEN}✅ Annotations added successfully.${RESET}"
+
+echo "Generating DeepCopy methods for common models..."
+${GO_TOOL} -mod=mod sigs.k8s.io/controller-tools/cmd/controller-gen object paths=./apis/common/resources/;
+${GO_TOOL} -mod=mod sigs.k8s.io/controller-tools/cmd/controller-gen object paths=./apis/common/errors/;
+
+echo -e "${GREEN}✅ DeepCopy methods generated successfully.${RESET}"
+echo -e "${GREEN}All tasks completed successfully!${RESET}"

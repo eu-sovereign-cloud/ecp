@@ -12,6 +12,7 @@ crossplane-local-dev: ensure-kind ensure-helm kind-create crossplane-install
 submodules:
 	@git submodule sync
 	@git submodule update --init --recursive
+	@make -C spec resource-apis build
 
 ensure-kind:
 	@command -v kind >/dev/null 2>&1 || { \
@@ -53,10 +54,9 @@ generate-crds: generate-regions-crd
 # Generate CRDs for the regions API from the regions package.
 .PHONY: generate-regions-crd
 generate-regions-crd:
-	$(GO_TOOL) -mod=mod github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen --generate=types -o ./apis/regions/v1/zz_generated_region.go -package v1 ./apis/regions/v1/foundation.region.v1.yaml
-	@GO_TOOL="$(GO_TOOL)" ./scripts/prepare-generate-crd.sh \
+	@GO_TOOL="$(GO_TOOL)" ./scripts/generate-go-code.sh \
 		./apis/regions/v1/zz_generated_region.go \
-		./apis/regions/v1 \
+		./apis/regions/v1/foundation.region.v1.yaml \
 		./apis/generated/regions
 	$(GO_TOOL) -mod=mod sigs.k8s.io/controller-tools/cmd/controller-gen object paths=./apis/regions/v1/; \
 	$(GO_TOOL) -mod=mod sigs.k8s.io/controller-tools/cmd/controller-gen crd paths=./apis/regions/v1/... output:crd:artifacts:config=./apis/generated/regions
