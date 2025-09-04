@@ -4,7 +4,7 @@
 package v1
 
 import (
-	resources "github.com/eu-sovereign-cloud/ecp/apis/common/resources"
+	resource "github.com/eu-sovereign-cloud/ecp/apis/common/resource"
 )
 
 const (
@@ -36,7 +36,7 @@ type Provider struct {
 // with one or more zones.
 type Region struct {
 	// Metadata Metadata for global resources with name, permission, modification, type, and tenant information.
-	Metadata *resources.GlobalResourceMetadata `json:"metadata,omitempty"`
+	Metadata *resource.GlobalResourceMetadata `json:"metadata,omitempty"`
 
 	// Spec The specification of a region, including the available zones and providers.
 	Spec RegionSpec `json:"spec"`
@@ -48,13 +48,13 @@ type RegionIterator struct {
 	Items []Region `json:"items"`
 
 	// Metadata Metadata for response objects.
-	Metadata resources.ResponseMetadata `json:"metadata"`
+	Metadata resource.ResponseMetadata `json:"metadata"`
 }
 
 // RegionSpec The specification of a region, including the available zones and providers.
 type RegionSpec struct {
 	// AvailableZones The list of zones available in the region.
-	AvailableZones []resources.Zone `json:"availableZones"`
+	AvailableZones []resource.Zone `json:"availableZones"`
 
 	// Providers The list of providers available in the region.
 	Providers []Provider `json:"providers"`

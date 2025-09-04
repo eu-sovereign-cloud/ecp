@@ -5,7 +5,7 @@
 package v1
 
 import (
-	"github.com/eu-sovereign-cloud/ecp/apis/common/resources"
+	"github.com/eu-sovereign-cloud/ecp/apis/common/resource"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -64,7 +64,7 @@ func (in *Region) DeepCopyInto(out *Region) {
 	*out = *in
 	if in.Metadata != nil {
 		in, out := &in.Metadata, &out.Metadata
-		*out = new(resources.GlobalResourceMetadata)
+		*out = new(resource.GlobalResourceMetadata)
 		(*in).DeepCopyInto(*out)
 	}
 	in.Spec.DeepCopyInto(&out.Spec)
@@ -108,7 +108,7 @@ func (in *RegionSpec) DeepCopyInto(out *RegionSpec) {
 	*out = *in
 	if in.AvailableZones != nil {
 		in, out := &in.AvailableZones, &out.AvailableZones
-		*out = make([]resources.Zone, len(*in))
+		*out = make([]resource.Zone, len(*in))
 		copy(*out, *in)
 	}
 	if in.Providers != nil {

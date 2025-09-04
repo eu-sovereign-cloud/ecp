@@ -7,6 +7,7 @@ CROSSPLANE_NAMESPACE=crossplane-system
 TOOLS_GOMOD := -modfile=./tools/go.mod
 GO := go
 GO_TOOL := $(GO) run $(TOOLS_GOMOD)
+COMMON_MODELS ?= errors resource
 crossplane-local-dev: ensure-kind ensure-helm kind-create crossplane-install
 
 submodules:
@@ -57,13 +58,13 @@ generate-regions-crd:
 	@GO_TOOL="$(GO_TOOL)" ./scripts/generate-go-code.sh \
 		./apis/regions/v1/zz_generated_region.go \
 		./apis/regions/v1/foundation.region.v1.yaml \
-		./apis/generated/regions
+		./apis/generated/regions $(COMMON_MODELS)
 	$(GO_TOOL) -mod=mod sigs.k8s.io/controller-tools/cmd/controller-gen object paths=./apis/regions/v1/; \
 	$(GO_TOOL) -mod=mod sigs.k8s.io/controller-tools/cmd/controller-gen crd paths=./apis/regions/v1/... output:crd:artifacts:config=./apis/generated/regions
 
 .PHONY: generate-commons
 generate-commons:
-	@GO_TOOL="$(GO_TOOL)" ./scripts/generate-common-models.sh
+	@GO_TOOL="$(GO_TOOL)" ./scripts/generate-common-models.sh $(COMMON_MODELS)
 
 .PHONY: create-dev-clusters
 # Sets up one global and one regional cluster for development purposes
