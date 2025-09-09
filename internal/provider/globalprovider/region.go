@@ -77,11 +77,16 @@ func (c *RegionController) GetRegion(ctx context.Context, regionName string) (*r
 			Providers:      providers,
 		},
 		Metadata: &region.GlobalResourceMetadata{
-			CreatedAt: crdRegion.GetCreationTimestamp().Time,
-			Kind:      region.GlobalResourceMetadataKindRegion,
-			Name:      crdRegion.Name,
-			Provider:  ProviderRegionName,
+			CreatedAt:  crdRegion.GetCreationTimestamp().Time,
+			Kind:       region.GlobalResourceMetadataKindRegion,
+			Name:       crdRegion.Name,
+			Provider:   ProviderRegionName,
+			Verb:       "get",
+			ApiVersion: crdRegion.GetResourceVersion(),
 		},
+	}
+	if crdRegion.GetDeletionTimestamp() != nil {
+		sdkRegion.Metadata.DeletedAt = &crdRegion.GetDeletionTimestamp().Time
 	}
 
 	return sdkRegion, nil
@@ -123,11 +128,11 @@ func (c *RegionController) ListRegions(ctx context.Context, params region.ListRe
 		}
 
 		providers := make([]region.Provider, len(crdRegion.Spec.Providers))
-		for i, p := range crdRegion.Spec.Providers {
+		for i, provider := range crdRegion.Spec.Providers {
 			providers[i] = region.Provider{
-				Name:    p.Name,
-				Url:     p.Url,
-				Version: p.Version,
+				Name:    provider.Name,
+				Url:     provider.Url,
+				Version: provider.Version,
 			}
 		}
 
@@ -137,12 +142,16 @@ func (c *RegionController) ListRegions(ctx context.Context, params region.ListRe
 				Providers:      providers,
 			},
 			Metadata: &region.GlobalResourceMetadata{
-				CreatedAt: crdRegion.GetCreationTimestamp().Time,
-				Verb:      "get",
-				Name:      crdRegion.Name,
-				Kind:      region.GlobalResourceMetadataKindRegion,
-				Provider:  ProviderRegionName,
+				CreatedAt:  crdRegion.GetCreationTimestamp().Time,
+				Verb:       "list",
+				Name:       crdRegion.Name,
+				Kind:       region.GlobalResourceMetadataKindRegion,
+				Provider:   ProviderRegionName,
+				ApiVersion: crdRegion.GetResourceVersion(),
 			},
+		}
+		if crdRegion.GetDeletionTimestamp() != nil {
+			sdkRegion.Metadata.DeletedAt = &crdRegion.GetDeletionTimestamp().Time
 		}
 		sdkRegions = append(sdkRegions, sdkRegion)
 	}

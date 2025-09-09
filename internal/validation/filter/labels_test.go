@@ -127,11 +127,11 @@ func TestMatchLabels(t *testing.T) {
 			match, k8sHandled, err := MatchLabels(tc.labels, tc.selector)
 
 			if tc.expectErr {
-				assert.Error(t, err)
+				require.NoError(t, err)
 				assert.False(t, match)
 				assert.False(t, k8sHandled)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, tc.expectMatch, match, "match should match expectMatch")
 				assert.Equal(t, tc.expectK8sHandled, k8sHandled, "k8sHandled should match expectK8sHandled")
 			}
