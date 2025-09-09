@@ -6,9 +6,6 @@
 *.out
 *.log
 
-# Go dependencies
-vendor
-
 # Local binaries and tools
 kind
 bin/
@@ -23,3 +20,4 @@ bin/
 
 # OS-specific files
 .DS_Store
+/vendor/
