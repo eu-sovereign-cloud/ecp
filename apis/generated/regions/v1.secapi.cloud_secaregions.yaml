@@ -4,20 +4,22 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.18.0
-  name: regions.v1.secapi.cloud
+  name: secaregions.v1.secapi.cloud
 spec:
   group: v1.secapi.cloud
   names:
-    kind: Regions
-    listKind: RegionsList
-    plural: regions
-    singular: regions
+    kind: SecaRegion
+    listKind: SecaRegionList
+    plural: secaregions
+    shortNames:
+    - reg
+    singular: secaregion
   scope: Cluster
   versions:
   - name: v1
     schema:
       openAPIV3Schema:
-        description: Regions is the API for getting the regions of a service.
+        description: SecaRegion is the API for getting the regions of a service.
         properties:
           apiVersion:
             description: |-

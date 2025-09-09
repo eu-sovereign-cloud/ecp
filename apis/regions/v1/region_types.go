@@ -5,11 +5,11 @@ import (
 )
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:path=regions,scope=Cluster,singular=regions
+// +kubebuilder:resource:path=secaregions,scope=Cluster,shortName=reg
 // +k8s:openapi-gen=true
 
-// Regions is the API for getting the regions of a service.
-type Regions struct {
+// SecaRegion is the API for getting the regions of a service.
+type SecaRegion struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
@@ -18,9 +18,9 @@ type Regions struct {
 
 // +kubebuilder:object:root=true
 
-type RegionsList struct {
+type SecaRegionList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 
-	Items []RegionSpec `json:"items"`
+	Items []SecaRegion `json:"items"`
 }

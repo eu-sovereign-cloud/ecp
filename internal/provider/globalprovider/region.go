@@ -9,11 +9,11 @@ import (
 	"github.com/eu-sovereign-cloud/go-sdk/secapi"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/rest"
 
 	regionsv1 "github.com/eu-sovereign-cloud/ecp/apis/regions/v1"
 	"github.com/eu-sovereign-cloud/ecp/internal/kubeclient"
+	"github.com/eu-sovereign-cloud/ecp/internal/validation/filter"
 )
 
 const ProviderRegionName = "seca.region/v1"
@@ -40,27 +40,22 @@ func NewController(logger *slog.Logger, cfg *rest.Config) (*RegionController, er
 		return nil, fmt.Errorf("failed to create kubeclient: %w", err)
 	}
 
-	return &RegionController{client: client,
+	return &RegionController{
+		client: client,
 		logger: logger.With(slog.String("component", "RegionController")),
 	}, nil
 }
 
 // GetRegion retrieves a specific region by its ID by fetching the CR from the cluster.
 func (c *RegionController) GetRegion(ctx context.Context, regionName string) (*region.Region, error) {
-	gvr := schema.GroupVersionResource{
-		Group:    regionsv1.Group,
-		Version:  regionsv1.Version,
-		Resource: regionsv1.Resource,
-	}
-
 	// Fetch the Regions custom resource from the Kubernetes API server. Cluster wide.
-	unstructuredObj, err := c.client.Client.Resource(gvr).Get(ctx, regionName, metav1.GetOptions{})
+	unstructuredObj, err := c.client.Client.Resource(regionsv1.GroupVersionResource).Get(ctx, regionName, metav1.GetOptions{})
 	if err != nil {
 		c.logger.ErrorContext(ctx, "failed to get region CR", slog.String("region", regionName), slog.Any("error", err))
 		return nil, fmt.Errorf("failed to retrieve region '%s': %w", regionName, err)
 	}
 
-	var crdRegion regionsv1.Regions
+	var crdRegion regionsv1.SecaRegion
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructuredObj.Object, &crdRegion); err != nil {
 		c.logger.ErrorContext(ctx, "failed to convert unstructured object to Region type", slog.Any("error", err))
 		return nil, fmt.Errorf("failed to convert unstructured object to Region type: %w", err)
@@ -94,28 +89,39 @@ func (c *RegionController) GetRegion(ctx context.Context, regionName string) (*r
 
 // ListRegions retrieves all available regions by listing the CRs from the cluster.
 func (c *RegionController) ListRegions(ctx context.Context, params region.ListRegionsParams) (*secapi.Iterator[region.Region], error) {
-	// Define the GroupVersionResource for the Region CRD.
-
-	gvr := schema.GroupVersionResource{
-		Group:    regionsv1.Group,
-		Version:  regionsv1.Version,
-		Resource: regionsv1.Resource,
+	listOptions := metav1.ListOptions{}
+	rawSelector := ""
+	if params.Labels != nil {
+		rawSelector = *params.Labels
+		// Pass a subset of simple "key=value" selectors to the API for pre-filtering.
+		listOptions.LabelSelector = filter.K8sSelectorForAPI(rawSelector)
 	}
 
-	// Fetch the list of Regions custom resources from the Kubernetes API server.
-	unstructuredList, err := c.client.Client.Resource(gvr).List(ctx, metav1.ListOptions{})
+	unstructuredList, err := c.client.Client.Resource(regionsv1.GroupVersionResource).List(ctx, listOptions)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list region : %w", err)
+		return nil, fmt.Errorf("failed to list region CRs: %w", err)
 	}
 
 	sdkRegions := make([]region.Region, 0, len(unstructuredList.Items))
 	for _, unstructuredObj := range unstructuredList.Items {
-		var crdRegion regionsv1.Regions
+		// Apply the full, custom client-side filter for numeric and wildcards
+		if rawSelector != "" {
+			match, k8sHandled, err := filter.MatchLabels(unstructuredObj.GetLabels(), rawSelector)
+			if err != nil {
+				c.logger.WarnContext(ctx, "skipping resource due to invalid label selector", "error", err, "selector", rawSelector)
+				continue
+			}
+			if !match && !k8sHandled {
+				continue
+			}
+		}
+
+		var crdRegion regionsv1.SecaRegion
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructuredObj.Object, &crdRegion); err != nil {
+			c.logger.ErrorContext(ctx, "failed to convert unstructured object to Region type", slog.Any("error", err))
 			return nil, fmt.Errorf("failed to convert unstructured object to Region type: %w", err)
 		}
 
-		// Convert the CRD spec to the SDK's RegionSpec type.
 		providers := make([]region.Provider, len(crdRegion.Spec.Providers))
 		for i, p := range crdRegion.Spec.Providers {
 			providers[i] = region.Provider{
@@ -142,7 +148,7 @@ func (c *RegionController) ListRegions(ctx context.Context, params region.ListRe
 	}
 
 	regionIterator := secapi.NewIterator(func(ctx context.Context, skipToken *string) ([]region.Region, *string, error) {
-		return sdkRegions, skipToken, nil
+		return sdkRegions, nil, nil
 	})
 	return regionIterator, nil
 }
