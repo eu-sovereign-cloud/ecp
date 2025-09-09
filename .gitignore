@@ -21,3 +21,4 @@ bin/
 # OS-specific files
 .DS_Store
 /vendor/
+/tools/vendor/
