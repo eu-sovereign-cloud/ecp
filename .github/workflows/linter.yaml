@@ -50,6 +50,8 @@ jobs:
           path: .work/pkg
           key: ${{ runner.os }}-pkg-${{ hashFiles('**/go.sum') }}
           restore-keys: ${{ runner.os }}-pkg-
+      - name: Vendor dependencies
+        run: go mod vendor
       - name: Lint
         uses: golangci/golangci-lint-action@v8
         with:
