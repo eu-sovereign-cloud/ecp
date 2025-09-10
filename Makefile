@@ -8,6 +8,10 @@ TOOLS_GOMOD := -modfile=./tools/go.mod
 GO := go
 GO_TOOL := $(GO) run $(TOOLS_GOMOD)
 COMMON_MODELS ?= errors resource
+FOUNDATION_SPECS = $(shell find spec/dist/specs -type f -name 'foundation.*.yaml')
+EXTENSION_SPECS = $(shell find spec/dist/specs -type f -name 'extensions.*.yaml')
+CRD_TYPES = $(shell (find apis -mindepth 1 -maxdepth 1 -type d | grep -v generated | cut -d'/' -f2))
+
 crossplane-local-dev: ensure-kind ensure-helm kind-create crossplane-install
 
 submodules:
@@ -49,17 +53,34 @@ clean-crossplane-dev:
 	kubectl delete secret example-provider-secret --namespace $(CROSSPLANE_NAMESPACE) || true
 	kind delete cluster --name $(KIND_CLUSTER_NAME) || true
 
+# Add $(EXTENSIONS_MODELS) after ensuring the extensions models are defined and generated correctly
+.PHONY: generate-models
+generate-models: $(FOUNDATION_SPECS)
+
+# Currently foundation.network fails due to a naming conflict within the spec
+# To successfully generate the models, parameter network was renamed to networkRef
+.PHONY: $(FOUNDATION_SPECS))
+$(FOUNDATION_SPECS):
+	@GO_TOOL="$(GO_TOOL)" ./scripts/generate-model.sh $@ $(COMMON_MODELS)
+	@echo "--------------------------------"
+
+.PHONY: $(EXTENSION_SPECS)
+$(EXTENSION_SPECS):
+	@GO_TOOL="$(GO_TOOL)" ./scripts/generate-model.sh $@ $(COMMON_MODELS)
+	@echo "--------------------------------"
+
 .PHONY: generate-crds
-generate-crds: generate-regions-crd
+generate-crds: $(CRD_TYPES)
+
+.PHONY: $(CRD_TYPES)
+$(CRD_TYPES):
+	@echo "Generating CRDs for $@"
+	@mkdir -p ./apis/generated/crds/$@
+	@$(GO_TOOL) -mod=mod sigs.k8s.io/controller-tools/cmd/controller-gen crd paths=./apis/$@/v1/... output:crd:artifacts:config=./apis/generated/crds/$@
 
 # Generate CRDs for the regions API from the regions package.
 .PHONY: generate-regions-crd
 generate-regions-crd:
-	@GO_TOOL="$(GO_TOOL)" ./scripts/generate-go-code.sh \
-		./apis/regions/v1/zz_generated_region.go \
-		./apis/regions/v1/foundation.region.v1.yaml \
-		./apis/generated/regions $(COMMON_MODELS)
-	$(GO_TOOL) -mod=mod sigs.k8s.io/controller-tools/cmd/controller-gen object paths=./apis/regions/v1/; \
 	$(GO_TOOL) -mod=mod sigs.k8s.io/controller-tools/cmd/controller-gen crd paths=./apis/regions/v1/... output:crd:artifacts:config=./apis/generated/regions
 
 .PHONY: generate-commons

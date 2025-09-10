@@ -44,27 +44,27 @@ for model in "$@"; do
 
     echo "Generating Go code from bundled OpenAPI spec files for ${model} models..."
 
-    mkdir -p "apis/common/${model}"
+    mkdir -p "apis/generated/types/${model}"
 
     ${GO_TOOL} -mod=mod github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen --generate=types \
         --exclude-schemas="${excluded_schemas}" \
-        -o "apis/common/${model}/zz_generated_${model}.go" -package "${model}" "${out_dir}/${model}-bundled.yaml"
+        -o "apis/generated/types/${model}/zz_generated_${model}.go" -package "${model}" "${out_dir}/${model}-bundled.yaml"
 
     echo -e "${GREEN}✅ Go code generated successfully.${RESET}"
     echo "Replacing time package types with metav1 package time types and fixing map types..."
 
-    sed -i 's/time\.Time/metav1.Time/g' "apis/common/${model}/zz_generated_${model}.go"
-    sed -i 's/map\[string\]interface{}/\*map[string]string/g' "apis/common/${model}/zz_generated_${model}.go"
-    sed -i 's|.*"time".*|	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"|' "apis/common/${model}/zz_generated_${model}.go"
+    sed -i 's/time\.Time/metav1.Time/g' "apis/generated/types/${model}/zz_generated_${model}.go"
+    sed -i 's/map\[string\]interface{}/\*map[string]string/g' "apis/generated/types/${model}/zz_generated_${model}.go"
+    sed -i 's|.*"time".*|	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"|' "apis/generated/types/${model}/zz_generated_${model}.go"
 
     echo -e "${GREEN}✅ Type replacements completed successfully.${RESET}"
 
     echo "Add +kubebuilder:object:root=true annotations to common packages..."
-    sed -i "/^package ${model}/a\// +kubebuilder:object:generate=true" "apis/common/${model}/zz_generated_${model}.go"
+    sed -i "/^package ${model}/a\// +kubebuilder:object:generate=true" "apis/generated/types/${model}/zz_generated_${model}.go"
     echo -e "${GREEN}✅ Annotations added successfully.${RESET}"
 
     echo "Generating DeepCopy methods for common models..."
-    ${GO_TOOL} -mod=mod sigs.k8s.io/controller-tools/cmd/controller-gen object paths="./apis/common/${model}/"
+    ${GO_TOOL} -mod=mod sigs.k8s.io/controller-tools/cmd/controller-gen object paths="./apis/generated/types/${model}/"
 
     echo -e "${GREEN}✅ DeepCopy methods generated successfully.${RESET}"
     echo -e "${GREEN}All tasks completed successfully for ${model} models!${RESET}\n"
