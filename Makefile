@@ -78,11 +78,6 @@ $(CRD_TYPES):
 	@mkdir -p ./apis/generated/crds/$@
 	@$(GO_TOOL) -mod=mod sigs.k8s.io/controller-tools/cmd/controller-gen crd paths=./apis/$@/v1/... output:crd:artifacts:config=./apis/generated/crds/$@
 
-# Generate CRDs for the regions API from the regions package.
-.PHONY: generate-regions-crd
-generate-regions-crd:
-	$(GO_TOOL) -mod=mod sigs.k8s.io/controller-tools/cmd/controller-gen crd paths=./apis/regions/v1/... output:crd:artifacts:config=./apis/generated/regions
-
 .PHONY: generate-commons
 generate-commons:
 	@GO_TOOL="$(GO_TOOL)" ./scripts/generate-common-models.sh $(COMMON_MODELS)
