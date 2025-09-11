@@ -1,9 +1,10 @@
 package v1
 
-import "github.com/eu-sovereign-cloud/ecp/apis/regional"
+import (
+	"github.com/eu-sovereign-cloud/ecp/apis/regional/common"
+)
 
 type StorageSpec struct {
-
 	// Size of the storage in gigabytes
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=10000
@@ -11,5 +12,7 @@ type StorageSpec struct {
 	// SKU of the storage
 	Sku string `json:"sku,omitempty"`
 
-	regional.CommonSpec `json:",inline"`
+	common.Metadata `json:"metadata,omitempty"`
+
+	common.Spec `json:",inline"`
 }
