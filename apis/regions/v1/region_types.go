@@ -1,6 +1,7 @@
 package v1
 
 import (
+	regionv1 "github.com/eu-sovereign-cloud/ecp/apis/generated/types/region/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -13,7 +14,7 @@ type Regions struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec RegionSpec `json:"spec,omitempty"`
+	Spec regionv1.RegionSpec `json:"spec,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -22,5 +23,5 @@ type RegionsList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 
-	Items []RegionSpec `json:"items"`
+	Items []regionv1.RegionSpec `json:"items"`
 }
