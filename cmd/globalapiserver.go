@@ -6,18 +6,17 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"time"
 
 	region "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-
 	"k8s.io/client-go/util/homedir"
 
 	"github.com/eu-sovereign-cloud/ecp/internal/handler"
 	"github.com/eu-sovereign-cloud/ecp/internal/logger"
 	"github.com/eu-sovereign-cloud/ecp/internal/provider/globalprovider"
+	"github.com/eu-sovereign-cloud/ecp/internal/server"
 )
 
 var (
@@ -27,9 +26,10 @@ var (
 )
 
 var globalAPIServerCMD = &cobra.Command{
-	Use:   "globalapiserver",
-	Short: "The API server command starts the global server for the ECP application",
-	Long:  `The API server command starts the global server for the ECP application`,
+	Use:     "globalapiserver",
+	Aliases: []string{"global"},
+	Short:   "The API server command starts the global server for the ECP application",
+	Long:    `The API server command starts the global server for the ECP application`,
 	Run: func(cmd *cobra.Command, args []string) {
 		logger := logger.New(os.Getenv("APP_ENV"))
 		startGlobal(logger, host+":"+port, kubeconfig)
@@ -45,7 +45,7 @@ func init() {
 
 // startGlobal starts the backend HTTP server on the given address.
 func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
-	logger.Info("Starting global API server", slog.Any("addr", addr))
+	logger.Info("Starting global API server on", slog.Any("addr", addr))
 
 	config, err := rest.InClusterConfig()
 	if err != nil {
@@ -53,6 +53,7 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
 		config, err = clientcmd.BuildConfigFromFlags("", kubeconfigPath)
 		if err != nil {
 			logger.Error("failed to build kubeconfig", "path", kubeconfigPath, slog.Any("error", err))
+			log.Fatal(err, " - failed to build kubeconfig")
 		}
 	}
 
@@ -61,25 +62,19 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
 		logger.Error("failed to create global server", slog.Any("error", err))
 		log.Fatal(err, " - failed to create global server")
 	}
-	httpLogger := slog.NewLogLogger(logger.Handler(), slog.LevelInfo)
-	// todo do this separately and use for regional server as well
-	httpServer := &http.Server{
-		Addr:         addr,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 60 * time.Second,
-		IdleTimeout:  60 * time.Second,
-		ErrorLog:     httpLogger,
-	}
+
 	regionalHandler := handler.NewRegionHandler(logger, globalServer)
-	// todo - use HandlerWithOptions and implement validations and processing
-	httpServer.Handler = region.HandlerWithOptions(regionalHandler, region.StdHTTPServerOptions{
+	regionHandler := region.HandlerWithOptions(regionalHandler, region.StdHTTPServerOptions{
 		BaseURL:          "",
 		BaseRouter:       nil,
 		Middlewares:      nil,
 		ErrorHandlerFunc: nil,
 	})
+
+	httpServer := server.NewHTTPServer(addr, regionHandler, logger)
+
 	logger.Info("Global API server started successfully")
-	if err = httpServer.ListenAndServe(); err != nil {
+	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		logger.Error("failed to start global API server", slog.Any("error", err))
 		log.Fatal(err, " - failed to start global API server")
 	}
