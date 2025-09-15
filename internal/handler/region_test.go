@@ -26,11 +26,11 @@ type mockRegionProvider struct {
 	getRegionErr        error
 }
 
-func (m *mockRegionProvider) ListRegions(ctx context.Context, params region.ListRegionsParams) (*secapi.Iterator[region.Region], error) {
+func (m *mockRegionProvider) ListRegions(_ context.Context, _ region.ListRegionsParams) (*secapi.Iterator[region.Region], error) {
 	return m.listRegionsIterator, m.listRegionsErr
 }
 
-func (m *mockRegionProvider) GetRegion(ctx context.Context, name region.ResourceName) (*region.Region, error) {
+func (m *mockRegionProvider) GetRegion(_ context.Context, _ region.ResourceName) (*region.Region, error) {
 	return m.getRegionResult, m.getRegionErr
 }
 
@@ -163,7 +163,7 @@ func TestRegionHandler_GetRegion(t *testing.T) {
 
 		// Assert
 		require.Equal(t, http.StatusInternalServerError, rr.Code)
-		assert.Contains(t, rr.Body.String(), "internal server error for")
+		assert.Contains(t, rr.Body.String(), http.StatusText(http.StatusInternalServerError))
 	})
 	t.Run("not found", func(t *testing.T) {
 		// Arrange

@@ -8,16 +8,18 @@ metadata:
 spec:
   group: v1.secapi.cloud
   names:
-    kind: Regions
-    listKind: RegionsList
+    kind: Region
+    listKind: RegionList
     plural: regions
-    singular: regions
+    shortNames:
+    - reg
+    singular: region
   scope: Cluster
   versions:
   - name: v1
     schema:
       openAPIV3Schema:
-        description: Regions is the API for getting the regions of a service.
+        description: Region is the API for getting the regions of a service.
         properties:
           apiVersion:
             description: |-

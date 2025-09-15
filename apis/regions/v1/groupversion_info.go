@@ -23,12 +23,12 @@ var (
 	// GroupVersion is group version used to register these objects
 	GroupVersion = schema.GroupVersion{Group: Group, Version: Version}
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
-	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
-
+	SchemeBuilder        = &scheme.Builder{GroupVersion: GroupVersion}
+	GroupVersionResource = schema.GroupVersionResource{Group: Group, Version: Version, Resource: Resource}
 	// AddToScheme adds the types in this group-version to the given scheme.
 	AddToScheme = SchemeBuilder.AddToScheme
 )
 
 func init() {
-	SchemeBuilder.Register(&Regions{}, &RegionsList{})
+	SchemeBuilder.Register(&Region{}, &RegionList{})
 }

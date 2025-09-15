@@ -2,10 +2,12 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 
-	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1" //nolint:goimports
+	authv1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.authorization.v1"
+	regionv1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/eu-sovereign-cloud/ecp/internal/provider/globalprovider"
@@ -23,7 +25,7 @@ func NewRegionHandler(logger *slog.Logger, p globalprovider.RegionProvider) *Reg
 }
 
 // ListRegions handles requests to list all available regions.
-func (h *RegionHandler) ListRegions(w http.ResponseWriter, r *http.Request, params region.ListRegionsParams) {
+func (h *RegionHandler) ListRegions(w http.ResponseWriter, r *http.Request, params regionv1.ListRegionsParams) {
 
 	iterator, err := h.provider.ListRegions(r.Context(), params)
 	if err != nil {
@@ -32,14 +34,14 @@ func (h *RegionHandler) ListRegions(w http.ResponseWriter, r *http.Request, para
 		return
 	}
 
-	var regions []*region.Region
+	var regions []*regionv1.Region
 	if regions, err = iterator.All(r.Context()); err != nil {
 		h.logger.ErrorContext(r.Context(), "failed to retrieve all regions", slog.Any("error", err))
 		http.Error(w, "failed to retrieve all regions: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", string(authv1.Applicationjson))
 	w.WriteHeader(http.StatusOK)
 	err = json.NewEncoder(w).Encode(regions)
 	if err != nil {
@@ -50,28 +52,28 @@ func (h *RegionHandler) ListRegions(w http.ResponseWriter, r *http.Request, para
 }
 
 // GetRegion handles requests to get a specific region by name.
-func (h *RegionHandler) GetRegion(w http.ResponseWriter, r *http.Request, name region.ResourceName) {
+func (h *RegionHandler) GetRegion(w http.ResponseWriter, r *http.Request, name regionv1.ResourceName) {
 	reg, err := h.provider.GetRegion(r.Context(), name)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			h.logger.InfoContext(r.Context(), "region not found", slog.String("region", name))
-			http.Error(w, "region not found", http.StatusNotFound)
+			http.Error(w, fmt.Sprintf("region (%s) not found", name), http.StatusNotFound)
 			return
 		}
 
 		// For all other errors (e.g., connection issues, CRD not registered),
 		// log the error and return a 500 Internal Server Error.
 		h.logger.ErrorContext(r.Context(), "failed to get region", slog.String("region", name), slog.Any("error", err))
-		http.Error(w, "internal server error for ", http.StatusInternalServerError)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", string(authv1.Applicationjson))
 	w.WriteHeader(http.StatusOK)
 	err = json.NewEncoder(w).Encode(reg)
 	if err != nil {
 		h.logger.ErrorContext(r.Context(), "failed to encode region", slog.Any("error", err))
-		http.Error(w, "failed to encode region: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 }

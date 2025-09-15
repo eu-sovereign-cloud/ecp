@@ -82,6 +82,12 @@ $(CRD_TYPES):
 generate-commons:
 	@GO_TOOL="$(GO_TOOL)" ./scripts/generate-common-models.sh $(COMMON_MODELS)
 
+.PHONY: generate-objects
+generate-objects:
+	@echo "Generating deepcopy functions..."
+	@$(GO_TOOL) -mod=mod sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=".github/boilerplate.go.txt" paths="./apis/..."
+
+
 .PHONY: create-dev-clusters
 # Sets up one global and one regional cluster for development purposes
 create-dev-clusters: docker-build-images
