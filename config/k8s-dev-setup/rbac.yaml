@@ -3,8 +3,8 @@ kind: ClusterRole
 metadata:
   name: region-reader
 rules:
-  - apiGroups: ["secaregion.secapi.eu.io"]
-    resources: ["secaregion"]
+  - apiGroups: ["region.secapi.eu.io"]
+    resources: ["region"]
     verbs: ["get", "list", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1

@@ -15,7 +15,7 @@ const (
 	// Version is the version of the API
 	Version = "v1"
 	// Resource is the resource name for regions
-	Resource = "secaregions"
+	Resource = "regions"
 )
 
 var (
@@ -30,5 +30,5 @@ var (
 )
 
 func init() {
-	SchemeBuilder.Register(&SecaRegion{}, &SecaRegionList{})
+	SchemeBuilder.Register(&Region{}, &RegionList{})
 }

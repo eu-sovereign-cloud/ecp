@@ -55,7 +55,7 @@ func (c *RegionController) GetRegion(ctx context.Context, regionName string) (*r
 		return nil, fmt.Errorf("failed to retrieve region '%s': %w", regionName, err)
 	}
 
-	var crdRegion regionsv1.SecaRegion
+	var crdRegion regionsv1.Region
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructuredObj.Object, &crdRegion); err != nil {
 		c.logger.ErrorContext(ctx, "failed to convert unstructured object to Region type", slog.Any("error", err))
 		return nil, fmt.Errorf("failed to convert unstructured object to Region type: %w", err)
@@ -121,7 +121,7 @@ func (c *RegionController) ListRegions(ctx context.Context, params region.ListRe
 			}
 		}
 
-		var crdRegion regionsv1.SecaRegion
+		var crdRegion regionsv1.Region
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructuredObj.Object, &crdRegion); err != nil {
 			c.logger.ErrorContext(ctx, "failed to convert unstructured object to Region type", slog.Any("error", err))
 			return nil, fmt.Errorf("failed to convert unstructured object to Region type: %w", err)

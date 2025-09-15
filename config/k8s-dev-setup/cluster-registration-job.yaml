@@ -1,0 +1,106 @@
+# cluster-registration-job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: register-to-global-cluster
+  namespace: kube-system
+spec:
+  template:
+    spec:
+      serviceAccountName: cluster-registration-sa
+      containers:
+        - name: registration-client
+          image: bitnami/kubectl:latest
+          command:
+            - "/bin/sh"
+            - "-c"
+            - |
+              set -e
+              echo "Starting registration process..."
+              
+              # 1. Discover a node IP in the regional cluster.
+              # This gets an internal IP. For external access, you might need 'ExternalIP'.
+              NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
+              if [ -z "$NODE_IP" ]; then
+                echo "Error: Could not determine a node IP." >&2
+                exit 1
+              fi
+              echo "Discovered Node IP: $NODE_IP"
+              
+              # 2. Discover the NodePort of the regional-server-svc.
+              # Assumes the service is in the 'default' namespace.
+              NODE_PORT=$(kubectl get svc regional-server-svc -n default -o jsonpath='{.spec.ports[0].nodePort}')
+              if [ -z "$NODE_PORT" ]; then
+                echo "Error: Could not determine NodePort for regional-server-svc." >&2
+                exit 1
+              fi
+              echo "Discovered NodePort: $NODE_PORT"
+              
+              # 3. Construct the full endpoint URL.
+              # The service port is 80, so we assume http.
+              export REGIONAL_API_ENDPOINT="http://${NODE_IP}:${NODE_PORT}"
+              echo "Constructed Regional API Endpoint: $REGIONAL_API_ENDPOINT"
+              
+              # 4. Prepare the Region CR manifest.
+              cat <<EOF > /tmp/region.yaml
+              apiVersion: cluster.example.com/v1alpha1
+              kind: Region
+              metadata:
+                name: "${REGION_NAME}"
+              spec:
+                name: "${REGION_NAME}"
+                provider: "${REGION_PROVIDER}"
+                apiEndpoint: "${REGIONAL_API_ENDPOINT}"
+              EOF
+              
+              echo "--- Applying the following Region CR to the global cluster ---"
+              cat /tmp/region.yaml
+              echo "-------------------------------------------------------------"
+              
+              # 5. Apply the manifest to the global cluster.
+              kubectl --kubeconfig /etc/kubeconfig/global/kubeconfig apply -f /tmp/region.yaml
+              echo "Registration job completed successfully."
+
+          env:
+            - name: REGION_NAME
+              value: "my-regional-cluster" # Customize this value
+            - name: REGION_PROVIDER
+              value: "my-provider" # Customize this value
+          volumeMounts:
+            - name: global-kubeconfig-volume
+              mountPath: "/etc/kubeconfig/global"
+              readOnly: true
+      volumes:
+        - name: global-kubeconfig-volume
+          secret:
+            secretName: global-cluster-kubeconfig
+      restartPolicy: OnFailure
+---
+# --- RBAC for the Job to read Node and Service info in the regional cluster ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cluster-registration-sa
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: node-service-reader
+rules:
+  - apiGroups: [""]
+    resources: ["nodes", "services"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: registration-sa-reader
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: node-service-reader
+subjects:
+  - kind: ServiceAccount
+    name: cluster-registration-sa
+    namespace: kube-system

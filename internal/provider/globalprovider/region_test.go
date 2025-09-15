@@ -14,8 +14,8 @@ import (
 
 	sdkregion "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
 
+	generatedv1 "github.com/eu-sovereign-cloud/ecp/apis/generated/types/region/v1"
 	regionsv1 "github.com/eu-sovereign-cloud/ecp/apis/regions/v1"
-
 	"github.com/eu-sovereign-cloud/ecp/internal/kubeclient"
 )
 
@@ -133,8 +133,8 @@ type providerSpec struct {
 	Name, Url, Version string
 }
 
-func newRegionCR(name string, labels map[string]string, az []string, providers []providerSpec) *regionsv1.SecaRegion {
-	cr := &regionsv1.SecaRegion{
+func newRegionCR(name string, labels map[string]string, az []string, providers []providerSpec) *regionsv1.Region {
+	cr := &regionsv1.Region{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Regions",
 			APIVersion: regionsv1.Group + "/" + regionsv1.Version,
@@ -147,13 +147,13 @@ func newRegionCR(name string, labels map[string]string, az []string, providers [
 				Time: time.Unix(1700000000, 0),
 			},
 		},
-		Spec: regionsv1.RegionSpec{
+		Spec: generatedv1.RegionSpec{
 			AvailableZones: az,
-			Providers:      make([]regionsv1.Provider, len(providers)),
+			Providers:      make([]generatedv1.Provider, len(providers)),
 		},
 	}
 	for i, p := range providers {
-		cr.Spec.Providers[i] = regionsv1.Provider{
+		cr.Spec.Providers[i] = generatedv1.Provider{
 			Name:    p.Name,
 			Url:     p.Url,
 			Version: p.Version,
