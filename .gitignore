@@ -11,14 +11,13 @@ kind
 bin/
 
 # IDE-specific files
-.idea
-.kind
-.work
-.cache
-.public
-.vscode
+/.kind/
+/.work/
+/.cache/
+/.public/
+/.vscode/
+/.idea/
 
-# OS-specific files
 .DS_Store
 /vendor/
 /tools/vendor/
