@@ -172,17 +172,17 @@ type LabelSelector = string
 // LimitParam defines model for limitParam.
 type LimitParam = int
 
-// ResourceName defines model for resourceName.
-type ResourceName = string
+// ResourcePathParam defines model for resourcePathParam.
+type ResourcePathParam = string
 
 // SkipTokenParam defines model for skipTokenParam.
 type SkipTokenParam = string
 
-// Tenant defines model for tenant.
-type Tenant = string
+// TenantPathParam defines model for tenantPathParam.
+type TenantPathParam = string
 
-// Workspace defines model for workspace.
-type Workspace = string
+// WorkspacePathParam defines model for workspacePathParam.
+type WorkspacePathParam = string
 
 // ListSkusParams defines parameters for ListSkus.
 type ListSkusParams struct {

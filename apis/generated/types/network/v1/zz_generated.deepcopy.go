@@ -1384,7 +1384,7 @@ func (in *RouteTable) DeepCopyInto(out *RouteTable) {
 	}
 	if in.Metadata != nil {
 		in, out := &in.Metadata, &out.Metadata
-		*out = new(resource.RegionalResourceMetadata)
+		*out = new(resource.NetworkRegionalResourceMetadata)
 		(*in).DeepCopyInto(*out)
 	}
 	in.Spec.DeepCopyInto(&out.Spec)
@@ -1748,7 +1748,7 @@ func (in *Subnet) DeepCopyInto(out *Subnet) {
 	}
 	if in.Metadata != nil {
 		in, out := &in.Metadata, &out.Metadata
-		*out = new(resource.ZonalResourceMetadata)
+		*out = new(resource.NetworkZonalResourceMetadata)
 		(*in).DeepCopyInto(*out)
 	}
 	in.Spec.DeepCopyInto(&out.Spec)

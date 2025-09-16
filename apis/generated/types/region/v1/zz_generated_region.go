@@ -70,8 +70,8 @@ type LabelSelector = string
 // LimitParam defines model for limitParam.
 type LimitParam = int
 
-// ResourceName defines model for resourceName.
-type ResourceName = string
+// ResourcePathParam defines model for resourcePathParam.
+type ResourcePathParam = string
 
 // SkipTokenParam defines model for skipTokenParam.
 type SkipTokenParam = string

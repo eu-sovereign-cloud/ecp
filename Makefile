@@ -8,9 +8,9 @@ TOOLS_GOMOD := -modfile=./tools/go.mod
 GO := go
 GO_TOOL := $(GO) run $(TOOLS_GOMOD)
 COMMON_MODELS ?= errors resource
-FOUNDATION_SPECS = $(shell find spec/dist/specs -type f -name 'foundation.*.yaml')
-EXTENSION_SPECS = $(shell find spec/dist/specs -type f -name 'extensions.*.yaml')
-CRD_TYPES = $(shell (find apis -mindepth 1 -maxdepth 1 -type d | grep -v generated | cut -d'/' -f2))
+FOUNDATION_SPECS := $(shell find spec/dist/specs -type f -name 'foundation.*.yaml')
+EXTENSION_SPECS := $(shell find spec/dist/specs -type f -name 'extensions.*.yaml')
+CRD_TYPES := $(shell (find apis -mindepth 1 -maxdepth 1 -type d | grep -v generated | cut -d'/' -f2))
 
 crossplane-local-dev: ensure-kind ensure-helm kind-create crossplane-install
 
@@ -57,9 +57,7 @@ clean-crossplane-dev:
 .PHONY: generate-models
 generate-models: $(FOUNDATION_SPECS)
 
-# Currently foundation.network fails due to a naming conflict within the spec
-# To successfully generate the models, parameter network was renamed to networkRef
-.PHONY: $(FOUNDATION_SPECS))
+.PHONY: $(FOUNDATION_SPECS)
 $(FOUNDATION_SPECS):
 	@GO_TOOL="$(GO_TOOL)" ./scripts/generate-model.sh $@ $(COMMON_MODELS)
 	@echo "--------------------------------"

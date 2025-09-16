@@ -523,8 +523,8 @@ type RouteTable struct {
 	// The number of labels is eventually limited by the CSP.
 	Labels *map[string]string `json:"labels,omitempty"`
 
-	// Metadata Metadata for regional resources with name, permission, modification, type, tenant, and region information.
-	Metadata *resource.RegionalResourceMetadata `json:"metadata,omitempty"`
+	// Metadata Metadata for network regional resources with name, permission, modification, type, tenant, network and region information.
+	Metadata *resource.NetworkRegionalResourceMetadata `json:"metadata,omitempty"`
 
 	// Spec The RouteTableSpec defines the routes that are associated with the route table.
 	Spec RouteTableSpec `json:"spec"`
@@ -687,8 +687,8 @@ type Subnet struct {
 	// The number of labels is eventually limited by the CSP.
 	Labels *map[string]string `json:"labels,omitempty"`
 
-	// Metadata Metadata for zonal resources with name, permission, modification, type, tenant, region, and zone information.
-	Metadata *resource.ZonalResourceMetadata `json:"metadata,omitempty"`
+	// Metadata Metadata for network zonal resources with name, permission, modification, type, tenant, network, region, and zone information.
+	Metadata *resource.NetworkZonalResourceMetadata `json:"metadata,omitempty"`
 
 	// Spec Detailed specification of the subnet. Automatic address
 	// assignment is supported, similar to the network configuration. The
@@ -800,20 +800,20 @@ type LabelSelector = string
 // LimitParam defines model for limitParam.
 type LimitParam = int
 
-// NetworkRef defines model for networkRef.
-type NetworkRef = string
+// NetworkPathParam defines model for networkPathParam.
+type NetworkPathParam = string
 
-// ResourceName defines model for resourceName.
-type ResourceName = string
+// ResourcePathParam defines model for resourcePathParam.
+type ResourcePathParam = string
 
 // SkipTokenParam defines model for skipTokenParam.
 type SkipTokenParam = string
 
-// Tenant defines model for tenant.
-type Tenant = string
+// TenantPathParam defines model for tenantPathParam.
+type TenantPathParam = string
 
-// Workspace defines model for workspace.
-type Workspace = string
+// WorkspacePathParam defines model for workspacePathParam.
+type WorkspacePathParam = string
 
 // ListSkusParams defines parameters for ListSkus.
 type ListSkusParams struct {
