@@ -19,6 +19,8 @@ import (
 // Storage is the Schema for the storages API. It represents a composite resource.
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:scope=Cluster,categories={crossplane,managed,secapi.eu}
+// +crossbuilder:generate:xrd:claimNames:kind=Storage,plural=Storages
+
 type Storage struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
