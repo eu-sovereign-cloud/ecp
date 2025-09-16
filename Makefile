@@ -8,7 +8,8 @@ TOOLS_GOMOD := -modfile=./tools/go.mod
 GO := go
 GO_TOOL := $(GO) run $(TOOLS_GOMOD)
 COMMON_MODELS ?= errors resource
-FOUNDATION_SPECS := $(shell find spec/dist/specs -type f -name 'foundation.*.yaml')
+# Ignore network specs due to issues with deep-copy generation
+FOUNDATION_SPECS := $(shell find spec/dist/specs -type f -name 'foundation.*.yaml' | grep -v 'network')
 EXTENSION_SPECS := $(shell find spec/dist/specs -type f -name 'extensions.*.yaml')
 CRD_TYPES := $(shell (find apis -mindepth 1 -maxdepth 1 -type d | grep -v generated | cut -d'/' -f2))
 
