@@ -99,7 +99,6 @@ echo -e "${GREEN}✅ Annotations added successfully.${RESET}\n"
 
 echo "Generating DeepCopy methods for ${API_NAME} models..."
 ${GO_TOOL} -mod=mod sigs.k8s.io/controller-tools/cmd/controller-gen object paths="${OUTPUT_DIR}"
-	Test resource.ModificationMetadata `json:"test"`
 
 echo -e "${GREEN}✅ DeepCopy methods generated successfully.${RESET}"
 echo -e "${GREEN}✅ All tasks completed successfully for ${API_NAME} ${API_VERSION} models!${RESET}\n"
