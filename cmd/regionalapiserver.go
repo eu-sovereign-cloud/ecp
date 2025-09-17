@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"time"
 
 	compute "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.compute.v1"
 	"github.com/spf13/cobra"
@@ -37,11 +38,21 @@ func init() {
 
 func startRegional(logger *slog.Logger, addr string) {
 	computeHandler := handler.NewComputeHandler(regionalprovider.ComputeServer{})
-	regionHandler := compute.HandlerFromMuxWithBaseURL(computeHandler, nil, "")
 
 	logger.Info("Starting API server on", "addr", addr)
-	if err := http.ListenAndServe(addr, regionHandler); err != nil {
-		logger.Error("failed to start regional API server", "error", err)
-		log.Fatal(err, " - failed to start regional API server")
+	httpLogger := slog.NewLogLogger(logger.Handler(), slog.LevelInfo)
+	// todo do this separately and use for server as well
+	httpServer := &http.Server{
+		Addr:         addr,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 60 * time.Second,
+		IdleTimeout:  60 * time.Second,
+		ErrorLog:     httpLogger,
+		Handler:      compute.HandlerFromMuxWithBaseURL(computeHandler, nil, ""),
+	}
+
+	if err := httpServer.ListenAndServe(); err != nil {
+		logger.Error("failed to start global API server", slog.Any("error", err))
+		log.Fatal(err, " - failed to start global API server")
 	}
 }
