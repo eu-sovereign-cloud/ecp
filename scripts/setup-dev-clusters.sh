@@ -111,7 +111,6 @@ apiVersion: v1.secapi.cloud/v1
 kind: Region
 metadata:
   name: "${REGION_NAME}"
-  namespace: default
 spec:
   availableZones:
     - "${REGION_NAME}-a"
