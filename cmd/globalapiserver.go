@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/eu-sovereign-cloud/ecp/internal/httpserver"
 	region "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/rest"
@@ -16,7 +17,6 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/internal/handler"
 	"github.com/eu-sovereign-cloud/ecp/internal/logger"
 	"github.com/eu-sovereign-cloud/ecp/internal/provider/globalprovider"
-	"github.com/eu-sovereign-cloud/ecp/internal/server"
 )
 
 var (
@@ -71,7 +71,11 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
 		ErrorHandlerFunc: nil,
 	})
 
-	httpServer := server.NewHTTPServer(addr, regionHandler, logger)
+	httpServer := httpserver.New(httpserver.Options{
+		Addr:    addr,
+		Handler: regionHandler,
+		Logger:  logger,
+	})
 
 	logger.Info("Global API server started successfully")
 	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {

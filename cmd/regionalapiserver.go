@@ -6,13 +6,13 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/eu-sovereign-cloud/ecp/internal/httpserver"
 	compute "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.compute.v1"
 	"github.com/spf13/cobra"
 
 	"github.com/eu-sovereign-cloud/ecp/internal/handler"
 	"github.com/eu-sovereign-cloud/ecp/internal/logger"
 	"github.com/eu-sovereign-cloud/ecp/internal/provider/regionalprovider"
-	"github.com/eu-sovereign-cloud/ecp/internal/server"
 )
 
 var (
@@ -44,7 +44,12 @@ func startRegional(logger *slog.Logger, addr string) {
 
 	logger.Info("Starting regional API server on", "addr", addr)
 
-	httpServer := server.NewHTTPServer(addr, regionHandler, logger)
+	httpServer := httpserver.New(httpserver.Options{
+		Addr:    addr,
+		Handler: regionHandler,
+		Logger:  logger,
+	})
+
 	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		logger.Error("failed to start regional API server", "error", err)
 		log.Fatal(err, " - failed to start regional API server")
