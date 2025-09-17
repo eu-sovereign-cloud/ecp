@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/gobwas/glob"
 )
 
 var (
@@ -13,14 +15,18 @@ var (
 )
 
 type compiledLabelFilter struct {
-	key, value string
-	op         string
-	numValue   float64
-	isNumeric  bool
+	key, value       string
+	op               string
+	numValue         float64
+	isNumeric        bool
+	hasKeyWildcard   bool
+	hasValueWildcard bool
+	keyGlob          glob.Glob
+	valueGlob        glob.Glob
 }
 
 // K8sSelectorForAPI extracts a subset of label selectors that are safe to pass to the Kubernetes API.
-// It only includes selectors (=, ==, != and set selectors) and ignores numeric and wildcard ones.
+// It only includes selectors (=, ==, != and set selectors) and ignores numeric and * ones.
 func K8sSelectorForAPI(rawSelector string) string {
 	if rawSelector == "" {
 		return ""
@@ -48,7 +54,7 @@ func MatchLabels(labels map[string]string, rawSelector string) (matched bool, k8
 	if err != nil {
 		return false, false, err
 	}
-	if len(filters) == 0 {
+	if len(filters) == 0 { // Only K8s-handled selectors remained
 		return false, true, nil
 	}
 
@@ -94,18 +100,30 @@ func compileSelector(sel string) ([]compiledLabelFilter, error) {
 				cf.numValue = num
 			}
 		}
+
+		// Precompile globs for wildcard keys (any op) and values (equality op only)
+		if strings.Contains(cf.key, "*") {
+			cf.hasKeyWildcard = true
+			cf.keyGlob = glob.MustCompile(cf.key)
+		}
+		if !cf.isNumeric && cf.op == "=" && strings.Contains(cf.value, "*") {
+			cf.hasValueWildcard = true
+			cf.valueGlob = glob.MustCompile(cf.value)
+		}
+
 		filters = append(filters, cf)
 	}
 	return filters, nil
 }
 
 func matchFilter(labels map[string]string, compiledLabel compiledLabelFilter) bool {
-	hasKeyWildcard := strings.Contains(compiledLabel.key, "*")
-	hasValueWildcard := strings.Contains(compiledLabel.value, "*")
-
-	// Handle numeric and wildcard comparisons
 	for labelKey, labelValue := range labels {
-		keyMatch := (hasKeyWildcard && wildcardMatch(compiledLabel.key, labelKey)) || (!hasKeyWildcard && compiledLabel.key == labelKey)
+		var keyMatch bool
+		if compiledLabel.hasKeyWildcard {
+			keyMatch = compiledLabel.keyGlob.Match(labelKey)
+		} else {
+			keyMatch = compiledLabel.key == labelKey
+		}
 		if !keyMatch {
 			continue
 		}
@@ -118,15 +136,18 @@ func matchFilter(labels map[string]string, compiledLabel compiledLabelFilter) bo
 			if evaluateNumericComparison(compiledLabel, labelVal) {
 				return true
 			}
-		}
-		if compiledLabel.op == "=" {
-			valMatch := hasValueWildcard && wildcardMatch(compiledLabel.value, labelValue) || (!hasValueWildcard && compiledLabel.value == labelValue)
+		} else if compiledLabel.op == "=" { // Equality or wildcard equality
+			var valMatch bool
+			if compiledLabel.hasValueWildcard {
+				valMatch = compiledLabel.valueGlob.Match(labelValue)
+			} else {
+				valMatch = compiledLabel.value == labelValue
+			}
 			if valMatch {
 				return true
 			}
 		}
 	}
-
 	return false
 }
 
@@ -150,37 +171,4 @@ func evaluateNumericComparison(compiledLabel compiledLabelFilter, value float64)
 		}
 	}
 	return false
-}
-
-func wildcardMatch(pattern, s string) bool {
-	if pattern == "*" {
-		return true
-	}
-	if !strings.Contains(pattern, "*") {
-		return pattern == s
-	}
-
-	parts := strings.Split(pattern, "*")
-	lastIndex := -1
-	for i, part := range parts {
-		if part == "" {
-			continue
-		}
-		index := strings.Index(s[lastIndex+1:], part)
-		if index == -1 {
-			return false
-		}
-		index += lastIndex + 1
-
-		if i == 0 && index != 0 && pattern[0] != '*' {
-			return false
-		}
-		if i == len(parts)-1 && pattern[len(pattern)-1] != '*' {
-			if index+len(part) != len(s) {
-				return false
-			}
-		}
-		lastIndex = index
-	}
-	return true
 }

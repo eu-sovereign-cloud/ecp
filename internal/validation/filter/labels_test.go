@@ -184,34 +184,3 @@ func TestK8sSelectorForAPI(t *testing.T) {
 		})
 	}
 }
-
-func TestWildcardMatch(t *testing.T) {
-	testCases := []struct {
-		name     string
-		pattern  string
-		s        string
-		expected bool
-	}{
-		{"exact match", "abc", "abc", true},
-		{"exact mismatch", "abc", "def", false},
-		{"star only", "*", "anything", true},
-		{"prefix match", "a*", "abc", true},
-		{"prefix mismatch", "b*", "abc", false},
-		{"suffix match", "*c", "abc", true},
-		{"suffix mismatch", "*d", "abc", false},
-		{"substring match", "*b*", "abc", true},
-		{"substring mismatch", "*d*", "abc", false},
-		{"multiple wildcards", "a*c*e", "abracadabra-e", true},
-		{"multiple wildcards mismatch", "a*c*f", "abracadabra-e", false},
-		{"no leading wildcard requires prefix match", "ab", "abc", false},
-		{"no trailing wildcard requires suffix match", "bc", "abc", false},
-		{"pattern longer than string", "abcd", "abc", false},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			result := wildcardMatch(tc.pattern, tc.s)
-			require.Equal(t, tc.expected, result)
-		})
-	}
-}

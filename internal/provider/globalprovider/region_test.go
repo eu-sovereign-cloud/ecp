@@ -57,6 +57,8 @@ func TestRegionController_ListRegions(t *testing.T) {
 	k8sSetBased := "tier in (prod)"
 	k8sSetBasedAndEquality := "tier in (prod),env=staging"
 	invalid := "tier=+=prod" // Intentionally invalid ('=+='); filter.MatchLabels should error -> all skipped.
+	wildcard := "env=stag*"
+	wildcardKeyAndValue := "t*r=pr*d"
 
 	tests := []tc{
 		{
@@ -103,6 +105,16 @@ func TestRegionController_ListRegions(t *testing.T) {
 			name:      "k8s_set_based_and_equality_selector",
 			selector:  &k8sSetBasedAndEquality,
 			wantNames: []string{regionCName},
+		},
+		{
+			name:      "wildcard_env_prefix",
+			selector:  &wildcard,
+			wantNames: []string{regionBName, regionCName},
+		},
+		{
+			name:      "wildcard_in_key_and_value",
+			selector:  &wildcardKeyAndValue,
+			wantNames: []string{regionAName, regionCName},
 		},
 	}
 

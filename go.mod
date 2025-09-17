@@ -5,6 +5,7 @@ go 1.24.5
 require (
 	github.com/crossplane/crossplane-tools v0.0.0-20250731192036-00d407d8b7ec
 	github.com/eu-sovereign-cloud/go-sdk v0.1.7
+	github.com/gobwas/glob v0.2.3
 	github.com/oapi-codegen/runtime v1.1.2
 	github.com/spf13/cobra v1.10.1
 	github.com/stretchr/testify v1.11.1
