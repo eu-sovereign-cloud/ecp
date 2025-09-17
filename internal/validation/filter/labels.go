@@ -54,7 +54,7 @@ func MatchLabels(labels map[string]string, rawSelector string) (matched bool, k8
 	if err != nil {
 		return false, false, err
 	}
-	if len(filters) == 0 { // Only K8s-handled selectors remained
+	if len(filters) == 0 { // keep only K8s-compatible selectors
 		return false, true, nil
 	}
 
@@ -135,7 +135,8 @@ func matchFilter(labels map[string]string, compiledLabel compiledLabelFilter) bo
 			if evaluateNumericComparison(compiledLabel, labelVal) {
 				return true
 			}
-		} else if compiledLabel.op == "=" { // Equality or wildcard equality
+		}
+		if compiledLabel.op == "=" { // Equality or wildcard equality
 			var valMatch bool
 			if compiledLabel.hasValueWildcard {
 				valMatch = compiledLabel.valueGlob.Match(labelValue)
