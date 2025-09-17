@@ -93,7 +93,6 @@ func compileSelector(sel string) ([]compiledLabelFilter, error) {
 			value: strings.TrimSpace(submatch[3]),
 			op:    op,
 		}
-
 		if num, err := strconv.ParseFloat(cf.value, 64); err == nil {
 			if cf.op == ">" || cf.op == "<" || cf.op == ">=" || cf.op == "<=" {
 				cf.isNumeric = true
