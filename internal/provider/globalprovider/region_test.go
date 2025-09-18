@@ -158,6 +158,7 @@ func newRegionCR(name string, labels map[string]string, az []string, providers [
 			CreationTimestamp: metav1.Time{
 				Time: time.Unix(1700000000, 0),
 			},
+			ResourceVersion: "1",
 		},
 		Spec: generatedv1.RegionSpec{
 			AvailableZones: az,
@@ -187,10 +188,3 @@ func toUnstructured(t *testing.T, scheme *runtime.Scheme, obj runtime.Object) *u
 	u.SetGroupVersionKind(gvk)
 	return u
 }
-
-// Ensure the GVR used in tests matches code under test (sanity check).
-var _ = func() interface{} {
-	expected := regionsv1.GroupVersionResource
-	_ = expected
-	return nil
-}()

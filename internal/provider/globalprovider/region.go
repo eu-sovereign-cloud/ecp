@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strconv"
 
 	region "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
 	"github.com/eu-sovereign-cloud/go-sdk/secapi"
@@ -61,35 +62,14 @@ func (c *RegionController) GetRegion(ctx context.Context, regionName string) (*r
 		return nil, fmt.Errorf("failed to convert unstructured object to Region type: %w", err)
 	}
 
-	// Convert the CRD spec to the SDK's RegionSpec type.
-	providers := make([]region.Provider, len(crdRegion.Spec.Providers))
-	for i, p := range crdRegion.Spec.Providers {
-		providers[i] = region.Provider{
-			Name:    p.Name,
-			Url:     p.Url,
-			Version: p.Version,
-		}
+	// Convert the CR spec to the SDK's RegionSpec type.
+	sdkRegion, err := fromCRToSDKRegion(crdRegion, "get")
+	if err != nil {
+		c.logger.ErrorContext(ctx, "failed to convert CR to SDK region", slog.Any("error", err))
+		return nil, fmt.Errorf("failed to convert CR to SDK region: %w", err)
 	}
 
-	sdkRegion := &region.Region{
-		Spec: region.RegionSpec{
-			AvailableZones: crdRegion.Spec.AvailableZones,
-			Providers:      providers,
-		},
-		Metadata: &region.GlobalResourceMetadata{
-			CreatedAt:  crdRegion.GetCreationTimestamp().Time,
-			Kind:       region.GlobalResourceMetadataKindRegion,
-			Name:       crdRegion.Name,
-			Provider:   ProviderRegionName,
-			Verb:       "get",
-			ApiVersion: crdRegion.GetResourceVersion(),
-		},
-	}
-	if crdRegion.GetDeletionTimestamp() != nil {
-		sdkRegion.Metadata.DeletedAt = &crdRegion.GetDeletionTimestamp().Time
-	}
-
-	return sdkRegion, nil
+	return &sdkRegion, nil
 }
 
 // ListRegions retrieves all available regions by listing the CRs from the cluster.
@@ -127,31 +107,42 @@ func (c *RegionController) ListRegions(ctx context.Context, params region.ListRe
 			return nil, fmt.Errorf("failed to convert unstructured object to Region type: %w", err)
 		}
 
-		providers := make([]region.Provider, len(crdRegion.Spec.Providers))
-		for i, provider := range crdRegion.Spec.Providers {
-			providers[i] = region.Provider{
-				Name:    provider.Name,
-				Url:     provider.Url,
-				Version: provider.Version,
-			}
-		}
-
-		sdkRegion := region.Region{
-			Spec: region.RegionSpec{
-				AvailableZones: crdRegion.Spec.AvailableZones,
-				Providers:      providers,
-			},
-			Metadata: &region.GlobalResourceMetadata{
-				CreatedAt:  crdRegion.GetCreationTimestamp().Time,
-				Verb:       "list",
-				Name:       crdRegion.Name,
-				Kind:       region.GlobalResourceMetadataKindRegion,
-				Provider:   ProviderRegionName,
-				ApiVersion: crdRegion.GetResourceVersion(),
-			},
-		}
-		if crdRegion.GetDeletionTimestamp() != nil {
-			sdkRegion.Metadata.DeletedAt = &crdRegion.GetDeletionTimestamp().Time
+		// providers := make([]region.Provider, len(crdRegion.Spec.Providers))
+		// for i, provider := range crdRegion.Spec.Providers {
+		// 	providers[i] = region.Provider{
+		// 		Name:    provider.Name,
+		// 		Url:     provider.Url,
+		// 		Version: provider.Version,
+		// 	}
+		// }
+		// resVersion, err := strconv.Atoi(crdRegion.ObjectMeta.GetResourceVersion())
+		// if err != nil {
+		// 	c.logger.ErrorContext(ctx, "could not parse resource version", slog.Any("error", err))
+		// }
+		// sdkRegion := region.Region{
+		// 	Spec: region.RegionSpec{
+		// 		AvailableZones: crdRegion.Spec.AvailableZones,
+		// 		Providers:      providers,
+		// 	},
+		// 	Metadata: &region.GlobalResourceMetadata{
+		// 		ApiVersion:      regionsv1.Version,
+		// 		CreatedAt:       crdRegion.GetCreationTimestamp().Time,
+		// 		LastModifiedAt:  crdRegion.GetCreationTimestamp().Time,
+		// 		Kind:            region.GlobalResourceMetadataKindRegion,
+		// 		Name:            crdRegion.Name,
+		// 		Provider:        ProviderRegionName,
+		// 		Resource:        regionsv1.Resource,
+		// 		ResourceVersion: resVersion,
+		// 		Verb:            "list",
+		// 	},
+		// }
+		// if crdRegion.GetDeletionTimestamp() != nil {
+		// 	sdkRegion.Metadata.DeletedAt = &crdRegion.GetDeletionTimestamp().Time
+		// }
+		sdkRegion, err := fromCRToSDKRegion(crdRegion, "list")
+		if err != nil {
+			c.logger.ErrorContext(ctx, "failed to convert CR to SDK region", slog.Any("error", err))
+			return nil, fmt.Errorf("failed to convert CR to SDK region: %w", err)
 		}
 		sdkRegions = append(sdkRegions, sdkRegion)
 	}
@@ -160,4 +151,40 @@ func (c *RegionController) ListRegions(ctx context.Context, params region.ListRe
 		return sdkRegions, nil, nil
 	})
 	return regionIterator, nil
+}
+
+func fromCRToSDKRegion(crRegion regionsv1.Region, verb string) (region.Region, error) {
+	providers := make([]region.Provider, len(crRegion.Spec.Providers))
+	for i, provider := range crRegion.Spec.Providers {
+		providers[i] = region.Provider{
+			Name:    provider.Name,
+			Url:     provider.Url,
+			Version: provider.Version,
+		}
+	}
+	resVersion, err := strconv.Atoi(crRegion.ObjectMeta.GetResourceVersion())
+	if err != nil {
+		return region.Region{}, fmt.Errorf("could not parse resource version: %w", err)
+	}
+	sdkRegion := region.Region{
+		Spec: region.RegionSpec{
+			AvailableZones: crRegion.Spec.AvailableZones,
+			Providers:      providers,
+		},
+		Metadata: &region.GlobalResourceMetadata{
+			ApiVersion:      regionsv1.Version,
+			CreatedAt:       crRegion.GetCreationTimestamp().Time,
+			LastModifiedAt:  crRegion.GetCreationTimestamp().Time,
+			Kind:            region.GlobalResourceMetadataKindRegion,
+			Name:            crRegion.Name,
+			Provider:        ProviderRegionName,
+			Resource:        regionsv1.Resource,
+			ResourceVersion: resVersion,
+			Verb:            verb,
+		},
+	}
+	if crRegion.GetDeletionTimestamp() != nil {
+		sdkRegion.Metadata.DeletedAt = &crRegion.GetDeletionTimestamp().Time
+	}
+	return sdkRegion, nil
 }
