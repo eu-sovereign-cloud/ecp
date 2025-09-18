@@ -134,6 +134,14 @@ func fromCRToSDKRegion(crRegion regionsv1.Region, verb string) (region.Region, e
 	if err != nil {
 		return region.Region{}, fmt.Errorf("could not parse resource version: %w", err)
 	}
+	refObj := region.ReferenceObject{
+		Resource: "regions/" + crRegion.Name,
+	}
+	reference := region.Reference{}
+	if err := reference.FromReferenceObject(refObj); err != nil {
+		return region.Region{}, fmt.Errorf("could not convert to reference object: %w", err)
+	}
+
 	sdkRegion := region.Region{
 		Spec: region.RegionSpec{
 			AvailableZones: crRegion.Spec.AvailableZones,
@@ -144,9 +152,10 @@ func fromCRToSDKRegion(crRegion regionsv1.Region, verb string) (region.Region, e
 			CreatedAt:       crRegion.GetCreationTimestamp().Time,
 			LastModifiedAt:  crRegion.GetCreationTimestamp().Time,
 			Kind:            region.GlobalResourceMetadataKindRegion,
-			Name:            crRegion.Name,
+			Name:            crRegion.GetName(),
 			Provider:        ProviderRegionName,
-			Resource:        regionsv1.Resource,
+			Resource:        crRegion.GetName(),
+			Ref:             &reference,
 			ResourceVersion: resVersion,
 			Verb:            verb,
 		},
