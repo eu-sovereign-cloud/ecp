@@ -162,7 +162,7 @@ func fromCRToSDKRegion(crRegion regionsv1.Region, verb string) (region.Region, e
 			Version: provider.Version,
 		}
 	}
-	resVersion, err := strconv.Atoi(crRegion.ObjectMeta.GetResourceVersion())
+	resVersion, err := strconv.Atoi(crRegion.GetResourceVersion())
 	if err != nil {
 		return region.Region{}, fmt.Errorf("could not parse resource version: %w", err)
 	}
