@@ -107,38 +107,6 @@ func (c *RegionController) ListRegions(ctx context.Context, params region.ListRe
 			return nil, fmt.Errorf("failed to convert unstructured object to Region type: %w", err)
 		}
 
-		// providers := make([]region.Provider, len(crdRegion.Spec.Providers))
-		// for i, provider := range crdRegion.Spec.Providers {
-		// 	providers[i] = region.Provider{
-		// 		Name:    provider.Name,
-		// 		Url:     provider.Url,
-		// 		Version: provider.Version,
-		// 	}
-		// }
-		// resVersion, err := strconv.Atoi(crdRegion.ObjectMeta.GetResourceVersion())
-		// if err != nil {
-		// 	c.logger.ErrorContext(ctx, "could not parse resource version", slog.Any("error", err))
-		// }
-		// sdkRegion := region.Region{
-		// 	Spec: region.RegionSpec{
-		// 		AvailableZones: crdRegion.Spec.AvailableZones,
-		// 		Providers:      providers,
-		// 	},
-		// 	Metadata: &region.GlobalResourceMetadata{
-		// 		ApiVersion:      regionsv1.Version,
-		// 		CreatedAt:       crdRegion.GetCreationTimestamp().Time,
-		// 		LastModifiedAt:  crdRegion.GetCreationTimestamp().Time,
-		// 		Kind:            region.GlobalResourceMetadataKindRegion,
-		// 		Name:            crdRegion.Name,
-		// 		Provider:        ProviderRegionName,
-		// 		Resource:        regionsv1.Resource,
-		// 		ResourceVersion: resVersion,
-		// 		Verb:            "list",
-		// 	},
-		// }
-		// if crdRegion.GetDeletionTimestamp() != nil {
-		// 	sdkRegion.Metadata.DeletedAt = &crdRegion.GetDeletionTimestamp().Time
-		// }
 		sdkRegion, err := fromCRToSDKRegion(crdRegion, "list")
 		if err != nil {
 			c.logger.ErrorContext(ctx, "failed to convert CR to SDK region", slog.Any("error", err))
