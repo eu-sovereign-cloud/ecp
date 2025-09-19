@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"time"
 
+	"github.com/eu-sovereign-cloud/ecp/internal/httpserver"
 	compute "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.compute.v1"
 	"github.com/spf13/cobra"
 
@@ -21,9 +21,10 @@ var (
 )
 
 var regionalApiServerCMD = &cobra.Command{
-	Use:   "regionalapiserver",
-	Short: "The command starts the regional server for the ECP application",
-	Long:  `The command starts the regional server for the ECP application`,
+	Use:     "regionalapiserver",
+	Aliases: []string{"regional"},
+	Short:   "The command starts the regional server for the ECP application",
+	Long:    `The command starts the regional server for the ECP application`,
 	Run: func(cmd *cobra.Command, args []string) {
 		logger := logger.New(os.Getenv("APP_ENV"))
 		startRegional(logger, regionalHost+":"+regionalPort)
@@ -36,23 +37,19 @@ func init() {
 	rootCmd.AddCommand(regionalApiServerCMD)
 }
 
+// startRegional starts the backend HTTP server on the given address.
 func startRegional(logger *slog.Logger, addr string) {
 	computeHandler := handler.NewComputeHandler(regionalprovider.ComputeServer{})
+	logger.Info("Starting regional API server on", "addr", addr)
 
-	logger.Info("Starting API server on", "addr", addr)
-	httpLogger := slog.NewLogLogger(logger.Handler(), slog.LevelInfo)
-	// todo do this separately and use for server as well
-	httpServer := &http.Server{
-		Addr:         addr,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 60 * time.Second,
-		IdleTimeout:  60 * time.Second,
-		ErrorLog:     httpLogger,
-		Handler:      compute.HandlerFromMuxWithBaseURL(computeHandler, nil, ""),
-	}
+	httpServer := httpserver.New(httpserver.Options{
+		Addr:    addr,
+		Handler: compute.HandlerFromMuxWithBaseURL(computeHandler, nil, ""),
+		Logger:  logger,
+	})
 
-	if err := httpServer.ListenAndServe(); err != nil {
-		logger.Error("failed to start global API server", slog.Any("error", err))
-		log.Fatal(err, " - failed to start global API server")
+	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		logger.Error("failed to start regional API server", "error", err)
+		log.Fatal(err, " - failed to start regional API server")
 	}
 }
