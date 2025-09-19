@@ -8,9 +8,10 @@ TOOLS_GOMOD := -modfile=./tools/go.mod
 GO := go
 GO_TOOL := $(GO) run $(TOOLS_GOMOD)
 COMMON_MODELS ?= errors resource
-FOUNDATION_SPECS = $(shell find spec/dist/specs -type f -name 'foundation.*.yaml')
-EXTENSION_SPECS = $(shell find spec/dist/specs -type f -name 'extensions.*.yaml')
-CRD_TYPES = $(shell (find apis -mindepth 1 -maxdepth 1 -type d | grep -v generated | cut -d'/' -f2))
+# Ignore network specs due to issues with deep-copy generation
+FOUNDATION_SPECS := $(shell find spec/dist/specs -type f -name 'foundation.*.yaml' | grep -v 'network')
+EXTENSION_SPECS := $(shell find spec/dist/specs -type f -name 'extensions.*.yaml')
+CRD_TYPES := $(shell (find apis -mindepth 1 -maxdepth 1 -type d | grep -v generated | cut -d'/' -f2))
 
 crossplane-local-dev: ensure-kind ensure-helm kind-create crossplane-install
 
@@ -57,9 +58,7 @@ clean-crossplane-dev:
 .PHONY: generate-models
 generate-models: $(FOUNDATION_SPECS)
 
-# Currently foundation.network fails due to a naming conflict within the spec
-# To successfully generate the models, parameter network was renamed to networkRef
-.PHONY: $(FOUNDATION_SPECS))
+.PHONY: $(FOUNDATION_SPECS)
 $(FOUNDATION_SPECS):
 	@GO_TOOL="$(GO_TOOL)" ./scripts/generate-model.sh $@ $(COMMON_MODELS)
 	@echo "--------------------------------"
@@ -76,17 +75,12 @@ generate-crds: $(CRD_TYPES)
 $(CRD_TYPES):
 	@echo "Generating CRDs for $@"
 	@mkdir -p ./apis/generated/crds/$@
+	@$(GO_TOOL) -mod=mod sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=".github/boilerplate.go.txt" paths="./apis/$@/v1/..."
 	@$(GO_TOOL) -mod=mod sigs.k8s.io/controller-tools/cmd/controller-gen crd paths=./apis/$@/v1/... output:crd:artifacts:config=./apis/generated/crds/$@
 
 .PHONY: generate-commons
 generate-commons:
 	@GO_TOOL="$(GO_TOOL)" ./scripts/generate-common-models.sh $(COMMON_MODELS)
-
-.PHONY: generate-objects
-generate-objects:
-	@echo "Generating deepcopy functions..."
-	@$(GO_TOOL) -mod=mod sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=".github/boilerplate.go.txt" paths="./apis/..."
-
 
 .PHONY: create-dev-clusters
 # Sets up one global and one regional cluster for development purposes

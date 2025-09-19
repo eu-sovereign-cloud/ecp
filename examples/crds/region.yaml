@@ -1,0 +1,16 @@
+# Defines an example region CR
+apiVersion: v1.secapi.cloud/v1
+kind: Region
+metadata:
+  name: "region1"
+spec:
+  availableZones:
+    - "region1-a"
+    - "region1-b"
+  providers:
+    - name: "seca.compute"
+      url: "url_of_regional_server_that_provides_compute"
+      version: "v1"
+    - name: "seca.storage"
+      url: "url_of_regional_server_that_provides_storage"
+      version: "v1"

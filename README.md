@@ -13,6 +13,7 @@ It is designed to manage resources across multiple regions and provide a unified
 ├── apis                \- Kubernetes API types and generated CRDs
 │   ├── generated       \- Generated CRDs and types
 ├── build               \- Dockerfiles for building images
+├── examples            \- Examples for crds
 ├── cmd                 \- Command-line entry points
 ├── config              \- Kubernetes resource manifests
 │   └── setup           \ - Setup manifests for dev clusters

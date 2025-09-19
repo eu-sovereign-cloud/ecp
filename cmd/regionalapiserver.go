@@ -40,13 +40,11 @@ func init() {
 // startRegional starts the backend HTTP server on the given address.
 func startRegional(logger *slog.Logger, addr string) {
 	computeHandler := handler.NewComputeHandler(regionalprovider.ComputeServer{})
-	regionHandler := compute.HandlerFromMuxWithBaseURL(computeHandler, nil, "")
-
 	logger.Info("Starting regional API server on", "addr", addr)
 
 	httpServer := httpserver.New(httpserver.Options{
 		Addr:    addr,
-		Handler: regionHandler,
+		Handler: compute.HandlerFromMuxWithBaseURL(computeHandler, nil, ""),
 		Logger:  logger,
 	})
 

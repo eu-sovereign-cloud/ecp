@@ -5,7 +5,6 @@
 package v1
 
 import (
-	regionv1 "github.com/eu-sovereign-cloud/ecp/apis/generated/types/region/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -42,7 +41,7 @@ func (in *RegionList) DeepCopyInto(out *RegionList) {
 	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
-		*out = make([]regionv1.RegionSpec, len(*in))
+		*out = make([]Region, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}

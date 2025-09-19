@@ -30,12 +30,10 @@ func NewFromConfig(cfg *rest.Config) (*KubeClient, error) {
 		return nil, fmt.Errorf("rest.Config cannot be nil")
 	}
 	c := &KubeClient{}
-	if c.Client == nil {
-		client, err := dynamic.NewForConfig(cfg)
-		if err != nil {
-			return nil, err
-		}
-		c.Client = client
+	client, err := dynamic.NewForConfig(cfg)
+	if err != nil {
+		return nil, err
 	}
+	c.Client = client
 	return c, nil
 }

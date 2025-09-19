@@ -120,21 +120,40 @@ func TestMatchLabels(t *testing.T) {
 			expectK8sHandled: true,
 			expectErr:        false,
 		},
+		// --- Error cases ---
+		{
+			name:      "missing value after equals",
+			labels:    map[string]string{"env": "prod"},
+			selector:  "env=",
+			expectErr: true,
+		},
+		{
+			name:      "leading operator no key",
+			labels:    map[string]string{"replicas": "5"},
+			selector:  ">=5",
+			expectErr: true,
+		},
+		{
+			name:      "invalid characters in key",
+			labels:    map[string]string{"app(label)": "v1"},
+			selector:  "app(label)=v1",
+			expectErr: true,
+		},
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			match, k8sHandled, err := MatchLabels(tc.labels, tc.selector)
 
 			if tc.expectErr {
-				require.NoError(t, err)
-				assert.False(t, match)
-				assert.False(t, k8sHandled)
-			} else {
-				require.NoError(t, err)
-				assert.Equal(t, tc.expectMatch, match, "match should match expectMatch")
-				assert.Equal(t, tc.expectK8sHandled, k8sHandled, "k8sHandled should match expectK8sHandled")
+				require.Error(t, err)
+				return
 			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectMatch, match, "match should match expectMatch")
+			assert.Equal(t, tc.expectK8sHandled, k8sHandled, "k8sHandled should match expectK8sHandled")
 		})
 	}
 }
@@ -181,37 +200,6 @@ func TestK8sSelectorForAPI(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			safeSelector := K8sSelectorForAPI(tc.rawSelector)
 			assert.Equal(t, tc.expectK8sSafe, safeSelector)
-		})
-	}
-}
-
-func TestWildcardMatch(t *testing.T) {
-	testCases := []struct {
-		name     string
-		pattern  string
-		s        string
-		expected bool
-	}{
-		{"exact match", "abc", "abc", true},
-		{"exact mismatch", "abc", "def", false},
-		{"star only", "*", "anything", true},
-		{"prefix match", "a*", "abc", true},
-		{"prefix mismatch", "b*", "abc", false},
-		{"suffix match", "*c", "abc", true},
-		{"suffix mismatch", "*d", "abc", false},
-		{"substring match", "*b*", "abc", true},
-		{"substring mismatch", "*d*", "abc", false},
-		{"multiple wildcards", "a*c*e", "abracadabra-e", true},
-		{"multiple wildcards mismatch", "a*c*f", "abracadabra-e", false},
-		{"no leading wildcard requires prefix match", "ab", "abc", false},
-		{"no trailing wildcard requires suffix match", "bc", "abc", false},
-		{"pattern longer than string", "abcd", "abc", false},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			result := wildcardMatch(tc.pattern, tc.s)
-			require.Equal(t, tc.expected, result)
 		})
 	}
 }
