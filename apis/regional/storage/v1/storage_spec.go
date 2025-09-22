@@ -12,7 +12,7 @@ type StorageSpec struct {
 	// SKU of the storage
 	Sku string `json:"sku,omitempty"`
 
-	common.Metadata `json:"metadata,omitempty"`
+	common.RegionalCommonData `json:"regionalCommonData,omitempty"`
 
-	common.Spec `json:",inline"`
+	common.RegionalCommonSpec `json:",inline"`
 }

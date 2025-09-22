@@ -1,6 +1,7 @@
 package common
 
-type Metadata struct {
+// RegionalCommonData defines the additional common fields that can be set on regional resources
+type RegionalCommonData struct {
 	// Annotations User-defined key/value pairs that are mutable and can be used to add annotations.
 	// The number of annotations is eventually limited by the CSP.
 	Annotations map[string]string `json:"annotations,omitempty"`

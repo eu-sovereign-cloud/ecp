@@ -1,7 +1,7 @@
 package common
 
-// Spec defines the common fields for regional resources.
-type Spec struct {
+// RegionalCommonSpec defines the common spec fields for regional resources.
+type RegionalCommonSpec struct {
 	// Tenant is the identifier for the tenant that owns this resource.
 	Tenant string `json:"tenant"`
 
