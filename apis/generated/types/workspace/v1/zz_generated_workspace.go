@@ -41,7 +41,7 @@ type Workspace struct {
 	// The number of labels is eventually limited by the CSP.
 	Labels *map[string]string `json:"labels,omitempty"`
 
-	// Metadata Metadata for regional resources with name, permission, modification, type, tenant, and region information.
+	// Metadata Metadata for regional resources with name, permission, modification, type, tenant and region information.
 	Metadata *resource.RegionalResourceMetadata `json:"metadata,omitempty"`
 
 	// Spec Specification of the workspace, including its capabilities and extensions.
@@ -107,7 +107,7 @@ type ListWorkspacesParams struct {
 	// Filter syntax:
 	//   - Equals: key=value
 	//   - Not equals: key!=value
-	//   - Wildcards: *key*=*value* - matches if at least one pair match
+	//   - Wildcards: \*key\*=\*value\* - substring (contains) match on both key and value. Each `*` can appear at start, end or in the middle to mean "any characters". Example: \*env\*=\*prod\* matches a label key containing "env" whose value contains "prod".
 	//   - Numeric: key>value, key<value, key>=value, key<=value
 	//   - Namespaced key examples: 'monitoring:alert-level=high' or 'billing:team=platform'
 	Labels *LabelSelector `form:"labels,omitempty" json:"labels,omitempty"`

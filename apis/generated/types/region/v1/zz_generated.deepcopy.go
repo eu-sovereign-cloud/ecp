@@ -107,7 +107,7 @@ func (in *RegionSpec) DeepCopyInto(out *RegionSpec) {
 	*out = *in
 	if in.AvailableZones != nil {
 		in, out := &in.AvailableZones, &out.AvailableZones
-		*out = make([]resource.Zone, len(*in))
+		*out = make([]Zone, len(*in))
 		copy(*out, *in)
 	}
 	if in.Providers != nil {

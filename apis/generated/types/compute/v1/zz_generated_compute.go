@@ -12,6 +12,12 @@ const (
 	BearerAuthScopes = "bearerAuth.Scopes"
 )
 
+// Defines values for InstanceStatusPowerState.
+const (
+	Off InstanceStatusPowerState = "off"
+	On  InstanceStatusPowerState = "on"
+)
+
 // Defines values for VolumeReferenceType.
 const (
 	Virtio VolumeReferenceType = "virtio"
@@ -53,8 +59,8 @@ type Instance struct {
 	// The number of labels is eventually limited by the CSP.
 	Labels *map[string]string `json:"labels,omitempty"`
 
-	// Metadata Metadata for zonal resources with name, permission, modification, type, tenant, region, and zone information.
-	Metadata *resource.ZonalResourceMetadata `json:"metadata,omitempty"`
+	// Metadata Metadata for regional resources with name, permission, modification, type, tenant and workspace and region information.
+	Metadata *resource.RegionalWorkspaceResourceMetadata `json:"metadata,omitempty"`
 
 	// Spec Specification of the instance, including its SKU, network configuration, and storage options.
 	Spec InstanceSpec `json:"spec"`
@@ -133,11 +139,30 @@ type InstanceSpec struct {
 	// Example cloud-init user configuration with SSH key:
 	UserData *string `json:"userData,omitempty"`
 
-	Zone resource.Zone `json:"zone"`
+	// Zone resource.Reference to a specific zone within a region
+	Zone Zone `json:"zone"`
 }
 
-// InstanceStatus Current status of the resource
-type InstanceStatus = resource.Status
+// InstanceStatus defines model for InstanceStatus.
+type InstanceStatus struct {
+	Conditions []resource.StatusCondition `json:"conditions"`
+
+	// PowerState Current power state of the instance.
+	PowerState InstanceStatusPowerState `json:"powerState"`
+
+	// State Current phase of the resource:
+	// - pending: not available, waiting for other resources
+	// - creating: not available, creation started
+	// - active: available for data layer usage
+	// - updating: available for data layer usage
+	// - deleting: maybe still available for data layer user, can fail any moment
+	// - suspended: not available, provider specific behavior (payment issue, user decided to suspend)
+	// - error: failed to fulfill the request; would be related to provider issue or customer related input.
+	State *resource.ResourceState `json:"state,omitempty"`
+}
+
+// InstanceStatusPowerState Current power state of the instance.
+type InstanceStatusPowerState string
 
 // SkuIterator Iterator for skus
 type SkuIterator struct {
@@ -159,6 +184,9 @@ type VolumeReference struct {
 
 // VolumeReferenceType The connection type depends on the type of device and type of block storage.
 type VolumeReferenceType string
+
+// Zone Reference to a specific zone within a region
+type Zone = string
 
 // AcceptHeader defines model for acceptHeader.
 type AcceptHeader string
@@ -190,7 +218,7 @@ type ListSkusParams struct {
 	// Filter syntax:
 	//   - Equals: key=value
 	//   - Not equals: key!=value
-	//   - Wildcards: *key*=*value* - matches if at least one pair match
+	//   - Wildcards: \*key\*=\*value\* - substring (contains) match on both key and value. Each `*` can appear at start, end or in the middle to mean "any characters". Example: \*env\*=\*prod\* matches a label key containing "env" whose value contains "prod".
 	//   - Numeric: key>value, key<value, key>=value, key<=value
 	//   - Namespaced key examples: 'monitoring:alert-level=high' or 'billing:team=platform'
 	Labels *LabelSelector `form:"labels,omitempty" json:"labels,omitempty"`
@@ -217,7 +245,7 @@ type ListInstancesParams struct {
 	// Filter syntax:
 	//   - Equals: key=value
 	//   - Not equals: key!=value
-	//   - Wildcards: *key*=*value* - matches if at least one pair match
+	//   - Wildcards: \*key\*=\*value\* - substring (contains) match on both key and value. Each `*` can appear at start, end or in the middle to mean "any characters". Example: \*env\*=\*prod\* matches a label key containing "env" whose value contains "prod".
 	//   - Numeric: key>value, key<value, key>=value, key<=value
 	//   - Namespaced key examples: 'monitoring:alert-level=high' or 'billing:team=platform'
 	Labels *LabelSelector `form:"labels,omitempty" json:"labels,omitempty"`

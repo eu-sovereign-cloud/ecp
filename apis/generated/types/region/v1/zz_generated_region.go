@@ -55,11 +55,14 @@ type RegionIterator struct {
 // RegionSpec The specification of a region, including the available zones and providers.
 type RegionSpec struct {
 	// AvailableZones The list of zones available in the region.
-	AvailableZones []resource.Zone `json:"availableZones"`
+	AvailableZones []Zone `json:"availableZones"`
 
 	// Providers The list of providers available in the region.
 	Providers []Provider `json:"providers"`
 }
+
+// Zone Reference to a specific zone within a region
+type Zone = string
 
 // AcceptHeader defines model for acceptHeader.
 type AcceptHeader string
@@ -82,7 +85,7 @@ type ListRegionsParams struct {
 	// Filter syntax:
 	//   - Equals: key=value
 	//   - Not equals: key!=value
-	//   - Wildcards: *key*=*value* - matches if at least one pair match
+	//   - Wildcards: \*key\*=\*value\* - substring (contains) match on both key and value. Each `*` can appear at start, end or in the middle to mean "any characters". Example: \*env\*=\*prod\* matches a label key containing "env" whose value contains "prod".
 	//   - Numeric: key>value, key<value, key>=value, key<=value
 	//   - Namespaced key examples: 'monitoring:alert-level=high' or 'billing:team=platform'
 	Labels *LabelSelector `form:"labels,omitempty" json:"labels,omitempty"`

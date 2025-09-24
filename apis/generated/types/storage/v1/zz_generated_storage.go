@@ -89,8 +89,8 @@ type BlockStorage struct {
 	// The number of labels is eventually limited by the CSP.
 	Labels *map[string]string `json:"labels,omitempty"`
 
-	// Metadata Metadata for zonal resources with name, permission, modification, type, tenant, region, and zone information.
-	Metadata *resource.ZonalResourceMetadata `json:"metadata,omitempty"`
+	// Metadata Metadata for regional resources with name, permission, modification, type, tenant and workspace and region information.
+	Metadata *resource.RegionalWorkspaceResourceMetadata `json:"metadata,omitempty"`
 
 	// Spec resource.References the SKU used for this block.
 	// If a reference to the source image is used as the base for creating this block storage.
@@ -147,7 +147,7 @@ type Image struct {
 	// The number of labels is eventually limited by the CSP.
 	Labels *map[string]string `json:"labels,omitempty"`
 
-	// Metadata Metadata for regional resources with name, permission, modification, type, tenant, and region information.
+	// Metadata Metadata for regional resources with name, permission, modification, type, tenant and region information.
 	Metadata *resource.RegionalResourceMetadata `json:"metadata,omitempty"`
 
 	// Spec Detailed specification of the Image resource.
@@ -358,7 +358,7 @@ type ListImagesParams struct {
 	// Filter syntax:
 	//   - Equals: key=value
 	//   - Not equals: key!=value
-	//   - Wildcards: *key*=*value* - matches if at least one pair match
+	//   - Wildcards: \*key\*=\*value\* - substring (contains) match on both key and value. Each `*` can appear at start, end or in the middle to mean "any characters". Example: \*env\*=\*prod\* matches a label key containing "env" whose value contains "prod".
 	//   - Numeric: key>value, key<value, key>=value, key<=value
 	//   - Namespaced key examples: 'monitoring:alert-level=high' or 'billing:team=platform'
 	Labels *LabelSelector `form:"labels,omitempty" json:"labels,omitempty"`
@@ -399,7 +399,7 @@ type ListSkusParams struct {
 	// Filter syntax:
 	//   - Equals: key=value
 	//   - Not equals: key!=value
-	//   - Wildcards: *key*=*value* - matches if at least one pair match
+	//   - Wildcards: \*key\*=\*value\* - substring (contains) match on both key and value. Each `*` can appear at start, end or in the middle to mean "any characters". Example: \*env\*=\*prod\* matches a label key containing "env" whose value contains "prod".
 	//   - Numeric: key>value, key<value, key>=value, key<=value
 	//   - Namespaced key examples: 'monitoring:alert-level=high' or 'billing:team=platform'
 	Labels *LabelSelector `form:"labels,omitempty" json:"labels,omitempty"`
@@ -426,7 +426,7 @@ type ListBlockStoragesParams struct {
 	// Filter syntax:
 	//   - Equals: key=value
 	//   - Not equals: key!=value
-	//   - Wildcards: *key*=*value* - matches if at least one pair match
+	//   - Wildcards: \*key\*=\*value\* - substring (contains) match on both key and value. Each `*` can appear at start, end or in the middle to mean "any characters". Example: \*env\*=\*prod\* matches a label key containing "env" whose value contains "prod".
 	//   - Numeric: key>value, key<value, key>=value, key<=value
 	//   - Namespaced key examples: 'monitoring:alert-level=high' or 'billing:team=platform'
 	Labels *LabelSelector `form:"labels,omitempty" json:"labels,omitempty"`

@@ -46,7 +46,7 @@ func (in *BlockStorage) DeepCopyInto(out *BlockStorage) {
 	}
 	if in.Metadata != nil {
 		in, out := &in.Metadata, &out.Metadata
-		*out = new(resource.ZonalResourceMetadata)
+		*out = new(resource.RegionalWorkspaceResourceMetadata)
 		(*in).DeepCopyInto(*out)
 	}
 	in.Spec.DeepCopyInto(&out.Spec)
