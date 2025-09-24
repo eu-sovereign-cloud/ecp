@@ -1,11 +1,11 @@
 package v1
 
 import (
-	"github.com/eu-sovereign-cloud/ecp/apis/regions"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	v1 "github.com/eu-sovereign-cloud/ecp/apis/generated/types/region/v1"
+	"github.com/eu-sovereign-cloud/ecp/apis/regions"
 )
 
 // RegionResource is the resource name for regions

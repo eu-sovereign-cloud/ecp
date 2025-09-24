@@ -1,11 +1,11 @@
 package v1
 
 import (
-	"github.com/eu-sovereign-cloud/ecp/apis/storage"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	genv1 "github.com/eu-sovereign-cloud/ecp/apis/generated/types/storage/v1"
+	"github.com/eu-sovereign-cloud/ecp/apis/storage"
 )
 
 // StorageSKUResource is the resource name for storage SKUs

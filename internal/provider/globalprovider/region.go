@@ -6,14 +6,14 @@ import (
 	"log/slog"
 	"strconv"
 
-	regionsapi "github.com/eu-sovereign-cloud/ecp/apis/regions"
-	regionsv1 "github.com/eu-sovereign-cloud/ecp/apis/regions/crds/v1"
 	region "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
 	"github.com/eu-sovereign-cloud/go-sdk/secapi"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 
+	regionsapi "github.com/eu-sovereign-cloud/ecp/apis/regions"
+	regionsv1 "github.com/eu-sovereign-cloud/ecp/apis/regions/crds/v1"
 	"github.com/eu-sovereign-cloud/ecp/internal/kubeclient"
 	"github.com/eu-sovereign-cloud/ecp/internal/validation/filter"
 )

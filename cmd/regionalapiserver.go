@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/eu-sovereign-cloud/ecp/internal/httpserver"
 	compute "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.compute.v1"
 	"github.com/spf13/cobra"
 
 	"github.com/eu-sovereign-cloud/ecp/internal/handler"
+	"github.com/eu-sovereign-cloud/ecp/internal/httpserver"
 	"github.com/eu-sovereign-cloud/ecp/internal/logger"
 	"github.com/eu-sovereign-cloud/ecp/internal/provider/regionalprovider"
 )

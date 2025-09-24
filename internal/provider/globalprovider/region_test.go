@@ -6,8 +6,6 @@ import (
 	"testing"
 	"time"
 
-	regionsapi "github.com/eu-sovereign-cloud/ecp/apis/regions"
-	regionsv1 "github.com/eu-sovereign-cloud/ecp/apis/regions/crds/v1"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -17,6 +15,8 @@ import (
 	sdkregion "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
 
 	generatedv1 "github.com/eu-sovereign-cloud/ecp/apis/generated/types/region/v1"
+	regionsapi "github.com/eu-sovereign-cloud/ecp/apis/regions"
+	regionsv1 "github.com/eu-sovereign-cloud/ecp/apis/regions/crds/v1"
 	"github.com/eu-sovereign-cloud/ecp/internal/kubeclient"
 )
 

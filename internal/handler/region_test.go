@@ -9,12 +9,13 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	regionsv1 "github.com/eu-sovereign-cloud/ecp/apis/regions/crds/v1"
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1" //nolint:goimports
 	"github.com/eu-sovereign-cloud/go-sdk/secapi"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	pkgerrors "k8s.io/apimachinery/pkg/api/errors"
+
+	regionsv1 "github.com/eu-sovereign-cloud/ecp/apis/regions/crds/v1"
 )
 
 // mockRegionProvider mocks the RegionProvider interface.

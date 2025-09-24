@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/eu-sovereign-cloud/ecp/internal/httpserver"
 	region "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/rest"
@@ -15,6 +14,7 @@ import (
 	"k8s.io/client-go/util/homedir"
 
 	"github.com/eu-sovereign-cloud/ecp/internal/handler"
+	"github.com/eu-sovereign-cloud/ecp/internal/httpserver"
 	"github.com/eu-sovereign-cloud/ecp/internal/logger"
 	"github.com/eu-sovereign-cloud/ecp/internal/provider/globalprovider"
 )
