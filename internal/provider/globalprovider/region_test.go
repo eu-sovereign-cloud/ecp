@@ -189,10 +189,3 @@ func toUnstructured(t *testing.T, scheme *runtime.Scheme, obj runtime.Object) *u
 	u.SetGroupVersionKind(gvk)
 	return u
 }
-
-// Ensure the GVR used in tests matches code under test (sanity check).
-var _ = func() interface{} {
-	expected := regionsv1.RegionGVR
-	_ = expected
-	return nil
-}()

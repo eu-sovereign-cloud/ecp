@@ -7,7 +7,7 @@ import (
 	"strconv"
 
 	regionsapi "github.com/eu-sovereign-cloud/ecp/apis/regions"
-	"github.com/eu-sovereign-cloud/ecp/apis/regions/crds/v1"
+	regionsv1 "github.com/eu-sovereign-cloud/ecp/apis/regions/crds/v1"
 	region "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
 	"github.com/eu-sovereign-cloud/go-sdk/secapi"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -51,13 +51,13 @@ func NewController(logger *slog.Logger, cfg *rest.Config) (*RegionController, er
 // GetRegion retrieves a specific region by its ID by fetching the CR from the cluster.
 func (c *RegionController) GetRegion(ctx context.Context, regionName string) (*region.Region, error) {
 	// Fetch the Regions custom resource from the Kubernetes API server. Cluster wide.
-	unstructuredObj, err := c.client.Client.Resource(v1.RegionGVR).Get(ctx, regionName, metav1.GetOptions{})
+	unstructuredObj, err := c.client.Client.Resource(regionsv1.RegionGVR).Get(ctx, regionName, metav1.GetOptions{})
 	if err != nil {
 		c.logger.ErrorContext(ctx, "failed to get region CR", slog.String("region", regionName), slog.Any("error", err))
 		return nil, fmt.Errorf("failed to retrieve region '%s': %w", regionName, err)
 	}
 
-	var crdRegion v1.Region
+	var crdRegion regionsv1.Region
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructuredObj.Object, &crdRegion); err != nil {
 		c.logger.ErrorContext(ctx, "failed to convert unstructured object to Region type", slog.Any("error", err))
 		return nil, fmt.Errorf("failed to convert unstructured object to Region type: %w", err)
@@ -83,7 +83,7 @@ func (c *RegionController) ListRegions(ctx context.Context, params region.ListRe
 		listOptions.LabelSelector = filter.K8sSelectorForAPI(rawSelector)
 	}
 
-	unstructuredList, err := c.client.Client.Resource(v1.RegionGVR).List(ctx, listOptions)
+	unstructuredList, err := c.client.Client.Resource(regionsv1.RegionGVR).List(ctx, listOptions)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list region CRs: %w", err)
 	}
@@ -102,7 +102,7 @@ func (c *RegionController) ListRegions(ctx context.Context, params region.ListRe
 			}
 		}
 
-		var crdRegion v1.Region
+		var crdRegion regionsv1.Region
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructuredObj.Object, &crdRegion); err != nil {
 			c.logger.ErrorContext(ctx, "failed to convert unstructured object to Region type", slog.Any("error", err))
 			return nil, fmt.Errorf("failed to convert unstructured object to Region type: %w", err)
@@ -122,7 +122,7 @@ func (c *RegionController) ListRegions(ctx context.Context, params region.ListRe
 	return regionIterator, nil
 }
 
-func fromCRToSDKRegion(crRegion v1.Region, verb string) (region.Region, error) {
+func fromCRToSDKRegion(crRegion regionsv1.Region, verb string) (region.Region, error) {
 	providers := make([]region.Provider, len(crRegion.Spec.Providers))
 	for i, provider := range crRegion.Spec.Providers {
 		providers[i] = region.Provider{
