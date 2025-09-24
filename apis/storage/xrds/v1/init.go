@@ -7,5 +7,5 @@ package v1
 import "github.com/eu-sovereign-cloud/ecp/apis/storage"
 
 func init() {
-	storage.SchemeBuilder.Register(&BlockStorage{}, &BlockStorageList{})
+	storage.SchemeBuilder.Register(&XBlockStorage{}, &BlockStorageList{})
 }

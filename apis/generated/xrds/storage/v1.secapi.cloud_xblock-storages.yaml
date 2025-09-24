@@ -5,25 +5,25 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.0.2-rc3
   creationTimestamp: null
-  name: blockStorages.v1.secapi.cloud
+  name: xblock-storages.v1.secapi.cloud
 spec:
   claimNames:
     kind: BlockStorage
-    plural: blockStorages
+    plural: block-storages
   group: v1.secapi.cloud
   names:
-    kind: BlockStorage
-    listKind: BlockStorageList
-    plural: blockStorages
+    kind: XBlockStorage
+    listKind: XBlockStorageList
+    plural: xblock-storages
     shortNames:
-    - block
-    singular: blockstorage
+    - xblock
+    singular: xblockstorage
   versions:
   - name: v1
     referenceable: true
     schema:
       openAPIV3Schema:
-        description: BlockStorage is the API for getting the block storages.
+        description: XBlockStorage is the API for getting the block storages.
         properties:
           spec:
             properties:

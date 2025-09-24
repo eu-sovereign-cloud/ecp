@@ -4,15 +4,15 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.18.0
-  name: storageSkus.v1.secapi.cloud
+  name: storage-skus.v1.secapi.cloud
 spec:
   group: v1.secapi.cloud
   names:
     kind: StorageSKU
     listKind: StorageSKUList
-    plural: storageSkus
+    plural: storage-skus
     shortNames:
-    - storagesku
+    - storage-sku
     singular: storagesku
   scope: Cluster
   versions:

@@ -20,9 +20,9 @@ import (
 )
 
 var (
-	host       string
-	port       string
-	kubeconfig string
+	globalHost string
+	globalPort       string
+	globalKubeconfig string
 )
 
 var globalAPIServerCMD = &cobra.Command{
@@ -32,14 +32,14 @@ var globalAPIServerCMD = &cobra.Command{
 	Long:    `The API server command starts the global server for the ECP application`,
 	Run: func(cmd *cobra.Command, args []string) {
 		logger := logger.New(os.Getenv("APP_ENV"))
-		startGlobal(logger, host+":"+port, kubeconfig)
+		startGlobal(logger, globalHost+":"+globalPort, globalKubeconfig)
 	},
 }
 
 func init() {
-	globalAPIServerCMD.Flags().StringVar(&kubeconfig, "kubeconfig", filepath.Join(homedir.HomeDir(), ".kube", "config"), "Path to kubeconfig file")
-	globalAPIServerCMD.Flags().StringVar(&host, "host", "0.0.0.0", "Host to bind the server to")
-	globalAPIServerCMD.Flags().StringVarP(&port, "port", "p", "8080", "Port to bind the server to")
+	globalAPIServerCMD.Flags().StringVar(&globalKubeconfig, "globalKubeconfig", filepath.Join(homedir.HomeDir(), ".kube", "config"), "Path to global kubeconfig file")
+	globalAPIServerCMD.Flags().StringVar(&globalHost, "globalHost", "0.0.0.0", "Host to bind the server to")
+	globalAPIServerCMD.Flags().StringVarP(&globalPort, "globalPort", "p", "8080", "Port to bind the server to")
 	rootCmd.AddCommand(globalAPIServerCMD)
 }
 

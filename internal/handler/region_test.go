@@ -30,7 +30,7 @@ func (m *mockRegionProvider) ListRegions(_ context.Context, _ region.ListRegions
 	return m.listRegionsIterator, m.listRegionsErr
 }
 
-func (m *mockRegionProvider) GetRegion(_ context.Context, _ region.ResourceName) (*region.Region, error) {
+func (m *mockRegionProvider) GetRegion(_ context.Context, _ region.ResourcePathParam) (*region.Region, error) {
 	return m.getRegionResult, m.getRegionErr
 }
 

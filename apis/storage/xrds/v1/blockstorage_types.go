@@ -2,6 +2,19 @@ package v1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	"github.com/eu-sovereign-cloud/ecp/apis/storage"
+)
+
+// BlockStorageResource is the resource name for storage SKUs
+const BlockStorageResource = "xblock-storages"
+
+var (
+	BlockStorageGR  = schema.GroupResource{Group: storage.Group, Resource: BlockStorageResource}
+	BlockStorageGVR = schema.GroupVersionResource{
+		Group: storage.Group, Version: storage.Version, Resource: BlockStorageResource,
+	}
 )
 
 type BlockStorageSpec struct {
@@ -11,12 +24,12 @@ type BlockStorageSpec struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:path=blockStorages,scope=Cluster,shortName=block
+// +kubebuilder:resource:path=xblock-storages,scope=Cluster,shortName=xblock
 // +k8s:openapi-gen=true
-// +crossbuilder:generate:xrd:claimNames:kind=BlockStorage,plural=blockStorages
+// +crossbuilder:generate:xrd:claimNames:kind=BlockStorage,plural=block-storages
 
-// BlockStorage is the API for getting the block storages.
-type BlockStorage struct {
+// XBlockStorage is the API for getting the block storages.
+type XBlockStorage struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
@@ -29,5 +42,5 @@ type BlockStorageList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 
-	Items []BlockStorage `json:"items"`
+	Items []XBlockStorage `json:"items"`
 }

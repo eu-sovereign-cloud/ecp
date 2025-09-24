@@ -9,7 +9,7 @@ import (
 )
 
 // StorageSKUResource is the resource name for storage SKUs
-const StorageSKUResource = "storageSKUs"
+const StorageSKUResource = "storage-skus"
 
 var (
 	StorageSKUGR  = schema.GroupResource{Group: storage.Group, Resource: StorageSKUResource}
@@ -19,7 +19,7 @@ var (
 )
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:path=storageSkus,scope=Cluster,shortName=storagesku
+// +kubebuilder:resource:path=storage-skus,scope=Cluster,shortName=storage-sku
 // +k8s:openapi-gen=true
 
 // StorageSKU is the API for getting storage SKU information
