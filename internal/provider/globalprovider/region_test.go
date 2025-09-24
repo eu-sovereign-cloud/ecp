@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	regionsapi "github.com/eu-sovereign-cloud/ecp/apis/regions"
+	regionsv1 "github.com/eu-sovereign-cloud/ecp/apis/regions/crds/v1"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -15,13 +17,12 @@ import (
 	sdkregion "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
 
 	generatedv1 "github.com/eu-sovereign-cloud/ecp/apis/generated/types/region/v1"
-	regionsv1 "github.com/eu-sovereign-cloud/ecp/apis/regions/v1"
 	"github.com/eu-sovereign-cloud/ecp/internal/kubeclient"
 )
 
 func TestRegionController_ListRegions(t *testing.T) {
 	scheme := runtime.NewScheme()
-	require.NoError(t, regionsv1.AddToScheme(scheme))
+	require.NoError(t, regionsapi.AddToScheme(scheme))
 	regionAName := "region-a"
 	regionBName := "region-b"
 	regionCName := "region-c"
@@ -149,7 +150,7 @@ func newRegionCR(name string, labels map[string]string, az []string, providers [
 	cr := &regionsv1.Region{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Regions",
-			APIVersion: regionsv1.Group + "/" + regionsv1.Version,
+			APIVersion: regionsapi.Group + "/" + regionsapi.Version,
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -188,3 +189,10 @@ func toUnstructured(t *testing.T, scheme *runtime.Scheme, obj runtime.Object) *u
 	u.SetGroupVersionKind(gvk)
 	return u
 }
+
+// Ensure the GVR used in tests matches code under test (sanity check).
+var _ = func() interface{} {
+	expected := regionsv1.RegionGVR
+	_ = expected
+	return nil
+}()

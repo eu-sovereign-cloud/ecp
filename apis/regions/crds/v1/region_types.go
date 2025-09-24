@@ -1,9 +1,21 @@
 package v1
 
 import (
+	"github.com/eu-sovereign-cloud/ecp/apis/regions"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	v1 "github.com/eu-sovereign-cloud/ecp/apis/generated/types/region/v1"
+)
+
+// RegionResource is the resource name for regions
+const RegionResource = "regions"
+
+var (
+	RegionGR  = schema.GroupResource{Group: regions.Group, Resource: RegionResource}
+	RegionGVR = schema.GroupVersionResource{
+		Group: regions.Group, Version: regions.Version, Resource: RegionResource,
+	}
 )
 
 // +kubebuilder:object:root=true

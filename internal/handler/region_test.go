@@ -9,13 +9,12 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	regionsv1 "github.com/eu-sovereign-cloud/ecp/apis/regions/crds/v1"
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1" //nolint:goimports
 	"github.com/eu-sovereign-cloud/go-sdk/secapi"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	pkgerrors "k8s.io/apimachinery/pkg/api/errors"
-
-	regionsv1 "github.com/eu-sovereign-cloud/ecp/apis/regions/v1"
 )
 
 // mockRegionProvider mocks the RegionProvider interface.
@@ -168,7 +167,7 @@ func TestRegionHandler_GetRegion(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		// Arrange
 		mockProvider := &mockRegionProvider{
-			getRegionErr: pkgerrors.NewNotFound(regionsv1.GroupResource, "not found"),
+			getRegionErr: pkgerrors.NewNotFound(regionsv1.RegionGR, "not found"),
 		}
 		handler := NewRegionHandler(slog.Default(), mockProvider)
 		req := httptest.NewRequest(http.MethodGet, "/regions/non-existent", nil)

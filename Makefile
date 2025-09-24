@@ -73,10 +73,8 @@ generate-crds: $(CRD_TYPES)
 
 .PHONY: $(CRD_TYPES)
 $(CRD_TYPES):
-	@echo "Generating CRDs for $@"
-	@mkdir -p ./apis/generated/crds/$@
-	@$(GO_TOOL) -mod=mod sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=".github/boilerplate.go.txt" paths="./apis/$@/v1/..."
-	@$(GO_TOOL) -mod=mod sigs.k8s.io/controller-tools/cmd/controller-gen crd paths=./apis/$@/v1/... output:crd:artifacts:config=./apis/generated/crds/$@
+	@GO_TOOL="$(GO_TOOL)" ./scripts/generate-crd-xrd.sh $@
+	@echo "--------------------------------"
 
 .PHONY: generate-commons
 generate-commons:

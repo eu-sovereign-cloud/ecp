@@ -1,0 +1,42 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.0.2-rc3
+  creationTimestamp: null
+  name: blockStorages.v1.secapi.cloud
+spec:
+  claimNames:
+    kind: BlockStorage
+    plural: blockStorages
+  group: v1.secapi.cloud
+  names:
+    kind: BlockStorage
+    listKind: BlockStorageList
+    plural: blockStorages
+    shortNames:
+    - block
+    singular: blockstorage
+  versions:
+  - name: v1
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        description: BlockStorage is the API for getting the block storages.
+        properties:
+          spec:
+            properties:
+              imageRef:
+                type: string
+              sizeGB:
+                type: integer
+              skuRef:
+                type: string
+            required:
+            - imageRef
+            - sizeGB
+            - skuRef
+            type: object
+        type: object
+    served: true
