@@ -1,5 +1,5 @@
 // +kubebuilder:object:generate=true
-// +groupName=v1.secapi.cloud
+// +groupName=storage.v1.secapi.cloud
 // +versionName=v1
 
 package v1

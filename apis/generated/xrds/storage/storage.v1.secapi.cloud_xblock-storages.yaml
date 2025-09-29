@@ -5,12 +5,12 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.0.2-rc3
   creationTimestamp: null
-  name: xblock-storages.v1.secapi.cloud
+  name: xblock-storages.storage.v1.secapi.cloud
 spec:
   claimNames:
     kind: BlockStorage
     plural: block-storages
-  group: v1.secapi.cloud
+  group: storage.v1.secapi.cloud
   names:
     kind: XBlockStorage
     listKind: XBlockStorageList

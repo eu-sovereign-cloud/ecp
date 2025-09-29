@@ -7,13 +7,13 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/apis/storage"
 )
 
-// BlockStorageResource is the resource name for storage SKUs
-const BlockStorageResource = "xblock-storages"
+// XBlockStorageResource is the resource name for storage SKUs
+const XBlockStorageResource = "xblock-storages"
 
 var (
-	BlockStorageGR  = schema.GroupResource{Group: storage.Group, Resource: BlockStorageResource}
-	BlockStorageGVR = schema.GroupVersionResource{
-		Group: storage.Group, Version: storage.Version, Resource: BlockStorageResource,
+	XBlockStorageGR = schema.GroupResource{Group: storage.Group, Resource: XBlockStorageResource}
+	XBlockStorageGVR = schema.GroupVersionResource{
+		Group: storage.Group, Version: storage.Version, Resource: XBlockStorageResource,
 	}
 )
 
@@ -38,7 +38,7 @@ type XBlockStorage struct {
 
 // +kubebuilder:object:root=true
 
-type BlockStorageList struct {
+type XBlockStorageList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 
