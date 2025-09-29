@@ -11,7 +11,7 @@ import (
 const XBlockStorageResource = "xblock-storages"
 
 var (
-	XBlockStorageGR = schema.GroupResource{Group: storage.Group, Resource: XBlockStorageResource}
+	XBlockStorageGR  = schema.GroupResource{Group: storage.Group, Resource: XBlockStorageResource}
 	XBlockStorageGVR = schema.GroupVersionResource{
 		Group: storage.Group, Version: storage.Version, Resource: XBlockStorageResource,
 	}

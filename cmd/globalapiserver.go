@@ -20,7 +20,7 @@ import (
 )
 
 var (
-	globalHost string
+	globalHost       string
 	globalPort       string
 	globalKubeconfig string
 )
@@ -37,7 +37,10 @@ var globalAPIServerCMD = &cobra.Command{
 }
 
 func init() {
-	globalAPIServerCMD.Flags().StringVar(&globalKubeconfig, "globalKubeconfig", filepath.Join(homedir.HomeDir(), ".kube", "config"), "Path to global kubeconfig file")
+	globalAPIServerCMD.Flags().StringVar(
+		&globalKubeconfig, "globalKubeconfig", filepath.Join(homedir.HomeDir(), ".kube", "config"),
+		"Path to global kubeconfig file",
+	)
 	globalAPIServerCMD.Flags().StringVar(&globalHost, "globalHost", "0.0.0.0", "Host to bind the server to")
 	globalAPIServerCMD.Flags().StringVarP(&globalPort, "globalPort", "p", "8080", "Port to bind the server to")
 	rootCmd.AddCommand(globalAPIServerCMD)
@@ -64,18 +67,22 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
 	}
 
 	regionalHandler := handler.NewRegionHandler(logger, globalServer)
-	regionHandler := region.HandlerWithOptions(regionalHandler, region.StdHTTPServerOptions{
-		BaseURL:          "",
-		BaseRouter:       nil,
-		Middlewares:      nil,
-		ErrorHandlerFunc: nil,
-	})
+	regionHandler := region.HandlerWithOptions(
+		regionalHandler, region.StdHTTPServerOptions{
+			BaseURL:          "",
+			BaseRouter:       nil,
+			Middlewares:      nil,
+			ErrorHandlerFunc: nil,
+		},
+	)
 
-	httpServer := httpserver.New(httpserver.Options{
-		Addr:    addr,
-		Handler: regionHandler,
-		Logger:  logger,
-	})
+	httpServer := httpserver.New(
+		httpserver.Options{
+			Addr:    addr,
+			Handler: regionHandler,
+			Logger:  logger,
+		},
+	)
 
 	logger.Info("Global API server started successfully")
 	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {

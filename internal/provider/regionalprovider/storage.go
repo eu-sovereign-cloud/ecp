@@ -1,20 +1,20 @@
 package regionalprovider
 
 import (
-    "context"
-    "fmt"
-    "log/slog"
-    "strings"
+	"context"
+	"fmt"
+	"log/slog"
+	"strings"
 
-    sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
-    "github.com/eu-sovereign-cloud/go-sdk/secapi"
-    metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-    "k8s.io/apimachinery/pkg/runtime"
-    "k8s.io/client-go/rest"
+	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
+	"github.com/eu-sovereign-cloud/go-sdk/secapi"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/rest"
 
-    crdv1 "github.com/eu-sovereign-cloud/ecp/apis/storage/crds/v1"
-    "github.com/eu-sovereign-cloud/ecp/internal/kubeclient"
-    "github.com/eu-sovereign-cloud/ecp/internal/validation/filter"
+	crdv1 "github.com/eu-sovereign-cloud/ecp/apis/storage/crds/v1"
+	"github.com/eu-sovereign-cloud/ecp/internal/kubeclient"
+	"github.com/eu-sovereign-cloud/ecp/internal/validation/filter"
 )
 
 type StorageSKUProvider interface {
@@ -156,12 +156,7 @@ func (c StorageController) ListSKUs(
 			return nil, fmt.Errorf("failed to convert unstructured object to StorageSKU type: %w", err)
 		}
 
-		sdkStorageSKU, err := fromCRToSDKStorageSKU(crdStorageSKU)
-		if err != nil {
-			c.logger.ErrorContext(ctx, "failed to convert CR to SDK storage SKU", slog.Any("error", err))
-			return nil, fmt.Errorf("failed to convert CR to SDK storage SKU: %w", err)
-		}
-		sdkStorageSKUs = append(sdkStorageSKUs, sdkStorageSKU)
+		sdkStorageSKUs = append(sdkStorageSKUs, fromCRToSDKStorageSKU(crdStorageSKU))
 	}
 
 	skuIterator := secapi.NewIterator(
@@ -199,14 +194,7 @@ func (c StorageController) GetSKU(
 	}
 
 	// Convert the CR spec to the SDK's StorageSku type.
-	sdkStorageSKU, err := fromCRToSDKStorageSKU(crdStorageSKU)
-	if err != nil {
-		c.logger.ErrorContext(
-			ctx, "failed to convert CR to SDK storage SKU", slog.Any("error", err),
-		)
-		return nil, fmt.Errorf("failed to convert CR to SDK storage SKU: %w", err)
-	}
-
+	sdkStorageSKU := fromCRToSDKStorageSKU(crdStorageSKU)
 	return &sdkStorageSKU, nil
 }
 
@@ -228,8 +216,8 @@ func (c StorageController) CreateOrUpdateBlockStorage(
 	ctx context.Context, tenantID, workspaceID, storageID string,
 	params sdkstorage.CreateOrUpdateBlockStorageParams, req sdkstorage.BlockStorage,
 ) (*sdkstorage.BlockStorage, bool, error) {
-    // TODO implement me
-    panic("implement me")
+	// TODO implement me
+	panic("implement me")
 }
 
 func (c StorageController) DeleteBlockStorage(
@@ -239,7 +227,7 @@ func (c StorageController) DeleteBlockStorage(
 	panic("implement me")
 }
 
-func fromCRToSDKStorageSKU(crStorageSKU crdv1.StorageSKU) (sdkstorage.StorageSku, error) {
+func fromCRToSDKStorageSKU(crStorageSKU crdv1.StorageSKU) sdkstorage.StorageSku {
 	sdkStorageSKU := sdkstorage.StorageSku{
 		Spec: &sdkstorage.StorageSkuSpec{
 			Iops:          crStorageSKU.Spec.Iops,
@@ -250,5 +238,5 @@ func fromCRToSDKStorageSKU(crStorageSKU crdv1.StorageSKU) (sdkstorage.StorageSku
 			Name: crStorageSKU.GetName(),
 		},
 	}
-	return sdkStorageSKU, nil
+	return sdkStorageSKU
 }

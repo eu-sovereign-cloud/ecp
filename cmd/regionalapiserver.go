@@ -43,7 +43,9 @@ func init() {
 	regionalApiServerCMD.Flags().StringVarP(
 		&regionalPort, "regionalPort", "p", "8080", "Port to bind the server to",
 	)
-	regionalApiServerCMD.Flags().StringVar(&regionalKubeconfig, "regionalKubeconfig", filepath.Join(homedir.HomeDir(), ".kube", "config"), "Path to regional kubeconfig file",
+	regionalApiServerCMD.Flags().StringVar(
+		&regionalKubeconfig, "regionalKubeconfig", filepath.Join(homedir.HomeDir(), ".kube", "config"),
+		"Path to regional kubeconfig file",
 	)
 	rootCmd.AddCommand(regionalApiServerCMD)
 }
