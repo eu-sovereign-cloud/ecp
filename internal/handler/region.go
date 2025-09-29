@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"net/http"
 
-	authv1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.authorization.v1"
 	regionv1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
+	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 	"k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/eu-sovereign-cloud/ecp/internal/provider/globalprovider"
@@ -24,9 +24,10 @@ func NewRegionHandler(logger *slog.Logger, p globalprovider.RegionProvider) *Reg
 	return &RegionHandler{provider: p, logger: logger.With("component", "RegionHandler")}
 }
 
+var _ regionv1.ServerInterface = (*RegionHandler)(nil)
+
 // ListRegions handles requests to list all available regions.
 func (h *RegionHandler) ListRegions(w http.ResponseWriter, r *http.Request, params regionv1.ListRegionsParams) {
-
 	iterator, err := h.provider.ListRegions(r.Context(), params)
 	if err != nil {
 		h.logger.Error("failed to list regions", "error", err)
@@ -34,14 +35,14 @@ func (h *RegionHandler) ListRegions(w http.ResponseWriter, r *http.Request, para
 		return
 	}
 
-	var regions []*regionv1.Region
+	var regions []*schema.Region
 	if regions, err = iterator.All(r.Context()); err != nil {
 		h.logger.ErrorContext(r.Context(), "failed to retrieve all regions", slog.Any("error", err))
 		http.Error(w, "failed to retrieve all regions: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", string(authv1.Applicationjson))
+	w.Header().Set("Content-Type", string(schema.AcceptHeaderJson))
 	w.WriteHeader(http.StatusOK)
 	err = json.NewEncoder(w).Encode(regions)
 	if err != nil {
@@ -52,7 +53,7 @@ func (h *RegionHandler) ListRegions(w http.ResponseWriter, r *http.Request, para
 }
 
 // GetRegion handles requests to get a specific region by name.
-func (h *RegionHandler) GetRegion(w http.ResponseWriter, r *http.Request, name regionv1.ResourceName) {
+func (h *RegionHandler) GetRegion(w http.ResponseWriter, r *http.Request, name schema.ResourcePathParam) {
 	reg, err := h.provider.GetRegion(r.Context(), name)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -68,7 +69,7 @@ func (h *RegionHandler) GetRegion(w http.ResponseWriter, r *http.Request, name r
 		return
 	}
 
-	w.Header().Set("Content-Type", string(authv1.Applicationjson))
+	w.Header().Set("Content-Type", string(schema.AcceptHeaderJson))
 	w.WriteHeader(http.StatusOK)
 	err = json.NewEncoder(w).Encode(reg)
 	if err != nil {

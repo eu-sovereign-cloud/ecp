@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -131,7 +132,7 @@ func TestRegionController_ListRegions(t *testing.T) {
 	}
 }
 
-func extractNames(regs []*sdkregion.Region) []string {
+func extractNames(regs []*schema.Region) []string {
 	out := make([]string, len(regs))
 	for i, r := range regs {
 		out[i] = r.Metadata.Name

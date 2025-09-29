@@ -1,14 +1,16 @@
 package cmd
 
 import (
+	"errors"
 	"log"
 	"log/slog"
 	"net/http"
 	"os"
 
-	"github.com/eu-sovereign-cloud/ecp/internal/httpserver"
 	compute "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.compute.v1"
 	"github.com/spf13/cobra"
+
+	"github.com/eu-sovereign-cloud/ecp/internal/httpserver"
 
 	"github.com/eu-sovereign-cloud/ecp/internal/handler"
 	"github.com/eu-sovereign-cloud/ecp/internal/logger"
@@ -48,7 +50,7 @@ func startRegional(logger *slog.Logger, addr string) {
 		Logger:  logger,
 	})
 
-	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		logger.Error("failed to start regional API server", "error", err)
 		log.Fatal(err, " - failed to start regional API server")
 	}

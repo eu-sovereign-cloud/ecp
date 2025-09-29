@@ -1,18 +1,20 @@
 package cmd
 
 import (
+	"errors"
 	"log"
 	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
 
-	"github.com/eu-sovereign-cloud/ecp/internal/httpserver"
 	region "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
+
+	"github.com/eu-sovereign-cloud/ecp/internal/httpserver"
 
 	"github.com/eu-sovereign-cloud/ecp/internal/handler"
 	"github.com/eu-sovereign-cloud/ecp/internal/logger"
@@ -65,7 +67,7 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
 
 	regionalHandler := handler.NewRegionHandler(logger, globalServer)
 	regionHandler := region.HandlerWithOptions(regionalHandler, region.StdHTTPServerOptions{
-		BaseURL:          "",
+		BaseURL:          "/providers/seca.region",
 		BaseRouter:       nil,
 		Middlewares:      nil,
 		ErrorHandlerFunc: nil,
@@ -78,7 +80,7 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
 	})
 
 	logger.Info("Global API server started successfully")
-	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		logger.Error("failed to start global API server", slog.Any("error", err))
 		log.Fatal(err, " - failed to start global API server")
 	}

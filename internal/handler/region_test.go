@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1" //nolint:goimports
+	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 	"github.com/eu-sovereign-cloud/go-sdk/secapi"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,27 +21,27 @@ import (
 
 // mockRegionProvider mocks the RegionProvider interface.
 type mockRegionProvider struct {
-	listRegionsIterator *secapi.Iterator[region.Region]
+	listRegionsIterator *secapi.Iterator[schema.Region]
 	listRegionsErr      error
-	getRegionResult     *region.Region
+	getRegionResult     *schema.Region
 	getRegionErr        error
 }
 
-func (m *mockRegionProvider) ListRegions(_ context.Context, _ region.ListRegionsParams) (*secapi.Iterator[region.Region], error) {
+func (m *mockRegionProvider) ListRegions(_ context.Context, _ region.ListRegionsParams) (*secapi.Iterator[schema.Region], error) {
 	return m.listRegionsIterator, m.listRegionsErr
 }
 
-func (m *mockRegionProvider) GetRegion(_ context.Context, _ region.ResourceName) (*region.Region, error) {
+func (m *mockRegionProvider) GetRegion(_ context.Context, _ schema.ResourcePathParam) (*schema.Region, error) {
 	return m.getRegionResult, m.getRegionErr
 }
 
 func TestRegionHandler_ListRegions(t *testing.T) {
-	testRegions := []region.Region{
+	testRegions := []schema.Region{
 		{
 			Metadata: nil,
-			Spec: region.RegionSpec{
+			Spec: schema.RegionSpec{
 				AvailableZones: []string{"zone1", "zone2"},
-				Providers: []region.Provider{
+				Providers: []schema.Provider{
 					{
 						Name:    "seca.compute",
 						Url:     "url_here",
@@ -54,7 +55,7 @@ func TestRegionHandler_ListRegions(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		// Arrange
 		mockProvider := &mockRegionProvider{
-			listRegionsIterator: secapi.NewIterator(func(ctx context.Context, skipToken *string) ([]region.Region, *string, error) {
+			listRegionsIterator: secapi.NewIterator(func(ctx context.Context, skipToken *string) ([]schema.Region, *string, error) {
 				return testRegions, skipToken, nil
 			}),
 		}
@@ -69,7 +70,7 @@ func TestRegionHandler_ListRegions(t *testing.T) {
 		require.Equal(t, http.StatusOK, rr.Code)
 		require.Equal(t, "application/json", rr.Header().Get("Content-Type"))
 
-		var body []region.Region
+		var body []schema.Region
 		err := json.Unmarshal(rr.Body.Bytes(), &body)
 		require.NoError(t, err)
 		assert.Equal(t, testRegions, body)
@@ -95,7 +96,7 @@ func TestRegionHandler_ListRegions(t *testing.T) {
 	t.Run("iterator returns error", func(t *testing.T) {
 		// Arrange
 		mockProvider := &mockRegionProvider{
-			listRegionsIterator: secapi.NewIterator(func(ctx context.Context, skipToken *string) ([]region.Region, *string, error) {
+			listRegionsIterator: secapi.NewIterator(func(ctx context.Context, skipToken *string) ([]schema.Region, *string, error) {
 				return testRegions, skipToken, errors.New("iterator failed")
 			}),
 		}
@@ -113,11 +114,11 @@ func TestRegionHandler_ListRegions(t *testing.T) {
 }
 
 func TestRegionHandler_GetRegion(t *testing.T) {
-	testRegion := &region.Region{
+	testRegion := &schema.Region{
 		Metadata: nil,
-		Spec: region.RegionSpec{
+		Spec: schema.RegionSpec{
 			AvailableZones: []string{"zone1", "zone2"},
-			Providers: []region.Provider{
+			Providers: []schema.Provider{
 				{
 					Name:    "seca.compute",
 					Url:     "url_here",
@@ -143,7 +144,7 @@ func TestRegionHandler_GetRegion(t *testing.T) {
 		require.Equal(t, http.StatusOK, rr.Code)
 		require.Equal(t, "application/json", rr.Header().Get("Content-Type"))
 
-		var body *region.Region
+		var body *schema.Region
 		err := json.Unmarshal(rr.Body.Bytes(), &body)
 		require.NoError(t, err)
 		assert.Equal(t, testRegion, body)
