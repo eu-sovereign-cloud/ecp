@@ -1,20 +1,22 @@
 package regionalprovider
 
 import (
-    "context"
-    "fmt"
-    "log/slog"
-    "strings"
+	"context"
+	"fmt"
+	"log/slog"
+	"strings"
 
-    sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
-    "github.com/eu-sovereign-cloud/go-sdk/secapi"
-    metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-    "k8s.io/apimachinery/pkg/runtime"
-    "k8s.io/client-go/rest"
+	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
+	"github.com/eu-sovereign-cloud/go-sdk/secapi"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/rest"
 
-    crdv1 "github.com/eu-sovereign-cloud/ecp/apis/storage/crds/v1"
-    "github.com/eu-sovereign-cloud/ecp/internal/kubeclient"
-    "github.com/eu-sovereign-cloud/ecp/internal/validation/filter"
+	crdv1 "github.com/eu-sovereign-cloud/ecp/apis/storage/crds/v1"
+	v1 "github.com/eu-sovereign-cloud/ecp/apis/storage/xrds/v1"
+	"github.com/eu-sovereign-cloud/ecp/internal/kubeclient"
+	"github.com/eu-sovereign-cloud/ecp/internal/validation/filter"
 )
 
 type StorageSKUProvider interface {
@@ -228,8 +230,24 @@ func (c StorageController) CreateOrUpdateBlockStorage(
 	ctx context.Context, tenantID, workspaceID, storageID string,
 	params sdkstorage.CreateOrUpdateBlockStorageParams, req sdkstorage.BlockStorage,
 ) (*sdkstorage.BlockStorage, bool, error) {
-    // TODO implement me
-    panic("implement me")
+	storageName := fmt.Sprintf(workspaceWideResourceNamePattern, tenantID, workspaceID, storageID)
+
+	_, err := c.client.Client.Resource(v1.XBlockStorageGVR).Get(ctx, storageName, metav1.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			created, err := c.createBlockStorage(ctx, tenantID, workspaceID, storageID, req)
+			return created, false, err
+		}
+
+		c.logger.ErrorContext(
+			ctx, "failed to get block storage CR", slog.String("storage", storageID), slog.Any("error", err),
+		)
+		return nil, false, fmt.Errorf("failed to retrieve block storage '%s': %w", storageID, err)
+	}
+
+    // TODO: Implement update logic.
+
+	return nil, false, nil
 }
 
 func (c StorageController) DeleteBlockStorage(
@@ -251,4 +269,10 @@ func fromCRToSDKStorageSKU(crStorageSKU crdv1.StorageSKU) (sdkstorage.StorageSku
 		},
 	}
 	return sdkStorageSKU, nil
+}
+
+func (c StorageController) createBlockStorage(
+	ctx context.Context, tenantID, workspaceID, storageID string, req sdkstorage.BlockStorage,
+) (*sdkstorage.BlockStorage, error) {
+    panic("implement me")
 }

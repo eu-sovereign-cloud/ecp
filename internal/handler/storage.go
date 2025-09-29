@@ -143,6 +143,35 @@ func (h StorageHandler) CreateOrUpdateBlockStorage(
 	workspace sdkstorage.WorkspacePathParam, name sdkstorage.ResourcePathParam,
 	params sdkstorage.CreateOrUpdateBlockStorageParams,
 ) {
-	// TODO implement me
-	panic("implement me")
+	var blockStorage sdkstorage.BlockStorage
+    if err := json.NewDecoder(r.Body).Decode(&blockStorage); err != nil {
+        h.logger.ErrorContext(r.Context(), "failed to decode request body", slog.Any("error", err))
+        http.Error(w, "failed to decode request body: "+err.Error(), http.StatusBadRequest)
+        return
+    }
+
+    createdBlockStorage, wasUpdated, err := h.provider.CreateOrUpdateBlockStorage(r.Context(), tenant, workspace, name, params, blockStorage)
+    if err != nil {
+        if errors.IsBadRequest(err) {
+            h.logger.InfoContext(r.Context(), "bad request for creating or updating block storage", slog.Any("error", err))
+            http.Error(w, "bad request: "+err.Error(), http.StatusBadRequest)
+            return
+        }
+
+        h.logger.ErrorContext(r.Context(), "failed to create or update block storage", slog.Any("error", err))
+        http.Error(w, "failed to create or update block storage: "+err.Error(), http.StatusInternalServerError)
+        return
+    }
+
+    w.Header().Set("Content-Type", string(authv1.Applicationjson))
+    if wasUpdated {
+        w.WriteHeader(http.StatusOK)
+    } else {
+        w.WriteHeader(http.StatusCreated)
+    }
+    if err := json.NewEncoder(w).Encode(createdBlockStorage); err != nil {
+        h.logger.ErrorContext(r.Context(), "failed to encode response body", slog.Any("error", err))
+        http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+        return
+    }
 }
