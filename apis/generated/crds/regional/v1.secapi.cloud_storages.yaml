@@ -1,0 +1,96 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.0.2-rc3
+  creationTimestamp: null
+  name: storages.v1.secapi.cloud
+spec:
+  claimNames:
+    kind: XStorages
+    plural: xstorages
+    singular: xstorage
+  group: v1.secapi.cloud
+  names:
+    categories:
+    - crossplane
+    - managed
+    - secapi.cloud
+    kind: Storage
+    listKind: StorageList
+    plural: storages
+    singular: storage
+  versions:
+  - name: v1
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        properties:
+          spec:
+            properties:
+              name:
+                description: Name is the user-defined name of the resource.
+                type: string
+              region:
+                description: Region is the identifier for the region where this resource
+                  is located.
+                type: string
+              regionalCommonData:
+                description: RegionalCommonData defines the additional common fields
+                  that can be set on regional resources
+                properties:
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    description: |-
+                      Annotations User-defined key/value pairs that are mutable and can be used to add annotations.
+                      The number of annotations is eventually limited by the CSP.
+                    type: object
+                  extensions:
+                    additionalProperties:
+                      type: string
+                    description: |-
+                      Extensions User-defined key/value pairs that are mutable and can be used to add extensions.
+                      Extensions are subject to validation by the CSP, and any value that is not accepted will be rejected during admission.
+                    type: object
+                  labels:
+                    additionalProperties:
+                      type: string
+                    description: |-
+                      Labels User-defined key/value pairs that are mutable and can be used to
+                      organize and categorize resources. They can be used to filter resources.
+                      The number of labels is eventually limited by the CSP.
+                    type: object
+                type: object
+              sizeGB:
+                description: Size of the storage in gigabytes
+                format: int64
+                maximum: 10000
+                minimum: 1
+                type: integer
+              sku:
+                description: SKU of the storage
+                type: string
+              tenant:
+                description: Tenant is the identifier for the tenant that owns this
+                  resource.
+                type: string
+              workspace:
+                description: Workspace is the identifier for the workspace this resource
+                  belongs to.
+                type: string
+              zone:
+                description: |-
+                  Zone is the identifier for the availability zone within the region.
+                  This field is optional.
+                type: string
+            required:
+            - name
+            - region
+            - sizeGB
+            - tenant
+            - workspace
+            type: object
+        type: object
+    served: true
