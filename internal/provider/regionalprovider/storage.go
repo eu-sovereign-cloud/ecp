@@ -1,20 +1,20 @@
 package regionalprovider
 
 import (
-	"context"
-	"fmt"
-	"log/slog"
-	"strings"
+    "context"
+    "fmt"
+    "log/slog"
+    "strings"
 
-	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
-	"github.com/eu-sovereign-cloud/go-sdk/secapi"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/rest"
+    sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
+    "github.com/eu-sovereign-cloud/go-sdk/secapi"
+    metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+    "k8s.io/apimachinery/pkg/runtime"
+    "k8s.io/client-go/rest"
 
-	crdv1 "github.com/eu-sovereign-cloud/ecp/apis/storage/crds/v1"
-	"github.com/eu-sovereign-cloud/ecp/internal/kubeclient"
-	"github.com/eu-sovereign-cloud/ecp/internal/validation/filter"
+    crdv1 "github.com/eu-sovereign-cloud/ecp/apis/storage/crds/v1"
+    "github.com/eu-sovereign-cloud/ecp/internal/kubeclient"
+    "github.com/eu-sovereign-cloud/ecp/internal/validation/filter"
 )
 
 type StorageSKUProvider interface {
@@ -24,23 +24,34 @@ type StorageSKUProvider interface {
 	GetSKU(ctx context.Context, tenantID, skuID string) (*sdkstorage.StorageSku, error)
 }
 
+type ImageProvider interface {
+	CreateOrUpdateImage(
+		ctx context.Context, tenantID, imageID string,
+		params sdkstorage.CreateOrUpdateImageParams, req sdkstorage.Image,
+	) (*sdkstorage.Image, bool, error)
+	GetImage(ctx context.Context, tenantID, imageID string) (*sdkstorage.Image, error)
+	DeleteImage(ctx context.Context, tenantID, imageID string, params sdkstorage.DeleteImageParams) error
+	ListImages(
+		ctx context.Context, tenantID string, params sdkstorage.ListImagesParams,
+	) (*secapi.Iterator[sdkstorage.Image], error)
+}
+
 type StorageProvider interface {
 	StorageSKUProvider
+	ImageProvider
 
 	ListBlockStorages(
-		ctx context.Context, tenantID, workspaceID string,
-		params sdkstorage.ListBlockStoragesParams,
-	) ([]secapi.Iterator[sdkstorage.BlockStorage], error)
+		ctx context.Context, tenantID, workspaceID string, params sdkstorage.ListBlockStoragesParams,
+	) (*secapi.Iterator[sdkstorage.BlockStorage], error)
 	GetBlockStorage(
 		ctx context.Context, tenantID, workspaceID, storageID string,
 	) (*sdkstorage.BlockStorage, error)
 	CreateOrUpdateBlockStorage(
 		ctx context.Context, tenantID, workspaceID, storageID string,
-		params sdkstorage.CreateOrUpdateBlockStorageParams,
-	) (*sdkstorage.BlockStorage, error)
+		params sdkstorage.CreateOrUpdateBlockStorageParams, req sdkstorage.BlockStorage,
+	) (*sdkstorage.BlockStorage, bool, error)
 	DeleteBlockStorage(
-		ctx context.Context, tenantID, workspaceID, storageID string,
-		params sdkstorage.DeleteBlockStorageParams,
+		ctx context.Context, tenantID, workspaceID, storageID string, params sdkstorage.DeleteBlockStorageParams,
 	) error
 }
 
@@ -50,6 +61,32 @@ var _ StorageProvider = (*StorageController)(nil) // Ensure StorageController im
 type StorageController struct {
 	client *kubeclient.KubeClient
 	logger *slog.Logger
+}
+
+func (c StorageController) CreateOrUpdateImage(
+	ctx context.Context, tenantID, imageID string, params sdkstorage.CreateOrUpdateImageParams, req sdkstorage.Image,
+) (*sdkstorage.Image, bool, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (c StorageController) GetImage(ctx context.Context, tenantID, imageID string) (*sdkstorage.Image, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (c StorageController) DeleteImage(
+	ctx context.Context, tenantID, imageID string, params sdkstorage.DeleteImageParams,
+) error {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (c StorageController) ListImages(
+	ctx context.Context, tenantID string, params sdkstorage.ListImagesParams,
+) (*secapi.Iterator[sdkstorage.Image], error) {
+	// TODO implement me
+	panic("implement me")
 }
 
 // NewController creates a new StorageController with a Kubernetes client.
@@ -175,7 +212,7 @@ func (c StorageController) GetSKU(
 
 func (c StorageController) ListBlockStorages(
 	ctx context.Context, tenantID, workspaceID string, params sdkstorage.ListBlockStoragesParams,
-) ([]secapi.Iterator[sdkstorage.BlockStorage], error) {
+) (*secapi.Iterator[sdkstorage.BlockStorage], error) {
 	// TODO implement me
 	panic("implement me")
 }
@@ -189,15 +226,14 @@ func (c StorageController) GetBlockStorage(
 
 func (c StorageController) CreateOrUpdateBlockStorage(
 	ctx context.Context, tenantID, workspaceID, storageID string,
-	params sdkstorage.CreateOrUpdateBlockStorageParams,
-) (*sdkstorage.BlockStorage, error) {
-	// TODO implement me
-	panic("implement me")
+	params sdkstorage.CreateOrUpdateBlockStorageParams, req sdkstorage.BlockStorage,
+) (*sdkstorage.BlockStorage, bool, error) {
+    // TODO implement me
+    panic("implement me")
 }
 
 func (c StorageController) DeleteBlockStorage(
-	ctx context.Context, tenantID, workspaceID, storageID string,
-	params sdkstorage.DeleteBlockStorageParams,
+	ctx context.Context, tenantID, workspaceID, storageID string, params sdkstorage.DeleteBlockStorageParams,
 ) error {
 	// TODO implement me
 	panic("implement me")
