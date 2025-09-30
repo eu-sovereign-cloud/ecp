@@ -67,7 +67,7 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
 
 	regionalHandler := handler.NewRegionHandler(logger, globalServer)
 	regionHandler := region.HandlerWithOptions(regionalHandler, region.StdHTTPServerOptions{
-		BaseURL:          "/providers/seca.region",
+		BaseURL:          globalprovider.RegionBaseURL,
 		BaseRouter:       nil,
 		Middlewares:      nil,
 		ErrorHandlerFunc: nil,
