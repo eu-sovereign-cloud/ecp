@@ -149,7 +149,6 @@ func TestMain(m *testing.M) {
 		ErrorIfCRDPathMissing: true,
 		CRDDirectoryPaths:     []string{crdDir},
 		DownloadBinaryAssets:  true,
-		// Reuse a stable cache directory for binaries across runs to speed up tests.
 		BinaryAssetsDirectory: filepath.Join(os.TempDir(), "envtest-binaries"),
 	}
 	var err error

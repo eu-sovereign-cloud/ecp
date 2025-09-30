@@ -67,7 +67,7 @@ func (c *RegionController) GetRegion(ctx context.Context, regionName schema.Reso
 	}
 
 	// Convert the CR spec to the SDK's RegionSpec type.
-	sdkRegion, err := fromCRToSDKRegion(crdRegion, "get")
+	sdkRegion, err := fromCRDToSDKRegion(crdRegion, "get")
 	if err != nil {
 		c.logger.ErrorContext(ctx, "failed to convert CR to SDK region", slog.Any("error", err))
 		return nil, fmt.Errorf("failed to convert CR to SDK region: %w", err)
@@ -120,7 +120,7 @@ func (c *RegionController) ListRegions(ctx context.Context, params region.ListRe
 			return nil, fmt.Errorf("failed to convert unstructured object to Region type: %w", err)
 		}
 
-		sdkRegion, err := fromCRToSDKRegion(crdRegion, "list")
+		sdkRegion, err := fromCRDToSDKRegion(crdRegion, "list")
 		if err != nil {
 			c.logger.ErrorContext(ctx, "failed to convert CR to SDK region", slog.Any("error", err))
 			return nil, fmt.Errorf("failed to convert CR to SDK region: %w", err)
@@ -140,7 +140,7 @@ func (c *RegionController) ListRegions(ctx context.Context, params region.ListRe
 	return iterator, nil
 }
 
-func fromCRToSDKRegion(crdRegion regionsv1.Region, callType string) (schema.Region, error) {
+func fromCRDToSDKRegion(crdRegion regionsv1.Region, verb string) (schema.Region, error) {
 	providers := make([]schema.Provider, len(crdRegion.Spec.Providers))
 	for i, provider := range crdRegion.Spec.Providers {
 		providers[i] = schema.Provider{
@@ -176,7 +176,7 @@ func fromCRToSDKRegion(crdRegion regionsv1.Region, callType string) (schema.Regi
 			Resource:        crdRegion.GetName(),
 			Ref:             &reference,
 			ResourceVersion: resVersion,
-			Verb:            callType,
+			Verb:            verb,
 		},
 	}
 	if crdRegion.GetDeletionTimestamp() != nil {
