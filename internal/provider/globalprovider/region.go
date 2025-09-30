@@ -14,6 +14,7 @@ import (
 
 	regionsv1 "github.com/eu-sovereign-cloud/ecp/apis/regions/v1"
 	"github.com/eu-sovereign-cloud/ecp/internal/kubeclient"
+	"github.com/eu-sovereign-cloud/ecp/internal/validation"
 	"github.com/eu-sovereign-cloud/ecp/internal/validation/filter"
 )
 
@@ -77,7 +78,16 @@ func (c *RegionController) GetRegion(ctx context.Context, regionName schema.Reso
 
 // ListRegions retrieves all available regions by listing the CRs from the cluster.
 func (c *RegionController) ListRegions(ctx context.Context, params region.ListRegionsParams) (*region.RegionIterator, error) {
-	listOptions := metav1.ListOptions{}
+	limit := validation.GetLimit(params.Limit)
+
+	listOptions := metav1.ListOptions{
+		Limit: int64(limit),
+	}
+
+	if params.SkipToken != nil {
+		listOptions.Continue = *params.SkipToken
+	}
+
 	rawSelector := ""
 	if params.Labels != nil {
 		rawSelector = *params.Labels
@@ -117,33 +127,34 @@ func (c *RegionController) ListRegions(ctx context.Context, params region.ListRe
 		}
 		sdkRegions = append(sdkRegions, sdkRegion)
 	}
-	iter := region.RegionIterator{
+
+	iterator := &region.RegionIterator{
 		Items: sdkRegions,
-		Metadata: schema.ResponseMetadata{
-			Provider:  ProviderRegionName,
-			Resource:  "regions",
-			SkipToken: nil,
-			Verb:      "list",
-		},
 	}
-	return &iter, nil
+
+	nextSkipToken := unstructuredList.GetContinue()
+	if nextSkipToken != "" {
+		iterator.Metadata.SkipToken = &nextSkipToken
+	}
+
+	return iterator, nil
 }
 
-func fromCRToSDKRegion(crRegion regionsv1.Region, verb string) (schema.Region, error) {
-	providers := make([]schema.Provider, len(crRegion.Spec.Providers))
-	for i, provider := range crRegion.Spec.Providers {
+func fromCRToSDKRegion(crdRegion regionsv1.Region, callType string) (schema.Region, error) {
+	providers := make([]schema.Provider, len(crdRegion.Spec.Providers))
+	for i, provider := range crdRegion.Spec.Providers {
 		providers[i] = schema.Provider{
 			Name:    provider.Name,
 			Url:     provider.Url,
 			Version: provider.Version,
 		}
 	}
-	resVersion, err := strconv.Atoi(crRegion.GetResourceVersion())
+	resVersion, err := strconv.Atoi(crdRegion.GetResourceVersion())
 	if err != nil {
 		return schema.Region{}, fmt.Errorf("could not parse resource version: %w", err)
 	}
 	refObj := schema.ReferenceObject{
-		Resource: RegionBaseURL + "regions/" + crRegion.Name,
+		Resource: RegionBaseURL + "/regions/" + crdRegion.Name,
 	}
 	reference := schema.Reference{}
 	if err := reference.FromReferenceObject(refObj); err != nil {
@@ -152,24 +163,24 @@ func fromCRToSDKRegion(crRegion regionsv1.Region, verb string) (schema.Region, e
 
 	sdkRegion := schema.Region{
 		Spec: schema.RegionSpec{
-			AvailableZones: crRegion.Spec.AvailableZones,
+			AvailableZones: crdRegion.Spec.AvailableZones,
 			Providers:      providers,
 		},
 		Metadata: &schema.GlobalResourceMetadata{
 			ApiVersion:      regionsv1.Version,
-			CreatedAt:       crRegion.GetCreationTimestamp().Time,
-			LastModifiedAt:  crRegion.GetCreationTimestamp().Time,
+			CreatedAt:       crdRegion.GetCreationTimestamp().Time,
+			LastModifiedAt:  crdRegion.GetCreationTimestamp().Time,
 			Kind:            schema.GlobalResourceMetadataKindResourceKindRegion,
-			Name:            crRegion.GetName(),
+			Name:            crdRegion.GetName(),
 			Provider:        ProviderRegionName,
-			Resource:        crRegion.GetName(),
+			Resource:        crdRegion.GetName(),
 			Ref:             &reference,
 			ResourceVersion: resVersion,
-			Verb:            verb,
+			Verb:            callType,
 		},
 	}
-	if crRegion.GetDeletionTimestamp() != nil {
-		sdkRegion.Metadata.DeletedAt = &crRegion.GetDeletionTimestamp().Time
+	if crdRegion.GetDeletionTimestamp() != nil {
+		sdkRegion.Metadata.DeletedAt = &crdRegion.GetDeletionTimestamp().Time
 	}
 	return sdkRegion, nil
 }
