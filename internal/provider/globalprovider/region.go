@@ -130,6 +130,11 @@ func (c *RegionController) ListRegions(ctx context.Context, params region.ListRe
 
 	iterator := &region.RegionIterator{
 		Items: sdkRegions,
+		Metadata: schema.ResponseMetadata{
+			Provider: ProviderRegionName,
+			Resource: "regions",
+			Verb:     "list",
+		},
 	}
 
 	nextSkipToken := unstructuredList.GetContinue()
