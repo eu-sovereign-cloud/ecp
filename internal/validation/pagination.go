@@ -14,7 +14,7 @@ func GetLimit(limit *int) int {
 		return DefaultLimit
 	}
 	if *limit < MinLimit {
-		return DefaultLimit
+		return MinLimit
 	}
 	if *limit > MaxLimit {
 		return MaxLimit

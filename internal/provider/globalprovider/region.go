@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"path"
+	"net/url"
 	"strconv"
 
 	region "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
@@ -159,8 +159,12 @@ func fromCRDToSDKRegion(crdRegion regionsv1.Region, verb string) (schema.Region,
 	if err != nil {
 		return schema.Region{}, fmt.Errorf("could not parse resource version: %w", err)
 	}
+	resource, err := url.JoinPath(RegionBaseURL, "regions", crdRegion.Name)
+	if err != nil {
+		return schema.Region{}, fmt.Errorf("could not parse resource URL: %w", err)
+	}
 	refObj := schema.ReferenceObject{
-		Resource: path.Join(RegionBaseURL, "regions", crdRegion.Name),
+		Resource: resource,
 	}
 	reference := schema.Reference{}
 	if err := reference.FromReferenceObject(refObj); err != nil {
