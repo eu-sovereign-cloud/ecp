@@ -125,14 +125,15 @@ func TestRegionController_ListRegions(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			iter, err := rc.ListRegions(ctx, sdkregion.ListRegionsParams{Labels: tt.selector})
 			require.NoError(t, err)
-			regions, err := iter.All(ctx)
+			regions := iter.Items
+
 			require.NoError(t, err)
 			require.ElementsMatch(t, tt.wantNames, extractNames(regions))
 		})
 	}
 }
 
-func extractNames(regs []*schema.Region) []string {
+func extractNames(regs []schema.Region) []string {
 	out := make([]string, len(regs))
 	for i, r := range regs {
 		out[i] = r.Metadata.Name

@@ -8,7 +8,6 @@ import (
 
 	region "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
-	"github.com/eu-sovereign-cloud/go-sdk/secapi"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
@@ -18,14 +17,17 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/internal/validation/filter"
 )
 
-const ProviderRegionName = "seca.region/v1"
+const (
+	RegionBaseURL      = "/providers/seca.region"
+	ProviderRegionName = "seca.region/v1"
+)
 
 var _ RegionProvider = (*RegionController)(nil) // Ensure RegionController implements the RegionProvider interface.
 
 // RegionProvider defines the interface for interacting with regions in the ECP.
 type RegionProvider interface {
 	GetRegion(ctx context.Context, name string) (*schema.Region, error)
-	ListRegions(ctx context.Context, params region.ListRegionsParams) (*secapi.Iterator[schema.Region], error)
+	ListRegions(ctx context.Context, params region.ListRegionsParams) (*region.RegionIterator, error)
 }
 
 // RegionController implements the RegionalProvider interface and provides methods to interact with the Region CRD in the Kubernetes cluster.
@@ -74,7 +76,7 @@ func (c *RegionController) GetRegion(ctx context.Context, regionName schema.Reso
 }
 
 // ListRegions retrieves all available regions by listing the CRs from the cluster.
-func (c *RegionController) ListRegions(ctx context.Context, params region.ListRegionsParams) (*secapi.Iterator[schema.Region], error) {
+func (c *RegionController) ListRegions(ctx context.Context, params region.ListRegionsParams) (*region.RegionIterator, error) {
 	listOptions := metav1.ListOptions{}
 	rawSelector := ""
 	if params.Labels != nil {
@@ -115,11 +117,16 @@ func (c *RegionController) ListRegions(ctx context.Context, params region.ListRe
 		}
 		sdkRegions = append(sdkRegions, sdkRegion)
 	}
-
-	regionIterator := secapi.NewIterator(func(ctx context.Context, skipToken *string) ([]schema.Region, *string, error) {
-		return sdkRegions, nil, nil
-	})
-	return regionIterator, nil
+	iter := region.RegionIterator{
+		Items: sdkRegions,
+		Metadata: schema.ResponseMetadata{
+			Provider:  ProviderRegionName,
+			Resource:  "regions",
+			SkipToken: nil,
+			Verb:      "list",
+		},
+	}
+	return &iter, nil
 }
 
 func fromCRToSDKRegion(crRegion regionsv1.Region, verb string) (schema.Region, error) {
@@ -136,7 +143,7 @@ func fromCRToSDKRegion(crRegion regionsv1.Region, verb string) (schema.Region, e
 		return schema.Region{}, fmt.Errorf("could not parse resource version: %w", err)
 	}
 	refObj := schema.ReferenceObject{
-		Resource: "regions/" + crRegion.Name,
+		Resource: RegionBaseURL + "regions/" + crRegion.Name,
 	}
 	reference := schema.Reference{}
 	if err := reference.FromReferenceObject(refObj); err != nil {

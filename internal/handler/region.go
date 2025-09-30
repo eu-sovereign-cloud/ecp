@@ -35,16 +35,9 @@ func (h *RegionHandler) ListRegions(w http.ResponseWriter, r *http.Request, para
 		return
 	}
 
-	var regions []*schema.Region
-	if regions, err = iterator.All(r.Context()); err != nil {
-		h.logger.ErrorContext(r.Context(), "failed to retrieve all regions", slog.Any("error", err))
-		http.Error(w, "failed to retrieve all regions: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
 	w.Header().Set("Content-Type", string(schema.AcceptHeaderJson))
 	w.WriteHeader(http.StatusOK)
-	err = json.NewEncoder(w).Encode(regions)
+	err = json.NewEncoder(w).Encode(iterator)
 	if err != nil {
 		h.logger.Error("failed to encode regions", "error", err)
 		http.Error(w, "failed to encode regions: "+err.Error(), http.StatusInternalServerError)

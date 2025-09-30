@@ -11,7 +11,6 @@ import (
 
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1" //nolint:goimports
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
-	"github.com/eu-sovereign-cloud/go-sdk/secapi"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	pkgerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -19,15 +18,22 @@ import (
 	regionsv1 "github.com/eu-sovereign-cloud/ecp/apis/regions/v1"
 )
 
+type badRegionIterator struct {
+	Items    []schema.Region
+	Metadata schema.ResponseMetadata
+	// Unexported field that cannot be marshaled
+	ch chan struct{}
+}
+
 // mockRegionProvider mocks the RegionProvider interface.
 type mockRegionProvider struct {
-	listRegionsIterator *secapi.Iterator[schema.Region]
+	listRegionsIterator *region.RegionIterator
 	listRegionsErr      error
 	getRegionResult     *schema.Region
 	getRegionErr        error
 }
 
-func (m *mockRegionProvider) ListRegions(_ context.Context, _ region.ListRegionsParams) (*secapi.Iterator[schema.Region], error) {
+func (m *mockRegionProvider) ListRegions(_ context.Context, _ region.ListRegionsParams) (*region.RegionIterator, error) {
 	return m.listRegionsIterator, m.listRegionsErr
 }
 
@@ -55,9 +61,10 @@ func TestRegionHandler_ListRegions(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		// Arrange
 		mockProvider := &mockRegionProvider{
-			listRegionsIterator: secapi.NewIterator(func(ctx context.Context, skipToken *string) ([]schema.Region, *string, error) {
-				return testRegions, skipToken, nil
-			}),
+			listRegionsIterator: &region.RegionIterator{
+				Items:    testRegions,
+				Metadata: schema.ResponseMetadata{},
+			},
 		}
 		handler := NewRegionHandler(slog.Default(), mockProvider)
 		req := httptest.NewRequest(http.MethodGet, "/regions", nil)
@@ -70,10 +77,10 @@ func TestRegionHandler_ListRegions(t *testing.T) {
 		require.Equal(t, http.StatusOK, rr.Code)
 		require.Equal(t, "application/json", rr.Header().Get("Content-Type"))
 
-		var body []schema.Region
+		var body region.RegionIterator
 		err := json.Unmarshal(rr.Body.Bytes(), &body)
 		require.NoError(t, err)
-		assert.Equal(t, testRegions, body)
+		assert.Equal(t, testRegions, body.Items)
 	})
 
 	t.Run("provider returns error", func(t *testing.T) {
@@ -91,25 +98,6 @@ func TestRegionHandler_ListRegions(t *testing.T) {
 		// Assert
 		require.Equal(t, http.StatusInternalServerError, rr.Code)
 		assert.Contains(t, rr.Body.String(), "failed to list regions: provider failed")
-	})
-
-	t.Run("iterator returns error", func(t *testing.T) {
-		// Arrange
-		mockProvider := &mockRegionProvider{
-			listRegionsIterator: secapi.NewIterator(func(ctx context.Context, skipToken *string) ([]schema.Region, *string, error) {
-				return testRegions, skipToken, errors.New("iterator failed")
-			}),
-		}
-		handler := NewRegionHandler(slog.Default(), mockProvider)
-		req := httptest.NewRequest(http.MethodGet, "/regions", nil)
-		rr := httptest.NewRecorder()
-
-		// Act
-		handler.ListRegions(rr, req, region.ListRegionsParams{})
-
-		// Assert
-		require.Equal(t, http.StatusInternalServerError, rr.Code)
-		assert.Contains(t, rr.Body.String(), "failed to retrieve all regions: iterator failed")
 	})
 }
 
