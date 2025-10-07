@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: regional-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: regional-server
+  template:
+    metadata:
+      labels:
+        app: regional-server
+    spec:
+      containers:
+        - name: server
+          image: regional-server:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: regional-server-svc
+spec:
+  type: NodePort # Expose the service on a port on the node
+  selector:
+    app: regional-server
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080

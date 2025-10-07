@@ -1,0 +1,24 @@
+# Go build outputs
+*.exe
+*.test
+*.prof
+*.pprof
+*.out
+*.log
+
+# Local binaries and tools
+kind
+bin/
+
+# IDE-specific files
+/.kind/
+/.work/
+/.cache/
+/.public/
+/.vscode/
+/.idea/
+
+.DS_Store
+/vendor/
+/tools/vendor/
+scripts/common-template/dist/

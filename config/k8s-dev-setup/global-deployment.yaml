@@ -1,0 +1,48 @@
+# --- Deployment for the Global API Server ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: global-api-deployment
+  labels:
+    app: global-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: global-api
+  template:
+    metadata:
+      labels:
+        app: global-api
+    spec:
+      containers:
+        - name: global-server
+          image: global-server:latest
+          # Use 'Always' if you are pushing to a remote registry,
+          # or 'IfNotPresent'/'Never' for local images (e.g., with minikube).
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080 # The port your application listens on inside the container
+
+---
+# --- Service to expose the Global API Server ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: global-api-service
+spec:
+  # Use NodePort to expose the service on each node's IP at a static port.
+  # For cloud environments, you might prefer 'LoadBalancer'.
+  type: NodePort
+  selector:
+    # This must match the labels of the pods in the deployment
+    app: global-api
+  ports:
+    - protocol: TCP
+      # The port the service will be exposed on within the cluster
+      port: 8081
+      # The port on the pod that the service will forward traffic to
+      targetPort: 8080
+      # The static port on the node where the service is exposed.
+      # If not specified, a random port in the range 30000-32767 is chosen.
+      nodePort: 30081
