@@ -1,3 +1,7 @@
+// +kubebuilder:object:generate=true
+// +groupName=v1.secapi.cloud
+// +versionName=v1
+
 package v1
 
 import (
@@ -13,9 +17,7 @@ const RegionResource = "regions"
 
 var (
 	RegionGR  = schema.GroupResource{Group: regions.Group, Resource: RegionResource}
-	RegionGVR = schema.GroupVersionResource{
-		Group: regions.Group, Version: regions.Version, Resource: RegionResource,
-	}
+	RegionGVR = schema.GroupVersionResource{Group: regions.Group, Version: regions.Version, Resource: RegionResource}
 )
 
 // +kubebuilder:object:root=true
@@ -37,4 +39,8 @@ type RegionList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 
 	Items []Region `json:"items"`
+}
+
+func init() {
+	regions.SchemeBuilder.Register(&Region{}, &RegionList{})
 }

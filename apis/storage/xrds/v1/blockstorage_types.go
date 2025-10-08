@@ -1,3 +1,7 @@
+// +kubebuilder:object:generate=true
+// +groupName=storage.v1.secapi.cloud
+// +versionName=v1
+
 package v1
 
 import (
@@ -43,4 +47,8 @@ type XBlockStorageList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 
 	Items []XBlockStorage `json:"items"`
+}
+
+func init() {
+	storage.SchemeBuilder.Register(&XBlockStorage{}, &XBlockStorageList{})
 }

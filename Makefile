@@ -76,9 +76,6 @@ $(CRD_TYPES):
 	@GO_TOOL="$(GO_TOOL)" ./scripts/generate-crd-xrd.sh $@
 	@echo "--------------------------------"
 
-.PHONY: generate-commons
-generate-commons:
-	@GO_TOOL="$(GO_TOOL)" ./scripts/generate-common-models.sh $(COMMON_MODELS)
 
 .PHONY: create-dev-clusters
 # Sets up one global and one regional cluster for development purposes
