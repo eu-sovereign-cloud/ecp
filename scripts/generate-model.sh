@@ -49,9 +49,8 @@ for model in "${COMMON_MODELS[@]}"; do
 
     echo "Post-processing the Go code to replace excluded schemas with references to ${model} package..."
     for schema in "${schemas_array[@]}"; do
-          echo "schema are: ${schema}"
         # Remove potential duplicate type definitions
-        sed -i --regexp-extended "/^type ${schema} struct \{/,/^\}$/d" "${OUTPUT_FILE}"
+#        sed -i --regexp-extended "/^type ${schema} struct \{/,/^\}$/d" "${OUTPUT_FILE}"
         if [ $(grep -c "${schema}" ${OUTPUT_FILE}) -gt 0 ]; then
             requires_import=true
         fi
