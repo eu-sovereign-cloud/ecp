@@ -8,75 +8,20 @@ TOOLS_GOMOD := -modfile=./tools/go.mod
 GO := go
 GO_TOOL := $(GO) run $(TOOLS_GOMOD)
 
-SDK_SRC_DIR :=internal/go-sdk/pkg/spec/schema
+SDK_SRC_DIR := internal/go-sdk/pkg/spec/schema
 API_DEST_DIR := apis/generated/types
 CRD_TYPES := $(shell (find apis -mindepth 1 -maxdepth 1 -type d | grep -v generated | cut -d'/' -f2))
-
-crossplane-local-dev: ensure-kind ensure-helm kind-create crossplane-install
+COMMON_MODELS ?= errors resource
+FOUNDATION_SPECS ?= region block-storage
+# ====================================================================================
 
 submodules:
 	@git submodule sync
 	@git submodule update --init --recursive
 
-copy_common:
-	@cp $(SDK_SRC_DIR)/resource.go $(API_DEST_DIR)/common/zz_generated_resource.go
-	@cp $(SDK_SRC_DIR)/errors.go $(API_DEST_DIR)/common/zz_generated_errors.go
-
-# Before running this, add the submodule:
-# Usage: make generate-from-sdk NAME=<name>
-# Example: make generate-from-sdk NAME=region
-.PHONY: generate-from-sdk
-generate-from-sdk:
- ifndef NAME
-	$(error NAME is not set. Usage: make generate-from-sdk NAME=<name>)
- endif
-	@echo "Generating API types for $(NAME) from go-sdk submodule..."
-	@mkdir -p $(API_DEST_DIR)/$(NAME)/v1
-	@cp $(SDK_SRC_DIR)/$(NAME).go $(API_DEST_DIR)/$(NAME)/v1/zz_generated_$(NAME).go
-
-	@echo "Replacing time.Time with metav1.Time in zz_generated_*.go..."
-	@cp $(SDK_SRC_DIR)/resource.go $(API_DEST_DIR)/$(NAME)/v1/zz_generated_$(NAME)_resource.go
-	@sed -i 's/"time"/"k8s.io\/apimachinery\/pkg\/apis\/meta\/v1"/g' $(API_DEST_DIR)/$(NAME)/v1/zz_generated_*.go
-	@sed -i 's/time\.Time/v1\.Time/g' $(API_DEST_DIR)/$(NAME)/v1/zz_generated_*.go
-	@sed -i 's/*map\[string\]interface{}/\*map[string]string/g' $(API_DEST_DIR)/$(NAME)/v1/zz_generated_*.go
-	@sed -i 's/package schema/package v1\n\n\/\/ +kubebuilder:object:generate=true/g' $(API_DEST_DIR)/$(NAME)/v1/zz_generated_*.go
-	@echo "Generating deepcopy functions for $(NAME)..."
-	@$(GO_TOOL) -mod=mod sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=".github/boilerplate.go.txt" paths=./$(API_DEST_DIR)/$(NAME)/v1
-	@echo "Done."
-
-ensure-kind:
-	@command -v kind >/dev/null 2>&1 || { \
-	  echo "kind not found, installing..."; \
-	  curl -Lo ./kind https://kind.sigs.k8s.io/dl/$(KIND_VERSION)/kind-linux-amd64; \
-	  chmod +x ./kind; \
-	  sudo mv ./kind /usr/local/bin/kind; \
-	}
-
-ensure-helm:
-	@command -v helm >/dev/null 2>&1 || { \
-		echo "helm not found, installing..."; \
-		curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash; \
-	}
-
-.PHONY: kind-create
-kind-create:
-	kind create cluster --name $(KIND_CLUSTER_NAME) || true
-
-.PHONY: crossplane-install
-crossplane-install:
-	helm repo add crossplane-stable https://charts.crossplane.io/stable
-	helm repo update
-	helm install crossplane --namespace $(CROSSPLANE_NAMESPACE) --create-namespace crossplane-stable/crossplane
-
 .PHONY: run-global-server
 run-global-server:
 	go run ./main.go globalapiserver
-
-.PHONY: clean-crossplane-dev
-clean-crossplane-dev:
-	 kubectl delete namespace $(CROSSPLANE_NAMESPACE) || true
-	 kubectl delete secret example-provider-secret --namespace $(CROSSPLANE_NAMESPACE) || true
-	 kind delete cluster --name $(KIND_CLUSTER_NAME) || true
 
 .PHONY: generate-crds
 generate-crds: $(CRD_TYPES)
@@ -104,6 +49,17 @@ docker-build-images:
 	@echo "Executing image build script..."
 	@./scripts/build-images.sh
 
+.PHONY: generate-commons
+generate-commons:
+	@GO_TOOL="$(GO_TOOL)" ./scripts/generate-common-models.sh $(COMMON_MODELS)
+
+.PHONY: generate-models
+generate-models: $(FOUNDATION_SPECS)
+
+.PHONY: $(FOUNDATION_SPECS)
+$(FOUNDATION_SPECS):
+	@GO_TOOL="$(GO_TOOL)" ./scripts/generate-model.sh $@ v1 $(COMMON_MODELS)
+	@echo "--------------------------------"
 
 define ECP_MAKE_HELP
 ECP Targets:
