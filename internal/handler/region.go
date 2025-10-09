@@ -1,4 +1,5 @@
-package handler
+package // +kubebuilder:object:generate=true
+handler
 
 import (
 	"encoding/json"
