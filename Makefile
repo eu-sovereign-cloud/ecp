@@ -1,9 +1,6 @@
 # ====================================================================================
 # Variables
 # ====================================================================================
-KIND_CLUSTER_NAME=crossplanetest
-KIND_VERSION=v0.29.0
-CROSSPLANE_NAMESPACE=crossplane-system
 TOOLS_GOMOD := -modfile=./tools/go.mod
 GO := go
 GO_TOOL := $(GO) run $(TOOLS_GOMOD)
@@ -51,30 +48,27 @@ docker-build-images:
 
 .PHONY: generate-commons
 generate-commons:
+	@echo "Generating common models: $(COMMON_MODELS)"
 	@GO_TOOL="$(GO_TOOL)" ./scripts/generate-common-models.sh $(COMMON_MODELS)
 
-.PHONY: generate-models
-generate-models: $(FOUNDATION_SPECS)
+.PHONY:  generate-models
+generate-models: generate-commons $(FOUNDATION_SPECS)
 
 .PHONY: $(FOUNDATION_SPECS)
 $(FOUNDATION_SPECS):
+	@echo "Generating models for $@"
 	@GO_TOOL="$(GO_TOOL)" ./scripts/generate-model.sh $@ v1 $(COMMON_MODELS)
 	@echo "--------------------------------"
 
 define ECP_MAKE_HELP
 ECP Targets:
-	generate-from-sdk      Generate Go API types from the go-sdk submodule
+	generate-common        Generate common models from internal/go-sdk
+	generate-models		   Generate models from internal/go-sdk
 	generate-crds          Generate CRDs for the regions API
 	run-global-server      Run the global API server locally
 	create-dev-clusters    Set up one global and one regional cluster for development purposes
 	clean-dev-clusters     Remove the global and regional clusters set up for development
 	docker-build-images    Build Docker images for the provider components
-	crossplane-local-dev   Set up a local Crossplane development environment with kind and Helm
-	ensure-kind            Ensure kind is installed
-	ensure-helm            Ensure Helm is installed
-	kind-create            Create a kind cluster for Crossplane development
-	crossplane-install     Install Crossplane into the kind cluster
-	clean-crossplane-dev   Clean up the Crossplane development environment
 	generate-regions-crd   Generate CRDs for the regions API from the regions package
 endef
 
