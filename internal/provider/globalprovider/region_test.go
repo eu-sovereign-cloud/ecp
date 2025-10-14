@@ -15,7 +15,7 @@ import (
 
 	sdkregion "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
 
-	generatedv1 "github.com/eu-sovereign-cloud/ecp/apis/generated/types/region/v1"
+	generatedv1 "github.com/eu-sovereign-cloud/ecp/apis/generated/types"
 	regionsv1 "github.com/eu-sovereign-cloud/ecp/apis/regions/v1"
 	"github.com/eu-sovereign-cloud/ecp/internal/kubeclient"
 )

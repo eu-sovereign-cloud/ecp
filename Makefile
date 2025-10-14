@@ -7,7 +7,6 @@ GO_TOOL := $(GO) run $(TOOLS_GOMOD)
 
 API_DEST_DIR := apis/generated/types
 CRD_TYPES := $(shell (find apis -mindepth 1 -maxdepth 1 -type d | grep -v generated | cut -d'/' -f2))
-COMMON_MODELS ?= errors resource
 FOUNDATION_SPECS ?= region block-storage
 # ====================================================================================
 
@@ -45,23 +44,14 @@ docker-build-images:
 	@echo "Executing image build script..."
 	@./scripts/build-images.sh
 
-.PHONY: generate-commons
-generate-commons:
-	@echo "Generating common models: $(COMMON_MODELS)"
-	@GO_TOOL="$(GO_TOOL)" ./scripts/generate-common-models.sh $(COMMON_MODELS)
-
 .PHONY:  generate-models
-generate-models: generate-commons $(FOUNDATION_SPECS)
-
-.PHONY: $(FOUNDATION_SPECS)
-$(FOUNDATION_SPECS):
-	@echo "Generating models for $@"
-	@GO_TOOL="$(GO_TOOL)" ./scripts/generate-model.sh $@ v1 $(COMMON_MODELS)
+generate-models:
+	@echo "Generating models from go-sdk "
+	@GO_TOOL="$(GO_TOOL)" ./scripts/generate-model.sh
 	@echo "--------------------------------"
 
 define ECP_MAKE_HELP
 ECP Targets:
-	generate-common        Generate common models from internal/go-sdk
 	generate-models		   Generate models from internal/go-sdk
 	generate-crds          Generate CRDs for the regions API
 	run-global-server      Run the global API server locally

@@ -1,10 +1,7 @@
-package v1
+package types
 
 // +kubebuilder:object:generate=true
-
-import (
-	resource "github.com/eu-sovereign-cloud/ecp/apis/generated/types/resource"
-)
+// +kubebuilder:object:root=true
 
 // Package schema provides primitives to interact with the openapi HTTP API.
 //
@@ -17,27 +14,27 @@ const (
 
 // BlockStorage defines model for BlockStorage.
 type BlockStorage struct {
-	// resource.Annotations User-defined key/value pairs that are mutable and can be used to add annotations.
+	// Annotations User-defined key/value pairs that are mutable and can be used to add annotations.
 	// The number of annotations is eventually limited by the CSP.
-	Annotations resource.Annotations `json:"annotations,omitempty"`
+	Annotations Annotations `json:"annotations,omitempty"`
 
-	// resource.Extensions User-defined key/value pairs that are mutable and can be used to add extensions.
-	// resource.Extensions are subject to validation by the CSP, and any value that is not accepted will be rejected during admission.
-	Extensions resource.Extensions `json:"extensions,omitempty"`
+	// Extensions User-defined key/value pairs that are mutable and can be used to add extensions.
+	// Extensions are subject to validation by the CSP, and any value that is not accepted will be rejected during admission.
+	Extensions Extensions `json:"extensions,omitempty"`
 
-	// resource.Labels User-defined key/value pairs that are mutable and can be used to
+	// Labels User-defined key/value pairs that are mutable and can be used to
 	// organize and categorize resources. They can be used to filter resources.
 	// The number of labels is eventually limited by the CSP.
-	Labels resource.Labels `json:"labels,omitempty"`
+	Labels Labels `json:"labels,omitempty"`
 
 	// Metadata Metadata for regional resources with name, permission, modification, type, tenant and workspace and region information.
-	Metadata *resource.RegionalWorkspaceResourceMetadata `json:"metadata,omitempty"`
+	Metadata *RegionalWorkspaceResourceMetadata `json:"metadata,omitempty"`
 
-	// Spec resource.References the SKU used for this block.
+	// Spec References the SKU used for this block.
 	// If a reference to the source image is used as the base for creating this block storage.
 	Spec BlockStorageSpec `json:"spec"`
 
-	// resource.Status The status of the block storage.
+	// Status The status of the block storage.
 	Status *BlockStorageStatus `json:"status,omitempty"`
 }
 
@@ -47,18 +44,18 @@ type BlockStorageSpec struct {
 	// SizeGB Size of the block storage in GB.
 	SizeGB int `json:"sizeGB"`
 
-	// SkuRef resource.Reference to the SKU of the block storage.
-	SkuRef resource.Reference `json:"skuRef"`
+	// SkuRef Reference to the SKU of the block storage.
+	SkuRef Reference `json:"skuRef"`
 
-	// SourceImageRef resource.Reference to the source image used as the base for creating the block storage.
-	SourceImageRef *resource.Reference `json:"sourceImageRef,omitempty"`
+	// SourceImageRef Reference to the source image used as the base for creating the block storage.
+	SourceImageRef *Reference `json:"sourceImageRef,omitempty"`
 }
 
 // BlockStorageStatus defines model for BlockStorageStatus.
 type BlockStorageStatus struct {
-	// AttachedTo resource.Reference to the instance the block storage is attached to.
-	AttachedTo *resource.Reference        `json:"attachedTo,omitempty"`
-	Conditions []resource.StatusCondition `json:"conditions"`
+	// AttachedTo Reference to the instance the block storage is attached to.
+	AttachedTo *Reference        `json:"attachedTo,omitempty"`
+	Conditions []StatusCondition `json:"conditions"`
 
 	// SizeGB Size of the block storage in GB.
 	SizeGB int `json:"sizeGB"`
@@ -71,13 +68,13 @@ type BlockStorageStatus struct {
 	// - deleting: maybe still available for data layer user, can fail any moment
 	// - suspended: not available, provider specific behavior (payment issue, user decided to suspend)
 	// - error: failed to fulfill the request; would be related to provider issue or customer related input.
-	State *resource.ResourceState `json:"state,omitempty"`
+	State *ResourceState `json:"state,omitempty"`
 }
 
 // VolumeReference Represents a connection between a Block Storage and an a user of the block storage.
 type VolumeReference struct {
-	// DeviceRef resource.Reference to the block storage used to store the volume.
-	DeviceRef resource.Reference `json:"deviceRef"`
+	// DeviceRef Reference to the block storage used to store the volume.
+	DeviceRef Reference `json:"deviceRef"`
 
 	// Type The connection type depends on the type of device and type of block storage.
 	Type *VolumeReferenceType `json:"type,omitempty"`
