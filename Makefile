@@ -5,7 +5,6 @@ TOOLS_GOMOD := -modfile=./tools/go.mod
 GO := go
 GO_TOOL := $(GO) run $(TOOLS_GOMOD)
 
-SDK_SRC_DIR := internal/go-sdk/pkg/spec/schema
 API_DEST_DIR := apis/generated/types
 CRD_TYPES := $(shell (find apis -mindepth 1 -maxdepth 1 -type d | grep -v generated | cut -d'/' -f2))
 COMMON_MODELS ?= errors resource
