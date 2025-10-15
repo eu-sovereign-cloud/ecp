@@ -4,22 +4,22 @@
 TOOLS_GOMOD := -modfile=./tools/go.mod
 GO := go
 GO_TOOL := $(GO) run $(TOOLS_GOMOD)
-
-API_DEST_DIR := apis/generated/types
-CRD_TYPES := $(shell (find apis -mindepth 1 -maxdepth 1 -type d | grep -v generated | cut -d'/' -f2))
-FOUNDATION_SPECS ?= region block-storage
 # ====================================================================================
-
 submodules:
 	@git submodule sync
 	@git submodule update --init --recursive
+# ====================================================================================
+# Generate
+# ====================================================================================
+.PHONY:  generate-models
+generate-models:
+	@echo "Generating models from go-sdk "
+	@GO_TOOL="$(GO_TOOL)" ./scripts/generate-model.sh
+	@echo "--------------------------------"
 
-.PHONY: run-global-server
-run-global-server:
-	go run ./main.go globalapiserver
-
-.PHONY: generate-crds
-generate-crds: $(CRD_TYPES)
+generate-crds:
+	@echo "Generating CRDs via go generate (with build tag crdgen)..."
+	@$(GO) generate -tags=crdgen ./apis/...
 
 .PHONY: $(CRD_TYPES)
 $(CRD_TYPES):
@@ -28,11 +28,18 @@ $(CRD_TYPES):
 	@$(GO_TOOL) -mod=mod sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=".github/boilerplate.go.txt" paths="./apis/$@/v1/..."
 	@$(GO_TOOL) -mod=mod sigs.k8s.io/controller-tools/cmd/controller-gen crd paths=./apis/$@/v1/... output:crd:artifacts:config=./apis/generated/crds/$@
 
+# ====================================================================================
+# Development
+# ====================================================================================
 .PHONY: create-dev-clusters
 # Sets up one global and one regional cluster for development purposes
 create-dev-clusters: docker-build-images
 	@echo "Executing development cluster setup script..."
 	@./scripts/setup-dev-clusters.sh
+
+.PHONY: run-global-server
+run-global-server:
+	go run ./main.go globalapiserver
 
 .PHONY: clean-dev-clusters
 clean-dev-clusters:
@@ -44,21 +51,16 @@ docker-build-images:
 	@echo "Executing image build script..."
 	@./scripts/build-images.sh
 
-.PHONY:  generate-models
-generate-models:
-	@echo "Generating models from go-sdk "
-	@GO_TOOL="$(GO_TOOL)" ./scripts/generate-model.sh
-	@echo "--------------------------------"
+
 
 define ECP_MAKE_HELP
 ECP Targets:
 	generate-models		   Generate models from internal/go-sdk
-	generate-crds          Generate CRDs for the regions API
+	generate-crds          Generate CRDs based on the crdgen tag
 	run-global-server      Run the global API server locally
 	create-dev-clusters    Set up one global and one regional cluster for development purposes
 	clean-dev-clusters     Remove the global and regional clusters set up for development
 	docker-build-images    Build Docker images for the provider components
-	generate-regions-crd   Generate CRDs for the regions API from the regions package
 endef
 
 export ECP_MAKE_HELP
