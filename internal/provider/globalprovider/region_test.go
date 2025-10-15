@@ -21,7 +21,7 @@ import (
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
-	generatedv1 "github.com/eu-sovereign-cloud/ecp/apis/generated/types/region/v1"
+	generatedv1 "github.com/eu-sovereign-cloud/ecp/apis/generated/types"
 	regionsv1 "github.com/eu-sovereign-cloud/ecp/apis/regions/v1"
 	"github.com/eu-sovereign-cloud/ecp/internal/kubeclient"
 )
