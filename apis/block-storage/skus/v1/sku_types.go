@@ -5,7 +5,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	storage "github.com/eu-sovereign-cloud/ecp/apis/block-storage"
-	genv1 "github.com/eu-sovereign-cloud/ecp/apis/generated/types/storage-sku/v1"
+	genv1 "github.com/eu-sovereign-cloud/ecp/apis/generated/types"
 )
 
 // StorageSKUResource is the resource name for storage SKUs
