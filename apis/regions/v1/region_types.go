@@ -3,7 +3,7 @@ package v1
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	v1 "github.com/eu-sovereign-cloud/ecp/apis/generated/types/region/v1"
+	v1 "github.com/eu-sovereign-cloud/ecp/apis/generated/types"
 )
 
 // +kubebuilder:object:root=true

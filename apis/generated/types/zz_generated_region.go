@@ -1,10 +1,7 @@
-package v1
+package types
 
 // +kubebuilder:object:generate=true
-
-import (
-	resource "github.com/eu-sovereign-cloud/ecp/apis/generated/types/resource"
-)
+// +kubebuilder:object:root=true
 
 // Package schema provides primitives to interact with the openapi HTTP API.
 //
@@ -21,7 +18,7 @@ type Provider struct {
 // with one or more zones.
 type Region struct {
 	// Metadata Metadata for global resources with name, permission, modification, type, and tenant information.
-	Metadata *resource.GlobalResourceMetadata `json:"metadata,omitempty"`
+	Metadata *GlobalResourceMetadata `json:"metadata,omitempty"`
 
 	// Spec The specification of a region, including the available zones and providers.
 	Spec RegionSpec `json:"spec"`
