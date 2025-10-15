@@ -11,6 +11,10 @@ submodules:
 # ====================================================================================
 # Generate
 # ====================================================================================
+
+.PHONY: generate-all
+generate-all: generate-models generate-crds
+
 .PHONY:  generate-models
 generate-models:
 	@echo "Generating models from go-sdk "
@@ -20,13 +24,6 @@ generate-models:
 generate-crds:
 	@echo "Generating CRDs via go generate (with build tag crdgen)..."
 	@$(GO) generate -tags=crdgen ./apis/...
-
-.PHONY: $(CRD_TYPES)
-$(CRD_TYPES):
-	@echo "Generating CRDs for $@"
-	@mkdir -p ./apis/generated/crds/$@
-	@$(GO_TOOL) -mod=mod sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=".github/boilerplate.go.txt" paths="./apis/$@/v1/..."
-	@$(GO_TOOL) -mod=mod sigs.k8s.io/controller-tools/cmd/controller-gen crd paths=./apis/$@/v1/... output:crd:artifacts:config=./apis/generated/crds/$@
 
 # ====================================================================================
 # Development
@@ -55,12 +52,14 @@ docker-build-images:
 
 define ECP_MAKE_HELP
 ECP Targets:
+	generate-all		   Generate all code (models and CRDs)
 	generate-models		   Generate models from internal/go-sdk
 	generate-crds          Generate CRDs based on the crdgen tag
 	run-global-server      Run the global API server locally
 	create-dev-clusters    Set up one global and one regional cluster for development purposes
 	clean-dev-clusters     Remove the global and regional clusters set up for development
 	docker-build-images    Build Docker images for the provider components
+	clean				   Clean up generated files
 endef
 
 export ECP_MAKE_HELP
