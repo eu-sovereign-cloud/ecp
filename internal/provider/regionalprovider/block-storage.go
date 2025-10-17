@@ -121,7 +121,7 @@ func (c StorageController) ListSKUs(ctx context.Context, tenantID string, params
 		listOptions.LabelSelector = filter.K8sSelectorForAPI(rawSelector)
 	}
 
-	// TODO: Rewrite after we have tenants and workspaces Always filter by tenant ID to ensure tenant isolation, since we cannot use namespaces (yet).
+	// TODO: Rewrite after we have tenants and workspaces. Always filter by tenant ID to ensure tenant isolation, since we cannot use namespaces (yet).
 	if listOptions.LabelSelector != "" {
 		listOptions.LabelSelector = strings.Join(
 			[]string{
@@ -185,7 +185,7 @@ func (c StorageController) ListSKUs(ctx context.Context, tenantID string, params
 func (c StorageController) GetSKU(
 	ctx context.Context, tenantID, skuID string,
 ) (*sdkschema.StorageSku, error) {
-	// todo - add tenant support once it's implemented
+	// TODO - add tenant support once it's implemented
 	// Fetch the Storage SKU custom resource from the Kubernetes API server. Cluster wide.
 	unstructuredObj, err := c.client.Client.Resource(skuv1.StorageSKUGVR).Get(ctx, skuID, metav1.GetOptions{})
 	if err != nil {
