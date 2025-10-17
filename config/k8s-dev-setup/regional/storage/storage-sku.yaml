@@ -1,0 +1,10 @@
+  apiVersion: storage.v1.secapi.cloud/v1
+  kind: StorageSKU
+  metadata:
+    labels:
+      secapi.cloud/tenant-id: seca
+    name: fast-local
+  spec:
+    iops: 10000
+    minVolumeSize: 10
+    type: local-ephemeral

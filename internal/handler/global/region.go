@@ -1,4 +1,4 @@
-package handler
+package globalhandler
 
 import (
 	"encoding/json"
@@ -13,21 +13,21 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/internal/provider/globalprovider"
 )
 
-// RegionHandler handles HTTP requests for region data.
-type RegionHandler struct {
+// Region handles HTTP requests for region data.
+type Region struct {
 	provider globalprovider.RegionProvider
 	logger   *slog.Logger
 }
 
-// NewRegionHandler creates a new handler for region endpoints.
-func NewRegionHandler(logger *slog.Logger, p globalprovider.RegionProvider) *RegionHandler {
-	return &RegionHandler{provider: p, logger: logger.With("component", "RegionHandler")}
+// NewRegion creates a new handler for region endpoints.
+func NewRegion(logger *slog.Logger, p globalprovider.RegionProvider) *Region {
+	return &Region{provider: p, logger: logger.With("component", "Region")}
 }
 
-var _ regionv1.ServerInterface = (*RegionHandler)(nil)
+var _ regionv1.ServerInterface = (*Region)(nil)
 
 // ListRegions handles requests to list all available regions.
-func (h *RegionHandler) ListRegions(w http.ResponseWriter, r *http.Request, params regionv1.ListRegionsParams) {
+func (h *Region) ListRegions(w http.ResponseWriter, r *http.Request, params regionv1.ListRegionsParams) {
 	iterator, err := h.provider.ListRegions(r.Context(), params)
 	if err != nil {
 		h.logger.Error("failed to list regions", "error", err)
@@ -46,7 +46,7 @@ func (h *RegionHandler) ListRegions(w http.ResponseWriter, r *http.Request, para
 }
 
 // GetRegion handles requests to get a specific region by name.
-func (h *RegionHandler) GetRegion(w http.ResponseWriter, r *http.Request, name schema.ResourcePathParam) {
+func (h *Region) GetRegion(w http.ResponseWriter, r *http.Request, name schema.ResourcePathParam) {
 	reg, err := h.provider.GetRegion(r.Context(), name)
 	if err != nil {
 		if errors.IsNotFound(err) {
