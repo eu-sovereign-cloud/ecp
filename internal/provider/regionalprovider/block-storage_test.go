@@ -208,7 +208,7 @@ func TestStorageController_GetSKU(t *testing.T) {
 		require.NotNil(t, sku)
 		require.Equal(t, skuID, sku.Metadata.Name)
 		require.NotNil(t, sku.Spec)
-		require.EqualValues(t, 7500, sku.Spec.Iops)
+		require.Equal(t, 7500, sku.Spec.Iops)
 	})
 
 	t.Run("get_nonexistent", func(t *testing.T) {

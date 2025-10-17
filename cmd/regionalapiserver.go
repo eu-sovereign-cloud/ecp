@@ -14,7 +14,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 
-	"github.com/eu-sovereign-cloud/ecp/internal/handler/regional"
+	regionalhandler "github.com/eu-sovereign-cloud/ecp/internal/handler/regional"
 	"github.com/eu-sovereign-cloud/ecp/internal/httpserver"
 	"github.com/eu-sovereign-cloud/ecp/internal/logger"
 	"github.com/eu-sovereign-cloud/ecp/internal/provider/regionalprovider"
@@ -77,7 +77,6 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 	}
 
 	storage := regionalhandler.NewStorage(logger, storageController)
-	logger.Info("Starting regional API server on", "addr", addr)
 	storageHandler := sdkstorageapi.HandlerWithOptions(storage, sdkstorageapi.StdHTTPServerOptions{
 		BaseURL:          regionalprovider.StorageBaseURL,
 		BaseRouter:       nil,

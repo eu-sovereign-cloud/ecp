@@ -23,7 +23,7 @@ REGIONS_RBAC_YAML="config/k8s-dev-setup/global_regions_rbac.yaml"
 # Added: Storage SKU CRD & RBAC for regional cluster
 STORAGE_SKU_CRD_YAML="apis/generated/crds/block-storage/storage.v1.secapi.cloud_storage-skus.yaml"
 REGIONAL_STORAGE_SKU_CR="config/k8s-dev-setup/regional/storage/storage-sku.yaml"
-REGIONAL_STORAGE_SKU_RBAC_YAML="config/k8s-dev-setup/regional/storage/regional-storage-sku-rback.yaml"
+REGIONAL_STORAGE_SKU_RBAC_YAML="config/k8s-dev-setup/regional/storage/regional-storage-sku-rbac.yaml"
 
 # Region Details
 REGION_NAME="region"

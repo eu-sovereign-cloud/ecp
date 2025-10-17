@@ -14,7 +14,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 
-	"github.com/eu-sovereign-cloud/ecp/internal/handler/global"
+	globalhandler "github.com/eu-sovereign-cloud/ecp/internal/handler/global"
 	"github.com/eu-sovereign-cloud/ecp/internal/httpserver"
 	"github.com/eu-sovereign-cloud/ecp/internal/logger"
 	"github.com/eu-sovereign-cloud/ecp/internal/provider/globalprovider"
