@@ -127,8 +127,6 @@ apiVersion: v1.secapi.cloud/v1
 kind: Region
 metadata:
   name: "${REGION_NAME}"
-  labels:
-    secapi.cloud/tenant-id: seca
 spec:
   availableZones:
     - "${REGION_NAME}-a"

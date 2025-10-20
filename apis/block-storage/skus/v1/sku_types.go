@@ -8,7 +8,7 @@ import (
 )
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:path=storage-skus,scope=Cluster,shortName=storage-sku
+// +kubebuilder:resource:path=storage-skus,scope=Namespaced,shortName=storage-sku
 // +k8s:openapi-gen=true
 
 // StorageSKU is the API for getting storage SKU information

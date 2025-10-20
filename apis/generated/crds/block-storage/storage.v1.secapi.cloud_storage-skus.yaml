@@ -14,7 +14,7 @@ spec:
     shortNames:
     - storage-sku
     singular: storagesku
-  scope: Cluster
+  scope: Namespaced
   versions:
   - name: v1
     schema:

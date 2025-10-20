@@ -21,6 +21,8 @@ import (
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
+	k8sschema "k8s.io/apimachinery/pkg/runtime/schema"
+
 	storage "github.com/eu-sovereign-cloud/ecp/apis/block-storage"
 	skuv1 "github.com/eu-sovereign-cloud/ecp/apis/block-storage/skus/v1"
 	generatedv1 "github.com/eu-sovereign-cloud/ecp/apis/generated/types"
@@ -32,13 +34,13 @@ var cfg *rest.Config
 // --- Helpers ---
 
 // newStorageSKUCR constructs a typed StorageSKU CR.
-func newStorageSKUCR(name string, labels map[string]string, iops, minVolumeSize int, skuType string, setVersionAndTimestamp bool) *skuv1.StorageSKU {
+func newStorageSKUCR(name, tenant string, labels map[string]string, iops, minVolumeSize int, skuType string, setVersionAndTimestamp bool) *skuv1.StorageSKU {
 	if labels == nil {
 		labels = map[string]string{}
 	}
 	cr := &skuv1.StorageSKU{
 		TypeMeta:   metav1.TypeMeta{Kind: "StorageSKU", APIVersion: fmt.Sprintf("%s/%s", skuv1.StorageSKUGVR.Group, skuv1.StorageSKUGVR.Version)},
-		ObjectMeta: metav1.ObjectMeta{Name: name, Labels: labels},
+		ObjectMeta: metav1.ObjectMeta{Name: name, Labels: labels, Namespace: tenant},
 		Spec:       generatedv1.StorageSkuSpec{Iops: iops, MinVolumeSize: minVolumeSize, Type: generatedv1.StorageSkuSpecType(skuType)},
 	}
 	if setVersionAndTimestamp {
@@ -115,7 +117,36 @@ func TestStorageController_ListSKUs(t *testing.T) {
 		skuSlow  = "slow"
 		skuThird = "third"
 	)
+	namespaceGVR := k8sschema.GroupVersionResource{Version: "v1", Resource: "namespaces"}
 
+	// Create the namespace object
+	namespaceObj := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "v1",
+			"kind":       "Namespace",
+			"metadata": map[string]interface{}{
+				"name": tenantA,
+			},
+		},
+	}
+	namespaceObj2 := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "v1",
+			"kind":       "Namespace",
+			"metadata": map[string]interface{}{
+				"name": tenantB,
+			},
+		},
+	}
+	ctx := context.Background()
+	_, err = dynClient.Resource(namespaceGVR).Create(ctx, namespaceObj, metav1.CreateOptions{})
+	if err != nil && !k8serrors.IsAlreadyExists(err) {
+		require.NoError(t, err)
+	}
+	_, err = dynClient.Resource(namespaceGVR).Create(ctx, namespaceObj2, metav1.CreateOptions{})
+	if err != nil && !k8serrors.IsAlreadyExists(err) {
+		require.NoError(t, err)
+	}
 	nameFast := tenantA + "." + skuFast
 	nameSlow := tenantA + "." + skuSlow
 	nameThird := tenantA + "." + skuThird
@@ -130,14 +161,13 @@ func TestStorageController_ListSKUs(t *testing.T) {
 	}
 
 	// Create CRs in the API server (no preset resourceVersion)
-	ctx := context.Background()
 	for _, u := range []*unstructured.Unstructured{
-		toUnstructured(t, scheme, newStorageSKUCR(nameFast, commonLabels(map[string]string{"tier": "prod", "env": "prod"}), 5000, 10, string(generatedv1.StorageSkuTypeRemoteDurable), false)),
-		toUnstructured(t, scheme, newStorageSKUCR(nameSlow, commonLabels(map[string]string{"tier": "dev", "env": "staging"}), 1000, 20, string(generatedv1.StorageSkuTypeLocalDurable), false)),
-		toUnstructured(t, scheme, newStorageSKUCR(nameThird, commonLabels(map[string]string{"tier": "prod", "env": "staging", "rank": "3"}), 3000, 15, string(generatedv1.StorageSkuTypeRemoteDurable), false)),
-		toUnstructured(t, scheme, newStorageSKUCR(nameOtherTenant, map[string]string{tenantLabelKey: tenantB, "tier": "prod"}, 9000, 50, string(generatedv1.StorageSkuTypeRemoteDurable), false)),
+		toUnstructured(t, scheme, newStorageSKUCR(nameFast, tenantA, commonLabels(map[string]string{"tier": "prod", "env": "prod"}), 5000, 10, string(generatedv1.StorageSkuTypeRemoteDurable), false)),
+		toUnstructured(t, scheme, newStorageSKUCR(nameSlow, tenantA, commonLabels(map[string]string{"tier": "dev", "env": "staging"}), 1000, 20, string(generatedv1.StorageSkuTypeLocalDurable), false)),
+		toUnstructured(t, scheme, newStorageSKUCR(nameThird, tenantA, commonLabels(map[string]string{"tier": "prod", "env": "staging", "rank": "3"}), 3000, 15, string(generatedv1.StorageSkuTypeRemoteDurable), false)),
+		toUnstructured(t, scheme, newStorageSKUCR(nameOtherTenant, tenantB, map[string]string{tenantLabelKey: tenantB, "tier": "prod"}, 9000, 50, string(generatedv1.StorageSkuTypeRemoteDurable), false)),
 	} {
-		_, err := dynClient.Resource(skuv1.StorageSKUGVR).Create(ctx, u, metav1.CreateOptions{})
+		_, err := dynClient.Resource(skuv1.StorageSKUGVR).Namespace(u.GetNamespace()).Create(ctx, u, metav1.CreateOptions{})
 		require.NoError(t, err)
 	}
 
@@ -193,11 +223,27 @@ func TestStorageController_GetSKU(t *testing.T) {
 
 	const tenant = "tenant-a"
 	const skuID = "only"
+	namespaceGVR := k8sschema.GroupVersionResource{Version: "v1", Resource: "namespaces"}
 
-	u := toUnstructured(t, scheme, newStorageSKUCR(skuID, map[string]string{tenantLabelKey: tenant, "tier": "prod"}, 7500, 10, string(generatedv1.StorageSkuTypeRemoteDurable), false))
+	// Create the namespace object
+	namespaceObj := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "v1",
+			"kind":       "Namespace",
+			"metadata": map[string]interface{}{
+				"name": tenant,
+			},
+		},
+	}
 
 	ctx := context.Background()
-	_, err = dynClient.Resource(skuv1.StorageSKUGVR).Create(ctx, u, metav1.CreateOptions{})
+	_, err = dynClient.Resource(namespaceGVR).Create(ctx, namespaceObj, metav1.CreateOptions{})
+	if err != nil && !k8serrors.IsAlreadyExists(err) {
+		require.NoError(t, err)
+	}
+	u := toUnstructured(t, scheme, newStorageSKUCR(skuID, tenant, map[string]string{tenantLabelKey: tenant, "tier": "prod"}, 7500, 10, string(generatedv1.StorageSkuTypeRemoteDurable), false))
+
+	_, err = dynClient.Resource(skuv1.StorageSKUGVR).Namespace(u.GetNamespace()).Create(ctx, u, metav1.CreateOptions{})
 	if err != nil && !k8serrors.IsAlreadyExists(err) { // ignore if previously created by another test
 		require.NoError(t, err)
 	}

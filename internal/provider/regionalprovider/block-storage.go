@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"strings"
 
 	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
@@ -121,18 +120,7 @@ func (c StorageController) ListSKUs(ctx context.Context, tenantID string, params
 		listOptions.LabelSelector = filter.K8sSelectorForAPI(rawSelector)
 	}
 
-	// TODO: Rewrite after we have tenants and workspaces. Always filter by tenant ID to ensure tenant isolation, since we cannot use namespaces (yet).
-	if listOptions.LabelSelector != "" {
-		listOptions.LabelSelector = strings.Join(
-			[]string{
-				fmt.Sprintf("%s=%s", tenantLabelKey, tenantID), listOptions.LabelSelector,
-			}, ",",
-		)
-	} else {
-		listOptions.LabelSelector = fmt.Sprintf("%s=%s", tenantLabelKey, tenantID)
-	}
-
-	unstructuredList, err := c.client.Client.Resource(skuv1.StorageSKUGVR).List(ctx, listOptions)
+	unstructuredList, err := c.client.Client.Resource(skuv1.StorageSKUGVR).Namespace(tenantID).List(ctx, listOptions)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list storage SKU CRs: %w", err)
 	}
@@ -187,7 +175,7 @@ func (c StorageController) GetSKU(
 ) (*sdkschema.StorageSku, error) {
 	// TODO - add tenant support once it's implemented
 	// Fetch the Storage SKU custom resource from the Kubernetes API server. Cluster wide.
-	unstructuredObj, err := c.client.Client.Resource(skuv1.StorageSKUGVR).Get(ctx, skuID, metav1.GetOptions{})
+	unstructuredObj, err := c.client.Client.Resource(skuv1.StorageSKUGVR).Namespace(tenantID).Get(ctx, skuID, metav1.GetOptions{})
 	if err != nil {
 		c.logger.ErrorContext(
 			ctx, "failed to get storage SKU CR", slog.String("sku", skuID), slog.Any("error", err),
