@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/eu-sovereign-cloud/ecp/apis/compute/skus/v1"
 	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 	"github.com/eu-sovereign-cloud/go-sdk/secapi"
@@ -12,7 +13,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 
-	skuv1 "github.com/eu-sovereign-cloud/ecp/apis/block-storage/skus/v1"
 	"github.com/eu-sovereign-cloud/ecp/internal/validation"
 
 	"github.com/eu-sovereign-cloud/ecp/internal/kubeclient"
@@ -120,7 +120,7 @@ func (c StorageController) ListSKUs(ctx context.Context, tenantID string, params
 		listOptions.LabelSelector = filter.K8sSelectorForAPI(rawSelector)
 	}
 
-	unstructuredList, err := c.client.Client.Resource(skuv1.StorageSKUGVR).Namespace(tenantID).List(ctx, listOptions)
+	unstructuredList, err := c.client.Client.Resource(v1.StorageSKUGVR).Namespace(tenantID).List(ctx, listOptions)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list storage SKU CRs: %w", err)
 	}
@@ -141,7 +141,7 @@ func (c StorageController) ListSKUs(ctx context.Context, tenantID string, params
 			}
 		}
 
-		var crdStorageSKU skuv1.StorageSKU
+		var crdStorageSKU v1.StorageSKU
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(
 			unstructuredObj.Object, &crdStorageSKU,
 		); err != nil {
@@ -158,7 +158,7 @@ func (c StorageController) ListSKUs(ctx context.Context, tenantID string, params
 		Items: sdkStorageSKUs,
 		Metadata: sdkschema.ResponseMetadata{
 			Provider:  ProviderStorageName,
-			Resource:  skuv1.StorageSKUResource,
+			Resource:  v1.StorageSKUResource,
 			SkipToken: nil,
 			Verb:      "list",
 		},
@@ -175,7 +175,7 @@ func (c StorageController) GetSKU(
 ) (*sdkschema.StorageSku, error) {
 	// TODO - add tenant support once it's implemented
 	// Fetch the Storage SKU custom resource from the Kubernetes API server. Cluster wide.
-	unstructuredObj, err := c.client.Client.Resource(skuv1.StorageSKUGVR).Namespace(tenantID).Get(ctx, skuID, metav1.GetOptions{})
+	unstructuredObj, err := c.client.Client.Resource(v1.StorageSKUGVR).Namespace(tenantID).Get(ctx, skuID, metav1.GetOptions{})
 	if err != nil {
 		c.logger.ErrorContext(
 			ctx, "failed to get storage SKU CR", slog.String("sku", skuID), slog.Any("error", err),
@@ -183,7 +183,7 @@ func (c StorageController) GetSKU(
 		return nil, fmt.Errorf("failed to retrieve storage SKU '%s': %w", skuID, err)
 	}
 
-	var crdStorageSKU skuv1.StorageSKU
+	var crdStorageSKU v1.StorageSKU
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(
 		unstructuredObj.Object, &crdStorageSKU,
 	); err != nil {
@@ -227,7 +227,7 @@ func (c StorageController) DeleteBlockStorage(
 	panic("implement me")
 }
 
-func fromCRToSDKStorageSKU(crStorageSKU skuv1.StorageSKU) sdkschema.StorageSku {
+func fromCRToSDKStorageSKU(crStorageSKU v1.StorageSKU) sdkschema.StorageSku {
 	sdkStorageSKU := sdkschema.StorageSku{
 		Spec: &sdkschema.StorageSkuSpec{
 			Iops:          crStorageSKU.Spec.Iops,
