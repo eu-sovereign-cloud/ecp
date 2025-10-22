@@ -4,16 +4,16 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.19.0
-  name: compute-skus.compute.v1.secapi.cloud
+  name: instance-skus.compute.v1.secapi.cloud
 spec:
   group: compute.v1.secapi.cloud
   names:
-    kind: ComputeSKU
-    listKind: ComputeSKUList
-    plural: compute-skus
+    kind: InstanceSKU
+    listKind: InstanceSKUList
+    plural: instance-skus
     shortNames:
-    - compute-sku
-    singular: computesku
+    - instance-sku
+    singular: instancesku
   scope: Namespaced
   versions:
   - name: v1
@@ -37,6 +37,25 @@ spec:
               More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
             type: string
           metadata:
+            type: object
+          spec:
+            description: InstanceSkuSpec Specification of the instance SKU, including
+              its capabilities and extensions.
+            properties:
+              ram:
+                description: |-
+                  Ram The amount of RAM (Random Access Memory) allocated to the instance SKU in gigabytes.
+                  This value represents the total memory available to the instance.
+                type: integer
+              vCPU:
+                description: |-
+                  VCPU The number of virtual CPUs (vCPUs) allocated to the instance SKU.
+                  This value represents the number of cores visible to the operating system.
+                  It does not specify the number of physical processors or hyper-threads available.
+                type: integer
+            required:
+            - ram
+            - vCPU
             type: object
         type: object
     served: true

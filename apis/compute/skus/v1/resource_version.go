@@ -9,11 +9,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-const ComputeSKUResource = "compute-skus"
+const InstanceSKUResource = "instance-skus"
 
 var (
-	StorageSKUGR  = schema.GroupResource{Group: storage.Group, Resource: ComputeSKUResource}
-	StorageSKUGVR = schema.GroupVersionResource{
-		Group: storage.Group, Version: storage.Version, Resource: ComputeSKUResource,
+	InstanceSKUGR  = schema.GroupResource{Group: storage.Group, Resource: InstanceSKUResource}
+	InstanceSKUGVR = schema.GroupVersionResource{
+		Group: storage.Group, Version: storage.Version, Resource: InstanceSKUResource,
 	}
 )

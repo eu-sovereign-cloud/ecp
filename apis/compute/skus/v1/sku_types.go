@@ -8,28 +8,26 @@ import (
 )
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:path=compute-skus,scope=Namespaced,shortName=compute-sku
+// +kubebuilder:resource:path=instance-skus,scope=Namespaced,shortName=instance-sku
 // +k8s:openapi-gen=true
 
 // Compute is the API for getting storage SKU information
-type ComputeSKU struct {
+type InstanceSKU struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	// todo: use compute SKU spec. possibly add here
-	// https://github.com/eu-sovereign-cloud/go-sdk/tree/main/pkg/spec/schema
-	Spec genv1.StorageSkuSpec `json:"spec,omitempty"`
+	Spec genv1.InstanceSkuSpec `json:"spec,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 
-type ComputeSKUList struct {
+type InstanceSKUList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 
-	Items []ComputeSKU `json:"items"`
+	Items []InstanceSKU `json:"items"`
 }
 
 func init() {
-	storage.SchemeBuilder.Register(&ComputeSKU{}, &ComputeSKUList{})
+	storage.SchemeBuilder.Register(&InstanceSKU{}, &InstanceSKUList{})
 }

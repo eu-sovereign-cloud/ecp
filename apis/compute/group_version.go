@@ -7,7 +7,7 @@ import (
 
 const (
 	// Group is the group name used in this package
-	Group = "compute.v1.secapi.cloud"
+	Group = "instance.v1.secapi.cloud"
 	// Version is the version of the API
 	Version = "v1"
 )
