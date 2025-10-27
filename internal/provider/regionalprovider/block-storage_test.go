@@ -23,9 +23,9 @@ import (
 
 	k8sschema "k8s.io/apimachinery/pkg/runtime/schema"
 
-	storage "github.com/eu-sovereign-cloud/ecp/apis/block-storage"
-	skuv1 "github.com/eu-sovereign-cloud/ecp/apis/block-storage/skus/v1"
 	generatedv1 "github.com/eu-sovereign-cloud/ecp/apis/generated/types"
+	storage "github.com/eu-sovereign-cloud/ecp/apis/regional/block-storage"
+	"github.com/eu-sovereign-cloud/ecp/apis/regional/block-storage/skus/v1"
 	"github.com/eu-sovereign-cloud/ecp/internal/kubeclient"
 )
 
@@ -34,12 +34,12 @@ var cfg *rest.Config
 // --- Helpers ---
 
 // newStorageSKUCR constructs a typed StorageSKU CR.
-func newStorageSKUCR(name, tenant string, labels map[string]string, iops, minVolumeSize int, skuType string, setVersionAndTimestamp bool) *skuv1.StorageSKU {
+func newStorageSKUCR(name, tenant string, labels map[string]string, iops, minVolumeSize int, skuType string, setVersionAndTimestamp bool) *v1.StorageSKU {
 	if labels == nil {
 		labels = map[string]string{}
 	}
-	cr := &skuv1.StorageSKU{
-		TypeMeta:   metav1.TypeMeta{Kind: "StorageSKU", APIVersion: fmt.Sprintf("%s/%s", skuv1.StorageSKUGVR.Group, skuv1.StorageSKUGVR.Version)},
+	cr := &v1.StorageSKU{
+		TypeMeta:   metav1.TypeMeta{Kind: "StorageSKU", APIVersion: fmt.Sprintf("%s/%s", v1.StorageSKUGVR.Group, v1.StorageSKUGVR.Version)},
 		ObjectMeta: metav1.ObjectMeta{Name: name, Labels: labels, Namespace: tenant},
 		Spec:       generatedv1.StorageSkuSpec{Iops: iops, MinVolumeSize: minVolumeSize, Type: generatedv1.StorageSkuSpecType(skuType)},
 	}
@@ -167,7 +167,7 @@ func TestStorageController_ListSKUs(t *testing.T) {
 		toUnstructured(t, scheme, newStorageSKUCR(nameThird, tenantA, commonLabels(map[string]string{"tier": "prod", "env": "staging", "rank": "3"}), 3000, 15, string(generatedv1.StorageSkuTypeRemoteDurable), false)),
 		toUnstructured(t, scheme, newStorageSKUCR(nameOtherTenant, tenantB, map[string]string{tenantLabelKey: tenantB, "tier": "prod"}, 9000, 50, string(generatedv1.StorageSkuTypeRemoteDurable), false)),
 	} {
-		_, err := dynClient.Resource(skuv1.StorageSKUGVR).Namespace(u.GetNamespace()).Create(ctx, u, metav1.CreateOptions{})
+		_, err := dynClient.Resource(v1.StorageSKUGVR).Namespace(u.GetNamespace()).Create(ctx, u, metav1.CreateOptions{})
 		require.NoError(t, err)
 	}
 
@@ -243,7 +243,7 @@ func TestStorageController_GetSKU(t *testing.T) {
 	}
 	u := toUnstructured(t, scheme, newStorageSKUCR(skuID, tenant, map[string]string{tenantLabelKey: tenant, "tier": "prod"}, 7500, 10, string(generatedv1.StorageSkuTypeRemoteDurable), false))
 
-	_, err = dynClient.Resource(skuv1.StorageSKUGVR).Namespace(u.GetNamespace()).Create(ctx, u, metav1.CreateOptions{})
+	_, err = dynClient.Resource(v1.StorageSKUGVR).Namespace(u.GetNamespace()).Create(ctx, u, metav1.CreateOptions{})
 	if err != nil && !k8serrors.IsAlreadyExists(err) { // ignore if previously created by another test
 		require.NoError(t, err)
 	}

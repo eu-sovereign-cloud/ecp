@@ -12,10 +12,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 
-	skuv1 "github.com/eu-sovereign-cloud/ecp/apis/block-storage/skus/v1"
-	"github.com/eu-sovereign-cloud/ecp/internal/validation"
-
+	skuv1 "github.com/eu-sovereign-cloud/ecp/apis/regional/block-storage/skus/v1"
 	"github.com/eu-sovereign-cloud/ecp/internal/kubeclient"
+	"github.com/eu-sovereign-cloud/ecp/internal/validation"
 	"github.com/eu-sovereign-cloud/ecp/internal/validation/filter"
 )
 
@@ -86,8 +85,8 @@ func (c StorageController) ListImages(
 	panic("implement me")
 }
 
-// NewController creates a new StorageController with a Kubernetes client.
-func NewController(logger *slog.Logger, cfg *rest.Config) (*StorageController, error) {
+// NewStorageController creates a new StorageController with a Kubernetes client.
+func NewStorageController(logger *slog.Logger, cfg *rest.Config) (*StorageController, error) {
 	client, err := kubeclient.NewFromConfig(cfg)
 	if err != nil {
 		logger.Error("failed to create kubeclient", slog.Any("error", err))

@@ -70,7 +70,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		}
 	}
 
-	storageController, err := regionalprovider.NewController(logger, config)
+	storageController, err := regionalprovider.NewStorageController(logger, config)
 	if err != nil {
 		logger.Error("failed to create regional provider", slog.Any("error", err))
 		log.Fatal(err, " - failed to create regional provider")

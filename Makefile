@@ -14,6 +14,9 @@ submodules:
 
 .PHONY: generate-all
 generate-all: generate-models generate-crds
+	@echo "Vendoring modules..."
+	@$(GO) mod vendor
+	@$(GO) test ./...
 
 .PHONY:  generate-models
 generate-models:
@@ -24,6 +27,10 @@ generate-models:
 generate-crds:
 	@echo "Generating CRDs via go generate (with build tag crdgen)..."
 	@$(GO) generate -tags=crdgen ./apis/...
+
+generate-xrds:
+	@echo "Generating XRDs via go generate (with build tag xrdgen)..."
+	@$(GO) generate -tags=xrdgen ./apis/...
 
 # ====================================================================================
 # Development

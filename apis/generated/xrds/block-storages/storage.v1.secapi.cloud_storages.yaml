@@ -1,0 +1,101 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.0.2-rc3
+  name: storages.storage.v1.secapi.cloud
+spec:
+  group: storage.v1.secapi.cloud
+  names:
+    kind: Storage
+    listKind: StorageList
+    plural: storages
+    shortNames:
+    - storage
+    singular: storage
+  versions:
+  - name: v1
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        description: Storage is the API for getting storage SKU information
+        properties:
+          regionalCommonData:
+            description: RegionalCommonData defines the additional common fields that
+              can be set on regional resources
+            properties:
+              annotations:
+                additionalProperties:
+                  type: string
+                description: |-
+                  Annotations User-defined key/value pairs that are mutable and can be used to add annotations.
+                  The number of annotations is eventually limited by the CSP.
+                type: object
+              extensions:
+                additionalProperties:
+                  type: string
+                description: |-
+                  Extensions User-defined key/value pairs that are mutable and can be used to add extensions.
+                  Extensions are subject to validation by the CSP, and any value that is not accepted will be rejected during admission.
+                type: object
+              labels:
+                additionalProperties:
+                  type: string
+                description: |-
+                  Labels User-defined key/value pairs that are mutable and can be used to
+                  organize and categorize resources. They can be used to filter resources.
+                  The number of labels is eventually limited by the CSP.
+                type: object
+            type: object
+          regionalComonSpec:
+            description: RegionalCommonSpec defines the common spec fields for regional
+              resources.
+            properties:
+              name:
+                description: Name is the user-defined name of the resource.
+                type: string
+              region:
+                description: Region is the identifier for the region where this resource
+                  is located.
+                type: string
+              tenant:
+                description: Tenant is the identifier for the tenant that owns this
+                  resource.
+                type: string
+              workspace:
+                description: Workspace is the identifier for the workspace this resource
+                  belongs to.
+                type: string
+              zone:
+                description: |-
+                  Zone is the identifier for the availability zone within the region.
+                  This field is optional.
+                type: string
+            required:
+            - name
+            - region
+            - tenant
+            - workspace
+            type: object
+          spec:
+            description: |-
+              BlockStorageSpec References the SKU used for this block.
+              If a reference to the source image is used as the base for creating this block storage.
+            properties:
+              sizeGB:
+                description: SizeGB Size of the block storage in GB.
+                type: integer
+              skuRef:
+                description: SkuRef Reference to the SKU of the block storage.
+                type: object
+              sourceImageRef:
+                description: SourceImageRef Reference to the source image used as
+                  the base for creating the block storage.
+                type: object
+            required:
+            - sizeGB
+            - skuRef
+            type: object
+        type: object
+    served: true

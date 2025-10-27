@@ -266,7 +266,7 @@ type PermissionMetadata struct {
 // Reference Reference to a resource. The reference is represented as the full URN (Uniform Resource Name) name of the resource.
 // The reference can be used to refer to a resource in other resources.
 type Reference struct {
-	union json.RawMessage
+	union json.RawMessage `json:"-"`
 }
 
 // ReferenceObject A reference to a resource using an object. The object contains the

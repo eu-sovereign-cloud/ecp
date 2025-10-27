@@ -3,8 +3,8 @@ package v1
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	storage "github.com/eu-sovereign-cloud/ecp/apis/block-storage"
 	genv1 "github.com/eu-sovereign-cloud/ecp/apis/generated/types"
+	storage "github.com/eu-sovereign-cloud/ecp/apis/regional/block-storage"
 )
 
 // +kubebuilder:object:root=true
