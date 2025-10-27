@@ -13,10 +13,9 @@ submodules:
 # ====================================================================================
 
 .PHONY: generate-all
-generate-all: generate-models generate-crds
+generate-all: generate-models generate-crds generate-xrds
 	@echo "Vendoring modules..."
 	@$(GO) mod vendor
-	@$(GO) test ./...
 
 .PHONY:  generate-models
 generate-models:
@@ -61,7 +60,7 @@ define ECP_MAKE_HELP
 ECP Targets:
 	generate-all		   Generate all code (models and CRDs)
 	generate-models		   Generate models from internal/go-sdk
-	generate-crds          Generate CRDs based on the crdgen tag
+	generate-crds          Generate CRDs based on the crdgen tag. generate-models needs to run before.
 	run-global-server      Run the global API server locally
 	create-dev-clusters    Set up one global and one regional cluster for development purposes
 	clean-dev-clusters     Remove the global and regional clusters set up for development
@@ -77,7 +76,7 @@ help:
 
 .PHONY: clean-generated
 clean-generated:
-	find . -type f -name 'zz_generated*' -exec rm -f {} +
+	find . -path ./internal/go-sdk -prune -o -type f -name 'zz_generated*' -exec rm -f {} +
 
 .PHONY: clean-crds
 clean-crds:

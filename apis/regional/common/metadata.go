@@ -1,3 +1,6 @@
+// +kubebuilder:object:generate=true
+// +kubebuilder:object:root=true
+
 package common
 
 // RegionalCommonData defines the additional common fields that can be set on regional resources

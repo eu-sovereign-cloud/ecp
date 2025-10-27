@@ -1,3 +1,6 @@
+// +kubebuilder:object:generate=true
+// +kubebuilder:object:root=true
+
 package common
 
 // RegionalCommonSpec defines the common spec fields for regional resources.
