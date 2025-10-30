@@ -56,7 +56,7 @@ func (c *RegionController) GetRegion(ctx context.Context, regionName schema.Reso
 		return fromCRDToSDKRegion(crdRegion, "get")
 	})
 	opts := common.NewGetOptions()
-	regionObj, err := common.GetResource(ctx, c.client.Client, regionsv1.GroupVersionResource, regionName, c.logger, convert, opts)
+	regionObj, err := common.GetResource(ctx, c.client.Client, regionsv1.GroupVersionResource, regionName, *c.logger, convert, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +80,7 @@ func (c *RegionController) ListRegions(ctx context.Context, params region.ListRe
 		opts.Selector(*params.Labels)
 	}
 
-	sdkRegions, nextSkipToken, err := common.ListResources(ctx, c.client.Client, regionsv1.GroupVersionResource, c.logger, convert, opts)
+	sdkRegions, nextSkipToken, err := common.ListResources(ctx, c.client.Client, regionsv1.GroupVersionResource, *c.logger, convert, opts)
 	if err != nil {
 		return nil, err
 	}

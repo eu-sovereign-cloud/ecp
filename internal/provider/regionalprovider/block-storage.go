@@ -119,7 +119,7 @@ func (c StorageController) ListSKUs(ctx context.Context, tenantID string, params
 		opts.Selector(*params.Labels)
 	}
 
-	sdkStorageSKUs, nextSkipToken, err := common.ListResources(ctx, c.client.Client, skuv1.StorageSKUGVR, c.logger, convert, opts)
+	sdkStorageSKUs, nextSkipToken, err := common.ListResources(ctx, c.client.Client, skuv1.StorageSKUGVR, *c.logger, convert, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +145,7 @@ func (c StorageController) GetSKU(
 		return fromCRToSDKStorageSKU(crdStorageSKU), nil
 	})
 	opts := common.NewGetOptions().Namespace(tenantID)
-	sku, err := common.GetResource(ctx, c.client.Client, skuv1.StorageSKUGVR, skuID, c.logger, convert, opts)
+	sku, err := common.GetResource(ctx, c.client.Client, skuv1.StorageSKUGVR, skuID, *c.logger, convert, opts)
 	if err != nil {
 		return nil, err
 	}

@@ -2,6 +2,8 @@ package common
 
 import (
 	"context"
+	"io"
+	"log/slog"
 	"testing"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -38,6 +40,7 @@ func newFakeClient(objs ...runtime.Object) *fake.FakeDynamicClient {
 }
 
 func TestListResourcesSelector(t *testing.T) {
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 	client := newFakeClient(
 		makeObj("w1", "", map[string]string{"env": "prod"}),
 		makeObj("w2", "", map[string]string{"env": "dev"}),
@@ -45,7 +48,7 @@ func TestListResourcesSelector(t *testing.T) {
 	ctx := context.Background()
 	convert := func(u unstructured.Unstructured) (string, error) { return u.GetName(), nil }
 
-	items, next, err := ListResources(ctx, client, widgetGVR, nil, convert, NewListOptions().Selector("env=prod"))
+	items, next, err := ListResources(ctx, client, widgetGVR, *logger, convert, NewListOptions().Selector("env=prod"))
 	if err != nil {
 		t.Fatalf("ListResources returned error: %v", err)
 	}
@@ -58,10 +61,11 @@ func TestListResourcesSelector(t *testing.T) {
 }
 
 func TestGetResource(t *testing.T) {
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 	client := newFakeClient(makeObj("alpha", "", map[string]string{"tier": "gold"}))
 	ctx := context.Background()
 	convert := func(u unstructured.Unstructured) (string, error) { return u.GetName(), nil }
-	item, err := GetResource(ctx, client, widgetGVR, "alpha", nil, convert, nil)
+	item, err := GetResource(ctx, client, widgetGVR, "alpha", *logger, convert, nil)
 	if err != nil {
 		t.Fatalf("GetResource returned error: %v", err)
 	}
@@ -71,31 +75,34 @@ func TestGetResource(t *testing.T) {
 }
 
 func TestListResourcesNilConvert(t *testing.T) {
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 	client := newFakeClient()
 	ctx := context.Background()
-	_, _, err := ListResources[string](ctx, client, widgetGVR, nil, nil, nil)
+	_, _, err := ListResources[string](ctx, client, widgetGVR, *logger, nil, nil)
 	if err == nil {
 		t.Fatalf("expected error for nil convert, got none")
 	}
 }
 
 func TestGetResourceNilConvert(t *testing.T) {
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 	client := newFakeClient()
 	ctx := context.Background()
-	_, err := GetResource[string](ctx, client, widgetGVR, "anything", nil, nil, nil)
+	_, err := GetResource[string](ctx, client, widgetGVR, "anything", *logger, nil, nil)
 	if err == nil {
 		t.Fatalf("expected error for nil convert, got none")
 	}
 }
 
 func TestListResourcesNamespace(t *testing.T) {
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 	client := newFakeClient(
 		makeObj("a", "ns1", map[string]string{"env": "prod"}),
 		makeObj("b", "ns2", map[string]string{"env": "prod"}),
 	)
 	ctx := context.Background()
 	convert := func(u unstructured.Unstructured) (string, error) { return u.GetName(), nil }
-	items, _, err := ListResources(ctx, client, widgetGVR, nil, convert, NewListOptions().Namespace("ns1"))
+	items, _, err := ListResources(ctx, client, widgetGVR, *logger, convert, NewListOptions().Namespace("ns1"))
 	if err != nil {
 		t.Fatalf("ListResources namespace returned error: %v", err)
 	}
@@ -105,10 +112,11 @@ func TestListResourcesNamespace(t *testing.T) {
 }
 
 func TestGetResourceNamespace(t *testing.T) {
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 	client := newFakeClient(makeObj("x", "ns-x", map[string]string{"env": "prod"}))
 	ctx := context.Background()
 	convert := func(u unstructured.Unstructured) (string, error) { return u.GetName(), nil }
-	item, err := GetResource(ctx, client, widgetGVR, "x", nil, convert, NewGetOptions().Namespace("ns-x"))
+	item, err := GetResource(ctx, client, widgetGVR, "x", *logger, convert, NewGetOptions().Namespace("ns-x"))
 	if err != nil {
 		t.Fatalf("GetResource namespace returned error: %v", err)
 	}
