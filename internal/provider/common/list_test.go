@@ -45,7 +45,7 @@ func TestListResourcesSelector(t *testing.T) {
 	ctx := context.Background()
 	convert := func(u unstructured.Unstructured) (string, error) { return u.GetName(), nil }
 
-	items, next, err := ListResources[string](ctx, client, widgetGVR, convert, NewListOptions().Selector("env=prod"))
+	items, next, err := ListResources(ctx, client, widgetGVR, convert, NewListOptions().Selector("env=prod"))
 	if err != nil {
 		t.Fatalf("ListResources returned error: %v", err)
 	}
@@ -61,7 +61,7 @@ func TestGetResource(t *testing.T) {
 	client := newFakeClient(makeObj("alpha", "", map[string]string{"tier": "gold"}))
 	ctx := context.Background()
 	convert := func(u unstructured.Unstructured) (string, error) { return u.GetName(), nil }
-	item, err := GetResource[string](ctx, client, widgetGVR, "alpha", convert, nil)
+	item, err := GetResource(ctx, client, widgetGVR, "alpha", convert, nil)
 	if err != nil {
 		t.Fatalf("GetResource returned error: %v", err)
 	}
@@ -95,7 +95,7 @@ func TestListResourcesNamespace(t *testing.T) {
 	)
 	ctx := context.Background()
 	convert := func(u unstructured.Unstructured) (string, error) { return u.GetName(), nil }
-	items, _, err := ListResources[string](ctx, client, widgetGVR, convert, NewListOptions().Namespace("ns1"))
+	items, _, err := ListResources(ctx, client, widgetGVR, convert, NewListOptions().Namespace("ns1"))
 	if err != nil {
 		t.Fatalf("ListResources namespace returned error: %v", err)
 	}
@@ -108,7 +108,7 @@ func TestGetResourceNamespace(t *testing.T) {
 	client := newFakeClient(makeObj("x", "ns-x", map[string]string{"env": "prod"}))
 	ctx := context.Background()
 	convert := func(u unstructured.Unstructured) (string, error) { return u.GetName(), nil }
-	item, err := GetResource[string](ctx, client, widgetGVR, "x", convert, NewGetOptions().Namespace("ns-x"))
+	item, err := GetResource(ctx, client, widgetGVR, "x", convert, NewGetOptions().Namespace("ns-x"))
 	if err != nil {
 		t.Fatalf("GetResource namespace returned error: %v", err)
 	}

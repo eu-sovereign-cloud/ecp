@@ -52,11 +52,11 @@ func NewController(logger *slog.Logger, cfg *rest.Config) (*RegionController, er
 
 // GetRegion retrieves a specific region by its ID by fetching the CR from the cluster.
 func (c *RegionController) GetRegion(ctx context.Context, regionName schema.ResourcePathParam) (*schema.Region, error) {
-	convert := common.Adapter[regionsv1.Region, schema.Region](func(crdRegion regionsv1.Region) (schema.Region, error) {
+	convert := common.Adapter(func(crdRegion regionsv1.Region) (schema.Region, error) {
 		return fromCRDToSDKRegion(crdRegion, "get")
 	})
 	opts := common.NewGetOptions().Logger(c.logger)
-	regionObj, err := common.GetResource[schema.Region](ctx, c.client.Client, regionsv1.GroupVersionResource, regionName, convert, opts)
+	regionObj, err := common.GetResource(ctx, c.client.Client, regionsv1.GroupVersionResource, regionName, convert, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +80,7 @@ func (c *RegionController) ListRegions(ctx context.Context, params region.ListRe
 		opts.Selector(*params.Labels)
 	}
 
-	sdkRegions, nextSkipToken, err := common.ListResources[schema.Region](ctx, c.client.Client, regionsv1.GroupVersionResource, convert, opts)
+	sdkRegions, nextSkipToken, err := common.ListResources(ctx, c.client.Client, regionsv1.GroupVersionResource, convert, opts)
 	if err != nil {
 		return nil, err
 	}

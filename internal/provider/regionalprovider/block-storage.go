@@ -8,8 +8,6 @@ import (
 	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 	"github.com/eu-sovereign-cloud/go-sdk/secapi"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 
 	skuv1 "github.com/eu-sovereign-cloud/ecp/apis/block-storage/skus/v1"
@@ -107,13 +105,9 @@ func (c StorageController) ListSKUs(ctx context.Context, tenantID string, params
 ) {
 	limit := validation.GetLimit(params.Limit)
 
-	convert := func(obj unstructured.Unstructured) (sdkschema.StorageSku, error) {
-		var crdStorageSKU skuv1.StorageSKU
-		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &crdStorageSKU); err != nil {
-			return sdkschema.StorageSku{}, fmt.Errorf("failed to convert unstructured object to StorageSKU type: %w", err)
-		}
+	convert := common.Adapter(func(crdStorageSKU skuv1.StorageSKU) (sdkschema.StorageSku, error) {
 		return fromCRToSDKStorageSKU(crdStorageSKU), nil
-	}
+	})
 	opts := common.NewListOptions().Namespace(tenantID).Logger(c.logger)
 	if limit > 0 {
 		opts.Limit(limit)
@@ -125,13 +119,7 @@ func (c StorageController) ListSKUs(ctx context.Context, tenantID string, params
 		opts.Selector(*params.Labels)
 	}
 
-	sdkStorageSKUs, nextSkipToken, err := common.ListResources[sdkschema.StorageSku](
-		ctx,
-		c.client.Client,
-		skuv1.StorageSKUGVR,
-		convert,
-		opts,
-	)
+	sdkStorageSKUs, nextSkipToken, err := common.ListResources(ctx, c.client.Client, skuv1.StorageSKUGVR, convert, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -154,22 +142,11 @@ func (c StorageController) ListSKUs(ctx context.Context, tenantID string, params
 func (c StorageController) GetSKU(
 	ctx context.Context, tenantID, skuID string,
 ) (*sdkschema.StorageSku, error) {
-	convert := func(obj unstructured.Unstructured) (sdkschema.StorageSku, error) {
-		var crdStorageSKU skuv1.StorageSKU
-		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &crdStorageSKU); err != nil {
-			return sdkschema.StorageSku{}, fmt.Errorf("failed to convert unstructured object to StorageSKU type: %w", err)
-		}
+	convert := common.Adapter(func(crdStorageSKU skuv1.StorageSKU) (sdkschema.StorageSku, error) {
 		return fromCRToSDKStorageSKU(crdStorageSKU), nil
-	}
+	})
 	opts := common.NewGetOptions().Namespace(tenantID).Logger(c.logger)
-	sku, err := common.GetResource[sdkschema.StorageSku](
-		ctx,
-		c.client.Client,
-		skuv1.StorageSKUGVR,
-		skuID,
-		convert,
-		opts,
-	)
+	sku, err := common.GetResource(ctx, c.client.Client, skuv1.StorageSKUGVR, skuID, convert, opts)
 	if err != nil {
 		return nil, err
 	}
