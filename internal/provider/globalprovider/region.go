@@ -55,7 +55,7 @@ func (c *RegionController) GetRegion(ctx context.Context, regionName schema.Reso
 	convert := common.Adapter[regionsv1.Region, schema.Region](func(crdRegion regionsv1.Region) (schema.Region, error) {
 		return fromCRDToSDKRegion(crdRegion, "get")
 	})
-	opts := common.NewGetOptions() // logger now passed explicitly
+	opts := common.NewGetOptions()
 	regionObj, err := common.GetResource(ctx, c.client.Client, regionsv1.GroupVersionResource, regionName, c.logger, convert, opts)
 	if err != nil {
 		return nil, err

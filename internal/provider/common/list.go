@@ -40,7 +40,7 @@ func Adapter[R any, S any](mapFn func(R) (S, error)) func(unstructured.Unstructu
 	}
 }
 
-// ListOptions provides a builder-style configuration for ListResources (now without logger).
+// ListOptions provides a builder-style configuration for ListResources
 type ListOptions struct {
 	namespace *string
 	limit     int
@@ -71,7 +71,7 @@ func (o *ListOptions) Selector(sel string) *ListOptions {
 	return o
 }
 
-// GetOptions provides a builder-style configuration for GetResource (now without logger).
+// GetOptions provides a builder-style configuration for GetResource
 type GetOptions struct {
 	namespace *string
 }
@@ -79,7 +79,7 @@ type GetOptions struct {
 func NewGetOptions() *GetOptions                      { return &GetOptions{} }
 func (o *GetOptions) Namespace(ns string) *GetOptions { o.namespace = &ns; return o }
 
-// ListResources lists resources using builder options. Logger is passed explicitly.
+// ListResources lists resources using builder options.
 func ListResources[T any](
 	ctx context.Context,
 	client dynamic.Interface,
@@ -148,7 +148,7 @@ func ListResources[T any](
 	return result, &next, nil
 }
 
-// GetResource fetches and converts a single resource. Logger is passed explicitly.
+// GetResource fetches and converts a single resource
 func GetResource[T any](
 	ctx context.Context,
 	client dynamic.Interface,
