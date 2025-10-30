@@ -14,8 +14,12 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/internal/validation/filter"
 )
 
+// UnstructuredConverter is a generic alias for a function that converts an unstructured.Unstructured
+// object into a strongly-typed value T
+type UnstructuredConverter[T any] = func(unstructured.Unstructured) (T, error)
+
 // DefaultUnstructuredConverter returns a conversion function that decodes the unstructured object into T using the runtime default converter.
-func DefaultUnstructuredConverter[T any]() func(unstructured.Unstructured) (T, error) {
+func DefaultUnstructuredConverter[T any]() UnstructuredConverter[T] {
 	return func(obj unstructured.Unstructured) (T, error) {
 		var out T
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &out); err != nil {
@@ -28,7 +32,7 @@ func DefaultUnstructuredConverter[T any]() func(unstructured.Unstructured) (T, e
 
 // Adapter composes the default unstructured conversion for a CRD type R with a mapping function to
 // produce a target type S. It returns a convert closure suitable for ListResources / GetResource.
-func Adapter[R any, S any](mapFn func(R) (S, error)) func(unstructured.Unstructured) (S, error) {
+func Adapter[R any, S any](mapFn func(R) (S, error)) UnstructuredConverter[S] {
 	base := DefaultUnstructuredConverter[R]()
 	return func(u unstructured.Unstructured) (S, error) {
 		cr, err := base(u)
@@ -80,13 +84,8 @@ func NewGetOptions() *GetOptions                      { return &GetOptions{} }
 func (o *GetOptions) Namespace(ns string) *GetOptions { o.namespace = &ns; return o }
 
 // ListResources lists resources using builder options.
-func ListResources[T any](
-	ctx context.Context,
-	client dynamic.Interface,
-	gvr schema.GroupVersionResource,
-	logger *slog.Logger,
-	convert func(unstructured.Unstructured) (T, error),
-	opts *ListOptions,
+func ListResources[T any](ctx context.Context, client dynamic.Interface, gvr schema.GroupVersionResource, logger *slog.Logger,
+	convert UnstructuredConverter[T], opts *ListOptions,
 ) ([]T, *string, error) {
 	if convert == nil {
 		return nil, nil, fmt.Errorf("ListResources: convert function must be provided")
@@ -149,14 +148,8 @@ func ListResources[T any](
 }
 
 // GetResource fetches and converts a single resource
-func GetResource[T any](
-	ctx context.Context,
-	client dynamic.Interface,
-	gvr schema.GroupVersionResource,
-	name string,
-	logger *slog.Logger,
-	convert func(unstructured.Unstructured) (T, error),
-	opts *GetOptions,
+func GetResource[T any](ctx context.Context, client dynamic.Interface, gvr schema.GroupVersionResource,
+	name string, logger *slog.Logger, convert UnstructuredConverter[T], opts *GetOptions,
 ) (T, error) {
 	var zero T
 	if convert == nil {
