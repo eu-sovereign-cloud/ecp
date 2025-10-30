@@ -12,8 +12,8 @@ GLOBAL_KUBECONFIG_PATH="${KUBECONFIG_DIR}/global-config"
 REGIONAL_KUBECONFIG_PATH="${KUBECONFIG_DIR}/regional-config"
 
 # Docker Images
-GLOBAL_IMAGE="global-server:latest"
-REGIONAL_IMAGE="regional-server:latest"
+GLOBAL_IMAGE="registry.secapi.cloud/global-server:latest"
+REGIONAL_IMAGE="registry.secapi.cloud/regional-server:latest"
 
 # Deployment and CRD files
 GLOBAL_DEPLOYMENT_YAML="config/k8s-dev-setup/global-deployment.yaml"

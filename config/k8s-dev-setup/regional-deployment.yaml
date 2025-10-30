@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: server
-          image: regional-server:latest
+          image: registry.secapi.cloud/regional-server:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080

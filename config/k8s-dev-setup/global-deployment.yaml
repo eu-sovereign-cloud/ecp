@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: global-server
-          image: global-server:latest
+          image: registry.secapi.cloud/global-server:latest
           # Use 'Always' if you are pushing to a remote registry,
           # or 'IfNotPresent'/'Never' for local images (e.g., with minikube).
           imagePullPolicy: IfNotPresent
