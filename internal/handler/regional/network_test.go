@@ -1,6 +1,7 @@
 package regionalhandler
 
 import (
+	"log/slog"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -16,7 +17,7 @@ func NewNetworkTestSuite(t *testing.T) *NetworkTestSuite {
 	t.Helper()
 
 	return &NetworkTestSuite{
-		Handler: &Network{},
+		Handler: NewNetwork(slog.Default()),
 	}
 
 }
