@@ -87,8 +87,8 @@ func (c *RegionController) ListRegions(ctx context.Context, params region.ListRe
 	iterator := &region.RegionIterator{
 		Items: sdkRegions,
 		Metadata: schema.ResponseMetadata{
-			Provider: "seca.region/v1",
-			Resource: "regions",
+			Provider: ProviderRegionName,
+			Resource: regionsv1.Resource,
 			Verb:     "list",
 		},
 	}
@@ -111,7 +111,7 @@ func fromCRDToSDKRegion(crdRegion regionsv1.Region, verb string) (schema.Region,
 	if err != nil {
 		return schema.Region{}, fmt.Errorf("could not parse resource version: %w", err)
 	}
-	resource, err := url.JoinPath(RegionBaseURL, "regions", crdRegion.Name)
+	resource, err := url.JoinPath(RegionBaseURL, regionsv1.Resource, crdRegion.Name)
 	if err != nil {
 		return schema.Region{}, fmt.Errorf("could not parse resource URL: %w", err)
 	}
