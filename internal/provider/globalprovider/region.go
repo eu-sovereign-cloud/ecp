@@ -52,7 +52,7 @@ func NewController(logger *slog.Logger, cfg *rest.Config) (*RegionController, er
 
 // GetRegion retrieves a specific region by its ID by fetching the CR from the cluster.
 func (c *RegionController) GetRegion(ctx context.Context, regionName schema.ResourcePathParam) (*schema.Region, error) {
-	convert := common.Adapter[regionsv1.Region, schema.Region](func(crdRegion regionsv1.Region) (schema.Region, error) {
+	convert := common.Adapter(func(crdRegion regionsv1.Region) (schema.Region, error) {
 		return fromCRDToSDKRegion(crdRegion, "get")
 	})
 	opts := common.NewGetOptions()
@@ -66,7 +66,7 @@ func (c *RegionController) GetRegion(ctx context.Context, regionName schema.Reso
 // ListRegions retrieves all available regions by listing the CRs from the cluster.
 func (c *RegionController) ListRegions(ctx context.Context, params region.ListRegionsParams) (*region.RegionIterator, error) {
 	limit := validation.GetLimit(params.Limit)
-	convert := common.Adapter[regionsv1.Region, schema.Region](func(crdRegion regionsv1.Region) (schema.Region, error) {
+	convert := common.Adapter(func(crdRegion regionsv1.Region) (schema.Region, error) {
 		return fromCRDToSDKRegion(crdRegion, "list")
 	})
 	opts := common.NewListOptions()
