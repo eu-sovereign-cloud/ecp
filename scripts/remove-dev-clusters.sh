@@ -1,7 +1,6 @@
 #!/bin/bash
 
-# Exit immediately if a command exits with a non-zero status.
-set -e
+set -euo pipefail
 
 # --- Configuration (should match setup-dev-clusters.sh) ---
 GLOBAL_CLUSTER_NAME="global"

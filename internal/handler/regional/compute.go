@@ -1,4 +1,4 @@
-package handler
+package regionalhandler
 
 import (
 	"net/http"

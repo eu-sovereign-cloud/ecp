@@ -14,9 +14,8 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 
+	globalhandler "github.com/eu-sovereign-cloud/ecp/internal/handler/global"
 	"github.com/eu-sovereign-cloud/ecp/internal/httpserver"
-
-	"github.com/eu-sovereign-cloud/ecp/internal/handler"
 	"github.com/eu-sovereign-cloud/ecp/internal/logger"
 	"github.com/eu-sovereign-cloud/ecp/internal/provider/globalprovider"
 )
@@ -65,7 +64,7 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
 		log.Fatal(err, " - failed to create global server")
 	}
 
-	regionalHandler := handler.NewRegionHandler(logger, globalServer)
+	regionalHandler := globalhandler.NewRegion(logger, globalServer)
 	regionHandler := region.HandlerWithOptions(regionalHandler, region.StdHTTPServerOptions{
 		BaseURL:          globalprovider.RegionBaseURL,
 		BaseRouter:       nil,

@@ -1,0 +1,25 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: storage-sku-reader
+  namespace: seca # <-- Specify the namespace. seca tenant is used to store general storage skus
+rules:
+  - apiGroups: ["storage.v1.secapi.cloud"]
+    resources: ["storage-skus"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: storage-sku-reader-binding
+  namespace: seca # <-- we use namespaces as tenants
+subjects:
+  # This assumes your regional server runs under the 'default' service account
+  # in the 'default' namespace. Adjust if necessary.
+  - kind: ServiceAccount
+    name: default
+    namespace: default
+roleRef:
+  kind: Role
+  name: storage-sku-reader
+  apiGroup: rbac.authorization.k8s.io

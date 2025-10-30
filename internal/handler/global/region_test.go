@@ -1,4 +1,4 @@
-package handler
+package globalhandler
 
 import (
 	"context"
@@ -17,13 +17,6 @@ import (
 
 	regionsv1 "github.com/eu-sovereign-cloud/ecp/apis/regions/v1"
 )
-
-type badRegionIterator struct {
-	Items    []schema.Region
-	Metadata schema.ResponseMetadata
-	// Unexported field that cannot be marshaled
-	ch chan struct{}
-}
 
 // mockRegionProvider mocks the RegionProvider interface.
 type mockRegionProvider struct {
@@ -66,7 +59,7 @@ func TestRegionHandler_ListRegions(t *testing.T) {
 				Metadata: schema.ResponseMetadata{},
 			},
 		}
-		handler := NewRegionHandler(slog.Default(), mockProvider)
+		handler := NewRegion(slog.Default(), mockProvider)
 		req := httptest.NewRequest(http.MethodGet, "/regions", nil)
 		rr := httptest.NewRecorder()
 
@@ -88,7 +81,7 @@ func TestRegionHandler_ListRegions(t *testing.T) {
 		mockProvider := &mockRegionProvider{
 			listRegionsErr: errors.New("provider failed"),
 		}
-		handler := NewRegionHandler(slog.Default(), mockProvider)
+		handler := NewRegion(slog.Default(), mockProvider)
 		req := httptest.NewRequest(http.MethodGet, "/regions", nil)
 		rr := httptest.NewRecorder()
 
@@ -121,7 +114,7 @@ func TestRegionHandler_GetRegion(t *testing.T) {
 		mockProvider := &mockRegionProvider{
 			getRegionResult: testRegion,
 		}
-		handler := NewRegionHandler(slog.Default(), mockProvider)
+		handler := NewRegion(slog.Default(), mockProvider)
 		req := httptest.NewRequest(http.MethodGet, "/regions/eu-west-1", nil)
 		rr := httptest.NewRecorder()
 
@@ -143,7 +136,7 @@ func TestRegionHandler_GetRegion(t *testing.T) {
 		mockProvider := &mockRegionProvider{
 			getRegionErr: errors.New("failed to get region: CRD not installed"),
 		}
-		handler := NewRegionHandler(slog.Default(), mockProvider)
+		handler := NewRegion(slog.Default(), mockProvider)
 		req := httptest.NewRequest(http.MethodGet, "/regions/non-existent", nil)
 		rr := httptest.NewRecorder()
 
@@ -159,7 +152,7 @@ func TestRegionHandler_GetRegion(t *testing.T) {
 		mockProvider := &mockRegionProvider{
 			getRegionErr: pkgerrors.NewNotFound(regionsv1.GroupResource, "not found"),
 		}
-		handler := NewRegionHandler(slog.Default(), mockProvider)
+		handler := NewRegion(slog.Default(), mockProvider)
 		req := httptest.NewRequest(http.MethodGet, "/regions/non-existent", nil)
 		rr := httptest.NewRecorder()
 
