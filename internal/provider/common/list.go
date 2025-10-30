@@ -107,10 +107,9 @@ func ListResources[T any](
 		lo.LabelSelector = filter.K8sSelectorForAPI(selectorStr)
 	}
 	var ri dynamic.ResourceInterface
+	ri = client.Resource(gvr)
 	if opts.namespace != nil {
 		ri = client.Resource(gvr).Namespace(*opts.namespace)
-	} else {
-		ri = client.Resource(gvr)
 	}
 	ulist, err := ri.List(ctx, lo)
 	if err != nil {
@@ -133,12 +132,12 @@ func ListResources[T any](
 				continue
 			}
 		}
-		converted, e := convert(item)
-		if e != nil {
+		converted, err := convert(item)
+		if err != nil {
 			if logger != nil {
-				logger.ErrorContext(ctx, "conversion failed", slog.String("resource", gvr.Resource), slog.Any("error", e))
+				logger.ErrorContext(ctx, "conversion failed", slog.String("resource", gvr.Resource), slog.Any("error", err))
 			}
-			return nil, nil, fmt.Errorf("failed to convert %s: %w", gvr.Resource, e)
+			return nil, nil, fmt.Errorf("failed to convert %s: %w", gvr.Resource, err)
 		}
 		result = append(result, converted)
 	}
@@ -167,10 +166,9 @@ func GetResource[T any](
 		opts = NewGetOptions()
 	}
 	var ri dynamic.ResourceInterface
+	ri = client.Resource(gvr)
 	if opts.namespace != nil {
 		ri = client.Resource(gvr).Namespace(*opts.namespace)
-	} else {
-		ri = client.Resource(gvr)
 	}
 	uobj, err := ri.Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
