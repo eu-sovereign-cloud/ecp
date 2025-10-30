@@ -8,15 +8,13 @@ import (
 	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 	"github.com/eu-sovereign-cloud/go-sdk/secapi"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 
 	skuv1 "github.com/eu-sovereign-cloud/ecp/apis/block-storage/skus/v1"
 	"github.com/eu-sovereign-cloud/ecp/internal/validation"
 
 	"github.com/eu-sovereign-cloud/ecp/internal/kubeclient"
-	"github.com/eu-sovereign-cloud/ecp/internal/validation/filter"
+	"github.com/eu-sovereign-cloud/ecp/internal/provider/common"
 )
 
 const (
@@ -106,66 +104,36 @@ func (c StorageController) ListSKUs(ctx context.Context, tenantID string, params
 	*sdkstorage.SkuIterator, error,
 ) {
 	limit := validation.GetLimit(params.Limit)
-	listOptions := metav1.ListOptions{
-		Limit: int64(limit),
+
+	convert := common.Adapter(func(crdStorageSKU skuv1.StorageSKU) (sdkschema.StorageSku, error) {
+		return fromCRToSDKStorageSKU(crdStorageSKU), nil
+	})
+	opts := common.NewListOptions().Namespace(tenantID)
+	if limit > 0 {
+		opts.Limit(limit)
 	}
 	if params.SkipToken != nil {
-		listOptions.Continue = *params.SkipToken
+		opts.SkipToken(*params.SkipToken)
 	}
-
-	rawSelector := ""
 	if params.Labels != nil {
-		rawSelector = *params.Labels
-		// Pass a subset of simple "key=value" selectors to the API for pre-filtering.
-		listOptions.LabelSelector = filter.K8sSelectorForAPI(rawSelector)
+		opts.Selector(*params.Labels)
 	}
 
-	unstructuredList, err := c.client.Client.Resource(skuv1.StorageSKUGVR).Namespace(tenantID).List(ctx, listOptions)
+	sdkStorageSKUs, nextSkipToken, err := common.ListResources(ctx, c.client.Client, skuv1.StorageSKUGVR, *c.logger, convert, opts)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list storage SKU CRs: %w", err)
-	}
-
-	sdkStorageSKUs := make([]sdkschema.StorageSku, 0, len(unstructuredList.Items))
-	for _, unstructuredObj := range unstructuredList.Items {
-		// Apply the full, custom client-side filter for numeric and wildcards
-		if rawSelector != "" {
-			match, k8sHandled, err := filter.MatchLabels(unstructuredObj.GetLabels(), rawSelector)
-			if err != nil {
-				c.logger.WarnContext(
-					ctx, "skipping resource due to invalid label selector", "error", err, "selector", rawSelector,
-				)
-				continue
-			}
-			if !match && !k8sHandled {
-				continue
-			}
-		}
-
-		var crdStorageSKU skuv1.StorageSKU
-		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(
-			unstructuredObj.Object, &crdStorageSKU,
-		); err != nil {
-			c.logger.ErrorContext(
-				ctx, "failed to convert unstructured object to StorageSKU type", slog.Any("error", err),
-			)
-			return nil, fmt.Errorf("failed to convert unstructured object to StorageSKU type: %w", err)
-		}
-
-		sdkStorageSKUs = append(sdkStorageSKUs, fromCRToSDKStorageSKU(crdStorageSKU))
+		return nil, err
 	}
 
 	iterator := sdkstorage.SkuIterator{
 		Items: sdkStorageSKUs,
 		Metadata: sdkschema.ResponseMetadata{
-			Provider:  ProviderStorageName,
-			Resource:  skuv1.StorageSKUResource,
-			SkipToken: nil,
-			Verb:      "list",
+			Provider: ProviderStorageName,
+			Resource: skuv1.StorageSKUResource,
+			Verb:     "list",
 		},
 	}
-	nextSkipToken := unstructuredList.GetContinue()
-	if nextSkipToken != "" {
-		iterator.Metadata.SkipToken = &nextSkipToken
+	if nextSkipToken != nil {
+		iterator.Metadata.SkipToken = nextSkipToken
 	}
 	return &iterator, nil
 }
@@ -173,29 +141,15 @@ func (c StorageController) ListSKUs(ctx context.Context, tenantID string, params
 func (c StorageController) GetSKU(
 	ctx context.Context, tenantID, skuID string,
 ) (*sdkschema.StorageSku, error) {
-	// TODO - add tenant support once it's implemented
-	// Fetch the Storage SKU custom resource from the Kubernetes API server. Cluster wide.
-	unstructuredObj, err := c.client.Client.Resource(skuv1.StorageSKUGVR).Namespace(tenantID).Get(ctx, skuID, metav1.GetOptions{})
+	convert := common.Adapter(func(crdStorageSKU skuv1.StorageSKU) (sdkschema.StorageSku, error) {
+		return fromCRToSDKStorageSKU(crdStorageSKU), nil
+	})
+	opts := common.NewGetOptions().Namespace(tenantID)
+	sku, err := common.GetResource(ctx, c.client.Client, skuv1.StorageSKUGVR, skuID, *c.logger, convert, opts)
 	if err != nil {
-		c.logger.ErrorContext(
-			ctx, "failed to get storage SKU CR", slog.String("sku", skuID), slog.Any("error", err),
-		)
-		return nil, fmt.Errorf("failed to retrieve storage SKU '%s': %w", skuID, err)
+		return nil, err
 	}
-
-	var crdStorageSKU skuv1.StorageSKU
-	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(
-		unstructuredObj.Object, &crdStorageSKU,
-	); err != nil {
-		c.logger.ErrorContext(
-			ctx, "failed to convert unstructured object to StorageSKU type", slog.Any("error", err),
-		)
-		return nil, fmt.Errorf("failed to convert unstructured object to StorageSKU type: %w", err)
-	}
-
-	// Convert the CR spec to the SDK's StorageSku type.
-	sdkStorageSKU := fromCRToSDKStorageSKU(crdStorageSKU)
-	return &sdkStorageSKU, nil
+	return &sku, nil
 }
 
 func (c StorageController) ListBlockStorages(
