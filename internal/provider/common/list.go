@@ -40,13 +40,12 @@ func Adapter[R any, S any](mapFn func(R) (S, error)) func(unstructured.Unstructu
 	}
 }
 
-// ListOptions provides a builder-style configuration for ListResources.
+// ListOptions provides a builder-style configuration for ListResources (now without logger).
 type ListOptions struct {
 	namespace *string
 	limit     int
 	skipToken *string
 	selector  *string
-	logger    *slog.Logger
 }
 
 func NewListOptions() *ListOptions                      { return &ListOptions{} }
@@ -71,23 +70,21 @@ func (o *ListOptions) Selector(sel string) *ListOptions {
 	}
 	return o
 }
-func (o *ListOptions) Logger(l *slog.Logger) *ListOptions { o.logger = l; return o }
 
-// GetOptions provides a builder-style configuration for GetResource.
+// GetOptions provides a builder-style configuration for GetResource (now without logger).
 type GetOptions struct {
 	namespace *string
-	logger    *slog.Logger
 }
 
-func NewGetOptions() *GetOptions                        { return &GetOptions{} }
-func (o *GetOptions) Namespace(ns string) *GetOptions   { o.namespace = &ns; return o }
-func (o *GetOptions) Logger(l *slog.Logger) *GetOptions { o.logger = l; return o }
+func NewGetOptions() *GetOptions                      { return &GetOptions{} }
+func (o *GetOptions) Namespace(ns string) *GetOptions { o.namespace = &ns; return o }
 
-// ListResources lists Kubernetes custom resources applying builder options, label filtering, pagination and conversion.
+// ListResources lists resources using builder options. Logger is passed explicitly.
 func ListResources[T any](
 	ctx context.Context,
 	client dynamic.Interface,
 	gvr schema.GroupVersionResource,
+	logger *slog.Logger,
 	convert func(unstructured.Unstructured) (T, error),
 	opts *ListOptions,
 ) ([]T, *string, error) {
@@ -97,17 +94,17 @@ func ListResources[T any](
 	if opts == nil {
 		opts = NewListOptions()
 	}
-	listOpts := metav1.ListOptions{}
+	lo := metav1.ListOptions{}
 	if opts.limit > 0 {
-		listOpts.Limit = int64(opts.limit)
+		lo.Limit = int64(opts.limit)
 	}
 	if opts.skipToken != nil {
-		listOpts.Continue = *opts.skipToken
+		lo.Continue = *opts.skipToken
 	}
 	selectorStr := ""
 	if opts.selector != nil {
 		selectorStr = *opts.selector
-		listOpts.LabelSelector = filter.K8sSelectorForAPI(selectorStr)
+		lo.LabelSelector = filter.K8sSelectorForAPI(selectorStr)
 	}
 	var ri dynamic.ResourceInterface
 	if opts.namespace != nil {
@@ -115,20 +112,20 @@ func ListResources[T any](
 	} else {
 		ri = client.Resource(gvr)
 	}
-	ulist, err := ri.List(ctx, listOpts)
+	ulist, err := ri.List(ctx, lo)
 	if err != nil {
-		if opts.logger != nil {
-			opts.logger.ErrorContext(ctx, "failed to list resources", slog.String("resource", gvr.Resource), slog.Any("error", err))
+		if logger != nil {
+			logger.ErrorContext(ctx, "failed to list resources", slog.String("resource", gvr.Resource), slog.Any("error", err))
 		}
 		return nil, nil, fmt.Errorf("failed to list resources for %s: %w", gvr.Resource, err)
 	}
-	res := make([]T, 0, len(ulist.Items))
+	result := make([]T, 0, len(ulist.Items))
 	for _, item := range ulist.Items {
 		if selectorStr != "" {
 			match, k8sHandled, e := filter.MatchLabels(item.GetLabels(), selectorStr)
 			if e != nil {
-				if opts.logger != nil {
-					opts.logger.WarnContext(ctx, "invalid selector, skipping", slog.String("resource", gvr.Resource), slog.String("selector", selectorStr), slog.Any("error", e))
+				if logger != nil {
+					logger.WarnContext(ctx, "invalid selector, skipping", slog.String("resource", gvr.Resource), slog.String("selector", selectorStr), slog.Any("error", e))
 				}
 				continue
 			}
@@ -138,26 +135,27 @@ func ListResources[T any](
 		}
 		converted, e := convert(item)
 		if e != nil {
-			if opts.logger != nil {
-				opts.logger.ErrorContext(ctx, "conversion failed", slog.String("resource", gvr.Resource), slog.Any("error", e))
+			if logger != nil {
+				logger.ErrorContext(ctx, "conversion failed", slog.String("resource", gvr.Resource), slog.Any("error", e))
 			}
 			return nil, nil, fmt.Errorf("failed to convert %s: %w", gvr.Resource, e)
 		}
-		res = append(res, converted)
+		result = append(result, converted)
 	}
 	next := ulist.GetContinue()
 	if next == "" {
-		return res, nil, nil
+		return result, nil, nil
 	}
-	return res, &next, nil
+	return result, &next, nil
 }
 
-// GetResource fetches and converts a single resource using builder options.
+// GetResource fetches and converts a single resource. Logger is passed explicitly.
 func GetResource[T any](
 	ctx context.Context,
 	client dynamic.Interface,
 	gvr schema.GroupVersionResource,
 	name string,
+	logger *slog.Logger,
 	convert func(unstructured.Unstructured) (T, error),
 	opts *GetOptions,
 ) (T, error) {
@@ -176,15 +174,15 @@ func GetResource[T any](
 	}
 	uobj, err := ri.Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		if opts.logger != nil {
-			opts.logger.ErrorContext(ctx, "failed to get resource", slog.String("name", name), slog.String("resource", gvr.Resource), slog.Any("error", err))
+		if logger != nil {
+			logger.ErrorContext(ctx, "failed to get resource", slog.String("name", name), slog.String("resource", gvr.Resource), slog.Any("error", err))
 		}
 		return zero, fmt.Errorf("failed to retrieve %s '%s': %w", gvr.Resource, name, err)
 	}
 	converted, err := convert(*uobj)
 	if err != nil {
-		if opts.logger != nil {
-			opts.logger.ErrorContext(ctx, "failed to convert resource", slog.String("name", name), slog.String("resource", gvr.Resource), slog.Any("error", err))
+		if logger != nil {
+			logger.ErrorContext(ctx, "failed to convert resource", slog.String("name", name), slog.String("resource", gvr.Resource), slog.Any("error", err))
 		}
 		return zero, fmt.Errorf("failed to convert %s '%s': %w", gvr.Resource, name, err)
 	}
