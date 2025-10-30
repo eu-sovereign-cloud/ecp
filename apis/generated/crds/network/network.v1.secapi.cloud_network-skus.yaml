@@ -14,7 +14,7 @@ spec:
     shortNames:
     - network-sku
     singular: networksku
-  scope: Cluster
+  scope: Namespaced
   versions:
   - name: v1
     schema:

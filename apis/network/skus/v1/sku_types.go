@@ -8,7 +8,7 @@ import (
 )
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:path=network-skus,scope=Cluster,shortName=network-sku
+// +kubebuilder:resource:path=network-skus,scope=Namespaced,shortName=network-sku
 // +k8s:openapi-gen=true
 
 // NetworkSKU is the API for getting network SKU information
