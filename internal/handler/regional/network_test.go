@@ -22,7 +22,7 @@ func NewNetworkTestSuite(t *testing.T) *NetworkTestSuite {
 
 }
 
-func TestNetwoekHandler_ListSkus(t *testing.T) {
+func TestNetworkHandler_ListSkus(t *testing.T) {
 	t.Run("should panic because is not implemented", func(t *testing.T) {
 		suite := NewNetworkTestSuite(t)
 
@@ -32,7 +32,7 @@ func TestNetwoekHandler_ListSkus(t *testing.T) {
 	})
 }
 
-func TestNetwoekHandler_GetSku(t *testing.T) {
+func TestNetworkHandler_GetSku(t *testing.T) {
 	t.Run("should panic because is not implemented", func(t *testing.T) {
 		suite := NewNetworkTestSuite(t)
 
@@ -42,7 +42,7 @@ func TestNetwoekHandler_GetSku(t *testing.T) {
 	})
 }
 
-func TestNetwoekHandler_ListInternetGateways(t *testing.T) {
+func TestNetworkHandler_ListInternetGateways(t *testing.T) {
 	t.Run("should panic because is not implemented", func(t *testing.T) {
 		suite := NewNetworkTestSuite(t)
 
@@ -52,7 +52,7 @@ func TestNetwoekHandler_ListInternetGateways(t *testing.T) {
 	})
 }
 
-func TestNetwoekHandler_DeleteInternetGateway(t *testing.T) {
+func TestNetworkHandler_DeleteInternetGateway(t *testing.T) {
 	t.Run("should panic because is not implemented", func(t *testing.T) {
 		suite := NewNetworkTestSuite(t)
 
@@ -62,7 +62,7 @@ func TestNetwoekHandler_DeleteInternetGateway(t *testing.T) {
 	})
 }
 
-func TestNetwoekHandler_GetInternetGateway(t *testing.T) {
+func TestNetworkHandler_GetInternetGateway(t *testing.T) {
 	t.Run("should panic because is not implemented", func(t *testing.T) {
 		suite := NewNetworkTestSuite(t)
 
@@ -72,7 +72,7 @@ func TestNetwoekHandler_GetInternetGateway(t *testing.T) {
 	})
 }
 
-func TestNetwoekHandler_CreateOrUpdateInternetGateway(t *testing.T) {
+func TestNetworkHandler_CreateOrUpdateInternetGateway(t *testing.T) {
 	t.Run("should panic because is not implemented", func(t *testing.T) {
 		suite := NewNetworkTestSuite(t)
 
@@ -82,7 +82,7 @@ func TestNetwoekHandler_CreateOrUpdateInternetGateway(t *testing.T) {
 	})
 }
 
-func TestNetwoekHandler_ListNetworks(t *testing.T) {
+func TestNetworkHandler_ListNetworks(t *testing.T) {
 	t.Run("should panic because is not implemented", func(t *testing.T) {
 		suite := NewNetworkTestSuite(t)
 
@@ -92,7 +92,7 @@ func TestNetwoekHandler_ListNetworks(t *testing.T) {
 	})
 }
 
-func TestNetwoekHandler_DeleteNetwork(t *testing.T) {
+func TestNetworkHandler_DeleteNetwork(t *testing.T) {
 	t.Run("should panic because is not implemented", func(t *testing.T) {
 		suite := NewNetworkTestSuite(t)
 
@@ -102,7 +102,7 @@ func TestNetwoekHandler_DeleteNetwork(t *testing.T) {
 	})
 }
 
-func TestNetwoekHandler_GetNetwork(t *testing.T) {
+func TestNetworkHandler_GetNetwork(t *testing.T) {
 	t.Run("should panic because is not implemented", func(t *testing.T) {
 		suite := NewNetworkTestSuite(t)
 
@@ -112,7 +112,7 @@ func TestNetwoekHandler_GetNetwork(t *testing.T) {
 	})
 }
 
-func TestNetwoekHandler_CreateOrUpdateNetwork(t *testing.T) {
+func TestNetworkHandler_CreateOrUpdateNetwork(t *testing.T) {
 	t.Run("should panic because is not implemented", func(t *testing.T) {
 		suite := NewNetworkTestSuite(t)
 
@@ -122,7 +122,7 @@ func TestNetwoekHandler_CreateOrUpdateNetwork(t *testing.T) {
 	})
 }
 
-func TestNetwoekHandler_ListRouteTables(t *testing.T) {
+func TestNetworkHandler_ListRouteTables(t *testing.T) {
 	t.Run("should panic because is not implemented", func(t *testing.T) {
 		suite := NewNetworkTestSuite(t)
 
@@ -132,7 +132,7 @@ func TestNetwoekHandler_ListRouteTables(t *testing.T) {
 	})
 }
 
-func TestNetwoekHandler_DeleteRouteTable(t *testing.T) {
+func TestNetworkHandler_DeleteRouteTable(t *testing.T) {
 	t.Run("should panic because is not implemented", func(t *testing.T) {
 		suite := NewNetworkTestSuite(t)
 
@@ -142,7 +142,7 @@ func TestNetwoekHandler_DeleteRouteTable(t *testing.T) {
 	})
 }
 
-func TestNetwoekHandler_GetRouteTable(t *testing.T) {
+func TestNetworkHandler_GetRouteTable(t *testing.T) {
 	t.Run("should panic because is not implemented", func(t *testing.T) {
 		suite := NewNetworkTestSuite(t)
 
@@ -152,7 +152,7 @@ func TestNetwoekHandler_GetRouteTable(t *testing.T) {
 	})
 }
 
-func TestNetwoekHandler_CreateOrUpdateRouteTable(t *testing.T) {
+func TestNetworkHandler_CreateOrUpdateRouteTable(t *testing.T) {
 	t.Run("should panic because is not implemented", func(t *testing.T) {
 		suite := NewNetworkTestSuite(t)
 
@@ -162,7 +162,7 @@ func TestNetwoekHandler_CreateOrUpdateRouteTable(t *testing.T) {
 	})
 }
 
-func TestNetwoekHandler_ListSubnets(t *testing.T) {
+func TestNetworkHandler_ListSubnets(t *testing.T) {
 	t.Run("should panic because is not implemented", func(t *testing.T) {
 		suite := NewNetworkTestSuite(t)
 
@@ -172,7 +172,7 @@ func TestNetwoekHandler_ListSubnets(t *testing.T) {
 	})
 }
 
-func TestNetwoekHandler_DeleteSubnet(t *testing.T) {
+func TestNetworkHandler_DeleteSubnet(t *testing.T) {
 	t.Run("should panic because is not implemented", func(t *testing.T) {
 		suite := NewNetworkTestSuite(t)
 
@@ -182,7 +182,7 @@ func TestNetwoekHandler_DeleteSubnet(t *testing.T) {
 	})
 }
 
-func TestNetwoekHandler_GetSubnet(t *testing.T) {
+func TestNetworkHandler_GetSubnet(t *testing.T) {
 	t.Run("should panic because is not implemented", func(t *testing.T) {
 		suite := NewNetworkTestSuite(t)
 
@@ -192,7 +192,7 @@ func TestNetwoekHandler_GetSubnet(t *testing.T) {
 	})
 }
 
-func TestNetwoekHandler_CreateOrUpdateSubnet(t *testing.T) {
+func TestNetworkHandler_CreateOrUpdateSubnet(t *testing.T) {
 	t.Run("should panic because is not implemented", func(t *testing.T) {
 		suite := NewNetworkTestSuite(t)
 
@@ -202,7 +202,7 @@ func TestNetwoekHandler_CreateOrUpdateSubnet(t *testing.T) {
 	})
 }
 
-func TestNetwoekHandler_ListNics(t *testing.T) {
+func TestNetworkHandler_ListNics(t *testing.T) {
 	t.Run("should panic because is not implemented", func(t *testing.T) {
 		suite := NewNetworkTestSuite(t)
 
@@ -212,7 +212,7 @@ func TestNetwoekHandler_ListNics(t *testing.T) {
 	})
 }
 
-func TestNetwoekHandler_DeleteNic(t *testing.T) {
+func TestNetworkHandler_DeleteNic(t *testing.T) {
 	t.Run("should panic because is not implemented", func(t *testing.T) {
 		suite := NewNetworkTestSuite(t)
 
@@ -222,7 +222,7 @@ func TestNetwoekHandler_DeleteNic(t *testing.T) {
 	})
 }
 
-func TestNetwoekHandler_GetNic(t *testing.T) {
+func TestNetworkHandler_GetNic(t *testing.T) {
 	t.Run("should panic because is not implemented", func(t *testing.T) {
 		suite := NewNetworkTestSuite(t)
 
@@ -232,7 +232,7 @@ func TestNetwoekHandler_GetNic(t *testing.T) {
 	})
 }
 
-func TestNetwoekHandler_CreateOrUpdateNic(t *testing.T) {
+func TestNetworkHandler_CreateOrUpdateNic(t *testing.T) {
 	t.Run("should panic because is not implemented", func(t *testing.T) {
 		suite := NewNetworkTestSuite(t)
 
@@ -242,7 +242,7 @@ func TestNetwoekHandler_CreateOrUpdateNic(t *testing.T) {
 	})
 }
 
-func TestNetwoekHandler_ListPublicIps(t *testing.T) {
+func TestNetworkHandler_ListPublicIps(t *testing.T) {
 	t.Run("should panic because is not implemented", func(t *testing.T) {
 		suite := NewNetworkTestSuite(t)
 
@@ -252,7 +252,7 @@ func TestNetwoekHandler_ListPublicIps(t *testing.T) {
 	})
 }
 
-func TestNetwoekHandler_DeletePublicIp(t *testing.T) {
+func TestNetworkHandler_DeletePublicIp(t *testing.T) {
 	t.Run("should panic because is not implemented", func(t *testing.T) {
 		suite := NewNetworkTestSuite(t)
 
@@ -262,7 +262,7 @@ func TestNetwoekHandler_DeletePublicIp(t *testing.T) {
 	})
 }
 
-func TestNetwoekHandler_GetPublicIp(t *testing.T) {
+func TestNetworkHandler_GetPublicIp(t *testing.T) {
 	t.Run("should panic because is not implemented", func(t *testing.T) {
 		suite := NewNetworkTestSuite(t)
 
@@ -272,7 +272,7 @@ func TestNetwoekHandler_GetPublicIp(t *testing.T) {
 	})
 }
 
-func TestNetwoekHandler_CreateOrUpdatePublicIp(t *testing.T) {
+func TestNetworkHandler_CreateOrUpdatePublicIp(t *testing.T) {
 	t.Run("should panic because is not implemented", func(t *testing.T) {
 		suite := NewNetworkTestSuite(t)
 
@@ -282,7 +282,7 @@ func TestNetwoekHandler_CreateOrUpdatePublicIp(t *testing.T) {
 	})
 }
 
-func TestNetwoekHandler_ListSecurityGroups(t *testing.T) {
+func TestNetworkHandler_ListSecurityGroups(t *testing.T) {
 	t.Run("should panic because is not implemented", func(t *testing.T) {
 		suite := NewNetworkTestSuite(t)
 
@@ -292,7 +292,7 @@ func TestNetwoekHandler_ListSecurityGroups(t *testing.T) {
 	})
 }
 
-func TestNetwoekHandler_DeleteSecurityGroup(t *testing.T) {
+func TestNetworkHandler_DeleteSecurityGroup(t *testing.T) {
 	t.Run("should panic because is not implemented", func(t *testing.T) {
 		suite := NewNetworkTestSuite(t)
 
@@ -302,7 +302,7 @@ func TestNetwoekHandler_DeleteSecurityGroup(t *testing.T) {
 	})
 }
 
-func TestNetwoekHandler_GetSecurityGroup(t *testing.T) {
+func TestNetworkHandler_GetSecurityGroup(t *testing.T) {
 	t.Run("should panic because is not implemented", func(t *testing.T) {
 		suite := NewNetworkTestSuite(t)
 
@@ -312,7 +312,7 @@ func TestNetwoekHandler_GetSecurityGroup(t *testing.T) {
 	})
 }
 
-func TestNetwoekHandler_CreateOrUpdateSecurityGroup(t *testing.T) {
+func TestNetworkHandler_CreateOrUpdateSecurityGroup(t *testing.T) {
 	t.Run("should panic because is not implemented", func(t *testing.T) {
 		suite := NewNetworkTestSuite(t)
 
