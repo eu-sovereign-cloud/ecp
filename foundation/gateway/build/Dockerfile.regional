@@ -1,0 +1,33 @@
+# --- Build Stage ---
+FROM golang:1.24-alpine AS build
+
+WORKDIR /app
+
+# Pre-copy workspace and module manifests so replace directives resolve
+COPY foundation/delegator/go.mod foundation/delegator/go.mod
+COPY foundation/delegator/go.sum foundation/delegator/go.sum
+COPY foundation/gateway/go.mod foundation/gateway/go.mod
+COPY foundation/gateway/go.sum foundation/gateway/go.sum
+
+WORKDIR /app/foundation/gateway
+RUN go mod download
+
+WORKDIR /app
+COPY . .
+
+WORKDIR /app/foundation/gateway
+ARG BUILD_SKIP_TESTS=""
+RUN [ -n "$BUILD_SKIP_TESTS" ] || go test ./...
+
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /server .
+
+# --- Runtime Stage ---
+FROM alpine:latest
+
+COPY --from=build /server /server
+
+EXPOSE 8080
+
+# Set the entrypoint to the server binary and the command to run the specific subcommand
+ENTRYPOINT ["/server"]
+CMD ["regionalapiserver"]
