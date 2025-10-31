@@ -1,0 +1,64 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:144.0) Gecko/20100101 Firefox/144.0" version="28.2.5">
+  <diagram name="Resource-Layout" id="ThgfBy3_8_CGoDBCUPNq">
+    <mxGraphModel dx="577" dy="798" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="WstAyWi6_imTQn1UDyY8-0" />
+        <mxCell id="WstAyWi6_imTQn1UDyY8-1" parent="WstAyWi6_imTQn1UDyY8-0" />
+        <mxCell id="WstAyWi6_imTQn1UDyY8-2" value="k8s - cluster" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=bottom;fontStyle=1" vertex="1" parent="WstAyWi6_imTQn1UDyY8-1">
+          <mxGeometry x="260" y="140" width="470" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="WstAyWi6_imTQn1UDyY8-3" value="k8s - cluster" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=bottom;fontStyle=1" vertex="1" parent="WstAyWi6_imTQn1UDyY8-1">
+          <mxGeometry x="260" y="340" width="470" height="590" as="geometry" />
+        </mxCell>
+        <mxCell id="WstAyWi6_imTQn1UDyY8-4" value="K8s - namespace - Workspace*" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=bottom;fontStyle=1;align=left;spacingBottom=1;" vertex="1" parent="WstAyWi6_imTQn1UDyY8-1">
+          <mxGeometry x="280" y="530" width="190" height="240" as="geometry" />
+        </mxCell>
+        <mxCell id="WstAyWi6_imTQn1UDyY8-7" value="Instance" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="WstAyWi6_imTQn1UDyY8-1">
+          <mxGeometry x="300" y="550" width="120" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="WstAyWi6_imTQn1UDyY8-9" value="Storage" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="WstAyWi6_imTQn1UDyY8-1">
+          <mxGeometry x="300" y="680" width="120" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="sDCszmMaQrrQge0h86FW-0" value="K8s - namespace - Tenant*" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=bottom;fontStyle=1;align=left;spacingBottom=1;" vertex="1" parent="WstAyWi6_imTQn1UDyY8-1">
+          <mxGeometry x="530" y="530" width="180" height="370" as="geometry" />
+        </mxCell>
+        <mxCell id="sDCszmMaQrrQge0h86FW-3" value="1-1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="WstAyWi6_imTQn1UDyY8-1" source="sDCszmMaQrrQge0h86FW-1" target="WstAyWi6_imTQn1UDyY8-4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sDCszmMaQrrQge0h86FW-1" value="Workspace" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="WstAyWi6_imTQn1UDyY8-1">
+          <mxGeometry x="560" y="620" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="sDCszmMaQrrQge0h86FW-2" value="SKU" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="WstAyWi6_imTQn1UDyY8-1">
+          <mxGeometry x="560" y="710" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="sDCszmMaQrrQge0h86FW-4" value="..." style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="WstAyWi6_imTQn1UDyY8-1">
+          <mxGeometry x="300" y="620" width="120" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="sDCszmMaQrrQge0h86FW-5" value="K8s - namespace - SECA" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=bottom;fontStyle=1;align=left;spacingBottom=1;" vertex="1" parent="WstAyWi6_imTQn1UDyY8-1">
+          <mxGeometry x="280" y="360" width="430" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="WstAyWi6_imTQn1UDyY8-8" value="Tenant" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="WstAyWi6_imTQn1UDyY8-1">
+          <mxGeometry x="560" y="380" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="WstAyWi6_imTQn1UDyY8-10" value="SKU" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="WstAyWi6_imTQn1UDyY8-1">
+          <mxGeometry x="300" y="380" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="WstAyWi6_imTQn1UDyY8-5" value="1 - n" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;" edge="1" parent="WstAyWi6_imTQn1UDyY8-1" source="sDCszmMaQrrQge0h86FW-1" target="WstAyWi6_imTQn1UDyY8-8">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="607" y="688.0285714285715" as="sourcePoint" />
+            <mxPoint x="620" y="420" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sDCszmMaQrrQge0h86FW-6" value="K8s - namespace - SECA" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=bottom;fontStyle=1;align=left;spacingBottom=1;" vertex="1" parent="WstAyWi6_imTQn1UDyY8-1">
+          <mxGeometry x="280" y="155" width="430" height="135" as="geometry" />
+        </mxCell>
+        <mxCell id="WstAyWi6_imTQn1UDyY8-11" value="Region" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="WstAyWi6_imTQn1UDyY8-1">
+          <mxGeometry x="300" y="170" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="sDCszmMaQrrQge0h86FW-7" value="Image" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="WstAyWi6_imTQn1UDyY8-1">
+          <mxGeometry x="560" y="790" width="120" height="60" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
