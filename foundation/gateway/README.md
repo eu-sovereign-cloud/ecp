@@ -20,15 +20,15 @@ It is designed to manage resources across multiple regions and provide a unified
 │   ├── kubeclient      \ - Kubernetes client utilities using dynamic client
 │   ├── logger
 │   ├── provider
-│   │   ├── globalprovider \ - Global provider logic
+│   │   ├── common           \ - Generic functions
+│   │   ├── globalprovider   \ - Global provider logic
 │   │   └── regionalprovider \- Regional provider logic
 │   └── validation
+│   │   ├── filter           \ - Filter labels
 ├── scripts             \- Utility scripts
-├── tools               \- Tool dependencies
 ```
 
 ## Building
-
 See `make help` for a list of build targets.
 
 ### Setup Local Development Environment
@@ -39,20 +39,12 @@ Note: also builds the docker images for the control plane components.
 make create-dev-clusters
 ```
 
-### Generate crds from Spec
+### Generate k8s compatible models and crds from go-sdk and manually defined types
 ```bash
-make generate-crds
+make generate-all
 ```
 
 ### Build docker images
 ```bash
 make docker-build-images
 ```
-
-
-# Run/Debug API Server locally 
-```bash
-make setup-dev-clusters
-```
-Start `globalapiserver` or `regionalapiserver` in debug mode.
-Set the environment variable `KUBECONFIG` to point to the kubeconfig file of the kind cluster you want to use.
