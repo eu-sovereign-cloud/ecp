@@ -23,10 +23,10 @@ import (
 
 	k8sschema "k8s.io/apimachinery/pkg/runtime/schema"
 
-	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/delegator/apis/block-storage/skus/v1"
+	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/delegator/api/block-storage/skus/v1"
 
-	generatedv1 "github.com/eu-sovereign-cloud/ecp/foundation/delegator/api/types"
-	storage "github.com/eu-sovereign-cloud/ecp/foundation/delegator/apis/block-storage"
+	storage "github.com/eu-sovereign-cloud/ecp/foundation/delegator/api/block-storage"
+	generatedv1 "github.com/eu-sovereign-cloud/ecp/foundation/delegator/api/generated/types"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/kubeclient"
 )
@@ -80,7 +80,7 @@ func extractSKUNames(sk []schema.StorageSku) []string {
 // --- Envtest lifecycle ---
 func TestMain(m *testing.M) {
 	wd, _ := os.Getwd()
-	crdDir := filepath.Clean(filepath.Join(wd, "../../../../delegator/api/crds/block-storage"))
+	crdDir := filepath.Clean(filepath.Join(wd, "../../../../delegator/api/generated/crds/block-storage"))
 	testEnvironment := &envtest.Environment{
 		ErrorIfCRDPathMissing: true,
 		CRDDirectoryPaths:     []string{crdDir},

@@ -23,8 +23,8 @@ generate-models:
 	@echo "--------------------------------"
 
 generate-crds:
-	@echo "Generating CRDs (output now in foundation/delegator/api/crds) via go generate (build tag crdgen)..."
-	@(cd foundation/delegator && go generate -tags=crdgen ./apis/...)
+	@echo "Generating CRDs (output now in foundation/delegator/api/generated/crds) via go generate (build tag crdgen)..."
+	@(cd foundation/delegator && go generate -tags=crdgen ./api/...)
 
 # ====================================================================================
 # Development
@@ -85,11 +85,11 @@ help:
 
 .PHONY: clean-generated
 clean-generated:
-	find foundation/delegator/apis/generated -type f -name 'zz_generated*' -exec rm -f {} +
+	find foundation/delegator/api/generated -type f -name 'zz_generated*' -exec rm -f {} +
 
 .PHONY: clean-crds
 clean-crds:
-	find foundation/delegator/apis/generated/crds -type f -name '*.yaml' -exec rm -f {} +
+	find foundation/delegator/api/generated/crds -type f -name '*.yaml' -exec rm -f {} +
 
 .PHONY: clean
 clean: clean-generated clean-crds

@@ -21,8 +21,8 @@ import (
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
-	generatedv1 "github.com/eu-sovereign-cloud/ecp/foundation/delegator/api/types"
-	regionsv1 "github.com/eu-sovereign-cloud/ecp/foundation/delegator/apis/regions/v1"
+	generatedv1 "github.com/eu-sovereign-cloud/ecp/foundation/delegator/api/generated/types"
+	regionsv1 "github.com/eu-sovereign-cloud/ecp/foundation/delegator/api/regions/v1"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/kubeclient"
 )
@@ -143,7 +143,7 @@ func TestRegionController_ListRegions(t *testing.T) {
 func TestMain(m *testing.M) {
 	// Resolve CRD directory path relative to this test file's package directory.
 	wd, _ := os.Getwd()
-	crdDir := filepath.Clean(filepath.Join(wd, "../../../../delegator/api/crds/regions"))
+	crdDir := filepath.Clean(filepath.Join(wd, "../../../../delegator/api/generated/crds/regions"))
 
 	// Ensure envtest downloads the required control-plane binaries and installs the CRDs.
 	testenv := &envtest.Environment{

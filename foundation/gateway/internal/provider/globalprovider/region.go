@@ -11,7 +11,7 @@ import (
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 	"k8s.io/client-go/rest"
 
-	regionsv1 "github.com/eu-sovereign-cloud/ecp/foundation/delegator/apis/regions/v1"
+	regionsv1 "github.com/eu-sovereign-cloud/ecp/foundation/delegator/api/regions/v1"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/kubeclient"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/provider/common"

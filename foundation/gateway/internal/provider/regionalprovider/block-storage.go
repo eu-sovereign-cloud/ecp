@@ -10,7 +10,7 @@ import (
 	"github.com/eu-sovereign-cloud/go-sdk/secapi"
 	"k8s.io/client-go/rest"
 
-	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/delegator/apis/block-storage/skus/v1"
+	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/delegator/api/block-storage/skus/v1"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation"
 
