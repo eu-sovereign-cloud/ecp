@@ -6,7 +6,7 @@ GREEN="\033[1;32m"
 RESET="\033[0m"
 
 SCHEMA_DIR="foundation/delegator/go-sdk/pkg/spec/schema"
-OUTPUT_ROOT="foundation/delegator/api/types"
+OUTPUT_ROOT="foundation/delegator/api/generated/types"
 
 if [ ! -d "${SCHEMA_DIR}" ]; then
   echo "Schema directory ${SCHEMA_DIR} not found" >&2
