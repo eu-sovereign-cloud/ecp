@@ -16,7 +16,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GATEWAY_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 # Delegator root (sibling of gateway) used for CRDs now generated under delegator/api
 DELEGATOR_ROOT="$(cd "${GATEWAY_ROOT}/../delegator" && pwd)"
-APIS_CRDS_DIR="${DELEGATOR_ROOT}/api/generated/crds"  # Updated to new location
+API_CRDS_DIR="${DELEGATOR_ROOT}/api/generated/crds"  # Correct location (previously mis-set to apis)
 CONFIG_SETUP_DIR="${GATEWAY_ROOT}/config/k8s-dev-setup"
 REGIONAL_STORAGE_CONFIG_DIR="${CONFIG_SETUP_DIR}/regional/storage"
 
@@ -24,13 +24,13 @@ REGIONAL_STORAGE_CONFIG_DIR="${CONFIG_SETUP_DIR}/regional/storage"
 GLOBAL_IMAGE="registry.secapi.cloud/global-server:latest"
 REGIONAL_IMAGE="registry.secapi.cloud/regional-server:latest"
 
-# Deployment and CRD files (updated to point to new apis folder & correct config dir)
+# Deployment and CRD files (updated to point to new api folder & correct config dir)
 GLOBAL_DEPLOYMENT_YAML="${CONFIG_SETUP_DIR}/global-deployment.yaml"
 REGIONAL_DEPLOYMENT_YAML="${CONFIG_SETUP_DIR}/regional-deployment.yaml"
-REGION_CRD_YAML="${APIS_CRDS_DIR}/regions/v1.secapi.cloud_regions.yaml"
+REGION_CRD_YAML="${API_CRDS_DIR}/regions/v1.secapi.cloud_regions.yaml"
 REGIONS_RBAC_YAML="${CONFIG_SETUP_DIR}/global_regions_rbac.yaml"
 # Storage SKU CRD & RBAC for regional cluster
-STORAGE_SKU_CRD_YAML="${APIS_CRDS_DIR}/block-storage/storage.v1.secapi.cloud_storage-skus.yaml"
+STORAGE_SKU_CRD_YAML="${API_CRDS_DIR}/block-storage/storage.v1.secapi.cloud_storage-skus.yaml"
 REGIONAL_STORAGE_SKU_CR="${REGIONAL_STORAGE_CONFIG_DIR}/storage-sku.yaml"
 REGIONAL_STORAGE_SKU_RBAC_YAML="${REGIONAL_STORAGE_CONFIG_DIR}/regional-storage-sku-rbac.yaml"
 
