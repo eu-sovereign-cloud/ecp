@@ -18,12 +18,12 @@ generate-all: generate-models generate-crds
 .PHONY:  generate-models
 generate-models:
 	@echo "Generating models via api module Makefile"
-	@(cd api && $(MAKE) generate-models)
+	@$(MAKE) -C api generate-models
 	@echo "--------------------------------"
 
 generate-crds:
 	@echo "Generating CRDs via api module Makefile"
-	@(cd api && $(MAKE) generate-crds)
+	@$(MAKE) -C api generate-crds
 
 # ====================================================================================
 # Development
@@ -32,32 +32,32 @@ generate-crds:
 # Sets up one global and one regional cluster for development purposes
 create-dev-clusters:
 	@echo "Setting up development clusters via gateway Makefile..."
-	@(cd ./gateway && $(MAKE) create-dev-clusters)
+	@$(MAKE) -C gateway create-dev-clusters
 
 .PHONY: run-global-server
 run-global-server:
 	@echo "Running global API server via gateway Makefile..."
-	@(cd ./gateway && $(MAKE) run-global-server)
+	@$(MAKE) -C gateway run-global-server
 
 .PHONY: run-regional-server
 run-regional-server:
 	@echo "Running regional API server via gateway Makefile..."
-	@(cd ./gateway && $(MAKE) run-regional-server)
+	@$(MAKE) -C gateway run-regional-server
 
 .PHONY: clean-dev-clusters
 clean-dev-clusters:
 	@echo "Cleaning up development clusters via gateway Makefile..."
-	@(cd ./gateway && $(MAKE) clean-dev-clusters)
+	@$(MAKE) -C gateway clean-dev-clusters
 
 .PHONY: docker-build-images
 docker-build-images:
 	@echo "Building Docker images via gateway Makefile..."
-	@(cd ../gateway && $(MAKE) docker-build-images)
+	@$(MAKE) -C gateway docker-build-images
 
 .PHONY: build-gateway
 build-gateway:
 	@echo "Building gateway binary via gateway Makefile..."
-	@(cd ./gateway && $(MAKE) build-gateway)
+	@$(MAKE) -C gateway build-gateway
 
 
 
@@ -84,12 +84,12 @@ help:
 .PHONY: clean-generated
 clean-generated:
 	@echo "Cleaning generated files via api Makefile..."
-	@(cd api && $(MAKE) clean-generated)
+	@$(MAKE) -C api clean-generated
 
 .PHONY: clean-crds
 clean-crds:
 	@echo "Cleaning CRDs via api Makefile..."
-	@(cd api && $(MAKE) clean-crds)
+	@$(MAKE) -C api clean-crds
 
 .PHONY: clean
 clean: clean-generated clean-crds
