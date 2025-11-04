@@ -8,6 +8,8 @@ COPY foundation/delegator/go.mod foundation/delegator/go.mod
 COPY foundation/delegator/go.sum foundation/delegator/go.sum
 COPY foundation/gateway/go.mod foundation/gateway/go.mod
 COPY foundation/gateway/go.sum foundation/gateway/go.sum
+COPY foundation/api/go.mod foundation/api/go.mod
+COPY foundation/api/go.sum foundation/api/go.sum
 
 WORKDIR /app/foundation/gateway
 RUN go mod download

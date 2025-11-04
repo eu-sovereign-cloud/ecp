@@ -14,9 +14,8 @@ REGIONAL_KUBECONFIG_PATH="${KUBECONFIG_DIR}/regional-config"
 # Resolve repository-relative paths (so script can be run from any cwd)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GATEWAY_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-# Delegator root (sibling of gateway) used for CRDs now generated under delegator/api
-DELEGATOR_ROOT="$(cd "${GATEWAY_ROOT}/../delegator" && pwd)"
-API_CRDS_DIR="${DELEGATOR_ROOT}/api/generated/crds"  # Correct location (previously mis-set to apis)
+API_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+API_CRDS_DIR="${API_ROOT}/api/generated/crds"  # Correct location (previously mis-set to apis)
 CONFIG_SETUP_DIR="${GATEWAY_ROOT}/config/k8s-dev-setup"
 REGIONAL_STORAGE_CONFIG_DIR="${CONFIG_SETUP_DIR}/regional/storage"
 

@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 	pkgerrors "k8s.io/apimachinery/pkg/api/errors"
 
-	regionsv1 "github.com/eu-sovereign-cloud/ecp/foundation/delegator/api/regions/v1"
+	regionsv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regions/v1"
 )
 
 // mockRegionProvider mocks the RegionProvider interface.

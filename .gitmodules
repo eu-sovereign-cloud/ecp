@@ -1,3 +1,4 @@
-[submodule "foundation/delegator/go-sdk"]
-	path = foundation/delegator/go-sdk
+	url = https://github.com/eu-sovereign-cloud/go-sdk.git
+[submodule "modules/go-sdk"]
+	path = modules/go-sdk
 	url = https://github.com/eu-sovereign-cloud/go-sdk.git
