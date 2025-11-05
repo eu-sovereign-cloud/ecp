@@ -1,0 +1,38 @@
+# --- Build Stage ---
+FROM golang:1.24-alpine AS build
+
+WORKDIR /app
+
+# Pre-copy workspace and module manifests so replace directives resolve
+COPY foundation/delegator/go.mod foundation/delegator/go.mod
+COPY foundation/delegator/go.sum foundation/delegator/go.sum
+COPY foundation/gateway/go.mod foundation/gateway/go.mod
+COPY foundation/gateway/go.sum foundation/gateway/go.sum
+COPY foundation/api/go.mod foundation/api/go.mod
+COPY foundation/api/go.sum foundation/api/go.sum
+
+WORKDIR /app/foundation/gateway
+RUN go mod download
+
+# Copy full source after deps to leverage cache
+WORKDIR /app
+COPY . .
+
+WORKDIR /app/foundation/gateway
+# Run tests (can disable with BUILD_SKIP_TESTS=1)
+ARG BUILD_SKIP_TESTS=""
+RUN [ -n "$BUILD_SKIP_TESTS" ] || go test ./...
+
+# Build gateway binary
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /server .
+
+# --- Runtime Stage ---
+FROM alpine:latest
+
+# Copy the built binary from the build stage
+COPY --from=build /server /server
+
+EXPOSE 8080
+
+ENTRYPOINT ["/server"]
+CMD ["globalapiserver"]

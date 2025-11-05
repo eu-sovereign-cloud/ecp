@@ -1,3 +1,3 @@
-[submodule "internal/go-sdk"]
-	path = internal/go-sdk
+[submodule "modules/go-sdk"]
+	path = modules/go-sdk
 	url = https://github.com/eu-sovereign-cloud/go-sdk.git
