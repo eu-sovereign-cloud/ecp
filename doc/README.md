@@ -40,3 +40,24 @@ The workspace controls the lifecycle of resources within it. Deleting a workspac
 ## Cascaded Deletion
 
 Deleting a tenant will cascade delete all workspaces and resources associated with that tenant. Similarly, deleting a workspace will cascade delete all resources within that workspace. This ensures that resources are properly cleaned up when their parent entities are removed.
+
+## Architecture
+
+![ECP Architecture](ecp-architecture.png)
+
+The general architecture of the ECP consists of the following components follows
+the hexagonal architecture pattern. Because the ECP has a plugin-based architecture
+and used a gateway and delegator (controller) pattern. Two application domains with
+two hexagons are shown in the diagram above.
+
+The Kubernetes persistence layer is abstracted away behind the repository interfaces.
+It is therefore replaceable with another persistence layer if needed.
+
+Persistence and API models are generated from the same OpenAPI specification and
+from kubernetes CRD definitions.
+
+the Business Logic layer contains the core logic of the ECP. It is responsible for
+validating and processing the resources and delegating the actual provisioning and
+management of resources to the CSP-specific plugins.
+
+The CSP might have a plugin model that is different from the ECP business model. Therefore another controller layer is introduced.
