@@ -4,12 +4,14 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/provider/regionalprovider"
 	sdknetwork "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.network.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 )
 
 type Network struct {
-	logger *slog.Logger
+	provider regionalprovider.NetworkProvider
+	logger   *slog.Logger
 }
 
 var _ sdknetwork.ServerInterface = (*Network)(nil) // Ensure Network implements the sdknetwork.ServerInterface.
@@ -152,24 +154,28 @@ func (n *Network) CreateOrUpdateNic(w http.ResponseWriter, r *http.Request, tena
 
 func (n *Network) ListPublicIps(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, params sdknetwork.ListPublicIpsParams) {
 	// TODO implement me
+	// n.provider.ListPublicIps()
 	n.logger.Debug("implement me")
 	panic("implement me")
 }
 
 func (n *Network) DeletePublicIp(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdknetwork.DeletePublicIpParams) {
 	// TODO implement me
+	// n.provider.DeletePublicIp()
 	n.logger.Debug("implement me")
 	panic("implement me")
 }
 
 func (n *Network) GetPublicIp(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam) {
 	// TODO implement me
+	// n.provider.GetPublicIp()
 	n.logger.Debug("implement me")
 	panic("implement me")
 }
 
 func (n *Network) CreateOrUpdatePublicIp(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdknetwork.CreateOrUpdatePublicIpParams) {
 	// TODO implement me
+	// n.provider.CreateOrUpdatePublicIp()
 	n.logger.Debug("implement me")
 	panic("implement me")
 }
