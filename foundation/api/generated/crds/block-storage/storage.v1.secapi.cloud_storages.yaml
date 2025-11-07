@@ -114,6 +114,79 @@ spec:
             - sizeGB
             - skuRef
             type: object
+          status:
+            description: BlockStorageStatus defines model for BlockStorageStatus.
+            properties:
+              attachedTo:
+                description: AttachedTo Reference to the instance the block storage
+                  is attached to.
+                type: object
+              conditions:
+                items:
+                  description: |-
+                    StatusCondition StatusCondition describes the state of a resource at a certain point.
+                    Conditions are provider-specific and can represent different states depending on the
+                    resource type and provider implementation.
+                  properties:
+                    lastTransitionAt:
+                      description: |-
+                        LastTransitionAt LastTransitionAt is the last time the condition transitioned from one
+                        status to another. This should be when the underlying condition changed.
+                        If that is not known, then using the time when the API field changed is
+                        acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: Message A human-readable message indicating details
+                        about the transition.
+                      type: string
+                    reason:
+                      description: |-
+                        Reason The reason for the condition's last transition in CamelCase.
+                        The specific set of reason values is provider-specific and should be
+                        documented by the provider.
+                      type: string
+                    state:
+                      description: |-
+                        State Current phase of the resource:
+                        - pending: not available, waiting for other resources
+                        - creating: not available, creation started
+                        - active: available for data layer usage
+                        - updating: available for data layer usage
+                        - deleting: maybe still available for data layer user, can fail any moment
+                        - suspended: not available, provider specific behavior (payment issue, user decided to suspend)
+                        - error: failed to fulfill the request; would be related to provider issue or customer related input.
+                      type: string
+                    type:
+                      description: |-
+                        Type Type of condition. The condition type is provider-specific and should
+                        reflect the specific states relevant to your resource.
+                      type: string
+                  required:
+                  - lastTransitionAt
+                  - state
+                  type: object
+                type: array
+              sizeGB:
+                description: SizeGB Size of the block storage in GB.
+                type: integer
+              state:
+                description: |-
+                  State Current phase of the resource:
+                  - pending: not available, waiting for other resources
+                  - creating: not available, creation started
+                  - active: available for data layer usage
+                  - updating: available for data layer usage
+                  - deleting: maybe still available for data layer user, can fail any moment
+                  - suspended: not available, provider specific behavior (payment issue, user decided to suspend)
+                  - error: failed to fulfill the request; would be related to provider issue or customer related input.
+                type: string
+            required:
+            - conditions
+            - sizeGB
+            type: object
         type: object
     served: true
     storage: true
+    subresources:
+      status: {}
