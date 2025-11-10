@@ -16,9 +16,9 @@ github.com/emicklei/go-restful/v3
 github.com/emicklei/go-restful/v3/log
 # github.com/eu-sovereign-cloud/ecp/foundation/api v0.0.1 => ../api
 ## explicit; go 1.24.5
-github.com/eu-sovereign-cloud/ecp/foundation/api/block-storage
-github.com/eu-sovereign-cloud/ecp/foundation/api/block-storage/skus/v1
 github.com/eu-sovereign-cloud/ecp/foundation/api/generated/types
+github.com/eu-sovereign-cloud/ecp/foundation/api/regional/block-storage
+github.com/eu-sovereign-cloud/ecp/foundation/api/regional/block-storage/skus/v1
 github.com/eu-sovereign-cloud/ecp/foundation/api/regions/v1
 # github.com/eu-sovereign-cloud/go-sdk v0.2.0
 ## explicit; go 1.24

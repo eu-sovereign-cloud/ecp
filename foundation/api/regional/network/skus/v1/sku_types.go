@@ -1,10 +1,10 @@
 package v1
 
 import (
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+    metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	genv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/generated/types"
-	"github.com/eu-sovereign-cloud/ecp/foundation/api/network"
+    genv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/generated/types"
+    "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/network"
 )
 
 // +kubebuilder:object:root=true

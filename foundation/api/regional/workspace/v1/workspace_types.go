@@ -4,6 +4,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	v1 "github.com/eu-sovereign-cloud/ecp/foundation/api/generated/types"
+	"github.com/eu-sovereign-cloud/ecp/foundation/api/regional/common"
 )
 
 // +kubebuilder:object:root=true
@@ -15,7 +16,9 @@ type Workspace struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec v1.WorkspaceSpec `json:"spec,omitempty"`
+	Spec                     v1.WorkspaceSpec                `json:"spec,omitempty"`
+	TenantRegionalCommonSpec common.TenantRegionalCommonSpec `json:"tenantRegionalCommonSpec,omitempty"`
+	RegionalCommonData       common.RegionalCommonData       `json:"regionalCommonData,omitempty"`
 }
 
 // +kubebuilder:object:root=true
