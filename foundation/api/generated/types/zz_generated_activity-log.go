@@ -46,7 +46,7 @@ type RequestObject struct {
 
 // RequestObject_Body defines model for RequestObject.Body.
 type RequestObject_Body struct {
-	union json.RawMessage
+	union json.RawMessage `json:"-"`
 }
 
 // ResponseObject Response object

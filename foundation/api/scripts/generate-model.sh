@@ -60,6 +60,10 @@ process_file () {
   # Map type fix
   sed -i 's/map\[string\]interface{}/\*map[string]string/g' "${out_file}"
 
+  # Fix union fields without JSON tags for controller-gen:
+  # match lines that start with "union" (allow leading space) and contain no backtick, then append the tag
+  sed -E -i '/^[[:space:]]*union[[:space:]]+[^`]*$/ s/$/ `json:"-"`/' "${out_file}"
+
   gofmt -w "${out_file}"
 
   GENERATED_DIRS+=("${out_dir}")
