@@ -12,22 +12,22 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/plugin"
 )
 
-// Provider implements the delegator ResourcePlugin interface for IONOS, translating Storage to Crossplane XStorage.
+// Provider implements the delegator ResourcePlugin interface for IONOS, translating SECA Storage to Crossplane XStorage.
 type Provider struct {
 	client client.Client
 }
 
 func (p *Provider) Name() string                   { return "ionoscloud" }
 func (p *Provider) Init(ctx context.Context) error { return nil }
-func (p *Provider) SupportedKinds() []string       { return []string{"storage.v1.secapi.cloud/Storage"} }
+func (p *Provider) SupportedKinds() []string       { return []string{storagev1.StorageGVR.String()} }
 func (p *Provider) SetClient(c client.Client)      { p.client = c }
 
 // todo replace with types from composite ionos provider when available
-var xStorageGVK = schema.GroupVersionKind{Group: "xplatform.seca.crossplane.io", Version: "v1alpha1", Kind: "XStorage"}
+var xStorageGVK = schema.GroupVersionKind{Group: "storage.v1.secapi.cloud", Version: "v1", Kind: "XIonosStorages"}
 
 func (p *Provider) Reconcile(ctx context.Context, obj client.Object) (plugin.PluginResult, error) {
 	// Type assert to Storage
-	sto, ok := obj.(*storagev1.Storage)
+	secaStorage, ok := obj.(*storagev1.Storage)
 	if !ok {
 		return plugin.PluginResult{State: "Failed", Message: "unsupported object type"}, nil
 	}
@@ -42,11 +42,11 @@ func (p *Provider) Reconcile(ctx context.Context, obj client.Object) (plugin.Plu
 
 	// Build desired XR spec by copying BlockStorageSpec fields
 	spec := map[string]any{
-		"sizeGB": sto.Spec.SizeGB,
-		"skuRef": sto.Spec.SkuRef,
+		"sizeGB": secaStorage.Spec.SizeGB,
+		"skuRef": secaStorage.Spec.SkuRef,
 	}
-	if sto.Spec.SourceImageRef != nil {
-		spec["sourceImageRef"] = sto.Spec.SourceImageRef
+	if secaStorage.Spec.SourceImageRef != nil {
+		spec["sourceImageRef"] = secaStorage.Spec.SourceImageRef
 	}
 
 	if state == "" { // create XR

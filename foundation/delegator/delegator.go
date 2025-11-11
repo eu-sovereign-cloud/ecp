@@ -1,12 +1,14 @@
-package delegator
+package main
 
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -18,18 +20,22 @@ import (
 )
 
 // Run starts the delegator manager.
-func Run(ctx context.Context) error {
+func Run(ctx context.Context, kubeconfig string) error {
 	logger := zap.New(zap.UseDevMode(true))
 	ctrl.SetLogger(logger)
-
-	scheme := runtime.NewScheme()
-	_ = clientgoscheme.AddToScheme(scheme)
-	_ = AddToScheme(scheme)
-
-	cfg, err := ctrl.GetConfig()
-	if err != nil {
-		return fmt.Errorf("get k8s config: %w", err)
+	var cfg *rest.Config
+	var err error
+	if kubeconfig != "" {
+		cfg, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+		if err != nil {
+			return fmt.Errorf("build kubeconfig: %w", err)
+		}
+	} else {
+		cfg = ctrl.GetConfigOrDie()
 	}
+	scheme := runtime.NewScheme()
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(AddToScheme(scheme))
 
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme:                 scheme,
@@ -50,8 +56,8 @@ func Run(ctx context.Context) error {
 		if err := plug.Init(ctx); err != nil {
 			return fmt.Errorf("plugin %s init: %w", name, err)
 		}
-		if cplug, ok := plug.(p.UsesClient); ok {
-			cplug.SetClient(mgr.GetClient())
+		if pluginWithClient, ok := plug.(p.UsesClient); ok {
+			pluginWithClient.SetClient(mgr.GetClient())
 		}
 	}
 
@@ -68,12 +74,4 @@ func Run(ctx context.Context) error {
 	}()
 
 	return mgr.Start(ctx)
-}
-
-// main wrapper if using as standalone binary
-func main() {
-	if err := Run(context.Background()); err != nil {
-		fmt.Fprintf(os.Stderr, "delegator failed: %v\n", err)
-		os.Exit(1)
-	}
 }

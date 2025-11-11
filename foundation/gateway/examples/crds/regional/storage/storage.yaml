@@ -1,0 +1,14 @@
+apiVersion: storage.v1.secapi.cloud/v1
+kind: Storage
+metadata:
+  name: sample
+  namespace: default
+spec:
+  sizeGB: 10
+  skuRef: # <-- Use an object
+    union: c3RvcmFnZS1za3VzL2Jhc2ljLXNzZA==
+regionalComonSpec:
+  name: sample
+  region: eu-west
+  tenant: t1
+  workspace: w1

@@ -62,7 +62,7 @@ process_file () {
 
   # Fix union fields without JSON tags for controller-gen:
   # match lines that start with "union" (allow leading space) and contain no backtick, then append the tag
-  sed -E -i '/^[[:space:]]*union[[:space:]]+[^`]*$/ s/$/ `json:"-"`/' "${out_file}"
+  sed -E -i '/^[[:space:]]*union[[:space:]]+[^`]*$/ s/$/ `json:"union"`/' "${out_file}"
 
   gofmt -w "${out_file}"
 

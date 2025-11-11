@@ -1,4 +1,4 @@
-package delegator
+package main
 
 import (
 	"context"
@@ -37,6 +37,7 @@ type StorageReconciler struct {
 func (r *StorageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 	var obj storagev1.Storage
+	logger.Info("Reconciling Storage", "name", req.NamespacedName) // Add this line
 	if err := r.client.Get(ctx, req.NamespacedName, &obj); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
@@ -53,7 +54,9 @@ func (r *StorageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		if slices.Contains(obj.Finalizers, finalizer) {
 			for name, plug := range plugin.Registry {
 				if supportsStorage(plug) {
-					_ = plug.Delete(ctx, &obj)
+					if err := plug.Delete(ctx, &obj); err != nil {
+						return ctrl.Result{}, err
+					}
 					upsertCondition(&obj, genv1.StatusCondition{Type: ptrStr(fmt.Sprintf("Provider:%s", name)), State: genv1.ResourceStateDeleting, Reason: ptrStr("Deleted")})
 				}
 			}
@@ -180,7 +183,7 @@ func (r *StorageReconciler) updateStatus(ctx context.Context, s *storagev1.Stora
 
 func supportsStorage(p plugin.ResourcePlugin) bool {
 	for _, k := range p.SupportedKinds() {
-		if k == "storage.v1.secapi.cloud/Storage" {
+		if k == storagev1.StorageGVR.String() {
 			return true
 		}
 	}

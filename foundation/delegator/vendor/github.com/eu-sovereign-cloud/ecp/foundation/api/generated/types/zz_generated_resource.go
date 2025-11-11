@@ -9,6 +9,7 @@ package types
 
 import (
 	"encoding/json"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/oapi-codegen/runtime"
@@ -352,7 +353,7 @@ type PermissionMetadata struct {
 // Reference Reference to a resource. The reference is represented as the full URN (Uniform Resource Name) name of the resource.
 // The reference can be used to refer to a resource in other resources.
 type Reference struct {
-	union json.RawMessage `json:"-"`
+	union json.RawMessage `json:"union"`
 }
 
 // ReferenceObject A reference to a resource using an object. The object contains the

@@ -105,10 +105,30 @@ spec:
                 type: integer
               skuRef:
                 description: SkuRef Reference to the SKU of the block storage.
+                properties:
+                  union:
+                    description: |-
+                      RawMessage is a raw encoded JSON value.
+                      It implements [Marshaler] and [Unmarshaler] and can
+                      be used to delay JSON decoding or precompute a JSON encoding.
+                    format: byte
+                    type: string
+                required:
+                - union
                 type: object
               sourceImageRef:
                 description: SourceImageRef Reference to the source image used as
                   the base for creating the block storage.
+                properties:
+                  union:
+                    description: |-
+                      RawMessage is a raw encoded JSON value.
+                      It implements [Marshaler] and [Unmarshaler] and can
+                      be used to delay JSON decoding or precompute a JSON encoding.
+                    format: byte
+                    type: string
+                required:
+                - union
                 type: object
             required:
             - sizeGB
@@ -120,6 +140,16 @@ spec:
               attachedTo:
                 description: AttachedTo Reference to the instance the block storage
                   is attached to.
+                properties:
+                  union:
+                    description: |-
+                      RawMessage is a raw encoded JSON value.
+                      It implements [Marshaler] and [Unmarshaler] and can
+                      be used to delay JSON decoding or precompute a JSON encoding.
+                    format: byte
+                    type: string
+                required:
+                - union
                 type: object
               conditions:
                 items:

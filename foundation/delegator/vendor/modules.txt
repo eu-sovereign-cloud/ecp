@@ -14,7 +14,7 @@ github.com/davecgh/go-spew/spew
 ## explicit; go 1.13
 github.com/emicklei/go-restful/v3
 github.com/emicklei/go-restful/v3/log
-# github.com/eu-sovereign-cloud/ecp/foundation/api v0.0.0 => ../api
+# github.com/eu-sovereign-cloud/ecp/foundation/api v0.0.1 => ../api
 ## explicit; go 1.24.5
 github.com/eu-sovereign-cloud/ecp/foundation/api/generated/types
 github.com/eu-sovereign-cloud/ecp/foundation/api/regional/block-storage

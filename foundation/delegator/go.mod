@@ -3,7 +3,7 @@ module github.com/eu-sovereign-cloud/ecp/foundation/delegator
 go 1.24.5
 
 require (
-	github.com/eu-sovereign-cloud/ecp/foundation/api v0.0.0
+	github.com/eu-sovereign-cloud/ecp/foundation/api v0.0.1
 	github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba v0.0.0
 	github.com/eu-sovereign-cloud/ecp/foundation/plugin/ionos v0.0.0
 	k8s.io/apimachinery v0.34.1
