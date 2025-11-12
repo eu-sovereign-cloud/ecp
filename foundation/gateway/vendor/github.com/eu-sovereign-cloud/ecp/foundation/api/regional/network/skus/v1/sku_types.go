@@ -3,31 +3,31 @@ package v1
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	storage "github.com/eu-sovereign-cloud/ecp/foundation/api/block-storage"
 	genv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/generated/types"
+	"github.com/eu-sovereign-cloud/ecp/foundation/api/regional/network"
 )
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:path=storage-skus,scope=Namespaced,shortName=storage-sku
+// +kubebuilder:resource:path=network-skus,scope=Namespaced,shortName=network-sku
 // +k8s:openapi-gen=true
 
-// StorageSKU is the API for getting storage SKU information
-type StorageSKU struct {
+// NetworkSKU is the API for getting network SKU information
+type NetworkSKU struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec genv1.StorageSkuSpec `json:"spec,omitempty"`
+	Spec genv1.NetworkSkuSpec `json:"spec,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 
-type StorageSKUList struct {
+type NetworkSKUList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 
-	Items []StorageSKU `json:"items"`
+	Items []NetworkSKU `json:"items"`
 }
 
 func init() {
-	storage.SchemeBuilder.Register(&StorageSKU{}, &StorageSKUList{})
+	network.SchemeBuilder.Register(&NetworkSKU{}, &NetworkSKUList{})
 }

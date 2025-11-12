@@ -23,10 +23,10 @@ import (
 
 	k8sschema "k8s.io/apimachinery/pkg/runtime/schema"
 
-	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/block-storage/skus/v1"
+	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/block-storage/skus/v1"
 
-	storage "github.com/eu-sovereign-cloud/ecp/foundation/api/block-storage"
 	generatedv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/generated/types"
+	storage "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/block-storage"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/kubeclient"
 )

@@ -5,17 +5,16 @@ import (
 	"fmt"
 	"log/slog"
 
+	"k8s.io/client-go/rest"
+
+	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/network/skus/v1"
 	sdknetwork "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.network.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 	"github.com/eu-sovereign-cloud/go-sdk/secapi"
-	"k8s.io/client-go/rest"
-
-	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/network/skus/v1"
-
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/kubeclient"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/provider/common"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation"
 )
 
 const (

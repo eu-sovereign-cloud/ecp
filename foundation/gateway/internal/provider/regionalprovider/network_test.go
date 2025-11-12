@@ -7,7 +7,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/network/skus/v1"
+	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/network/skus/v1"
 
 	generatedv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/generated/types"
 )
