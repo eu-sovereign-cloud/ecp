@@ -22,30 +22,78 @@ const (
 	ProviderNetworkName = "seca.network/v1"
 )
 
-type NetworkSKUProvider interface {
+type NetworkSKUsProvider interface {
 	ListSKUs(ctx context.Context, tenantID string, params sdknetwork.ListSkusParams) (*sdknetwork.SkuIterator, error)
 	GetSKU(ctx context.Context, tenantID, skuID string) (*sdkschema.NetworkSku, error)
 }
 
-type PublicIPProvider interface {
+type InternetGatewaysProvider interface {
+	ListInternetGateways(ctx context.Context, tenantID, workspaceID string, params sdknetwork.ListInternetGatewaysParams) (*secapi.Iterator[sdkschema.InternetGateway], error)
+	DeleteInternetGateway(ctx context.Context, tenantID, workspaceID, name string, params sdknetwork.DeleteInternetGatewayParams) error
+	GetInternetGateway(ctx context.Context, tenantID, workspaceID, name string) (sdkschema.InternetGateway, error)
+	CreateOrUpdateInternetGateway(ctx context.Context, tenantID, workspaceID, name string, params sdknetwork.CreateOrUpdateInternetGatewayParams, req sdkschema.InternetGateway) (*sdkschema.InternetGateway, bool, error)
+}
+
+type NetworksProvider interface {
+	ListNetworks(ctx context.Context, tenantID, workspaceID string, params sdknetwork.ListNetworksParams) (*secapi.Iterator[sdkschema.Network], error)
+	DeleteNetwork(ctx context.Context, tenantID, workspaceID, name string, params sdknetwork.DeleteNetworkParams) error
+	GetNetwork(ctx context.Context, tenantID, workspaceID, name string) (sdkschema.Network, error)
+	CreateOrUpdateNetwork(ctx context.Context, tenantID, workspaceID, name string, params sdknetwork.CreateOrUpdateNetworkParams, req sdkschema.Network) (*sdkschema.Network, bool, error)
+}
+
+type RouteTablesProvider interface {
+	ListRouteTables(ctx context.Context, tenantID, workspaceID string, params sdknetwork.ListRouteTablesParams) (*secapi.Iterator[sdkschema.RouteTable], error)
+	DeleteRouteTable(ctx context.Context, tenantID, workspaceID, name string, params sdknetwork.DeleteRouteTableParams) error
+	GetRouteTable(ctx context.Context, tenantID, workspaceID, name string) (sdkschema.RouteTable, error)
+	CreateOrUpdateRouteTable(ctx context.Context, tenantID, workspaceID, name string, params sdknetwork.CreateOrUpdateRouteTableParams, req sdkschema.RouteTable) (*sdkschema.RouteTable, bool, error)
+}
+
+type SubnetsProvider interface {
+	ListSubnets(ctx context.Context, tenantID, workspaceID string, params sdknetwork.ListSubnetsParams) (*secapi.Iterator[sdkschema.Subnet], error)
+	DeleteSubnet(ctx context.Context, tenantID, workspaceID, name string, params sdknetwork.DeleteSubnetParams) error
+	GetSubnet(ctx context.Context, tenantID, workspaceID, name string) (sdkschema.Subnet, error)
+	CreateOrUpdateSubnet(ctx context.Context, tenantID, workspaceID, name string, params sdknetwork.CreateOrUpdateSubnetParams, req sdkschema.Subnet) (*sdkschema.Subnet, bool, error)
+}
+
+type NicsProvider interface {
+	ListNics(ctx context.Context, tenantID, workspaceID string, params sdknetwork.ListNicsParams) (*secapi.Iterator[sdkschema.Nic], error)
+	DeleteNic(ctx context.Context, tenantID, workspaceID, name string, params sdknetwork.DeleteNicParams) error
+	GetNic(ctx context.Context, tenantID, workspaceID, name string) (sdkschema.Nic, error)
+	CreateOrUpdateNic(ctx context.Context, tenantID, workspaceID, name string, params sdknetwork.CreateOrUpdateNicParams, req sdkschema.Nic) (*sdkschema.Nic, bool, error)
+}
+
+type PublicIPsProvider interface {
 	ListPublicIps(ctx context.Context, tenantID, workspaceID string, params sdknetwork.ListPublicIpsParams) (*secapi.Iterator[sdkschema.PublicIp], error)
 	GetPublicIp(ctx context.Context, tenantID, workspaceID, publicIpID string) (sdkschema.PublicIp, error)
 	CreateOrUpdatePublicIp(ctx context.Context, tenantID, workspaceID, publicIpID string, params sdknetwork.CreateOrUpdatePublicIpParams, req sdkschema.PublicIp) (*sdkschema.PublicIp, bool, error)
 	DeletePublicIp(ctx context.Context, tenantID, workspaceID, publicIpID string, params sdknetwork.DeletePublicIpParams) error
 }
 
-type NetworkProvider interface {
-	NetworkSKUProvider
-	PublicIPProvider
+type SecurityGroupsProvider interface {
+	ListSecurityGroups(ctx context.Context, tenantID, workspaceID string, params sdknetwork.ListSecurityGroupsParams) (*secapi.Iterator[sdkschema.SecurityGroup], error)
+	DeleteSecurityGroup(ctx context.Context, tenantID, workspaceID, name string, params sdknetwork.DeleteSecurityGroupParams) error
+	GetSecurityGroup(ctx context.Context, tenantID, workspaceID, name string) (sdkschema.SecurityGroup, error)
+	CreateOrUpdateSecurityGroup(ctx context.Context, tenantID, workspaceID, name string, params sdknetwork.CreateOrUpdateSecurityGroupParams, req sdkschema.SecurityGroup) (*sdkschema.SecurityGroup, bool, error)
 }
 
-var _ NetworkProvider = (*NetworkController)(nil) // Ensure NetworkController implements the NetworkProvider interface.
+type NetworkProvider interface {
+	NetworkSKUsProvider
+	InternetGatewaysProvider
+	NetworksProvider
+	RouteTablesProvider
+	SubnetsProvider
+	NicsProvider
+	PublicIPsProvider
+	SecurityGroupsProvider
+}
 
 // NetworkController implements the NetworkProvider interface and provides methods to interact with the Network CRDs and XRDs in the Kubernetes cluster.
 type NetworkController struct {
 	client *kubeclient.KubeClient
 	logger *slog.Logger
 }
+
+var _ NetworkProvider = (*NetworkController)(nil) // Ensure NetworkController implements the NetworkProvider interface.
 
 // NewNetworkController creates a new NetworkController with a Kubernetes client.
 func NewNetworkController(logger *slog.Logger, cfg *rest.Config) (*NetworkController, error) {
@@ -61,7 +109,7 @@ func NewNetworkController(logger *slog.Logger, cfg *rest.Config) (*NetworkContro
 	}, nil
 }
 
-func (c NetworkController) ListSKUs(ctx context.Context, tenantID string, params sdknetwork.ListSkusParams) (
+func (c *NetworkController) ListSKUs(ctx context.Context, tenantID string, params sdknetwork.ListSkusParams) (
 	*sdknetwork.SkuIterator, error,
 ) {
 	limit := validation.GetLimit(params.Limit)
@@ -99,7 +147,7 @@ func (c NetworkController) ListSKUs(ctx context.Context, tenantID string, params
 	return &iterator, nil
 }
 
-func (c NetworkController) GetSKU(
+func (c *NetworkController) GetSKU(
 	ctx context.Context, tenantID, skuID string,
 ) (*sdkschema.NetworkSku, error) {
 	convert := common.Adapter(func(crdNetworkSKU skuv1.NetworkSKU) (sdkschema.NetworkSku, error) {
@@ -113,29 +161,175 @@ func (c NetworkController) GetSKU(
 	return &sku, nil
 }
 
-func (n *NetworkController) ListPublicIps(ctx context.Context, tenantID, workspaceID string, params sdknetwork.ListPublicIpsParams) (*secapi.Iterator[sdkschema.PublicIp], error) {
+func (c *NetworkController) ListInternetGateways(ctx context.Context, tenantID, workspaceID string, params sdknetwork.ListInternetGatewaysParams) (*secapi.Iterator[sdkschema.InternetGateway], error) {
 	// TODO implement me
-	n.logger.Debug("implement me")
+	c.logger.Debug("implement me")
 	panic("implement me")
 }
 
-func (n *NetworkController) GetPublicIp(ctx context.Context, tenantID, workspaceID, publicIpID string) (sdkschema.PublicIp, error) {
+func (c *NetworkController) DeleteInternetGateway(ctx context.Context, tenantID, workspaceID, name string, params sdknetwork.DeleteInternetGatewayParams) error {
 	// TODO implement me
-	n.logger.Debug("implement me")
+	c.logger.Debug("implement me")
 	panic("implement me")
 }
 
-func (n *NetworkController) CreateOrUpdatePublicIp(ctx context.Context, tenantID, workspaceID, publicIpID string, params sdknetwork.CreateOrUpdatePublicIpParams, req sdkschema.PublicIp) (*sdkschema.PublicIp, bool, error) {
+func (c *NetworkController) GetInternetGateway(ctx context.Context, tenantID, workspaceID, name string) (sdkschema.InternetGateway, error) {
 	// TODO implement me
-	n.logger.Debug("implement me")
+	c.logger.Debug("implement me")
 	panic("implement me")
 }
 
-func (n *NetworkController) DeletePublicIp(ctx context.Context, tenantID, workspaceID, publicIpID string, params sdknetwork.DeletePublicIpParams) error {
+func (c *NetworkController) CreateOrUpdateInternetGateway(ctx context.Context, tenantID, workspaceID, name string, params sdknetwork.CreateOrUpdateInternetGatewayParams, req sdkschema.InternetGateway) (*sdkschema.InternetGateway, bool, error) {
 	// TODO implement me
-	n.logger.Debug("implement me")
+	c.logger.Debug("implement me")
 	panic("implement me")
 }
+
+func (c *NetworkController) ListNetworks(ctx context.Context, tenantID, workspaceID string, params sdknetwork.ListNetworksParams) (*secapi.Iterator[sdkschema.Network], error) {
+	// TODO implement me
+	c.logger.Debug("implement me")
+	panic("implement me")
+}
+
+func (c *NetworkController) DeleteNetwork(ctx context.Context, tenantID, workspaceID, name string, params sdknetwork.DeleteNetworkParams) error {
+	// TODO implement me
+	c.logger.Debug("implement me")
+	panic("implement me")
+}
+
+func (c *NetworkController) GetNetwork(ctx context.Context, tenantID, workspaceID, name string) (sdkschema.Network, error) {
+	// TODO implement me
+	c.logger.Debug("implement me")
+	panic("implement me")
+}
+
+func (c *NetworkController) CreateOrUpdateNetwork(ctx context.Context, tenantID, workspaceID, name string, params sdknetwork.CreateOrUpdateNetworkParams, req sdkschema.Network) (*sdkschema.Network, bool, error) {
+	// TODO implement me
+	c.logger.Debug("implement me")
+	panic("implement me")
+}
+
+func (c *NetworkController) ListRouteTables(ctx context.Context, tenantID, workspaceID string, params sdknetwork.ListRouteTablesParams) (*secapi.Iterator[sdkschema.RouteTable], error) {
+	// TODO implement me
+	c.logger.Debug("implement me")
+	panic("implement me")
+}
+
+func (c *NetworkController) DeleteRouteTable(ctx context.Context, tenantID, workspaceID, name string, params sdknetwork.DeleteRouteTableParams) error {
+	// TODO implement me
+	c.logger.Debug("implement me")
+	panic("implement me")
+}
+
+func (c *NetworkController) GetRouteTable(ctx context.Context, tenantID, workspaceID, name string) (sdkschema.RouteTable, error) {
+	// TODO implement me
+	c.logger.Debug("implement me")
+	panic("implement me")
+}
+
+func (c *NetworkController) CreateOrUpdateRouteTable(ctx context.Context, tenantID, workspaceID, name string, params sdknetwork.CreateOrUpdateRouteTableParams, req sdkschema.RouteTable) (*sdkschema.RouteTable, bool, error) {
+	// TODO implement me
+	c.logger.Debug("implement me")
+	panic("implement me")
+}
+
+func (c *NetworkController) ListSubnets(ctx context.Context, tenantID, workspaceID string, params sdknetwork.ListSubnetsParams) (*secapi.Iterator[sdkschema.Subnet], error) {
+	// TODO implement me
+	c.logger.Debug("implement me")
+	panic("implement me")
+}
+
+func (c *NetworkController) DeleteSubnet(ctx context.Context, tenantID, workspaceID, name string, params sdknetwork.DeleteSubnetParams) error {
+	// TODO implement me
+	c.logger.Debug("implement me")
+	panic("implement me")
+}
+
+func (c *NetworkController) GetSubnet(ctx context.Context, tenantID, workspaceID, name string) (sdkschema.Subnet, error) {
+	// TODO implement me
+	c.logger.Debug("implement me")
+	panic("implement me")
+}
+
+func (c *NetworkController) CreateOrUpdateSubnet(ctx context.Context, tenantID, workspaceID, name string, params sdknetwork.CreateOrUpdateSubnetParams, req sdkschema.Subnet) (*sdkschema.Subnet, bool, error) {
+	// TODO implement me
+	c.logger.Debug("implement me")
+	panic("implement me")
+}
+
+func (c *NetworkController) ListNics(ctx context.Context, tenantID, workspaceID string, params sdknetwork.ListNicsParams) (*secapi.Iterator[sdkschema.Nic], error) {
+	// TODO implement me
+	c.logger.Debug("implement me")
+	panic("implement me")
+}
+
+func (c *NetworkController) DeleteNic(ctx context.Context, tenantID, workspaceID, name string, params sdknetwork.DeleteNicParams) error {
+	// TODO implement me
+	c.logger.Debug("implement me")
+	panic("implement me")
+}
+
+func (c *NetworkController) GetNic(ctx context.Context, tenantID, workspaceID, name string) (sdkschema.Nic, error) {
+	// TODO implement me
+	c.logger.Debug("implement me")
+	panic("implement me")
+}
+
+func (c *NetworkController) CreateOrUpdateNic(ctx context.Context, tenantID, workspaceID, name string, params sdknetwork.CreateOrUpdateNicParams, req sdkschema.Nic) (*sdkschema.Nic, bool, error) {
+	// TODO implement me
+	c.logger.Debug("implement me")
+	panic("implement me")
+}
+
+func (c *NetworkController) ListPublicIps(ctx context.Context, tenantID, workspaceID string, params sdknetwork.ListPublicIpsParams) (*secapi.Iterator[sdkschema.PublicIp], error) {
+	// TODO implement me
+	c.logger.Debug("implement me")
+	panic("implement me")
+}
+
+func (c *NetworkController) GetPublicIp(ctx context.Context, tenantID, workspaceID, publicIpID string) (sdkschema.PublicIp, error) {
+	// TODO implement me
+	c.logger.Debug("implement me")
+	panic("implement me")
+}
+
+func (c *NetworkController) CreateOrUpdatePublicIp(ctx context.Context, tenantID, workspaceID, publicIpID string, params sdknetwork.CreateOrUpdatePublicIpParams, req sdkschema.PublicIp) (*sdkschema.PublicIp, bool, error) {
+	// TODO implement me
+	c.logger.Debug("implement me")
+	panic("implement me")
+}
+
+func (c *NetworkController) DeletePublicIp(ctx context.Context, tenantID, workspaceID, publicIpID string, params sdknetwork.DeletePublicIpParams) error {
+	// TODO implement me
+	c.logger.Debug("implement me")
+	panic("implement me")
+}
+
+func (c *NetworkController) ListSecurityGroups(ctx context.Context, tenantID, workspaceID string, params sdknetwork.ListSecurityGroupsParams) (*secapi.Iterator[sdkschema.SecurityGroup], error) {
+	// TODO implement me
+	c.logger.Debug("implement me")
+	panic("implement me")
+}
+
+func (c *NetworkController) DeleteSecurityGroup(ctx context.Context, tenantID, workspaceID, name string, params sdknetwork.DeleteSecurityGroupParams) error {
+	// TODO implement me
+	c.logger.Debug("implement me")
+	panic("implement me")
+}
+
+func (c *NetworkController) GetSecurityGroup(ctx context.Context, tenantID, workspaceID, name string) (sdkschema.SecurityGroup, error) {
+	// TODO implement me
+	c.logger.Debug("implement me")
+	panic("implement me")
+}
+
+func (c *NetworkController) CreateOrUpdateSecurityGroup(ctx context.Context, tenantID, workspaceID, name string, params sdknetwork.CreateOrUpdateSecurityGroupParams, req sdkschema.SecurityGroup) (*sdkschema.SecurityGroup, bool, error) {
+	// TODO implement me
+	c.logger.Debug("implement me")
+	panic("implement me")
+}
+
+// --- Helpers ---
 
 func fromCRToSDKNetworkSKU(crNetworkSKU skuv1.NetworkSKU) sdkschema.NetworkSku {
 	sdkNetworkSKU := sdkschema.NetworkSku{
