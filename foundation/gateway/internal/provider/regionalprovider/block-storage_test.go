@@ -28,7 +28,7 @@ import (
 	storage "github.com/eu-sovereign-cloud/ecp/foundation/api/block-storage"
 	generatedv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/generated/types"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/kubeclient"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/provider/kubernetes"
 )
 
 var cfg *rest.Config
@@ -108,9 +108,20 @@ func TestStorageController_ListSKUs(t *testing.T) {
 
 	dynClient, err := dynamic.NewForConfig(cfg)
 	require.NoError(t, err)
-
-	sc := &StorageController{client: &kubeclient.KubeClient{Client: dynClient}, logger: slog.Default()}
-
+	convert := func(u unstructured.Unstructured) (schema.StorageSku, error) {
+		var crdStorageSKU skuv1.StorageSKU
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, &crdStorageSKU); err != nil {
+			return schema.StorageSku{}, err
+		}
+		return fromCRToSDKStorageSKU(crdStorageSKU), nil
+	}
+	storageSKUAdapter := kubernetes.NewAdapter(
+		dynClient,
+		skuv1.StorageSKUGVR,
+		slog.Default(),
+		convert,
+	)
+	sc := &StorageController{storageSKURepo: storageSKUAdapter}
 	const (
 		tenantA = "tenant-a"
 		tenantB = "tenant-b"
@@ -220,8 +231,20 @@ func TestStorageController_GetSKU(t *testing.T) {
 
 	dynClient, err := dynamic.NewForConfig(cfg)
 	require.NoError(t, err)
-
-	sc := &StorageController{client: &kubeclient.KubeClient{Client: dynClient}, logger: slog.Default()}
+	convert := func(u unstructured.Unstructured) (schema.StorageSku, error) {
+		var crdStorageSKU skuv1.StorageSKU
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, &crdStorageSKU); err != nil {
+			return schema.StorageSku{}, err
+		}
+		return fromCRToSDKStorageSKU(crdStorageSKU), nil
+	}
+	storageSKUAdapter := kubernetes.NewAdapter(
+		dynClient,
+		skuv1.StorageSKUGVR,
+		slog.Default(),
+		convert,
+	)
+	sc := &StorageController{storageSKURepo: storageSKUAdapter, logger: slog.Default()}
 
 	const tenant = "tenant-a"
 	const skuID = "only"

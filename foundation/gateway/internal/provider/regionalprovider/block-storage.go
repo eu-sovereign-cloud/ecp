@@ -12,10 +12,13 @@ import (
 
 	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/block-storage/skus/v1"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/kubeclient"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/provider/common"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/port"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/provider/kubernetes"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation"
 )
 
 const (
@@ -55,8 +58,8 @@ var _ StorageProvider = (*StorageController)(nil) // Ensure StorageController im
 
 // StorageController implements the StorageProvider interface and provides methods to interact with the Storage CRDs and XRDs in the Kubernetes cluster.
 type StorageController struct {
-	client *kubeclient.KubeClient
-	logger *slog.Logger
+	logger         *slog.Logger
+	storageSKURepo port.ResourceQueryRepository[sdkschema.StorageSku]
 }
 
 func (c StorageController) CreateOrUpdateImage(
@@ -93,9 +96,24 @@ func NewStorageController(logger *slog.Logger, cfg *rest.Config) (*StorageContro
 		return nil, fmt.Errorf("failed to create kubeclient: %w", err)
 	}
 
+	convert := func(u unstructured.Unstructured) (sdkschema.StorageSku, error) {
+		var crdStorageSKU skuv1.StorageSKU
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, &crdStorageSKU); err != nil {
+			return sdkschema.StorageSku{}, err
+		}
+		return fromCRToSDKStorageSKU(crdStorageSKU), nil
+	}
+
+	storageSKUAdapter := kubernetes.NewAdapter(
+		client.Client,
+		skuv1.StorageSKUGVR,
+		logger,
+		convert,
+	)
+
 	return &StorageController{
-		client: client,
-		logger: logger.With(slog.String("component", "StorageController")),
+		logger:         logger.With(slog.String("component", "StorageController")),
+		storageSKURepo: storageSKUAdapter,
 	}, nil
 }
 
@@ -106,21 +124,24 @@ func (c StorageController) ListSKUs(ctx context.Context, tenantID string, params
 ) {
 	limit := validation.GetLimit(params.Limit)
 
-	convert := common.Adapter(func(crdStorageSKU skuv1.StorageSKU) (sdkschema.StorageSku, error) {
-		return fromCRToSDKStorageSKU(crdStorageSKU), nil
-	})
-	opts := common.NewListOptions().Namespace(tenantID)
-	if limit > 0 {
-		opts.Limit(limit)
-	}
+	var skipToken string
 	if params.SkipToken != nil {
-		opts.SkipToken(*params.SkipToken)
-	}
-	if params.Labels != nil {
-		opts.Selector(*params.Labels)
+		skipToken = *params.SkipToken
 	}
 
-	sdkStorageSKUs, nextSkipToken, err := common.ListResources(ctx, c.client.Client, skuv1.StorageSKUGVR, *c.logger, convert, opts)
+	var selector string
+	if params.Labels != nil {
+		selector = *params.Labels
+	}
+
+	listParams := port.ListParams{
+		Namespace: tenantID,
+		Limit:     limit,
+		SkipToken: skipToken,
+		Selector:  selector,
+	}
+
+	sdkStorageSKUs, nextSkipToken, err := c.storageSKURepo.List(ctx, listParams)
 	if err != nil {
 		return nil, err
 	}
@@ -142,11 +163,7 @@ func (c StorageController) ListSKUs(ctx context.Context, tenantID string, params
 func (c StorageController) GetSKU(
 	ctx context.Context, tenantID, skuID string,
 ) (*sdkschema.StorageSku, error) {
-	convert := common.Adapter(func(crdStorageSKU skuv1.StorageSKU) (sdkschema.StorageSku, error) {
-		return fromCRToSDKStorageSKU(crdStorageSKU), nil
-	})
-	opts := common.NewGetOptions().Namespace(tenantID)
-	sku, err := common.GetResource(ctx, c.client.Client, skuv1.StorageSKUGVR, skuID, *c.logger, convert, opts)
+	sku, err := c.storageSKURepo.Get(ctx, tenantID, skuID)
 	if err != nil {
 		return nil, err
 	}

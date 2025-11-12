@@ -24,7 +24,8 @@ import (
 	generatedv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/generated/types"
 	regionsv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regions/v1"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/kubeclient"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/model"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/provider/kubernetes"
 )
 
 func TestRegionController_ListRegions(t *testing.T) {
@@ -45,10 +46,21 @@ func TestRegionController_ListRegions(t *testing.T) {
 	}
 
 	dyn := fake.NewSimpleDynamicClient(scheme, objs...)
-
+	crdToDomainConverter := func(u unstructured.Unstructured) (model.RegionDomain, error) {
+		var crdRegion regionsv1.Region
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, &crdRegion); err != nil {
+			return model.RegionDomain{}, err
+		}
+		return model.MapRegionCRDToDomain(crdRegion)
+	}
 	rc := &RegionController{
-		client: &kubeclient.KubeClient{Client: dyn},
 		logger: slog.Default(),
+		regionRepo: kubernetes.NewAdapter(
+			dyn,
+			regionsv1.GroupVersionResource,
+			slog.Default(),
+			crdToDomainConverter,
+		),
 	}
 
 	type tc struct {
@@ -175,11 +187,6 @@ func TestRegionController_ListRegions_Pagination(t *testing.T) {
 	dynClient, err := dynamic.NewForConfig(cfg)
 	require.NoError(t, err)
 
-	rc := &RegionController{
-		client: &kubeclient.KubeClient{Client: dynClient},
-		logger: slog.Default(),
-	}
-
 	// --- Create test data ---
 	totalRegions := 5
 	regionNames := make([]string, totalRegions)
@@ -196,6 +203,22 @@ func TestRegionController_ListRegions_Pagination(t *testing.T) {
 
 	ctx := context.Background()
 	limit := 2
+	crdToDomainConverter := func(u unstructured.Unstructured) (model.RegionDomain, error) {
+		var crdRegion regionsv1.Region
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, &crdRegion); err != nil {
+			return model.RegionDomain{}, err
+		}
+		return model.MapRegionCRDToDomain(crdRegion)
+	}
+	rc := &RegionController{
+		logger: slog.Default(),
+		regionRepo: kubernetes.NewAdapter(
+			dynClient,
+			regionsv1.GroupVersionResource,
+			slog.Default(),
+			crdToDomainConverter,
+		),
+	}
 
 	// 1. First page: limit=2, no skip token
 	var iter *sdkregion.RegionIterator

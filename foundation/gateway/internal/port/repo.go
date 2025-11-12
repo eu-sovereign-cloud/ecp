@@ -3,7 +3,7 @@ package port
 import (
 	"context"
 
-	model "github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/model"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/model"
 )
 
 type Repo[T any] interface {
@@ -12,4 +12,16 @@ type Repo[T any] interface {
 	Delete(ctx context.Context, m T) error
 	Create(ctx context.Context, m T) error
 	Update(ctx context.Context, m T) error
+}
+
+type ListParams struct {
+	Namespace string
+	Limit     int
+	SkipToken string
+	Selector  string
+}
+
+type ResourceQueryRepository[T any] interface {
+	List(ctx context.Context, params ListParams) ([]T, *string, error)
+	Get(ctx context.Context, namespace, name string) (T, error)
 }

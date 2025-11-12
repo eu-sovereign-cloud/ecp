@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net/url"
-	"strconv"
 
 	region "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
@@ -13,8 +11,13 @@ import (
 
 	regionsv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regions/v1"
 
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/kubeclient"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/provider/common"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/model"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/port"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/provider/kubernetes"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation"
 )
 
@@ -33,8 +36,8 @@ type RegionProvider interface {
 
 // RegionController implements the RegionalProvider interface and provides methods to interact with the Region CRD in the Kubernetes cluster.
 type RegionController struct {
-	client *kubeclient.KubeClient
-	logger *slog.Logger
+	logger     *slog.Logger
+	regionRepo port.ResourceQueryRepository[model.RegionDomain]
 }
 
 // NewController creates a new RegionController with a Kubernetes client.
@@ -45,46 +48,70 @@ func NewController(logger *slog.Logger, cfg *rest.Config) (*RegionController, er
 		return nil, fmt.Errorf("failed to create kubeclient: %w", err)
 	}
 
+	// This converter now maps from the K8s unstructured object to the internal domain model.
+	crdToDomainConverter := func(u unstructured.Unstructured) (model.RegionDomain, error) {
+		var crdRegion regionsv1.Region
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, &crdRegion); err != nil {
+			return model.RegionDomain{}, err
+		}
+		return model.MapRegionCRDToDomain(crdRegion)
+	}
+
+	regionAdapter := kubernetes.NewAdapter(
+		client.Client,
+		regionsv1.GroupVersionResource,
+		logger,
+		crdToDomainConverter,
+	)
+
 	return &RegionController{
-		client: client,
-		logger: logger.With(slog.String("component", "RegionController")),
+		logger:     logger.With(slog.String("component", "RegionController")),
+		regionRepo: regionAdapter,
 	}, nil
 }
 
-// GetRegion retrieves a specific region by its ID by fetching the CR from the cluster.
+// GetRegion retrieves a specific region, maps it to the domain, and then projects it to the SDK model.
 func (c *RegionController) GetRegion(ctx context.Context, regionName schema.ResourcePathParam) (*schema.Region, error) {
-	convert := common.Adapter(func(crdRegion regionsv1.Region) (schema.Region, error) {
-		return fromCRDToSDKRegion(crdRegion, "get")
-	})
-	opts := common.NewGetOptions()
-	regionObj, err := common.GetResource(ctx, c.client.Client, regionsv1.GroupVersionResource, regionName, *c.logger, convert, opts)
+	regionDomain, err := c.regionRepo.Get(ctx, "", regionName)
 	if err != nil {
 		return nil, err
 	}
-	return &regionObj, nil
+
+	sdkRegion := model.MapRegionDomainToSDK(regionDomain, "get")
+
+	return &sdkRegion, nil
 }
 
-// ListRegions retrieves all available regions by listing the CRs from the cluster.
+// ListRegions retrieves all available regions, maps them to the domain, and then projects them to the SDK model.
 func (c *RegionController) ListRegions(ctx context.Context, params region.ListRegionsParams) (*region.RegionIterator, error) {
 	limit := validation.GetLimit(params.Limit)
-	convert := common.Adapter(func(crdRegion regionsv1.Region) (schema.Region, error) {
-		return fromCRDToSDKRegion(crdRegion, "list")
-	})
-	opts := common.NewListOptions()
-	if limit > 0 {
-		opts.Limit(limit)
-	}
+
+	var skipToken string
 	if params.SkipToken != nil {
-		opts.SkipToken(*params.SkipToken)
-	}
-	if params.Labels != nil {
-		opts.Selector(*params.Labels)
+		skipToken = *params.SkipToken
 	}
 
-	sdkRegions, nextSkipToken, err := common.ListResources(ctx, c.client.Client, regionsv1.GroupVersionResource, *c.logger, convert, opts)
+	var selector string
+	if params.Labels != nil {
+		selector = *params.Labels
+	}
+
+	listParams := port.ListParams{
+		Limit:     limit,
+		SkipToken: skipToken,
+		Selector:  selector,
+	}
+
+	domainRegions, nextSkipToken, err := c.regionRepo.List(ctx, listParams)
 	if err != nil {
 		return nil, err
 	}
+
+	sdkRegions := make([]schema.Region, len(domainRegions))
+	for i, dom := range domainRegions {
+		sdkRegions[i] = model.MapRegionDomainToSDK(dom, "list")
+	}
+
 	iterator := &region.RegionIterator{
 		Items: sdkRegions,
 		Metadata: schema.ResponseMetadata{
@@ -97,53 +124,4 @@ func (c *RegionController) ListRegions(ctx context.Context, params region.ListRe
 		iterator.Metadata.SkipToken = nextSkipToken
 	}
 	return iterator, nil
-}
-
-func fromCRDToSDKRegion(crdRegion regionsv1.Region, verb string) (schema.Region, error) {
-	providers := make([]schema.Provider, len(crdRegion.Spec.Providers))
-	for i, provider := range crdRegion.Spec.Providers {
-		providers[i] = schema.Provider{
-			Name:    provider.Name,
-			Url:     provider.Url,
-			Version: provider.Version,
-		}
-	}
-	resVersion, err := strconv.Atoi(crdRegion.GetResourceVersion())
-	if err != nil {
-		return schema.Region{}, fmt.Errorf("could not parse resource version: %w", err)
-	}
-	resource, err := url.JoinPath(RegionBaseURL, regionsv1.Resource, crdRegion.Name)
-	if err != nil {
-		return schema.Region{}, fmt.Errorf("could not parse resource URL: %w", err)
-	}
-	refObj := schema.ReferenceObject{
-		Resource: resource,
-	}
-	reference := schema.Reference{}
-	if err := reference.FromReferenceObject(refObj); err != nil {
-		return schema.Region{}, fmt.Errorf("could not convert to reference object: %w", err)
-	}
-
-	sdkRegion := schema.Region{
-		Spec: schema.RegionSpec{
-			AvailableZones: crdRegion.Spec.AvailableZones,
-			Providers:      providers,
-		},
-		Metadata: &schema.GlobalResourceMetadata{
-			ApiVersion:      regionsv1.Version,
-			CreatedAt:       crdRegion.GetCreationTimestamp().Time,
-			LastModifiedAt:  crdRegion.GetCreationTimestamp().Time,
-			Kind:            schema.GlobalResourceMetadataKindResourceKindRegion,
-			Name:            crdRegion.GetName(),
-			Provider:        ProviderRegionName,
-			Resource:        crdRegion.GetName(),
-			Ref:             &reference,
-			ResourceVersion: resVersion,
-			Verb:            verb,
-		},
-	}
-	if crdRegion.GetDeletionTimestamp() != nil {
-		sdkRegion.Metadata.DeletedAt = &crdRegion.GetDeletionTimestamp().Time
-	}
-	return sdkRegion, nil
 }

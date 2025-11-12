@@ -12,10 +12,13 @@ import (
 
 	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/network/skus/v1"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/kubeclient"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/provider/common"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/port"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/provider/kubernetes"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation"
 )
 
 const (
@@ -44,8 +47,9 @@ var _ NetworkProvider = (*NetworkController)(nil) // Ensure NetworkController im
 
 // NetworkController implements the NetworkProvider interface and provides methods to interact with the Network CRDs and XRDs in the Kubernetes cluster.
 type NetworkController struct {
-	client *kubeclient.KubeClient
-	logger *slog.Logger
+	client         *kubeclient.KubeClient
+	logger         *slog.Logger
+	networkSKURepo port.ResourceQueryRepository[sdkschema.NetworkSku]
 }
 
 // NewNetworkController creates a new NetworkController with a Kubernetes client.
@@ -56,9 +60,25 @@ func NewNetworkController(logger *slog.Logger, cfg *rest.Config) (*NetworkContro
 		return nil, fmt.Errorf("failed to create kubeclient: %w", err)
 	}
 
+	convert := func(u unstructured.Unstructured) (sdkschema.NetworkSku, error) {
+		var crdNetworkSKU skuv1.NetworkSKU
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, &crdNetworkSKU); err != nil {
+			return sdkschema.NetworkSku{}, err
+		}
+		return fromCRToSDKNetworkSKU(crdNetworkSKU), nil
+	}
+
+	networkSKUAdapter := kubernetes.NewAdapter(
+		client.Client,
+		skuv1.NetworkSKUGVR,
+		logger,
+		convert,
+	)
+
 	return &NetworkController{
-		client: client,
-		logger: logger.With(slog.String("component", "NetworkController")),
+		client:         client,
+		logger:         logger.With(slog.String("component", "NetworkController")),
+		networkSKURepo: networkSKUAdapter,
 	}, nil
 }
 
@@ -67,21 +87,24 @@ func (c NetworkController) ListSKUs(ctx context.Context, tenantID string, params
 ) {
 	limit := validation.GetLimit(params.Limit)
 
-	convert := common.Adapter(func(crdNetworkSKU skuv1.NetworkSKU) (sdkschema.NetworkSku, error) {
-		return fromCRToSDKNetworkSKU(crdNetworkSKU), nil
-	})
-	opts := common.NewListOptions().Namespace(tenantID)
-	if limit > 0 {
-		opts.Limit(limit)
-	}
+	var skipToken string
 	if params.SkipToken != nil {
-		opts.SkipToken(*params.SkipToken)
-	}
-	if params.Labels != nil {
-		opts.Selector(*params.Labels)
+		skipToken = *params.SkipToken
 	}
 
-	sdkNetworkSKUs, nextSkipToken, err := common.ListResources(ctx, c.client.Client, skuv1.NetworkSKUGVR, *c.logger, convert, opts)
+	var selector string
+	if params.Labels != nil {
+		selector = *params.Labels
+	}
+
+	listParams := port.ListParams{
+		Namespace: tenantID,
+		Limit:     limit,
+		SkipToken: skipToken,
+		Selector:  selector,
+	}
+
+	sdkNetworkSKUs, nextSkipToken, err := c.networkSKURepo.List(ctx, listParams)
 	if err != nil {
 		return nil, err
 	}
@@ -103,11 +126,7 @@ func (c NetworkController) ListSKUs(ctx context.Context, tenantID string, params
 func (c NetworkController) GetSKU(
 	ctx context.Context, tenantID, skuID string,
 ) (*sdkschema.NetworkSku, error) {
-	convert := common.Adapter(func(crdNetworkSKU skuv1.NetworkSKU) (sdkschema.NetworkSku, error) {
-		return fromCRToSDKNetworkSKU(crdNetworkSKU), nil
-	})
-	opts := common.NewGetOptions().Namespace(tenantID)
-	sku, err := common.GetResource(ctx, c.client.Client, skuv1.NetworkSKUGVR, skuID, *c.logger, convert, opts)
+	sku, err := c.networkSKURepo.Get(ctx, tenantID, skuID)
 	if err != nil {
 		return nil, err
 	}
