@@ -11,8 +11,3 @@ type Provider struct {
 	URL     string
 	Version string
 }
-
-// Invariants:
-// - At least one zone
-// - Provider names must be non-empty
-// - Zone strings must be non-empty
