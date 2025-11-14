@@ -19,7 +19,7 @@ func FromUnstructuredToNetworkSKUDomain(u unstructured.Unstructured) (*NetworkSK
 
 func FromCRToNetworkSKUDomain(cr skuv1.NetworkSKU) *NetworkSKUDomain {
 	return &NetworkSKUDomain{
-		Meta: model.Metadata{Name: cr.Name, Namespace: cr.Namespace},
+		Metadata: model.Metadata{Name: cr.Name, Namespace: cr.Namespace},
 		Spec: NetworkSKUSpec{
 			Bandwidth: cr.Spec.Bandwidth,
 			Packets:   cr.Spec.Packets,
@@ -29,7 +29,7 @@ func FromCRToNetworkSKUDomain(cr skuv1.NetworkSKU) *NetworkSKUDomain {
 
 func ToSDKNetworkSKU(domain *NetworkSKUDomain) *sdkschema.NetworkSku {
 	return &sdkschema.NetworkSku{
-		Metadata: &sdkschema.SkuResourceMetadata{Name: domain.Meta.Name},
+		Metadata: &sdkschema.SkuResourceMetadata{Name: domain.Name},
 		Spec: &sdkschema.NetworkSkuSpec{
 			Bandwidth: domain.Spec.Bandwidth,
 			Packets:   domain.Spec.Packets,

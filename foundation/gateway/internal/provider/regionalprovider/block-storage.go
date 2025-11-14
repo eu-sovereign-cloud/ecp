@@ -141,8 +141,7 @@ func (c StorageController) ListSKUs(ctx context.Context, tenantID string, params
 		SkipToken: skipToken,
 		Selector:  selector,
 	}
-	// domain slice to populate
-	domainSKUs := make([]*regional.StorageSKUDomain, 0, limit)
+	var domainSKUs []*regional.StorageSKUDomain
 	nextSkipToken, err := c.storageSKURepo.List(ctx, listParams, &domainSKUs)
 	if err != nil {
 		return nil, err

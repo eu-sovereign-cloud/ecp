@@ -105,7 +105,7 @@ func (c NetworkController) ListSKUs(ctx context.Context, tenantID string, params
 		Selector:  selector,
 	}
 
-	domainSKUs := make([]*regional.NetworkSKUDomain, 0, limit)
+	var domainSKUs []*regional.NetworkSKUDomain
 	nextSkipToken, err := c.networkSKURepo.List(ctx, listParams, &domainSKUs)
 	if err != nil {
 		return nil, err

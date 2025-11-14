@@ -25,7 +25,7 @@ import (
 	regionsv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regions/v1"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/kubernetes"
-	model2 "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 )
 
 func TestRegionController_ListRegions(t *testing.T) {
@@ -46,12 +46,12 @@ func TestRegionController_ListRegions(t *testing.T) {
 	}
 
 	dyn := fake.NewSimpleDynamicClient(scheme, objs...)
-	crdToDomainConverter := func(u unstructured.Unstructured) (model2.RegionDomain, error) {
+	crdToDomainConverter := func(u unstructured.Unstructured) (*model.RegionDomain, error) {
 		var crdRegion regionsv1.Region
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, &crdRegion); err != nil {
-			return model2.RegionDomain{}, err
+			return nil, err
 		}
-		return model2.MapRegionCRDToDomain(crdRegion)
+		return model.MapRegionCRDToDomain(crdRegion)
 	}
 	rc := &RegionController{
 		logger: slog.Default(),
@@ -203,12 +203,12 @@ func TestRegionController_ListRegions_Pagination(t *testing.T) {
 
 	ctx := context.Background()
 	limit := 2
-	crdToDomainConverter := func(u unstructured.Unstructured) (model2.RegionDomain, error) {
+	crdToDomainConverter := func(u unstructured.Unstructured) (*model.RegionDomain, error) {
 		var crdRegion regionsv1.Region
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, &crdRegion); err != nil {
-			return model2.RegionDomain{}, err
+			return nil, err
 		}
-		return model2.MapRegionCRDToDomain(crdRegion)
+		return model.MapRegionCRDToDomain(crdRegion)
 	}
 	rc := &RegionController{
 		logger: slog.Default(),

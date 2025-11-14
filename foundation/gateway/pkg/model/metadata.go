@@ -14,7 +14,7 @@ type Metadata struct {
 }
 
 // CloneLabels returns a copy to avoid external mutation side-effects.
-func (m Metadata) CloneLabels() map[string]string {
+func (m *Metadata) CloneLabels() map[string]string {
 	if m.Labels == nil {
 		return nil
 	}
@@ -24,3 +24,8 @@ func (m Metadata) CloneLabels() map[string]string {
 	}
 	return cp
 }
+
+func (m *Metadata) GetName() string        { return m.Name }
+func (m *Metadata) GetNamespace() string   { return m.Namespace }
+func (m *Metadata) SetName(name string)    { m.Name = name }
+func (m *Metadata) SetNamespace(ns string) { m.Namespace = ns }

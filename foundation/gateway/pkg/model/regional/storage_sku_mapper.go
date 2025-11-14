@@ -19,7 +19,7 @@ func FromUnstructuredToStorageSKUDomain(u unstructured.Unstructured) (*StorageSK
 
 func FromCRToStorageSKUDomain(cr skuv1.StorageSKU) *StorageSKUDomain {
 	return &StorageSKUDomain{
-		Meta: model.Metadata{
+		Metadata: model.Metadata{
 			Name: cr.Name,
 		},
 		Spec: StorageSKUSpec{
@@ -33,7 +33,7 @@ func FromCRToStorageSKUDomain(cr skuv1.StorageSKU) *StorageSKUDomain {
 func ToSDKStorageSKU(domain *StorageSKUDomain) *sdkschema.StorageSku {
 	return &sdkschema.StorageSku{
 		Metadata: &sdkschema.SkuResourceMetadata{
-			Name: domain.Meta.Name, // no namespace?
+			Name: domain.Name, // no namespace?
 		},
 		Spec: &sdkschema.StorageSkuSpec{
 			Iops:          int(domain.Spec.Iops),

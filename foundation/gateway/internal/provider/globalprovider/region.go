@@ -37,7 +37,7 @@ type RegionProvider interface {
 // RegionController implements the RegionalProvider interface and provides methods to interact with the Region CRD in the Kubernetes cluster.
 type RegionController struct {
 	logger     *slog.Logger
-	regionRepo port.ResourceQueryRepository[model.RegionDomain]
+	regionRepo port.ResourceQueryRepository[*model.RegionDomain]
 }
 
 // NewController creates a new RegionController with a Kubernetes client.
@@ -49,10 +49,10 @@ func NewController(logger *slog.Logger, cfg *rest.Config) (*RegionController, er
 	}
 
 	// This converter now maps from the K8s unstructured object to the internal domain model.
-	crdToDomainConverter := func(u unstructured.Unstructured) (model.RegionDomain, error) {
+	crdToDomainConverter := func(u unstructured.Unstructured) (*model.RegionDomain, error) {
 		var crdRegion regionsv1.Region
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, &crdRegion); err != nil {
-			return model.RegionDomain{}, err
+			return &model.RegionDomain{}, err
 		}
 		return model.MapRegionCRDToDomain(crdRegion)
 	}
@@ -72,15 +72,15 @@ func NewController(logger *slog.Logger, cfg *rest.Config) (*RegionController, er
 
 // GetRegion retrieves a specific region, maps it to the domain, and then projects it to the SDK model.
 func (c *RegionController) GetRegion(ctx context.Context, regionName schema.ResourcePathParam) (*schema.Region, error) {
-	regionDomain := model.RegionDomain{
-		Meta: model.Metadata{Name: regionName},
+	regionDomain := &model.RegionDomain{
+		Metadata: model.Metadata{Name: regionName},
 	}
 	err := c.regionRepo.Load(ctx, &regionDomain)
 	if err != nil {
 		return nil, err
 	}
 
-	sdkRegion := model.MapRegionDomainToSDK(regionDomain, "get")
+	sdkRegion := model.MapRegionDomainToSDK(*regionDomain, "get")
 
 	return &sdkRegion, nil
 }
@@ -104,7 +104,8 @@ func (c *RegionController) ListRegions(ctx context.Context, params region.ListRe
 		SkipToken: skipToken,
 		Selector:  selector,
 	}
-	var domainRegions []model.RegionDomain
+
+	var domainRegions []*model.RegionDomain
 	nextSkipToken, err := c.regionRepo.List(ctx, listParams, &domainRegions)
 	if err != nil {
 		return nil, err
@@ -112,7 +113,7 @@ func (c *RegionController) ListRegions(ctx context.Context, params region.ListRe
 
 	sdkRegions := make([]schema.Region, len(domainRegions))
 	for i, dom := range domainRegions {
-		sdkRegions[i] = model.MapRegionDomainToSDK(dom, "list")
+		sdkRegions[i] = model.MapRegionDomainToSDK(*dom, "list")
 	}
 
 	iterator := &region.RegionIterator{

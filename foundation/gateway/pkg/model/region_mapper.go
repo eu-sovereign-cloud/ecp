@@ -14,25 +14,25 @@ const (
 )
 
 // MapRegionCRDToDomain converts a Kubernetes Region CRD to a RegionDomain enforcing invariants.
-func MapRegionCRDToDomain(cr regionsv1.Region) (RegionDomain, error) {
+func MapRegionCRDToDomain(cr regionsv1.Region) (*RegionDomain, error) {
 	var dom RegionDomain
 	if len(cr.Spec.Providers) == 0 {
-		return dom, fmt.Errorf("region %s has no providers", cr.Name)
+		return &dom, fmt.Errorf("region %s has no providers", cr.Name)
 	}
 	if len(cr.Spec.AvailableZones) == 0 {
-		return dom, fmt.Errorf("region %s has no available zones", cr.Name)
+		return &dom, fmt.Errorf("region %s has no available zones", cr.Name)
 	}
 	providers := make([]Provider, 0, len(cr.Spec.Providers))
 	for _, p := range cr.Spec.Providers {
 		if p.Name == "" {
-			return dom, fmt.Errorf("region %s has provider with empty name", cr.Name)
+			return &dom, fmt.Errorf("region %s has provider with empty name", cr.Name)
 		}
 		providers = append(providers, Provider{Name: p.Name, URL: p.Url, Version: p.Version})
 	}
 	zones := make([]string, 0, len(cr.Spec.AvailableZones))
 	for _, z := range cr.Spec.AvailableZones {
 		if z == "" {
-			return dom, fmt.Errorf("region %s has empty zone entry", cr.Name)
+			return &dom, fmt.Errorf("region %s has empty zone entry", cr.Name)
 		}
 		zones = append(zones, z)
 	}
@@ -46,8 +46,8 @@ func MapRegionCRDToDomain(cr regionsv1.Region) (RegionDomain, error) {
 	if cr.GetDeletionTimestamp() != nil {
 		meta.DeletedAt = &cr.GetDeletionTimestamp().Time
 	}
-	dom = RegionDomain{Meta: meta, Providers: providers, Zones: zones}
-	return dom, nil
+	dom = RegionDomain{Metadata: Metadata{Namespace: meta.Namespace, Name: meta.Name}, Providers: providers, Zones: zones}
+	return &dom, nil
 }
 
 // MapRegionDomainToSDK converts a RegionDomain to an SDK schema.Region, embedding metadata verb.
@@ -58,10 +58,10 @@ func MapRegionDomainToSDK(dom RegionDomain, verb string) schema.Region {
 	}
 	resVersion := 0
 	// resourceVersion is best-effort numeric
-	if rv, err := strconv.Atoi(dom.Meta.ResourceVersion); err == nil {
+	if rv, err := strconv.Atoi(dom.ResourceVersion); err == nil {
 		resVersion = rv
 	}
-	refObj := schema.ReferenceObject{Resource: fmt.Sprintf("%s/%s", RegionBaseURL, dom.Meta.Name)}
+	refObj := schema.ReferenceObject{Resource: fmt.Sprintf("%s/%s", RegionBaseURL, dom.Name)}
 	ref := schema.Reference{}
 	_ = ref.FromReferenceObject(refObj) // ignore mapping error, not critical internally
 	sdk := schema.Region{
@@ -71,19 +71,19 @@ func MapRegionDomainToSDK(dom RegionDomain, verb string) schema.Region {
 		},
 		Metadata: &schema.GlobalResourceMetadata{
 			ApiVersion:      regionsv1.Version,
-			CreatedAt:       dom.Meta.CreatedAt,
-			LastModifiedAt:  dom.Meta.UpdatedAt,
+			CreatedAt:       dom.CreatedAt,
+			LastModifiedAt:  dom.UpdatedAt,
 			Kind:            schema.GlobalResourceMetadataKindResourceKindRegion,
-			Name:            dom.Meta.Name,
+			Name:            dom.Name,
 			Provider:        ProviderRegionName,
-			Resource:        dom.Meta.Name,
+			Resource:        dom.Name,
 			Ref:             &ref,
 			ResourceVersion: resVersion,
 			Verb:            verb,
 		},
 	}
-	if dom.Meta.DeletedAt != nil {
-		sdk.Metadata.DeletedAt = dom.Meta.DeletedAt
+	if dom.DeletedAt != nil {
+		sdk.Metadata.DeletedAt = dom.DeletedAt
 	}
 	return sdk
 }
