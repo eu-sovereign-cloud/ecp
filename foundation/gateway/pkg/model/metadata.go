@@ -5,6 +5,7 @@ import "time"
 // Metadata carries common resource identity and classification data used in domain models.
 type Metadata struct {
 	Name            string
+	Namespace       string
 	Labels          map[string]string
 	ResourceVersion string
 	CreatedAt       time.Time

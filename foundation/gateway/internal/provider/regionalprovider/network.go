@@ -16,9 +16,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/kubeclient"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/port"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/provider/kubernetes"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/kubernetes"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 )
 
 const (
@@ -49,7 +50,7 @@ var _ NetworkProvider = (*NetworkController)(nil) // Ensure NetworkController im
 type NetworkController struct {
 	client         *kubeclient.KubeClient
 	logger         *slog.Logger
-	networkSKURepo port.ResourceQueryRepository[sdkschema.NetworkSku]
+	networkSKURepo port.ResourceQueryRepository[*regional.NetworkSKUDomain]
 }
 
 // NewNetworkController creates a new NetworkController with a Kubernetes client.
@@ -60,12 +61,12 @@ func NewNetworkController(logger *slog.Logger, cfg *rest.Config) (*NetworkContro
 		return nil, fmt.Errorf("failed to create kubeclient: %w", err)
 	}
 
-	convert := func(u unstructured.Unstructured) (sdkschema.NetworkSku, error) {
+	convert := func(u unstructured.Unstructured) (*regional.NetworkSKUDomain, error) {
 		var crdNetworkSKU skuv1.NetworkSKU
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, &crdNetworkSKU); err != nil {
-			return sdkschema.NetworkSku{}, err
+			return &regional.NetworkSKUDomain{}, err
 		}
-		return fromCRToSDKNetworkSKU(crdNetworkSKU), nil
+		return regional.FromCRToNetworkSKUDomain(crdNetworkSKU), nil
 	}
 
 	networkSKUAdapter := kubernetes.NewAdapter(
@@ -104,9 +105,15 @@ func (c NetworkController) ListSKUs(ctx context.Context, tenantID string, params
 		Selector:  selector,
 	}
 
-	sdkNetworkSKUs, nextSkipToken, err := c.networkSKURepo.List(ctx, listParams)
+	domainSKUs := make([]*regional.NetworkSKUDomain, 0, limit)
+	nextSkipToken, err := c.networkSKURepo.List(ctx, listParams, &domainSKUs)
 	if err != nil {
 		return nil, err
+	}
+
+	sdkNetworkSKUs := make([]sdkschema.NetworkSku, len(domainSKUs))
+	for i := range domainSKUs {
+		sdkNetworkSKUs[i] = *regional.ToSDKNetworkSKU(domainSKUs[i])
 	}
 
 	iterator := sdknetwork.SkuIterator{
@@ -126,11 +133,14 @@ func (c NetworkController) ListSKUs(ctx context.Context, tenantID string, params
 func (c NetworkController) GetSKU(
 	ctx context.Context, tenantID, skuID string,
 ) (*sdkschema.NetworkSku, error) {
-	sku, err := c.networkSKURepo.Get(ctx, tenantID, skuID)
-	if err != nil {
+	domain := &regional.NetworkSKUDomain{}
+	domain.SetName(skuID)
+	// scope by tenant namespace if needed (CRD is Namespaced per kubebuilder tag)
+	domain.SetNamespace(tenantID)
+	if err := c.networkSKURepo.Load(ctx, &domain); err != nil {
 		return nil, err
 	}
-	return &sku, nil
+	return regional.ToSDKNetworkSKU(domain), nil
 }
 
 func (n *NetworkController) ListPublicIps(ctx context.Context, tenantID, workspaceID string, params sdknetwork.ListPublicIpsParams) (*secapi.Iterator[sdkschema.PublicIp], error) {
@@ -155,17 +165,4 @@ func (n *NetworkController) DeletePublicIp(ctx context.Context, tenantID, worksp
 	// TODO implement me
 	n.logger.Debug("implement me")
 	panic("implement me")
-}
-
-func fromCRToSDKNetworkSKU(crNetworkSKU skuv1.NetworkSKU) sdkschema.NetworkSku {
-	sdkNetworkSKU := sdkschema.NetworkSku{
-		Spec: &sdkschema.NetworkSkuSpec{
-			Bandwidth: crNetworkSKU.Spec.Bandwidth,
-			Packets:   crNetworkSKU.Spec.Packets,
-		},
-		Metadata: &sdkschema.SkuResourceMetadata{
-			Name: crNetworkSKU.GetName(),
-		},
-	}
-	return sdkNetworkSKU
 }

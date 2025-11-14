@@ -15,10 +15,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/kubeclient"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/model"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/port"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/provider/kubernetes"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/kubernetes"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 )
 
 const (
@@ -72,7 +72,10 @@ func NewController(logger *slog.Logger, cfg *rest.Config) (*RegionController, er
 
 // GetRegion retrieves a specific region, maps it to the domain, and then projects it to the SDK model.
 func (c *RegionController) GetRegion(ctx context.Context, regionName schema.ResourcePathParam) (*schema.Region, error) {
-	regionDomain, err := c.regionRepo.Get(ctx, "", regionName)
+	regionDomain := model.RegionDomain{
+		Meta: model.Metadata{Name: regionName},
+	}
+	err := c.regionRepo.Load(ctx, &regionDomain)
 	if err != nil {
 		return nil, err
 	}
@@ -101,8 +104,8 @@ func (c *RegionController) ListRegions(ctx context.Context, params region.ListRe
 		SkipToken: skipToken,
 		Selector:  selector,
 	}
-
-	domainRegions, nextSkipToken, err := c.regionRepo.List(ctx, listParams)
+	var domainRegions []model.RegionDomain
+	nextSkipToken, err := c.regionRepo.List(ctx, listParams, &domainRegions)
 	if err != nil {
 		return nil, err
 	}

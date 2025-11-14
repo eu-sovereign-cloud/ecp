@@ -16,9 +16,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/kubeclient"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/port"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/provider/kubernetes"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/kubernetes"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 )
 
 const (
@@ -59,7 +60,7 @@ var _ StorageProvider = (*StorageController)(nil) // Ensure StorageController im
 // StorageController implements the StorageProvider interface and provides methods to interact with the Storage CRDs and XRDs in the Kubernetes cluster.
 type StorageController struct {
 	logger         *slog.Logger
-	storageSKURepo port.ResourceQueryRepository[sdkschema.StorageSku]
+	storageSKURepo port.ResourceQueryRepository[*regional.StorageSKUDomain]
 }
 
 func (c StorageController) CreateOrUpdateImage(
@@ -96,12 +97,12 @@ func NewStorageController(logger *slog.Logger, cfg *rest.Config) (*StorageContro
 		return nil, fmt.Errorf("failed to create kubeclient: %w", err)
 	}
 
-	convert := func(u unstructured.Unstructured) (sdkschema.StorageSku, error) {
+	convert := func(u unstructured.Unstructured) (*regional.StorageSKUDomain, error) {
 		var crdStorageSKU skuv1.StorageSKU
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, &crdStorageSKU); err != nil {
-			return sdkschema.StorageSku{}, err
+			return &regional.StorageSKUDomain{}, err
 		}
-		return fromCRToSDKStorageSKU(crdStorageSKU), nil
+		return regional.FromCRToStorageSKUDomain(crdStorageSKU), nil
 	}
 
 	storageSKUAdapter := kubernetes.NewAdapter(
@@ -140,14 +141,22 @@ func (c StorageController) ListSKUs(ctx context.Context, tenantID string, params
 		SkipToken: skipToken,
 		Selector:  selector,
 	}
-
-	sdkStorageSKUs, nextSkipToken, err := c.storageSKURepo.List(ctx, listParams)
+	// domain slice to populate
+	domainSKUs := make([]*regional.StorageSKUDomain, 0, limit)
+	nextSkipToken, err := c.storageSKURepo.List(ctx, listParams, &domainSKUs)
 	if err != nil {
 		return nil, err
 	}
 
+	// convert to sdk slice
+	sdkSKUs := make([]sdkschema.StorageSku, len(domainSKUs))
+	for i := range domainSKUs {
+		mapped := regional.ToSDKStorageSKU(domainSKUs[i])
+		sdkSKUs[i] = *mapped
+	}
+
 	iterator := sdkstorage.SkuIterator{
-		Items: sdkStorageSKUs,
+		Items: sdkSKUs,
 		Metadata: sdkschema.ResponseMetadata{
 			Provider: ProviderStorageName,
 			Resource: skuv1.StorageSKUResource,
@@ -163,11 +172,13 @@ func (c StorageController) ListSKUs(ctx context.Context, tenantID string, params
 func (c StorageController) GetSKU(
 	ctx context.Context, tenantID, skuID string,
 ) (*sdkschema.StorageSku, error) {
-	sku, err := c.storageSKURepo.Get(ctx, tenantID, skuID)
-	if err != nil {
+	domain := &regional.StorageSKUDomain{}
+	domain.SetName(skuID)
+	domain.SetNamespace(tenantID) // ensure namespaced SKU retrieval
+	if err := c.storageSKURepo.Load(ctx, &domain); err != nil {
 		return nil, err
 	}
-	return &sku, nil
+	return regional.ToSDKStorageSKU(domain), nil
 }
 
 func (c StorageController) ListBlockStorages(
