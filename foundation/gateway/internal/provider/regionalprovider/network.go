@@ -2,20 +2,19 @@ package regionalprovider
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 
 	sdknetwork "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.network.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 	"github.com/eu-sovereign-cloud/go-sdk/secapi"
-	"k8s.io/client-go/rest"
 
 	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/network/skus/v1"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation"
-
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/kubeclient"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/provider/common"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 )
 
 const (
@@ -42,24 +41,10 @@ type NetworkProvider interface {
 
 var _ NetworkProvider = (*NetworkController)(nil) // Ensure NetworkController implements the NetworkProvider interface.
 
-// NetworkController implements the NetworkProvider interface and provides methods to interact with the Network CRDs and XRDs in the Kubernetes cluster.
+// NetworkController implements the NetworkProvider interface
 type NetworkController struct {
-	client *kubeclient.KubeClient
-	logger *slog.Logger
-}
-
-// NewNetworkController creates a new NetworkController with a Kubernetes client.
-func NewNetworkController(logger *slog.Logger, cfg *rest.Config) (*NetworkController, error) {
-	client, err := kubeclient.NewFromConfig(cfg)
-	if err != nil {
-		logger.Error("failed to create kubeclient", slog.Any("error", err))
-		return nil, fmt.Errorf("failed to create kubeclient: %w", err)
-	}
-
-	return &NetworkController{
-		client: client,
-		logger: logger.With(slog.String("component", "NetworkController")),
-	}, nil
+	Logger  *slog.Logger
+	SKURepo port.ResourceQueryRepository[*regional.NetworkSKUDomain]
 }
 
 func (c NetworkController) ListSKUs(ctx context.Context, tenantID string, params sdknetwork.ListSkusParams) (
@@ -67,23 +52,32 @@ func (c NetworkController) ListSKUs(ctx context.Context, tenantID string, params
 ) {
 	limit := validation.GetLimit(params.Limit)
 
-	convert := common.Adapter(func(crdNetworkSKU skuv1.NetworkSKU) (sdkschema.NetworkSku, error) {
-		return fromCRToSDKNetworkSKU(crdNetworkSKU), nil
-	})
-	opts := common.NewListOptions().Namespace(tenantID)
-	if limit > 0 {
-		opts.Limit(limit)
-	}
+	var skipToken string
 	if params.SkipToken != nil {
-		opts.SkipToken(*params.SkipToken)
-	}
-	if params.Labels != nil {
-		opts.Selector(*params.Labels)
+		skipToken = *params.SkipToken
 	}
 
-	sdkNetworkSKUs, nextSkipToken, err := common.ListResources(ctx, c.client.Client, skuv1.NetworkSKUGVR, *c.logger, convert, opts)
+	var selector string
+	if params.Labels != nil {
+		selector = *params.Labels
+	}
+
+	listParams := model.ListParams{
+		Namespace: tenantID,
+		Limit:     limit,
+		SkipToken: skipToken,
+		Selector:  selector,
+	}
+
+	var domainSKUs []*regional.NetworkSKUDomain
+	nextSkipToken, err := c.SKURepo.List(ctx, listParams, &domainSKUs)
 	if err != nil {
 		return nil, err
+	}
+
+	sdkNetworkSKUs := make([]sdkschema.NetworkSku, len(domainSKUs))
+	for i := range domainSKUs {
+		sdkNetworkSKUs[i] = *api.ToSDKNetworkSKU(domainSKUs[i])
 	}
 
 	iterator := sdknetwork.SkuIterator{
@@ -103,50 +97,36 @@ func (c NetworkController) ListSKUs(ctx context.Context, tenantID string, params
 func (c NetworkController) GetSKU(
 	ctx context.Context, tenantID, skuID string,
 ) (*sdkschema.NetworkSku, error) {
-	convert := common.Adapter(func(crdNetworkSKU skuv1.NetworkSKU) (sdkschema.NetworkSku, error) {
-		return fromCRToSDKNetworkSKU(crdNetworkSKU), nil
-	})
-	opts := common.NewGetOptions().Namespace(tenantID)
-	sku, err := common.GetResource(ctx, c.client.Client, skuv1.NetworkSKUGVR, skuID, *c.logger, convert, opts)
-	if err != nil {
+	domain := &regional.NetworkSKUDomain{}
+	domain.SetName(skuID)
+	// scope by tenant namespace if needed
+	domain.SetNamespace(tenantID)
+	if err := c.SKURepo.Load(ctx, &domain); err != nil {
 		return nil, err
 	}
-	return &sku, nil
+	return api.ToSDKNetworkSKU(domain), nil
 }
 
 func (n *NetworkController) ListPublicIps(ctx context.Context, tenantID, workspaceID string, params sdknetwork.ListPublicIpsParams) (*secapi.Iterator[sdkschema.PublicIp], error) {
 	// TODO implement me
-	n.logger.Debug("implement me")
+	n.Logger.Debug("implement me")
 	panic("implement me")
 }
 
 func (n *NetworkController) GetPublicIp(ctx context.Context, tenantID, workspaceID, publicIpID string) (sdkschema.PublicIp, error) {
 	// TODO implement me
-	n.logger.Debug("implement me")
+	n.Logger.Debug("implement me")
 	panic("implement me")
 }
 
 func (n *NetworkController) CreateOrUpdatePublicIp(ctx context.Context, tenantID, workspaceID, publicIpID string, params sdknetwork.CreateOrUpdatePublicIpParams, req sdkschema.PublicIp) (*sdkschema.PublicIp, bool, error) {
 	// TODO implement me
-	n.logger.Debug("implement me")
+	n.Logger.Debug("implement me")
 	panic("implement me")
 }
 
 func (n *NetworkController) DeletePublicIp(ctx context.Context, tenantID, workspaceID, publicIpID string, params sdknetwork.DeletePublicIpParams) error {
 	// TODO implement me
-	n.logger.Debug("implement me")
+	n.Logger.Debug("implement me")
 	panic("implement me")
-}
-
-func fromCRToSDKNetworkSKU(crNetworkSKU skuv1.NetworkSKU) sdkschema.NetworkSku {
-	sdkNetworkSKU := sdkschema.NetworkSku{
-		Spec: &sdkschema.NetworkSkuSpec{
-			Bandwidth: crNetworkSKU.Spec.Bandwidth,
-			Packets:   crNetworkSKU.Spec.Packets,
-		},
-		Metadata: &sdkschema.SkuResourceMetadata{
-			Name: crNetworkSKU.GetName(),
-		},
-	}
-	return sdkNetworkSKU
 }

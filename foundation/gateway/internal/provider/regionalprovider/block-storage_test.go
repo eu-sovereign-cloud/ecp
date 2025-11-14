@@ -28,7 +28,8 @@ import (
 	storage "github.com/eu-sovereign-cloud/ecp/foundation/api/block-storage"
 	generatedv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/generated/types"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/kubeclient"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 )
 
 var cfg *rest.Config
@@ -108,9 +109,23 @@ func TestStorageController_ListSKUs(t *testing.T) {
 
 	dynClient, err := dynamic.NewForConfig(cfg)
 	require.NoError(t, err)
-
-	sc := &StorageController{client: &kubeclient.KubeClient{Client: dynClient}, logger: slog.Default()}
-
+	convert := func(u unstructured.Unstructured) (*regional.StorageSKUDomain, error) {
+		var crdStorageSKU skuv1.StorageSKU
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, &crdStorageSKU); err != nil {
+			return nil, err
+		}
+		return kubernetes.FromCRToStorageSKUDomain(crdStorageSKU), nil
+	}
+	storageSKUAdapter := kubernetes.NewAdapter(
+		dynClient,
+		skuv1.StorageSKUGVR,
+		slog.Default(),
+		convert,
+	)
+	sc := StorageController{
+		Logger:  slog.Default(),
+		SKURepo: storageSKUAdapter,
+	}
 	const (
 		tenantA = "tenant-a"
 		tenantB = "tenant-b"
@@ -221,8 +236,6 @@ func TestStorageController_GetSKU(t *testing.T) {
 	dynClient, err := dynamic.NewForConfig(cfg)
 	require.NoError(t, err)
 
-	sc := &StorageController{client: &kubeclient.KubeClient{Client: dynClient}, logger: slog.Default()}
-
 	const tenant = "tenant-a"
 	const skuID = "only"
 	namespaceGVR := k8sschema.GroupVersionResource{Version: "v1", Resource: "namespaces"}
@@ -249,7 +262,23 @@ func TestStorageController_GetSKU(t *testing.T) {
 	if err != nil && !k8serrors.IsAlreadyExists(err) { // ignore if previously created by another test
 		require.NoError(t, err)
 	}
-
+	convert := func(u unstructured.Unstructured) (*regional.StorageSKUDomain, error) {
+		var crdStorageSKU skuv1.StorageSKU
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, &crdStorageSKU); err != nil {
+			return nil, err
+		}
+		return kubernetes.FromCRToStorageSKUDomain(crdStorageSKU), nil
+	}
+	storageSKUAdapter := kubernetes.NewAdapter(
+		dynClient,
+		skuv1.StorageSKUGVR,
+		slog.Default(),
+		convert,
+	)
+	sc := StorageController{
+		Logger:  slog.Default(),
+		SKURepo: storageSKUAdapter,
+	}
 	t.Run("get_existing", func(t *testing.T) {
 		sku, err := sc.GetSKU(ctx, tenant, skuID)
 		require.NoError(t, err)

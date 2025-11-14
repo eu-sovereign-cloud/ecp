@@ -2,20 +2,18 @@ package regionalprovider
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 
+	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/block-storage/skus/v1"
 	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 	"github.com/eu-sovereign-cloud/go-sdk/secapi"
-	"k8s.io/client-go/rest"
-
-	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/block-storage/skus/v1"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation"
-
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/kubeclient"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/provider/common"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 )
 
 const (
@@ -53,10 +51,10 @@ type StorageProvider interface {
 
 var _ StorageProvider = (*StorageController)(nil) // Ensure StorageController implements the StorageProvider interface.
 
-// StorageController implements the StorageProvider interface and provides methods to interact with the Storage CRDs and XRDs in the Kubernetes cluster.
+// StorageController implements the StorageProvider interface
 type StorageController struct {
-	client *kubeclient.KubeClient
-	logger *slog.Logger
+	Logger  *slog.Logger
+	SKURepo port.ResourceQueryRepository[*regional.StorageSKUDomain]
 }
 
 func (c StorageController) CreateOrUpdateImage(
@@ -85,20 +83,6 @@ func (c StorageController) ListImages(
 	panic("implement me")
 }
 
-// NewStorageController creates a new StorageController with a Kubernetes client.
-func NewStorageController(logger *slog.Logger, cfg *rest.Config) (*StorageController, error) {
-	client, err := kubeclient.NewFromConfig(cfg)
-	if err != nil {
-		logger.Error("failed to create kubeclient", slog.Any("error", err))
-		return nil, fmt.Errorf("failed to create kubeclient: %w", err)
-	}
-
-	return &StorageController{
-		client: client,
-		logger: logger.With(slog.String("component", "StorageController")),
-	}, nil
-}
-
 const tenantLabelKey = "secapi.cloud/tenant-id"
 
 func (c StorageController) ListSKUs(ctx context.Context, tenantID string, params sdkstorage.ListSkusParams) (
@@ -106,27 +90,37 @@ func (c StorageController) ListSKUs(ctx context.Context, tenantID string, params
 ) {
 	limit := validation.GetLimit(params.Limit)
 
-	convert := common.Adapter(func(crdStorageSKU skuv1.StorageSKU) (sdkschema.StorageSku, error) {
-		return fromCRToSDKStorageSKU(crdStorageSKU), nil
-	})
-	opts := common.NewListOptions().Namespace(tenantID)
-	if limit > 0 {
-		opts.Limit(limit)
-	}
+	var skipToken string
 	if params.SkipToken != nil {
-		opts.SkipToken(*params.SkipToken)
-	}
-	if params.Labels != nil {
-		opts.Selector(*params.Labels)
+		skipToken = *params.SkipToken
 	}
 
-	sdkStorageSKUs, nextSkipToken, err := common.ListResources(ctx, c.client.Client, skuv1.StorageSKUGVR, *c.logger, convert, opts)
+	var selector string
+	if params.Labels != nil {
+		selector = *params.Labels
+	}
+
+	listParams := model.ListParams{
+		Namespace: tenantID,
+		Limit:     limit,
+		SkipToken: skipToken,
+		Selector:  selector,
+	}
+	var domainSKUs []*regional.StorageSKUDomain
+	nextSkipToken, err := c.SKURepo.List(ctx, listParams, &domainSKUs)
 	if err != nil {
 		return nil, err
 	}
 
+	// convert to sdk slice
+	sdkSKUs := make([]sdkschema.StorageSku, len(domainSKUs))
+	for i := range domainSKUs {
+		mapped := api.ToSDKStorageSKU(domainSKUs[i])
+		sdkSKUs[i] = *mapped
+	}
+
 	iterator := sdkstorage.SkuIterator{
-		Items: sdkStorageSKUs,
+		Items: sdkSKUs,
 		Metadata: sdkschema.ResponseMetadata{
 			Provider: ProviderStorageName,
 			Resource: skuv1.StorageSKUResource,
@@ -142,15 +136,13 @@ func (c StorageController) ListSKUs(ctx context.Context, tenantID string, params
 func (c StorageController) GetSKU(
 	ctx context.Context, tenantID, skuID string,
 ) (*sdkschema.StorageSku, error) {
-	convert := common.Adapter(func(crdStorageSKU skuv1.StorageSKU) (sdkschema.StorageSku, error) {
-		return fromCRToSDKStorageSKU(crdStorageSKU), nil
-	})
-	opts := common.NewGetOptions().Namespace(tenantID)
-	sku, err := common.GetResource(ctx, c.client.Client, skuv1.StorageSKUGVR, skuID, *c.logger, convert, opts)
-	if err != nil {
+	domain := &regional.StorageSKUDomain{}
+	domain.SetName(skuID)
+	domain.SetNamespace(tenantID) // ensure namespaced SKU retrieval
+	if err := c.SKURepo.Load(ctx, &domain); err != nil {
 		return nil, err
 	}
-	return &sku, nil
+	return api.ToSDKStorageSKU(domain), nil
 }
 
 func (c StorageController) ListBlockStorages(
