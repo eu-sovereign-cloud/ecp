@@ -97,7 +97,10 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		crdToDomainConverter,
 	)
 
-	storageController := regionalprovider.NewStorageController(logger, storageSKUAdapter)
+	storageController := regionalprovider.StorageController{
+		Logger:  logger,
+		SKURepo: storageSKUAdapter,
+	}
 
 	storage := regionalhandler.NewStorage(logger, storageController)
 	storageHandler := sdkstorageapi.HandlerWithOptions(storage, sdkstorageapi.StdHTTPServerOptions{

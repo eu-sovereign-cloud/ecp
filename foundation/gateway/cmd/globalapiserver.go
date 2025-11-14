@@ -87,7 +87,10 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
 		crdToDomainConverter,
 	)
 
-	globalServer := globalprovider.NewController(logger, regionAdapter)
+	globalServer := &globalprovider.RegionController{
+		Repo:   regionAdapter,
+		Logger: logger,
+	}
 
 	regionalHandler := globalhandler.NewRegion(logger, globalServer)
 	regionHandler := region.HandlerWithOptions(regionalHandler, region.StdHTTPServerOptions{

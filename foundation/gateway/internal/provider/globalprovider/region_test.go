@@ -54,8 +54,8 @@ func TestRegionController_ListRegions(t *testing.T) {
 		return kubernetes.MapRegionCRDToDomain(crdRegion)
 	}
 	rc := &RegionController{
-		logger: slog.Default(),
-		regionRepo: kubernetes.NewAdapter(
+		Logger: slog.Default(),
+		Repo: kubernetes.NewAdapter(
 			dyn,
 			regionsv1.GroupVersionResource,
 			slog.Default(),
@@ -210,12 +210,15 @@ func TestRegionController_ListRegions_Pagination(t *testing.T) {
 		}
 		return kubernetes.MapRegionCRDToDomain(crdRegion)
 	}
-	rc := NewController(slog.Default(), kubernetes.NewAdapter(
-		dynClient,
-		regionsv1.GroupVersionResource,
-		slog.Default(),
-		crdToDomainConverter,
-	))
+	rc := &RegionController{
+		Logger: slog.Default(),
+		Repo: kubernetes.NewAdapter(
+			dynClient,
+			regionsv1.GroupVersionResource,
+			slog.Default(),
+			crdToDomainConverter,
+		),
+	}
 	// 1. First page: limit=2, no skip token
 	var iter *sdkregion.RegionIterator
 	t.Run("first_page", func(t *testing.T) {

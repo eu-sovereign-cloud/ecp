@@ -10,6 +10,7 @@ import (
 	"github.com/eu-sovereign-cloud/go-sdk/secapi"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
@@ -52,8 +53,8 @@ var _ StorageProvider = (*StorageController)(nil) // Ensure StorageController im
 
 // StorageController implements the StorageProvider interface
 type StorageController struct {
-	logger         *slog.Logger
-	storageSKURepo port.ResourceQueryRepository[*regional.StorageSKUDomain]
+	Logger  *slog.Logger
+	SKURepo port.ResourceQueryRepository[*regional.StorageSKUDomain]
 }
 
 func (c StorageController) CreateOrUpdateImage(
@@ -82,17 +83,6 @@ func (c StorageController) ListImages(
 	panic("implement me")
 }
 
-// NewStorageController creates a new StorageController.
-func NewStorageController(
-	logger *slog.Logger,
-	storageSKURepo port.ResourceQueryRepository[*regional.StorageSKUDomain],
-) *StorageController {
-	return &StorageController{
-		logger:         logger.With(slog.String("component", "StorageController")),
-		storageSKURepo: storageSKURepo,
-	}
-}
-
 const tenantLabelKey = "secapi.cloud/tenant-id"
 
 func (c StorageController) ListSKUs(ctx context.Context, tenantID string, params sdkstorage.ListSkusParams) (
@@ -117,7 +107,7 @@ func (c StorageController) ListSKUs(ctx context.Context, tenantID string, params
 		Selector:  selector,
 	}
 	var domainSKUs []*regional.StorageSKUDomain
-	nextSkipToken, err := c.storageSKURepo.List(ctx, listParams, &domainSKUs)
+	nextSkipToken, err := c.SKURepo.List(ctx, listParams, &domainSKUs)
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +115,7 @@ func (c StorageController) ListSKUs(ctx context.Context, tenantID string, params
 	// convert to sdk slice
 	sdkSKUs := make([]sdkschema.StorageSku, len(domainSKUs))
 	for i := range domainSKUs {
-		mapped := regional.ToSDKStorageSKU(domainSKUs[i])
+		mapped := api.ToSDKStorageSKU(domainSKUs[i])
 		sdkSKUs[i] = *mapped
 	}
 
@@ -149,10 +139,10 @@ func (c StorageController) GetSKU(
 	domain := &regional.StorageSKUDomain{}
 	domain.SetName(skuID)
 	domain.SetNamespace(tenantID) // ensure namespaced SKU retrieval
-	if err := c.storageSKURepo.Load(ctx, &domain); err != nil {
+	if err := c.SKURepo.Load(ctx, &domain); err != nil {
 		return nil, err
 	}
-	return regional.ToSDKStorageSKU(domain), nil
+	return api.ToSDKStorageSKU(domain), nil
 }
 
 func (c StorageController) ListBlockStorages(

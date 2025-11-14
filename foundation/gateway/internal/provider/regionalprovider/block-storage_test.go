@@ -122,7 +122,10 @@ func TestStorageController_ListSKUs(t *testing.T) {
 		slog.Default(),
 		convert,
 	)
-	sc := NewStorageController(slog.Default(), storageSKUAdapter)
+	sc := StorageController{
+		Logger:  slog.Default(),
+		SKURepo: storageSKUAdapter,
+	}
 	const (
 		tenantA = "tenant-a"
 		tenantB = "tenant-b"
@@ -272,7 +275,10 @@ func TestStorageController_GetSKU(t *testing.T) {
 		slog.Default(),
 		convert,
 	)
-	sc := NewStorageController(slog.Default(), storageSKUAdapter)
+	sc := StorageController{
+		Logger:  slog.Default(),
+		SKURepo: storageSKUAdapter,
+	}
 	t.Run("get_existing", func(t *testing.T) {
 		sku, err := sc.GetSKU(ctx, tenant, skuID)
 		require.NoError(t, err)

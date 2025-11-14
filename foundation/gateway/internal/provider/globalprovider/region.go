@@ -24,19 +24,8 @@ type RegionProvider interface {
 
 // RegionController implements the RegionalProvider interface
 type RegionController struct {
-	logger     *slog.Logger
-	regionRepo port.ResourceQueryRepository[*model.RegionDomain]
-}
-
-// NewController creates a new RegionController.
-func NewController(
-	logger *slog.Logger,
-	regionRepo port.ResourceQueryRepository[*model.RegionDomain],
-) *RegionController {
-	return &RegionController{
-		logger:     logger.With(slog.String("component", "RegionController")),
-		regionRepo: regionRepo,
-	}
+	Logger *slog.Logger
+	Repo   port.ResourceQueryRepository[*model.RegionDomain]
 }
 
 // GetRegion retrieves a specific region, maps it to the domain, and then projects it to the SDK model.
@@ -44,7 +33,7 @@ func (c *RegionController) GetRegion(ctx context.Context, regionName schema.Reso
 	regionDomain := &model.RegionDomain{
 		Metadata: model.Metadata{Name: regionName},
 	}
-	err := c.regionRepo.Load(ctx, &regionDomain)
+	err := c.Repo.Load(ctx, &regionDomain)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +64,7 @@ func (c *RegionController) ListRegions(ctx context.Context, params region.ListRe
 	}
 
 	var domainRegions []*model.RegionDomain
-	nextSkipToken, err := c.regionRepo.List(ctx, listParams, &domainRegions)
+	nextSkipToken, err := c.Repo.List(ctx, listParams, &domainRegions)
 	if err != nil {
 		return nil, err
 	}
