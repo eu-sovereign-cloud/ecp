@@ -8,16 +8,22 @@ import (
 	"os"
 	"path/filepath"
 
+	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/block-storage/skus/v1"
 	sdkstorageapi "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 
 	regionalhandler "github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/handler/regional"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/httpserver"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/kubeclient"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/logger"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/provider/regionalprovider"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 )
 
 var (
@@ -70,11 +76,28 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		}
 	}
 
-	storageController, err := regionalprovider.NewStorageController(logger, config)
+	client, err := kubeclient.NewFromConfig(config)
 	if err != nil {
-		logger.Error("failed to create regional provider", slog.Any("error", err))
-		log.Fatal(err, " - failed to create regional provider")
+		logger.Error("failed to create kubeclient", slog.Any("error", err))
+		log.Fatal(err, " - failed to create kubeclient")
 	}
+
+	crdToDomainConverter := func(u unstructured.Unstructured) (*regional.StorageSKUDomain, error) {
+		var crd skuv1.StorageSKU
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, &crd); err != nil {
+			return &regional.StorageSKUDomain{}, err
+		}
+		return kubernetes.FromCRToStorageSKUDomain(crd), nil
+	}
+
+	storageSKUAdapter := kubernetes.NewAdapter(
+		client.Client,
+		skuv1.StorageSKUGVR,
+		logger,
+		crdToDomainConverter,
+	)
+
+	storageController := regionalprovider.NewStorageController(logger, storageSKUAdapter)
 
 	storage := regionalhandler.NewStorage(logger, storageController)
 	storageHandler := sdkstorageapi.HandlerWithOptions(storage, sdkstorageapi.StdHTTPServerOptions{

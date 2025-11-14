@@ -28,7 +28,7 @@ import (
 	storage "github.com/eu-sovereign-cloud/ecp/foundation/api/block-storage"
 	generatedv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/generated/types"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/kubernetes"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 )
 
@@ -114,7 +114,7 @@ func TestStorageController_ListSKUs(t *testing.T) {
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, &crdStorageSKU); err != nil {
 			return nil, err
 		}
-		return regional.FromCRToStorageSKUDomain(crdStorageSKU), nil
+		return kubernetes.FromCRToStorageSKUDomain(crdStorageSKU), nil
 	}
 	storageSKUAdapter := kubernetes.NewAdapter(
 		dynClient,
@@ -122,7 +122,7 @@ func TestStorageController_ListSKUs(t *testing.T) {
 		slog.Default(),
 		convert,
 	)
-	sc := &StorageController{storageSKURepo: storageSKUAdapter, logger: slog.Default()}
+	sc := NewStorageController(slog.Default(), storageSKUAdapter)
 	const (
 		tenantA = "tenant-a"
 		tenantB = "tenant-b"
@@ -264,7 +264,7 @@ func TestStorageController_GetSKU(t *testing.T) {
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, &crdStorageSKU); err != nil {
 			return nil, err
 		}
-		return regional.FromCRToStorageSKUDomain(crdStorageSKU), nil
+		return kubernetes.FromCRToStorageSKUDomain(crdStorageSKU), nil
 	}
 	storageSKUAdapter := kubernetes.NewAdapter(
 		dynClient,
@@ -272,8 +272,7 @@ func TestStorageController_GetSKU(t *testing.T) {
 		slog.Default(),
 		convert,
 	)
-	sc := &StorageController{storageSKURepo: storageSKUAdapter, logger: slog.Default()}
-
+	sc := NewStorageController(slog.Default(), storageSKUAdapter)
 	t.Run("get_existing", func(t *testing.T) {
 		sku, err := sc.GetSKU(ctx, tenant, skuID)
 		require.NoError(t, err)

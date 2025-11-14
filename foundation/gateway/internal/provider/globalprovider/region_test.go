@@ -24,7 +24,7 @@ import (
 	generatedv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/generated/types"
 	regionsv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regions/v1"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/kubernetes"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 )
 
@@ -51,7 +51,7 @@ func TestRegionController_ListRegions(t *testing.T) {
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, &crdRegion); err != nil {
 			return nil, err
 		}
-		return model.MapRegionCRDToDomain(crdRegion)
+		return kubernetes.MapRegionCRDToDomain(crdRegion)
 	}
 	rc := &RegionController{
 		logger: slog.Default(),
@@ -208,18 +208,14 @@ func TestRegionController_ListRegions_Pagination(t *testing.T) {
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, &crdRegion); err != nil {
 			return nil, err
 		}
-		return model.MapRegionCRDToDomain(crdRegion)
+		return kubernetes.MapRegionCRDToDomain(crdRegion)
 	}
-	rc := &RegionController{
-		logger: slog.Default(),
-		regionRepo: kubernetes.NewAdapter(
-			dynClient,
-			regionsv1.GroupVersionResource,
-			slog.Default(),
-			crdToDomainConverter,
-		),
-	}
-
+	rc := NewController(slog.Default(), kubernetes.NewAdapter(
+		dynClient,
+		regionsv1.GroupVersionResource,
+		slog.Default(),
+		crdToDomainConverter,
+	))
 	// 1. First page: limit=2, no skip token
 	var iter *sdkregion.RegionIterator
 	t.Run("first_page", func(t *testing.T) {

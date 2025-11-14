@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/block-storage/skus/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -13,6 +14,8 @@ import (
 	"k8s.io/client-go/dynamic"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation/filter"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 )
 
@@ -20,7 +23,7 @@ import (
 type UnstructuredConverter[T any] func(unstructured.Unstructured) (T, error)
 
 // Adapter implements the port.ResourceQueryRepository interface for a specific resource type.
-type Adapter[T port.ResourceIdentifier] struct {
+type Adapter[T port.NamespacedResource] struct {
 	client  dynamic.Interface
 	gvr     schema.GroupVersionResource
 	logger  *slog.Logger
@@ -28,7 +31,7 @@ type Adapter[T port.ResourceIdentifier] struct {
 }
 
 // NewAdapter creates a new Kubernetes adapter for the port.ResourceQueryRepository port.
-func NewAdapter[T port.ResourceIdentifier](
+func NewAdapter[T port.NamespacedResource](
 	client dynamic.Interface,
 	gvr schema.GroupVersionResource,
 	logger *slog.Logger,
@@ -43,7 +46,7 @@ func NewAdapter[T port.ResourceIdentifier](
 }
 
 // List implements the port.ResourceRepository interface.
-func (a *Adapter[T]) List(ctx context.Context, params port.ListParams, list *[]T) (*string, error) {
+func (a *Adapter[T]) List(ctx context.Context, params model.ListParams, list *[]T) (*string, error) {
 	lo := metav1.ListOptions{}
 	if params.Limit > 0 {
 		lo.Limit = int64(params.Limit)
@@ -136,4 +139,12 @@ func DefaultUnstructuredConverter[T any]() UnstructuredConverter[T] {
 		}
 		return out, nil
 	}
+}
+
+func FromUnstructuredToStorageSKUDomain(u unstructured.Unstructured) (*regional.StorageSKUDomain, error) {
+	var crdStorageSKU skuv1.StorageSKU
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, &crdStorageSKU); err != nil {
+		return nil, err
+	}
+	return FromCRToStorageSKUDomain(crdStorageSKU), nil
 }

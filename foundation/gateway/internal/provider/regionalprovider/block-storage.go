@@ -2,22 +2,15 @@ package regionalprovider
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 
+	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/block-storage/skus/v1"
 	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 	"github.com/eu-sovereign-cloud/go-sdk/secapi"
-	"k8s.io/client-go/rest"
 
-	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/block-storage/skus/v1"
-
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
-
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/kubeclient"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/kubernetes"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 )
@@ -57,7 +50,7 @@ type StorageProvider interface {
 
 var _ StorageProvider = (*StorageController)(nil) // Ensure StorageController implements the StorageProvider interface.
 
-// StorageController implements the StorageProvider interface and provides methods to interact with the Storage CRDs and XRDs in the Kubernetes cluster.
+// StorageController implements the StorageProvider interface
 type StorageController struct {
 	logger         *slog.Logger
 	storageSKURepo port.ResourceQueryRepository[*regional.StorageSKUDomain]
@@ -89,33 +82,15 @@ func (c StorageController) ListImages(
 	panic("implement me")
 }
 
-// NewStorageController creates a new StorageController with a Kubernetes client.
-func NewStorageController(logger *slog.Logger, cfg *rest.Config) (*StorageController, error) {
-	client, err := kubeclient.NewFromConfig(cfg)
-	if err != nil {
-		logger.Error("failed to create kubeclient", slog.Any("error", err))
-		return nil, fmt.Errorf("failed to create kubeclient: %w", err)
-	}
-
-	convert := func(u unstructured.Unstructured) (*regional.StorageSKUDomain, error) {
-		var crdStorageSKU skuv1.StorageSKU
-		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, &crdStorageSKU); err != nil {
-			return &regional.StorageSKUDomain{}, err
-		}
-		return regional.FromCRToStorageSKUDomain(crdStorageSKU), nil
-	}
-
-	storageSKUAdapter := kubernetes.NewAdapter(
-		client.Client,
-		skuv1.StorageSKUGVR,
-		logger,
-		convert,
-	)
-
+// NewStorageController creates a new StorageController.
+func NewStorageController(
+	logger *slog.Logger,
+	storageSKURepo port.ResourceQueryRepository[*regional.StorageSKUDomain],
+) *StorageController {
 	return &StorageController{
 		logger:         logger.With(slog.String("component", "StorageController")),
-		storageSKURepo: storageSKUAdapter,
-	}, nil
+		storageSKURepo: storageSKURepo,
+	}
 }
 
 const tenantLabelKey = "secapi.cloud/tenant-id"
@@ -135,7 +110,7 @@ func (c StorageController) ListSKUs(ctx context.Context, tenantID string, params
 		selector = *params.Labels
 	}
 
-	listParams := port.ListParams{
+	listParams := model.ListParams{
 		Namespace: tenantID,
 		Limit:     limit,
 		SkipToken: skipToken,

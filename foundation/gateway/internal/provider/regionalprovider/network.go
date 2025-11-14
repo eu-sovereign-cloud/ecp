@@ -2,22 +2,16 @@ package regionalprovider
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 
 	sdknetwork "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.network.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 	"github.com/eu-sovereign-cloud/go-sdk/secapi"
-	"k8s.io/client-go/rest"
 
 	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/network/skus/v1"
 
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
-
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/kubeclient"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/kubernetes"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 )
@@ -46,41 +40,21 @@ type NetworkProvider interface {
 
 var _ NetworkProvider = (*NetworkController)(nil) // Ensure NetworkController implements the NetworkProvider interface.
 
-// NetworkController implements the NetworkProvider interface and provides methods to interact with the Network CRDs and XRDs in the Kubernetes cluster.
+// NetworkController implements the NetworkProvider interface
 type NetworkController struct {
-	client         *kubeclient.KubeClient
 	logger         *slog.Logger
 	networkSKURepo port.ResourceQueryRepository[*regional.NetworkSKUDomain]
 }
 
-// NewNetworkController creates a new NetworkController with a Kubernetes client.
-func NewNetworkController(logger *slog.Logger, cfg *rest.Config) (*NetworkController, error) {
-	client, err := kubeclient.NewFromConfig(cfg)
-	if err != nil {
-		logger.Error("failed to create kubeclient", slog.Any("error", err))
-		return nil, fmt.Errorf("failed to create kubeclient: %w", err)
-	}
-
-	convert := func(u unstructured.Unstructured) (*regional.NetworkSKUDomain, error) {
-		var crdNetworkSKU skuv1.NetworkSKU
-		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, &crdNetworkSKU); err != nil {
-			return &regional.NetworkSKUDomain{}, err
-		}
-		return regional.FromCRToNetworkSKUDomain(crdNetworkSKU), nil
-	}
-
-	networkSKUAdapter := kubernetes.NewAdapter(
-		client.Client,
-		skuv1.NetworkSKUGVR,
-		logger,
-		convert,
-	)
-
+// NewNetworkController creates a new NetworkController.
+func NewNetworkController(
+	logger *slog.Logger,
+	networkSKURepo port.ResourceQueryRepository[*regional.NetworkSKUDomain],
+) *NetworkController {
 	return &NetworkController{
-		client:         client,
 		logger:         logger.With(slog.String("component", "NetworkController")),
-		networkSKURepo: networkSKUAdapter,
-	}, nil
+		networkSKURepo: networkSKURepo,
+	}
 }
 
 func (c NetworkController) ListSKUs(ctx context.Context, tenantID string, params sdknetwork.ListSkusParams) (
@@ -98,7 +72,7 @@ func (c NetworkController) ListSKUs(ctx context.Context, tenantID string, params
 		selector = *params.Labels
 	}
 
-	listParams := port.ListParams{
+	listParams := model.ListParams{
 		Namespace: tenantID,
 		Limit:     limit,
 		SkipToken: skipToken,
@@ -135,7 +109,7 @@ func (c NetworkController) GetSKU(
 ) (*sdkschema.NetworkSku, error) {
 	domain := &regional.NetworkSKUDomain{}
 	domain.SetName(skuID)
-	// scope by tenant namespace if needed (CRD is Namespaced per kubebuilder tag)
+	// scope by tenant namespace if needed
 	domain.SetNamespace(tenantID)
 	if err := c.networkSKURepo.Load(ctx, &domain); err != nil {
 		return nil, err

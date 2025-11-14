@@ -10,14 +10,21 @@ import (
 
 	region "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 
+	regionsv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regions/v1"
+
 	globalhandler "github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/handler/global"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/httpserver"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/kubeclient"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/logger"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/provider/globalprovider"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 )
 
 var (
@@ -58,15 +65,33 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
 		}
 	}
 
-	globalServer, err := globalprovider.NewController(logger, config)
+	client, err := kubeclient.NewFromConfig(config)
 	if err != nil {
-		logger.Error("failed to create global server", slog.Any("error", err))
-		log.Fatal(err, " - failed to create global server")
+		logger.Error("failed to create kubeclient", slog.Any("error", err))
+		log.Fatal(err, " - failed to create kubeclient")
 	}
+
+	// This converter now maps from the K8s unstructured object to the internal domain model.
+	crdToDomainConverter := func(u unstructured.Unstructured) (*model.RegionDomain, error) {
+		var crdRegion regionsv1.Region
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, &crdRegion); err != nil {
+			return &model.RegionDomain{}, err
+		}
+		return kubernetes.MapRegionCRDToDomain(crdRegion)
+	}
+
+	regionAdapter := kubernetes.NewAdapter(
+		client.Client,
+		regionsv1.GroupVersionResource,
+		logger,
+		crdToDomainConverter,
+	)
+
+	globalServer := globalprovider.NewController(logger, regionAdapter)
 
 	regionalHandler := globalhandler.NewRegion(logger, globalServer)
 	regionHandler := region.HandlerWithOptions(regionalHandler, region.StdHTTPServerOptions{
-		BaseURL:          globalprovider.RegionBaseURL,
+		BaseURL:          model.RegionBaseURL,
 		BaseRouter:       nil,
 		Middlewares:      nil,
 		ErrorHandlerFunc: nil,
