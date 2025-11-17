@@ -9,7 +9,7 @@ import (
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/network"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
@@ -56,7 +56,7 @@ func (c NetworkController) ListSKUs(ctx context.Context, tenantID string, params
 
 	sdkNetworkSKUs := make([]sdkschema.NetworkSku, len(domainSKUs))
 	for i := range domainSKUs {
-		sdkNetworkSKUs[i] = *api.ToSDKNetworkSKU(domainSKUs[i])
+		sdkNetworkSKUs[i] = *network.SkuToAPI(domainSKUs[i])
 	}
 
 	iterator := sdknetwork.SkuIterator{
@@ -83,5 +83,5 @@ func (c NetworkController) GetSKU(
 	if err := c.SKURepo.Load(ctx, &domain); err != nil {
 		return nil, err
 	}
-	return api.ToSDKNetworkSKU(domain), nil
+	return network.SkuToAPI(domain), nil
 }

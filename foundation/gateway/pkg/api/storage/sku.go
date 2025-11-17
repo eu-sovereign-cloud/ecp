@@ -1,4 +1,4 @@
-package api
+package storage
 
 import (
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
@@ -6,8 +6,8 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 )
 
-// ToSDKStorageSKU converts a StorageSKUDomain to its SDK representation.
-func ToSDKStorageSKU(domain *regional.StorageSKUDomain) *sdkschema.StorageSku {
+// SkuToApi converts a StorageSKUDomain to its SDK representation.
+func SkuToApi(domain *regional.StorageSKUDomain) *sdkschema.StorageSku {
 	return &sdkschema.StorageSku{
 		Metadata: &sdkschema.SkuResourceMetadata{
 			Name: domain.Name, // no namespace?

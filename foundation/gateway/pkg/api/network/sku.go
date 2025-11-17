@@ -1,4 +1,4 @@
-package api
+package network
 
 import (
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
@@ -6,8 +6,8 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 )
 
-// ToSDKNetworkSKU converts a NetworkSKUDomain to its SDK representation.
-func ToSDKNetworkSKU(domain *regional.NetworkSKUDomain) *sdkschema.NetworkSku {
+// SkuToAPI converts a NetworkSKUDomain to its SDK representation.
+func SkuToAPI(domain *regional.NetworkSKUDomain) *sdkschema.NetworkSku {
 	return &sdkschema.NetworkSku{
 		Metadata: &sdkschema.SkuResourceMetadata{Name: domain.Name},
 		Spec: &sdkschema.NetworkSkuSpec{

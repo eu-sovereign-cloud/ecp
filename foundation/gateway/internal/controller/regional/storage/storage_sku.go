@@ -8,7 +8,7 @@ import (
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/storage"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 )
@@ -43,7 +43,7 @@ func (c Controller) ListSKUs(ctx context.Context, tenantID string, params storag
 	// convert to sdk slice
 	sdkSKUs := make([]schema.StorageSku, len(domainSKUs))
 	for i := range domainSKUs {
-		mapped := api.ToSDKStorageSKU(domainSKUs[i])
+		mapped := storage.SkuToApi(domainSKUs[i])
 		sdkSKUs[i] = *mapped
 	}
 
@@ -70,5 +70,5 @@ func (c Controller) GetSKU(
 	if err := c.SKURepo.Load(ctx, &domain); err != nil {
 		return nil, err
 	}
-	return api.ToSDKStorageSKU(domain), nil
+	return storage.SkuToApi(domain), nil
 }
