@@ -1,4 +1,4 @@
-package regionalprovider
+package regional
 
 import (
 	"fmt"

@@ -1,4 +1,4 @@
-package globalprovider
+package global
 
 import (
 	"context"
@@ -18,7 +18,7 @@ var _ RegionProvider = (*RegionController)(nil) // Ensure RegionController imple
 
 // RegionProvider defines the interface for interacting with regions in the ECP.
 type RegionProvider interface {
-	GetRegion(ctx context.Context, name string) (*schema.Region, error)
+	GetRegion(ctx context.Context, name schema.ResourcePathParam) (*schema.Region, error)
 	ListRegions(ctx context.Context, params region.ListRegionsParams) (*region.RegionIterator, error)
 }
 
@@ -29,9 +29,9 @@ type RegionController struct {
 }
 
 // GetRegion retrieves a specific region, maps it to the domain, and then projects it to the SDK model.
-func (c *RegionController) GetRegion(ctx context.Context, regionName schema.ResourcePathParam) (*schema.Region, error) {
+func (c *RegionController) GetRegion(ctx context.Context, name schema.ResourcePathParam) (*schema.Region, error) {
 	regionDomain := &model.RegionDomain{
-		Metadata: model.Metadata{Name: regionName},
+		Metadata: model.Metadata{Name: name},
 	}
 	err := c.Repo.Load(ctx, &regionDomain)
 	if err != nil {

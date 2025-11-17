@@ -4,13 +4,14 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/provider/regionalprovider"
 	sdknetwork "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.network.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
+
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/port"
 )
 
 type Network struct {
-	provider regionalprovider.NetworkProvider
+	provider port.NetworkProvider
 	logger   *slog.Logger
 }
 

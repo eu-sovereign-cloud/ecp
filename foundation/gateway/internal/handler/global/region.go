@@ -10,7 +10,7 @@ import (
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 	"k8s.io/apimachinery/pkg/api/errors"
 
-	globalprovider "github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/provider/globalprovider"
+	globalprovider "github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/adapter/global"
 )
 
 // Region handles HTTP requests for region data.

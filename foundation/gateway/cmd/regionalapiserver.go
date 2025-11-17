@@ -17,11 +17,11 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/adapter/regional/storage"
 	regionalhandler "github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/handler/regional"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/httpserver"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/kubeclient"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/logger"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/provider/regionalprovider"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 )
@@ -97,14 +97,14 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		crdToDomainConverter,
 	)
 
-	storageController := regionalprovider.StorageController{
+	storageController := storage.Controller{
 		Logger:  logger,
 		SKURepo: storageSKUAdapter,
 	}
 
-	storage := regionalhandler.NewStorage(logger, storageController)
-	storageHandler := sdkstorageapi.HandlerWithOptions(storage, sdkstorageapi.StdHTTPServerOptions{
-		BaseURL:          regionalprovider.StorageBaseURL,
+	storageObj := regionalhandler.NewStorage(logger, storageController)
+	storageHandler := sdkstorageapi.HandlerWithOptions(storageObj, sdkstorageapi.StdHTTPServerOptions{
+		BaseURL:          storage.BaseURL,
 		BaseRouter:       nil,
 		Middlewares:      nil,
 		ErrorHandlerFunc: nil,

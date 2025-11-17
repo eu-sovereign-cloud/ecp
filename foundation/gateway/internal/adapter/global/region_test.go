@@ -1,4 +1,4 @@
-package globalprovider
+package global
 
 import (
 	"context"

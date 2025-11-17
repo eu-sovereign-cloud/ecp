@@ -10,17 +10,17 @@ import (
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 	"k8s.io/apimachinery/pkg/api/errors"
 
-	regionalprovider "github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/provider/regionalprovider"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/port"
 )
 
 type Storage struct {
-	provider regionalprovider.StorageProvider
+	provider port.StorageProvider
 	logger   *slog.Logger
 }
 
 var _ sdkstorage.ServerInterface = (*Storage)(nil) // Ensure Storage implements the sdkstorage.ServerInterface.
 
-func NewStorage(logger *slog.Logger, p regionalprovider.StorageProvider) *Storage {
+func NewStorage(logger *slog.Logger, p port.StorageProvider) *Storage {
 	return &Storage{provider: p, logger: logger.With("component", "Storage")}
 }
 

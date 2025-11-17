@@ -1,4 +1,4 @@
-package regionalprovider
+package regional
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 
 	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/network/skus/v1"
 
+	port2 "github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/port"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
@@ -22,24 +23,7 @@ const (
 	ProviderNetworkName = "seca.network/v1"
 )
 
-type NetworkSKUProvider interface {
-	ListSKUs(ctx context.Context, tenantID string, params sdknetwork.ListSkusParams) (*sdknetwork.SkuIterator, error)
-	GetSKU(ctx context.Context, tenantID, skuID string) (*sdkschema.NetworkSku, error)
-}
-
-type PublicIPProvider interface {
-	ListPublicIps(ctx context.Context, tenantID, workspaceID string, params sdknetwork.ListPublicIpsParams) (*secapi.Iterator[sdkschema.PublicIp], error)
-	GetPublicIp(ctx context.Context, tenantID, workspaceID, publicIpID string) (sdkschema.PublicIp, error)
-	CreateOrUpdatePublicIp(ctx context.Context, tenantID, workspaceID, publicIpID string, params sdknetwork.CreateOrUpdatePublicIpParams, req sdkschema.PublicIp) (*sdkschema.PublicIp, bool, error)
-	DeletePublicIp(ctx context.Context, tenantID, workspaceID, publicIpID string, params sdknetwork.DeletePublicIpParams) error
-}
-
-type NetworkProvider interface {
-	NetworkSKUProvider
-	PublicIPProvider
-}
-
-var _ NetworkProvider = (*NetworkController)(nil) // Ensure NetworkController implements the NetworkProvider interface.
+var _ port2.NetworkProvider = (*NetworkController)(nil) // Ensure NetworkController implements the NetworkProvider interface.
 
 // NetworkController implements the NetworkProvider interface
 type NetworkController struct {

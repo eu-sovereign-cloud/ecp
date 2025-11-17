@@ -7,18 +7,18 @@ import (
 	sdkcompute "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.compute.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/provider/regionalprovider"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/port"
 )
 
 // Compute handles HTTP requests for compute resources.
 // It uses a ComputeProvider to perform the actual operations.
 type Compute struct {
 	logger   *slog.Logger
-	provider regionalprovider.ComputeProvider
+	provider port.ComputeProvider
 }
 
 // NewCompute creates a new ComputeHandler with the given provider.
-func NewCompute(logger *slog.Logger, provider regionalprovider.ComputeProvider) *Compute {
+func NewCompute(logger *slog.Logger, provider port.ComputeProvider) *Compute {
 	return &Compute{
 		logger:   logger.With("component", "Compute"),
 		provider: provider,

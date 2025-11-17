@@ -18,11 +18,11 @@ import (
 
 	regionsv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regions/v1"
 
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/adapter/global"
 	globalhandler "github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/handler/global"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/httpserver"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/kubeclient"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/logger"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/provider/globalprovider"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 )
@@ -87,7 +87,7 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
 		crdToDomainConverter,
 	)
 
-	globalServer := &globalprovider.RegionController{
+	globalServer := &global.RegionController{
 		Repo:   regionAdapter,
 		Logger: logger,
 	}

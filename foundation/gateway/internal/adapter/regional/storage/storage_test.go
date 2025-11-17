@@ -1,4 +1,4 @@
-package regionalprovider
+package storage
 
 import (
 	"context"
@@ -81,7 +81,7 @@ func extractSKUNames(sk []schema.StorageSku) []string {
 // --- Envtest lifecycle ---
 func TestMain(m *testing.M) {
 	wd, _ := os.Getwd()
-	crdDir := filepath.Clean(filepath.Join(wd, "../../../../api/generated/crds/block-storage"))
+	crdDir := filepath.Clean(filepath.Join(wd, "../../../../../api/generated/crds/block-storage"))
 	testEnvironment := &envtest.Environment{
 		ErrorIfCRDPathMissing: true,
 		CRDDirectoryPaths:     []string{crdDir},
@@ -122,7 +122,7 @@ func TestStorageController_ListSKUs(t *testing.T) {
 		slog.Default(),
 		convert,
 	)
-	sc := StorageController{
+	sc := Controller{
 		Logger:  slog.Default(),
 		SKURepo: storageSKUAdapter,
 	}
@@ -170,7 +170,7 @@ func TestStorageController_ListSKUs(t *testing.T) {
 	nameOtherTenant := tenantB + ".foreign"
 
 	commonLabels := func(extra map[string]string) map[string]string {
-		labels := map[string]string{tenantLabelKey: tenantA}
+		labels := map[string]string{TenantLabelKey: tenantA}
 		for k, v := range extra {
 			labels[k] = v
 		}
@@ -182,7 +182,7 @@ func TestStorageController_ListSKUs(t *testing.T) {
 		toUnstructured(t, scheme, newStorageSKUCR(nameFast, tenantA, commonLabels(map[string]string{"tier": "prod", "env": "prod"}), 5000, 10, string(generatedv1.StorageSkuTypeRemoteDurable), false)),
 		toUnstructured(t, scheme, newStorageSKUCR(nameSlow, tenantA, commonLabels(map[string]string{"tier": "dev", "env": "staging"}), 1000, 20, string(generatedv1.StorageSkuTypeLocalDurable), false)),
 		toUnstructured(t, scheme, newStorageSKUCR(nameThird, tenantA, commonLabels(map[string]string{"tier": "prod", "env": "staging", "rank": "3"}), 3000, 15, string(generatedv1.StorageSkuTypeRemoteDurable), false)),
-		toUnstructured(t, scheme, newStorageSKUCR(nameOtherTenant, tenantB, map[string]string{tenantLabelKey: tenantB, "tier": "prod"}, 9000, 50, string(generatedv1.StorageSkuTypeRemoteDurable), false)),
+		toUnstructured(t, scheme, newStorageSKUCR(nameOtherTenant, tenantB, map[string]string{TenantLabelKey: tenantB, "tier": "prod"}, 9000, 50, string(generatedv1.StorageSkuTypeRemoteDurable), false)),
 	} {
 		_, err := dynClient.Resource(skuv1.StorageSKUGVR).Namespace(u.GetNamespace()).Create(ctx, u, metav1.CreateOptions{})
 		require.NoError(t, err)
@@ -256,7 +256,7 @@ func TestStorageController_GetSKU(t *testing.T) {
 	if err != nil && !k8serrors.IsAlreadyExists(err) {
 		require.NoError(t, err)
 	}
-	u := toUnstructured(t, scheme, newStorageSKUCR(skuID, tenant, map[string]string{tenantLabelKey: tenant, "tier": "prod"}, 7500, 10, string(generatedv1.StorageSkuTypeRemoteDurable), false))
+	u := toUnstructured(t, scheme, newStorageSKUCR(skuID, tenant, map[string]string{TenantLabelKey: tenant, "tier": "prod"}, 7500, 10, string(generatedv1.StorageSkuTypeRemoteDurable), false))
 
 	_, err = dynClient.Resource(skuv1.StorageSKUGVR).Namespace(u.GetNamespace()).Create(ctx, u, metav1.CreateOptions{})
 	if err != nil && !k8serrors.IsAlreadyExists(err) { // ignore if previously created by another test
@@ -275,7 +275,7 @@ func TestStorageController_GetSKU(t *testing.T) {
 		slog.Default(),
 		convert,
 	)
-	sc := StorageController{
+	sc := Controller{
 		Logger:  slog.Default(),
 		SKURepo: storageSKUAdapter,
 	}
