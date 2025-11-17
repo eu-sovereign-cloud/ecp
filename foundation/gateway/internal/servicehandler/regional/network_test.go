@@ -7,6 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	sdknetwork "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.network.v1"
+
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/regional"
 )
 
 type NetworkTestSuite struct {
@@ -17,9 +19,10 @@ func NewNetworkTestSuite(t *testing.T) *NetworkTestSuite {
 	t.Helper()
 
 	return &NetworkTestSuite{
-		Handler: NewNetwork(slog.Default()),
+		Handler: &Network{
+			regional.NetworkController{}, slog.Default(),
+		},
 	}
-
 }
 
 func TestNetworkHandler_ListSkus(t *testing.T) {

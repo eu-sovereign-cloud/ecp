@@ -10,19 +10,15 @@ import (
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 	"k8s.io/apimachinery/pkg/api/errors"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/port"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/regional/storage"
 )
 
 type Storage struct {
-	provider port.StorageProvider
-	logger   *slog.Logger
+	Controller storage.Controller
+	Logger     *slog.Logger
 }
 
 var _ sdkstorage.ServerInterface = (*Storage)(nil) // Ensure Storage implements the sdkstorage.ServerInterface.
-
-func NewStorage(logger *slog.Logger, p port.StorageProvider) *Storage {
-	return &Storage{provider: p, logger: logger.With("component", "Storage")}
-}
 
 func (h Storage) ListImages(
 	w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam,
@@ -59,9 +55,9 @@ func (h Storage) CreateOrUpdateImage(
 func (h Storage) ListSkus(w http.ResponseWriter, r *http.Request,
 	tenant sdkschema.TenantPathParam, params sdkstorage.ListSkusParams,
 ) {
-	iterator, err := h.provider.ListSKUs(r.Context(), tenant, params)
+	iterator, err := h.Controller.ListSKUs(r.Context(), tenant, params)
 	if err != nil {
-		h.logger.Error("failed to list storage skus", "error", err)
+		h.Logger.Error("failed to list storage skus", "error", err)
 		http.Error(w, "failed to list storage skus: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -70,7 +66,7 @@ func (h Storage) ListSkus(w http.ResponseWriter, r *http.Request,
 	w.WriteHeader(http.StatusOK)
 	err = json.NewEncoder(w).Encode(iterator)
 	if err != nil {
-		h.logger.Error("failed to encode storage skus", "error", err)
+		h.Logger.Error("failed to encode storage skus", "error", err)
 		http.Error(w, "failed to encode storage skus: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -79,17 +75,17 @@ func (h Storage) ListSkus(w http.ResponseWriter, r *http.Request,
 func (h Storage) GetSku(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam,
 	name sdkschema.ResourcePathParam,
 ) {
-	sku, err := h.provider.GetSKU(r.Context(), tenant, name)
+	sku, err := h.Controller.GetSKU(r.Context(), tenant, name)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			h.logger.InfoContext(r.Context(), "storage sku not found", slog.String("sku", name))
+			h.Logger.InfoContext(r.Context(), "storage sku not found", slog.String("sku", name))
 			http.Error(w, fmt.Sprintf("storage sku (%s) not found", name), http.StatusNotFound)
 			return
 		}
 
 		// For all other errors (e.g., connection issues, CRD not registered),
 		// log the error and return a 500 Internal Server Error.
-		h.logger.ErrorContext(
+		h.Logger.ErrorContext(
 			r.Context(), "failed to get storage sku", slog.String("sku", name), slog.Any("error", err),
 		)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -100,7 +96,7 @@ func (h Storage) GetSku(w http.ResponseWriter, r *http.Request, tenant sdkschema
 	w.WriteHeader(http.StatusOK)
 	err = json.NewEncoder(w).Encode(sku)
 	if err != nil {
-		h.logger.ErrorContext(r.Context(), "failed to encode storage sku", slog.Any("error", err))
+		h.Logger.ErrorContext(r.Context(), "failed to encode storage sku", slog.Any("error", err))
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}

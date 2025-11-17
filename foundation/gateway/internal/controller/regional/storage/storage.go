@@ -17,7 +17,6 @@ const (
 	ProviderStorageName = "seca.storage/v1"
 )
 
-// Controller implements the StorageProvider interface
 type Controller struct {
 	Logger  *slog.Logger
 	SKURepo port.ResourceQueryRepository[*regional.StorageSKUDomain]

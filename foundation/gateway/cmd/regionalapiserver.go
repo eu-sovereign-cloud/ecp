@@ -11,19 +11,16 @@ import (
 	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/block-storage/skus/v1"
 	sdkstorageapi "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	"github.com/spf13/cobra"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/adapter/regional/storage"
-	regionalhandler "github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/handler/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/regional/storage"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/httpserver"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/kubeclient"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/logger"
+	regionalhandler "github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/servicehandler/regional"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 )
 
 var (
@@ -82,38 +79,40 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		log.Fatal(err, " - failed to create kubeclient")
 	}
 
-	crdToDomainConverter := func(u unstructured.Unstructured) (*regional.StorageSKUDomain, error) {
-		var crd skuv1.StorageSKU
-		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, &crd); err != nil {
-			return &regional.StorageSKUDomain{}, err
-		}
-		return kubernetes.FromCRToStorageSKUDomain(crd), nil
-	}
+	// Create converter function from ctrlclient.Object to StorageSKUDomain
+	// storageSKUConverter := func(obj ctrlclient.Object) (*regional.StorageSKUDomain, error) {
+	// 	var sku skuv1.StorageSKU
+	// 	u, ok := obj.(*unstructured.Unstructured)
+	// 	if !ok {
+	// 		return nil, fmt.Errorf("expected *unstructured.Unstructured, got %T", obj)
+	// 	}
+	// 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, &sku); err != nil {
+	// 		return nil, err
+	// 	}
+	// 	return kubernetes.MapCRToStorageSKUDomain(sku), nil
+	// }
 
-	storageSKUAdapter := kubernetes.NewAdapter(
-		client.Client,
-		skuv1.StorageSKUGVR,
-		logger,
-		crdToDomainConverter,
-	)
-
-	storageController := storage.Controller{
-		Logger:  logger,
-		SKURepo: storageSKUAdapter,
-	}
-
-	storageObj := regionalhandler.NewStorage(logger, storageController)
-	storageHandler := sdkstorageapi.HandlerWithOptions(storageObj, sdkstorageapi.StdHTTPServerOptions{
-		BaseURL:          storage.BaseURL,
-		BaseRouter:       nil,
-		Middlewares:      nil,
-		ErrorHandlerFunc: nil,
-	})
 	httpServer := httpserver.New(
 		httpserver.Options{
-			Addr:    addr,
-			Handler: storageHandler,
-			Logger:  logger,
+			Addr: addr,
+			Handler: sdkstorageapi.HandlerWithOptions(regionalhandler.Storage{
+				Controller: storage.Controller{
+					Logger: logger,
+					SKURepo: kubernetes.NewAdapter(
+						client.Client,
+						skuv1.StorageSKUGVR,
+						logger,
+						kubernetes.MapCRToStorageSKUDomain,
+					),
+				},
+				Logger: logger,
+			}, sdkstorageapi.StdHTTPServerOptions{
+				BaseURL:          storage.BaseURL,
+				BaseRouter:       nil,
+				Middlewares:      nil,
+				ErrorHandlerFunc: nil,
+			}),
+			Logger: logger,
 		},
 	)
 

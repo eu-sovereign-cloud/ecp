@@ -14,14 +14,6 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 )
 
-var _ RegionProvider = (*RegionController)(nil) // Ensure RegionController implements the RegionProvider interface.
-
-// RegionProvider defines the interface for interacting with regions in the ECP.
-type RegionProvider interface {
-	GetRegion(ctx context.Context, name schema.ResourcePathParam) (*schema.Region, error)
-	ListRegions(ctx context.Context, params region.ListRegionsParams) (*region.RegionIterator, error)
-}
-
 // RegionController implements the RegionalProvider interface
 type RegionController struct {
 	Logger *slog.Logger

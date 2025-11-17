@@ -4,13 +4,10 @@ import (
 	"context"
 	"log/slog"
 
+	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/network/skus/v1"
 	sdknetwork "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.network.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
-	"github.com/eu-sovereign-cloud/go-sdk/secapi"
 
-	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/network/skus/v1"
-
-	port2 "github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/port"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
@@ -22,8 +19,6 @@ const (
 	NetworkBaseURL      = "/providers/seca.network"
 	ProviderNetworkName = "seca.network/v1"
 )
-
-var _ port2.NetworkProvider = (*NetworkController)(nil) // Ensure NetworkController implements the NetworkProvider interface.
 
 // NetworkController implements the NetworkProvider interface
 type NetworkController struct {
@@ -89,28 +84,4 @@ func (c NetworkController) GetSKU(
 		return nil, err
 	}
 	return api.ToSDKNetworkSKU(domain), nil
-}
-
-func (n *NetworkController) ListPublicIps(ctx context.Context, tenantID, workspaceID string, params sdknetwork.ListPublicIpsParams) (*secapi.Iterator[sdkschema.PublicIp], error) {
-	// TODO implement me
-	n.Logger.Debug("implement me")
-	panic("implement me")
-}
-
-func (n *NetworkController) GetPublicIp(ctx context.Context, tenantID, workspaceID, publicIpID string) (sdkschema.PublicIp, error) {
-	// TODO implement me
-	n.Logger.Debug("implement me")
-	panic("implement me")
-}
-
-func (n *NetworkController) CreateOrUpdatePublicIp(ctx context.Context, tenantID, workspaceID, publicIpID string, params sdknetwork.CreateOrUpdatePublicIpParams, req sdkschema.PublicIp) (*sdkschema.PublicIp, bool, error) {
-	// TODO implement me
-	n.Logger.Debug("implement me")
-	panic("implement me")
-}
-
-func (n *NetworkController) DeletePublicIp(ctx context.Context, tenantID, workspaceID, publicIpID string, params sdknetwork.DeletePublicIpParams) error {
-	// TODO implement me
-	n.Logger.Debug("implement me")
-	panic("implement me")
 }

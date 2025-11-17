@@ -10,19 +10,17 @@ import (
 
 	region "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
 	"github.com/spf13/cobra"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 
 	regionsv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regions/v1"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/adapter/global"
-	globalhandler "github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/handler/global"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/global"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/httpserver"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/kubeclient"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/logger"
+	globalhandler "github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/servicehandler/global"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 )
@@ -71,39 +69,28 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
 		log.Fatal(err, " - failed to create kubeclient")
 	}
 
-	// This converter now maps from the K8s unstructured object to the internal domain model.
-	crdToDomainConverter := func(u unstructured.Unstructured) (*model.RegionDomain, error) {
-		var crdRegion regionsv1.Region
-		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, &crdRegion); err != nil {
-			return &model.RegionDomain{}, err
-		}
-		return kubernetes.MapRegionCRDToDomain(crdRegion)
-	}
-
-	regionAdapter := kubernetes.NewAdapter(
-		client.Client,
-		regionsv1.GroupVersionResource,
-		logger,
-		crdToDomainConverter,
-	)
-
-	globalServer := &global.RegionController{
-		Repo:   regionAdapter,
-		Logger: logger,
-	}
-
-	regionalHandler := globalhandler.NewRegion(logger, globalServer)
-	regionHandler := region.HandlerWithOptions(regionalHandler, region.StdHTTPServerOptions{
-		BaseURL:          model.RegionBaseURL,
-		BaseRouter:       nil,
-		Middlewares:      nil,
-		ErrorHandlerFunc: nil,
-	})
-
 	httpServer := httpserver.New(httpserver.Options{
-		Addr:    addr,
-		Handler: regionHandler,
-		Logger:  logger,
+		Addr: addr,
+		Handler: region.HandlerWithOptions(
+			&globalhandler.Region{
+				Logger: logger,
+				Controller: global.RegionController{
+					Repo: kubernetes.NewAdapter(
+						client.Client,
+						regionsv1.GroupVersionResource,
+						logger,
+						kubernetes.MapCRRegionToDomain,
+					),
+					Logger: logger,
+				},
+			},
+			region.StdHTTPServerOptions{
+				BaseURL:          model.RegionBaseURL,
+				BaseRouter:       nil,
+				Middlewares:      nil,
+				ErrorHandlerFunc: nil,
+			}),
+		Logger: logger,
 	})
 
 	logger.Info("Global API server started successfully")

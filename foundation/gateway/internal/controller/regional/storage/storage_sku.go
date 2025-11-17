@@ -3,7 +3,7 @@ package storage
 import (
 	"context"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/api/block-storage/skus/v1"
+	"github.com/eu-sovereign-cloud/ecp/foundation/api/block-storage/skus/v1" //nolint:goimports
 	storagev1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 

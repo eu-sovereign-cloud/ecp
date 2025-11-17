@@ -29,7 +29,6 @@ import (
 	generatedv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/generated/types"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 )
 
 var cfg *rest.Config
@@ -109,18 +108,12 @@ func TestStorageController_ListSKUs(t *testing.T) {
 
 	dynClient, err := dynamic.NewForConfig(cfg)
 	require.NoError(t, err)
-	convert := func(u unstructured.Unstructured) (*regional.StorageSKUDomain, error) {
-		var crdStorageSKU skuv1.StorageSKU
-		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, &crdStorageSKU); err != nil {
-			return nil, err
-		}
-		return kubernetes.FromCRToStorageSKUDomain(crdStorageSKU), nil
-	}
+
 	storageSKUAdapter := kubernetes.NewAdapter(
 		dynClient,
 		skuv1.StorageSKUGVR,
 		slog.Default(),
-		convert,
+		kubernetes.MapCRToStorageSKUDomain,
 	)
 	sc := Controller{
 		Logger:  slog.Default(),
@@ -262,18 +255,12 @@ func TestStorageController_GetSKU(t *testing.T) {
 	if err != nil && !k8serrors.IsAlreadyExists(err) { // ignore if previously created by another test
 		require.NoError(t, err)
 	}
-	convert := func(u unstructured.Unstructured) (*regional.StorageSKUDomain, error) {
-		var crdStorageSKU skuv1.StorageSKU
-		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, &crdStorageSKU); err != nil {
-			return nil, err
-		}
-		return kubernetes.FromCRToStorageSKUDomain(crdStorageSKU), nil
-	}
+
 	storageSKUAdapter := kubernetes.NewAdapter(
 		dynClient,
 		skuv1.StorageSKUGVR,
 		slog.Default(),
-		convert,
+		kubernetes.MapCRToStorageSKUDomain,
 	)
 	sc := Controller{
 		Logger:  slog.Default(),
