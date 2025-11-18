@@ -19,7 +19,7 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/httpserver"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/kubeclient"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/logger"
-	regionalhandler "github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/servicehandler/regional"
+	regionalhandler "github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/service/handler/regional"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
 )
 
@@ -96,7 +96,16 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		httpserver.Options{
 			Addr: addr,
 			Handler: sdkstorageapi.HandlerWithOptions(regionalhandler.Storage{
-				Controller: storage.Controller{
+				ListSKUs: &storage.ListSKUs{
+					Logger: logger,
+					SKURepo: kubernetes.NewAdapter(
+						client.Client,
+						skuv1.StorageSKUGVR,
+						logger,
+						kubernetes.MapCRToStorageSKUDomain,
+					),
+				},
+				GetSKU: &storage.GetSKU{
 					Logger: logger,
 					SKURepo: kubernetes.NewAdapter(
 						client.Client,
