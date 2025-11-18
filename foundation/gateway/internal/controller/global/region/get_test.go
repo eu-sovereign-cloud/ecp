@@ -36,7 +36,7 @@ func TestRegionController_GetRegion(t *testing.T) {
 		}
 
 		dyn := fake.NewSimpleDynamicClient(scheme, objs...)
-		gc := &Get{
+		gc := &GetRegion{
 			Logger: slog.Default(),
 			Repo: kubernetes.NewAdapter(
 				dyn,
@@ -65,7 +65,7 @@ func TestRegionController_GetRegion(t *testing.T) {
 	t.Run("region_not_found", func(t *testing.T) {
 		// Empty dynamic client with no regions
 		dyn := fake.NewSimpleDynamicClient(scheme)
-		gc := &Get{
+		gc := &GetRegion{
 			Logger: slog.Default(),
 			Repo: kubernetes.NewAdapter(
 				dyn,
@@ -91,7 +91,7 @@ func TestRegionController_GetRegion(t *testing.T) {
 		}
 
 		dyn := fake.NewSimpleDynamicClient(scheme, objs...)
-		gc := &Get{
+		gc := &GetRegion{
 			Logger: slog.Default(),
 			Repo: kubernetes.NewAdapter(
 				dyn,
@@ -124,7 +124,7 @@ func TestRegionController_GetRegion(t *testing.T) {
 		}
 
 		dyn := fake.NewSimpleDynamicClient(scheme, objs...)
-		gc := &Get{
+		gc := &GetRegion{
 			Logger: slog.Default(),
 			Repo: kubernetes.NewAdapter(
 				dyn,
@@ -152,7 +152,7 @@ func TestRegionController_GetRegion_EdgeCases(t *testing.T) {
 
 	t.Run("get_with_empty_name", func(t *testing.T) {
 		dyn := fake.NewSimpleDynamicClient(scheme)
-		gc := &Get{
+		gc := &GetRegion{
 			Logger: slog.Default(),
 			Repo: kubernetes.NewAdapter(
 				dyn,
@@ -178,7 +178,7 @@ func TestRegionController_GetRegion_EdgeCases(t *testing.T) {
 		}
 
 		dyn := fake.NewSimpleDynamicClient(scheme, objs...)
-		gc := &Get{
+		gc := &GetRegion{
 			Logger: slog.Default(),
 			Repo: kubernetes.NewAdapter(
 				dyn,

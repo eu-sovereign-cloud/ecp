@@ -15,16 +15,16 @@ import (
 
 // Region handles HTTP requests for region data.
 type Region struct {
-	List   *region.List
-	Get    *region.Get
-	Logger *slog.Logger
+	ListRegionController *region.ListRegion
+	GetRegionController  *region.GetRegion
+	Logger               *slog.Logger
 }
 
 var _ regionv1.ServerInterface = (*Region)(nil)
 
 // ListRegions handles requests to list all available regions.
 func (h *Region) ListRegions(w http.ResponseWriter, r *http.Request, params regionv1.ListRegionsParams) {
-	iterator, err := h.List.Do(r.Context(), params)
+	iterator, err := h.ListRegionController.Do(r.Context(), params)
 	if err != nil {
 		h.Logger.Error("failed to list regions", "error", err)
 		http.Error(w, "failed to list regions: "+err.Error(), http.StatusInternalServerError)
@@ -43,7 +43,7 @@ func (h *Region) ListRegions(w http.ResponseWriter, r *http.Request, params regi
 
 // GetRegion handles requests to get a specific region by name.
 func (h *Region) GetRegion(w http.ResponseWriter, r *http.Request, name schema.ResourcePathParam) {
-	reg, err := h.Get.Do(r.Context(), name)
+	reg, err := h.GetRegionController.Do(r.Context(), name)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			h.Logger.InfoContext(r.Context(), "region not found", slog.String("region", name))

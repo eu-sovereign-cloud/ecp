@@ -10,13 +10,13 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 )
 
-type Get struct {
+type GetRegion struct {
 	Logger *slog.Logger
 	Repo   port.ResourceQueryRepository[*model.RegionDomain]
 }
 
 // Do retrieves a specific region, maps it to the domain, and then projects it to the SDK model.
-func (c *Get) Do(ctx context.Context, name schema.ResourcePathParam) (*schema.Region, error) {
+func (c *GetRegion) Do(ctx context.Context, name schema.ResourcePathParam) (*schema.Region, error) {
 	regionDomain := &model.RegionDomain{
 		Metadata: model.Metadata{Name: name},
 	}

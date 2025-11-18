@@ -74,7 +74,7 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
 		Handler: region.HandlerWithOptions(
 			&globalhandler.Region{
 				Logger: logger,
-				List: &regionController.List{
+				ListRegionController: &regionController.ListRegion{
 					Repo: kubernetes.NewAdapter(
 						client.Client,
 						regionsv1.GroupVersionResource,
@@ -83,7 +83,7 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
 					),
 					Logger: logger,
 				},
-				Get: &regionController.Get{
+				GetRegionController: &regionController.GetRegion{
 					Repo: kubernetes.NewAdapter(
 						client.Client,
 						regionsv1.GroupVersionResource,

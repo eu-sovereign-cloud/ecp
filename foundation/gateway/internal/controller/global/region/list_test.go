@@ -45,7 +45,7 @@ func TestRegionController_ListRegions(t *testing.T) {
 	}
 
 	dyn := fake.NewSimpleDynamicClient(scheme, objs...)
-	rc := &List{
+	rc := &ListRegion{
 		Logger: slog.Default(),
 		Repo: kubernetes.NewAdapter(
 			dyn,
@@ -195,7 +195,7 @@ func TestRegionController_ListRegions_Pagination(t *testing.T) {
 
 	ctx := context.Background()
 	limit := 2
-	rc := &List{
+	rc := &ListRegion{
 		Logger: slog.Default(),
 		Repo: kubernetes.NewAdapter(
 			dynClient,

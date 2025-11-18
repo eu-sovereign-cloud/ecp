@@ -79,19 +79,6 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		log.Fatal(err, " - failed to create kubeclient")
 	}
 
-	// Create converter function from ctrlclient.Object to StorageSKUDomain
-	// storageSKUConverter := func(obj ctrlclient.Object) (*regional.StorageSKUDomain, error) {
-	// 	var sku skuv1.StorageSKU
-	// 	u, ok := obj.(*unstructured.Unstructured)
-	// 	if !ok {
-	// 		return nil, fmt.Errorf("expected *unstructured.Unstructured, got %T", obj)
-	// 	}
-	// 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, &sku); err != nil {
-	// 		return nil, err
-	// 	}
-	// 	return kubernetes.MapCRToStorageSKUDomain(sku), nil
-	// }
-
 	httpServer := httpserver.New(
 		httpserver.Options{
 			Addr: addr,
