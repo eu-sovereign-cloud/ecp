@@ -72,7 +72,7 @@ func TestStorageController_GetSKU(t *testing.T) {
 		sku, err := sc.Do(ctx, tenant, skuID)
 		require.NoError(t, err)
 		require.NotNil(t, sku)
-		require.Equal(t, skuID, sku.Metadata.Name)
+		require.Equal(t, skuID, sku.Name)
 		require.NotNil(t, sku.Spec)
 		require.Equal(t, int64(7500), sku.Spec.Iops)
 	})

@@ -52,7 +52,7 @@ func TestRegionController_GetRegion(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, region)
 		require.NotNil(t, region.Metadata)
-		require.Equal(t, regionName, region.Metadata.Name)
+		require.Equal(t, regionName, region.Name)
 		expectedZones := make([]model.Zone, len(availableZones))
 		for i, z := range availableZones {
 			expectedZones[i] = model.Zone(z)
@@ -109,7 +109,7 @@ func TestRegionController_GetRegion(t *testing.T) {
 
 		require.NoError(t, err)
 		require.NotNil(t, region)
-		require.Equal(t, minimalRegionName, region.Metadata.Name)
+		require.Equal(t, minimalRegionName, region.Name)
 		// Verify default values set by newRegionCR helper
 		require.Len(t, region.Zones, 1)
 		require.Equal(t, model.Zone("az-1"), region.Zones[0])
@@ -142,7 +142,7 @@ func TestRegionController_GetRegion(t *testing.T) {
 
 		require.NoError(t, err)
 		require.NotNil(t, region)
-		require.Equal(t, multiAZRegionName, region.Metadata.Name)
+		require.Equal(t, multiAZRegionName, region.Name)
 		require.Len(t, region.Zones, 4)
 		expectedZones := make([]model.Zone, len(multiAZ))
 		for i, z := range multiAZ {

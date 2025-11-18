@@ -212,7 +212,7 @@ func TestRegionController_ListRegions_Pagination(t *testing.T) {
 func extractDomainNames(regs []*model.RegionDomain) []string {
 	out := make([]string, len(regs))
 	for i, r := range regs {
-		out[i] = r.Metadata.Name
+		out[i] = r.Name
 	}
 	sort.Strings(out)
 	return out
@@ -233,11 +233,8 @@ func newRegionCR(name string, labels map[string]string, az []string, providers [
 		providers = []providerSpec{{Name: "default", Url: "https://default", Version: "v1"}}
 	}
 
-	// Convert []string to []generatedv1.Zone for the CR spec
 	zones := make([]generatedv1.Zone, len(az))
-	for i, z := range az {
-		zones[i] = z
-	}
+	copy(zones, az)
 
 	cr := &regionsv1.Region{
 		TypeMeta: metav1.TypeMeta{

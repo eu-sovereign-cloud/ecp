@@ -2,7 +2,6 @@ package kubernetes
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 
@@ -16,8 +15,6 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 )
-
-var adapterErr = errors.New("kubernetes adapter error")
 
 // K8sConverter defines a function that converts a Kubernetes client.Object to a specific type T.
 type K8sConverter[T any] func(object client.Object) (T, error)
@@ -68,7 +65,7 @@ func (a *Adapter[T]) List(ctx context.Context, params model.ListParams, list *[]
 	ulist, err := ri.List(ctx, lo)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to list resources", "resource", a.gvr.Resource, "error", err)
-		return nil, errors.Join(adapterErr, fmt.Errorf("failed to list resources for %s: %w", a.gvr.Resource, err))
+		return nil, fmt.Errorf("failed to list resources for %s: %w", a.gvr.Resource, err)
 	}
 
 	// Apply client-side filtering for selectors not handled by the API
