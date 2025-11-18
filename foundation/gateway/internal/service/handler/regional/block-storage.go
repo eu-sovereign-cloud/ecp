@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/regional/storage"
+	apistorage "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/storage"
 )
 
 type Storage struct {
@@ -52,7 +53,7 @@ func (h Storage) CreateOrUpdateImage(
 func (h Storage) ListSkus(w http.ResponseWriter, r *http.Request,
 	tenant sdkschema.TenantPathParam, params sdkstorage.ListSkusParams,
 ) {
-	iterator, err := h.ListSKUs.Do(r.Context(), tenant, params)
+	domainSKUs, nextSkipToken, err := h.ListSKUs.Do(r.Context(), tenant, apistorage.ListParamsFromAPI(params))
 	if err != nil {
 		h.Logger.Error("failed to list storage skus", "error", err)
 		http.Error(w, "failed to list storage skus: "+err.Error(), http.StatusInternalServerError)
@@ -61,6 +62,9 @@ func (h Storage) ListSkus(w http.ResponseWriter, r *http.Request,
 
 	w.Header().Set("Content-Type", string(sdkschema.AcceptHeaderJson))
 	w.WriteHeader(http.StatusOK)
+
+	iterator := apistorage.SKUDomainsToAPIIterator(domainSKUs, nextSkipToken)
+
 	err = json.NewEncoder(w).Encode(iterator)
 	if err != nil {
 		h.Logger.Error("failed to encode storage skus", "error", err)
@@ -91,7 +95,8 @@ func (h Storage) GetSku(w http.ResponseWriter, r *http.Request, tenant sdkschema
 
 	w.Header().Set("Content-Type", string(sdkschema.AcceptHeaderJson))
 	w.WriteHeader(http.StatusOK)
-	err = json.NewEncoder(w).Encode(sku)
+	sdkSKU := apistorage.SkuToApi(sku)
+	err = json.NewEncoder(w).Encode(sdkSKU)
 	if err != nil {
 		h.Logger.ErrorContext(r.Context(), "failed to encode storage sku", slog.Any("error", err))
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)

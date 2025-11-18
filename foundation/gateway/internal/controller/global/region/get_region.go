@@ -4,8 +4,6 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
-
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 )
@@ -16,7 +14,7 @@ type GetRegion struct {
 }
 
 // Do retrieves a specific region, maps it to the domain, and then projects it to the SDK model.
-func (c *GetRegion) Do(ctx context.Context, name schema.ResourcePathParam) (*schema.Region, error) {
+func (c *GetRegion) Do(ctx context.Context, name string) (*model.RegionDomain, error) {
 	regionDomain := &model.RegionDomain{
 		Metadata: model.Metadata{Name: name},
 	}
@@ -25,7 +23,5 @@ func (c *GetRegion) Do(ctx context.Context, name schema.ResourcePathParam) (*sch
 		return nil, err
 	}
 
-	sdkRegion := model.MapRegionDomainToSDK(*regionDomain, "get")
-
-	return &sdkRegion, nil
+	return regionDomain, nil
 }

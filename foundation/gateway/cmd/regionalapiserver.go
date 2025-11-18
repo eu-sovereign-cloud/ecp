@@ -21,6 +21,7 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/logger"
 	regionalhandler "github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/service/handler/regional"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
+	apistorage "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/storage"
 )
 
 var (
@@ -103,7 +104,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 				},
 				Logger: logger,
 			}, sdkstorageapi.StdHTTPServerOptions{
-				BaseURL:          storage.BaseURL,
+				BaseURL:          apistorage.BaseURL,
 				BaseRouter:       nil,
 				Middlewares:      nil,
 				ErrorHandlerFunc: nil,

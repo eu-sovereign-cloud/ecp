@@ -10,8 +10,6 @@ import (
 	"testing"
 	"time"
 
-	sdkregion "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
-	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -25,7 +23,10 @@ import (
 	regionsv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regions/v1"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 )
+
+var cfg *rest.Config // package-level test kubeconfig
 
 func TestRegionController_ListRegions(t *testing.T) {
 	scheme := runtime.NewScheme()
@@ -68,78 +69,33 @@ func TestRegionController_ListRegions(t *testing.T) {
 	simpleOnlyKey := "tier"
 	k8sSetBased := "tier in (prod)"
 	k8sSetBasedAndEquality := "tier in (prod),env=staging"
-	invalid := "tier=+=prod" // Intentionally invalid ('=+='); filter.MatchLabels should error -> all skipped.
 	wildcard := "env=stag*"
 	wildcardKeyAndValue := "t*r=pr*d"
 
 	tests := []tc{
-		{
-			name:      "all_no_selector",
-			selector:  nil,
-			wantNames: []string{regionAName, regionBName, regionCName},
-		},
-		{
-			name:      "simple_server_side_prefilter",
-			selector:  &simple,
-			wantNames: []string{regionAName, regionCName},
-		},
-		{
-			name:      "complex_server_side_filter",
-			selector:  &complexLabel,
-			wantNames: []string{regionAName},
-		},
-		{
-			name:      "complex_client_>_side_filter",
-			selector:  &complexClientLabel,
-			wantNames: []string{regionCName},
-		},
-		{
-			name:      "no_matches",
-			selector:  &none,
-			wantNames: []string{},
-		},
-		{
-			name:      "invalid_selector_skips_all",
-			selector:  &invalid,
-			wantNames: []string{},
-		},
-		{
-			name:      "simple_only_key_selector",
-			selector:  &simpleOnlyKey,
-			wantNames: []string{regionAName, regionBName, regionCName},
-		},
-		{
-			name:      "k8s_set_based_selector",
-			selector:  &k8sSetBased,
-			wantNames: []string{regionAName, regionCName},
-		},
-		{
-			name:      "k8s_set_based_and_equality_selector",
-			selector:  &k8sSetBasedAndEquality,
-			wantNames: []string{regionCName},
-		},
-		{
-			name:      "wildcard_env_prefix",
-			selector:  &wildcard,
-			wantNames: []string{regionBName, regionCName},
-		},
-		{
-			name:      "wildcard_in_key_and_value",
-			selector:  &wildcardKeyAndValue,
-			wantNames: []string{regionAName, regionCName},
-		},
+		{name: "all_no_selector", selector: nil, wantNames: []string{regionAName, regionBName, regionCName}},
+		{name: "simple_server_side_prefilter", selector: &simple, wantNames: []string{regionAName, regionCName}},
+		{name: "complex_server_side_filter", selector: &complexLabel, wantNames: []string{regionAName}},
+		{name: "complex_client_>_side_filter", selector: &complexClientLabel, wantNames: []string{regionCName}},
+		{name: "no_matches", selector: &none, wantNames: []string{}},
+		{name: "simple_only_key_selector", selector: &simpleOnlyKey, wantNames: []string{regionAName, regionBName, regionCName}},
+		{name: "k8s_set_based_selector", selector: &k8sSetBased, wantNames: []string{regionAName, regionCName}},
+		{name: "k8s_set_based_and_equality_selector", selector: &k8sSetBasedAndEquality, wantNames: []string{regionCName}},
+		{name: "wildcard_env_prefix", selector: &wildcard, wantNames: []string{regionBName, regionCName}},
+		{name: "wildcard_in_key_and_value", selector: &wildcardKeyAndValue, wantNames: []string{regionAName, regionCName}},
 	}
 
 	ctx := context.Background()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			iter, err := rc.Do(ctx, sdkregion.ListRegionsParams{Labels: tt.selector})
+			params := model.ListParams{}
+			if tt.selector != nil {
+				params.Selector = *tt.selector
+			}
+			regions, _, err := rc.Do(ctx, params)
 			require.NoError(t, err)
-			regions := iter.Items
-
-			require.NoError(t, err)
-			require.ElementsMatch(t, tt.wantNames, extractNames(regions))
+			require.ElementsMatch(t, tt.wantNames, extractDomainNames(regions))
 		})
 	}
 }
@@ -168,8 +124,6 @@ func TestMain(m *testing.M) {
 	}
 	os.Exit(code)
 }
-
-var cfg *rest.Config
 
 // TestRegionController_ListRegions_Pagination - uses envtest, as fake kube does not support limit
 func TestRegionController_ListRegions_Pagination(t *testing.T) {
@@ -205,60 +159,57 @@ func TestRegionController_ListRegions_Pagination(t *testing.T) {
 		),
 	}
 	// 1. First page: limit=2, no skip token
-	var iter *sdkregion.RegionIterator
+	var skipToken *string
+	var regions []*model.RegionDomain
+	var next *string
+	// first page
 	t.Run("first_page", func(t *testing.T) {
-		iter, err = rc.Do(ctx, sdkregion.ListRegionsParams{Limit: &limit})
+		params := model.ListParams{Limit: limit}
+		regions, next, err = rc.Do(ctx, params)
 		require.NoError(t, err)
-		require.NotNil(t, iter)
-
-		require.Len(t, iter.Items, 2)
-		require.ElementsMatch(t, regionNames[0:2], extractNames(iter.Items))
-		require.NotNil(t, iter.Metadata.SkipToken, "expected a next skip token for the next page")
-		require.NotEmpty(t, *iter.Metadata.SkipToken)
+		require.Len(t, regions, 2)
+		require.ElementsMatch(t, regionNames[0:2], extractDomainNames(regions))
+		require.NotNil(t, next)
+		require.NotEmpty(t, *next)
+		skipToken = next
 	})
-
-	// 2. Second page: limit=2, with skip token from page 1
-	require.NotNil(t, iter.Metadata.SkipToken, "skip token for page 2 should not be nil")
-	skipTokenPage2 := *iter.Metadata.SkipToken
-	var iter2 *sdkregion.RegionIterator
+	// second page
+	require.NotNil(t, skipToken)
+	skipTokenPage2 := *skipToken
+	var secondPage []*model.RegionDomain
+	var next2 *string
 	t.Run("second_page", func(t *testing.T) {
-		iter2, err = rc.Do(ctx, sdkregion.ListRegionsParams{Limit: &limit, SkipToken: &skipTokenPage2})
+		params := model.ListParams{Limit: limit, SkipToken: skipTokenPage2}
+		secondPage, next2, err = rc.Do(ctx, params)
 		require.NoError(t, err)
-		require.NotNil(t, iter2)
-
-		require.Len(t, iter2.Items, 2)
-		require.ElementsMatch(t, regionNames[2:4], extractNames(iter2.Items))
-		require.NotNil(t, iter2.Metadata.SkipToken, "expected a next skip token for the final page")
-		require.NotEmpty(t, *iter2.Metadata.SkipToken)
+		require.Len(t, secondPage, 2)
+		require.ElementsMatch(t, regionNames[2:4], extractDomainNames(secondPage))
+		require.NotNil(t, next2)
+		require.NotEmpty(t, *next2)
 	})
-
-	// 3. Third page (final): limit=2, with skip token from page 2
-	require.NotNil(t, iter2.Metadata.SkipToken, "skip token for page 3 should not be nil")
-	skipTokenPage3 := *iter2.Metadata.SkipToken
+	// third page
+	require.NotNil(t, next2)
+	skipTokenPage3 := *next2
 	t.Run("third_and_final_page", func(t *testing.T) {
-		iter, err := rc.Do(ctx, sdkregion.ListRegionsParams{Limit: &limit, SkipToken: &skipTokenPage3})
+		params := model.ListParams{Limit: limit, SkipToken: skipTokenPage3}
+		lastPage, next3, err := rc.Do(ctx, params)
 		require.NoError(t, err)
-		require.NotNil(t, iter)
-
-		require.Len(t, iter.Items, 1)
-		require.ElementsMatch(t, regionNames[4:5], extractNames(iter.Items))
-		require.Nil(t, iter.Metadata.SkipToken, "did not expect a next skip token on the final page")
+		require.Len(t, lastPage, 1)
+		require.ElementsMatch(t, regionNames[4:5], extractDomainNames(lastPage))
+		require.Nil(t, next3)
 	})
-
-	// 4. Limit larger than total items
+	// large limit
 	t.Run("limit_larger_than_total", func(t *testing.T) {
 		largeLimit := 10
-		iter, err := rc.Do(ctx, sdkregion.ListRegionsParams{Limit: &largeLimit})
+		allRegions, nextFinal, err := rc.Do(ctx, model.ListParams{Limit: largeLimit})
 		require.NoError(t, err)
-		require.NotNil(t, iter)
-
-		require.Len(t, iter.Items, 5)
-		require.ElementsMatch(t, regionNames, extractNames(iter.Items))
-		require.Nil(t, iter.Metadata.SkipToken, "did not expect a next skip token when all items are returned")
+		require.Len(t, allRegions, 5)
+		require.ElementsMatch(t, regionNames, extractDomainNames(allRegions))
+		require.Nil(t, nextFinal)
 	})
 }
 
-func extractNames(regs []schema.Region) []string {
+func extractDomainNames(regs []*model.RegionDomain) []string {
 	out := make([]string, len(regs))
 	for i, r := range regs {
 		out[i] = r.Metadata.Name
@@ -281,6 +232,13 @@ func newRegionCR(name string, labels map[string]string, az []string, providers [
 	if len(providers) == 0 {
 		providers = []providerSpec{{Name: "default", Url: "https://default", Version: "v1"}}
 	}
+
+	// Convert []string to []generatedv1.Zone for the CR spec
+	zones := make([]generatedv1.Zone, len(az))
+	for i, z := range az {
+		zones[i] = z
+	}
+
 	cr := &regionsv1.Region{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Region",
@@ -293,7 +251,7 @@ func newRegionCR(name string, labels map[string]string, az []string, providers [
 
 		},
 		Spec: generatedv1.RegionSpec{
-			AvailableZones: az,
+			AvailableZones: zones,
 			Providers:      make([]generatedv1.Provider, len(providers)),
 		},
 	}

@@ -11,31 +11,26 @@ import (
 	"testing"
 	"time"
 
-	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
-	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
+	storage "github.com/eu-sovereign-cloud/ecp/foundation/api/block-storage"
+	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/block-storage/skus/v1"
+	generatedv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/generated/types"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	k8sschema "k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
-	k8sschema "k8s.io/apimachinery/pkg/runtime/schema"
-
-	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/block-storage/skus/v1"
-
-	storage "github.com/eu-sovereign-cloud/ecp/foundation/api/block-storage"
-	generatedv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/generated/types"
-
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 )
 
 const TenantLabelKey = "secapi.cloud/tenant-id"
 
 var cfg *rest.Config
-
-// --- Helpers ---
 
 // newStorageSKUCR constructs a typed StorageSKU CR.
 func newStorageSKUCR(name, tenant string, labels map[string]string, iops, minVolumeSize int, skuType string, setVersionAndTimestamp bool) *skuv1.StorageSKU {
@@ -70,10 +65,10 @@ func toUnstructured(t *testing.T, scheme *runtime.Scheme, obj runtime.Object) *u
 	return u
 }
 
-func extractSKUNames(sk []schema.StorageSku) []string {
-	out := make([]string, len(sk))
-	for i, s := range sk {
-		out[i] = s.Metadata.Name
+func extractSKUNames(skus []*regional.StorageSKUDomain) []string {
+	out := make([]string, len(skus))
+	for i, s := range skus {
+		out[i] = s.GetName()
 	}
 	sort.Strings(out)
 	return out
@@ -224,9 +219,13 @@ func TestStorageController_ListSKUs(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			iter, err := sc.Do(ctx, tenantA, sdkstorage.ListSkusParams{Labels: tt.selector})
+			params := model.ListParams{}
+			if tt.selector != nil {
+				params.Selector = *tt.selector
+			}
+			skus, _, err := sc.Do(ctx, tenantA, params)
 			require.NoError(t, err)
-			require.ElementsMatch(t, tt.wantNames, extractSKUNames(iter.Items))
+			require.ElementsMatch(t, tt.wantNames, extractSKUNames(skus))
 		})
 	}
 }

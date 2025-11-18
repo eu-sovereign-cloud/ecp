@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"testing"
 
-	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic/fake"
@@ -14,6 +13,7 @@ import (
 	regionsv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regions/v1"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 )
 
 func TestRegionController_GetRegion(t *testing.T) {
@@ -53,13 +53,16 @@ func TestRegionController_GetRegion(t *testing.T) {
 		require.NotNil(t, region)
 		require.NotNil(t, region.Metadata)
 		require.Equal(t, regionName, region.Metadata.Name)
-		require.Equal(t, "get", region.Metadata.Verb)
-		require.ElementsMatch(t, availableZones, region.Spec.AvailableZones)
-		require.Len(t, region.Spec.Providers, 2)
-		require.Equal(t, "provider1", region.Spec.Providers[0].Name)
-		require.Equal(t, "https://provider1.example.com", region.Spec.Providers[0].Url)
-		require.Equal(t, "v1", region.Spec.Providers[0].Version)
-		require.Equal(t, "provider2", region.Spec.Providers[1].Name)
+		expectedZones := make([]model.Zone, len(availableZones))
+		for i, z := range availableZones {
+			expectedZones[i] = model.Zone(z)
+		}
+		require.ElementsMatch(t, expectedZones, region.Zones)
+		require.Len(t, region.Providers, 2)
+		require.Equal(t, "provider1", region.Providers[0].Name)
+		require.Equal(t, "https://provider1.example.com", region.Providers[0].URL)
+		require.Equal(t, "v1", region.Providers[0].Version)
+		require.Equal(t, "provider2", region.Providers[1].Name)
 	})
 
 	t.Run("region_not_found", func(t *testing.T) {
@@ -108,10 +111,10 @@ func TestRegionController_GetRegion(t *testing.T) {
 		require.NotNil(t, region)
 		require.Equal(t, minimalRegionName, region.Metadata.Name)
 		// Verify default values set by newRegionCR helper
-		require.Len(t, region.Spec.AvailableZones, 1)
-		require.Equal(t, "az-1", region.Spec.AvailableZones[0])
-		require.Len(t, region.Spec.Providers, 1)
-		require.Equal(t, "default", region.Spec.Providers[0].Name)
+		require.Len(t, region.Zones, 1)
+		require.Equal(t, model.Zone("az-1"), region.Zones[0])
+		require.Len(t, region.Providers, 1)
+		require.Equal(t, "default", region.Providers[0].Name)
 	})
 
 	t.Run("get_region_with_multiple_availability_zones", func(t *testing.T) {
@@ -135,13 +138,17 @@ func TestRegionController_GetRegion(t *testing.T) {
 		}
 
 		ctx := context.Background()
-		region, err := gc.Do(ctx, schema.ResourcePathParam(multiAZRegionName))
+		region, err := gc.Do(ctx, multiAZRegionName)
 
 		require.NoError(t, err)
 		require.NotNil(t, region)
 		require.Equal(t, multiAZRegionName, region.Metadata.Name)
-		require.Len(t, region.Spec.AvailableZones, 4)
-		require.ElementsMatch(t, multiAZ, region.Spec.AvailableZones)
+		require.Len(t, region.Zones, 4)
+		expectedZones := make([]model.Zone, len(multiAZ))
+		for i, z := range multiAZ {
+			expectedZones[i] = model.Zone(z)
+		}
+		require.ElementsMatch(t, expectedZones, region.Zones)
 	})
 }
 
@@ -191,7 +198,7 @@ func TestRegionController_GetRegion_EdgeCases(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel() // Cancel immediately
 
-		region, err := gc.Do(ctx, schema.ResourcePathParam(regionName))
+		region, err := gc.Do(ctx, regionName)
 		// The fake client might not respect context cancellation perfectly,
 		// but we test the behavior anyway
 		if err != nil {
