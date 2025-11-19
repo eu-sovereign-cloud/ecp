@@ -69,24 +69,25 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: 'foundation/gateway/go.mod'
+          go-version-file: 'go.mod'
           check-latest: true
       - name: Cache Build & Module Dependencies
         uses: actions/cache@v4.2.0
         with:
           path: |
             ~/go/pkg/mod
-          key: ${{ runner.os }}-go-gateway-${{ hashFiles('foundation/gateway/go.sum') }}
+          key: ${{ runner.os }}-go-gateway-${{ hashFiles('go.sum') }}
           restore-keys: ${{ runner.os }}-go-gateway-
-      - name: Vendor dependencies
+      - name: Vendor dependencies (gateway module in workspace)
         working-directory: foundation/gateway
+        env:
+          GOWORK: ${{ github.workspace }}/go.work
         run: |
           go mod tidy
           go mod vendor
-      - name: Lint Gateway
+      - name: Lint Gateway (workspace)
         uses: golangci/golangci-lint-action@v8
         with:
           version: 'v2.4.0'
           only-new-issues: true
-          args: --timeout 10m0s --verbose
-          working-directory: foundation/gateway
+          args: --timeout 10m0s --verbose --path-prefix foundation/gateway ./foundation/gateway/...

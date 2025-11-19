@@ -1,5 +1,4 @@
 //go:build unimplemented
-// +build unimplemented
 
 package regionalhandler
 
