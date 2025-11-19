@@ -1,0 +1,231 @@
+package storage
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+	"testing"
+	"time"
+
+	storage "github.com/eu-sovereign-cloud/ecp/foundation/api/block-storage"
+	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/block-storage/skus/v1"
+	generatedv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/generated/types"
+	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	k8sschema "k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/rest"
+	"sigs.k8s.io/controller-runtime/pkg/envtest"
+
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
+)
+
+const TenantLabelKey = "secapi.cloud/tenant-id"
+
+var cfg *rest.Config
+
+// newStorageSKUCR constructs a typed StorageSKU CR.
+func newStorageSKUCR(name, tenant string, labels map[string]string, iops, minVolumeSize int, skuType string, setVersionAndTimestamp bool) *skuv1.StorageSKU {
+	if labels == nil {
+		labels = map[string]string{}
+	}
+	cr := &skuv1.StorageSKU{
+		TypeMeta:   metav1.TypeMeta{Kind: "StorageSKU", APIVersion: fmt.Sprintf("%s/%s", skuv1.StorageSKUGVR.Group, skuv1.StorageSKUGVR.Version)},
+		ObjectMeta: metav1.ObjectMeta{Name: name, Labels: labels, Namespace: tenant},
+		Spec:       generatedv1.StorageSkuSpec{Iops: iops, MinVolumeSize: minVolumeSize, Type: generatedv1.StorageSkuSpecType(skuType)},
+	}
+	if setVersionAndTimestamp {
+		cr.SetCreationTimestamp(metav1.Time{Time: time.Unix(1700000000, 0)})
+		cr.SetResourceVersion("1")
+	}
+	return cr
+}
+
+// toUnstructured converts a typed object to *unstructured.Unstructured (mirrors regions test helper).
+func toUnstructured(t *testing.T, scheme *runtime.Scheme, obj runtime.Object) *unstructured.Unstructured {
+	m, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
+	require.NoError(t, err)
+	u := &unstructured.Unstructured{Object: m}
+	gvk := obj.GetObjectKind().GroupVersionKind()
+	if gvk.Empty() {
+		gvks, _, err := scheme.ObjectKinds(obj)
+		require.NoError(t, err)
+		require.NotEmpty(t, gvks)
+		gvk = gvks[0]
+	}
+	u.SetGroupVersionKind(gvk)
+	return u
+}
+
+func extractSKUNames(skus []*regional.StorageSKUDomain) []string {
+	out := make([]string, len(skus))
+	for i, s := range skus {
+		out[i] = s.GetName()
+	}
+	sort.Strings(out)
+	return out
+}
+
+// --- Envtest lifecycle ---
+func TestMain(m *testing.M) {
+	wd, _ := os.Getwd()
+	crdDir := filepath.Clean(filepath.Join(wd, "../../../../../api/generated/crds/block-storage"))
+	testEnvironment := &envtest.Environment{
+		ErrorIfCRDPathMissing: true,
+		CRDDirectoryPaths:     []string{crdDir},
+		DownloadBinaryAssets:  true,
+		BinaryAssetsDirectory: filepath.Join(os.TempDir(), "envtest-binaries"),
+	}
+	var err error
+	cfg, err = testEnvironment.Start()
+	if err != nil {
+		slog.Error("failed to start envtest", "error", err)
+		os.Exit(1)
+	}
+	code := m.Run()
+	if err := testEnvironment.Stop(); err != nil {
+		slog.Error("failed to stop envtest", "error", err)
+	}
+	os.Exit(code)
+}
+
+// --- Tests ---
+
+func TestStorageController_ListSKUs(t *testing.T) {
+	t.Parallel()
+
+	scheme := runtime.NewScheme()
+	require.NoError(t, storage.AddToScheme(scheme))
+
+	dynClient, err := dynamic.NewForConfig(cfg)
+	require.NoError(t, err)
+
+	storageSKUAdapter := kubernetes.NewAdapter(
+		dynClient,
+		skuv1.StorageSKUGVR,
+		slog.Default(),
+		kubernetes.MapCRToStorageSKUDomain,
+	)
+	sc := ListSKUs{
+		Logger:  slog.Default(),
+		SKURepo: storageSKUAdapter,
+	}
+
+	// Create valid Kubernetes namespace names (lowercase, alphanumeric and hyphens only)
+	tenantA := "tenant-list-a-" + strings.ToLower(strings.ReplaceAll(t.Name(), "_", "-"))
+	tenantB := "tenant-list-b-" + strings.ToLower(strings.ReplaceAll(t.Name(), "_", "-"))
+
+	const (
+		skuFast  = "fast"
+		skuSlow  = "slow"
+		skuThird = "third"
+	)
+	namespaceGVR := k8sschema.GroupVersionResource{Version: "v1", Resource: "namespaces"}
+
+	// Create the namespace object
+	namespaceObj := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "v1",
+			"kind":       "Namespace",
+			"metadata": map[string]interface{}{
+				"name": tenantA,
+			},
+		},
+	}
+	namespaceObj2 := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "v1",
+			"kind":       "Namespace",
+			"metadata": map[string]interface{}{
+				"name": tenantB,
+			},
+		},
+	}
+	ctx := context.Background()
+	_, err = dynClient.Resource(namespaceGVR).Create(ctx, namespaceObj, metav1.CreateOptions{})
+	require.NoError(t, err)
+
+	_, err = dynClient.Resource(namespaceGVR).Create(ctx, namespaceObj2, metav1.CreateOptions{})
+	require.NoError(t, err)
+
+	// Cleanup namespaces and all resources within them
+	t.Cleanup(func() {
+		_ = dynClient.Resource(namespaceGVR).Delete(context.Background(), tenantA, metav1.DeleteOptions{})
+		_ = dynClient.Resource(namespaceGVR).Delete(context.Background(), tenantB, metav1.DeleteOptions{})
+	})
+	nameFast := tenantA + "." + skuFast
+	nameSlow := tenantA + "." + skuSlow
+	nameThird := tenantA + "." + skuThird
+	nameOtherTenant := tenantB + ".foreign"
+
+	commonLabels := func(extra map[string]string) map[string]string {
+		labels := map[string]string{TenantLabelKey: tenantA}
+		for k, v := range extra {
+			labels[k] = v
+		}
+		return labels
+	}
+
+	// Create CRs in the API server (no preset resourceVersion)
+	for _, u := range []*unstructured.Unstructured{
+		toUnstructured(t, scheme, newStorageSKUCR(nameFast, tenantA, commonLabels(map[string]string{"tier": "prod", "env": "prod"}), 5000, 10, string(generatedv1.StorageSkuTypeRemoteDurable), false)),
+		toUnstructured(t, scheme, newStorageSKUCR(nameSlow, tenantA, commonLabels(map[string]string{"tier": "dev", "env": "staging"}), 1000, 20, string(generatedv1.StorageSkuTypeLocalDurable), false)),
+		toUnstructured(t, scheme, newStorageSKUCR(nameThird, tenantA, commonLabels(map[string]string{"tier": "prod", "env": "staging", "rank": "3"}), 3000, 15, string(generatedv1.StorageSkuTypeRemoteDurable), false)),
+		toUnstructured(t, scheme, newStorageSKUCR(nameOtherTenant, tenantB, map[string]string{TenantLabelKey: tenantB, "tier": "prod"}, 9000, 50, string(generatedv1.StorageSkuTypeRemoteDurable), false)),
+	} {
+		_, err := dynClient.Resource(skuv1.StorageSKUGVR).Namespace(u.GetNamespace()).Create(ctx, u, metav1.CreateOptions{})
+		require.NoError(t, err)
+	}
+
+	type tc struct {
+		name      string
+		selector  *string
+		wantNames []string
+	}
+
+	complexServer := "tier=prod,env=prod"
+	simple := "tier=prod"
+	clientNumeric := "rank>2"
+	none := "tier=qa"
+	invalid := "tier=+=prod"
+	onlyKey := "tier"
+	setBased := "tier in (prod)"
+	setBasedAndEq := "tier in (prod),env=staging"
+	wildcardValue := "env=stag*"
+	wildcardKeyVal := "t*r=pr*d"
+
+	tests := []tc{
+		{name: "all_no_selector", selector: nil, wantNames: []string{nameFast, nameSlow, nameThird}},
+		{name: "simple_server_side_prefilter", selector: &simple, wantNames: []string{nameFast, nameThird}},
+		{name: "complex_server_side_filter", selector: &complexServer, wantNames: []string{nameFast}},
+		{name: "complex_client_numeric_filter", selector: &clientNumeric, wantNames: []string{nameThird}},
+		{name: "no_matches", selector: &none, wantNames: []string{}},
+		{name: "invalid_selector_skips_all", selector: &invalid, wantNames: []string{}},
+		{name: "only_key_selector", selector: &onlyKey, wantNames: []string{nameFast, nameSlow, nameThird}},
+		{name: "k8s_set_based_selector", selector: &setBased, wantNames: []string{nameFast, nameThird}},
+		{name: "k8s_set_based_and_equality_selector", selector: &setBasedAndEq, wantNames: []string{nameThird}},
+		{name: "wildcard_value", selector: &wildcardValue, wantNames: []string{nameSlow, nameThird}},
+		{name: "wildcard_key_and_value", selector: &wildcardKeyVal, wantNames: []string{nameFast, nameThird}},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			params := model.ListParams{}
+			if tt.selector != nil {
+				params.Selector = *tt.selector
+			}
+			skus, _, err := sc.Do(ctx, tenantA, params)
+			require.NoError(t, err)
+			require.ElementsMatch(t, tt.wantNames, extractSKUNames(skus))
+		})
+	}
+}
