@@ -57,7 +57,7 @@ func HandleGet[D any, Out any](
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	if err := enc.Encode(sdkObj); err != nil {
-		logger.ErrorContext(r.Context(), fmt.Sprintf("failed to encode"), slog.Any("error", err))
+		logger.ErrorContext(r.Context(), "failed to encode", slog.Any("error", err))
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
