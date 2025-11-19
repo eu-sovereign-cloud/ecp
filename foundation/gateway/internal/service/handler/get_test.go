@@ -55,6 +55,7 @@ type badDTO struct {
 func TestHandleGet_Success(t *testing.T) {
 	res := &testResource{name: "demo", namespace: "ns"}
 	getter := &mockGetter[domainModel]{obj: domainModel{Value: "abc"}}
+	//nolint:staticcheck // S1016 suppression: mapping clarifies domain->DTO transformation.
 	mapper := func(d domainModel) outputDTO { return outputDTO{Value: d.Value} }
 
 	req := httptest.NewRequest(http.MethodGet, "/v1/resources/demo", nil)
@@ -87,6 +88,7 @@ func TestHandleGet_NotFound(t *testing.T) {
 	// simulate not found error using k8s errors so errors.IsNotFound matches
 	nfErr := k8serrors.NewNotFound(schema.GroupResource{Group: "test.io", Resource: "things"}, res.GetName())
 	getter := &mockGetter[domainModel]{err: nfErr}
+	//nolint:staticcheck // S1016 suppression: mapping clarifies domain->DTO transformation.
 	mapper := func(d domainModel) outputDTO { return outputDTO{Value: d.Value} }
 
 	req := httptest.NewRequest(http.MethodGet, "/v1/resources/missing", nil)
@@ -111,6 +113,7 @@ func TestHandleGet_NotFound(t *testing.T) {
 func TestHandleGet_InternalError(t *testing.T) {
 	res := &testResource{name: "demo", namespace: "ns"}
 	getter := &mockGetter[domainModel]{err: errors.New("boom")}
+	//nolint:staticcheck // S1016 suppression: mapping clarifies domain->DTO transformation.
 	mapper := func(d domainModel) outputDTO { return outputDTO{Value: d.Value} }
 
 	req := httptest.NewRequest(http.MethodGet, "/v1/resources/demo", nil)

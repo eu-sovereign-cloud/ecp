@@ -41,14 +41,14 @@ func HandleGet[D any, Out any](
 	domainObj, err := getter.Do(r.Context(), nr)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			logger.InfoContext(r.Context(), fmt.Sprintf("not found"))
+			logger.InfoContext(r.Context(), "not found")
 			http.Error(w, fmt.Sprintf("%s not found", nr.GetName()), http.StatusNotFound)
 			return
 		}
 
 		// For all other errors (e.g., connection issues, CRD not registered),
 		// log the error and return a 500 Internal Server Error.
-		logger.ErrorContext(r.Context(), fmt.Sprintf("failed to get"), slog.Any("error", err))
+		logger.ErrorContext(r.Context(), "failed to get", slog.Any("error", err))
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
