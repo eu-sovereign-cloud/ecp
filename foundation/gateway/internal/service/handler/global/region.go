@@ -2,15 +2,14 @@ package globalhandler
 
 import (
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"net/http"
 
 	regionv1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
-	"k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/global/region"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/service/handler"
 	regionapi "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/region"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 )
@@ -48,29 +47,7 @@ func (h *Region) ListRegions(w http.ResponseWriter, r *http.Request, params regi
 
 // GetRegion handles requests to get a specific region by name.
 func (h *Region) GetRegion(w http.ResponseWriter, r *http.Request, name schema.ResourcePathParam) {
-	h.Logger.With("region", name)
-	reg, err := h.GetRegionController.Do(r.Context(), name)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			h.Logger.InfoContext(r.Context(), "region not found")
-			http.Error(w, fmt.Sprintf("region (%s) not found", name), http.StatusNotFound)
-			return
-		}
-
-		// For all other errors (e.g., connection issues, CRD not registered),
-		// log the error and return a 500 Internal Server Error.
-		h.Logger.ErrorContext(r.Context(), "failed to get region", slog.Any("error", err))
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", string(schema.AcceptHeaderJson))
-	w.WriteHeader(http.StatusOK)
-	sdkRegion := model.MapRegionDomainToSDK(*reg, "get")
-	err = json.NewEncoder(w).Encode(sdkRegion)
-	if err != nil {
-		h.Logger.ErrorContext(r.Context(), "failed to encode region", slog.Any("error", err))
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
-	}
+	handler.HandleGet(w, r, h.Logger.With("resource type", "region"), &model.Metadata{
+		Name: name,
+	}, h.GetRegionController, regionapi.DomainToSDK)
 }

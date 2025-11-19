@@ -17,6 +17,7 @@ import (
 	"k8s.io/client-go/dynamic"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 )
 
 func TestStorageController_GetSKU(t *testing.T) {
@@ -69,7 +70,8 @@ func TestStorageController_GetSKU(t *testing.T) {
 		SKURepo: storageSKUAdapter,
 	}
 	t.Run("get_existing", func(t *testing.T) {
-		sku, err := sc.Do(ctx, tenant, skuID)
+		metadata := model.Metadata{Namespace: tenant, Name: skuID}
+		sku, err := sc.Do(ctx, &metadata)
 		require.NoError(t, err)
 		require.NotNil(t, sku)
 		require.Equal(t, skuID, sku.Name)
@@ -78,7 +80,8 @@ func TestStorageController_GetSKU(t *testing.T) {
 	})
 
 	t.Run("get_nonexistent", func(t *testing.T) {
-		_, err := sc.Do(ctx, tenant, "missing")
+		metadata := model.Metadata{Namespace: tenant, Name: "missing"}
+		_, err := sc.Do(ctx, &metadata)
 		require.Error(t, err)
 	})
 }

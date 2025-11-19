@@ -14,11 +14,11 @@ type GetSKU struct {
 }
 
 func (c GetSKU) Do(
-	ctx context.Context, tenantID, skuID string,
+	ctx context.Context, nr port.NamespacedResource,
 ) (*regional.StorageSKUDomain, error) {
 	domain := &regional.StorageSKUDomain{}
-	domain.SetName(skuID)
-	domain.SetNamespace(tenantID) // ensure namespaced SKU retrieval
+	domain.SetName(nr.GetName())
+	domain.SetNamespace(nr.GetNamespace()) // ensure namespaced SKU retrieval
 	if err := c.SKURepo.Load(ctx, &domain); err != nil {
 		return nil, err
 	}

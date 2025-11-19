@@ -46,8 +46,9 @@ func TestRegionController_GetRegion(t *testing.T) {
 			),
 		}
 
-		ctx := context.Background()
-		region, err := gc.Do(ctx, regionName)
+		region, err := gc.Do(context.Background(), &model.Metadata{
+			Name: regionName,
+		})
 
 		require.NoError(t, err)
 		require.NotNil(t, region)
@@ -67,19 +68,19 @@ func TestRegionController_GetRegion(t *testing.T) {
 
 	t.Run("region_not_found", func(t *testing.T) {
 		// Empty dynamic client with no regions
-		dyn := fake.NewSimpleDynamicClient(scheme)
 		gc := &GetRegion{
 			Logger: slog.Default(),
 			Repo: kubernetes.NewAdapter(
-				dyn,
+				fake.NewSimpleDynamicClient(scheme),
 				regionsv1.GroupVersionResource,
 				slog.Default(),
 				kubernetes.MapCRRegionToDomain,
 			),
 		}
 
-		ctx := context.Background()
-		region, err := gc.Do(ctx, "nonexistent-region")
+		region, err := gc.Do(context.Background(), &model.Metadata{
+			Name: "nonexistent-region",
+		})
 
 		require.Error(t, err)
 		require.Nil(t, region)
@@ -93,19 +94,19 @@ func TestRegionController_GetRegion(t *testing.T) {
 			toUnstructured(t, scheme, minimalRegion),
 		}
 
-		dyn := fake.NewSimpleDynamicClient(scheme, objs...)
 		gc := &GetRegion{
 			Logger: slog.Default(),
 			Repo: kubernetes.NewAdapter(
-				dyn,
+				fake.NewSimpleDynamicClient(scheme, objs...),
 				regionsv1.GroupVersionResource,
 				slog.Default(),
 				kubernetes.MapCRRegionToDomain,
 			),
 		}
 
-		ctx := context.Background()
-		region, err := gc.Do(ctx, minimalRegionName)
+		region, err := gc.Do(context.Background(), &model.Metadata{
+			Name: minimalRegionName,
+		})
 
 		require.NoError(t, err)
 		require.NotNil(t, region)
@@ -126,19 +127,18 @@ func TestRegionController_GetRegion(t *testing.T) {
 			toUnstructured(t, scheme, multiAZRegion),
 		}
 
-		dyn := fake.NewSimpleDynamicClient(scheme, objs...)
 		gc := &GetRegion{
 			Logger: slog.Default(),
 			Repo: kubernetes.NewAdapter(
-				dyn,
+				fake.NewSimpleDynamicClient(scheme, objs...),
 				regionsv1.GroupVersionResource,
 				slog.Default(),
 				kubernetes.MapCRRegionToDomain,
 			),
 		}
-
-		ctx := context.Background()
-		region, err := gc.Do(ctx, multiAZRegionName)
+		region, err := gc.Do(context.Background(), &model.Metadata{
+			Name: multiAZRegionName,
+		})
 
 		require.NoError(t, err)
 		require.NotNil(t, region)
@@ -158,19 +158,19 @@ func TestRegionController_GetRegion_EdgeCases(t *testing.T) {
 	require.NoError(t, regionsv1.AddToScheme(scheme))
 
 	t.Run("get_with_empty_name", func(t *testing.T) {
-		dyn := fake.NewSimpleDynamicClient(scheme)
 		gc := &GetRegion{
 			Logger: slog.Default(),
 			Repo: kubernetes.NewAdapter(
-				dyn,
+				fake.NewSimpleDynamicClient(scheme),
 				regionsv1.GroupVersionResource,
 				slog.Default(),
 				kubernetes.MapCRRegionToDomain,
 			),
 		}
 
-		ctx := context.Background()
-		region, err := gc.Do(ctx, "")
+		region, err := gc.Do(context.Background(), &model.Metadata{
+			Name: "",
+		})
 
 		require.Error(t, err)
 		require.Nil(t, region)
@@ -198,7 +198,9 @@ func TestRegionController_GetRegion_EdgeCases(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel() // Cancel immediately
 
-		region, err := gc.Do(ctx, regionName)
+		region, err := gc.Do(ctx, &model.Metadata{
+			Name: regionName,
+		})
 		// The fake client might not respect context cancellation perfectly,
 		// but we test the behavior anyway
 		if err != nil {

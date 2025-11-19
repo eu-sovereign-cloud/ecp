@@ -50,3 +50,8 @@ func DomainToAPIIterator(domainRegions []*model.RegionDomain, nextSkipToken *str
 
 	return iterator
 }
+
+// DomainToSDK converts a RegionDomain to an SDK Region for Get operations
+func DomainToSDK(domain *model.RegionDomain) schema.Region {
+	return model.MapRegionDomainToSDK(*domain, "get")
+}
