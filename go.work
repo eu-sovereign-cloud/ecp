@@ -1,0 +1,9 @@
+go 1.24.5
+
+use (
+	./foundation/api
+	./foundation/gateway
+	./modules/go-sdk
+)
+
+replace github.com/eu-sovereign-cloud/ecp/foundation/api v0.0.1 => ./foundation/api

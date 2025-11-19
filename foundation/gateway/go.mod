@@ -13,8 +13,6 @@ require (
 	sigs.k8s.io/controller-runtime v0.22.4
 )
 
-replace github.com/eu-sovereign-cloud/ecp/foundation/api => ../api
-
 require (
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
