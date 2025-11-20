@@ -22,41 +22,6 @@ jobs:
           do_not_skip: '["workflow_dispatch", "schedule", "push"]'
           concurrent_skipping: false
 
-  lint:
-    runs-on: ubuntu-latest
-    needs: detect-noop
-    if: needs.detect-noop.outputs.noop != 'true'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: true
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: 'go.mod'
-          check-latest: true
-      - name: Find the Go Build Cache
-        id: go
-        run: echo "cache=$(go env GOCACHE)" >> $GITHUB_OUTPUT
-      - name: Cache Build & Module Dependencies
-        uses: actions/cache@v4.2.0
-        with:
-          path: |
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-root-${{ hashFiles('go.sum') }}
-          restore-keys: ${{ runner.os }}-go-root-
-      - name: Vendor dependencies
-        run: |
-          go mod tidy
-          go mod vendor
-      - name: Lint
-        uses: golangci/golangci-lint-action@v8
-        with:
-          version: 'v2.4.0'
-          only-new-issues: true
-          args: --timeout 10m0s --verbose
-
   lint-gateway:
     runs-on: ubuntu-latest
     needs: detect-noop
@@ -69,7 +34,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: 'go.mod'
+          go-version-file: 'go.work'
           check-latest: true
       - name: Cache Build & Module Dependencies
         uses: actions/cache@v4.2.0
@@ -83,8 +48,8 @@ jobs:
         env:
           GOWORK: ${{ github.workspace }}/go.work
         run: |
-          go mod tidy
-          go mod vendor
+          go work sync
+          go work vendor
       - name: Lint Gateway (workspace)
         uses: golangci/golangci-lint-action@v8
         with:
