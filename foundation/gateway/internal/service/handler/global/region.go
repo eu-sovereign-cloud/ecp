@@ -47,7 +47,7 @@ func (h *Region) ListRegions(w http.ResponseWriter, r *http.Request, params regi
 
 // GetRegion handles requests to get a specific region by name.
 func (h *Region) GetRegion(w http.ResponseWriter, r *http.Request, name schema.ResourcePathParam) {
-	handler.HandleGet(w, r, h.Logger.With("resource type", "region"), &model.Metadata{
+	handler.HandleGet(w, r, h.Logger.With("provider", "region").With("resource", "region"), &model.Metadata{
 		Name: name,
 	}, h.GetRegionController, regionapi.DomainToSDK)
 }

@@ -76,7 +76,7 @@ func (h Storage) ListSkus(w http.ResponseWriter, r *http.Request,
 func (h Storage) GetSku(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam,
 	name sdkschema.ResourcePathParam,
 ) {
-	handler.HandleGet(w, r, h.Logger.With("resource type", "storageSKU"), &model.Metadata{
+	handler.HandleGet(w, r, h.Logger.With("provider", "storage").With("resource", "sku"), &model.Metadata{
 		Name:      name,
 		Namespace: tenant,
 	}, h.GetSKU, apistorage.SkuToApi)
