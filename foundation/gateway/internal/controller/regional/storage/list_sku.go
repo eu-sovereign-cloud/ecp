@@ -14,11 +14,9 @@ type ListSKUs struct {
 	SKURepo port.ResourceQueryRepository[*regional.StorageSKUDomain]
 }
 
-func (c ListSKUs) Do(ctx context.Context, tenantID string, params model.ListParams) (
+func (c ListSKUs) Do(ctx context.Context, params model.ListParams) (
 	[]*regional.StorageSKUDomain, *string, error,
 ) {
-	params.Namespace = tenantID
-
 	var domainSKUs []*regional.StorageSKUDomain
 	nextSkipToken, err := c.SKURepo.List(ctx, params, &domainSKUs)
 	if err != nil {

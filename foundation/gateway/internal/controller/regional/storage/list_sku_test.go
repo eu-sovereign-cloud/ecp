@@ -223,7 +223,8 @@ func TestStorageController_ListSKUs(t *testing.T) {
 			if tt.selector != nil {
 				params.Selector = *tt.selector
 			}
-			skus, _, err := sc.Do(ctx, tenantA, params)
+			params.Namespace = tenantA
+			skus, _, err := sc.Do(ctx, params)
 			require.NoError(t, err)
 			require.ElementsMatch(t, tt.wantNames, extractSKUNames(skus))
 		})

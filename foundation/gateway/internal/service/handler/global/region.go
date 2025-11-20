@@ -1,7 +1,6 @@
 package globalhandler
 
 import (
-	"encoding/json"
 	"log/slog"
 	"net/http"
 
@@ -25,24 +24,11 @@ var _ regionv1.ServerInterface = (*Region)(nil)
 
 // ListRegions handles requests to list all available regions.
 func (h *Region) ListRegions(w http.ResponseWriter, r *http.Request, params regionv1.ListRegionsParams) {
-	domainRegions, nextSkipToken, err := h.ListRegionController.Do(r.Context(), regionapi.ListParamsFromSDK(params))
-	if err != nil {
-		h.Logger.Error("failed to list regions", "error", err)
-		http.Error(w, "failed to list regions: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", string(schema.AcceptHeaderJson))
-	w.WriteHeader(http.StatusOK)
-
-	iterator := regionapi.DomainToAPIIterator(domainRegions, nextSkipToken)
-
-	err = json.NewEncoder(w).Encode(iterator)
-	if err != nil {
-		h.Logger.Error("failed to encode regions", "error", err)
-		http.Error(w, "failed to encode regions: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
+	handler.HandleList(w, r, h.Logger.With("provider", "region").With("resource", "region"),
+		regionapi.ListParamsFromSDK(params),
+		h.ListRegionController,
+		regionapi.DomainToAPIIterator,
+	)
 }
 
 // GetRegion handles requests to get a specific region by name.

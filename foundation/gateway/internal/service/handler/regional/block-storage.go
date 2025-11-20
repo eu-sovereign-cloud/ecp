@@ -1,7 +1,6 @@
 package regionalhandler
 
 import (
-	"encoding/json"
 	"log/slog"
 	"net/http"
 
@@ -53,24 +52,13 @@ func (h Storage) CreateOrUpdateImage(
 func (h Storage) ListSkus(w http.ResponseWriter, r *http.Request,
 	tenant sdkschema.TenantPathParam, params sdkstorage.ListSkusParams,
 ) {
-	domainSKUs, nextSkipToken, err := h.ListSKUs.Do(r.Context(), tenant, apistorage.ListParamsFromAPI(params))
-	if err != nil {
-		h.Logger.Error("failed to list storage skus", "error", err)
-		http.Error(w, "failed to list storage skus: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", string(sdkschema.AcceptHeaderJson))
-	w.WriteHeader(http.StatusOK)
-
-	iterator := apistorage.SKUDomainsToAPIIterator(domainSKUs, nextSkipToken)
-
-	err = json.NewEncoder(w).Encode(iterator)
-	if err != nil {
-		h.Logger.Error("failed to encode storage skus", "error", err)
-		http.Error(w, "failed to encode storage skus: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
+	modelParams := apistorage.ListParamsFromAPI(params)
+	modelParams.Namespace = tenant
+	handler.HandleList(w, r, h.Logger.With("provider", "storage").With("resource", "sku"),
+		modelParams,
+		h.ListSKUs,
+		apistorage.SKUDomainsToAPIIterator,
+	)
 }
 
 func (h Storage) GetSku(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam,
