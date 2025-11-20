@@ -45,11 +45,10 @@ func TestRegionController_ListRegions(t *testing.T) {
 		toUnstructured(t, scheme, r3),
 	}
 
-	dyn := fake.NewSimpleDynamicClient(scheme, objs...)
 	rc := &ListRegion{
 		Logger: slog.Default(),
 		Repo: kubernetes.NewAdapter(
-			dyn,
+			fake.NewSimpleDynamicClient(scheme, objs...),
 			regionsv1.GroupVersionResource,
 			slog.Default(),
 			kubernetes.MapCRRegionToDomain,
