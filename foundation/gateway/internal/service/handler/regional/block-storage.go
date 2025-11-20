@@ -52,12 +52,10 @@ func (h Storage) CreateOrUpdateImage(
 func (h Storage) ListSkus(w http.ResponseWriter, r *http.Request,
 	tenant sdkschema.TenantPathParam, params sdkstorage.ListSkusParams,
 ) {
-	modelParams := apistorage.ListParamsFromAPI(params)
-	modelParams.Namespace = tenant
 	handler.HandleList(w, r, h.Logger.With("provider", "storage").With("resource", "sku"),
-		modelParams,
+		apistorage.ListParamsFromAPI(params, tenant),
 		h.ListSKUs,
-		apistorage.SKUDomainsToAPIIterator,
+		apistorage.SKUDomainToAPIIterator,
 	)
 }
 

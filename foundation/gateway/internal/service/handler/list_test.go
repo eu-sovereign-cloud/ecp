@@ -46,9 +46,8 @@ func TestHandleList_Success(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "/v1/resources", nil)
 	recorder := httptest.NewRecorder()
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
-	HandleList(recorder, req, logger, model.ListParams{}, lister, mapper)
+	HandleList(recorder, req, slog.New(slog.NewTextHandler(io.Discard, nil)), model.ListParams{}, lister, mapper)
 
 	resp := recorder.Result()
 	defer resp.Body.Close()
@@ -72,9 +71,7 @@ func TestHandleList_InternalError(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "/v1/resources", nil)
 	recorder := httptest.NewRecorder()
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-
-	HandleList(recorder, req, logger, model.ListParams{}, lister, mapper)
+	HandleList(recorder, req, slog.New(slog.NewTextHandler(io.Discard, nil)), model.ListParams{}, lister, mapper)
 
 	resp := recorder.Result()
 	defer resp.Body.Close()
