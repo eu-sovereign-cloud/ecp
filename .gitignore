@@ -19,6 +19,4 @@ bin/
 /.idea/
 
 .DS_Store
-/vendor/
-/tools/vendor/
 scripts/common-template/dist/
