@@ -106,7 +106,7 @@ func TestRegionController_GetRegion(t *testing.T) {
 
 		require.NoError(t, err)
 		require.NotNil(t, region)
-		require.Equal(t, minimalRegionName, region.Name)
+		require.Equal(t, minimalRegionName, region.Metadata.Name)
 		// Verify default values set by newRegionCR helper
 		require.Len(t, region.Zones, 1)
 		require.Equal(t, model.Zone("az-1"), region.Zones[0])
