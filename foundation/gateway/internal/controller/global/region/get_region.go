@@ -15,7 +15,6 @@ type GetRegion struct {
 
 // Do retrieves a specific region, maps it to the domain, and then projects it to the SDK model.
 func (c *GetRegion) Do(ctx context.Context, nr port.NamespacedResource) (*model.RegionDomain, error) {
-	failTest
 	regionDomain := &model.RegionDomain{
 		Metadata: model.Metadata{Name: nr.GetName()},
 	}
