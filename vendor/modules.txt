@@ -17,8 +17,15 @@ github.com/emicklei/go-restful/v3
 github.com/emicklei/go-restful/v3/log
 # github.com/eu-sovereign-cloud/ecp/foundation/api v0.0.1 => ./foundation/api
 ## explicit; go 1.24.5
+# github.com/eu-sovereign-cloud/ecp/foundation/delegator v0.0.0 => ./foundation/delegator
+## explicit; go 1.24.5
 # github.com/eu-sovereign-cloud/go-sdk v0.2.0
 ## explicit; go 1.24
+github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.compute.v1
+github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.network.v1
+github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1
+github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1
+github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema
 # github.com/evanphx/json-patch/v5 v5.9.11
 ## explicit; go 1.18
 github.com/evanphx/json-patch/v5
@@ -75,8 +82,6 @@ github.com/google/go-cmp/cmp/internal/function
 github.com/google/go-cmp/cmp/internal/value
 # github.com/google/pprof v0.0.0-20250820193118-f64d9cf942d6
 ## explicit; go 1.24.0
-# github.com/google/uuid v1.5.0
-## explicit
 # github.com/google/uuid v1.6.0
 ## explicit
 github.com/google/uuid
@@ -89,8 +94,6 @@ github.com/josharian/intern
 # github.com/json-iterator/go v1.1.12
 ## explicit; go 1.12
 github.com/json-iterator/go
-# github.com/kr/pretty v0.3.1
-## explicit; go 1.12
 # github.com/mailru/easyjson v0.7.7
 ## explicit; go 1.12
 github.com/mailru/easyjson/buffer
@@ -137,8 +140,6 @@ github.com/prometheus/common/model
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
-# github.com/rogpeppe/go-internal v1.12.0
-## explicit; go 1.22
 # github.com/spf13/cobra v1.9.1
 ## explicit; go 1.15
 # github.com/spf13/cobra v1.10.1
@@ -149,12 +150,10 @@ github.com/spf13/cobra
 github.com/spf13/pflag
 # github.com/stretchr/objx v0.5.2
 ## explicit; go 1.20
-github.com/stretchr/objx
 # github.com/stretchr/testify v1.11.1
 ## explicit; go 1.17
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/assert/yaml
-github.com/stretchr/testify/mock
 github.com/stretchr/testify/require
 # github.com/x448/float16 v0.8.4
 ## explicit; go 1.11
@@ -258,8 +257,6 @@ google.golang.org/protobuf/runtime/protoimpl
 google.golang.org/protobuf/types/descriptorpb
 google.golang.org/protobuf/types/known/anypb
 google.golang.org/protobuf/types/known/timestamppb
-# gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c
-## explicit; go 1.11
 # gopkg.in/evanphx/json-patch.v4 v4.12.0
 ## explicit
 gopkg.in/evanphx/json-patch.v4
@@ -711,8 +708,6 @@ k8s.io/kube-openapi/pkg/spec3
 k8s.io/kube-openapi/pkg/util
 k8s.io/kube-openapi/pkg/util/proto
 k8s.io/kube-openapi/pkg/validation/spec
-# k8s.io/utils v0.0.0-20241210054802-24370beab758
-## explicit; go 1.18
 # k8s.io/utils v0.0.0-20250604170112-4c0f3b243397
 ## explicit; go 1.18
 k8s.io/utils/buffer
