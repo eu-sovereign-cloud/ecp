@@ -2,7 +2,6 @@ package storage
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -38,7 +37,7 @@ func newStorageSKUCR(name, tenant string, labels map[string]string, iops, minVol
 		labels = map[string]string{}
 	}
 	cr := &skuv1.StorageSKU{
-		TypeMeta:   metav1.TypeMeta{Kind: "StorageSKU", APIVersion: fmt.Sprintf("%s/%s", skuv1.StorageSKUGVR.Group, skuv1.StorageSKUGVR.Version)},
+		TypeMeta:   metav1.TypeMeta{Kind: "StorageSKU", APIVersion: skuv1.StorageSKUGVR.GroupVersion().String()},
 		ObjectMeta: metav1.ObjectMeta{Name: name, Labels: labels, Namespace: tenant},
 		Spec:       generatedv1.StorageSkuSpec{Iops: iops, MinVolumeSize: minVolumeSize, Type: generatedv1.StorageSkuSpecType(skuType)},
 	}
@@ -108,15 +107,14 @@ func TestStorageController_ListSKUs(t *testing.T) {
 	dynClient, err := dynamic.NewForConfig(cfg)
 	require.NoError(t, err)
 
-	storageSKUAdapter := kubernetes.NewAdapter(
-		dynClient,
-		skuv1.StorageSKUGVR,
-		slog.Default(),
-		kubernetes.MapCRToStorageSKUDomain,
-	)
 	sc := ListSKUs{
-		Logger:  slog.Default(),
-		SKURepo: storageSKUAdapter,
+		Logger: slog.Default(),
+		SKURepo: kubernetes.NewAdapter(
+			dynClient,
+			skuv1.StorageSKUGVR,
+			slog.Default(),
+			kubernetes.MapCRToStorageSKUDomain,
+		),
 	}
 
 	// Create valid Kubernetes namespace names (lowercase, alphanumeric and hyphens only)
@@ -219,11 +217,13 @@ func TestStorageController_ListSKUs(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			params := model.ListParams{}
+			params := model.ListParams{
+				Namespace: tenantA,
+			}
 			if tt.selector != nil {
 				params.Selector = *tt.selector
 			}
-			skus, _, err := sc.Do(ctx, tenantA, params)
+			skus, _, err := sc.Do(ctx, params)
 			require.NoError(t, err)
 			require.ElementsMatch(t, tt.wantNames, extractSKUNames(skus))
 		})

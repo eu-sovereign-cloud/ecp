@@ -29,7 +29,7 @@ func SkuToApi(domain *regional.StorageSKUDomain) *sdkschema.StorageSku {
 	}
 }
 
-func ListParamsFromAPI(params sdkstorage.ListSkusParams) model.ListParams {
+func ListParamsFromAPI(params sdkstorage.ListSkusParams, namespace string) model.ListParams {
 	limit := validation.GetLimit(params.Limit)
 
 	var skipToken string
@@ -46,10 +46,11 @@ func ListParamsFromAPI(params sdkstorage.ListSkusParams) model.ListParams {
 		Limit:     limit,
 		SkipToken: skipToken,
 		Selector:  selector,
+		Namespace: namespace,
 	}
 }
 
-func SKUDomainsToAPIIterator(domainSKUs []*regional.StorageSKUDomain, nextSkipToken *string) *sdkstorage.SkuIterator {
+func SKUDomainToAPIIterator(domainSKUs []*regional.StorageSKUDomain, nextSkipToken *string) *sdkstorage.SkuIterator {
 	sdkSKUs := make([]sdkschema.StorageSku, len(domainSKUs))
 	for i := range domainSKUs {
 		mapped := SkuToApi(domainSKUs[i])

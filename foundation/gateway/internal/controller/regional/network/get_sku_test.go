@@ -1,7 +1,6 @@
 package network
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -16,7 +15,7 @@ func newNetworkSKUCR(name, tenant string, labels map[string]string, bandwidth, p
 		labels = map[string]string{}
 	}
 	cr := &skuv1.NetworkSKU{
-		TypeMeta:   metav1.TypeMeta{Kind: "NetworkSKU", APIVersion: fmt.Sprintf("%s/%s", skuv1.NetworkSKUGVR.Group, skuv1.NetworkSKUGVR.Version)},
+		TypeMeta:   metav1.TypeMeta{Kind: "NetworkSKU", APIVersion: skuv1.NetworkSKUGVR.GroupVersion().String()},
 		ObjectMeta: metav1.ObjectMeta{Name: name, Labels: labels, Namespace: tenant},
 		Spec:       generatedv1.NetworkSkuSpec{Bandwidth: bandwidth, Packets: packets},
 	}

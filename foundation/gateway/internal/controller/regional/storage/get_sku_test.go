@@ -59,15 +59,14 @@ func TestStorageController_GetSKU(t *testing.T) {
 	_, err = dynClient.Resource(skuv1.StorageSKUGVR).Namespace(u.GetNamespace()).Create(ctx, u, metav1.CreateOptions{})
 	require.NoError(t, err)
 
-	storageSKUAdapter := kubernetes.NewAdapter(
-		dynClient,
-		skuv1.StorageSKUGVR,
-		slog.Default(),
-		kubernetes.MapCRToStorageSKUDomain,
-	)
 	sc := GetSKU{
-		Logger:  slog.Default(),
-		SKURepo: storageSKUAdapter,
+		Logger: slog.Default(),
+		SKURepo: kubernetes.NewAdapter(
+			dynClient,
+			skuv1.StorageSKUGVR,
+			slog.Default(),
+			kubernetes.MapCRToStorageSKUDomain,
+		),
 	}
 	t.Run("get_existing", func(t *testing.T) {
 		metadata := model.Metadata{Namespace: tenant, Name: skuID}
