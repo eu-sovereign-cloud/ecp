@@ -1,0 +1,99 @@
+name: Workspace CI
+
+on:
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  # JOB 1: Detect which modules changed
+  module-diff:
+    name: Detect Changed Modules
+    runs-on: ubuntu-latest
+    outputs:
+      modules: ${{ steps.filter.outputs.changes }}
+      has_changes: ${{ steps.filter.outputs.changes != '[]' }}
+    steps:
+      - uses: actions/checkout@v6
+      - id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            foundation/api:
+              - 'foundation/api/**'
+            foundation/gateway:
+              - 'foundation/gateway/**'
+            foundation/delegator:
+              - 'foundation/delegator/**'
+            foundation/plugin/aruba:
+              - 'foundation/plugin/aruba/**'
+            foundation/plugin/ionos:
+              - 'foundation/plugin/ionos/**'
+
+  # JOB 2: Build, Test & Lint
+  checks:
+    needs: module-diff
+    if: needs.module-diff.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ${{ fromJson(needs.module-diff.outputs.modules) }}
+        go: [ "1.24.x" ]
+
+    name: Check (${{ matrix.module }})
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ matrix.go }}
+          cache: true
+          cache-dependency-path: "${{ matrix.module }}/go.sum" # OPTIMIZATION: Point to specific go.sum
+
+      - name: Run Tests
+        run: go test -race -v ./${{ matrix.module }}/...
+
+      - name: GolangCI-Lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: latest
+          only-new-issues: true
+          working-directory: ${{ matrix.module }}
+          args: --timeout 10m0s --verbose
+
+  # JOB 3: govulncheck and gosec
+  security:
+    needs: module-diff
+    if: needs.module-diff.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ${{ fromJson(needs.module-diff.outputs.modules) }}
+        go: [ "1.24.x" ]
+    name: Security (${{ matrix.module }})
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ matrix.go }}
+          cache: true
+
+      - name: Run govulncheck
+        uses: golang/govulncheck-action@v1
+        with:
+          go-version-input: ${{ matrix.go }}
+          work-dir: ${{ matrix.module }}
+
+      - name: Run Gosec
+        uses: securego/gosec@master
+        with:
+          args: '-no-fail -fmt sarif -out results.sarif ./${{ matrix.module }}/...'
+
+  pr-title:
+    name: Validate PR Title
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - uses: amannn/action-semantic-pull-request@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
