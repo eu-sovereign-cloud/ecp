@@ -47,7 +47,7 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
           cache: true
-          cache-dependency-path: "${{ matrix.module }}/go.sum" # OPTIMIZATION: Point to specific go.sum
+          cache-dependency-path: "${{ matrix.module }}/go.sum"
 
       - name: Run Tests
         run: go test -race -v ./${{ matrix.module }}/...
