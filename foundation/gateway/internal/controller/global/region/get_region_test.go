@@ -31,11 +31,9 @@ func TestRegionController_GetRegion(t *testing.T) {
 	testRegion := newRegionCR(regionName, regionLabels, availableZones, providers, true)
 
 	t.Run("successful_get", func(t *testing.T) {
-		objs := []runtime.Object{
+		dyn := fake.NewSimpleDynamicClient(scheme, []runtime.Object{
 			toUnstructured(t, scheme, testRegion),
-		}
-
-		dyn := fake.NewSimpleDynamicClient(scheme, objs...)
+		}...)
 		gc := &GetRegion{
 			Logger: slog.Default(),
 			Repo: kubernetes.NewAdapter(
@@ -90,14 +88,12 @@ func TestRegionController_GetRegion(t *testing.T) {
 		minimalRegionName := "minimal-region"
 		minimalRegion := newRegionCR(minimalRegionName, nil, nil, nil, true)
 
-		objs := []runtime.Object{
-			toUnstructured(t, scheme, minimalRegion),
-		}
-
 		gc := &GetRegion{
 			Logger: slog.Default(),
 			Repo: kubernetes.NewAdapter(
-				fake.NewSimpleDynamicClient(scheme, objs...),
+				fake.NewSimpleDynamicClient(scheme, []runtime.Object{
+					toUnstructured(t, scheme, minimalRegion),
+				}...),
 				regionsv1.GroupVersionResource,
 				slog.Default(),
 				kubernetes.MapCRRegionToDomain,
