@@ -8,6 +8,7 @@ import (
 )
 
 // +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 // +kubebuilder:resource:path=storages,scope=Namespaced,shortName=storage
 // +k8s:openapi-gen=true
 
@@ -16,7 +17,8 @@ type Storage struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec genv1.BlockStorageSpec `json:"spec,omitempty"`
+	Spec   genv1.BlockStorageSpec   `json:"spec,omitempty"`
+	Status genv1.BlockStorageStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
