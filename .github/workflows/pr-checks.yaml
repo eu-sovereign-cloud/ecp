@@ -59,6 +59,8 @@ jobs:
     name: Check (${{ matrix.module }})
     steps:
       - uses: actions/checkout@v6
+        with:
+          submodules: 'recursive'
       - uses: actions/setup-go@v6
         with:
           go-version: ${{ matrix.go }}
@@ -94,6 +96,8 @@ jobs:
     name: Security (${{ matrix.module }})
     steps:
       - uses: actions/checkout@v6
+        with:
+          submodules: 'recursive'
       - uses: actions/setup-go@v6
         with:
           go-version: ${{ matrix.go }}
