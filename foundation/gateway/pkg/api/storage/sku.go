@@ -1,9 +1,10 @@
 package storage
 
 import (
-	v1 "github.com/eu-sovereign-cloud/ecp/foundation/api/block-storage/skus/v1"
 	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
+
+	v1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/block-storage/skus/v1"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"

@@ -3,11 +3,12 @@ package kubernetes
 import (
 	"fmt"
 
-	storageskuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/block-storage/skus/v1"
-	netowrkskuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/network/skus/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	storageskuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/block-storage/skus/v1"
+	netowrkskuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/network/skus/v1"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
