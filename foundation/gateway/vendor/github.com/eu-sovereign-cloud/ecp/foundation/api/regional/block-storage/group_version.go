@@ -1,4 +1,4 @@
-package blockstorage
+package network
 
 import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -7,7 +7,7 @@ import (
 
 const (
 	// Group is the group name used in this package
-	Group = "storage.v1.secapi.cloud"
+	Group = "network.v1.secapi.cloud"
 	// Version is the version of the API
 	Version = "v1"
 )

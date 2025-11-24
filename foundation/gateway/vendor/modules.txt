@@ -16,29 +16,19 @@ github.com/emicklei/go-restful/v3
 github.com/emicklei/go-restful/v3/log
 # github.com/eu-sovereign-cloud/ecp/foundation/api v0.0.1 => ../api
 ## explicit; go 1.24.5
+github.com/eu-sovereign-cloud/ecp/foundation/api/block-storage
+github.com/eu-sovereign-cloud/ecp/foundation/api/block-storage/skus/v1
 github.com/eu-sovereign-cloud/ecp/foundation/api/generated/types
-github.com/eu-sovereign-cloud/ecp/foundation/api/regional/block-storage
-github.com/eu-sovereign-cloud/ecp/foundation/api/regional/block-storage/skus/v1
-github.com/eu-sovereign-cloud/ecp/foundation/api/regional/network
-github.com/eu-sovereign-cloud/ecp/foundation/api/regional/network/skus/v1
+github.com/eu-sovereign-cloud/ecp/foundation/api/network
+github.com/eu-sovereign-cloud/ecp/foundation/api/network/skus/v1
 github.com/eu-sovereign-cloud/ecp/foundation/api/regions/v1
 # github.com/eu-sovereign-cloud/go-sdk v0.2.0
 ## explicit; go 1.24
-github.com/eu-sovereign-cloud/go-sdk/internal/secatest
-github.com/eu-sovereign-cloud/go-sdk/mock/spec/foundation.authorization.v1
-github.com/eu-sovereign-cloud/go-sdk/mock/spec/foundation.compute.v1
-github.com/eu-sovereign-cloud/go-sdk/mock/spec/foundation.network.v1
-github.com/eu-sovereign-cloud/go-sdk/mock/spec/foundation.region.v1
-github.com/eu-sovereign-cloud/go-sdk/mock/spec/foundation.storage.v1
-github.com/eu-sovereign-cloud/go-sdk/mock/spec/foundation.workspace.v1
-github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.authorization.v1
 github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.compute.v1
 github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.network.v1
 github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1
 github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1
-github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1
 github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema
-github.com/eu-sovereign-cloud/go-sdk/secapi
 # github.com/evanphx/json-patch/v5 v5.9.11
 ## explicit; go 1.18
 github.com/evanphx/json-patch/v5
@@ -149,12 +139,10 @@ github.com/spf13/cobra
 github.com/spf13/pflag
 # github.com/stretchr/objx v0.5.2
 ## explicit; go 1.20
-github.com/stretchr/objx
 # github.com/stretchr/testify v1.11.1
 ## explicit; go 1.17
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/assert/yaml
-github.com/stretchr/testify/mock
 github.com/stretchr/testify/require
 # github.com/x448/float16 v0.8.4
 ## explicit; go 1.11

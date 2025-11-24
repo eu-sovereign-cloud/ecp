@@ -17,7 +17,7 @@ var Registry = make(map[string]ResourcePlugin)
 func Register(p ResourcePlugin) {
 	name := p.Name()
 	if _, exists := Registry[name]; exists {
-		panic("plugin already registered: " + name)
+		panic("plugin is already registered: " + name)
 	}
 	Registry[name] = p
 }

@@ -38,6 +38,10 @@ clean-dev-clusters:
 	@echo "Executing development cluster cleanup script..."
 	@../gateway/scripts/remove-dev-clusters.sh
 
+.PHONY: lint
+lint:
+	GOWORK=$$(cd ../.. && pwd)/go.work golangci-lint run ./...
+
 .PHONY: help
 help:
 	@echo "Available targets:"
@@ -46,3 +50,4 @@ help:
 	@echo "  docker-build-images     Build Docker images for the gateway"
 	@echo "  build-gateway           Build the gateway binary"
 	@echo "  create-dev-clusters     Set up development clusters"
+	@echo "  lint                    Run linters for the gateway module"

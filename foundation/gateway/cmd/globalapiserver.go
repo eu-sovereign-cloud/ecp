@@ -14,10 +14,15 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 
-	globalhandler "github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/handler/global"
+	regionsv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regions/v1"
+
+	regionController "github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/global/region"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/httpserver"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/kubeclient"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/logger"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/provider/globalprovider"
+	globalhandler "github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/service/handler/global"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 )
 
 var (
@@ -58,24 +63,43 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
 		}
 	}
 
-	globalServer, err := globalprovider.NewController(logger, config)
+	client, err := kubeclient.NewFromConfig(config)
 	if err != nil {
-		logger.Error("failed to create global server", slog.Any("error", err))
-		log.Fatal(err, " - failed to create global server")
+		logger.Error("failed to create kubeclient", slog.Any("error", err))
+		log.Fatal(err, " - failed to create kubeclient")
 	}
 
-	regionalHandler := globalhandler.NewRegion(logger, globalServer)
-	regionHandler := region.HandlerWithOptions(regionalHandler, region.StdHTTPServerOptions{
-		BaseURL:          globalprovider.RegionBaseURL,
-		BaseRouter:       nil,
-		Middlewares:      nil,
-		ErrorHandlerFunc: nil,
-	})
-
 	httpServer := httpserver.New(httpserver.Options{
-		Addr:    addr,
-		Handler: regionHandler,
-		Logger:  logger,
+		Addr: addr,
+		Handler: region.HandlerWithOptions(
+			&globalhandler.Region{
+				Logger: logger,
+				ListRegionController: &regionController.ListRegion{
+					Repo: kubernetes.NewAdapter(
+						client.Client,
+						regionsv1.GroupVersionResource,
+						logger,
+						kubernetes.MapCRRegionToDomain,
+					),
+					Logger: logger,
+				},
+				GetRegionController: &regionController.GetRegion{
+					Repo: kubernetes.NewAdapter(
+						client.Client,
+						regionsv1.GroupVersionResource,
+						logger,
+						kubernetes.MapCRRegionToDomain,
+					),
+					Logger: logger,
+				},
+			},
+			region.StdHTTPServerOptions{
+				BaseURL:          model.RegionBaseURL,
+				BaseRouter:       nil,
+				Middlewares:      nil,
+				ErrorHandlerFunc: nil,
+			}),
+		Logger: logger,
 	})
 
 	logger.Info("Global API server started successfully")

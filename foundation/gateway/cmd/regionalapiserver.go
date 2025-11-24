@@ -14,10 +14,15 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 
-	regionalhandler "github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/handler/regional"
+	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/block-storage/skus/v1"
+
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/regional/storage"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/httpserver"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/kubeclient"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/logger"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/provider/regionalprovider"
+	regionalhandler "github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/service/handler/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
+	apistorage "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/storage"
 )
 
 var (
@@ -70,24 +75,44 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		}
 	}
 
-	storageController, err := regionalprovider.NewStorageController(logger, config)
+	client, err := kubeclient.NewFromConfig(config)
 	if err != nil {
-		logger.Error("failed to create regional provider", slog.Any("error", err))
-		log.Fatal(err, " - failed to create regional provider")
+		logger.Error("failed to create kubeclient", slog.Any("error", err))
+		log.Fatal(err, " - failed to create kubeclient")
 	}
 
-	storage := regionalhandler.NewStorage(logger, storageController)
-	storageHandler := sdkstorageapi.HandlerWithOptions(storage, sdkstorageapi.StdHTTPServerOptions{
-		BaseURL:          regionalprovider.StorageBaseURL,
-		BaseRouter:       nil,
-		Middlewares:      nil,
-		ErrorHandlerFunc: nil,
-	})
 	httpServer := httpserver.New(
 		httpserver.Options{
-			Addr:    addr,
-			Handler: storageHandler,
-			Logger:  logger,
+			Addr: addr,
+			Handler: sdkstorageapi.HandlerWithOptions(
+				regionalhandler.Storage{
+					ListSKUs: &storage.ListSKUs{
+						Logger: logger,
+						SKURepo: kubernetes.NewAdapter(
+							client.Client,
+							skuv1.StorageSKUGVR,
+							logger,
+							kubernetes.MapCRToStorageSKUDomain,
+						),
+					},
+					GetSKU: &storage.GetSKU{
+						Logger: logger,
+						SKURepo: kubernetes.NewAdapter(
+							client.Client,
+							skuv1.StorageSKUGVR,
+							logger,
+							kubernetes.MapCRToStorageSKUDomain,
+						),
+					},
+					Logger: logger,
+				}, sdkstorageapi.StdHTTPServerOptions{
+					BaseURL:          apistorage.BaseURL,
+					BaseRouter:       nil,
+					Middlewares:      nil,
+					ErrorHandlerFunc: nil,
+				},
+			),
+			Logger: logger,
 		},
 	)
 
