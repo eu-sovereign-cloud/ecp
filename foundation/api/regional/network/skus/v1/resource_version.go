@@ -7,7 +7,7 @@ package v1
 import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/api/network"
+	"github.com/eu-sovereign-cloud/ecp/foundation/api/regional/network"
 )
 
 // NetworkSKUResource is the resource name for network SKUs
