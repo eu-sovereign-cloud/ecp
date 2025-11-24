@@ -29,7 +29,23 @@ jobs:
             foundation/plugin/ionos:
               - 'foundation/plugin/ionos/**'
 
-  # JOB 2: Build, Test & Lint
+  # JOB 2: Generate API artifacts
+  generate-api:
+    name: Generate API artifacts (always)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: 'recursive'
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.24.x'
+          cache: true
+      - name: Generate API artifacts
+        run: |
+          make -C foundation/api generate-all
+
+  # JOB 3: Build, Test & Lint
   checks:
     needs: module-diff
     if: needs.module-diff.outputs.has_changes == 'true'
@@ -43,6 +59,8 @@ jobs:
     name: Check (${{ matrix.module }})
     steps:
       - uses: actions/checkout@v6
+        with:
+          submodules: 'recursive'
       - uses: actions/setup-go@v6
         with:
           go-version: ${{ matrix.go }}
@@ -60,7 +78,7 @@ jobs:
           working-directory: ${{ matrix.module }}
           args: --timeout 10m0s --verbose
 
-  # JOB 3: govulncheck and gosec
+  # JOB 4: govulncheck and gosec
   security:
     needs: module-diff
     if: needs.module-diff.outputs.has_changes == 'true'
@@ -73,6 +91,8 @@ jobs:
     name: Security (${{ matrix.module }})
     steps:
       - uses: actions/checkout@v6
+        with:
+          submodules: 'recursive'
       - uses: actions/setup-go@v6
         with:
           go-version: ${{ matrix.go }}
