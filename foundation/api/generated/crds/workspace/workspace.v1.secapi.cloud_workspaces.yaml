@@ -57,13 +57,13 @@ spec:
                   Extensions are subject to validation by the CSP, and any value that is not accepted will be rejected during admission.
                 type: object
               labels:
-                additionalProperties:
-                  type: string
                 description: |-
                   Labels User-defined key/value pairs that are mutable and can be used to
-                  organize and categorize resources. They can be used to filter resources.
-                  The number of labels is eventually limited by the CSP.
-                type: object
+                  organize and categorize resources. We store the keys explicitly in the spec, because the values will be stored
+                  directly in the Kubernetes labels.
+                items:
+                  type: string
+                type: array
             type: object
           spec:
             additionalProperties:

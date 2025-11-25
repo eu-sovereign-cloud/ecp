@@ -14,7 +14,7 @@ type RegionalCommonData struct {
 	Extensions map[string]string `json:"extensions,omitempty"`
 
 	// Labels User-defined key/value pairs that are mutable and can be used to
-	// organize and categorize resources. They can be used to filter resources.
-	// The number of labels is eventually limited by the CSP.
-	Labels map[string]string `json:"labels,omitempty"`
+	// organize and categorize resources. We store the keys explicitly in the spec, because the values will be stored
+	// directly in the Kubernetes labels.
+	Labels []string `json:"labels,omitempty"`
 }
