@@ -6,15 +6,16 @@ import (
 	"strings"
 	"testing"
 
-	storage "github.com/eu-sovereign-cloud/ecp/foundation/api/block-storage"
-	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/block-storage/skus/v1"
-	generatedv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/generated/types"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	k8sschema "k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
+
+	generatedv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/generated/types"
+	storage "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/block-storage"
+	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/block-storage/skus/v1"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
