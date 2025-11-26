@@ -38,7 +38,6 @@ func (in *Workspace) DeepCopyInto(out *Workspace) {
 			}
 		}
 	}
-	out.TenantRegionalCommonSpec = in.TenantRegionalCommonSpec
 	in.RegionalCommonData.DeepCopyInto(&out.RegionalCommonData)
 }
 

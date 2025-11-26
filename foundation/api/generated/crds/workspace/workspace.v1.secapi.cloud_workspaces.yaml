@@ -71,26 +71,6 @@ spec:
             description: WorkspaceSpec Specification of the workspace, including its
               capabilities and extensions.
             type: object
-          tenantRegionalCommonSpec:
-            description: TenantRegionalCommonSpec defines the common spec fields for
-              regional resources scoped to a tenant.
-            properties:
-              name:
-                description: Name is the user-defined name of the resource.
-                type: string
-              region:
-                description: Region is the identifier for the region where this resource
-                  is located.
-                type: string
-              tenant:
-                description: Tenant is the identifier for the tenant that owns this
-                  resource.
-                type: string
-            required:
-            - name
-            - region
-            - tenant
-            type: object
         type: object
     served: true
     storage: true

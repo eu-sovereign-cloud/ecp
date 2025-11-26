@@ -16,9 +16,8 @@ type Workspace struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec                     v1.WorkspaceSpec                `json:"spec,omitempty"`
-	TenantRegionalCommonSpec common.TenantRegionalCommonSpec `json:"tenantRegionalCommonSpec,omitempty"`
-	RegionalCommonData       common.RegionalCommonData       `json:"regionalCommonData,omitempty"`
+	Spec               v1.WorkspaceSpec          `json:"spec,omitempty"`
+	RegionalCommonData common.RegionalCommonData `json:"regionalCommonData,omitempty"`
 }
 
 // +kubebuilder:object:root=true
