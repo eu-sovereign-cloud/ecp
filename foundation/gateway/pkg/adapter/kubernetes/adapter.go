@@ -14,6 +14,7 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation/filter"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
+	kerrs "k8s.io/apimachinery/pkg/api/errors"
 )
 
 // K8sConverter defines a function that converts a Kubernetes client.Object to a specific type T.
@@ -65,7 +66,8 @@ func (a *Adapter[T]) List(ctx context.Context, params model.ListParams, list *[]
 	ulist, err := ri.List(ctx, lo)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to list resources", "resource", a.gvr.Resource, "error", err)
-		return nil, fmt.Errorf("failed to list resources for %s: %w", a.gvr.Resource, err)
+		return nil, fmt.Errorf("%w: failed to list resources for %s: %w", model.ErrList, a.gvr.Resource, err)
+
 	}
 
 	// Apply client-side filtering for selectors not handled by the API
@@ -75,7 +77,7 @@ func (a *Adapter[T]) List(ctx context.Context, params model.ListParams, list *[]
 			matched, k8sHandled, err := filter.MatchLabels(item.GetLabels(), params.Selector)
 			if err != nil {
 				a.logger.ErrorContext(ctx, "label filter evaluation failed", "resource", a.gvr.Resource, "item", item.GetName(), "error", err)
-				return nil, fmt.Errorf("label filter for %s failed: %w", a.gvr.Resource, err)
+				return nil, fmt.Errorf("%w: label filter for %s failed: %w", model.ErrList, a.gvr.Resource, err)
 			}
 			if k8sHandled { // The filter was fully handled by the K8s API
 				filteredItems = ulist.Items
@@ -94,7 +96,7 @@ func (a *Adapter[T]) List(ctx context.Context, params model.ListParams, list *[]
 		converted, err := a.convert(&item)
 		if err != nil {
 			a.logger.ErrorContext(ctx, "conversion failed", "resource", a.gvr.Resource, "error", err)
-			return nil, fmt.Errorf("failed to convert %s: %w", a.gvr.Resource, err)
+			return nil, fmt.Errorf("%w: failed to convert %s: %w", model.ErrList, a.gvr.Resource, err)
 		}
 		*list = append(*list, converted)
 	}
@@ -115,12 +117,16 @@ func (a *Adapter[T]) Load(ctx context.Context, obj *T) error {
 	uobj, err := ri.Get(ctx, v.GetName(), metav1.GetOptions{})
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to get resource", "name", v.GetNamespace(), "resource", a.gvr.Resource, "error", err)
-		return fmt.Errorf("failed to retrieve %s '%s': %w", a.gvr.Resource, v.GetName(), err)
+		modelErr := model.ErrLoad
+		if kerrs.IsNotFound(err) {
+			modelErr = model.ErrNotFound
+		}
+		return fmt.Errorf("%w: failed to retrieve %s '%s': %w", modelErr, a.gvr.Resource, v.GetName(), err)
 	}
 	converted, err := a.convert(uobj)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "conversion failed", "resource", a.gvr.Resource, "error", err)
-		return fmt.Errorf("failed to convert %s: %w", a.gvr.Resource, err)
+		return fmt.Errorf("%w: failed to convert %s: %w", model.ErrLoad, a.gvr.Resource, err)
 	}
 	*obj = converted
 	return nil
