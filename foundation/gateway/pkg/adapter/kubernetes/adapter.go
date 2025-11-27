@@ -77,7 +77,7 @@ func (a *Adapter[T]) List(ctx context.Context, params model.ListParams, list *[]
 			matched, k8sHandled, err := filter.MatchLabels(item.GetLabels(), params.Selector)
 			if err != nil {
 				a.logger.ErrorContext(ctx, "label filter evaluation failed", "resource", a.gvr.Resource, "item", item.GetName(), "error", err)
-				return nil, fmt.Errorf("%w: label filter for %s failed: %w", model.ErrList, a.gvr.Resource, err)
+				return nil, fmt.Errorf("%w: label filter for %s failed: %w", model.ErrFilter, a.gvr.Resource, err)
 			}
 			if k8sHandled { // The filter was fully handled by the K8s API
 				filteredItems = ulist.Items
@@ -96,7 +96,7 @@ func (a *Adapter[T]) List(ctx context.Context, params model.ListParams, list *[]
 		converted, err := a.convert(&item)
 		if err != nil {
 			a.logger.ErrorContext(ctx, "conversion failed", "resource", a.gvr.Resource, "error", err)
-			return nil, fmt.Errorf("%w: failed to convert %s: %w", model.ErrList, a.gvr.Resource, err)
+			return nil, fmt.Errorf("%w: failed to convert %s: %w", model.ErrConvert, a.gvr.Resource, err)
 		}
 		*list = append(*list, converted)
 	}
