@@ -126,7 +126,7 @@ func (a *Adapter[T]) Load(ctx context.Context, obj *T) error {
 	converted, err := a.convert(uobj)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "conversion failed", "resource", a.gvr.Resource, "error", err)
-		return fmt.Errorf("%w: failed to convert %s: %w", model.ErrLoad, a.gvr.Resource, err)
+		return fmt.Errorf("%w: failed to convert %s: %w", model.ErrConvert, a.gvr.Resource, err)
 	}
 	*obj = converted
 	return nil
