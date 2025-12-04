@@ -3,6 +3,8 @@ name: Workspace CI
 on:
   pull_request:
     branches: [ "main" ]
+env:
+  GOTOOLCHAIN: auto
 
 jobs:
   # JOB 1: Detect which modules changed
