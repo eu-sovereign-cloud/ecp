@@ -64,9 +64,13 @@ func (a *Adapter[T]) List(ctx context.Context, params model.ListParams, list *[]
 	}
 
 	ulist, err := ri.List(ctx, lo)
+	modelErr := model.ErrUnavailable
+	if kerrs.IsForbidden(err) {
+		modelErr = model.ErrForbidden
+	}
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to list resources", "resource", a.gvr.Resource, "error", err)
-		return nil, fmt.Errorf("%w: failed to list resources for %s: %w", model.ErrList, a.gvr.Resource, err)
+		return nil, fmt.Errorf("%w: failed to list resources for %s: %w", modelErr, a.gvr.Resource, err)
 
 	}
 
@@ -77,7 +81,7 @@ func (a *Adapter[T]) List(ctx context.Context, params model.ListParams, list *[]
 			matched, k8sHandled, err := filter.MatchLabels(item.GetLabels(), params.Selector)
 			if err != nil {
 				a.logger.ErrorContext(ctx, "label filter evaluation failed", "resource", a.gvr.Resource, "item", item.GetName(), "error", err)
-				return nil, fmt.Errorf("%w: label filter for %s failed: %w", model.ErrFilter, a.gvr.Resource, err)
+				return nil, fmt.Errorf("%w: label filter for %s failed: %w", model.ErrValidation, a.gvr.Resource, err)
 			}
 			if k8sHandled { // The filter was fully handled by the K8s API
 				filteredItems = ulist.Items
@@ -96,7 +100,7 @@ func (a *Adapter[T]) List(ctx context.Context, params model.ListParams, list *[]
 		converted, err := a.convert(&item)
 		if err != nil {
 			a.logger.ErrorContext(ctx, "conversion failed", "resource", a.gvr.Resource, "error", err)
-			return nil, fmt.Errorf("%w: failed to convert %s: %w", model.ErrConvert, a.gvr.Resource, err)
+			return nil, fmt.Errorf("%w: failed to convert %s: %w", model.ErrValidation, a.gvr.Resource, err)
 		}
 		*list = append(*list, converted)
 	}
@@ -117,7 +121,7 @@ func (a *Adapter[T]) Load(ctx context.Context, obj *T) error {
 	uobj, err := ri.Get(ctx, v.GetName(), metav1.GetOptions{})
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to get resource", "name", v.GetNamespace(), "resource", a.gvr.Resource, "error", err)
-		modelErr := model.ErrLoad
+		modelErr := model.ErrUnavailable
 		if kerrs.IsNotFound(err) {
 			modelErr = model.ErrNotFound
 		}
@@ -126,7 +130,7 @@ func (a *Adapter[T]) Load(ctx context.Context, obj *T) error {
 	converted, err := a.convert(uobj)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "conversion failed", "resource", a.gvr.Resource, "error", err)
-		return fmt.Errorf("%w: failed to convert %s: %w", model.ErrConvert, a.gvr.Resource, err)
+		return fmt.Errorf("%w: failed to convert %s: %w", model.ErrValidation, a.gvr.Resource, err)
 	}
 	*obj = converted
 	return nil
