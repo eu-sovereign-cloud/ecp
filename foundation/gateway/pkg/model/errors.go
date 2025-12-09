@@ -2,20 +2,20 @@ package model
 
 import "errors"
 
-// Sentinel errors for resource model operations that mirror HTTP status codes.
+// Sentinel errors for resource model operations.
 var (
-	// ErrForbidden - 403
+	// ErrForbidden - insufficient permissions to access the resource.
 	ErrForbidden = errors.New("forbidden")
 
-	// ErrNotFound - 404
+	// ErrNotFound - the requested resource does not exist.
 	ErrNotFound = errors.New("not found")
 
-	// ErrConflict - 409
+	// ErrConflict - resource creation or modification conflict.
 	ErrConflict = errors.New("conflict")
 
-	// ErrValidation - 422
+	// ErrValidation - resource validation failure.
 	ErrValidation = errors.New("validation error")
 
-	// ErrUnavailable - 500
+	// ErrUnavailable - external service operation failure.
 	ErrUnavailable = errors.New("service unavailable")
 )
