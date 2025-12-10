@@ -1,6 +1,6 @@
 module github.com/eu-sovereign-cloud/ecp/foundation/plugin/ionos
 
-go 1.24.5
+go 1.24.11
 
 require (
 	github.com/eu-sovereign-cloud/ecp/foundation/delegator v0.0.0
