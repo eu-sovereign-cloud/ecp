@@ -54,8 +54,6 @@ jobs:
       fail-fast: false
       matrix:
         module: ${{ fromJson(needs.module-diff.outputs.modules) }}
-        go: [ "1.24" ]
-
     name: Check (${{ matrix.module }})
     steps:
       - uses: actions/checkout@v6
@@ -87,7 +85,6 @@ jobs:
       fail-fast: false
       matrix:
         module: ${{ fromJson(needs.module-diff.outputs.modules) }}
-        go: [ "1.24" ]
     name: Security (${{ matrix.module }})
     steps:
       - uses: actions/checkout@v6
