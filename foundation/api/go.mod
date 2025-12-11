@@ -1,6 +1,6 @@
 module github.com/eu-sovereign-cloud/ecp/foundation/api
 
-go 1.24.5
+go 1.24.11
 
 require (
 	github.com/oapi-codegen/runtime v1.1.2

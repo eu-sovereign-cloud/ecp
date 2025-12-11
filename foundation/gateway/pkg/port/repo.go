@@ -22,9 +22,9 @@ type Repo[T NamespacedResource] interface {
 }
 
 type Writer[T NamespacedResource] interface {
-	Delete(ctx context.Context, m T) error // model.ErrNotfound
-	Create(ctx context.Context, m T) error // model.ErrConflict
-	Update(ctx context.Context, m T) error // model.ErrNotfound
+	Delete(ctx context.Context, m T) error
+	Create(ctx context.Context, m T) error
+	Update(ctx context.Context, m T) error
 }
 
 type Watcher[T any] interface {
@@ -33,7 +33,7 @@ type Watcher[T any] interface {
 
 type Reader[T NamespacedResource] interface {
 	List(ctx context.Context, params model.ListParams, list *[]T) (*string, error)
-	Load(ctx context.Context, m *T) error // model.ErrNotfound
+	Load(ctx context.Context, m *T) error
 }
 
 type ResourceQueryRepository[T NamespacedResource] interface {

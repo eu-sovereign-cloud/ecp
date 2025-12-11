@@ -84,32 +84,34 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 	httpServer := httpserver.New(
 		httpserver.Options{
 			Addr: addr,
-			Handler: sdkstorageapi.HandlerWithOptions(regionalhandler.Storage{
-				ListSKUs: &storage.ListSKUs{
+			Handler: sdkstorageapi.HandlerWithOptions(
+				regionalhandler.Storage{
+					ListSKUs: &storage.ListSKUs{
+						Logger: logger,
+						SKURepo: kubernetes.NewAdapter(
+							client.Client,
+							skuv1.StorageSKUGVR,
+							logger,
+							kubernetes.MapCRToStorageSKUDomain,
+						),
+					},
+					GetSKU: &storage.GetSKU{
+						Logger: logger,
+						SKURepo: kubernetes.NewAdapter(
+							client.Client,
+							skuv1.StorageSKUGVR,
+							logger,
+							kubernetes.MapCRToStorageSKUDomain,
+						),
+					},
 					Logger: logger,
-					SKURepo: kubernetes.NewAdapter(
-						client.Client,
-						skuv1.StorageSKUGVR,
-						logger,
-						kubernetes.MapCRToStorageSKUDomain,
-					),
+				}, sdkstorageapi.StdHTTPServerOptions{
+					BaseURL:          apistorage.BaseURL,
+					BaseRouter:       nil,
+					Middlewares:      nil,
+					ErrorHandlerFunc: nil,
 				},
-				GetSKU: &storage.GetSKU{
-					Logger: logger,
-					SKURepo: kubernetes.NewAdapter(
-						client.Client,
-						skuv1.StorageSKUGVR,
-						logger,
-						kubernetes.MapCRToStorageSKUDomain,
-					),
-				},
-				Logger: logger,
-			}, sdkstorageapi.StdHTTPServerOptions{
-				BaseURL:          apistorage.BaseURL,
-				BaseRouter:       nil,
-				Middlewares:      nil,
-				ErrorHandlerFunc: nil,
-			}),
+			),
 			Logger: logger,
 		},
 	)
