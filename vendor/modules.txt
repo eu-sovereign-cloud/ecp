@@ -16,9 +16,9 @@ github.com/davecgh/go-spew/spew
 github.com/emicklei/go-restful/v3
 github.com/emicklei/go-restful/v3/log
 # github.com/eu-sovereign-cloud/ecp/foundation/api v0.0.1 => ./foundation/api
-## explicit; go 1.24.11
+## explicit; go 1.24
 # github.com/eu-sovereign-cloud/ecp/foundation/delegator v0.0.0 => ./foundation/delegator
-## explicit; go 1.24.11
+## explicit; go 1.24
 # github.com/eu-sovereign-cloud/go-sdk v0.2.0
 ## explicit; go 1.24
 github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.compute.v1

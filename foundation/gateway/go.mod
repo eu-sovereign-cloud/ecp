@@ -1,6 +1,6 @@
 module github.com/eu-sovereign-cloud/ecp/foundation/gateway
 
-go 1.24.11
+go 1.24
 
 require (
 	github.com/eu-sovereign-cloud/ecp/foundation/api v0.0.1
