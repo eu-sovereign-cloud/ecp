@@ -19,6 +19,7 @@
 package v1
 
 import (
+	"github.com/eu-sovereign-cloud/ecp/foundation/api/generated/types"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -29,13 +30,9 @@ func (in *Workspace) DeepCopyInto(out *Workspace) {
 	in.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
 	if in.Spec != nil {
 		in, out := &in.Spec, &out.Spec
-		*out = new(map[string]string)
-		if **in != nil {
-			in, out := *in, *out
-			*out = make(map[string]string, len(*in))
-			for key, val := range *in {
-				(*out)[key] = val
-			}
+		*out = make(types.WorkspaceSpec, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
 		}
 	}
 	in.RegionalCommonData.DeepCopyInto(&out.RegionalCommonData)

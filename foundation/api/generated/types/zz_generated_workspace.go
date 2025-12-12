@@ -33,7 +33,7 @@ type Workspace struct {
 }
 
 // WorkspaceSpec Specification of the workspace, including its capabilities and extensions.
-type WorkspaceSpec = *map[string]string
+type WorkspaceSpec = map[string]string
 
 // WorkspaceStatus defines model for WorkspaceStatus.
 type WorkspaceStatus struct {

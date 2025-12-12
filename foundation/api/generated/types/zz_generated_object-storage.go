@@ -33,7 +33,7 @@ type ObjectStorageAccount struct {
 }
 
 // ObjectStorageAccountSpec The specification of an object storage account, including the region and zone.
-type ObjectStorageAccountSpec = *map[string]string
+type ObjectStorageAccountSpec = map[string]string
 
 // ObjectStorageAccountStatus defines model for ObjectStorageAccountStatus.
 type ObjectStorageAccountStatus struct {
