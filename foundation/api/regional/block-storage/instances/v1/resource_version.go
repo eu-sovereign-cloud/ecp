@@ -10,12 +10,18 @@ import (
 	storage "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/block-storage"
 )
 
-// StorageResource is the resource name for storage SKUs
-const StorageResource = "storage"
+// StorageResource is the resource name for storage instances (plural to match CRD path)
+const (
+	StorageResource = "storages"
+	Kind            = "Storage"
+)
 
 var (
 	StorageGR  = schema.GroupResource{Group: storage.Group, Resource: StorageResource}
 	StorageGVR = schema.GroupVersionResource{
 		Group: storage.Group, Version: storage.Version, Resource: StorageResource,
+	}
+	StorageGVK = schema.GroupVersionKind{
+		Group: storage.Group, Version: storage.Version, Kind: Kind,
 	}
 )

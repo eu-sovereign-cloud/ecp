@@ -36,12 +36,13 @@ func TestRegionController_GetRegion(t *testing.T) {
 		}...)
 		gc := &GetRegion{
 			Logger: slog.Default(),
-			Repo: kubernetes.NewAdapter(
-				dyn,
-				regionsv1.GroupVersionResource,
-				slog.Default(),
-				kubernetes.MapCRRegionToDomain,
-			),
+			Repo: &kubernetes.Adapter[*model.RegionDomain]{
+				Client:       dyn,
+				GVR:          regionsv1.GroupVersionResource,
+				Logger:       slog.Default(),
+				K8sConverter: kubernetes.MapCRRegionToDomain,
+				DomainToK8s:  nil,
+			},
 		}
 
 		region, err := gc.Do(context.Background(), &model.Metadata{
@@ -68,12 +69,13 @@ func TestRegionController_GetRegion(t *testing.T) {
 		// Empty dynamic client with no regions
 		gc := &GetRegion{
 			Logger: slog.Default(),
-			Repo: kubernetes.NewAdapter(
-				fake.NewSimpleDynamicClient(scheme),
-				regionsv1.GroupVersionResource,
-				slog.Default(),
-				kubernetes.MapCRRegionToDomain,
-			),
+			Repo: &kubernetes.Adapter[*model.RegionDomain]{
+				Client:       fake.NewSimpleDynamicClient(scheme),
+				GVR:          regionsv1.GroupVersionResource,
+				Logger:       slog.Default(),
+				K8sConverter: kubernetes.MapCRRegionToDomain,
+				DomainToK8s:  nil,
+			},
 		}
 
 		region, err := gc.Do(context.Background(), &model.Metadata{
@@ -90,14 +92,15 @@ func TestRegionController_GetRegion(t *testing.T) {
 
 		gc := &GetRegion{
 			Logger: slog.Default(),
-			Repo: kubernetes.NewAdapter(
-				fake.NewSimpleDynamicClient(scheme, []runtime.Object{
+			Repo: &kubernetes.Adapter[*model.RegionDomain]{
+				Client: fake.NewSimpleDynamicClient(scheme, []runtime.Object{
 					toUnstructured(t, scheme, minimalRegion),
 				}...),
-				regionsv1.GroupVersionResource,
-				slog.Default(),
-				kubernetes.MapCRRegionToDomain,
-			),
+				GVR:          regionsv1.GroupVersionResource,
+				Logger:       slog.Default(),
+				K8sConverter: kubernetes.MapCRRegionToDomain,
+				DomainToK8s:  nil,
+			},
 		}
 
 		region, err := gc.Do(context.Background(), &model.Metadata{
@@ -125,12 +128,13 @@ func TestRegionController_GetRegion(t *testing.T) {
 
 		gc := &GetRegion{
 			Logger: slog.Default(),
-			Repo: kubernetes.NewAdapter(
-				fake.NewSimpleDynamicClient(scheme, objs...),
-				regionsv1.GroupVersionResource,
-				slog.Default(),
-				kubernetes.MapCRRegionToDomain,
-			),
+			Repo: &kubernetes.Adapter[*model.RegionDomain]{
+				Client:       fake.NewSimpleDynamicClient(scheme, objs...),
+				GVR:          regionsv1.GroupVersionResource,
+				Logger:       slog.Default(),
+				K8sConverter: kubernetes.MapCRRegionToDomain,
+				DomainToK8s:  nil,
+			},
 		}
 		region, err := gc.Do(context.Background(), &model.Metadata{
 			Name: multiAZRegionName,
@@ -156,12 +160,13 @@ func TestRegionController_GetRegion_EdgeCases(t *testing.T) {
 	t.Run("get_with_empty_name", func(t *testing.T) {
 		gc := &GetRegion{
 			Logger: slog.Default(),
-			Repo: kubernetes.NewAdapter(
-				fake.NewSimpleDynamicClient(scheme),
-				regionsv1.GroupVersionResource,
-				slog.Default(),
-				kubernetes.MapCRRegionToDomain,
-			),
+			Repo: &kubernetes.Adapter[*model.RegionDomain]{
+				Client:       fake.NewSimpleDynamicClient(scheme),
+				GVR:          regionsv1.GroupVersionResource,
+				Logger:       slog.Default(),
+				K8sConverter: kubernetes.MapCRRegionToDomain,
+				DomainToK8s:  nil,
+			},
 		}
 
 		region, err := gc.Do(context.Background(), &model.Metadata{
@@ -183,12 +188,13 @@ func TestRegionController_GetRegion_EdgeCases(t *testing.T) {
 		dyn := fake.NewSimpleDynamicClient(scheme, objs...)
 		gc := &GetRegion{
 			Logger: slog.Default(),
-			Repo: kubernetes.NewAdapter(
-				dyn,
-				regionsv1.GroupVersionResource,
-				slog.Default(),
-				kubernetes.MapCRRegionToDomain,
-			),
+			Repo: &kubernetes.Adapter[*model.RegionDomain]{
+				Client:       dyn,
+				GVR:          regionsv1.GroupVersionResource,
+				Logger:       slog.Default(),
+				K8sConverter: kubernetes.MapCRRegionToDomain,
+				DomainToK8s:  nil,
+			},
 		}
 
 		ctx, cancel := context.WithCancel(context.Background())

@@ -47,12 +47,13 @@ func TestRegionController_ListRegions(t *testing.T) {
 
 	rc := &ListRegion{
 		Logger: slog.Default(),
-		Repo: kubernetes.NewAdapter(
-			fake.NewSimpleDynamicClient(scheme, objs...),
-			regionsv1.GroupVersionResource,
-			slog.Default(),
-			kubernetes.MapCRRegionToDomain,
-		),
+		Repo: &kubernetes.Adapter[*model.RegionDomain]{
+			Client:       fake.NewSimpleDynamicClient(scheme, objs...),
+			GVR:          regionsv1.GroupVersionResource,
+			Logger:       slog.Default(),
+			K8sConverter: kubernetes.MapCRRegionToDomain,
+			DomainToK8s:  nil,
+		},
 	}
 
 	type tc struct {
@@ -150,12 +151,13 @@ func TestRegionController_ListRegions_Pagination(t *testing.T) {
 	limit := 2
 	rc := &ListRegion{
 		Logger: slog.Default(),
-		Repo: kubernetes.NewAdapter(
-			dynClient,
-			regionsv1.GroupVersionResource,
-			slog.Default(),
-			kubernetes.MapCRRegionToDomain,
-		),
+		Repo: &kubernetes.Adapter[*model.RegionDomain]{
+			Client:       dynClient,
+			GVR:          regionsv1.GroupVersionResource,
+			Logger:       slog.Default(),
+			K8sConverter: kubernetes.MapCRRegionToDomain,
+			DomainToK8s:  nil,
+		},
 	}
 	// 1. First page: limit=2, no skip token
 	var skipToken *string

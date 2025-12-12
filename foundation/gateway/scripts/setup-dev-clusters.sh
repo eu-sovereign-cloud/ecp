@@ -27,9 +27,10 @@ REGIONAL_IMAGE="registry.secapi.cloud/regional-server:latest"
 GLOBAL_DEPLOYMENT_YAML="${CONFIG_SETUP_DIR}/global-deployment.yaml"
 REGIONAL_DEPLOYMENT_YAML="${CONFIG_SETUP_DIR}/regional-deployment.yaml"
 REGION_CRD_YAML="${API_CRDS_DIR}/regions/v1.secapi.cloud_regions.yaml"
+STORAGE_INSTANCE="${API_CRDS_DIR}/block-storage/storage.v1.secapi.cloud_storage.yaml"
 REGIONS_RBAC_YAML="${CONFIG_SETUP_DIR}/global_regions_rbac.yaml"
 # Storage SKU CRD & RBAC for regional cluster
-STORAGE_SKU_CRD_YAML="${API_CRDS_DIR}/block-storage/storage.v1.secapi.cloud_storage-skus.yaml"
+# Apply all CRDs from the generated directory to regional cluster instead of a single file
 REGIONAL_STORAGE_SKU_CR="${REGIONAL_STORAGE_CONFIG_DIR}/storage-sku.yaml"
 REGIONAL_STORAGE_SKU_RBAC_YAML="${REGIONAL_STORAGE_CONFIG_DIR}/regional-storage-sku-rbac.yaml"
 
@@ -39,7 +40,8 @@ ensure_file "${GLOBAL_DEPLOYMENT_YAML}"
 ensure_file "${REGIONAL_DEPLOYMENT_YAML}"
 ensure_file "${REGION_CRD_YAML}"
 ensure_file "${REGIONS_RBAC_YAML}"
-ensure_file "${STORAGE_SKU_CRD_YAML}"
+# No single CRD file check; ensure the CRDs directory exists
+if [ ! -d "${API_CRDS_DIR}" ]; then echo "Error: Required CRDs directory not found: ${API_CRDS_DIR}" >&2; exit 1; fi
 ensure_file "${REGIONAL_STORAGE_SKU_CR}"
 ensure_file "${REGIONAL_STORAGE_SKU_RBAC_YAML}"
 
@@ -94,15 +96,13 @@ kind load docker-image "${REGIONAL_IMAGE}" --name "${REGIONAL_CLUSTER_NAME}"
 echo "--- Step 4: Applying Region CRD to the global cluster ---"
 kubectl --kubeconfig "${GLOBAL_KUBECONFIG_PATH}" apply -f "${REGION_CRD_YAML}"
 
-# 6. Apply RBAC to the global cluster
-echo "--- Step 5: Applying RBAC configuration to the global cluster ---"
-kubectl --kubeconfig "${GLOBAL_KUBECONFIG_PATH}" apply -f "${REGIONS_RBAC_YAML}"
-
-# 7. Apply StorageSKU CRD to the regional cluster
-echo "--- Step 6: Applying StorageSKU CRD to the regional cluster ---"
-kubectl --kubeconfig "${REGIONAL_KUBECONFIG_PATH}" apply -f "${STORAGE_SKU_CRD_YAML}"
+# 6. Apply all CRDs to the regional cluster
+# This applies every CRD defined under the generated CRDs directory (recursively).
+echo "--- Step 6: Applying all CRDs to the regional cluster ---"
+kubectl --kubeconfig "${REGIONAL_KUBECONFIG_PATH}" apply -R -f "${API_CRDS_DIR}"
+# Also apply a sample Storage SKU CR to populate data
 kubectl --kubeconfig "${REGIONAL_KUBECONFIG_PATH}" apply -f "${REGIONAL_STORAGE_SKU_CR}"
-# Wait until CRD is established to avoid race conditions with controllers
+# Wait until key CRDs are established to avoid race conditions with controllers
 kubectl --kubeconfig "${REGIONAL_KUBECONFIG_PATH}" wait --for=condition=Established crd/storage-skus.storage.v1.secapi.cloud --timeout=60s || {
   echo "Warning: StorageSKU CRD establishment wait timed out" >&2
 }

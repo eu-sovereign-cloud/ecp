@@ -3,10 +3,11 @@ package kubernetes
 import (
 	"fmt"
 
-	v1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regions/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	v1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regions/v1"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 )
@@ -19,7 +20,7 @@ func MapCRRegionToDomain(obj client.Object) (*model.RegionDomain, error) {
 		cr = *t
 	case *unstructured.Unstructured:
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(t.Object, &cr); err != nil {
-			return nil, fmt.Errorf("convert unstructured to Region: %w", err)
+			return nil, fmt.Errorf("K8sConverter unstructured to Region: %w", err)
 		}
 	default:
 		return nil, fmt.Errorf("unsupported object type %T (expected *v1.Region or *unstructured.Unstructured)", obj)

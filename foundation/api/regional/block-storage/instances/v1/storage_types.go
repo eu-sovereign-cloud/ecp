@@ -10,6 +10,7 @@ import (
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=storages,scope=Namespaced,shortName=storage
+// +kubebuilder:pruning:PreserveUnknownFields
 // +k8s:openapi-gen=true
 
 // Storage is the API for getting storage SKU information

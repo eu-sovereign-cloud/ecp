@@ -15,7 +15,9 @@ import (
 	"k8s.io/client-go/util/homedir"
 
 	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/block-storage/skus/v1"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 
+	instancev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/block-storage/instances/v1"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/regional/storage"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/httpserver"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/kubeclient"
@@ -84,34 +86,72 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 	httpServer := httpserver.New(
 		httpserver.Options{
 			Addr: addr,
-			Handler: sdkstorageapi.HandlerWithOptions(
-				regionalhandler.Storage{
-					ListSKUs: &storage.ListSKUs{
-						Logger: logger,
-						SKURepo: kubernetes.NewAdapter(
-							client.Client,
-							skuv1.StorageSKUGVR,
-							logger,
-							kubernetes.MapCRToStorageSKUDomain,
-						),
-					},
-					GetSKU: &storage.GetSKU{
-						Logger: logger,
-						SKURepo: kubernetes.NewAdapter(
-							client.Client,
-							skuv1.StorageSKUGVR,
-							logger,
-							kubernetes.MapCRToStorageSKUDomain,
-						),
-					},
+			// Handler: sdkstorageapi.HandlerWithOptions(
+			// 	regionalhandler.Storage{
+			// 		ListSKUs: &storage.ListSKUs{
+			// 			Logger: logger,
+			// 			SKURepo: kubernetes.NewAdapter(
+			// 				client.Client,
+			// 				skuv1.StorageSKUGVR,
+			// 				logger,
+			// 				kubernetes.MapCRToStorageSKUDomain,
+			// 			),
+			// 		},
+			// 		GetSKU: &storage.GetSKU{
+			// 			Logger: logger,
+			// 			SKURepo: kubernetes.NewAdapter(
+			// 				client.Client,
+			// 				skuv1.StorageSKUGVR,
+			// 				logger,
+			// 				kubernetes.MapCRToStorageSKUDomain,
+			// 			),
+			// 		},
+			// 		Logger: logger,
+			// 	}, sdkstorageapi.StdHTTPServerOptions{
+			// 		BaseURL:          apistorage.BaseURL,
+			// 		BaseRouter:       nil,
+			// 		Middlewares:      nil,
+			// 		ErrorHandlerFunc: nil,
+			// 	},
+			// ),
+			Handler: sdkstorageapi.HandlerWithOptions(regionalhandler.Storage{
+				Logger: logger,
+				ListSKUs: &storage.ListSKUs{
 					Logger: logger,
-				}, sdkstorageapi.StdHTTPServerOptions{
-					BaseURL:          apistorage.BaseURL,
-					BaseRouter:       nil,
-					Middlewares:      nil,
-					ErrorHandlerFunc: nil,
+					SKURepo: &kubernetes.Adapter[*regional.StorageSKUDomain]{
+						Client:       client.Client,
+						GVR:          skuv1.StorageSKUGVR,
+						Logger:       logger,
+						K8sConverter: kubernetes.MapCRToStorageSKUDomain,
+						DomainToK8s:  nil,
+					},
 				},
-			),
+				GetSKU: &storage.GetSKU{
+					Logger: logger,
+					SKURepo: &kubernetes.Adapter[*regional.StorageSKUDomain]{
+						Client:       client.Client,
+						GVR:          skuv1.StorageSKUGVR,
+						Logger:       logger,
+						K8sConverter: kubernetes.MapCRToStorageSKUDomain,
+						DomainToK8s:  nil,
+					},
+				},
+				CreateInstance: &storage.CreateOrUpdateInstance{
+					Logger: logger,
+					StorageRepo: &kubernetes.Adapter[*regional.BlockStorageDomain]{
+						Client:       client.Client,
+						GVR:          instancev1.StorageGVR,
+						Logger:       logger,
+						K8sConverter: kubernetes.MapCRToBlockStorageDomain,
+						DomainToK8s:  kubernetes.MapBlockStorageDomainToCR,
+					},
+				},
+			}, sdkstorageapi.StdHTTPServerOptions{
+				BaseURL:          apistorage.BaseURL,
+				BaseRouter:       nil,
+				Middlewares:      nil,
+				ErrorHandlerFunc: nil,
+			}),
 			Logger: logger,
 		},
 	)

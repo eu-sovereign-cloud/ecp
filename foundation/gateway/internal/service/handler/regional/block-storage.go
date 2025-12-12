@@ -14,9 +14,10 @@ import (
 )
 
 type Storage struct {
-	ListSKUs *storage.ListSKUs
-	GetSKU   *storage.GetSKU
-	Logger   *slog.Logger
+	ListSKUs       *storage.ListSKUs
+	GetSKU         *storage.GetSKU
+	CreateInstance *storage.CreateOrUpdateInstance
+	Logger         *slog.Logger
 }
 
 var _ sdkstorage.ServerInterface = (*Storage)(nil) // Ensure Storage implements the sdkstorage.ServerInterface.
@@ -95,5 +96,11 @@ func (h Storage) CreateOrUpdateBlockStorage(
 	workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam,
 	params sdkstorage.CreateOrUpdateBlockStorageParams,
 ) {
-	// TODO implement me
+	handler.HandleCreateOrUpdate(w, r, h.Logger.With("provider", "storage").With("resource", "instance").With("name", name).With("tenant", tenant),
+		tenant,
+		name,
+		h.CreateInstance,
+		apistorage.BlockStorageFromAPI,
+		apistorage.BlockStorageToAPI,
+	)
 }
