@@ -10,12 +10,12 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/foundation/api/regional/network"
 )
 
-// NetworkSKUResource is the resource name for network SKUs
-const NetworkSKUResource = "network-skus"
+// SKUResource is the resource name for network SKUs.
+const SKUResource = "skus"
 
 var (
-	NetworkSKUGR  = schema.GroupResource{Group: network.Group, Resource: NetworkSKUResource}
-	NetworkSKUGVR = schema.GroupVersionResource{
-		Group: network.Group, Version: network.Version, Resource: NetworkSKUResource,
+	SKUGR  = schema.GroupResource{Group: network.Group, Resource: SKUResource}
+	SKUGVR = schema.GroupVersionResource{
+		Group: network.Group, Version: network.Version, Resource: SKUResource,
 	}
 )

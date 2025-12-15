@@ -4,15 +4,15 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	genv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/generated/types"
-	storage "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/block-storage"
+	"github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage"
 )
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:path=storage-skus,scope=Namespaced,shortName=storage-sku
+// +kubebuilder:resource:path=skus,scope=Namespaced,shortName=sku
 // +k8s:openapi-gen=true
 
-// StorageSKU is the API for getting storage SKU information
-type StorageSKU struct {
+// SKU is the API for getting storage SKUs information.
+type SKU struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
@@ -21,13 +21,13 @@ type StorageSKU struct {
 
 // +kubebuilder:object:root=true
 
-type StorageSKUList struct {
+type SKUList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 
-	Items []StorageSKU `json:"items"`
+	Items []SKU `json:"items"`
 }
 
 func init() {
-	storage.SchemeBuilder.Register(&StorageSKU{}, &StorageSKUList{})
+	storage.SchemeBuilder.Register(&SKU{}, &SKUList{})
 }

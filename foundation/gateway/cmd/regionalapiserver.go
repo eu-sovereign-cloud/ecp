@@ -8,13 +8,13 @@ import (
 	"os"
 	"path/filepath"
 
-	sdkstorageapi "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 
-	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/block-storage/skus/v1"
+	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/skus/v1"
+	sdkstorageapi "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/regional/storage"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/httpserver"
@@ -90,7 +90,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 						Logger: logger,
 						SKURepo: kubernetes.NewAdapter(
 							client.Client,
-							skuv1.StorageSKUGVR,
+							skuv1.SKUGVR,
 							logger,
 							kubernetes.MapCRToStorageSKUDomain,
 						),
@@ -99,7 +99,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 						Logger: logger,
 						SKURepo: kubernetes.NewAdapter(
 							client.Client,
-							skuv1.StorageSKUGVR,
+							skuv1.SKUGVR,
 							logger,
 							kubernetes.MapCRToStorageSKUDomain,
 						),

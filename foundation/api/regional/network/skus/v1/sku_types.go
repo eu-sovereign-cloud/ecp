@@ -8,11 +8,11 @@ import (
 )
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:path=network-skus,scope=Namespaced,shortName=network-sku
+// +kubebuilder:resource:path=skus,scope=Namespaced,shortName=sku
 // +k8s:openapi-gen=true
 
-// NetworkSKU is the API for getting network SKU information
-type NetworkSKU struct {
+// SKU is the API for getting network SKUs information.
+type SKU struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
@@ -21,13 +21,13 @@ type NetworkSKU struct {
 
 // +kubebuilder:object:root=true
 
-type NetworkSKUList struct {
+type SKUList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 
-	Items []NetworkSKU `json:"items"`
+	Items []SKU `json:"items"`
 }
 
 func init() {
-	network.SchemeBuilder.Register(&NetworkSKU{}, &NetworkSKUList{})
+	network.SchemeBuilder.Register(&SKU{}, &SKUList{})
 }
