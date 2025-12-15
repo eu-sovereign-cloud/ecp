@@ -4,22 +4,22 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.19.0
-  name: storage-skus.storage.v1.secapi.cloud
+  name: skus.storage.v1.secapi.cloud
 spec:
   group: storage.v1.secapi.cloud
   names:
-    kind: StorageSKU
-    listKind: StorageSKUList
-    plural: storage-skus
+    kind: SKU
+    listKind: SKUList
+    plural: skus
     shortNames:
-    - storage-sku
-    singular: storagesku
+    - sku
+    singular: sku
   scope: Namespaced
   versions:
   - name: v1
     schema:
       openAPIV3Schema:
-        description: StorageSKU is the API for getting storage SKU information
+        description: SKU is the API for getting storage SKUs information.
         properties:
           apiVersion:
             description: |-

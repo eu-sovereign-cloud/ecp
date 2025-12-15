@@ -11,12 +11,12 @@ import (
 )
 
 // newNetworkSKUCR constructs a typed NetworkSKU CR.
-func newNetworkSKUCR(name, tenant string, labels map[string]string, bandwidth, packets int, setVersionAndTimestamp bool) *skuv1.NetworkSKU {
+func newNetworkSKUCR(name, tenant string, labels map[string]string, bandwidth, packets int, setVersionAndTimestamp bool) *skuv1.SKU {
 	if labels == nil {
 		labels = map[string]string{}
 	}
-	cr := &skuv1.NetworkSKU{
-		TypeMeta:   metav1.TypeMeta{Kind: "NetworkSKU", APIVersion: skuv1.NetworkSKUGVR.GroupVersion().String()},
+	cr := &skuv1.SKU{
+		TypeMeta:   metav1.TypeMeta{Kind: "NetworkSKU", APIVersion: skuv1.SKUGVR.GroupVersion().String()},
 		ObjectMeta: metav1.ObjectMeta{Name: name, Labels: labels, Namespace: tenant},
 		Spec:       generatedv1.NetworkSkuSpec{Bandwidth: bandwidth, Packets: packets},
 	}

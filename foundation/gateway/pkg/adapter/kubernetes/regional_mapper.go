@@ -7,14 +7,14 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	storageskuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/block-storage/skus/v1"
 	netowrkskuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/network/skus/v1"
+	storageskuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/skus/v1"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 )
 
-func MapCRToNetworkSKUDomain(cr netowrkskuv1.NetworkSKU) *regional.NetworkSKUDomain {
+func MapCRToNetworkSKUDomain(cr netowrkskuv1.SKU) *regional.NetworkSKUDomain {
 	return &regional.NetworkSKUDomain{
 		Metadata: model.Metadata{Name: cr.Name, Namespace: cr.Namespace},
 		Spec: regional.NetworkSKUSpec{
@@ -26,10 +26,10 @@ func MapCRToNetworkSKUDomain(cr netowrkskuv1.NetworkSKU) *regional.NetworkSKUDom
 
 // MapCRToStorageSKUDomain converts either concrete *storageskuv1.StorageSKU or unstructured.Unstructured into a StorageSKUDomain.
 func MapCRToStorageSKUDomain(obj client.Object) (*regional.StorageSKUDomain, error) {
-	var cr storageskuv1.StorageSKU
+	var cr storageskuv1.SKU
 
 	switch t := obj.(type) {
-	case *storageskuv1.StorageSKU:
+	case *storageskuv1.SKU:
 		cr = *t
 	case *unstructured.Unstructured:
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(t.Object, &cr); err != nil {

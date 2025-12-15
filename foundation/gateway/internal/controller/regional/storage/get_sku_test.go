@@ -14,8 +14,8 @@ import (
 	"k8s.io/client-go/dynamic"
 
 	generatedv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/generated/types"
-	storage "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/block-storage"
-	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/block-storage/skus/v1"
+	"github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage"
+	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/skus/v1"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
@@ -57,14 +57,14 @@ func TestStorageController_GetSKU(t *testing.T) {
 
 	u := toUnstructured(t, scheme, newStorageSKUCR(skuID, tenant, map[string]string{TenantLabelKey: tenant, "tier": "prod"}, 7500, 10, string(generatedv1.StorageSkuTypeRemoteDurable), false))
 
-	_, err = dynClient.Resource(skuv1.StorageSKUGVR).Namespace(u.GetNamespace()).Create(ctx, u, metav1.CreateOptions{})
+	_, err = dynClient.Resource(skuv1.SKUGVR).Namespace(u.GetNamespace()).Create(ctx, u, metav1.CreateOptions{})
 	require.NoError(t, err)
 
 	sc := GetSKU{
 		Logger: slog.Default(),
 		SKURepo: kubernetes.NewAdapter(
 			dynClient,
-			skuv1.StorageSKUGVR,
+			skuv1.SKUGVR,
 			slog.Default(),
 			kubernetes.MapCRToStorageSKUDomain,
 		),

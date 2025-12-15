@@ -4,22 +4,23 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.19.0
-  name: storages.storage.v1.secapi.cloud
+  name: block-storages.storage.v1.secapi.cloud
 spec:
   group: storage.v1.secapi.cloud
   names:
-    kind: Storage
-    listKind: StorageList
-    plural: storages
+    kind: BlockStorage
+    listKind: BlockStorageList
+    plural: block-storages
     shortNames:
-    - storage
-    singular: storage
+    - block-storage
+    singular: blockstorage
   scope: Namespaced
   versions:
   - name: v1
     schema:
       openAPIV3Schema:
-        description: Storage is the API for getting storage SKU information
+        description: BlockStorage is the API for getting storage block-storage instances
+          information.
         properties:
           apiVersion:
             description: |-

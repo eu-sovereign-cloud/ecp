@@ -20,8 +20,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
 	generatedv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/generated/types"
-	storage "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/block-storage"
-	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/block-storage/skus/v1"
+	"github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage"
+	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/skus/v1"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
@@ -33,12 +33,12 @@ const TenantLabelKey = "secapi.cloud/tenant-id"
 var cfg *rest.Config
 
 // newStorageSKUCR constructs a typed StorageSKU CR.
-func newStorageSKUCR(name, tenant string, labels map[string]string, iops, minVolumeSize int, skuType string, setVersionAndTimestamp bool) *skuv1.StorageSKU {
+func newStorageSKUCR(name, tenant string, labels map[string]string, iops, minVolumeSize int, skuType string, setVersionAndTimestamp bool) *skuv1.SKU {
 	if labels == nil {
 		labels = map[string]string{}
 	}
-	cr := &skuv1.StorageSKU{
-		TypeMeta:   metav1.TypeMeta{Kind: "StorageSKU", APIVersion: skuv1.StorageSKUGVR.GroupVersion().String()},
+	cr := &skuv1.SKU{
+		TypeMeta:   metav1.TypeMeta{Kind: "SKU", APIVersion: skuv1.SKUGVR.GroupVersion().String()},
 		ObjectMeta: metav1.ObjectMeta{Name: name, Labels: labels, Namespace: tenant},
 		Spec:       generatedv1.StorageSkuSpec{Iops: iops, MinVolumeSize: minVolumeSize, Type: generatedv1.StorageSkuSpecType(skuType)},
 	}
@@ -77,7 +77,7 @@ func extractSKUNames(skus []*regional.StorageSKUDomain) []string {
 // --- Envtest lifecycle ---
 func TestMain(m *testing.M) {
 	wd, _ := os.Getwd()
-	crdDir := filepath.Clean(filepath.Join(wd, "../../../../../api/generated/crds/block-storage"))
+	crdDir := filepath.Clean(filepath.Join(wd, "../../../../../api/generated/crds/storage"))
 	testEnvironment := &envtest.Environment{
 		ErrorIfCRDPathMissing: true,
 		CRDDirectoryPaths:     []string{crdDir},
@@ -112,7 +112,7 @@ func TestStorageController_ListSKUs(t *testing.T) {
 		Logger: slog.Default(),
 		SKURepo: kubernetes.NewAdapter(
 			dynClient,
-			skuv1.StorageSKUGVR,
+			skuv1.SKUGVR,
 			slog.Default(),
 			kubernetes.MapCRToStorageSKUDomain,
 		),
@@ -180,7 +180,7 @@ func TestStorageController_ListSKUs(t *testing.T) {
 		toUnstructured(t, scheme, newStorageSKUCR(nameThird, tenantA, commonLabels(map[string]string{"tier": "prod", "env": "staging", "rank": "3"}), 3000, 15, string(generatedv1.StorageSkuTypeRemoteDurable), false)),
 		toUnstructured(t, scheme, newStorageSKUCR(nameOtherTenant, tenantB, map[string]string{TenantLabelKey: tenantB, "tier": "prod"}, 9000, 50, string(generatedv1.StorageSkuTypeRemoteDurable), false)),
 	} {
-		_, err := dynClient.Resource(skuv1.StorageSKUGVR).Namespace(u.GetNamespace()).Create(ctx, u, metav1.CreateOptions{})
+		_, err := dynClient.Resource(skuv1.SKUGVR).Namespace(u.GetNamespace()).Create(ctx, u, metav1.CreateOptions{})
 		require.NoError(t, err)
 	}
 
