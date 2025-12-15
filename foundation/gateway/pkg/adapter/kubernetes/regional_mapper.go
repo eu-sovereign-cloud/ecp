@@ -9,6 +9,7 @@ import (
 
 	netowrkskuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/network/skus/v1"
 	storageskuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/skus/v1"
+	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/workspace/v1"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes/labels"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
@@ -73,4 +74,49 @@ func MapCRToStorageSKUDomain(obj client.Object) (*regional.StorageSKUDomain, err
 			Type:          string(cr.Spec.Type),
 		},
 	}, nil
+}
+
+// MapCRToWorkspaceDomain converts either concrete *workspacev1.Workspace or unstructured.Unstructured into a *regional.WorkspaceDomain.
+func MapCRToWorkspaceDomain(obj client.Object) (*regional.WorkspaceDomain, error) {
+	var cr workspacev1.Workspace
+
+	switch t := obj.(type) {
+	case *workspacev1.Workspace:
+		cr = *t
+	case *unstructured.Unstructured:
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(t.Object, &cr); err != nil {
+			return nil, fmt.Errorf("failed to convert unstructured to Workspace: %w", err)
+		}
+	default:
+		return nil, fmt.Errorf("unsupported object type %T", obj)
+	}
+
+	internalLabels := labels.GetInternalLabels(cr.GetLabels())
+	meta := regional.Metadata{
+		CommonMetadata: model.CommonMetadata{
+			Name:            cr.GetName(),
+			ResourceVersion: cr.GetResourceVersion(),
+			CreatedAt:       cr.GetCreationTimestamp().Time,
+			Provider:        internalLabels[labels.InternalProviderLabel],
+		},
+		Region:      internalLabels[labels.InternalRegionLabel],
+		Tenant:      internalLabels[labels.InternalTenantLabel],
+		Labels:      labels.FilterInternalLabels(cr.GetLabels()),
+		Annotations: cr.RegionalCommonData.Annotations,
+		Extensions:  cr.RegionalCommonData.Extensions,
+	}
+	if ts := cr.GetDeletionTimestamp(); ts != nil {
+		meta.DeletedAt = &ts.Time
+	}
+
+	return &regional.WorkspaceDomain{
+		Metadata: meta,
+		Spec:     cr.Spec,
+	}, nil
+}
+
+// MapDomainToWorkspaceCR maps a WorkspaceDomain to a Workspace CR.
+// TODO: implement this
+func MapDomainToWorkspaceCR(domain regional.WorkspaceDomain) (*workspacev1.Workspace, error) {
+	return &workspacev1.Workspace{}, nil
 }
