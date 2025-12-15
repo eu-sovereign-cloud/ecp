@@ -45,7 +45,9 @@ func TestRegionController_GetRegion(t *testing.T) {
 		}
 
 		region, err := gc.Do(context.Background(), &model.Metadata{
-			Name: regionName,
+			CommonMetadata: model.CommonMetadata{
+				Name: regionName,
+			},
 		})
 
 		require.NoError(t, err)
@@ -77,7 +79,9 @@ func TestRegionController_GetRegion(t *testing.T) {
 		}
 
 		region, err := gc.Do(context.Background(), &model.Metadata{
-			Name: "nonexistent-region",
+			CommonMetadata: model.CommonMetadata{
+				Name: "nonexistent-region",
+			},
 		})
 
 		require.Error(t, err)
@@ -101,7 +105,9 @@ func TestRegionController_GetRegion(t *testing.T) {
 		}
 
 		region, err := gc.Do(context.Background(), &model.Metadata{
-			Name: minimalRegionName,
+			CommonMetadata: model.CommonMetadata{
+				Name: minimalRegionName,
+			},
 		})
 
 		require.NoError(t, err)
@@ -133,7 +139,9 @@ func TestRegionController_GetRegion(t *testing.T) {
 			),
 		}
 		region, err := gc.Do(context.Background(), &model.Metadata{
-			Name: multiAZRegionName,
+			CommonMetadata: model.CommonMetadata{
+				Name: multiAZRegionName,
+			},
 		})
 
 		require.NoError(t, err)
@@ -165,7 +173,9 @@ func TestRegionController_GetRegion_EdgeCases(t *testing.T) {
 		}
 
 		region, err := gc.Do(context.Background(), &model.Metadata{
-			Name: "",
+			CommonMetadata: model.CommonMetadata{
+				Name: "",
+			},
 		})
 
 		require.Error(t, err)
@@ -195,7 +205,9 @@ func TestRegionController_GetRegion_EdgeCases(t *testing.T) {
 		cancel() // Cancel immediately
 
 		region, err := gc.Do(ctx, &model.Metadata{
-			Name: regionName,
+			CommonMetadata: model.CommonMetadata{
+				Name: regionName,
+			},
 		})
 		// The fake client might not respect context cancellation perfectly,
 		// but we test the behavior anyway

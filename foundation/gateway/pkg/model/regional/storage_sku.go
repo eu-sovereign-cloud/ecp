@@ -1,10 +1,8 @@
 package regional
 
-import "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
-
 // StorageSKUDomain represents the domain model for a storage SKU.
 type StorageSKUDomain struct {
-	model.Metadata
+	Metadata
 	Spec StorageSKUSpec
 }
 

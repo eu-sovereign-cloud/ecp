@@ -29,7 +29,7 @@ func SkuToApi(domain *regional.StorageSKUDomain) *sdkschema.StorageSku {
 	}
 }
 
-func ListParamsFromAPI(params sdkstorage.ListSkusParams, namespace string) model.ListParams {
+func ListParamsFromAPI(params sdkstorage.ListSkusParams, tenant string) model.ListParams {
 	limit := validation.GetLimit(params.Limit)
 
 	var skipToken string
@@ -46,7 +46,7 @@ func ListParamsFromAPI(params sdkstorage.ListSkusParams, namespace string) model
 		Limit:     limit,
 		SkipToken: skipToken,
 		Selector:  selector,
-		Namespace: namespace,
+		Tenant:    tenant,
 	}
 }
 

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -70,7 +71,12 @@ func TestStorageController_GetSKU(t *testing.T) {
 		),
 	}
 	t.Run("get_existing", func(t *testing.T) {
-		metadata := model.Metadata{Namespace: tenant, Name: skuID}
+		metadata := regional.Metadata{
+			CommonMetadata: model.CommonMetadata{
+				Name: skuID,
+			},
+			Tenant: tenant,
+		}
 		sku, err := sc.Do(ctx, &metadata)
 		require.NoError(t, err)
 		require.NotNil(t, sku)
@@ -80,7 +86,12 @@ func TestStorageController_GetSKU(t *testing.T) {
 	})
 
 	t.Run("get_nonexistent", func(t *testing.T) {
-		metadata := model.Metadata{Namespace: tenant, Name: "missing"}
+		metadata := regional.Metadata{
+			CommonMetadata: model.CommonMetadata{
+				Name: "missing",
+			},
+			Tenant: tenant,
+		}
 		_, err := sc.Do(ctx, &metadata)
 		require.Error(t, err)
 	})

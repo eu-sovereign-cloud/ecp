@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	v1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regions/v1"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes/labels"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -33,12 +34,13 @@ func MapCRRegionToDomain(obj client.Object) (*model.RegionDomain, error) {
 	zones := mapZones(cr)
 
 	meta := model.Metadata{
-		Name:            cr.GetName(),
-		Namespace:       cr.GetNamespace(),
-		Labels:          cr.GetLabels(),
-		ResourceVersion: cr.GetResourceVersion(),
-		CreatedAt:       cr.GetCreationTimestamp().Time,
-		UpdatedAt:       cr.GetCreationTimestamp().Time,
+		CommonMetadata: model.CommonMetadata{
+			Name:            cr.GetName(),
+			Provider:        labels.GetInternalLabels(cr.GetLabels())[labels.InternalProviderLabel],
+			ResourceVersion: cr.GetResourceVersion(),
+			CreatedAt:       cr.GetCreationTimestamp().Time,
+			UpdatedAt:       cr.GetCreationTimestamp().Time,
+		},
 	}
 	if ts := cr.GetDeletionTimestamp(); ts != nil {
 		meta.DeletedAt = &ts.Time

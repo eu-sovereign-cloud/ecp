@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"log/slog"
 
@@ -21,7 +22,7 @@ import (
 type K8sConverter[T any] func(object client.Object) (T, error)
 
 // Adapter implements the port.ResourceQueryRepository interface for a specific resource type.
-type Adapter[T port.NamespacedResource] struct {
+type Adapter[T port.IdentifiableResource] struct {
 	client  dynamic.Interface
 	gvr     schema.GroupVersionResource
 	logger  *slog.Logger
@@ -29,7 +30,7 @@ type Adapter[T port.NamespacedResource] struct {
 }
 
 // NewAdapter creates a new Kubernetes adapter for the port.ResourceQueryRepository port.
-func NewAdapter[T port.NamespacedResource](
+func NewAdapter[T port.IdentifiableResource](
 	client dynamic.Interface,
 	gvr schema.GroupVersionResource,
 	logger *slog.Logger,
@@ -40,6 +41,23 @@ func NewAdapter[T port.NamespacedResource](
 		gvr:     gvr,
 		logger:  logger,
 		convert: convert,
+	}
+}
+
+// computeNamespace computes the Kubernetes namespace based on tenant and workspace.
+func computeNamespace(obj port.Scope) string {
+	switch {
+	case obj.GetTenant() == "" && obj.GetWorkspace() == "":
+		slog.Warn("tenant and workspace not set; defaulting to 'seca' namespace")
+		return ""
+	case obj.GetTenant() != "" && obj.GetWorkspace() == "":
+		slog.Warn("tenant set, but workspace not set; defaulting to tenant namespace", "tenant", obj.GetTenant())
+		return obj.GetTenant()
+	default:
+		val := sha256.New()
+		val.Write([]byte(fmt.Sprintf("%s/%s", obj.GetTenant(), obj.GetWorkspace())))
+		slog.Warn("tenant and workspace both set; using hashed namespace", "tenant", obj.GetTenant(), "workspace", obj.GetWorkspace(), "namespace_hash", fmt.Sprintf("%x", val.Sum(nil)))
+		return fmt.Sprintf("%x", val.Sum(nil))
 	}
 }
 
@@ -59,9 +77,7 @@ func (a *Adapter[T]) List(ctx context.Context, params model.ListParams, list *[]
 	}
 
 	var ri dynamic.ResourceInterface = a.client.Resource(a.gvr)
-	if params.Namespace != "" {
-		ri = a.client.Resource(a.gvr).Namespace(params.Namespace)
-	}
+	ri = a.client.Resource(a.gvr).Namespace(computeNamespace(&params))
 
 	ulist, err := ri.List(ctx, lo)
 	modelErr := model.ErrUnavailable
@@ -115,12 +131,11 @@ func (a *Adapter[T]) List(ctx context.Context, params model.ListParams, list *[]
 func (a *Adapter[T]) Load(ctx context.Context, obj *T) error {
 	var ri dynamic.ResourceInterface = a.client.Resource(a.gvr)
 	v := *obj
-	if v.GetNamespace() != "" {
-		ri = a.client.Resource(a.gvr).Namespace(v.GetNamespace())
-	}
+	ri = a.client.Resource(a.gvr).Namespace(computeNamespace(v))
+
 	uobj, err := ri.Get(ctx, v.GetName(), metav1.GetOptions{})
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to get resource", "name", v.GetNamespace(), "resource", a.gvr.Resource, "error", err)
+		a.logger.ErrorContext(ctx, "failed to get resource", "name", v.GetName(), "resource", a.gvr.Resource, "error", err)
 		modelErr := model.ErrUnavailable
 		if kerrs.IsNotFound(err) {
 			modelErr = model.ErrNotFound

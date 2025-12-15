@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
@@ -62,9 +63,11 @@ func (h Storage) ListSkus(w http.ResponseWriter, r *http.Request,
 func (h Storage) GetSku(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam,
 	name sdkschema.ResourcePathParam,
 ) {
-	handler.HandleGet(w, r, h.Logger.With("provider", "storage").With("resource", "sku"), &model.Metadata{
-		Name:      name,
-		Namespace: tenant,
+	handler.HandleGet(w, r, h.Logger.With("provider", "storage").With("resource", "sku"), &regional.Metadata{
+		CommonMetadata: model.CommonMetadata{
+			Name: name,
+		},
+		Tenant: tenant,
 	}, h.GetSKU, apistorage.SkuToApi)
 }
 

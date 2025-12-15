@@ -19,7 +19,7 @@ func (c GetSKU) Do(
 	domain := &regional.NetworkSKUDomain{}
 	domain.SetName(skuID)
 	// scope by tenant namespace if needed
-	domain.SetNamespace(tenantID)
+	domain.SetTenant(tenantID)
 	if err := c.SKURepo.Load(ctx, &domain); err != nil {
 		return nil, err
 	}

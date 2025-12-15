@@ -1,31 +1,27 @@
 package model
 
-import "time"
+import (
+	"time"
+)
 
-// Metadata carries common resource identity and classification data used in domain models.
-type Metadata struct {
+// CommonMetadata carries common resource identity and classification data used in domain models.
+type CommonMetadata struct {
 	Name            string
-	Namespace       string
-	Labels          map[string]string
+	Provider        string
 	ResourceVersion string
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 	DeletedAt       *time.Time
 }
 
-// CloneLabels returns a copy to avoid external mutation side-effects.
-func (m *Metadata) CloneLabels() map[string]string {
-	if m.Labels == nil {
-		return nil
-	}
-	cp := make(map[string]string, len(m.Labels))
-	for k, v := range m.Labels {
-		cp[k] = v
-	}
-	return cp
-}
+func (m *CommonMetadata) GetName() string     { return m.Name }
+func (m *CommonMetadata) SetName(name string) { m.Name = name }
 
-func (m *Metadata) GetName() string        { return m.Name }
-func (m *Metadata) GetNamespace() string   { return m.Namespace }
-func (m *Metadata) SetName(name string)    { m.Name = name }
-func (m *Metadata) SetNamespace(ns string) { m.Namespace = ns }
+// Metadata carries common resource identity and classification data used in global domain models.
+// It is an alias for CommonMetadata to simplify references and allow providing sentinel methods for tenant and workspace.
+type Metadata struct{ CommonMetadata }
+
+func (m *Metadata) GetTenant() string             { return "" }
+func (m *Metadata) GetWorkspace() string          { return "" }
+func (m *Metadata) SetTenant(tenant string)       {}
+func (m *Metadata) SetWorkspace(workspace string) {}

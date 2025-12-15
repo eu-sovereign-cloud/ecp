@@ -22,7 +22,7 @@ type ListSKUs struct {
 func (c ListSKUs) Do(ctx context.Context, tenantID string, params model.ListParams) (
 	[]*regional.NetworkSKUDomain, *string, error,
 ) {
-	params.Namespace = tenantID
+	params.SetTenant(tenantID)
 
 	var domainSKUs []*regional.NetworkSKUDomain
 	nextSkipToken, err := c.SKURepo.List(ctx, params, &domainSKUs)

@@ -219,7 +219,7 @@ func TestStorageController_ListSKUs(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			params := model.ListParams{
-				Namespace: tenantA,
+				Tenant: tenantA,
 			}
 			if tt.selector != nil {
 				params.Selector = *tt.selector
