@@ -21,6 +21,30 @@ type Creator[T any] interface {
 // APIToDomain defines the interface for mapping API objects to domain objects
 type APIToDomain[In any, D any] func(api In, tenant, name string) D
 
+type RegionalResourceLocator interface {
+	GetName() string
+	GetTenant() string
+	GetWorkspace() string
+}
+
+type ResourceLocator struct {
+	Name      string
+	Tenant    string
+	Workspace string
+}
+
+func (r ResourceLocator) GetName() string {
+	return r.Name
+}
+
+func (r ResourceLocator) GetTenant() string {
+	return r.Tenant
+}
+
+func (r ResourceLocator) GetWorkspace() string {
+	return r.Workspace
+}
+
 // HandleCreateOrUpdate is a generic helper for PUT endpoints that:
 // 1. Decodes the JSON request body
 // 2. Maps API to domain
@@ -32,12 +56,13 @@ func HandleCreateOrUpdate[In any, D any, Out any](
 	w http.ResponseWriter,
 	r *http.Request,
 	logger *slog.Logger,
-	tenant string,
-	name string,
+	path RegionalResourceLocator,
 	creator Creator[D],
 	apiToDomain APIToDomain[In, D],
 	domainToAPI DomainToAPI[D, Out],
 ) {
+	name := path.GetName()
+	tenant := path.GetTenant()
 	logger = logger.With("name", name, "tenant", tenant)
 
 	// Read and decode the request body

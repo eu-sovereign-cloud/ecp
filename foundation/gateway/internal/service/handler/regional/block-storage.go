@@ -97,8 +97,11 @@ func (h Storage) CreateOrUpdateBlockStorage(
 	params sdkstorage.CreateOrUpdateBlockStorageParams,
 ) {
 	handler.HandleCreateOrUpdate(w, r, h.Logger.With("provider", "storage").With("resource", "instance").With("name", name).With("tenant", tenant),
-		tenant,
-		name,
+		handler.ResourceLocator{
+			Name:      name,
+			Tenant:    tenant,
+			Workspace: workspace,
+		},
 		h.CreateInstance,
 		apistorage.BlockStorageFromAPI,
 		apistorage.BlockStorageToAPI,

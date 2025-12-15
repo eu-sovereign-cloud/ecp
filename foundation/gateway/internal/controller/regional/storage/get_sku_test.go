@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	k8sschema "k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	generatedv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/generated/types"
 	storage "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/block-storage"
@@ -19,6 +20,7 @@ import (
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 )
 
 func TestStorageController_GetSKU(t *testing.T) {
@@ -62,12 +64,14 @@ func TestStorageController_GetSKU(t *testing.T) {
 
 	sc := GetSKU{
 		Logger: slog.Default(),
-		SKURepo: kubernetes.NewAdapter(
-			dynClient,
-			skuv1.StorageSKUGVR,
-			slog.Default(),
-			kubernetes.MapCRToStorageSKUDomain,
-		),
+		SKURepo: &kubernetes.Adapter[*regional.StorageSKUDomain]{
+			Client: dynClient,
+			GVR:    skuv1.StorageSKUGVR,
+			Logger: slog.Default(),
+			K8sConverter: func(obj client.Object) (*regional.StorageSKUDomain, error) {
+				return kubernetes.MapCRToStorageSKUDomain(obj)
+			},
+		},
 	}
 	t.Run("get_existing", func(t *testing.T) {
 		metadata := model.Metadata{Namespace: tenant, Name: skuID}
