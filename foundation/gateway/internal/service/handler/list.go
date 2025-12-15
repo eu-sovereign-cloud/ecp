@@ -17,9 +17,6 @@ type Lister[T any] interface {
 	Do(ctx context.Context, params model.ListParams) ([]T, *string, error)
 }
 
-// DomainToSDKList defines the interface for mapping a list of domain objects to an SDK object.
-type DomainToSDKList[D any, Out any] func(domain []D, nextSkipToken *string) Out
-
 // HandleList is a generic helper for LIST endpoints that:
 // 1. Calls the controller to fetch the list of domain objects.
 // 2. Handles errors with 500.

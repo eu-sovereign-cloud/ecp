@@ -8,8 +8,9 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 	"k8s.io/apimachinery/pkg/api/errors"
+
+	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 )
@@ -18,9 +19,6 @@ import (
 type Getter[T any] interface {
 	Do(ctx context.Context, resource port.NamespacedResource) (T, error)
 }
-
-// DomainToSDK defines the interface for mapping domain objects to SDK objects
-type DomainToSDK[D any, Out any] func(domain D) Out
 
 // HandleGet is a generic helper for GET endpoints that:
 // 1. Calls the controller to fetch the domain object
