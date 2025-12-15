@@ -48,15 +48,12 @@ func NewAdapter[T port.IdentifiableResource](
 func computeNamespace(obj port.Scope) string {
 	switch {
 	case obj.GetTenant() == "" && obj.GetWorkspace() == "":
-		slog.Warn("tenant and workspace not set; defaulting to 'seca' namespace")
 		return ""
 	case obj.GetTenant() != "" && obj.GetWorkspace() == "":
-		slog.Warn("tenant set, but workspace not set; defaulting to tenant namespace", "tenant", obj.GetTenant())
 		return obj.GetTenant()
 	default:
 		val := sha256.New()
 		val.Write([]byte(fmt.Sprintf("%s/%s", obj.GetTenant(), obj.GetWorkspace())))
-		slog.Warn("tenant and workspace both set; using hashed namespace", "tenant", obj.GetTenant(), "workspace", obj.GetWorkspace(), "namespace_hash", fmt.Sprintf("%x", val.Sum(nil)))
 		return fmt.Sprintf("%x", val.Sum(nil))
 	}
 }
