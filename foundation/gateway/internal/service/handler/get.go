@@ -16,7 +16,7 @@ import (
 
 // Getter defines the interface for controller Get operations
 type Getter[T any] interface {
-	Do(ctx context.Context, resource port.NamespacedResource) (T, error)
+	Do(ctx context.Context, resource port.IdentifiableResource) (T, error)
 }
 
 // DomainToSDK defines the interface for mapping domain objects to SDK objects
@@ -32,17 +32,17 @@ func HandleGet[D any, Out any](
 	w http.ResponseWriter,
 	r *http.Request,
 	logger *slog.Logger,
-	nr port.NamespacedResource,
+	ir port.IdentifiableResource,
 	getter Getter[D],
 	mapper DomainToSDK[D, Out],
 ) {
-	logger = logger.With("name", nr.GetName(), "namespace", nr.GetNamespace())
+	logger = logger.With("name", ir.GetName(), "tenant", ir.GetTenant(), "workspace", ir.GetWorkspace())
 
-	domainObj, err := getter.Do(r.Context(), nr)
+	domainObj, err := getter.Do(r.Context(), ir)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			logger.InfoContext(r.Context(), "not found")
-			http.Error(w, fmt.Sprintf("%s not found", nr.GetName()), http.StatusNotFound)
+			http.Error(w, fmt.Sprintf("%s not found", ir.GetName()), http.StatusNotFound)
 			return
 		}
 

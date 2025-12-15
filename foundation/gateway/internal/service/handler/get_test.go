@@ -15,16 +15,19 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 )
 
-// testResource implements port.NamespacedResource
+// testResource implements port.IdentifiableResource
 type testResource struct {
 	name      string
-	namespace string
+	tenant    string
+	workspace string
 }
 
-func (r *testResource) GetName() string        { return r.name }
-func (r *testResource) GetNamespace() string   { return r.namespace }
-func (r *testResource) SetName(n string)       { r.name = n }
-func (r *testResource) SetNamespace(ns string) { r.namespace = ns }
+func (r *testResource) GetName() string       { return r.name }
+func (r *testResource) SetName(n string)      { r.name = n }
+func (r *testResource) GetTenant() string     { return r.tenant }
+func (r *testResource) SetTenant(t string)    { r.tenant = t }
+func (r *testResource) GetWorkspace() string  { return r.workspace }
+func (r *testResource) SetWorkspace(w string) { r.workspace = w }
 
 // mockGetter is a generic mock implementing Getter[D]
 // It returns the preset object or error.
@@ -34,7 +37,7 @@ type mockGetter[D any] struct {
 	err error
 }
 
-func (m *mockGetter[D]) Do(ctx context.Context, resource port.NamespacedResource) (D, error) {
+func (m *mockGetter[D]) Do(ctx context.Context, resource port.IdentifiableResource) (D, error) {
 	return m.obj, m.err
 }
 
@@ -53,7 +56,7 @@ type badDTO struct {
 }
 
 func TestHandleGet_Success(t *testing.T) {
-	res := &testResource{name: "demo", namespace: "ns"}
+	res := &testResource{name: "demo", tenant: "tenant1", workspace: "workspace1"}
 	getter := &mockGetter[domainModel]{obj: domainModel{Value: "abc"}}
 	//nolint:staticcheck // S1016 suppression: mapping clarifies domain->DTO transformation.
 	mapper := func(d domainModel) outputDTO { return outputDTO{Value: d.Value} }
@@ -84,7 +87,7 @@ func TestHandleGet_Success(t *testing.T) {
 }
 
 func TestHandleGet_NotFound(t *testing.T) {
-	res := &testResource{name: "missing", namespace: "ns"}
+	res := &testResource{name: "missing", tenant: "tenant1", workspace: "workspace1"}
 	// simulate not found error using k8s errors so errors.IsNotFound matches
 	nfErr := k8serrors.NewNotFound(schema.GroupResource{Group: "test.io", Resource: "things"}, res.GetName())
 	getter := &mockGetter[domainModel]{err: nfErr}
@@ -111,7 +114,7 @@ func TestHandleGet_NotFound(t *testing.T) {
 }
 
 func TestHandleGet_InternalError(t *testing.T) {
-	res := &testResource{name: "demo", namespace: "ns"}
+	res := &testResource{name: "demo", tenant: "tenant1", workspace: "workspace1"}
 	getter := &mockGetter[domainModel]{err: errors.New("boom")}
 	//nolint:staticcheck // S1016 suppression: mapping clarifies domain->DTO transformation.
 	mapper := func(d domainModel) outputDTO { return outputDTO{Value: d.Value} }
@@ -135,7 +138,7 @@ func TestHandleGet_InternalError(t *testing.T) {
 }
 
 func TestHandleGet_EncodingFailure(t *testing.T) {
-	res := &testResource{name: "demo", namespace: "ns"}
+	res := &testResource{name: "demo", tenant: "tenant1", workspace: "workspace1"}
 	getter := &mockGetter[domainModel]{obj: domainModel{Value: "abc"}}
 	// mapper returns a struct with channel field which json cannot encode
 	mapper := func(d domainModel) badDTO { return badDTO{Bad: make(chan int)} }
