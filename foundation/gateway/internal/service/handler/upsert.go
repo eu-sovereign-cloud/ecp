@@ -73,12 +73,12 @@ func HandleUpsert[In any, D any, Out any](
 	// TODO: Use workspace information from locator for resource scoping and access control
 	logger = logger.With("name", locator.GetName(), "tenant", locator.GetTenant(), "workspace", locator.GetWorkspace())
 
-	defer func(Body io.ReadCloser) {
+	defer func(ctx context.Context, Body io.ReadCloser) {
 		err := Body.Close()
 		if err != nil {
-			logger.ErrorContext(r.Context(), "failed to close response body", "err", err)
+			logger.ErrorContext(ctx, "failed to close response body", "err", err)
 		}
-	}(r.Body)
+	}(r.Context(), r.Body)
 
 	// Read and decode the request body
 	body, err := io.ReadAll(r.Body)
