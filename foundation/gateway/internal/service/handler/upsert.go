@@ -19,19 +19,22 @@ type Creator[T any] interface {
 	Do(ctx context.Context, resource T) (T, error)
 }
 
+// Updater defines the interface for controller Update operations
 type Updater[T any] interface {
 	Do(ctx context.Context, resource T) (T, error)
 }
 
-// SDKToDomain defines the interface for mapping API objects to domain objects
-type SDKToDomain[In any, D any] func(api In, tenant, name string) D
+// SDKToDomain defines the interface for mapping SDK objects to domain objects
+type SDKToDomain[In any, D any] func(sdk In, resourceLocator RegionalResourceLocator) D
 
+// RegionalResourceLocator defines the interface for extracting resource location info
 type RegionalResourceLocator interface {
 	GetName() string
 	GetTenant() string
 	GetWorkspace() string
 }
 
+// ResourceLocator is a simple implementation of RegionalResourceLocator
 type ResourceLocator struct {
 	Name      string
 	Tenant    string
@@ -61,16 +64,14 @@ func HandleUpsert[In any, D any, Out any](
 	w http.ResponseWriter,
 	r *http.Request,
 	logger *slog.Logger,
-	path RegionalResourceLocator,
+	locator RegionalResourceLocator,
 	creator Creator[D],
 	updater Updater[D],
 	SDKToDomain SDKToDomain[In, D],
 	domainToSDK DomainToSDK[D, Out],
 ) {
-	name := path.GetName()
-	tenant := path.GetTenant()
-	workspace := path.GetWorkspace()
-	logger = logger.With("name", name, "tenant", tenant, "workspace", workspace)
+	// todo use workspace
+	logger = logger.With("name", locator.GetName(), "tenant", locator.GetTenant(), "workspace", locator.GetWorkspace())
 
 	defer r.Body.Close()
 
@@ -89,7 +90,7 @@ func HandleUpsert[In any, D any, Out any](
 		return
 	}
 
-	domainObj := SDKToDomain(apiObj, tenant, name)
+	domainObj := SDKToDomain(apiObj, locator)
 
 	result, err := creator.Do(r.Context(), domainObj)
 	if err != nil {

@@ -85,8 +85,8 @@ func (m *MockRegionalResourceLocator) GetWorkspace() string {
 func TestHandleUpsert(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
-	apiToDomain := func(api TestIn, tenant, name string) TestDomain {
-		return TestDomain{ID: name, Data: api.Data}
+	apiToDomain := func(api TestIn, locator handler.RegionalResourceLocator) TestDomain {
+		return TestDomain{ID: locator.GetName(), Data: api.Data}
 	}
 
 	domainToAPI := func(domain TestDomain) TestOut {
