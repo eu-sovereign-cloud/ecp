@@ -67,7 +67,7 @@ func HandleUpsert[In any, D any, Out any](
 	locator RegionalResourceLocator,
 	creator Creator[D],
 	updater Updater[D],
-	SdkToDomain SDKToDomain[In, D],
+	sdkToDomain SDKToDomain[In, D],
 	domainToSDK DomainToSDK[D, Out],
 ) {
 	// TODO: Use workspace information from locator for resource scoping and access control
@@ -76,7 +76,7 @@ func HandleUpsert[In any, D any, Out any](
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
 		if err != nil {
-			logger.ErrorContext(context.Background(), "failed to close response body", "err", err)
+			logger.ErrorContext(r.Context(), "failed to close response body", "err", err)
 		}
 	}(r.Body)
 
@@ -95,7 +95,7 @@ func HandleUpsert[In any, D any, Out any](
 		return
 	}
 
-	domainObj := SdkToDomain(apiObj, locator)
+	domainObj := sdkToDomain(apiObj, locator)
 
 	result, err := creator.Do(r.Context(), domainObj)
 	if err != nil {
