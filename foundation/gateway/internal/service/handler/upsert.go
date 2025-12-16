@@ -24,7 +24,7 @@ type Updater[T any] interface {
 	Do(ctx context.Context, resource T) (T, error)
 }
 
-// SDKToDomain defines the interface for mapping SDK objects to domain objects
+// SDKToDomain defines the function type for mapping SDK objects to domain objects
 type SDKToDomain[In any, D any] func(sdk In, resourceLocator RegionalResourceLocator) D
 
 // RegionalResourceLocator defines the interface for extracting resource location info
@@ -70,7 +70,7 @@ func HandleUpsert[In any, D any, Out any](
 	SDKToDomain SDKToDomain[In, D],
 	domainToSDK DomainToSDK[D, Out],
 ) {
-	// todo use workspace
+	// TODO: Use workspace information from locator for resource scoping and access control
 	logger = logger.With("name", locator.GetName(), "tenant", locator.GetTenant(), "workspace", locator.GetWorkspace())
 
 	defer r.Body.Close()
