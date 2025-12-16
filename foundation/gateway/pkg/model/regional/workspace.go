@@ -15,14 +15,16 @@ const (
 
 type WorkspaceDomain struct {
 	Metadata
-	Spec WorkspaceSpec
+
+	Spec   WorkspaceSpec
+	Status WorkspaceStatusDomain
 }
 
 type WorkspaceSpec = map[string]string
 
-// TODO: implement full status structure
-type WorkspaceStatus struct {
-	ResourceCount int
+type WorkspaceStatusDomain struct {
+	StatusDomain
+	ResourceCount *int
 }
 
 func MapWorkspaceDomainToAPI(domain WorkspaceDomain, verb string) schema.Workspace {
@@ -36,6 +38,7 @@ func MapWorkspaceDomainToAPI(domain WorkspaceDomain, verb string) schema.Workspa
 	if rv, err := strconv.Atoi(domain.ResourceVersion); err == nil {
 		resVersion = rv
 	}
+
 	refObj := schema.ReferenceObject{
 		Resource: fmt.Sprintf(ResourceFormat, schema.RegionalResourceMetadataKindResourceKindWorkspace, domain.Name),
 		Provider: &domain.Provider,
@@ -44,6 +47,12 @@ func MapWorkspaceDomainToAPI(domain WorkspaceDomain, verb string) schema.Workspa
 	}
 	ref := schema.Reference{}
 	_ = ref.FromReferenceObject(refObj) // ignore mapping error, not critical internally
+
+	var resourceState *schema.ResourceState
+	if domain.Status.State != nil {
+		rs := mapResourceStateDomainToAPI(*domain.Status.State)
+		resourceState = &rs
+	}
 	sdk := schema.Workspace{
 		Spec: spec,
 		Metadata: &schema.RegionalResourceMetadata{
@@ -62,9 +71,18 @@ func MapWorkspaceDomainToAPI(domain WorkspaceDomain, verb string) schema.Workspa
 		Labels:      domain.Labels,
 		Annotations: domain.Annotations,
 		Extensions:  domain.Extensions,
+		Status: &schema.WorkspaceStatus{
+			ResourceCount: domain.Status.ResourceCount,
+			State:         resourceState,
+			Conditions:    mapConditionsInStatusDomainToAPI(domain.Status.StatusDomain),
+		},
 	}
 	if domain.DeletedAt != nil {
 		sdk.Metadata.DeletedAt = domain.DeletedAt
 	}
 	return sdk
+}
+
+func MapWorkspaceAPIToDomain(sdk schema.Workspace) WorkspaceDomain {
+	return WorkspaceDomain{}
 }
