@@ -1,0 +1,124 @@
+package handler
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"io"
+	"log/slog"
+	"net/http"
+
+	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
+
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
+)
+
+// Creator defines the interface for controller Create operations
+type Creator[T any] interface {
+	Do(ctx context.Context, resource T) (T, error)
+}
+
+type Updater[T any] interface {
+	Do(ctx context.Context, resource T) (T, error)
+}
+
+// SDKToDomain defines the interface for mapping API objects to domain objects
+type SDKToDomain[In any, D any] func(api In, tenant, name string) D
+
+type RegionalResourceLocator interface {
+	GetName() string
+	GetTenant() string
+	GetWorkspace() string
+}
+
+type ResourceLocator struct {
+	Name      string
+	Tenant    string
+	Workspace string
+}
+
+func (r ResourceLocator) GetName() string {
+	return r.Name
+}
+
+func (r ResourceLocator) GetTenant() string {
+	return r.Tenant
+}
+
+func (r ResourceLocator) GetWorkspace() string {
+	return r.Workspace
+}
+
+// HandleUpsert is a generic helper for PUT endpoints that:
+// 1. Decodes the JSON request body
+// 2. Maps SDK to domain
+// 3. Calls the controller to create or update the resource
+// 4. Handles errors appropriately
+// 5. Maps domain to SDK
+// 6. Encodes and writes the JSON response
+func HandleUpsert[In any, D any, Out any](
+	w http.ResponseWriter,
+	r *http.Request,
+	logger *slog.Logger,
+	path RegionalResourceLocator,
+	creator Creator[D],
+	updater Updater[D],
+	SDKToDomain SDKToDomain[In, D],
+	domainToSDK DomainToSDK[D, Out],
+) {
+	name := path.GetName()
+	tenant := path.GetTenant()
+	workspace := path.GetWorkspace()
+	logger = logger.With("name", name, "tenant", tenant, "workspace", workspace)
+
+	defer r.Body.Close()
+
+	// Read and decode the request body
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		logger.ErrorContext(r.Context(), "failed to read request body", slog.Any("error", err))
+		http.Error(w, "failed to read request body", http.StatusBadRequest)
+		return
+	}
+
+	var apiObj In
+	if err := json.Unmarshal(body, &apiObj); err != nil {
+		logger.ErrorContext(r.Context(), "failed to decode request body", slog.Any("error", err))
+		http.Error(w, "invalid JSON in request body", http.StatusBadRequest)
+		return
+	}
+
+	domainObj := SDKToDomain(apiObj, tenant, name)
+
+	result, err := creator.Do(r.Context(), domainObj)
+	if err != nil {
+		if !errors.Is(err, model.ErrAlreadyExists) {
+			logger.ErrorContext(r.Context(), "failed to create resource", slog.Any("error", err))
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
+		}
+
+		// The resource already exists, so we'll attempt to update it.
+		logger.InfoContext(r.Context(), "resource already exists, attempting update")
+		result, err = updater.Do(r.Context(), domainObj)
+		if err != nil {
+			logger.ErrorContext(r.Context(), "failed to update resource", slog.Any("error", err))
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	sdkObj := domainToSDK(result)
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	if err := enc.Encode(sdkObj); err != nil {
+		logger.ErrorContext(r.Context(), "failed to encode response", slog.Any("error", err))
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", string(schema.AcceptHeaderJson))
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(buf.Bytes())
+}

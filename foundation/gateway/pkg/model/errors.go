@@ -18,4 +18,6 @@ var (
 
 	// ErrUnavailable - external service operation failure.
 	ErrUnavailable = errors.New("service unavailable")
+
+	ErrAlreadyExists = errors.New("resource already exists")
 )
