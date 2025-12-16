@@ -3,6 +3,7 @@ package resourcehandler
 import (
 	"context"
 	"errors"
+	"log"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
@@ -18,6 +19,10 @@ import (
  *
  */
 
+type delegateFunc func(ctx context.Context, resource *regional.StorageBlockStorageDomain) error
+
+type setStateFunc func(ctx context.Context, resource *regional.StorageBlockStorageDomain) error
+
 type StorageBlockStorageCSPPlugin interface {
 	Create(ctx context.Context, resource *regional.StorageBlockStorageDomain) error
 	Delete(ctx context.Context, resource *regional.StorageBlockStorageDomain) error
@@ -30,6 +35,8 @@ type StorageBlockStorageResourceHandler struct {
 	repo   gateway_port.Repo[*regional.StorageBlockStorageDomain]
 	plugin StorageBlockStorageCSPPlugin
 }
+
+var _ port.DelegatorResourceHandler[*regional.StorageBlockStorageDomain] = (*StorageBlockStorageResourceHandler)(nil)
 
 func NewStorageBlockStorageResourceHandler(
 	repo gateway_port.Repo[*regional.StorageBlockStorageDomain],
@@ -44,55 +51,75 @@ func NewStorageBlockStorageResourceHandler(
 	handler.AddRejectionConditions(blockChangeSKU)
 	handler.AddRejectionConditions(blockDecreaseSize)
 
-	// Add create operation
-	handler.AddOperations(
-		port.NewResourceOperationWithPluginDelegate(
-			giveConditionToCreate,
-			plugin.Create,
-			propagateCreateSucess,
-			repo.Create,
-			propagateFailure,
-			port.NoopSetStateFunc[*regional.StorageBlockStorageDomain](),
-		),
-	)
-
-	// Add delete operation
-	handler.AddOperations(
-		port.NewResourceOperationWithPluginDelegate(
-			giveConditionToDelete,
-			plugin.Delete,
-			propagateDeleteSucess,
-			repo.Delete,
-			propagateFailure,
-			repo.Update,
-		),
-	)
-
-	// Add increase size operation
-	handler.AddOperations(
-		port.NewResourceOperationWithPluginDelegate(
-			giveConditionToIncreaseSize,
-			plugin.IncreaseSize,
-			propagateIncreaseSizeSucess,
-			repo.Update,
-			propagateFailure,
-			repo.Update,
-		),
-	)
-
-	// Add set image operation
-	handler.AddOperations(
-		port.NewResourceOperationWithPluginDelegate(
-			giveConditionToSetImage,
-			plugin.SetImage,
-			propagateSetImageSucess,
-			repo.Update,
-			propagateFailure,
-			repo.Update,
-		),
-	)
-
 	return handler
+}
+
+func (h *StorageBlockStorageResourceHandler) HandleReconcile(ctx context.Context, resource *regional.StorageBlockStorageDomain) error {
+	// Find delegate operation which should be done.
+	var delegate delegateFunc
+
+	switch {
+	case wantCreate(resource):
+		delegate = h.plugin.Create
+
+	case wantDelete(resource):
+		delegate = h.plugin.Delete
+
+	case wantIncreaseSize(resource):
+		delegate = h.plugin.IncreaseSize
+
+	case wantSetImage(resource):
+		delegate = h.plugin.SetImage
+
+	default:
+		return nil // Nothing to do.
+	}
+
+	// Delegate the action to the CSP Plugin.
+	if err := delegate(ctx, resource); err != nil {
+		// Handle errors from the CSP Plugin.
+		resource.Status.SetError(err)
+
+		if err := h.repo.Update(ctx, resource); err != nil {
+			return err // TODO: better error handling.
+		}
+
+		return nil
+	}
+
+	// Handle success of the delegated actions.
+	var setState setStateFunc
+
+	switch {
+	case wantCreate(resource):
+		resource.Status.StorageBlockStorageSpec = resource.Spec
+		resource.Status.SetAvtive()
+
+		setState = h.repo.Update
+
+	case wantDelete(resource):
+		setState = h.repo.Delete
+
+	case wantIncreaseSize(resource):
+		resource.Status.SizeGB = resource.Spec.SizeGB
+
+		setState = h.repo.Update
+
+	case wantSetImage(resource):
+		resource.Status.SourceImageID = resource.Spec.SourceImageID
+
+		setState = h.repo.Update
+
+	default:
+		log.Fatal("must never achieve that condition")
+	}
+
+	// Set the status of the resource properly.
+	if err := setState(ctx, resource); err != nil {
+		return err // TODO: better error handling.
+	}
+
+	return nil
 }
 
 //
@@ -115,53 +142,20 @@ func blockDecreaseSize(_ context.Context, resource *regional.StorageBlockStorage
 }
 
 //
-// Common Operation Components
+// Reconciliation Actions Conditions
 
-func propagateFailure(resource *regional.StorageBlockStorageDomain, err error) {
-	resource.Status.SetError(err)
-}
-
-//
-// Create Operation Components
-
-func giveConditionToCreate(resource *regional.StorageBlockStorageDomain) bool {
+func wantCreate(resource *regional.StorageBlockStorageDomain) bool {
 	return resource.Status.State == model.StateCreating
 }
 
-func propagateCreateSucess(resource *regional.StorageBlockStorageDomain) {
-	resource.Status.StorageBlockStorageSpec = resource.Spec
-	resource.Status.SetAvtive()
-}
-
-//
-// Delete Operation Components
-
-func giveConditionToDelete(resource *regional.StorageBlockStorageDomain) bool {
+func wantDelete(resource *regional.StorageBlockStorageDomain) bool {
 	return resource.Status.State == model.StateDeleting
 }
 
-func propagateDeleteSucess(resource *regional.StorageBlockStorageDomain) {
-	// NoOp!
-}
-
-//
-// IncreaseSize Operation Components
-
-func giveConditionToIncreaseSize(resource *regional.StorageBlockStorageDomain) bool {
+func wantIncreaseSize(resource *regional.StorageBlockStorageDomain) bool {
 	return resource.Status.State == model.StateUpdating && resource.Spec.SizeGB > resource.Status.SizeGB
 }
 
-func propagateIncreaseSizeSucess(resource *regional.StorageBlockStorageDomain) {
-	resource.Status.SizeGB = resource.Spec.SizeGB
-}
-
-//
-// SetImage Operation Components
-
-func giveConditionToSetImage(resource *regional.StorageBlockStorageDomain) bool {
+func wantSetImage(resource *regional.StorageBlockStorageDomain) bool {
 	return resource.Status.State == model.StateUpdating && resource.Spec.SourceImageID != resource.Status.SourceImageID
-}
-
-func propagateSetImageSucess(resource *regional.StorageBlockStorageDomain) {
-	resource.Status.SourceImageID = resource.Spec.SourceImageID
 }

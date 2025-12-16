@@ -42,20 +42,15 @@ type RejectionConditionFunc[T gateway_port.NamespacedResource] func(ctx context.
 // operations.
 type GenericDelegatorResourceHandler[T gateway_port.NamespacedResource] struct {
 	rejectionConditions []RejectionConditionFunc[T]
-	operations          []ResourceOperation[T]
 }
-
-var _ DelegatorResourceHandler[gateway_port.NamespacedResource] = &GenericDelegatorResourceHandler[gateway_port.NamespacedResource]{}
 
 // NewResourceHandler creates a new GenericDelegatorResourceHandler with the
 // provided rejection conditions and resource operations.
 func NewResourceHandler[T gateway_port.NamespacedResource](
 	rejectionConditions []RejectionConditionFunc[T],
-	operations []ResourceOperation[T],
 ) *GenericDelegatorResourceHandler[T] {
 	return &GenericDelegatorResourceHandler[T]{
 		rejectionConditions: rejectionConditions,
-		operations:          operations,
 	}
 }
 
@@ -69,16 +64,6 @@ func (h *GenericDelegatorResourceHandler[T]) SetRejectionConditions(rejectionCon
 // existing list.
 func (h *GenericDelegatorResourceHandler[T]) AddRejectionConditions(rejectionConditions ...RejectionConditionFunc[T]) {
 	h.rejectionConditions = append(h.rejectionConditions, rejectionConditions...)
-}
-
-// SetOperations replaces the existing resource operations with a new set.
-func (h *GenericDelegatorResourceHandler[T]) SetOperations(operations ...ResourceOperation[T]) {
-	h.operations = operations
-}
-
-// AddOperations appends additional resource operations to the existing list.
-func (h *GenericDelegatorResourceHandler[T]) AddOperations(operations ...ResourceOperation[T]) {
-	h.operations = append(h.operations, operations...)
 }
 
 // HandleAdmission iterates through the configured rejection conditions and
@@ -99,54 +84,6 @@ func (h *GenericDelegatorResourceHandler[T]) HandleAdmission(ctx context.Context
 
 	if err := errors.Join(errs...); err != nil {
 		return fmt.Errorf("admission failed: %w", err)
-	}
-
-	return nil
-}
-
-// HandleReconcile is the core reconciliation logic. It finds the first
-// applicable operation based on its GiveCondition, executes the operation by
-// delegating to a plugin, and then propagates the result (success or failure)
-// to the resource's status. Finally, it persists the updated resource state.
-//
-// Note: This is an generic implementation of the logic of the
-// `HandleStorage.Do(...) error` in the proposal, but replacing the
-// `switch-case` chains by a loop throw a operations slice.
-func (h *GenericDelegatorResourceHandler[T]) HandleReconcile(ctx context.Context, resource T) error {
-	// Finds the first applicable operation.
-	var selectedOperation ResourceOperation[T]
-
-	for _, operation := range h.operations {
-		if operation.GiveCondition(resource) {
-			selectedOperation = operation
-
-			break
-		}
-	}
-
-	// If no operation's condition is met, there's nothing to do.
-	if selectedOperation == nil {
-		return nil
-	}
-
-	// Execute the operation and handle its outcome.
-	var selectedSetState SetStateFunc[T]
-
-	if err := selectedOperation.Delegate(ctx, resource); err != nil {
-		// If delegation fails, propagate the failure and select the failure
-		// state-setter.
-		selectedOperation.PropagateFailure(resource, err)
-		selectedSetState = selectedOperation.SetStateFailure
-	} else {
-		// If delegation succeeds, propagate the success and select the success
-		// state-setter.
-		selectedOperation.PropagateSuccess(resource)
-		selectedSetState = selectedOperation.SetStateSucess
-	}
-
-	// Persist the final state of the resource.
-	if err := selectedSetState(ctx, resource); err != nil {
-		return fmt.Errorf("set state failed: %w", err)
 	}
 
 	return nil
