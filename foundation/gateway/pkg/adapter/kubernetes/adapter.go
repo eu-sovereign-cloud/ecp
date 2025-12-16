@@ -53,7 +53,7 @@ func computeNamespace(obj port.Scope) string {
 		return obj.GetTenant()
 	default:
 		val := sha256.New()
-		val.Write([]byte(fmt.Sprintf("%s/%s", obj.GetTenant(), obj.GetWorkspace())))
+		_, _ = fmt.Fprintf(val, "%s/%s", obj.GetTenant(), obj.GetWorkspace())
 		return fmt.Sprintf("%x", val.Sum(nil))
 	}
 }
