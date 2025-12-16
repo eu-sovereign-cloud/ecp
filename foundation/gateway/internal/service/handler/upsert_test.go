@@ -13,6 +13,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/service/handler"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
@@ -85,12 +86,12 @@ func (m *MockRegionalResourceLocator) GetWorkspace() string {
 func TestHandleUpsert(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
-	apiToDomain := func(api TestIn, locator handler.RegionalResourceLocator) TestDomain {
-		return TestDomain{ID: locator.GetName(), Data: api.Data}
+	apiToDomain := func(sdk TestIn, locator handler.RegionalResourceLocator) TestDomain {
+		return TestDomain{ID: locator.GetName(), Data: sdk.Data}
 	}
 
 	domainToAPI := func(domain TestDomain) TestOut {
-		return TestOut{ID: domain.ID, Data: domain.Data}
+		return TestOut(domain)
 	}
 
 	t.Run("success_create", func(t *testing.T) {
@@ -117,7 +118,7 @@ func TestHandleUpsert(t *testing.T) {
 
 		var respBody TestOut
 		err := json.Unmarshal(rr.Body.Bytes(), &respBody)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, outObj, respBody)
 
 		mockCreator.AssertExpectations(t)
@@ -172,7 +173,7 @@ func TestHandleUpsert(t *testing.T) {
 		assert.Equal(t, http.StatusOK, rr.Code)
 		var respBody TestOut
 		err := json.Unmarshal(rr.Body.Bytes(), &respBody)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, outObj, respBody)
 
 		mockCreator.AssertExpectations(t)
