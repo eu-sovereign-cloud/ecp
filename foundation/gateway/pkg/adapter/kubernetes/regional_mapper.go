@@ -99,8 +99,10 @@ func MapCRToWorkspaceDomain(obj client.Object) (*regional.WorkspaceDomain, error
 			CreatedAt:       cr.GetCreationTimestamp().Time,
 			Provider:        internalLabels[labels.InternalProviderLabel],
 		},
+		Scope: scope.Scope{
+			Tenant: internalLabels[labels.InternalTenantLabel],
+		},
 		Region:      internalLabels[labels.InternalRegionLabel],
-		Tenant:      internalLabels[labels.InternalTenantLabel],
 		Labels:      labels.FilterInternalLabels(cr.GetLabels()),
 		Annotations: cr.RegionalCommonData.Annotations,
 		Extensions:  cr.RegionalCommonData.Extensions,
