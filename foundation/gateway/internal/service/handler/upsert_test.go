@@ -112,7 +112,13 @@ func TestHandleUpsert(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPut, "/test", bytes.NewReader(body))
 		rr := httptest.NewRecorder()
 
-		handler.HandleUpsert[TestIn, TestDomain, TestOut](rr, req, logger, mockLocator, mockCreator, mockUpdater, apiToDomain, domainToAPI)
+		handler.HandleUpsert(rr, req, logger, handler.UpsertOptions[TestIn, TestDomain, TestOut]{
+			Locator:     mockLocator,
+			Creator:     mockCreator,
+			Updater:     mockUpdater,
+			SDKToDomain: apiToDomain,
+			DomainToSDK: domainToAPI,
+		})
 
 		assert.Equal(t, http.StatusOK, rr.Code)
 
@@ -138,7 +144,13 @@ func TestHandleUpsert(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPut, "/test", bytes.NewReader([]byte("invalid-json")))
 		rr := httptest.NewRecorder()
 
-		handler.HandleUpsert[TestIn, TestDomain, TestOut](rr, req, logger, mockLocator, mockCreator, mockUpdater, apiToDomain, domainToAPI)
+		handler.HandleUpsert(rr, req, logger, handler.UpsertOptions[TestIn, TestDomain, TestOut]{
+			Locator:     mockLocator,
+			Creator:     mockCreator,
+			Updater:     mockUpdater,
+			SDKToDomain: apiToDomain,
+			DomainToSDK: domainToAPI,
+		})
 
 		assert.Equal(t, http.StatusBadRequest, rr.Code)
 		assert.Contains(t, rr.Body.String(), "invalid JSON in request body")
@@ -168,7 +180,13 @@ func TestHandleUpsert(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPut, "/test", bytes.NewReader(body))
 		rr := httptest.NewRecorder()
 
-		handler.HandleUpsert[TestIn, TestDomain, TestOut](rr, req, logger, mockLocator, mockCreator, mockUpdater, apiToDomain, domainToAPI)
+		handler.HandleUpsert(rr, req, logger, handler.UpsertOptions[TestIn, TestDomain, TestOut]{
+			Locator:     mockLocator,
+			Creator:     mockCreator,
+			Updater:     mockUpdater,
+			SDKToDomain: apiToDomain,
+			DomainToSDK: domainToAPI,
+		})
 
 		assert.Equal(t, http.StatusOK, rr.Code)
 		var respBody TestOut
@@ -201,7 +219,13 @@ func TestHandleUpsert(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPut, "/test", bytes.NewReader(body))
 		rr := httptest.NewRecorder()
 
-		handler.HandleUpsert[TestIn, TestDomain, TestOut](rr, req, logger, mockLocator, mockCreator, mockUpdater, apiToDomain, domainToAPI)
+		handler.HandleUpsert(rr, req, logger, handler.UpsertOptions[TestIn, TestDomain, TestOut]{
+			Locator:     mockLocator,
+			Creator:     mockCreator,
+			Updater:     mockUpdater,
+			SDKToDomain: apiToDomain,
+			DomainToSDK: domainToAPI,
+		})
 
 		assert.Equal(t, http.StatusInternalServerError, rr.Code)
 		mockCreator.AssertExpectations(t)
@@ -226,7 +250,13 @@ func TestHandleUpsert(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPut, "/test", bytes.NewReader(body))
 		rr := httptest.NewRecorder()
 
-		handler.HandleUpsert[TestIn, TestDomain, TestOut](rr, req, logger, mockLocator, mockCreator, mockUpdater, apiToDomain, domainToAPI)
+		handler.HandleUpsert(rr, req, logger, handler.UpsertOptions[TestIn, TestDomain, TestOut]{
+			Locator:     mockLocator,
+			Creator:     mockCreator,
+			Updater:     mockUpdater,
+			SDKToDomain: apiToDomain,
+			DomainToSDK: domainToAPI,
+		})
 
 		assert.Equal(t, http.StatusInternalServerError, rr.Code)
 		mockCreator.AssertExpectations(t)
@@ -247,7 +277,13 @@ func TestHandleUpsert(t *testing.T) {
 		origReq := httptest.NewRequest(http.MethodPut, "/test", bytes.NewReader([]byte("x")))
 		origReq.Body = http.MaxBytesReader(rr, origReq.Body, 0) // limit 0 bytes to trigger error on Read
 
-		handler.HandleUpsert[TestIn, TestDomain, TestOut](rr, origReq, logger, mockLocator, mockCreator, mockUpdater, apiToDomain, domainToAPI)
+		handler.HandleUpsert(rr, origReq, logger, handler.UpsertOptions[TestIn, TestDomain, TestOut]{
+			Locator:     mockLocator,
+			Creator:     mockCreator,
+			Updater:     mockUpdater,
+			SDKToDomain: apiToDomain,
+			DomainToSDK: domainToAPI,
+		})
 
 		assert.Equal(t, http.StatusBadRequest, rr.Code)
 		assert.Contains(t, rr.Body.String(), "failed to read request body")
@@ -277,8 +313,13 @@ func TestHandleUpsert(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPut, "/test", bytes.NewReader(body))
 		rr := httptest.NewRecorder()
 
-		handler.HandleUpsert[TestIn, TestDomain, interface{}](rr, req, logger, mockLocator, mockCreator, mockUpdater, apiToDomain, failingDomainToAPI)
-
+		handler.HandleUpsert(rr, req, logger, handler.UpsertOptions[TestIn, TestDomain, any]{
+			Locator:     mockLocator,
+			Creator:     mockCreator,
+			Updater:     mockUpdater,
+			SDKToDomain: apiToDomain,
+			DomainToSDK: failingDomainToAPI,
+		})
 		assert.Equal(t, http.StatusInternalServerError, rr.Code)
 		mockCreator.AssertExpectations(t)
 	})

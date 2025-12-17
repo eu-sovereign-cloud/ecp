@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
@@ -53,6 +54,18 @@ func (r ResourceLocator) GetWorkspace() string {
 	return r.Workspace
 }
 
+// UpsertOptions contains the configuration for HandleUpsert
+type UpsertOptions[In any, D any, Out any] struct {
+	Locator        RegionalResourceLocator
+	Creator        Creator[D]
+	Updater        Updater[D]
+	SDKToDomain    SDKToDomain[In, D]
+	DomainToSDK    DomainToSDK[D, Out]
+	MaxAttempts    int           // If 0, DefaultMaxUpsertAttempts is used
+	RetryBaseDelay time.Duration // If 0, DefaultRetryBaseDelay is used. Delay doubles on each retry.
+	MaxDelay       time.Duration // If 0, DefaultMaxDelay is used.
+}
+
 // HandleUpsert is a generic helper for PUT endpoints that:
 // 1. Decodes the JSON request body
 // 2. Maps SDK to domain
@@ -64,14 +77,10 @@ func HandleUpsert[In any, D any, Out any](
 	w http.ResponseWriter,
 	r *http.Request,
 	logger *slog.Logger,
-	locator RegionalResourceLocator,
-	creator Creator[D],
-	updater Updater[D],
-	sdkToDomain SDKToDomain[In, D],
-	domainToSDK DomainToSDK[D, Out],
+	options UpsertOptions[In, D, Out],
 ) {
 	// TODO: Use workspace information from locator for resource scoping and access control
-	logger = logger.With("name", locator.GetName(), "tenant", locator.GetTenant(), "workspace", locator.GetWorkspace())
+	logger = logger.With("name", options.Locator.GetName(), "tenant", options.Locator.GetTenant(), "workspace", options.Locator.GetWorkspace())
 
 	defer func(ctx context.Context, Body io.ReadCloser) {
 		err := Body.Close()
@@ -95,9 +104,9 @@ func HandleUpsert[In any, D any, Out any](
 		return
 	}
 
-	domainObj := sdkToDomain(apiObj, locator)
+	domainObj := options.SDKToDomain(apiObj, options.Locator)
 
-	result, err := creator.Do(r.Context(), domainObj)
+	result, err := options.Creator.Do(r.Context(), domainObj)
 	if err != nil {
 		if !errors.Is(err, model.ErrAlreadyExists) {
 			logger.ErrorContext(r.Context(), "failed to create resource", slog.Any("error", err))
@@ -107,7 +116,7 @@ func HandleUpsert[In any, D any, Out any](
 
 		// The resource already exists, so we'll attempt to update it.
 		logger.InfoContext(r.Context(), "resource already exists, attempting update")
-		result, err = updater.Do(r.Context(), domainObj)
+		result, err = options.Updater.Do(r.Context(), domainObj)
 		if err != nil {
 			logger.ErrorContext(r.Context(), "failed to update resource", slog.Any("error", err))
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -115,7 +124,7 @@ func HandleUpsert[In any, D any, Out any](
 		}
 	}
 
-	sdkObj := domainToSDK(result)
+	sdkObj := options.DomainToSDK(result)
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	if err := enc.Encode(sdkObj); err != nil {
