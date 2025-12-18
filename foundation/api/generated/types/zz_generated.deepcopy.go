@@ -215,16 +215,12 @@ func (in *Error) DeepCopyInto(out *Error) {
 	}
 	if in.Meta != nil {
 		in, out := &in.Meta, &out.Meta
-		*out = new(*map[string]string)
+		*out = new(map[string]string)
 		if **in != nil {
 			in, out := *in, *out
-			*out = new(map[string]string)
-			if **in != nil {
-				in, out := *in, *out
-				*out = make(map[string]string, len(*in))
-				for key, val := range *in {
-					(*out)[key] = val
-				}
+			*out = make(map[string]string, len(*in))
+			for key, val := range *in {
+				(*out)[key] = val
 			}
 		}
 	}
@@ -1737,13 +1733,9 @@ func (in *ObjectStorageAccount) DeepCopyInto(out *ObjectStorageAccount) {
 	}
 	if in.Spec != nil {
 		in, out := &in.Spec, &out.Spec
-		*out = new(map[string]string)
-		if **in != nil {
-			in, out := *in, *out
-			*out = make(map[string]string, len(*in))
-			for key, val := range *in {
-				(*out)[key] = val
-			}
+		*out = make(ObjectStorageAccountSpec, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
 		}
 	}
 	if in.Status != nil {
@@ -3245,13 +3237,9 @@ func (in *Workspace) DeepCopyInto(out *Workspace) {
 	}
 	if in.Spec != nil {
 		in, out := &in.Spec, &out.Spec
-		*out = new(map[string]string)
-		if **in != nil {
-			in, out := *in, *out
-			*out = make(map[string]string, len(*in))
-			for key, val := range *in {
-				(*out)[key] = val
-			}
+		*out = make(WorkspaceSpec, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
 		}
 	}
 	if in.Status != nil {
