@@ -8,7 +8,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"time"
 
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
@@ -56,14 +55,11 @@ func (r ResourceLocator) GetWorkspace() string {
 
 // UpsertOptions contains the configuration for HandleUpsert
 type UpsertOptions[In any, D any, Out any] struct {
-	Locator        RegionalResourceLocator
-	Creator        Creator[D]
-	Updater        Updater[D]
-	SDKToDomain    SDKToDomain[In, D]
-	DomainToSDK    DomainToSDK[D, Out]
-	MaxAttempts    int           // If 0, DefaultMaxUpsertAttempts is used
-	RetryBaseDelay time.Duration // If 0, DefaultRetryBaseDelay is used. Delay doubles on each retry.
-	MaxDelay       time.Duration // If 0, DefaultMaxDelay is used.
+	Locator     RegionalResourceLocator
+	Creator     Creator[D]
+	Updater     Updater[D]
+	SDKToDomain SDKToDomain[In, D]
+	DomainToSDK DomainToSDK[D, Out]
 }
 
 // HandleUpsert is a generic helper for PUT endpoints that:
