@@ -10,11 +10,11 @@ import (
 // since <Resource>Status does not embed schema.Status. This is purely for reducing code duplication in regional resource domains.
 type StatusDomain struct {
 	State      *string
-	Conditions []ConditionDomain
+	Conditions []StatusConditionDomain
 }
 
-// ConditionDomain represents a single condition of a regional resource's status.
-type ConditionDomain struct {
+// StatusConditionDomain represents a single condition of a regional resource's status.
+type StatusConditionDomain struct {
 	Type             *string
 	State            string
 	LastTransitionAt time.Time
@@ -40,8 +40,8 @@ func mapConditionsInStatusDomainToAPI(domain StatusDomain) []schema.StatusCondit
 	return conditions
 }
 
-// mapConditionDomainToAPI maps a ConditionDomain to a schema.StatusCondition.
-func mapConditionDomainToAPI(domain ConditionDomain) schema.StatusCondition {
+// mapConditionDomainToAPI maps a StatusConditionDomain to a schema.StatusCondition.
+func mapConditionDomainToAPI(domain StatusConditionDomain) schema.StatusCondition {
 	return schema.StatusCondition{
 		Type:             domain.Type,
 		State:            schema.ResourceState(domain.State),

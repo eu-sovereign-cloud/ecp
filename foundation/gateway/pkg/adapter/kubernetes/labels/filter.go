@@ -5,16 +5,6 @@ import (
 	"strings"
 )
 
-const (
-	InternalLabelPrefix = "internal/"
-	KeyedLabelsPrefix   = "kl/"
-
-	InternalProviderLabel  = InternalLabelPrefix + "provider"
-	InternalRegionLabel    = InternalLabelPrefix + "region"
-	InternalTenantLabel    = InternalLabelPrefix + "tenant"
-	InternalWorkspaceLabel = InternalLabelPrefix + "workspace"
-)
-
 // FilterInternalLabels removes internal labels from the provided map.
 func FilterInternalLabels(labels map[string]string) map[string]string {
 	filteredLabels := maps.Clone(labels)

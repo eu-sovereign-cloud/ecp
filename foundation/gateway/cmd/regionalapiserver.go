@@ -8,21 +8,21 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/regional/workspace"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
+	sdkworkspace "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 
-	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/skus/v1"
-	sdkstorageapi "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
+	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/workspace/v1"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/regional/storage"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/httpserver"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/kubeclient"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/logger"
 	regionalhandler "github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/service/handler/regional"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
-	apistorage "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/storage"
 )
 
 var (
@@ -84,29 +84,68 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 	httpServer := httpserver.New(
 		httpserver.Options{
 			Addr: addr,
-			Handler: sdkstorageapi.HandlerWithOptions(
-				regionalhandler.Storage{
-					ListSKUs: &storage.ListSKUs{
+			// TODO: Merge storage, workspace and other regional handlers into a single one. For now, only workspace is enabled.
+			// Handler: sdkstorageapi.HandlerWithOptions(
+			// 	regionalhandler.Storage{
+			// 		ListSKUs: &storage.ListSKUs{
+			// 			Logger: logger,
+			// 			SKURepo: kubernetes.NewReaderAdapter(
+			// 				client.Client,
+			// 				skuv1.SKUGVR,
+			// 				logger,
+			// 				kubernetes.MapCRToStorageSKUDomain,
+			// 			),
+			// 		},
+			// 		GetSKU: &storage.GetSKU{
+			// 			Logger: logger,
+			// 			SKURepo: kubernetes.NewReaderAdapter(
+			// 				client.Client,
+			// 				skuv1.SKUGVR,
+			// 				logger,
+			// 				kubernetes.MapCRToStorageSKUDomain,
+			// 			),
+			// 		},
+			// 		Logger: logger,
+			// 	}, sdkstorageapi.StdHTTPServerOptions{
+			// 		BaseURL:          apistorage.BaseURL,
+			// 		BaseRouter:       nil,
+			// 		Middlewares:      nil,
+			// 		ErrorHandlerFunc: nil,
+			// 	},
+			// ),
+			Handler: sdkworkspace.HandlerWithOptions(
+				regionalhandler.Workspace{
+					List: &workspace.ListWorkspaces{
 						Logger: logger,
-						SKURepo: kubernetes.NewAdapter(
+						Repo: kubernetes.NewReaderAdapter(
 							client.Client,
-							skuv1.SKUGVR,
+							workspacev1.GroupVersionResource,
 							logger,
-							kubernetes.MapCRToStorageSKUDomain,
+							kubernetes.MapCRToWorkspaceDomain,
 						),
 					},
-					GetSKU: &storage.GetSKU{
+					Get: &workspace.GetWorkspace{
 						Logger: logger,
-						SKURepo: kubernetes.NewAdapter(
+						Repo: kubernetes.NewReaderAdapter(
 							client.Client,
-							skuv1.SKUGVR,
+							workspacev1.GroupVersionResource,
 							logger,
-							kubernetes.MapCRToStorageSKUDomain,
+							kubernetes.MapCRToWorkspaceDomain,
+						),
+					},
+					Create: &workspace.CreateWorkspace{
+						Logger: logger,
+						Repo: kubernetes.NewWriterAdapter(
+							client.Client,
+							workspacev1.GroupVersionResource,
+							logger,
+							kubernetes.MapWorkspaceDomainToCR,
+							kubernetes.MapCRToWorkspaceDomain,
 						),
 					},
 					Logger: logger,
-				}, sdkstorageapi.StdHTTPServerOptions{
-					BaseURL:          apistorage.BaseURL,
+				}, sdkworkspace.StdHTTPServerOptions{
+					BaseURL:          regional.WorkspaceBaseURL, // TODO: dummy value, should retrieve actual value from runtime config
 					BaseRouter:       nil,
 					Middlewares:      nil,
 					ErrorHandlerFunc: nil,

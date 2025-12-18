@@ -10,7 +10,7 @@ import (
 
 type GetRegion struct {
 	Logger *slog.Logger
-	Repo   port.ResourceQueryRepository[*model.RegionDomain]
+	Repo   port.ReaderRepo[*model.RegionDomain]
 }
 
 // Do retrieves a specific region, maps it to the domain, and then projects it to the SDK model.

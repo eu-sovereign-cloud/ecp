@@ -5,9 +5,12 @@ import (
 	"strconv"
 
 	regionsv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regions/v1"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 )
 
+// NOTE: Should base URLs and Provider names be passed at API deployment time?
+// Base URLs definitely should, provider names could be retrieved from cluster (not sure if it's worth the effort).
 const (
 	WorkspaceBaseURL      = "/providers/seca.workspace"
 	ProviderWorkspaceName = "seca.workspace/v1"
@@ -20,19 +23,15 @@ type WorkspaceDomain struct {
 	Status WorkspaceStatusDomain
 }
 
-type WorkspaceSpec = map[string]string
+type WorkspaceSpec = map[string]interface{}
 
 type WorkspaceStatusDomain struct {
 	StatusDomain
-	ResourceCount int
+	ResourceCount *int
 }
 
+// MapWorkspaceDomainToAPI maps a WorkspaceDomain to schema.Workspace API object.
 func MapWorkspaceDomainToAPI(domain WorkspaceDomain, verb string) schema.Workspace {
-	spec := map[string]interface{}{}
-	for k, v := range domain.Spec {
-		spec[k] = v
-	}
-
 	resVersion := 0
 	// resourceVersion is best-effort numeric
 	if rv, err := strconv.Atoi(domain.ResourceVersion); err == nil {
@@ -49,7 +48,7 @@ func MapWorkspaceDomainToAPI(domain WorkspaceDomain, verb string) schema.Workspa
 	_ = ref.FromReferenceObject(refObj) // ignore mapping error, not critical internally
 
 	sdk := schema.Workspace{
-		Spec: spec,
+		Spec: domain.Spec,
 		Metadata: &schema.RegionalResourceMetadata{
 			ApiVersion:      regionsv1.Version,
 			CreatedAt:       domain.CreatedAt,
@@ -67,7 +66,7 @@ func MapWorkspaceDomainToAPI(domain WorkspaceDomain, verb string) schema.Workspa
 		Annotations: domain.Annotations,
 		Extensions:  domain.Extensions,
 		Status: &schema.WorkspaceStatus{
-			ResourceCount: &domain.Status.ResourceCount,
+			ResourceCount: domain.Status.ResourceCount,
 			State:         mapStateInStatusDomainToAPI(domain.Status.StatusDomain),
 			Conditions:    mapConditionsInStatusDomainToAPI(domain.Status.StatusDomain),
 		},
@@ -78,6 +77,18 @@ func MapWorkspaceDomainToAPI(domain WorkspaceDomain, verb string) schema.Workspa
 	return sdk
 }
 
-func MapWorkspaceAPIToDomain(sdk schema.Workspace) WorkspaceDomain {
-	return WorkspaceDomain{}
+// MapWorkspaceAPIToDomain maps a schema.Workspace API object to WorkspaceDomain.
+func MapWorkspaceAPIToDomain(sdk schema.Workspace, params PutParams) WorkspaceDomain {
+	return WorkspaceDomain{
+		Metadata: Metadata{
+			Annotations: sdk.Annotations,
+			Labels:      sdk.Labels,
+			Extensions:  sdk.Extensions,
+			Tenant:      params.Tenant,
+			CommonMetadata: model.CommonMetadata{
+				Name: params.Name,
+			},
+		},
+		Spec: sdk.Spec,
+	}
 }

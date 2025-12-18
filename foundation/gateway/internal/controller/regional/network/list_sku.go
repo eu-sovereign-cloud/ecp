@@ -16,7 +16,7 @@ const (
 
 type ListSKUs struct {
 	Logger  *slog.Logger
-	SKURepo port.ResourceQueryRepository[*regional.NetworkSKUDomain]
+	SKURepo port.ReaderRepo[*regional.NetworkSKUDomain]
 }
 
 func (c ListSKUs) Do(ctx context.Context, tenantID string, params model.ListParams) (

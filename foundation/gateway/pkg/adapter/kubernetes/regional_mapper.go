@@ -2,7 +2,10 @@ package kubernetes
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -11,6 +14,9 @@ import (
 	storageskuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/skus/v1"
 	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/workspace/v1"
 
+	"github.com/eu-sovereign-cloud/ecp/foundation/api/generated/types"
+	"github.com/eu-sovereign-cloud/ecp/foundation/api/regional/common"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes/convert"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes/labels"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
@@ -87,7 +93,15 @@ func MapCRToWorkspaceDomain(obj client.Object) (*regional.WorkspaceDomain, error
 		return nil, fmt.Errorf("unsupported object type %T", obj)
 	}
 
+	spec := make(map[string]interface{}, len(cr.Spec))
+	for k, v := range cr.Spec {
+		spec[k] = v
+	}
+
 	internalLabels := labels.GetInternalLabels(cr.GetLabels())
+	keyedLabels := labels.GetKeyedLabels(cr.GetLabels())
+	// NOTE: Do we expect CSP labels on resources created by a user? If so, they'll need to be added as well.
+
 	meta := regional.Metadata{
 		CommonMetadata: model.CommonMetadata{
 			Name:            cr.GetName(),
@@ -97,7 +111,7 @@ func MapCRToWorkspaceDomain(obj client.Object) (*regional.WorkspaceDomain, error
 		},
 		Region:      internalLabels[labels.InternalRegionLabel],
 		Tenant:      internalLabels[labels.InternalTenantLabel],
-		Labels:      labels.FilterInternalLabels(cr.GetLabels()),
+		Labels:      labels.ComputeOriginalFromKeyedLabels(keyedLabels, cr.RegionalCommonData.Labels),
 		Annotations: cr.RegionalCommonData.Annotations,
 		Extensions:  cr.RegionalCommonData.Extensions,
 	}
@@ -105,14 +119,66 @@ func MapCRToWorkspaceDomain(obj client.Object) (*regional.WorkspaceDomain, error
 		meta.DeletedAt = &ts.Time
 	}
 
+	status := regional.WorkspaceStatusDomain{
+		StatusDomain: regional.StatusDomain{
+			State:      (*string)(cr.Status.State),
+			Conditions: mapCRToStatusConditionDomains(cr.Status.Conditions),
+		},
+		ResourceCount: cr.Status.ResourceCount,
+	}
+
 	return &regional.WorkspaceDomain{
 		Metadata: meta,
-		Spec:     cr.Spec,
+		Spec:     spec,
+		Status:   status,
 	}, nil
 }
 
-// MapDomainToWorkspaceCR maps a WorkspaceDomain to a Workspace CR.
-// TODO: implement this
-func MapDomainToWorkspaceCR(domain regional.WorkspaceDomain) (*workspacev1.Workspace, error) {
-	return &workspacev1.Workspace{}, nil
+// MapWorkspaceDomainToCR maps a WorkspaceDomain to a Workspace CR.
+func MapWorkspaceDomainToCR(domain *regional.WorkspaceDomain) (client.Object, error) {
+	if domain == nil {
+		return nil, fmt.Errorf("domain workspace is nil")
+	}
+
+	spec := make(map[string]string, len(domain.Spec))
+	for k, v := range domain.Spec {
+		spec[k] = convert.InterfaceToString(v)
+	}
+
+	crLabels := labels.ComputeKeyedFromOriginalLabels(domain.Metadata.Labels)
+	crLabels[labels.InternalTenantLabel] = domain.Metadata.Tenant
+
+	return &workspacev1.Workspace{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      domain.Metadata.Name,
+			Namespace: computeNamespace(domain),
+			Labels:    crLabels,
+		},
+		RegionalCommonData: common.RegionalCommonData{
+			Annotations: domain.Metadata.Annotations,
+			Extensions:  domain.Metadata.Extensions,
+			Labels:      slices.Collect(maps.Keys(domain.Metadata.Labels)),
+		},
+		Spec: spec,
+	}, nil
+}
+
+// mapCRToStatusConditionDomain maps a types.StatusCondition to a regional.StatusConditionDomain.
+func mapCRToStatusConditionDomain(crStatusCondition types.StatusCondition) regional.StatusConditionDomain {
+	return regional.StatusConditionDomain{
+		Type:             crStatusCondition.Type,
+		State:            string(crStatusCondition.State),
+		LastTransitionAt: crStatusCondition.LastTransitionAt.Time,
+		Reason:           crStatusCondition.Reason,
+		Message:          crStatusCondition.Message,
+	}
+}
+
+// mapCRToStatusConditionDomains maps a slice of types.StatusCondition to a slice of regional.StatusConditionDomain.
+func mapCRToStatusConditionDomains(crStatusConditions []types.StatusCondition) []regional.StatusConditionDomain {
+	conditions := make([]regional.StatusConditionDomain, len(crStatusConditions))
+	for i, cond := range crStatusConditions {
+		conditions[i] = mapCRToStatusConditionDomain(cond)
+	}
+	return conditions
 }
