@@ -5,9 +5,13 @@ import (
 	"strconv"
 
 	regionsv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regions/v1"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 )
 
+// NOTE: Should base URLs and Provider names be passed at API deployment time?
+// 	Base URLs definitely should, provider names could be retrieved from cluster (not sure if it's worth the effort).
 const (
 	WorkspaceBaseURL      = "/providers/seca.workspace"
 	ProviderWorkspaceName = "seca.workspace/v1"
@@ -20,19 +24,15 @@ type WorkspaceDomain struct {
 	Status WorkspaceStatusDomain
 }
 
-type WorkspaceSpec = map[string]string
+type WorkspaceSpec = map[string]interface{}
 
 type WorkspaceStatusDomain struct {
 	StatusDomain
 	ResourceCount *int
 }
 
+// MapWorkspaceDomainToAPI maps a WorkspaceDomain to schema.Workspace API object.
 func MapWorkspaceDomainToAPI(domain WorkspaceDomain, verb string) schema.Workspace {
-	spec := map[string]interface{}{}
-	for k, v := range domain.Spec {
-		spec[k] = v
-	}
-
 	resVersion := 0
 	// resourceVersion is best-effort numeric
 	if rv, err := strconv.Atoi(domain.ResourceVersion); err == nil {
@@ -54,7 +54,7 @@ func MapWorkspaceDomainToAPI(domain WorkspaceDomain, verb string) schema.Workspa
 		resourceState = &rs
 	}
 	sdk := schema.Workspace{
-		Spec: spec,
+		Spec: domain.Spec,
 		Metadata: &schema.RegionalResourceMetadata{
 			ApiVersion:      regionsv1.Version,
 			CreatedAt:       domain.CreatedAt,
@@ -83,6 +83,20 @@ func MapWorkspaceDomainToAPI(domain WorkspaceDomain, verb string) schema.Workspa
 	return sdk
 }
 
-func MapWorkspaceAPIToDomain(sdk schema.Workspace) WorkspaceDomain {
-	return WorkspaceDomain{}
+// MapWorkspaceAPIToDomain maps a schema.Workspace API object to WorkspaceDomain.
+func MapWorkspaceAPIToDomain(sdk schema.Workspace, params UpsertParams) WorkspaceDomain {
+	return WorkspaceDomain{
+		Metadata: Metadata{
+			CommonMetadata: model.CommonMetadata{
+				Name: params.Name,
+			},
+			Scope: scope.Scope{
+				Tenant: params.GetTenant(),
+			},
+			Annotations: sdk.Annotations,
+			Labels:      sdk.Labels,
+			Extensions:  sdk.Extensions,
+		},
+		Spec: sdk.Spec,
+	}
 }
