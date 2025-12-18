@@ -44,20 +44,20 @@ func NewAdapter[T port.IdentifiableResource](
 	}
 }
 
-// computeNamespace computes the Kubernetes namespace based on tenant and workspace.
-func computeNamespace(obj port.Scope) string {
+// ComputeNamespace computes the Kubernetes namespace based on tenant and workspace.
+func ComputeNamespace(obj port.Scope) string {
 	if obj.GetTenant() == "" && obj.GetWorkspace() == "" {
 		return ""
 	}
 
-	val := sha3.New224()
+	hasher := sha3.New224()
 	if obj.GetTenant() != "" && obj.GetWorkspace() == "" {
-		_, _ = fmt.Fprintf(val, "%s", obj.GetTenant())
+		_, _ = fmt.Fprintf(hasher, "%s", obj.GetTenant())
 	} else {
-		_, _ = fmt.Fprintf(val, "%s/%s", obj.GetTenant(), obj.GetWorkspace())
+		_, _ = fmt.Fprintf(hasher, "%s/%s", obj.GetTenant(), obj.GetWorkspace())
 	}
 
-	return fmt.Sprintf("%x", val.Sum(nil))
+	return fmt.Sprintf("%x", hasher.Sum(nil))
 }
 
 // List implements the port.ResourceRepository interface.
@@ -76,7 +76,7 @@ func (a *Adapter[T]) List(ctx context.Context, params model.ListParams, list *[]
 	}
 
 	var ri dynamic.ResourceInterface = a.client.Resource(a.gvr)
-	ri = a.client.Resource(a.gvr).Namespace(computeNamespace(&params))
+	ri = a.client.Resource(a.gvr).Namespace(ComputeNamespace(&params))
 
 	ulist, err := ri.List(ctx, lo)
 	modelErr := model.ErrUnavailable
@@ -130,7 +130,7 @@ func (a *Adapter[T]) List(ctx context.Context, params model.ListParams, list *[]
 func (a *Adapter[T]) Load(ctx context.Context, obj *T) error {
 	var ri dynamic.ResourceInterface = a.client.Resource(a.gvr)
 	v := *obj
-	ri = a.client.Resource(a.gvr).Namespace(computeNamespace(v))
+	ri = a.client.Resource(a.gvr).Namespace(ComputeNamespace(v))
 
 	uobj, err := ri.Get(ctx, v.GetName(), metav1.GetOptions{})
 	if err != nil {

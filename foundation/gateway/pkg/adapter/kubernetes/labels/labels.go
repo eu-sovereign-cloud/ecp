@@ -10,7 +10,7 @@ func ComputeKeyedLabelKey(key string) string {
 	return fmt.Sprintf("%s%x", KeyedLabelsPrefix, sha3.Sum224([]byte(key)))
 }
 
-func ComputeOriginalFromKeyedLabels(keyedLabels map[string]string, keys []string) map[string]string {
+func KeyedToOriginal(keyedLabels map[string]string, keys []string) map[string]string {
 	original := make(map[string]string, len(keys))
 	for _, key := range keys {
 		computedKey := ComputeKeyedLabelKey(key)
@@ -21,7 +21,7 @@ func ComputeOriginalFromKeyedLabels(keyedLabels map[string]string, keys []string
 	return original
 }
 
-func ComputeKeyedFromOriginalLabels(originalLabels map[string]string) map[string]string {
+func OriginalToKeyed(originalLabels map[string]string) map[string]string {
 	keyedLabels := make(map[string]string, len(originalLabels))
 	for k, v := range originalLabels {
 		computedKey := ComputeKeyedLabelKey(k)

@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"fmt"
 
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -44,9 +45,10 @@ func MapCRToStorageSKUDomain(obj client.Object) (*regional.StorageSKUDomain, err
 		return nil, fmt.Errorf("unsupported object type %T", obj)
 	}
 
-	internalLabels := labels.GetInternalLabels(cr.GetLabels())
+	crLabels := cr.GetLabels()
+	internalLabels := labels.GetInternalLabels(crLabels)
 	meta := regional.Metadata{
-		Labels: labels.GetCSPLabels(cr.GetLabels()),
+		Labels: labels.GetCSPLabels(crLabels),
 		CommonMetadata: model.CommonMetadata{
 			Name:            cr.GetName(),
 			ResourceVersion: cr.GetResourceVersion(),
@@ -55,7 +57,9 @@ func MapCRToStorageSKUDomain(obj client.Object) (*regional.StorageSKUDomain, err
 			UpdatedAt:       cr.GetCreationTimestamp().Time,
 		},
 		Region: internalLabels[labels.InternalRegionLabel],
-		Tenant: internalLabels[labels.InternalTenantLabel],
+		Scope: scope.Scope{
+			Tenant: internalLabels[labels.InternalTenantLabel],
+		},
 	}
 	if ts := cr.GetDeletionTimestamp(); ts != nil {
 		meta.DeletedAt = &ts.Time

@@ -1,50 +1,43 @@
 package labels
 
-import "strings"
+import (
+	"maps"
+	"strings"
+)
 
 // FilterInternalLabels removes internal labels from the provided map.
 func FilterInternalLabels(labels map[string]string) map[string]string {
-	filteredLabels := make(map[string]string)
-	for k, v := range labels {
-		if strings.HasPrefix(k, InternalLabelPrefix) {
-			continue
-		}
-		filteredLabels[k] = v
-	}
+	filteredLabels := maps.Clone(labels)
+	maps.DeleteFunc(filteredLabels, func(k string, v string) bool {
+		return strings.HasPrefix(k, InternalLabelPrefix)
+	})
 	return filteredLabels
 }
 
 // FilterKeyedLabels removes keyed labels from the provided map.
 func FilterKeyedLabels(labels map[string]string) map[string]string {
-	filteredLabels := make(map[string]string)
-	for k, v := range labels {
-		if strings.HasPrefix(k, KeyedLabelsPrefix) {
-			continue
-		}
-		filteredLabels[k] = v
-	}
+	filteredLabels := maps.Clone(labels)
+	maps.DeleteFunc(filteredLabels, func(k string, v string) bool {
+		return strings.HasPrefix(k, KeyedLabelsPrefix)
+	})
 	return filteredLabels
 }
 
 // GetInternalLabels extracts internal labels from the provided map.
 func GetInternalLabels(labels map[string]string) map[string]string {
-	internalLabels := make(map[string]string)
-	for k, v := range labels {
-		if strings.HasPrefix(k, InternalLabelPrefix) {
-			internalLabels[k] = v
-		}
-	}
+	internalLabels := maps.Clone(labels)
+	maps.DeleteFunc(internalLabels, func(k string, v string) bool {
+		return !strings.HasPrefix(k, InternalLabelPrefix)
+	})
 	return internalLabels
 }
 
 // GetKeyedLabels extracts keyed labels from the provided map. Also trims the prefix.
 func GetKeyedLabels(labels map[string]string) map[string]string {
-	keyedLabels := make(map[string]string)
-	for k, v := range labels {
-		if strings.HasPrefix(k, KeyedLabelsPrefix) {
-			keyedLabels[strings.TrimPrefix(k, KeyedLabelsPrefix)] = v
-		}
-	}
+	keyedLabels := maps.Clone(labels)
+	maps.DeleteFunc(keyedLabels, func(k string, v string) bool {
+		return !strings.HasPrefix(k, KeyedLabelsPrefix)
+	})
 	return keyedLabels
 }
 

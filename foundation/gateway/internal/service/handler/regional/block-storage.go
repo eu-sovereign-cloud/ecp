@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
 	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
@@ -67,7 +68,9 @@ func (h Storage) GetSku(w http.ResponseWriter, r *http.Request, tenant sdkschema
 		CommonMetadata: model.CommonMetadata{
 			Name: name,
 		},
-		Tenant: tenant,
+		Scope: scope.Scope{
+			Tenant: tenant,
+		},
 	}, h.GetSKU, apistorage.SkuToApi)
 }
 

@@ -1,7 +1,7 @@
 package labels
 
 const (
-	InternalLabelPrefix = "internal/"
+	InternalLabelPrefix = "secapi.cloud/"
 	KeyedLabelsPrefix   = "kl/"
 
 	InternalProviderLabel  = InternalLabelPrefix + "provider"
