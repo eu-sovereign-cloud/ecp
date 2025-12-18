@@ -33,7 +33,7 @@ func MapCRToStorageSKUDomain(obj client.Object) (*regional.StorageSKUDomain, err
 		cr = *t
 	case *unstructured.Unstructured:
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(t.Object, &cr); err != nil {
-			return nil, fmt.Errorf("failed to convert unstructured to StorageSKU: %w", err)
+			return nil, fmt.Errorf("failed to toDomain unstructured to StorageSKU: %w", err)
 		}
 	default:
 		return nil, fmt.Errorf("unsupported object type %T", obj)
