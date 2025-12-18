@@ -2,6 +2,8 @@ package storage
 
 import (
 	"context"
+	"crypto/sha3"
+	"fmt"
 	"log/slog"
 	"strings"
 	"testing"
@@ -33,6 +35,7 @@ func TestStorageController_GetSKU(t *testing.T) {
 
 	// Create valid Kubernetes namespace name (lowercase, alphanumeric and hyphens only)
 	tenant := "tenant-get-sku-" + strings.ToLower(strings.ReplaceAll(t.Name(), "_", "-"))
+	hashedTenant := fmt.Sprintf("%x", sha3.Sum224([]byte(tenant)))
 	const skuID = "only"
 	namespaceGVR := k8sschema.GroupVersionResource{Version: "v1", Resource: "namespaces"}
 
@@ -42,7 +45,7 @@ func TestStorageController_GetSKU(t *testing.T) {
 			"apiVersion": "v1",
 			"kind":       "Namespace",
 			"metadata": map[string]interface{}{
-				"name": tenant,
+				"name": hashedTenant,
 			},
 		},
 	}
@@ -56,7 +59,7 @@ func TestStorageController_GetSKU(t *testing.T) {
 		_ = dynClient.Resource(namespaceGVR).Delete(context.Background(), tenant, metav1.DeleteOptions{})
 	})
 
-	u := toUnstructured(t, scheme, newStorageSKUCR(skuID, tenant, map[string]string{TenantLabelKey: tenant, "tier": "prod"}, 7500, 10, string(generatedv1.StorageSkuTypeRemoteDurable), false))
+	u := toUnstructured(t, scheme, newStorageSKUCR(skuID, hashedTenant, map[string]string{TenantLabelKey: tenant, "tier": "prod"}, 7500, 10, string(generatedv1.StorageSkuTypeRemoteDurable), false))
 
 	_, err = dynClient.Resource(skuv1.SKUGVR).Namespace(u.GetNamespace()).Create(ctx, u, metav1.CreateOptions{})
 	require.NoError(t, err)

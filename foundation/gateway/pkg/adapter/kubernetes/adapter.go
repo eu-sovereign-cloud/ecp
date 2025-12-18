@@ -2,7 +2,7 @@ package kubernetes
 
 import (
 	"context"
-	"crypto/sha256"
+	"crypto/sha3"
 	"fmt"
 	"log/slog"
 
@@ -46,19 +46,18 @@ func NewAdapter[T port.IdentifiableResource](
 
 // computeNamespace computes the Kubernetes namespace based on tenant and workspace.
 func computeNamespace(obj port.Scope) string {
-	switch {
-	case obj.GetTenant() == "" && obj.GetWorkspace() == "":
-		slog.Warn("tenant and workspace not set; defaulting to 'seca' namespace")
+	if obj.GetTenant() == "" && obj.GetWorkspace() == "" {
 		return ""
-	case obj.GetTenant() != "" && obj.GetWorkspace() == "":
-		slog.Warn("tenant set, but workspace not set; defaulting to tenant namespace", "tenant", obj.GetTenant())
-		return obj.GetTenant()
-	default:
-		val := sha256.New()
-		val.Write([]byte(fmt.Sprintf("%s/%s", obj.GetTenant(), obj.GetWorkspace())))
-		slog.Warn("tenant and workspace both set; using hashed namespace", "tenant", obj.GetTenant(), "workspace", obj.GetWorkspace(), "namespace_hash", fmt.Sprintf("%x", val.Sum(nil)))
-		return fmt.Sprintf("%x", val.Sum(nil))
 	}
+
+	val := sha3.New224()
+	if obj.GetTenant() != "" && obj.GetWorkspace() == "" {
+		_, _ = fmt.Fprintf(val, "%s", obj.GetTenant())
+	} else {
+		_, _ = fmt.Fprintf(val, "%s/%s", obj.GetTenant(), obj.GetWorkspace())
+	}
+
+	return fmt.Sprintf("%x", val.Sum(nil))
 }
 
 // List implements the port.ResourceRepository interface.

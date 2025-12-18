@@ -14,6 +14,8 @@ type IdentifiableResource interface {
 }
 
 // Scope defines the interface for scoping the search of resources within tenant and workspace contexts.
+// A resource can belong to a tenant, a workspace within a tenant, or be global (no tenant/workspace).
+// There can be no workspaces without a tenant.
 type Scope interface {
 	GetTenant() string
 	GetWorkspace() string
@@ -22,26 +24,22 @@ type Scope interface {
 }
 
 type Repo[T IdentifiableResource] interface {
-	Reader[T]
-	Writer[T]
-	Watcher[T]
+	ReaderRepo[T]
+	WriterRepo[T]
+	WatcherRepo[T]
 }
 
-type Writer[T IdentifiableResource] interface {
+type WriterRepo[T IdentifiableResource] interface {
 	Delete(ctx context.Context, m T) error
 	Create(ctx context.Context, m T) error
 	Update(ctx context.Context, m T) error
 }
 
-type Watcher[T any] interface {
+type WatcherRepo[T any] interface {
 	Watch(ctx context.Context, m chan<- T) error
 }
 
-type Reader[T IdentifiableResource] interface {
+type ReaderRepo[T IdentifiableResource] interface {
 	List(ctx context.Context, params model.ListParams, list *[]T) (*string, error)
 	Load(ctx context.Context, m *T) error
-}
-
-type ResourceQueryRepository[T IdentifiableResource] interface {
-	Reader[T]
 }

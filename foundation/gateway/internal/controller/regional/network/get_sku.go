@@ -10,7 +10,7 @@ import (
 
 type GetSKU struct {
 	Logger  *slog.Logger
-	SKURepo port.ResourceQueryRepository[*regional.NetworkSKUDomain]
+	SKURepo port.ReaderRepo[*regional.NetworkSKUDomain]
 }
 
 func (c GetSKU) Do(
