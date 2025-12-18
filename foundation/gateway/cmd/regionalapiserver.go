@@ -81,28 +81,26 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		log.Fatal(err, " - failed to create kubeclient")
 	}
 
+	storageSKUAdapter := kubernetes.NewAdapter(
+		client.Client,
+		skuv1.SKUGVR,
+		logger,
+		kubernetes.MapCRToStorageSKUDomain,
+		kubernetes.StorageSKUDomainToK8sConverter,
+	)
+
 	httpServer := httpserver.New(
 		httpserver.Options{
 			Addr: addr,
 			Handler: sdkstorageapi.HandlerWithOptions(
 				regionalhandler.Storage{
 					ListSKUs: &storage.ListSKUs{
-						Logger: logger,
-						SKURepo: kubernetes.NewAdapter(
-							client.Client,
-							skuv1.SKUGVR,
-							logger,
-							kubernetes.MapCRToStorageSKUDomain,
-						),
+						Logger:  logger,
+						SKURepo: storageSKUAdapter,
 					},
 					GetSKU: &storage.GetSKU{
-						Logger: logger,
-						SKURepo: kubernetes.NewAdapter(
-							client.Client,
-							skuv1.SKUGVR,
-							logger,
-							kubernetes.MapCRToStorageSKUDomain,
-						),
+						Logger:  logger,
+						SKURepo: storageSKUAdapter,
 					},
 					Logger: logger,
 				}, sdkstorageapi.StdHTTPServerOptions{

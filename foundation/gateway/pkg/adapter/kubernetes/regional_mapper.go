@@ -3,6 +3,8 @@ package kubernetes
 import (
 	"fmt"
 
+	genv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/generated/types"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -59,4 +61,37 @@ func MapCRToStorageSKUDomain(obj client.Object) (*regional.StorageSKUDomain, err
 			Type:          string(cr.Spec.Type),
 		},
 	}, nil
+}
+
+// MapStorageSKUDomainToCR converts a StorageSKUDomain into a concrete *storageskuv1.SKU.
+func MapStorageSKUDomainToCR(domain *regional.StorageSKUDomain) (client.Object, error) {
+	if domain == nil {
+		return nil, fmt.Errorf("domain cannot be nil")
+	}
+
+	cr := &storageskuv1.SKU{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      domain.Metadata.Name,
+			Namespace: domain.Metadata.Namespace,
+		},
+		Spec: genv1.StorageSkuSpec{
+			Iops:          int(domain.Spec.Iops),
+			MinVolumeSize: int(domain.Spec.MinVolumeSize),
+			Type:          genv1.StorageSkuSpecType(domain.Spec.Type),
+		},
+	}
+
+	if domain.Metadata.Labels != nil {
+		cr.Labels = domain.Metadata.Labels
+	}
+	if domain.Metadata.ResourceVersion != "" {
+		cr.ResourceVersion = domain.Metadata.ResourceVersion
+	}
+
+	return cr, nil
+}
+
+// StorageSKUDomainToK8sConverter is a DomainToK8s converter for StorageSKUDomain.
+func StorageSKUDomainToK8sConverter(domain *regional.StorageSKUDomain) (client.Object, error) {
+	return MapStorageSKUDomainToCR(domain)
 }

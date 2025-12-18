@@ -3,10 +3,12 @@ package kubernetes
 import (
 	"context"
 	"fmt"
+	"log"
 	"log/slog"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -17,15 +19,19 @@ import (
 	kerrs "k8s.io/apimachinery/pkg/api/errors"
 )
 
-// K8sConverter defines a function that converts a Kubernetes client.Object to a specific type T.
-type K8sConverter[T any] func(object client.Object) (T, error)
+// K8sToDomain defines a function that converts a Kubernetes client.Object to a specific domain type T.
+type K8sToDomain[T any] func(object client.Object) (T, error)
+
+// DomainToK8s defines a function that converts a domain type T into a Kubernetes client.Object.
+type DomainToK8s[T any] func(obj T) (client.Object, error)
 
 // Adapter implements the port.ResourceQueryRepository interface for a specific resource type.
 type Adapter[T port.NamespacedResource] struct {
-	client  dynamic.Interface
-	gvr     schema.GroupVersionResource
-	logger  *slog.Logger
-	convert K8sConverter[T]
+	client      dynamic.Interface
+	gvr         schema.GroupVersionResource
+	logger      *slog.Logger
+	k8sToDomain K8sToDomain[T]
+	domainToK8s DomainToK8s[T]
 }
 
 // NewAdapter creates a new Kubernetes adapter for the port.ResourceQueryRepository port.
@@ -33,13 +39,19 @@ func NewAdapter[T port.NamespacedResource](
 	client dynamic.Interface,
 	gvr schema.GroupVersionResource,
 	logger *slog.Logger,
-	convert K8sConverter[T],
+	k8sToDomain K8sToDomain[T],
+	domainToK8s DomainToK8s[T],
 ) *Adapter[T] {
+	if k8sToDomain == nil || domainToK8s == nil {
+		log.Fatalf("failed to create adapter: resource converter is nil %s", gvr.Resource)
+	}
+
 	return &Adapter[T]{
-		client:  client,
-		gvr:     gvr,
-		logger:  logger,
-		convert: convert,
+		client:      client,
+		gvr:         gvr,
+		logger:      logger,
+		k8sToDomain: k8sToDomain,
+		domainToK8s: domainToK8s,
 	}
 }
 
@@ -97,7 +109,7 @@ func (a *Adapter[T]) List(ctx context.Context, params model.ListParams, list *[]
 
 	*list = make([]T, 0, len(filteredItems))
 	for _, item := range filteredItems {
-		converted, err := a.convert(&item)
+		converted, err := a.k8sToDomain(&item)
 		if err != nil {
 			a.logger.ErrorContext(ctx, "conversion failed", "resource", a.gvr.Resource, "error", err)
 			return nil, fmt.Errorf("%w: failed to convert %s: %w", model.ErrValidation, a.gvr.Resource, err)
@@ -127,11 +139,114 @@ func (a *Adapter[T]) Load(ctx context.Context, obj *T) error {
 		}
 		return fmt.Errorf("%w: failed to retrieve %s '%s': %w", modelErr, a.gvr.Resource, v.GetName(), err)
 	}
-	converted, err := a.convert(uobj)
+	converted, err := a.k8sToDomain(uobj)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "conversion failed", "resource", a.gvr.Resource, "error", err)
 		return fmt.Errorf("%w: failed to convert %s: %w", model.ErrValidation, a.gvr.Resource, err)
 	}
 	*obj = converted
 	return nil
+}
+
+// Create implements the port.Writer interface.
+func (a *Adapter[T]) Create(ctx context.Context, obj T) error {
+	uobj, err := a.convertToUnstructured(ctx, obj)
+	if err != nil {
+		return err
+	}
+
+	var ri dynamic.ResourceInterface = a.client.Resource(a.gvr)
+	if obj.GetNamespace() != "" {
+		ri = a.client.Resource(a.gvr).Namespace(obj.GetNamespace())
+	}
+
+	_, err = ri.Create(ctx, uobj, metav1.CreateOptions{})
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to create resource", "name", obj.GetName(), "resource", a.gvr.Resource, "error", err)
+		modelErr := model.ErrUnavailable
+		if kerrs.IsAlreadyExists(err) {
+			modelErr = model.ErrConflict
+		} else if kerrs.IsForbidden(err) {
+			modelErr = model.ErrForbidden
+		} else if kerrs.IsInvalid(err) {
+			modelErr = model.ErrValidation
+		}
+		return fmt.Errorf("%w: failed to create %s '%s': %w", modelErr, a.gvr.Resource, obj.GetName(), err)
+	}
+
+	return nil
+}
+
+// Update implements the port.Writer interface.
+func (a *Adapter[T]) Update(ctx context.Context, obj T) error {
+	uobj, err := a.convertToUnstructured(ctx, obj)
+	if err != nil {
+		return err
+	}
+
+	var ri dynamic.ResourceInterface = a.client.Resource(a.gvr)
+	if obj.GetNamespace() != "" {
+		ri = a.client.Resource(a.gvr).Namespace(obj.GetNamespace())
+	}
+
+	_, err = ri.Update(ctx, uobj, metav1.UpdateOptions{})
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to update resource", "name", obj.GetName(), "resource", a.gvr.Resource, "error", err)
+		modelErr := model.ErrUnavailable
+		if kerrs.IsNotFound(err) {
+			modelErr = model.ErrNotFound
+		} else if kerrs.IsForbidden(err) {
+			modelErr = model.ErrForbidden
+		} else if kerrs.IsConflict(err) {
+			modelErr = model.ErrConflict
+		} else if kerrs.IsInvalid(err) {
+			modelErr = model.ErrValidation
+		}
+		return fmt.Errorf("%w: failed to update %s '%s': %w", modelErr, a.gvr.Resource, obj.GetName(), err)
+	}
+
+	return nil
+}
+
+// Delete implements the port.Writer interface.
+func (a *Adapter[T]) Delete(ctx context.Context, obj T) error {
+	var ri dynamic.ResourceInterface = a.client.Resource(a.gvr)
+	if obj.GetNamespace() != "" {
+		ri = a.client.Resource(a.gvr).Namespace(obj.GetNamespace())
+	}
+
+	err := ri.Delete(ctx, obj.GetName(), metav1.DeleteOptions{})
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to delete resource", "name", obj.GetName(), "resource", a.gvr.Resource, "error", err)
+		modelErr := model.ErrUnavailable
+		if kerrs.IsNotFound(err) {
+			modelErr = model.ErrNotFound
+		} else if kerrs.IsForbidden(err) {
+			modelErr = model.ErrForbidden
+		}
+		return fmt.Errorf("%w: failed to delete %s '%s': %w", modelErr, a.gvr.Resource, obj.GetName(), err)
+	}
+
+	return nil
+}
+
+// convertToUnstructured uses the provided domainToK8s converter to transform the domain object into
+// a Kubernetes client.Object, then into an *unstructured.Unstructured suitable for the dynamic client.
+func (a *Adapter[T]) convertToUnstructured(ctx context.Context, obj T) (*unstructured.Unstructured, error) {
+
+	co, err := a.domainToK8s(obj)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to convert domain to k8s object", "resource", a.gvr.Resource, "error", err)
+		return nil, fmt.Errorf("%w: failed to map %s: %w", model.ErrValidation, a.gvr.Resource, err)
+	}
+	if u, ok := co.(*unstructured.Unstructured); ok {
+		return u, nil
+	}
+
+	content, err := runtime.DefaultUnstructuredConverter.ToUnstructured(co)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to convert k8s object to unstructured", "resource", a.gvr.Resource, "error", err)
+		return nil, fmt.Errorf("%w: failed to convert %s to unstructured: %w", model.ErrValidation, a.gvr.Resource, err)
+	}
+	return &unstructured.Unstructured{Object: content}, nil
 }

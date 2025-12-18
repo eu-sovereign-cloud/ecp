@@ -69,28 +69,26 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
 		log.Fatal(err, " - failed to create kubeclient")
 	}
 
+	regionAdapter := kubernetes.NewAdapter(
+		client.Client,
+		regionsv1.GroupVersionResource,
+		logger,
+		kubernetes.MapCRRegionToDomain,
+		kubernetes.RegionDomainToK8sConverter,
+	)
+
 	httpServer := httpserver.New(httpserver.Options{
 		Addr: addr,
 		Handler: region.HandlerWithOptions(
 			&globalhandler.Region{
 				Logger: logger,
 				ListRegionController: &regionController.ListRegion{
-					Repo: kubernetes.NewAdapter(
-						client.Client,
-						regionsv1.GroupVersionResource,
-						logger,
-						kubernetes.MapCRRegionToDomain,
-					),
-					Logger: logger,
+					Repo:    regionAdapter,
+					Logger:  logger,
 				},
 				GetRegionController: &regionController.GetRegion{
-					Repo: kubernetes.NewAdapter(
-						client.Client,
-						regionsv1.GroupVersionResource,
-						logger,
-						kubernetes.MapCRRegionToDomain,
-					),
-					Logger: logger,
+					Repo:    regionAdapter,
+					Logger:  logger,
 				},
 			},
 			region.StdHTTPServerOptions{
