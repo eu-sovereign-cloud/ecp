@@ -67,6 +67,7 @@ func TestStorageController_GetSKU(t *testing.T) {
 			skuv1.SKUGVR,
 			slog.Default(),
 			kubernetes.MapCRToStorageSKUDomain,
+			kubernetes.StorageSKUDomainToK8sConverter,
 		),
 	}
 	t.Run("get_existing", func(t *testing.T) {

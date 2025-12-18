@@ -115,6 +115,7 @@ func TestStorageController_ListSKUs(t *testing.T) {
 			skuv1.SKUGVR,
 			slog.Default(),
 			kubernetes.MapCRToStorageSKUDomain,
+			kubernetes.StorageSKUDomainToK8sConverter,
 		),
 	}
 

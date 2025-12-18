@@ -41,6 +41,7 @@ func TestRegionController_GetRegion(t *testing.T) {
 				regionsv1.GroupVersionResource,
 				slog.Default(),
 				kubernetes.MapCRRegionToDomain,
+				kubernetes.RegionDomainToK8sConverter,
 			),
 		}
 
@@ -73,6 +74,7 @@ func TestRegionController_GetRegion(t *testing.T) {
 				regionsv1.GroupVersionResource,
 				slog.Default(),
 				kubernetes.MapCRRegionToDomain,
+				kubernetes.RegionDomainToK8sConverter,
 			),
 		}
 
@@ -97,6 +99,7 @@ func TestRegionController_GetRegion(t *testing.T) {
 				regionsv1.GroupVersionResource,
 				slog.Default(),
 				kubernetes.MapCRRegionToDomain,
+				kubernetes.RegionDomainToK8sConverter,
 			),
 		}
 
@@ -130,6 +133,7 @@ func TestRegionController_GetRegion(t *testing.T) {
 				regionsv1.GroupVersionResource,
 				slog.Default(),
 				kubernetes.MapCRRegionToDomain,
+				kubernetes.RegionDomainToK8sConverter,
 			),
 		}
 		region, err := gc.Do(context.Background(), &model.Metadata{
@@ -161,6 +165,7 @@ func TestRegionController_GetRegion_EdgeCases(t *testing.T) {
 				regionsv1.GroupVersionResource,
 				slog.Default(),
 				kubernetes.MapCRRegionToDomain,
+				kubernetes.RegionDomainToK8sConverter,
 			),
 		}
 
@@ -188,6 +193,7 @@ func TestRegionController_GetRegion_EdgeCases(t *testing.T) {
 				regionsv1.GroupVersionResource,
 				slog.Default(),
 				kubernetes.MapCRRegionToDomain,
+				kubernetes.RegionDomainToK8sConverter,
 			),
 		}
 

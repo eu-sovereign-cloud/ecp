@@ -52,6 +52,7 @@ func TestRegionController_ListRegions(t *testing.T) {
 			regionsv1.GroupVersionResource,
 			slog.Default(),
 			kubernetes.MapCRRegionToDomain,
+			kubernetes.RegionDomainToK8sConverter,
 		),
 	}
 
@@ -155,6 +156,7 @@ func TestRegionController_ListRegions_Pagination(t *testing.T) {
 			regionsv1.GroupVersionResource,
 			slog.Default(),
 			kubernetes.MapCRRegionToDomain,
+			kubernetes.RegionDomainToK8sConverter,
 		),
 	}
 	// 1. First page: limit=2, no skip token
