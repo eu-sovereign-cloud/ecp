@@ -107,8 +107,8 @@ func MapRegionDomainToCR(domain *model.RegionDomain) (client.Object, error) {
 
 	cr := &regionsv1.Region{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      domain.Metadata.Name,
-			Namespace: domain.Metadata.Namespace,
+			Name:      domain.Name,
+			Namespace: domain.Namespace,
 		},
 		Spec: genv1.RegionSpec{
 			Providers:      providers,
@@ -116,11 +116,11 @@ func MapRegionDomainToCR(domain *model.RegionDomain) (client.Object, error) {
 		},
 	}
 
-	if domain.Metadata.Labels != nil {
-		cr.Labels = domain.Metadata.Labels
+	if domain.Labels != nil {
+		cr.Labels = domain.Labels
 	}
-	if domain.Metadata.ResourceVersion != "" {
-		cr.ResourceVersion = domain.Metadata.ResourceVersion
+	if domain.ResourceVersion != "" {
+		cr.ResourceVersion = domain.ResourceVersion
 	}
 
 	return cr, nil

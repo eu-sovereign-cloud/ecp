@@ -71,8 +71,8 @@ func MapStorageSKUDomainToCR(domain *regional.StorageSKUDomain) (client.Object, 
 
 	cr := &storageskuv1.SKU{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      domain.Metadata.Name,
-			Namespace: domain.Metadata.Namespace,
+			Name:      domain.Name,
+			Namespace: domain.Namespace,
 		},
 		Spec: genv1.StorageSkuSpec{
 			Iops:          int(domain.Spec.Iops),
@@ -81,11 +81,11 @@ func MapStorageSKUDomainToCR(domain *regional.StorageSKUDomain) (client.Object, 
 		},
 	}
 
-	if domain.Metadata.Labels != nil {
-		cr.Labels = domain.Metadata.Labels
+	if domain.Labels != nil {
+		cr.Labels = domain.Labels
 	}
-	if domain.Metadata.ResourceVersion != "" {
-		cr.ResourceVersion = domain.Metadata.ResourceVersion
+	if domain.ResourceVersion != "" {
+		cr.ResourceVersion = domain.ResourceVersion
 	}
 
 	return cr, nil

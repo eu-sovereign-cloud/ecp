@@ -164,11 +164,12 @@ func (a *Adapter[T]) Create(ctx context.Context, obj T) error {
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to create resource", "name", obj.GetName(), "resource", a.gvr.Resource, "error", err)
 		modelErr := model.ErrUnavailable
-		if kerrs.IsAlreadyExists(err) {
+		switch {
+		case kerrs.IsAlreadyExists(err):
 			modelErr = model.ErrConflict
-		} else if kerrs.IsForbidden(err) {
+		case kerrs.IsForbidden(err):
 			modelErr = model.ErrForbidden
-		} else if kerrs.IsInvalid(err) {
+		case kerrs.IsInvalid(err):
 			modelErr = model.ErrValidation
 		}
 		return fmt.Errorf("%w: failed to create %s '%s': %w", modelErr, a.gvr.Resource, obj.GetName(), err)
@@ -193,13 +194,14 @@ func (a *Adapter[T]) Update(ctx context.Context, obj T) error {
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to update resource", "name", obj.GetName(), "resource", a.gvr.Resource, "error", err)
 		modelErr := model.ErrUnavailable
-		if kerrs.IsNotFound(err) {
+		switch {
+		case kerrs.IsNotFound(err):
 			modelErr = model.ErrNotFound
-		} else if kerrs.IsForbidden(err) {
+		case kerrs.IsForbidden(err):
 			modelErr = model.ErrForbidden
-		} else if kerrs.IsConflict(err) {
+		case kerrs.IsConflict(err):
 			modelErr = model.ErrConflict
-		} else if kerrs.IsInvalid(err) {
+		case kerrs.IsInvalid(err):
 			modelErr = model.ErrValidation
 		}
 		return fmt.Errorf("%w: failed to update %s '%s': %w", modelErr, a.gvr.Resource, obj.GetName(), err)

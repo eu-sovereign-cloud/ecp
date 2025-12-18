@@ -83,12 +83,12 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
 			&globalhandler.Region{
 				Logger: logger,
 				ListRegionController: &regionController.ListRegion{
-					Repo:    regionAdapter,
-					Logger:  logger,
+					Repo:   regionAdapter,
+					Logger: logger,
 				},
 				GetRegionController: &regionController.GetRegion{
-					Repo:    regionAdapter,
-					Logger:  logger,
+					Repo:   regionAdapter,
+					Logger: logger,
 				},
 			},
 			region.StdHTTPServerOptions{
