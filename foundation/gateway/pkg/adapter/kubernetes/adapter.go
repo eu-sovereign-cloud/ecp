@@ -57,8 +57,7 @@ func ComputeNamespace(obj port.Scope) string {
 	} else {
 		_, _ = fmt.Fprintf(hasher, "%s/%s", obj.GetTenant(), obj.GetWorkspace())
 	}
-	hashed := hasher.Sum(nil)
-	return fmt.Sprintf("%x", hashed)
+	return fmt.Sprintf("%x", hasher.Sum(nil))
 }
 
 // List implements the port.ResourceRepository interface.
