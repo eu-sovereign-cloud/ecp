@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"fmt"
 
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -10,13 +11,18 @@ import (
 	netowrkskuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/network/skus/v1"
 	storageskuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/skus/v1"
 
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes/labels"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 )
 
 func MapCRToNetworkSKUDomain(cr netowrkskuv1.SKU) *regional.NetworkSKUDomain {
 	return &regional.NetworkSKUDomain{
-		Metadata: model.Metadata{Name: cr.Name, Namespace: cr.Namespace},
+		Metadata: regional.Metadata{
+			CommonMetadata: model.CommonMetadata{
+				Name: cr.GetName(),
+			},
+		},
 		Spec: regional.NetworkSKUSpec{
 			Bandwidth: cr.Spec.Bandwidth,
 			Packets:   cr.Spec.Packets,
@@ -39,13 +45,21 @@ func MapCRToStorageSKUDomain(obj client.Object) (*regional.StorageSKUDomain, err
 		return nil, fmt.Errorf("unsupported object type %T", obj)
 	}
 
-	meta := model.Metadata{
-		Name:            cr.GetName(),
-		Namespace:       cr.GetNamespace(),
-		Labels:          cr.GetLabels(),
-		ResourceVersion: cr.GetResourceVersion(),
-		CreatedAt:       cr.GetCreationTimestamp().Time,
-		UpdatedAt:       cr.GetCreationTimestamp().Time,
+	crLabels := cr.GetLabels()
+	internalLabels := labels.GetInternalLabels(crLabels)
+	meta := regional.Metadata{
+		Labels: labels.GetCSPLabels(crLabels),
+		CommonMetadata: model.CommonMetadata{
+			Name:            cr.GetName(),
+			ResourceVersion: cr.GetResourceVersion(),
+			Provider:        internalLabels[labels.InternalProviderLabel],
+			CreatedAt:       cr.GetCreationTimestamp().Time,
+			UpdatedAt:       cr.GetCreationTimestamp().Time,
+		},
+		Region: internalLabels[labels.InternalRegionLabel],
+		Scope: scope.Scope{
+			Tenant: internalLabels[labels.InternalTenantLabel],
+		},
 	}
 	if ts := cr.GetDeletionTimestamp(); ts != nil {
 		meta.DeletedAt = &ts.Time

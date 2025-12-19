@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -120,7 +121,9 @@ func TestStorageController_ListSKUs(t *testing.T) {
 
 	// Create valid Kubernetes namespace names (lowercase, alphanumeric and hyphens only)
 	tenantA := "tenant-list-a-" + strings.ToLower(strings.ReplaceAll(t.Name(), "_", "-"))
+	namespaceA := kubernetes.ComputeNamespace(&scope.Scope{Tenant: tenantA})
 	tenantB := "tenant-list-b-" + strings.ToLower(strings.ReplaceAll(t.Name(), "_", "-"))
+	namespaceB := kubernetes.ComputeNamespace(&scope.Scope{Tenant: tenantB})
 
 	const (
 		skuFast  = "fast"
@@ -135,7 +138,7 @@ func TestStorageController_ListSKUs(t *testing.T) {
 			"apiVersion": "v1",
 			"kind":       "Namespace",
 			"metadata": map[string]interface{}{
-				"name": tenantA,
+				"name": namespaceA,
 			},
 		},
 	}
@@ -144,7 +147,7 @@ func TestStorageController_ListSKUs(t *testing.T) {
 			"apiVersion": "v1",
 			"kind":       "Namespace",
 			"metadata": map[string]interface{}{
-				"name": tenantB,
+				"name": namespaceB,
 			},
 		},
 	}
@@ -175,10 +178,10 @@ func TestStorageController_ListSKUs(t *testing.T) {
 
 	// Create CRs in the API server (no preset resourceVersion)
 	for _, u := range []*unstructured.Unstructured{
-		toUnstructured(t, scheme, newStorageSKUCR(nameFast, tenantA, commonLabels(map[string]string{"tier": "prod", "env": "prod"}), 5000, 10, string(generatedv1.StorageSkuTypeRemoteDurable), false)),
-		toUnstructured(t, scheme, newStorageSKUCR(nameSlow, tenantA, commonLabels(map[string]string{"tier": "dev", "env": "staging"}), 1000, 20, string(generatedv1.StorageSkuTypeLocalDurable), false)),
-		toUnstructured(t, scheme, newStorageSKUCR(nameThird, tenantA, commonLabels(map[string]string{"tier": "prod", "env": "staging", "rank": "3"}), 3000, 15, string(generatedv1.StorageSkuTypeRemoteDurable), false)),
-		toUnstructured(t, scheme, newStorageSKUCR(nameOtherTenant, tenantB, map[string]string{TenantLabelKey: tenantB, "tier": "prod"}, 9000, 50, string(generatedv1.StorageSkuTypeRemoteDurable), false)),
+		toUnstructured(t, scheme, newStorageSKUCR(nameFast, namespaceA, commonLabels(map[string]string{"tier": "prod", "env": "prod"}), 5000, 10, string(generatedv1.StorageSkuTypeRemoteDurable), false)),
+		toUnstructured(t, scheme, newStorageSKUCR(nameSlow, namespaceA, commonLabels(map[string]string{"tier": "dev", "env": "staging"}), 1000, 20, string(generatedv1.StorageSkuTypeLocalDurable), false)),
+		toUnstructured(t, scheme, newStorageSKUCR(nameThird, namespaceA, commonLabels(map[string]string{"tier": "prod", "env": "staging", "rank": "3"}), 3000, 15, string(generatedv1.StorageSkuTypeRemoteDurable), false)),
+		toUnstructured(t, scheme, newStorageSKUCR(nameOtherTenant, namespaceB, map[string]string{TenantLabelKey: tenantB, "tier": "prod"}, 9000, 50, string(generatedv1.StorageSkuTypeRemoteDurable), false)),
 	} {
 		_, err := dynClient.Resource(skuv1.SKUGVR).Namespace(u.GetNamespace()).Create(ctx, u, metav1.CreateOptions{})
 		require.NoError(t, err)
@@ -219,7 +222,9 @@ func TestStorageController_ListSKUs(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			params := model.ListParams{
-				Namespace: tenantA,
+				Scope: scope.Scope{
+					Tenant: tenantA,
+				},
 			}
 			if tt.selector != nil {
 				params.Selector = *tt.selector

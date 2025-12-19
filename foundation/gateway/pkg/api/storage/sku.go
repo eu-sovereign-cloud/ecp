@@ -2,6 +2,7 @@ package storage
 
 import (
 	v1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/skus/v1"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
 	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
@@ -29,7 +30,7 @@ func SkuToApi(domain *regional.StorageSKUDomain) *sdkschema.StorageSku {
 	}
 }
 
-func ListParamsFromAPI(params sdkstorage.ListSkusParams, namespace string) model.ListParams {
+func ListParamsFromAPI(params sdkstorage.ListSkusParams, tenant string) model.ListParams {
 	limit := validation.GetLimit(params.Limit)
 
 	var skipToken string
@@ -46,7 +47,9 @@ func ListParamsFromAPI(params sdkstorage.ListSkusParams, namespace string) model
 		Limit:     limit,
 		SkipToken: skipToken,
 		Selector:  selector,
-		Namespace: namespace,
+		Scope: scope.Scope{
+			Tenant: tenant,
+		},
 	}
 }
 

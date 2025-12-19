@@ -11,7 +11,7 @@ import (
 
 type ListSKUs struct {
 	Logger  *slog.Logger
-	SKURepo port.ResourceQueryRepository[*regional.StorageSKUDomain]
+	SKURepo port.ReaderRepo[*regional.StorageSKUDomain]
 }
 
 func (c ListSKUs) Do(ctx context.Context, params model.ListParams) (

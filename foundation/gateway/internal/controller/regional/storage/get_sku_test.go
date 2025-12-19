@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -32,6 +34,7 @@ func TestStorageController_GetSKU(t *testing.T) {
 
 	// Create valid Kubernetes namespace name (lowercase, alphanumeric and hyphens only)
 	tenant := "tenant-get-sku-" + strings.ToLower(strings.ReplaceAll(t.Name(), "_", "-"))
+	namespace := kubernetes.ComputeNamespace(&scope.Scope{Tenant: tenant})
 	const skuID = "only"
 	namespaceGVR := k8sschema.GroupVersionResource{Version: "v1", Resource: "namespaces"}
 
@@ -41,7 +44,7 @@ func TestStorageController_GetSKU(t *testing.T) {
 			"apiVersion": "v1",
 			"kind":       "Namespace",
 			"metadata": map[string]interface{}{
-				"name": tenant,
+				"name": namespace,
 			},
 		},
 	}
@@ -55,7 +58,7 @@ func TestStorageController_GetSKU(t *testing.T) {
 		_ = dynClient.Resource(namespaceGVR).Delete(context.Background(), tenant, metav1.DeleteOptions{})
 	})
 
-	u := toUnstructured(t, scheme, newStorageSKUCR(skuID, tenant, map[string]string{TenantLabelKey: tenant, "tier": "prod"}, 7500, 10, string(generatedv1.StorageSkuTypeRemoteDurable), false))
+	u := toUnstructured(t, scheme, newStorageSKUCR(skuID, namespace, map[string]string{TenantLabelKey: tenant, "tier": "prod"}, 7500, 10, string(generatedv1.StorageSkuTypeRemoteDurable), false))
 
 	_, err = dynClient.Resource(skuv1.SKUGVR).Namespace(u.GetNamespace()).Create(ctx, u, metav1.CreateOptions{})
 	require.NoError(t, err)
@@ -70,7 +73,14 @@ func TestStorageController_GetSKU(t *testing.T) {
 		),
 	}
 	t.Run("get_existing", func(t *testing.T) {
-		metadata := model.Metadata{Namespace: tenant, Name: skuID}
+		metadata := regional.Metadata{
+			CommonMetadata: model.CommonMetadata{
+				Name: skuID,
+			},
+			Scope: scope.Scope{
+				Tenant: tenant,
+			},
+		}
 		sku, err := sc.Do(ctx, &metadata)
 		require.NoError(t, err)
 		require.NotNil(t, sku)
@@ -80,7 +90,14 @@ func TestStorageController_GetSKU(t *testing.T) {
 	})
 
 	t.Run("get_nonexistent", func(t *testing.T) {
-		metadata := model.Metadata{Namespace: tenant, Name: "missing"}
+		metadata := regional.Metadata{
+			CommonMetadata: model.CommonMetadata{
+				Name: "missing",
+			},
+			Scope: scope.Scope{
+				Tenant: tenant,
+			},
+		}
 		_, err := sc.Do(ctx, &metadata)
 		require.Error(t, err)
 	})

@@ -16,13 +16,13 @@ const (
 
 type ListSKUs struct {
 	Logger  *slog.Logger
-	SKURepo port.ResourceQueryRepository[*regional.NetworkSKUDomain]
+	SKURepo port.ReaderRepo[*regional.NetworkSKUDomain]
 }
 
 func (c ListSKUs) Do(ctx context.Context, tenantID string, params model.ListParams) (
 	[]*regional.NetworkSKUDomain, *string, error,
 ) {
-	params.Namespace = tenantID
+	params.SetTenant(tenantID)
 
 	var domainSKUs []*regional.NetworkSKUDomain
 	nextSkipToken, err := c.SKURepo.List(ctx, params, &domainSKUs)
