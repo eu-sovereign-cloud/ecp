@@ -88,7 +88,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 				regionalhandler.Storage{
 					ListSKUs: &storage.ListSKUs{
 						Logger: logger,
-						SKURepo: kubernetes.NewAdapter(
+						SKURepo: kubernetes.NewReaderAdapter(
 							client.Client,
 							skuv1.SKUGVR,
 							logger,
@@ -97,7 +97,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 					},
 					GetSKU: &storage.GetSKU{
 						Logger: logger,
-						SKURepo: kubernetes.NewAdapter(
+						SKURepo: kubernetes.NewReaderAdapter(
 							client.Client,
 							skuv1.SKUGVR,
 							logger,

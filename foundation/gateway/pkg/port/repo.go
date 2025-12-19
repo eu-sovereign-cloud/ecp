@@ -31,8 +31,8 @@ type Repo[T IdentifiableResource] interface {
 
 type WriterRepo[T IdentifiableResource] interface {
 	Delete(ctx context.Context, m T) error
-	Create(ctx context.Context, m T) error
-	Update(ctx context.Context, m T) error
+	Create(ctx context.Context, m T) (*T, error)
+	Update(ctx context.Context, m T) (*T, error)
 }
 
 type WatcherRepo[T any] interface {
