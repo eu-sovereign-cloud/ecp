@@ -5,12 +5,12 @@ metadata:
   name: seca
 ---
 apiVersion: storage.v1.secapi.cloud/v1
-kind: StorageSKU
+kind: SKU
 metadata:
   labels:
     secapi.cloud/tenant-id: seca
   name: fast-local
-  namespace: seca
+  namespace: 69e09dd4c334335d2f0a4a52c9ff87b76b0f9e1b147d62a5f2b8f965  # seca
 spec:
   iops: 10000
   minVolumeSize: 10

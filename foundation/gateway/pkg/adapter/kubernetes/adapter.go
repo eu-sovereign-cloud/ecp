@@ -12,10 +12,11 @@ import (
 	"k8s.io/client-go/dynamic"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	kerrs "k8s.io/apimachinery/pkg/api/errors"
+
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation/filter"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
-	kerrs "k8s.io/apimachinery/pkg/api/errors"
 )
 
 // K8sConverter defines a function that converts a Kubernetes client.Object to a specific type T.
@@ -56,8 +57,8 @@ func ComputeNamespace(obj port.Scope) string {
 	} else {
 		_, _ = fmt.Fprintf(hasher, "%s/%s", obj.GetTenant(), obj.GetWorkspace())
 	}
-
-	return fmt.Sprintf("%x", hasher.Sum(nil))
+	hashed := hasher.Sum(nil)
+	return fmt.Sprintf("%x", hashed)
 }
 
 // List implements the port.ResourceRepository interface.

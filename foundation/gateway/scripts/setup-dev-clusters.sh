@@ -29,7 +29,7 @@ REGIONAL_DEPLOYMENT_YAML="${CONFIG_SETUP_DIR}/regional-deployment.yaml"
 REGION_CRD_YAML="${API_CRDS_DIR}/regions/v1.secapi.cloud_regions.yaml"
 REGIONS_RBAC_YAML="${CONFIG_SETUP_DIR}/global_regions_rbac.yaml"
 # Storage SKU CRD & RBAC for regional cluster
-STORAGE_SKU_CRD_YAML="${API_CRDS_DIR}/block-storage/storage.v1.secapi.cloud_storage-skus.yaml"
+STORAGE_SKU_CRD_YAML="${API_CRDS_DIR}/storage/storage.v1.secapi.cloud_skus.yaml"
 REGIONAL_STORAGE_SKU_CR="${REGIONAL_STORAGE_CONFIG_DIR}/storage-sku.yaml"
 REGIONAL_STORAGE_SKU_RBAC_YAML="${REGIONAL_STORAGE_CONFIG_DIR}/regional-storage-sku-rbac.yaml"
 
