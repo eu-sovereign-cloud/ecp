@@ -189,19 +189,13 @@ func (a *ReaderAdapter[T]) Load(ctx context.Context, obj *T) error {
 func (a *WriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
 	ri := a.client.Resource(a.gvr).Namespace(ComputeNamespace(m))
 
-	obj, err := a.domainToK8s(m)
+	uobj, err := a.tToUnstructured(m)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "conversion to k8s object failed", "resource", a.gvr.Resource, "error", err)
 		return nil, fmt.Errorf("%w: failed to convert %s to k8s object: %w", model.ErrValidation, a.gvr.Resource, err)
 	}
 
-	uobj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
-	if err != nil {
-		a.logger.ErrorContext(ctx, "conversion to unstructured failed", "resource", a.gvr.Resource, "error", err)
-		return nil, fmt.Errorf("%w: failed to convert %s to unstructured: %w", model.ErrValidation, a.gvr.Resource, err)
-	}
-
-	ures, err := ri.Create(ctx, &unstructured.Unstructured{Object: uobj}, metav1.CreateOptions{})
+	ures, err := ri.Create(ctx, uobj, metav1.CreateOptions{})
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to create resource", "name", m.GetName(), "resource", a.gvr.Resource, "error", err)
 
@@ -231,19 +225,13 @@ func (a *WriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
 func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
 	ri := a.client.Resource(a.gvr).Namespace(ComputeNamespace(m))
 
-	obj, err := a.domainToK8s(m)
+	uobj, err := a.tToUnstructured(m)
 	if err != nil {
-		a.logger.ErrorContext(ctx, "conversion to k8s object failed", "resource", a.gvr.Resource, "error", err)
-		return nil, fmt.Errorf("%w: failed to convert %s to k8s object: %w", model.ErrValidation, a.gvr.Resource, err)
-	}
-
-	uobj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
-	if err != nil {
-		a.logger.ErrorContext(ctx, "conversion to unstructured failed", "resource", a.gvr.Resource, "error", err)
+		a.logger.ErrorContext(ctx, "conversion from T to unstructured failed", "resource", a.gvr.Resource, "error", err)
 		return nil, fmt.Errorf("%w: failed to convert %s to unstructured: %w", model.ErrValidation, a.gvr.Resource, err)
 	}
 
-	ures, err := ri.Update(ctx, &unstructured.Unstructured{Object: uobj}, metav1.UpdateOptions{})
+	ures, err := ri.Update(ctx, uobj, metav1.UpdateOptions{})
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to update resource", "name", m.GetName(), "resource", a.gvr.Resource, "error", err)
 
@@ -252,6 +240,7 @@ func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
 		case kerrs.IsNotFound(err):
 			errModel = model.ErrNotFound
 		case kerrs.IsConflict(err):
+			// TODO: Handle conflicts with retry.RetryOnConflict or fail directly if ResourceVersion is set in the request object.
 			errModel = model.ErrConflict
 		case kerrs.IsInvalid(err):
 			errModel = model.ErrValidation
@@ -294,4 +283,20 @@ func (a *WriterAdapter[T]) Delete(ctx context.Context, m T) error {
 	}
 
 	return nil
+}
+
+func (a *WriterAdapter[T]) tToUnstructured(m T) (*unstructured.Unstructured, error) {
+	obj, err := a.domainToK8s(m)
+	if err != nil {
+		a.logger.Error("conversion to k8s object failed", "resource", a.gvr.Resource, "error", err)
+		return nil, fmt.Errorf("failed to convert %s to k8s object: %w", a.gvr.Resource, err)
+	}
+
+	uobj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
+	if err != nil {
+		a.logger.Error("conversion to unstructured failed", "resource", a.gvr.Resource, "error", err)
+		return nil, fmt.Errorf("failed to convert k8s object to unstructured: %w", err)
+	}
+
+	return &unstructured.Unstructured{Object: uobj}, nil
 }
