@@ -6,13 +6,12 @@ import (
 	"fmt"
 	"log/slog"
 
+	kerrs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	kerrs "k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation/filter"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
@@ -57,6 +56,7 @@ func ComputeNamespace(obj port.Scope) string {
 	} else {
 		_, _ = fmt.Fprintf(hasher, "%s/%s", obj.GetTenant(), obj.GetWorkspace())
 	}
+
 	return fmt.Sprintf("%x", hasher.Sum(nil))
 }
 
