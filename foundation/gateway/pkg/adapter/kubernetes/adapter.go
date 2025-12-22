@@ -240,7 +240,6 @@ func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
 		case kerrs.IsNotFound(err):
 			errModel = model.ErrNotFound
 		case kerrs.IsConflict(err):
-			// TODO: Handle conflicts with retry.RetryOnConflict or fail directly if ResourceVersion is set in the request object.
 			errModel = model.ErrConflict
 		case kerrs.IsInvalid(err):
 			errModel = model.ErrValidation
@@ -264,13 +263,6 @@ func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
 func (a *WriterAdapter[T]) Delete(ctx context.Context, m T) error {
 	ri := a.client.Resource(a.gvr).Namespace(ComputeNamespace(m))
 
-	// NOTE#1: Should all objects have the same deletion grace period? How long?
-	//
-	// NOTE#2: Should we use PropagationPolicy for cascading deletes or should the delegator handle that internally?
-	// 	I tend to lean towards the second option, since the delegator has more context about what is being deleted and how resources are related.
-	//  That way, maybe it can also enforce the grace period for child resources.
-	//
-	// For now, use the default deletion behavior of the Kubernetes API.
 	err := ri.Delete(ctx, m.GetName(), metav1.DeleteOptions{})
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to delete resource", "name", m.GetName(), "resource", a.gvr.Resource, "error", err)
