@@ -109,8 +109,11 @@ package delegated
 
 import (
 	"context"
+	"errors"
 
 	seca_gateway_port "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
+
+	model_converter "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/converter"
 )
 
 // TODO: this type should be an alias for the Delegator type.
@@ -120,11 +123,17 @@ type Delegated[T seca_gateway_port.IdentifiableResource] interface {
 	Do(ctx context.Context, resource T) error
 }
 
-type GenericDelegated[T seca_gateway_port.IdentifiableResource] struct {
+type GenericDelegated[S seca_gateway_port.IdentifiableResource, A any] struct {
+	converter model_converter.Converter[S, A]
 }
 
-var _ Delegated[seca_gateway_port.IdentifiableResource] = (*GenericDelegated[seca_gateway_port.IdentifiableResource])(nil)
+var _ Delegated[seca_gateway_port.IdentifiableResource] = (*GenericDelegated[seca_gateway_port.IdentifiableResource, any])(nil)
 
-func (d *GenericDelegated[T]) Do(ctx context.Context, resource T) error {
-	return nil
+func (d *GenericDelegated[S, A]) Do(ctx context.Context, resource S) error {
+	_, err := d.converter.FromSECAToAruba(resource)
+	if err != nil {
+		return err
+	}
+
+	return errors.New("not implemented")
 }
