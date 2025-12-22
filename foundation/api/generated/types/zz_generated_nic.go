@@ -58,13 +58,13 @@ type NicSpec struct {
 
 	// PublicIpRefs References to public IP addresses associated with this NIC. The IP may be external
 	// and not directly visible on the server/NIC itself.
-	PublicIpRefs *[]Reference `json:"publicIpRefs,omitempty"`
+	PublicIpRefs *[]ReferenceObject `json:"publicIpRefs,omitempty"`
 
 	// SkuRef Reference to the SKU of the NIC.
-	SkuRef *Reference `json:"skuRef,omitempty"`
+	SkuRef *ReferenceObject `json:"skuRef,omitempty"`
 
 	// SubnetRef Reference to the subnet used by the NIC connections.
-	SubnetRef Reference `json:"subnetRef"`
+	SubnetRef ReferenceObject `json:"subnetRef"`
 }
 
 // NicStatus defines model for NicStatus.
@@ -76,7 +76,7 @@ type NicStatus struct {
 	MacAddress *string `json:"macAddress,omitempty"`
 
 	// PublicIpRefs Array of public IP addresses associated with this NIC.
-	PublicIpRefs *[]Reference `json:"publicIpRefs,omitempty"`
+	PublicIpRefs *[]ReferenceObject `json:"publicIpRefs,omitempty"`
 
 	// State Current phase of the resource:
 	// - pending: not available, waiting for other resources

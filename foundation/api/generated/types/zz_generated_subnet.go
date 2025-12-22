@@ -61,11 +61,11 @@ type SubnetSpec struct {
 
 	// RouteTableRef Reference to the route table used by default for all NICs in this Subnet.
 	// If not provided, the routeTableRef associated with the network of the subnet will be used.
-	RouteTableRef *Reference `json:"routeTableRef,omitempty"`
+	RouteTableRef *ReferenceObject `json:"routeTableRef,omitempty"`
 
 	// SkuRef Reference to the SKU used by default for all NICs in this Network.
 	// Can be overridden by the NIC
-	SkuRef *Reference `json:"skuRef,omitempty"`
+	SkuRef *ReferenceObject `json:"skuRef,omitempty"`
 
 	// Zone Reference to a specific zone within a region
 	Zone Zone `json:"zone"`
@@ -84,7 +84,7 @@ type SubnetStatus struct {
 	Conditions []StatusCondition `json:"conditions"`
 
 	// RouteTableRef The route table used by this subnet.
-	RouteTableRef *Reference `json:"routeTableRef,omitempty"`
+	RouteTableRef *ReferenceObject `json:"routeTableRef,omitempty"`
 
 	// State Current phase of the resource:
 	// - pending: not available, waiting for other resources

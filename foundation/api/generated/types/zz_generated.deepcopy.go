@@ -133,7 +133,7 @@ func (in *BlockStorageSpec) DeepCopyInto(out *BlockStorageSpec) {
 	in.SkuRef.DeepCopyInto(&out.SkuRef)
 	if in.SourceImageRef != nil {
 		in, out := &in.SourceImageRef, &out.SourceImageRef
-		*out = new(Reference)
+		*out = new(ReferenceObject)
 		(*in).DeepCopyInto(*out)
 	}
 }
@@ -153,7 +153,7 @@ func (in *BlockStorageStatus) DeepCopyInto(out *BlockStorageStatus) {
 	*out = *in
 	if in.AttachedTo != nil {
 		in, out := &in.AttachedTo, &out.AttachedTo
-		*out = new(Reference)
+		*out = new(ReferenceObject)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.Conditions != nil {
@@ -292,7 +292,7 @@ func (in *GlobalResourceMetadata) DeepCopyInto(out *GlobalResourceMetadata) {
 	in.LastModifiedAt.DeepCopyInto(&out.LastModifiedAt)
 	if in.Ref != nil {
 		in, out := &in.Ref, &out.Ref
-		*out = new(Reference)
+		*out = new(ReferenceObject)
 		(*in).DeepCopyInto(*out)
 	}
 }
@@ -318,7 +318,7 @@ func (in *GlobalTenantResourceMetadata) DeepCopyInto(out *GlobalTenantResourceMe
 	in.LastModifiedAt.DeepCopyInto(&out.LastModifiedAt)
 	if in.Ref != nil {
 		in, out := &in.Ref, &out.Ref
-		*out = new(Reference)
+		*out = new(ReferenceObject)
 		(*in).DeepCopyInto(*out)
 	}
 }
@@ -566,10 +566,10 @@ func (in *InstanceSpec) DeepCopyInto(out *InstanceSpec) {
 	*out = *in
 	if in.AdditionalNicRefs != nil {
 		in, out := &in.AdditionalNicRefs, &out.AdditionalNicRefs
-		*out = new([]Reference)
+		*out = new([]ReferenceObject)
 		if **in != nil {
 			in, out := *in, *out
-			*out = make([]Reference, len(*in))
+			*out = make([]ReferenceObject, len(*in))
 			for i := range *in {
 				(*in)[i].DeepCopyInto(&(*out)[i])
 			}
@@ -594,12 +594,12 @@ func (in *InstanceSpec) DeepCopyInto(out *InstanceSpec) {
 	}
 	if in.PrimaryNicRef != nil {
 		in, out := &in.PrimaryNicRef, &out.PrimaryNicRef
-		*out = new(Reference)
+		*out = new(ReferenceObject)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.SecurityGroupRef != nil {
 		in, out := &in.SecurityGroupRef, &out.SecurityGroupRef
-		*out = new(Reference)
+		*out = new(ReferenceObject)
 		(*in).DeepCopyInto(*out)
 	}
 	in.SkuRef.DeepCopyInto(&out.SkuRef)
@@ -766,7 +766,7 @@ func (in *InternetNatGatewayInstanceSpec) DeepCopyInto(out *InternetNatGatewayIn
 	in.PublicIpRef.DeepCopyInto(&out.PublicIpRef)
 	if in.SecurityGroupRef != nil {
 		in, out := &in.SecurityGroupRef, &out.SecurityGroupRef
-		*out = new(Reference)
+		*out = new(ReferenceObject)
 		(*in).DeepCopyInto(*out)
 	}
 }
@@ -1042,10 +1042,10 @@ func (in *KubernetesNodePoolStatus) DeepCopyInto(out *KubernetesNodePoolStatus) 
 	}
 	if in.Nodes != nil {
 		in, out := &in.Nodes, &out.Nodes
-		*out = new([]Reference)
+		*out = new([]ReferenceObject)
 		if **in != nil {
 			in, out := *in, *out
-			*out = make([]Reference, len(*in))
+			*out = make([]ReferenceObject, len(*in))
 			for i := range *in {
 				(*in)[i].DeepCopyInto(&(*out)[i])
 			}
@@ -1105,7 +1105,7 @@ func (in *KubernetesNodeTemplate) DeepCopyInto(out *KubernetesNodeTemplate) {
 	in.RootVolume.DeepCopyInto(&out.RootVolume)
 	if in.SecurityGroupRef != nil {
 		in, out := &in.SecurityGroupRef, &out.SecurityGroupRef
-		*out = new(Reference)
+		*out = new(ReferenceObject)
 		(*in).DeepCopyInto(*out)
 	}
 	in.SkuRef.DeepCopyInto(&out.SkuRef)
@@ -1178,7 +1178,7 @@ func (in *LoadBalancerTarget) DeepCopyInto(out *LoadBalancerTarget) {
 	}
 	if in.Members != nil {
 		in, out := &in.Members, &out.Members
-		*out = make([]Reference, len(*in))
+		*out = make([]ReferenceObject, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
@@ -1364,7 +1364,7 @@ func (in *NetworkLoadBalancerSpec) DeepCopyInto(out *NetworkLoadBalancerSpec) {
 	in.NicRef.DeepCopyInto(&out.NicRef)
 	if in.SecurityGroupRef != nil {
 		in, out := &in.SecurityGroupRef, &out.SecurityGroupRef
-		*out = new(Reference)
+		*out = new(ReferenceObject)
 		(*in).DeepCopyInto(*out)
 	}
 }
@@ -1391,10 +1391,10 @@ func (in *NetworkLoadBalancerStatus) DeepCopyInto(out *NetworkLoadBalancerStatus
 	}
 	if in.HealthyMembers != nil {
 		in, out := &in.HealthyMembers, &out.HealthyMembers
-		*out = new([]Reference)
+		*out = new([]ReferenceObject)
 		if **in != nil {
 			in, out := *in, *out
-			*out = make([]Reference, len(*in))
+			*out = make([]ReferenceObject, len(*in))
 			for i := range *in {
 				(*in)[i].DeepCopyInto(&(*out)[i])
 			}
@@ -1546,7 +1546,7 @@ func (in *NetworkStatus) DeepCopyInto(out *NetworkStatus) {
 	}
 	if in.RouteTableRef != nil {
 		in, out := &in.RouteTableRef, &out.RouteTableRef
-		*out = new(Reference)
+		*out = new(ReferenceObject)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.State != nil {
@@ -1623,10 +1623,10 @@ func (in *NicSpec) DeepCopyInto(out *NicSpec) {
 	}
 	if in.PublicIpRefs != nil {
 		in, out := &in.PublicIpRefs, &out.PublicIpRefs
-		*out = new([]Reference)
+		*out = new([]ReferenceObject)
 		if **in != nil {
 			in, out := *in, *out
-			*out = make([]Reference, len(*in))
+			*out = make([]ReferenceObject, len(*in))
 			for i := range *in {
 				(*in)[i].DeepCopyInto(&(*out)[i])
 			}
@@ -1634,7 +1634,7 @@ func (in *NicSpec) DeepCopyInto(out *NicSpec) {
 	}
 	if in.SkuRef != nil {
 		in, out := &in.SkuRef, &out.SkuRef
-		*out = new(Reference)
+		*out = new(ReferenceObject)
 		(*in).DeepCopyInto(*out)
 	}
 	in.SubnetRef.DeepCopyInto(&out.SubnetRef)
@@ -1676,10 +1676,10 @@ func (in *NicStatus) DeepCopyInto(out *NicStatus) {
 	}
 	if in.PublicIpRefs != nil {
 		in, out := &in.PublicIpRefs, &out.PublicIpRefs
-		*out = new([]Reference)
+		*out = new([]ReferenceObject)
 		if **in != nil {
 			in, out := *in, *out
-			*out = make([]Reference, len(*in))
+			*out = make([]ReferenceObject, len(*in))
 			for i := range *in {
 				(*in)[i].DeepCopyInto(&(*out)[i])
 			}
@@ -1958,7 +1958,7 @@ func (in *PublicIpStatus) DeepCopyInto(out *PublicIpStatus) {
 	*out = *in
 	if in.AttachedTo != nil {
 		in, out := &in.AttachedTo, &out.AttachedTo
-		*out = new(Reference)
+		*out = new(ReferenceObject)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.Conditions != nil {
@@ -2117,7 +2117,7 @@ func (in *RegionalNetworkResourceMetadata) DeepCopyInto(out *RegionalNetworkReso
 	in.LastModifiedAt.DeepCopyInto(&out.LastModifiedAt)
 	if in.Ref != nil {
 		in, out := &in.Ref, &out.Ref
-		*out = new(Reference)
+		*out = new(ReferenceObject)
 		(*in).DeepCopyInto(*out)
 	}
 }
@@ -2143,7 +2143,7 @@ func (in *RegionalResourceMetadata) DeepCopyInto(out *RegionalResourceMetadata) 
 	in.LastModifiedAt.DeepCopyInto(&out.LastModifiedAt)
 	if in.Ref != nil {
 		in, out := &in.Ref, &out.Ref
-		*out = new(Reference)
+		*out = new(ReferenceObject)
 		(*in).DeepCopyInto(*out)
 	}
 }
@@ -2169,7 +2169,7 @@ func (in *RegionalWorkspaceResourceMetadata) DeepCopyInto(out *RegionalWorkspace
 	in.LastModifiedAt.DeepCopyInto(&out.LastModifiedAt)
 	if in.Ref != nil {
 		in, out := &in.Ref, &out.Ref
-		*out = new(Reference)
+		*out = new(ReferenceObject)
 		(*in).DeepCopyInto(*out)
 	}
 }
@@ -2239,7 +2239,7 @@ func (in *ResourceMetadata) DeepCopyInto(out *ResourceMetadata) {
 	*out = *in
 	if in.Ref != nil {
 		in, out := &in.Ref, &out.Ref
-		*out = new(Reference)
+		*out = new(ReferenceObject)
 		(*in).DeepCopyInto(*out)
 	}
 }
@@ -2708,10 +2708,10 @@ func (in *SecurityGroupRuleSpec) DeepCopyInto(out *SecurityGroupRuleSpec) {
 	}
 	if in.SourceRefs != nil {
 		in, out := &in.SourceRefs, &out.SourceRefs
-		*out = new([]Reference)
+		*out = new([]ReferenceObject)
 		if **in != nil {
 			in, out := *in, *out
-			*out = make([]Reference, len(*in))
+			*out = make([]ReferenceObject, len(*in))
 			for i := range *in {
 				(*in)[i].DeepCopyInto(&(*out)[i])
 			}
@@ -2799,7 +2799,7 @@ func (in *SkuResourceMetadata) DeepCopyInto(out *SkuResourceMetadata) {
 	*out = *in
 	if in.Ref != nil {
 		in, out := &in.Ref, &out.Ref
-		*out = new(Reference)
+		*out = new(ReferenceObject)
 		(*in).DeepCopyInto(*out)
 	}
 }
@@ -2986,12 +2986,12 @@ func (in *SubnetSpec) DeepCopyInto(out *SubnetSpec) {
 	in.Cidr.DeepCopyInto(&out.Cidr)
 	if in.RouteTableRef != nil {
 		in, out := &in.RouteTableRef, &out.RouteTableRef
-		*out = new(Reference)
+		*out = new(ReferenceObject)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.SkuRef != nil {
 		in, out := &in.SkuRef, &out.SkuRef
-		*out = new(Reference)
+		*out = new(ReferenceObject)
 		(*in).DeepCopyInto(*out)
 	}
 }
@@ -3023,7 +3023,7 @@ func (in *SubnetStatus) DeepCopyInto(out *SubnetStatus) {
 	}
 	if in.RouteTableRef != nil {
 		in, out := &in.RouteTableRef, &out.RouteTableRef
-		*out = new(Reference)
+		*out = new(ReferenceObject)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.State != nil {
@@ -3099,7 +3099,7 @@ func (in *TypeMetadata) DeepCopyInto(out *TypeMetadata) {
 	*out = *in
 	if in.Ref != nil {
 		in, out := &in.Ref, &out.Ref
-		*out = new(Reference)
+		*out = new(ReferenceObject)
 		(*in).DeepCopyInto(*out)
 	}
 }
