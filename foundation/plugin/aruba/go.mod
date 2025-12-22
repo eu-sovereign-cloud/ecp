@@ -4,6 +4,8 @@ go 1.24
 
 toolchain go1.24
 
+require go.uber.org/mock v0.6.0
+
 replace github.com/eu-sovereign-cloud/ecp/foundation/delegator => ../../delegator
 
 replace github.com/eu-sovereign-cloud/ecp/foundation/gateway => ../../gateway
@@ -12,7 +14,6 @@ require (
 	github.com/Arubacloud/arubacloud-resource-operator v0.0.1-alpha5
 	github.com/google/uuid v1.6.0
 	github.com/stretchr/testify v1.11.1
-	go.uber.org/mock v0.6.0
 	k8s.io/apimachinery v0.34.3
 	k8s.io/client-go v0.34.3
 	sigs.k8s.io/controller-runtime v0.22.4
