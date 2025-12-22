@@ -119,3 +119,12 @@ type DelegatedFunc[T seca_gateway_port.IdentifiableResource] func(ctx context.Co
 type Delegated[T seca_gateway_port.IdentifiableResource] interface {
 	Do(ctx context.Context, resource T) error
 }
+
+type GenericDelegated[T seca_gateway_port.IdentifiableResource] struct {
+}
+
+var _ Delegated[seca_gateway_port.IdentifiableResource] = (*GenericDelegated[seca_gateway_port.IdentifiableResource])(nil)
+
+func (d *GenericDelegated[T]) Do(ctx context.Context, resource T) error {
+	return nil
+}
