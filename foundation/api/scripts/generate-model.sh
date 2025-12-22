@@ -58,7 +58,7 @@ process_file () {
   fi
 
   # Map type fix
-  sed -i 's/map\[string\]interface{}/\*map[string]string/g' "${out_file}"
+  sed -i 's/map\[string\]interface{}/map[string]string/g' "${out_file}"
 
   # Fix union fields without JSON tags for controller-gen:
   # match lines that start with "union" (allow leading space) and contain no backtick, then append the tag

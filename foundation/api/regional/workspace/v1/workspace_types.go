@@ -18,6 +18,7 @@ type Workspace struct {
 
 	Spec               v1.WorkspaceSpec          `json:"spec,omitempty"`
 	RegionalCommonData common.RegionalCommonData `json:"regionalCommonData,omitempty"`
+	Status             v1.WorkspaceStatus        `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
