@@ -106,7 +106,8 @@ func HandleUpsert[In any, D any, Out any](
 	if err != nil {
 		if !errors.Is(err, model.ErrAlreadyExists) {
 			logger.ErrorContext(r.Context(), "failed to create resource", slog.Any("error", err))
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			status, message := mapCreateErrorToHTTP(err)
+			http.Error(w, message, status)
 			return
 		}
 
@@ -115,7 +116,8 @@ func HandleUpsert[In any, D any, Out any](
 		result, err = options.Updater.Do(r.Context(), domainObj)
 		if err != nil {
 			logger.ErrorContext(r.Context(), "failed to update resource", slog.Any("error", err))
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			status, message := mapUpdateErrorToHTTP(err)
+			http.Error(w, message, status)
 			return
 		}
 	}

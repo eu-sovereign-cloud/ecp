@@ -201,9 +201,11 @@ func (a *WriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
 
 		var errModel error
 		switch {
-		case kerrs.IsAlreadyExists(err):
-			errModel = model.ErrConflict
-		case kerrs.IsInvalid(err):
+		case kerrs.IsNotFound(err): // occurs when the namespace of the resource does not exist
+			errModel = model.ErrNotFound
+		case kerrs.IsAlreadyExists(err): // occurs when the resource with the same name already exists
+			errModel = model.ErrAlreadyExists
+		case kerrs.IsInvalid(err): // occurs when the resource is semantically invalid
 			errModel = model.ErrValidation
 		default:
 			errModel = model.ErrUnavailable
@@ -237,11 +239,11 @@ func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
 
 		var errModel error
 		switch {
-		case kerrs.IsNotFound(err):
+		case kerrs.IsNotFound(err): // occurs when the resource to be updated does not exist or its namespace does not exist
 			errModel = model.ErrNotFound
-		case kerrs.IsConflict(err):
+		case kerrs.IsConflict(err): // occurs when there is a resource version conflict during update
 			errModel = model.ErrConflict
-		case kerrs.IsInvalid(err):
+		case kerrs.IsInvalid(err): // occurs when the updated resource is semantically invalid
 			errModel = model.ErrValidation
 		default:
 			errModel = model.ErrUnavailable
