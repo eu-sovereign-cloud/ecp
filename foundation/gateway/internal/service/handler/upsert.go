@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	apierr "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/errors"
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
@@ -106,7 +107,7 @@ func HandleUpsert[In any, D any, Out any](
 	if err != nil {
 		if !errors.Is(err, model.ErrAlreadyExists) {
 			logger.ErrorContext(r.Context(), "failed to create resource", slog.Any("error", err))
-			status, message := mapCreateErrorToHTTP(err)
+			status, message := apierr.ModelToHTTPError(err)
 			http.Error(w, message, status)
 			return
 		}
@@ -116,7 +117,7 @@ func HandleUpsert[In any, D any, Out any](
 		result, err = options.Updater.Do(r.Context(), domainObj)
 		if err != nil {
 			logger.ErrorContext(r.Context(), "failed to update resource", slog.Any("error", err))
-			status, message := mapUpdateErrorToHTTP(err)
+			status, message := apierr.ModelToHTTPError(err)
 			http.Error(w, message, status)
 			return
 		}
