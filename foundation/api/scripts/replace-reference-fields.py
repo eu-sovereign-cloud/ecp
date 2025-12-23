@@ -28,9 +28,7 @@ def main() -> None:
         brace_depth += stripped.count("{")
         brace_depth -= stripped.count("}")
 
-        if stripped.startswith("//") or stripped == "" or stripped == "union" or stripped == "}":
-            pass
-        else:
+        if not (stripped.startswith("//") or stripped == "" or stripped == "union" or stripped == "}"):
             lines[index] = re.sub(r"(?<!\w)Reference(?!\w)", "ReferenceObject", line)
 
         if brace_depth <= 0:
@@ -41,4 +39,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
