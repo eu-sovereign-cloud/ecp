@@ -3,6 +3,7 @@ module github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba
 go 1.24
 
 require github.com/eu-sovereign-cloud/ecp/foundation/delegator v0.0.0
+require github.com/eu-sovereign-cloud/ecp/foundation/gateway v0.0.0
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
@@ -55,3 +56,5 @@ require (
 )
 
 replace github.com/eu-sovereign-cloud/ecp/foundation/delegator => ../../delegator
+
+replace github.com/eu-sovereign-cloud/ecp/foundation/gateway => ../../gateway
