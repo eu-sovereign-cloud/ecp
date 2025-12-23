@@ -323,4 +323,162 @@ func TestHandleUpsert(t *testing.T) {
 		assert.Equal(t, http.StatusInternalServerError, rr.Code)
 		mockCreator.AssertExpectations(t)
 	})
+
+	t.Run("create_fails_not_found", func(t *testing.T) {
+		mockCreator := new(MockCreator[TestDomain])
+		mockUpdater := new(MockUpdater[TestDomain])
+		mockLocator := new(MockRegionalResourceLocator)
+
+		inObj := TestIn{Data: "test-data"}
+		domainObj := TestDomain{ID: "test-resource", Data: "test-data"}
+
+		mockLocator.On("GetName").Return("test-resource")
+		mockLocator.On("GetTenant").Return("test-tenant")
+		mockLocator.On("GetWorkspace").Return("")
+
+		mockCreator.On("Do", mock.Anything, domainObj).Return(nil, model.ErrNotFound)
+
+		body, _ := json.Marshal(inObj)
+		req := httptest.NewRequest(http.MethodPut, "/test", bytes.NewReader(body))
+		rr := httptest.NewRecorder()
+
+		handler.HandleUpsert(rr, req, logger, handler.UpsertOptions[TestIn, TestDomain, TestOut]{
+			Locator:     mockLocator,
+			Creator:     mockCreator,
+			Updater:     mockUpdater,
+			SDKToDomain: apiToDomain,
+			DomainToSDK: domainToAPI,
+		})
+
+		assert.Equal(t, http.StatusNotFound, rr.Code)
+		mockCreator.AssertExpectations(t)
+		mockUpdater.AssertNotCalled(t, "Do")
+	})
+
+	t.Run("create_fails_validation", func(t *testing.T) {
+		mockCreator := new(MockCreator[TestDomain])
+		mockUpdater := new(MockUpdater[TestDomain])
+		mockLocator := new(MockRegionalResourceLocator)
+
+		inObj := TestIn{Data: "test-data"}
+		domainObj := TestDomain{ID: "test-resource", Data: "test-data"}
+
+		mockLocator.On("GetName").Return("test-resource")
+		mockLocator.On("GetTenant").Return("test-tenant")
+		mockLocator.On("GetWorkspace").Return("")
+
+		mockCreator.On("Do", mock.Anything, domainObj).Return(nil, model.ErrValidation)
+
+		body, _ := json.Marshal(inObj)
+		req := httptest.NewRequest(http.MethodPut, "/test", bytes.NewReader(body))
+		rr := httptest.NewRecorder()
+
+		handler.HandleUpsert(rr, req, logger, handler.UpsertOptions[TestIn, TestDomain, TestOut]{
+			Locator:     mockLocator,
+			Creator:     mockCreator,
+			Updater:     mockUpdater,
+			SDKToDomain: apiToDomain,
+			DomainToSDK: domainToAPI,
+		})
+
+		assert.Equal(t, http.StatusUnprocessableEntity, rr.Code)
+		mockCreator.AssertExpectations(t)
+		mockUpdater.AssertNotCalled(t, "Do")
+	})
+
+	t.Run("update_fails_not_found", func(t *testing.T) {
+		mockCreator := new(MockCreator[TestDomain])
+		mockUpdater := new(MockUpdater[TestDomain])
+		mockLocator := new(MockRegionalResourceLocator)
+
+		inObj := TestIn{Data: "test-data"}
+		domainObj := TestDomain{ID: "test-resource", Data: "test-data"}
+
+		mockLocator.On("GetName").Return("test-resource")
+		mockLocator.On("GetTenant").Return("test-tenant")
+		mockLocator.On("GetWorkspace").Return("")
+
+		mockCreator.On("Do", mock.Anything, domainObj).Return(nil, model.ErrAlreadyExists)
+		mockUpdater.On("Do", mock.Anything, domainObj).Return(nil, model.ErrNotFound)
+
+		body, _ := json.Marshal(inObj)
+		req := httptest.NewRequest(http.MethodPut, "/test", bytes.NewReader(body))
+		rr := httptest.NewRecorder()
+
+		handler.HandleUpsert(rr, req, logger, handler.UpsertOptions[TestIn, TestDomain, TestOut]{
+			Locator:     mockLocator,
+			Creator:     mockCreator,
+			Updater:     mockUpdater,
+			SDKToDomain: apiToDomain,
+			DomainToSDK: domainToAPI,
+		})
+
+		assert.Equal(t, http.StatusNotFound, rr.Code)
+		mockCreator.AssertExpectations(t)
+		mockUpdater.AssertExpectations(t)
+	})
+
+	t.Run("update_fails_conflict", func(t *testing.T) {
+		mockCreator := new(MockCreator[TestDomain])
+		mockUpdater := new(MockUpdater[TestDomain])
+		mockLocator := new(MockRegionalResourceLocator)
+
+		inObj := TestIn{Data: "test-data"}
+		domainObj := TestDomain{ID: "test-resource", Data: "test-data"}
+
+		mockLocator.On("GetName").Return("test-resource")
+		mockLocator.On("GetTenant").Return("test-tenant")
+		mockLocator.On("GetWorkspace").Return("")
+
+		mockCreator.On("Do", mock.Anything, domainObj).Return(nil, model.ErrAlreadyExists)
+		mockUpdater.On("Do", mock.Anything, domainObj).Return(nil, model.ErrConflict)
+
+		body, _ := json.Marshal(inObj)
+		req := httptest.NewRequest(http.MethodPut, "/test", bytes.NewReader(body))
+		rr := httptest.NewRecorder()
+
+		handler.HandleUpsert(rr, req, logger, handler.UpsertOptions[TestIn, TestDomain, TestOut]{
+			Locator:     mockLocator,
+			Creator:     mockCreator,
+			Updater:     mockUpdater,
+			SDKToDomain: apiToDomain,
+			DomainToSDK: domainToAPI,
+		})
+
+		assert.Equal(t, http.StatusPreconditionFailed, rr.Code)
+		mockCreator.AssertExpectations(t)
+		mockUpdater.AssertExpectations(t)
+	})
+
+	t.Run("update_fails_validation", func(t *testing.T) {
+		mockCreator := new(MockCreator[TestDomain])
+		mockUpdater := new(MockUpdater[TestDomain])
+		mockLocator := new(MockRegionalResourceLocator)
+
+		inObj := TestIn{Data: "test-data"}
+		domainObj := TestDomain{ID: "test-resource", Data: "test-data"}
+
+		mockLocator.On("GetName").Return("test-resource")
+		mockLocator.On("GetTenant").Return("test-tenant")
+		mockLocator.On("GetWorkspace").Return("")
+
+		mockCreator.On("Do", mock.Anything, domainObj).Return(nil, model.ErrAlreadyExists)
+		mockUpdater.On("Do", mock.Anything, domainObj).Return(nil, model.ErrValidation)
+
+		body, _ := json.Marshal(inObj)
+		req := httptest.NewRequest(http.MethodPut, "/test", bytes.NewReader(body))
+		rr := httptest.NewRecorder()
+
+		handler.HandleUpsert(rr, req, logger, handler.UpsertOptions[TestIn, TestDomain, TestOut]{
+			Locator:     mockLocator,
+			Creator:     mockCreator,
+			Updater:     mockUpdater,
+			SDKToDomain: apiToDomain,
+			DomainToSDK: domainToAPI,
+		})
+
+		assert.Equal(t, http.StatusUnprocessableEntity, rr.Code)
+		mockCreator.AssertExpectations(t)
+		mockUpdater.AssertExpectations(t)
+	})
 }
