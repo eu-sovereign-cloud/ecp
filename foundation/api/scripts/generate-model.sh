@@ -60,6 +60,9 @@ process_file () {
   # Map type fix
   sed -i 's/map\[string\]interface{}/map[string]string/g' "${out_file}"
 
+  # Replace Reference field types with ReferenceObject only inside struct declarations
+  python3 "$SCRIPT_DIR/replace-reference-fields.py" "${out_file}"
+
   # Fix union fields without JSON tags for controller-gen:
   # match lines that start with "union" (allow leading space) and contain no backtick, then append the tag
   sed -E -i '/^[[:space:]]*union[[:space:]]+[^`]*$/ s/$/ `json:"-"`/' "${out_file}"
@@ -77,6 +80,6 @@ for f in "${SCHEMA_DIR}"/*.go; do
 done
 
 echo "Running controller-gen for DeepCopy..."
-# Use an explicit version so go run doesn't require adding the module to go.mod
-go run sigs.k8s.io/controller-tools/cmd/controller-gen object paths="./${OUTPUT_ROOT}"
+# Run the module-pinned controller-gen (declared via `tool` in go.mod) so it uses this repo's vetted dependency set.
+(cd "$SCRIPT_DIR/.." && go tool sigs.k8s.io/controller-tools/cmd/controller-gen object paths="./${OUTPUT_ROOT}")
 echo -e "${GREEN}✅ All models processed.${RESET}"
