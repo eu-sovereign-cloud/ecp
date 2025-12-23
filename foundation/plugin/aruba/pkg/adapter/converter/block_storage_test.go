@@ -8,22 +8,25 @@ import (
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/converter"
 )
 
 func TestBlockStorageConverter_FromSECAToAruba(t *testing.T) {
 	tests := []struct {
-		name      string
-		namespace string
-		input     *regional.BlockStorageDomain
-		assert    func(t *testing.T, project *v1alpha1.BlockStorage)
+		name   string
+		input  *regional.BlockStorageDomain
+		assert func(t *testing.T, project *v1alpha1.BlockStorage)
 	}{
 		{
-			name:      "happy path",
-			namespace: "default",
+			name: "happy path",
 			input: &regional.BlockStorageDomain{
 				Metadata: regional.Metadata{
+					Scope: scope.Scope{
+						Workspace: "test-workspace",
+						Tenant:    "test-tenant",
+					},
 					CommonMetadata: model.CommonMetadata{
 						Name: "my-block-storage",
 					},
@@ -48,17 +51,20 @@ func TestBlockStorageConverter_FromSECAToAruba(t *testing.T) {
 				if bs.Name != "my-block-storage" {
 					t.Errorf("expected block storage name 'my-block-storage', got %s", bs.Name)
 				}
-
-				if bs.Namespace != "default" {
+				if bs.Namespace != "499361fe6f0e4b318e6dc9723bc08427efa461d669f97f79d6486d30" {
 					t.Errorf("expected namespace 'default', got %s", bs.Namespace)
 				}
 
-				if bs.Spec.Tenant != "tenant-123" {
+				if bs.Spec.Tenant != "test-tenant" {
 					t.Errorf("expected tenant 'tenant-123', got %s", bs.Spec.Tenant)
 				}
 
 				if bs.Spec.SizeGb != 100 {
 					t.Errorf("expected size 100, got %d", bs.Spec.SizeGb)
+				}
+
+				if bs.Spec.ProjectReference.Name != "test-workspace" {
+					t.Errorf("expected workspace 'test-workspace', got %s", bs.Spec.ProjectReference.Name)
 				}
 
 				if bs.Spec.Location.Value != "eu-de" {

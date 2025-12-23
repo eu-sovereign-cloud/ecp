@@ -6,6 +6,7 @@ import (
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	kubernetesadapter "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
@@ -15,14 +16,12 @@ import (
 
 func TestWorkspaceProjectConverter_FromSECAToAruba(t *testing.T) {
 	tests := []struct {
-		name      string
-		input     *regional.WorkspaceDomain
-		namespace string
-		assert    func(t *testing.T, project *v1alpha1.Project)
+		name   string
+		input  *regional.WorkspaceDomain
+		assert func(t *testing.T, project *v1alpha1.Project)
 	}{
 		{
-			name:      "happy path with description tags and default",
-			namespace: "test-namespace",
+			name: "happy path with description tags and default",
 			input: &regional.WorkspaceDomain{
 				Metadata: regional.Metadata{
 					Region: "region-1",
@@ -47,7 +46,7 @@ func TestWorkspaceProjectConverter_FromSECAToAruba(t *testing.T) {
 					t.Errorf("expected project name 'workspace-abc', got %s", project.Name)
 				}
 
-				if project.Namespace != "test-namespace" {
+				if project.Namespace != kubernetesadapter.ComputeNamespace(&scope.Scope{Tenant: "tenant-123"}) {
 					t.Errorf("expected namespace 'test-namespace', got %s", project.Namespace)
 				}
 
@@ -79,9 +78,7 @@ func TestWorkspaceProjectConverter_FromSECAToAruba(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			converter := &converter.WorkspaceProjectConverter{
-				Namespace: tt.namespace,
-			}
+			converter := &converter.WorkspaceProjectConverter{}
 
 			project, err := converter.FromSECAToAruba(tt.input)
 			if err != nil {
@@ -95,14 +92,12 @@ func TestWorkspaceProjectConverter_FromSECAToAruba(t *testing.T) {
 
 func TestWorkspaceProjectConverter_FromArubaToSECA(t *testing.T) {
 	tests := []struct {
-		name      string
-		input     *v1alpha1.Project
-		namespace string
-		assert    func(t *testing.T, workspace *regional.WorkspaceDomain)
+		name   string
+		input  *v1alpha1.Project
+		assert func(t *testing.T, workspace *regional.WorkspaceDomain)
 	}{
 		{
-			name:      "happy path with description tags and default",
-			namespace: "test-namespace",
+			name: "happy path with description tags and default",
 			input: &v1alpha1.Project{
 				Spec: v1alpha1.ProjectSpec{
 					Tenant:      "tenant-123",
@@ -111,18 +106,23 @@ func TestWorkspaceProjectConverter_FromArubaToSECA(t *testing.T) {
 					Default:     true,
 				},
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "workspace-abc",
+					Name:      "workspace-abc",
+					Namespace: "random-value-not-considered",
+					Labels: map[string]string{
+						"seca.workspace/tenant":    "tenant-456",
+						"seca.workspace/workspace": "workspace-123",
+					},
 				},
 			},
 			assert: func(t *testing.T, workspace *regional.WorkspaceDomain) {
 				t.Helper()
 
-				if workspace.Workspace != "workspace-abc" {
-					t.Errorf("expected workspace name 'workspace-abc', got %s", workspace.Workspace)
+				if workspace.GetWorkspace() != "" {
+					t.Errorf("expected workspace empty, got %s", workspace.GetWorkspace())
 				}
 
-				if workspace.Tenant != "tenant-123" {
-					t.Errorf("expected tenant 'tenant-123', got %s", workspace.Tenant)
+				if workspace.Tenant != "tenant-456" {
+					t.Errorf("expected tenant 'tenant-456', got %s", workspace.Tenant)
 				}
 
 				if desc, ok := workspace.Spec["description"].(string); !ok || desc != "My test project" {
@@ -148,9 +148,7 @@ func TestWorkspaceProjectConverter_FromArubaToSECA(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			converter := &converter.WorkspaceProjectConverter{
-				Namespace: tt.namespace,
-			}
+			converter := &converter.WorkspaceProjectConverter{}
 
 			workspace, err := converter.FromArubaToSECA(tt.input)
 			if err != nil {
