@@ -65,7 +65,7 @@ func TestStorageController_GetSKU(t *testing.T) {
 
 	sc := GetSKU{
 		Logger: slog.Default(),
-		SKURepo: kubernetes.NewAdapter(
+		SKURepo: kubernetes.NewReaderAdapter(
 			dynClient,
 			skuv1.SKUGVR,
 			slog.Default(),

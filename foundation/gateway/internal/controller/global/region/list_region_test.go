@@ -47,7 +47,7 @@ func TestRegionController_ListRegions(t *testing.T) {
 
 	rc := &ListRegion{
 		Logger: slog.Default(),
-		Repo: kubernetes.NewAdapter(
+		Repo: kubernetes.NewReaderAdapter(
 			fake.NewSimpleDynamicClient(scheme, objs...),
 			regionsv1.GroupVersionResource,
 			slog.Default(),
@@ -150,7 +150,7 @@ func TestRegionController_ListRegions_Pagination(t *testing.T) {
 	limit := 2
 	rc := &ListRegion{
 		Logger: slog.Default(),
-		Repo: kubernetes.NewAdapter(
+		Repo: kubernetes.NewReaderAdapter(
 			dynClient,
 			regionsv1.GroupVersionResource,
 			slog.Default(),
