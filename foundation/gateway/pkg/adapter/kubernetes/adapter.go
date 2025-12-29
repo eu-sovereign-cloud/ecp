@@ -279,7 +279,7 @@ func (a *WriterAdapter[T]) Delete(ctx context.Context, m T) error {
 	return nil
 }
 
-func (a *WriterAdapter[T]) tToUnstructured(m T) (*unstructured.Unstructured, error) {
+func (a *WriterAdapter[T]) toUnstructured(m T) (*unstructured.Unstructured, error) {
 	obj, err := a.domainToK8s(m)
 	if err != nil {
 		a.logger.Error("conversion to k8s object failed", "resource", a.gvr.Resource, "error", err)
