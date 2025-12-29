@@ -189,7 +189,7 @@ func (a *ReaderAdapter[T]) Load(ctx context.Context, obj *T) error {
 func (a *WriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
 	ri := a.client.Resource(a.gvr).Namespace(ComputeNamespace(m))
 
-	uobj, err := a.tToUnstructured(m)
+	uobj, err := a.toUnstructured(m)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "conversion to k8s object failed", "resource", a.gvr.Resource, "error", err)
 		return nil, fmt.Errorf("%w: failed to convert %s to k8s object: %w", model.ErrValidation, a.gvr.Resource, err)
@@ -227,7 +227,7 @@ func (a *WriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
 func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
 	ri := a.client.Resource(a.gvr).Namespace(ComputeNamespace(m))
 
-	uobj, err := a.tToUnstructured(m)
+	uobj, err := a.toUnstructured(m)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "conversion from T to unstructured failed", "resource", a.gvr.Resource, "error", err)
 		return nil, fmt.Errorf("%w: failed to convert %s to unstructured: %w", model.ErrValidation, a.gvr.Resource, err)
