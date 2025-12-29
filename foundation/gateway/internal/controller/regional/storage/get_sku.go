@@ -17,8 +17,8 @@ func (c GetSKU) Do(
 	ctx context.Context, ir port.IdentifiableResource,
 ) (*regional.StorageSKUDomain, error) {
 	domain := &regional.StorageSKUDomain{}
-	domain.SetName(ir.GetName())
-	domain.SetTenant(ir.GetTenant()) // ensure namespaced SKU retrieval
+	domain.Name = ir.GetName()
+	domain.Tenant = ir.GetTenant() // ensure namespaced SKU retrieval
 	if err := c.SKURepo.Load(ctx, &domain); err != nil {
 		return nil, err
 	}
