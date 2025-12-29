@@ -14,12 +14,7 @@ type Deleter interface {
 	Do(ctx context.Context, resource port.IdentifiableResource) error
 }
 
-// HandleDelete is a generic helper for DELETE endpoints that:
-// 1. Calls the controller to delete the resource
-// 2. Handles not found errors with 404
-// 3. Handles unauthorized (401), forbidden (403), and conflict (409) errors
-// 4. Handles other errors with 500
-// 5. Returns 202 Accepted on success
+// HandleDelete is a generic helper for DELETE endpoints
 func HandleDelete(
 	w http.ResponseWriter,
 	r *http.Request,
