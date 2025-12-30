@@ -10,7 +10,7 @@ import (
 	"net/http"
 
 	apierr "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/errors"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
@@ -27,22 +27,11 @@ type Updater[T any] interface {
 }
 
 // SDKToDomain defines the function type for mapping SDK objects to domain objects
-type SDKToDomain[In any, D any] func(sdk In, ir port.IdentifiableResource) D
-
-// ResourceIdentifier is a simple implementation of port.IdentifiableResource
-type ResourceIdentifier struct {
-	Name      string
-	Tenant    string
-	Workspace string
-}
-
-func (r ResourceIdentifier) GetName() string      { return r.Name }
-func (r ResourceIdentifier) GetTenant() string    { return r.Tenant }
-func (r ResourceIdentifier) GetWorkspace() string { return r.Workspace }
+type SDKToDomain[In any, D any] func(sdk In, params regional.UpsertParams) D
 
 // UpsertOptions contains the configuration for HandleUpsert
 type UpsertOptions[In any, D any, Out any] struct {
-	Identifier  port.IdentifiableResource
+	Params      regional.UpsertParams
 	Creator     Creator[D]
 	Updater     Updater[D]
 	SDKToDomain SDKToDomain[In, D]
@@ -63,7 +52,7 @@ func HandleUpsert[In any, D any, Out any](
 	options UpsertOptions[In, D, Out],
 ) {
 	// TODO: Use workspace information from identifier for resource scoping and access control
-	logger = logger.With("name", options.Identifier.GetName(), "tenant", options.Identifier.GetTenant(), "workspace", options.Identifier.GetWorkspace())
+	logger = logger.With("name", options.Params.GetName(), "tenant", options.Params.GetTenant(), "workspace", options.Params.GetWorkspace())
 
 	defer func(ctx context.Context, Body io.ReadCloser) {
 		err := Body.Close()
@@ -87,7 +76,7 @@ func HandleUpsert[In any, D any, Out any](
 		return
 	}
 
-	domainObj := options.SDKToDomain(apiObj, options.Identifier)
+	domainObj := options.SDKToDomain(apiObj, options.Params)
 
 	result, err := options.Creator.Do(r.Context(), domainObj)
 	if err != nil {
