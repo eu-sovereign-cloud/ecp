@@ -9,7 +9,6 @@ import (
 // IdentifiableResource defines the interface for objects that can be identified by name, tenant, and workspace
 type IdentifiableResource interface {
 	GetName() string
-	SetName(name string)
 	Scope
 }
 
@@ -19,8 +18,6 @@ type IdentifiableResource interface {
 type Scope interface {
 	GetTenant() string
 	GetWorkspace() string
-	SetTenant(tenant string)
-	SetWorkspace(workspace string)
 }
 
 type Repo[T IdentifiableResource] interface {

@@ -10,6 +10,7 @@ import (
 	"net/http"
 
 	apierr "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/errors"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
@@ -26,37 +27,11 @@ type Updater[T any] interface {
 }
 
 // SDKToDomain defines the function type for mapping SDK objects to domain objects
-type SDKToDomain[In any, D any] func(sdk In, resourceLocator RegionalResourceLocator) D
-
-// RegionalResourceLocator defines the interface for extracting resource location info
-type RegionalResourceLocator interface {
-	GetName() string
-	GetTenant() string
-	GetWorkspace() string
-}
-
-// ResourceLocator is a simple implementation of RegionalResourceLocator
-type ResourceLocator struct {
-	Name      string
-	Tenant    string
-	Workspace string
-}
-
-func (r ResourceLocator) GetName() string {
-	return r.Name
-}
-
-func (r ResourceLocator) GetTenant() string {
-	return r.Tenant
-}
-
-func (r ResourceLocator) GetWorkspace() string {
-	return r.Workspace
-}
+type SDKToDomain[In any, D any] func(sdk In, params regional.UpsertParams) D
 
 // UpsertOptions contains the configuration for HandleUpsert
 type UpsertOptions[In any, D any, Out any] struct {
-	Locator     RegionalResourceLocator
+	Params      regional.UpsertParams
 	Creator     Creator[D]
 	Updater     Updater[D]
 	SDKToDomain SDKToDomain[In, D]
@@ -76,8 +51,8 @@ func HandleUpsert[In any, D any, Out any](
 	logger *slog.Logger,
 	options UpsertOptions[In, D, Out],
 ) {
-	// TODO: Use workspace information from locator for resource scoping and access control
-	logger = logger.With("name", options.Locator.GetName(), "tenant", options.Locator.GetTenant(), "workspace", options.Locator.GetWorkspace())
+	// TODO: Use workspace information from identifier for resource scoping and access control
+	logger = logger.With("name", options.Params.GetName(), "tenant", options.Params.GetTenant(), "workspace", options.Params.GetWorkspace())
 
 	defer func(ctx context.Context, Body io.ReadCloser) {
 		err := Body.Close()
@@ -101,7 +76,7 @@ func HandleUpsert[In any, D any, Out any](
 		return
 	}
 
-	domainObj := options.SDKToDomain(apiObj, options.Locator)
+	domainObj := options.SDKToDomain(apiObj, options.Params)
 
 	result, err := options.Creator.Do(r.Context(), domainObj)
 	if err != nil {

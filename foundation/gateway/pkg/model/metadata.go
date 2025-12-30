@@ -14,14 +14,11 @@ type CommonMetadata struct {
 	DeletedAt       *time.Time
 }
 
-func (m *CommonMetadata) GetName() string     { return m.Name }
-func (m *CommonMetadata) SetName(name string) { m.Name = name }
+func (m *CommonMetadata) GetName() string { return m.Name }
 
 // Metadata carries common resource identity and classification data used in global domain models.
 // It is an alias for CommonMetadata to simplify references and allow providing sentinel methods for tenant and workspace.
 type Metadata struct{ CommonMetadata }
 
-func (m *Metadata) GetTenant() string             { return "" }
-func (m *Metadata) GetWorkspace() string          { return "" }
-func (m *Metadata) SetTenant(tenant string)       {}
-func (m *Metadata) SetWorkspace(workspace string) {}
+func (m *Metadata) GetTenant() string    { return "" }
+func (m *Metadata) GetWorkspace() string { return "" }

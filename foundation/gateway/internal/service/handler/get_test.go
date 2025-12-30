@@ -22,12 +22,9 @@ type testResource struct {
 	workspace string
 }
 
-func (r *testResource) GetName() string       { return r.name }
-func (r *testResource) SetName(n string)      { r.name = n }
-func (r *testResource) GetTenant() string     { return r.tenant }
-func (r *testResource) SetTenant(t string)    { r.tenant = t }
-func (r *testResource) GetWorkspace() string  { return r.workspace }
-func (r *testResource) SetWorkspace(w string) { r.workspace = w }
+func (r *testResource) GetName() string      { return r.name }
+func (r *testResource) GetTenant() string    { return r.tenant }
+func (r *testResource) GetWorkspace() string { return r.workspace }
 
 // mockGetter is a generic mock implementing Getter[D]
 // It returns the preset object or error.

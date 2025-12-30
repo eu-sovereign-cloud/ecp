@@ -11,6 +11,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -63,31 +65,11 @@ type TestOut struct {
 	Data string `json:"data"`
 }
 
-// Mock RegionalResourceLocator
-type MockRegionalResourceLocator struct {
-	mock.Mock
-}
-
-func (m *MockRegionalResourceLocator) GetName() string {
-	args := m.Called()
-	return args.String(0)
-}
-
-func (m *MockRegionalResourceLocator) GetTenant() string {
-	args := m.Called()
-	return args.String(0)
-}
-
-func (m *MockRegionalResourceLocator) GetWorkspace() string {
-	args := m.Called()
-	return args.String(0)
-}
-
 func TestHandleUpsert(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
-	apiToDomain := func(sdk TestIn, locator handler.RegionalResourceLocator) TestDomain {
-		return TestDomain{ID: locator.GetName(), Data: sdk.Data}
+	apiToDomain := func(sdk TestIn, params regional.UpsertParams) TestDomain {
+		return TestDomain{ID: params.GetName(), Data: sdk.Data}
 	}
 
 	domainToAPI := func(domain TestDomain) TestOut {
@@ -97,15 +79,18 @@ func TestHandleUpsert(t *testing.T) {
 	t.Run("success_create", func(t *testing.T) {
 		mockCreator := new(MockCreator[TestDomain])
 		mockUpdater := new(MockUpdater[TestDomain])
-		mockLocator := new(MockRegionalResourceLocator)
+		upsertParams := regional.UpsertParams{
+			Name: "test-resource",
+			Scope: scope.Scope{
+				Tenant:    "test-tenant",
+				Workspace: "test-workspace",
+			},
+		}
 
 		inObj := TestIn{Data: "test-data"}
 		domainObj := TestDomain{ID: "test-resource", Data: "test-data"}
 		outObj := TestOut{ID: "test-resource", Data: "test-data"}
 
-		mockLocator.On("GetName").Return("test-resource")
-		mockLocator.On("GetTenant").Return("test-tenant")
-		mockLocator.On("GetWorkspace").Return("test-workspace")
 		mockCreator.On("Do", mock.Anything, domainObj).Return(domainObj, nil)
 
 		body, _ := json.Marshal(inObj)
@@ -113,7 +98,7 @@ func TestHandleUpsert(t *testing.T) {
 		rr := httptest.NewRecorder()
 
 		handler.HandleUpsert(rr, req, logger, handler.UpsertOptions[TestIn, TestDomain, TestOut]{
-			Locator:     mockLocator,
+			Params:      upsertParams,
 			Creator:     mockCreator,
 			Updater:     mockUpdater,
 			SDKToDomain: apiToDomain,
@@ -129,23 +114,25 @@ func TestHandleUpsert(t *testing.T) {
 
 		mockCreator.AssertExpectations(t)
 		mockUpdater.AssertNotCalled(t, "Do")
-		mockLocator.AssertExpectations(t)
 	})
 
 	t.Run("invalid_json", func(t *testing.T) {
 		mockCreator := new(MockCreator[TestDomain])
 		mockUpdater := new(MockUpdater[TestDomain])
-		mockLocator := new(MockRegionalResourceLocator)
 
-		mockLocator.On("GetName").Return("test-resource")
-		mockLocator.On("GetTenant").Return("test-tenant")
-		mockLocator.On("GetWorkspace").Return("")
+		upsertParams := regional.UpsertParams{
+			Name: "test-resource",
+			Scope: scope.Scope{
+				Tenant:    "test-tenant",
+				Workspace: "test-workspace",
+			},
+		}
 
 		req := httptest.NewRequest(http.MethodPut, "/test", bytes.NewReader([]byte("invalid-json")))
 		rr := httptest.NewRecorder()
 
 		handler.HandleUpsert(rr, req, logger, handler.UpsertOptions[TestIn, TestDomain, TestOut]{
-			Locator:     mockLocator,
+			Params:      upsertParams,
 			Creator:     mockCreator,
 			Updater:     mockUpdater,
 			SDKToDomain: apiToDomain,
@@ -161,16 +148,19 @@ func TestHandleUpsert(t *testing.T) {
 	t.Run("update_succeeds_on_already_exists", func(t *testing.T) {
 		mockCreator := new(MockCreator[TestDomain])
 		mockUpdater := new(MockUpdater[TestDomain])
-		mockLocator := new(MockRegionalResourceLocator)
+
+		upsertParams := regional.UpsertParams{
+			Name: "test-resource",
+			Scope: scope.Scope{
+				Tenant:    "test-tenant",
+				Workspace: "test-workspace",
+			},
+		}
 
 		inObj := TestIn{Data: "updated-data"}
 		domainObj := TestDomain{ID: "test-resource", Data: "updated-data"}
 		updatedDomainObj := TestDomain{ID: "test-resource", Data: "updated-data-from-updater"}
 		outObj := TestOut{ID: "test-resource", Data: "updated-data-from-updater"}
-
-		mockLocator.On("GetName").Return("test-resource")
-		mockLocator.On("GetTenant").Return("test-tenant")
-		mockLocator.On("GetWorkspace").Return("")
 
 		errAlreadyExists := model.ErrAlreadyExists
 		mockCreator.On("Do", mock.Anything, domainObj).Return(nil, errAlreadyExists)
@@ -181,7 +171,7 @@ func TestHandleUpsert(t *testing.T) {
 		rr := httptest.NewRecorder()
 
 		handler.HandleUpsert(rr, req, logger, handler.UpsertOptions[TestIn, TestDomain, TestOut]{
-			Locator:     mockLocator,
+			Params:      upsertParams,
 			Creator:     mockCreator,
 			Updater:     mockUpdater,
 			SDKToDomain: apiToDomain,
@@ -201,14 +191,17 @@ func TestHandleUpsert(t *testing.T) {
 	t.Run("update_fails_on_already_exists", func(t *testing.T) {
 		mockCreator := new(MockCreator[TestDomain])
 		mockUpdater := new(MockUpdater[TestDomain])
-		mockLocator := new(MockRegionalResourceLocator)
+
+		upsertParams := regional.UpsertParams{
+			Name: "test-resource",
+			Scope: scope.Scope{
+				Tenant:    "test-tenant",
+				Workspace: "test-workspace",
+			},
+		}
 
 		inObj := TestIn{Data: "test-data"}
 		domainObj := TestDomain{ID: "test-resource", Data: "test-data"}
-
-		mockLocator.On("GetName").Return("test-resource")
-		mockLocator.On("GetTenant").Return("test-tenant")
-		mockLocator.On("GetWorkspace").Return("")
 
 		errAlreadyExists := model.ErrAlreadyExists
 		errUpdateFailed := errors.New("update failed")
@@ -220,7 +213,7 @@ func TestHandleUpsert(t *testing.T) {
 		rr := httptest.NewRecorder()
 
 		handler.HandleUpsert(rr, req, logger, handler.UpsertOptions[TestIn, TestDomain, TestOut]{
-			Locator:     mockLocator,
+			Params:      upsertParams,
 			Creator:     mockCreator,
 			Updater:     mockUpdater,
 			SDKToDomain: apiToDomain,
@@ -235,14 +228,17 @@ func TestHandleUpsert(t *testing.T) {
 	t.Run("creator_fails_other_error", func(t *testing.T) {
 		mockCreator := new(MockCreator[TestDomain])
 		mockUpdater := new(MockUpdater[TestDomain])
-		mockLocator := new(MockRegionalResourceLocator)
+
+		upsertParams := regional.UpsertParams{
+			Name: "test-resource",
+			Scope: scope.Scope{
+				Tenant:    "test-tenant",
+				Workspace: "test-workspace",
+			},
+		}
 
 		inObj := TestIn{Data: "test-data"}
 		domainObj := TestDomain{ID: "test-resource", Data: "test-data"}
-
-		mockLocator.On("GetName").Return("test-resource")
-		mockLocator.On("GetTenant").Return("test-tenant")
-		mockLocator.On("GetWorkspace").Return("")
 
 		mockCreator.On("Do", mock.Anything, domainObj).Return(nil, errors.New("internal error"))
 
@@ -251,7 +247,7 @@ func TestHandleUpsert(t *testing.T) {
 		rr := httptest.NewRecorder()
 
 		handler.HandleUpsert(rr, req, logger, handler.UpsertOptions[TestIn, TestDomain, TestOut]{
-			Locator:     mockLocator,
+			Params:      upsertParams,
 			Creator:     mockCreator,
 			Updater:     mockUpdater,
 			SDKToDomain: apiToDomain,
@@ -266,11 +262,14 @@ func TestHandleUpsert(t *testing.T) {
 	t.Run("bad_request_body", func(t *testing.T) {
 		mockCreator := new(MockCreator[TestDomain])
 		mockUpdater := new(MockUpdater[TestDomain])
-		mockLocator := new(MockRegionalResourceLocator)
 
-		mockLocator.On("GetName").Return("test-resource")
-		mockLocator.On("GetTenant").Return("test-tenant")
-		mockLocator.On("GetWorkspace").Return("")
+		upsertParams := regional.UpsertParams{
+			Name: "test-resource",
+			Scope: scope.Scope{
+				Tenant:    "test-tenant",
+				Workspace: "test-workspace",
+			},
+		}
 
 		rr := httptest.NewRecorder()
 		// Create a request with a small body and then wrap it with MaxBytesReader to force a read error
@@ -278,7 +277,7 @@ func TestHandleUpsert(t *testing.T) {
 		origReq.Body = http.MaxBytesReader(rr, origReq.Body, 0) // limit 0 bytes to trigger error on Read
 
 		handler.HandleUpsert(rr, origReq, logger, handler.UpsertOptions[TestIn, TestDomain, TestOut]{
-			Locator:     mockLocator,
+			Params:      upsertParams,
 			Creator:     mockCreator,
 			Updater:     mockUpdater,
 			SDKToDomain: apiToDomain,
@@ -293,14 +292,17 @@ func TestHandleUpsert(t *testing.T) {
 	t.Run("encode_response_fails", func(t *testing.T) {
 		mockCreator := new(MockCreator[TestDomain])
 		mockUpdater := new(MockUpdater[TestDomain])
-		mockLocator := new(MockRegionalResourceLocator)
+
+		upsertParams := regional.UpsertParams{
+			Name: "test-resource",
+			Scope: scope.Scope{
+				Tenant:    "test-tenant",
+				Workspace: "test-workspace",
+			},
+		}
 
 		inObj := TestIn{Data: "test-data"}
 		domainObj := TestDomain{ID: "test-resource", Data: "test-data"}
-
-		mockLocator.On("GetName").Return("test-resource")
-		mockLocator.On("GetTenant").Return("test-tenant")
-		mockLocator.On("GetWorkspace").Return("")
 
 		mockCreator.On("Do", mock.Anything, domainObj).Return(domainObj, nil)
 
@@ -314,7 +316,7 @@ func TestHandleUpsert(t *testing.T) {
 		rr := httptest.NewRecorder()
 
 		handler.HandleUpsert(rr, req, logger, handler.UpsertOptions[TestIn, TestDomain, any]{
-			Locator:     mockLocator,
+			Params:      upsertParams,
 			Creator:     mockCreator,
 			Updater:     mockUpdater,
 			SDKToDomain: apiToDomain,
@@ -327,14 +329,17 @@ func TestHandleUpsert(t *testing.T) {
 	t.Run("create_fails_not_found", func(t *testing.T) {
 		mockCreator := new(MockCreator[TestDomain])
 		mockUpdater := new(MockUpdater[TestDomain])
-		mockLocator := new(MockRegionalResourceLocator)
+
+		upsertParams := regional.UpsertParams{
+			Name: "test-resource",
+			Scope: scope.Scope{
+				Tenant:    "test-tenant",
+				Workspace: "test-workspace",
+			},
+		}
 
 		inObj := TestIn{Data: "test-data"}
 		domainObj := TestDomain{ID: "test-resource", Data: "test-data"}
-
-		mockLocator.On("GetName").Return("test-resource")
-		mockLocator.On("GetTenant").Return("test-tenant")
-		mockLocator.On("GetWorkspace").Return("")
 
 		mockCreator.On("Do", mock.Anything, domainObj).Return(nil, model.ErrNotFound)
 
@@ -343,7 +348,7 @@ func TestHandleUpsert(t *testing.T) {
 		rr := httptest.NewRecorder()
 
 		handler.HandleUpsert(rr, req, logger, handler.UpsertOptions[TestIn, TestDomain, TestOut]{
-			Locator:     mockLocator,
+			Params:      upsertParams,
 			Creator:     mockCreator,
 			Updater:     mockUpdater,
 			SDKToDomain: apiToDomain,
@@ -358,14 +363,17 @@ func TestHandleUpsert(t *testing.T) {
 	t.Run("create_fails_validation", func(t *testing.T) {
 		mockCreator := new(MockCreator[TestDomain])
 		mockUpdater := new(MockUpdater[TestDomain])
-		mockLocator := new(MockRegionalResourceLocator)
+
+		upsertParams := regional.UpsertParams{
+			Name: "test-resource",
+			Scope: scope.Scope{
+				Tenant:    "test-tenant",
+				Workspace: "test-workspace",
+			},
+		}
 
 		inObj := TestIn{Data: "test-data"}
 		domainObj := TestDomain{ID: "test-resource", Data: "test-data"}
-
-		mockLocator.On("GetName").Return("test-resource")
-		mockLocator.On("GetTenant").Return("test-tenant")
-		mockLocator.On("GetWorkspace").Return("")
 
 		mockCreator.On("Do", mock.Anything, domainObj).Return(nil, model.ErrValidation)
 
@@ -374,7 +382,7 @@ func TestHandleUpsert(t *testing.T) {
 		rr := httptest.NewRecorder()
 
 		handler.HandleUpsert(rr, req, logger, handler.UpsertOptions[TestIn, TestDomain, TestOut]{
-			Locator:     mockLocator,
+			Params:      upsertParams,
 			Creator:     mockCreator,
 			Updater:     mockUpdater,
 			SDKToDomain: apiToDomain,
@@ -389,14 +397,17 @@ func TestHandleUpsert(t *testing.T) {
 	t.Run("update_fails_not_found", func(t *testing.T) {
 		mockCreator := new(MockCreator[TestDomain])
 		mockUpdater := new(MockUpdater[TestDomain])
-		mockLocator := new(MockRegionalResourceLocator)
+
+		upsertParams := regional.UpsertParams{
+			Name: "test-resource",
+			Scope: scope.Scope{
+				Tenant:    "test-tenant",
+				Workspace: "test-workspace",
+			},
+		}
 
 		inObj := TestIn{Data: "test-data"}
 		domainObj := TestDomain{ID: "test-resource", Data: "test-data"}
-
-		mockLocator.On("GetName").Return("test-resource")
-		mockLocator.On("GetTenant").Return("test-tenant")
-		mockLocator.On("GetWorkspace").Return("")
 
 		mockCreator.On("Do", mock.Anything, domainObj).Return(nil, model.ErrAlreadyExists)
 		mockUpdater.On("Do", mock.Anything, domainObj).Return(nil, model.ErrNotFound)
@@ -406,7 +417,7 @@ func TestHandleUpsert(t *testing.T) {
 		rr := httptest.NewRecorder()
 
 		handler.HandleUpsert(rr, req, logger, handler.UpsertOptions[TestIn, TestDomain, TestOut]{
-			Locator:     mockLocator,
+			Params:      upsertParams,
 			Creator:     mockCreator,
 			Updater:     mockUpdater,
 			SDKToDomain: apiToDomain,
@@ -421,14 +432,17 @@ func TestHandleUpsert(t *testing.T) {
 	t.Run("update_fails_conflict", func(t *testing.T) {
 		mockCreator := new(MockCreator[TestDomain])
 		mockUpdater := new(MockUpdater[TestDomain])
-		mockLocator := new(MockRegionalResourceLocator)
+
+		upsertParams := regional.UpsertParams{
+			Name: "test-resource",
+			Scope: scope.Scope{
+				Tenant:    "test-tenant",
+				Workspace: "test-workspace",
+			},
+		}
 
 		inObj := TestIn{Data: "test-data"}
 		domainObj := TestDomain{ID: "test-resource", Data: "test-data"}
-
-		mockLocator.On("GetName").Return("test-resource")
-		mockLocator.On("GetTenant").Return("test-tenant")
-		mockLocator.On("GetWorkspace").Return("")
 
 		mockCreator.On("Do", mock.Anything, domainObj).Return(nil, model.ErrAlreadyExists)
 		mockUpdater.On("Do", mock.Anything, domainObj).Return(nil, model.ErrConflict)
@@ -438,7 +452,7 @@ func TestHandleUpsert(t *testing.T) {
 		rr := httptest.NewRecorder()
 
 		handler.HandleUpsert(rr, req, logger, handler.UpsertOptions[TestIn, TestDomain, TestOut]{
-			Locator:     mockLocator,
+			Params:      upsertParams,
 			Creator:     mockCreator,
 			Updater:     mockUpdater,
 			SDKToDomain: apiToDomain,
@@ -453,14 +467,17 @@ func TestHandleUpsert(t *testing.T) {
 	t.Run("update_fails_validation", func(t *testing.T) {
 		mockCreator := new(MockCreator[TestDomain])
 		mockUpdater := new(MockUpdater[TestDomain])
-		mockLocator := new(MockRegionalResourceLocator)
+
+		upsertParams := regional.UpsertParams{
+			Name: "test-resource",
+			Scope: scope.Scope{
+				Tenant:    "test-tenant",
+				Workspace: "test-workspace",
+			},
+		}
 
 		inObj := TestIn{Data: "test-data"}
 		domainObj := TestDomain{ID: "test-resource", Data: "test-data"}
-
-		mockLocator.On("GetName").Return("test-resource")
-		mockLocator.On("GetTenant").Return("test-tenant")
-		mockLocator.On("GetWorkspace").Return("")
 
 		mockCreator.On("Do", mock.Anything, domainObj).Return(nil, model.ErrAlreadyExists)
 		mockUpdater.On("Do", mock.Anything, domainObj).Return(nil, model.ErrValidation)
@@ -470,7 +487,7 @@ func TestHandleUpsert(t *testing.T) {
 		rr := httptest.NewRecorder()
 
 		handler.HandleUpsert(rr, req, logger, handler.UpsertOptions[TestIn, TestDomain, TestOut]{
-			Locator:     mockLocator,
+			Params:      upsertParams,
 			Creator:     mockCreator,
 			Updater:     mockUpdater,
 			SDKToDomain: apiToDomain,
