@@ -52,6 +52,11 @@ func DomainToAPI(domain *regional.WorkspaceDomain) schema.Workspace {
 	return regional.MapWorkspaceDomainToAPI(*domain, "get")
 }
 
+func APIToDomain(api schema.Workspace, params regional.UpsertParams) *regional.WorkspaceDomain {
+	domain := regional.MapWorkspaceAPIToDomain(api, params)
+	return &domain
+}
+
 func DomainToAPIIterator(domainWorkspaces []*regional.WorkspaceDomain, nextSkipToken *string) *sdkworkspace.WorkspaceIterator {
 	sdkWorkspaces := make([]schema.Workspace, len(domainWorkspaces))
 	for i, dom := range domainWorkspaces {
