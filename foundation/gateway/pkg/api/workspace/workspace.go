@@ -33,6 +33,21 @@ func ListParamsFromAPI(params sdkworkspace.ListWorkspacesParams, tenant string) 
 	}
 }
 
+func UpsertParamsFromAPI(params sdkworkspace.CreateOrUpdateWorkspaceParams, tenant string, name string) regional.UpsertParams {
+	var ifUnmodifiedSince int
+	if params.IfUnmodifiedSince != nil {
+		ifUnmodifiedSince = *params.IfUnmodifiedSince
+	}
+
+	return regional.UpsertParams{
+		Scope: scope.Scope{
+			Tenant: tenant,
+		},
+		Name:              name,
+		IfUnmodifiedSince: ifUnmodifiedSince,
+	}
+}
+
 func DomainToAPI(domain *regional.WorkspaceDomain) schema.Workspace {
 	return regional.MapWorkspaceDomainToAPI(*domain, "get")
 }
