@@ -12,24 +12,23 @@ package delegated
 import (
 	reflect "reflect"
 
-	port "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 	gomock "go.uber.org/mock/gomock"
 )
 
 // MockConverter is a mock of Converter interface.
-type MockConverter[S port.IdentifiableResource, A any] struct {
+type MockConverter[S any, A any] struct {
 	ctrl     *gomock.Controller
 	recorder *MockConverterMockRecorder[S, A]
 	isgomock struct{}
 }
 
 // MockConverterMockRecorder is the mock recorder for MockConverter.
-type MockConverterMockRecorder[S port.IdentifiableResource, A any] struct {
+type MockConverterMockRecorder[S any, A any] struct {
 	mock *MockConverter[S, A]
 }
 
 // NewMockConverter creates a new mock instance.
-func NewMockConverter[S port.IdentifiableResource, A any](ctrl *gomock.Controller) *MockConverter[S, A] {
+func NewMockConverter[S any, A any](ctrl *gomock.Controller) *MockConverter[S, A] {
 	mock := &MockConverter[S, A]{ctrl: ctrl}
 	mock.recorder = &MockConverterMockRecorder[S, A]{mock}
 	return mock
