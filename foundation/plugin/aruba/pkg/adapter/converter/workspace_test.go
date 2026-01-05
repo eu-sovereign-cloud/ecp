@@ -10,7 +10,6 @@ import (
 )
 
 func TestWorkspaceProjectConverter_FromSECAToAruba(t *testing.T) {
-
 	tests := []struct {
 		name      string
 		input     *regional.WorkspaceDomain
