@@ -157,7 +157,7 @@ func MapWorkspaceDomainToCR(domain *regional.WorkspaceDomain) (client.Object, er
 		spec[k] = convert.InterfaceToString(v)
 	}
 
-	crLabels := labels.OriginalToKeyed(domain.Metadata.Labels)
+	crLabels := labels.OriginalToKeyed(domain.Labels)
 	crLabels[labels.InternalTenantLabel] = domain.Tenant
 
 	return &workspacev1.Workspace{
@@ -198,20 +198,20 @@ func mapCRToStatusConditionDomains(crStatusConditions []types.StatusCondition) [
 // mapCRToResourceStateDomain maps types.ResourceState to regional.ResourceStateDomain.
 func mapCRToResourceStateDomain(crResourceState types.ResourceState) regional.ResourceStateDomain {
 	var state regional.ResourceStateDomain
-	switch {
-	case crResourceState == types.ResourceStatePending:
+	switch crResourceState {
+	case types.ResourceStatePending:
 		state = regional.ResourceStatePending
-	case crResourceState == types.ResourceStateCreating:
+	case types.ResourceStateCreating:
 		state = regional.ResourceStateCreating
-	case crResourceState == types.ResourceStateActive:
+	case types.ResourceStateActive:
 		state = regional.ResourceStateActive
-	case crResourceState == types.ResourceStateUpdating:
+	case types.ResourceStateUpdating:
 		state = regional.ResourceStateUpdating
-	case crResourceState == types.ResourceStateDeleting:
+	case types.ResourceStateDeleting:
 		state = regional.ResourceStateDeleting
-	case crResourceState == types.ResourceStateSuspended:
+	case types.ResourceStateSuspended:
 		state = regional.ResourceStateSuspended
-	case crResourceState == types.ResourceStateError:
+	case types.ResourceStateError:
 		state = regional.ResourceStateError
 	default:
 		state = ""

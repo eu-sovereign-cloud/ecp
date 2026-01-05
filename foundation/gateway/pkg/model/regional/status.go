@@ -43,20 +43,20 @@ type StatusConditionDomain struct {
 // mapResourceStateDomainToAPI maps ResourceStateDomain to a schema.ResourceState.
 func mapResourceStateDomainToAPI(domain ResourceStateDomain) schema.ResourceState {
 	var state schema.ResourceState
-	switch {
-	case domain == ResourceStatePending:
+	switch domain {
+	case ResourceStatePending:
 		state = schema.ResourceStatePending
-	case domain == ResourceStateCreating:
+	case ResourceStateCreating:
 		state = schema.ResourceStateCreating
-	case domain == ResourceStateActive:
+	case ResourceStateActive:
 		state = schema.ResourceStateActive
-	case domain == ResourceStateUpdating:
+	case ResourceStateUpdating:
 		state = schema.ResourceStateUpdating
-	case domain == ResourceStateDeleting:
+	case ResourceStateDeleting:
 		state = schema.ResourceStateDeleting
-	case domain == ResourceStateSuspended:
+	case ResourceStateSuspended:
 		state = schema.ResourceStateSuspended
-	case domain == ResourceStateError:
+	case ResourceStateError:
 		state = schema.ResourceStateError
 	default:
 		state = ""
