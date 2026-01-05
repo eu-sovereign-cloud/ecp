@@ -4,19 +4,9 @@ go 1.24
 
 toolchain go1.24
 
-require go.uber.org/mock v0.6.0
-
-replace github.com/eu-sovereign-cloud/ecp/foundation/delegator => ../../delegator
-
-replace github.com/eu-sovereign-cloud/ecp/foundation/gateway => ../../gateway
-
 require (
-	github.com/Arubacloud/arubacloud-resource-operator v0.0.1-alpha5
-	github.com/google/uuid v1.6.0
 	github.com/stretchr/testify v1.11.1
 	k8s.io/apimachinery v0.34.3
-	k8s.io/client-go v0.34.3
-	sigs.k8s.io/controller-runtime v0.22.4
 )
 
 require (
@@ -30,7 +20,7 @@ require (
 	github.com/go-openapi/swag v0.23.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/google/gnostic-models v0.7.0 // indirect
-	github.com/google/go-cmp v0.7.0 // indirect
+	github.com/google/uuid v1.6.0
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
@@ -56,7 +46,7 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/api v0.34.3 // indirect
-	k8s.io/apiextensions-apiserver v0.34.3 // indirect
+	k8s.io/client-go v0.34.3
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20250910181357-589584f1c912 // indirect
 	k8s.io/utils v0.0.0-20251002143259-bc988d571ff4 // indirect
@@ -64,4 +54,19 @@ require (
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.0 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
+)
+
+require (
+	github.com/Arubacloud/arubacloud-resource-operator v0.0.1-alpha5
+	go.uber.org/mock v0.6.0
+	sigs.k8s.io/controller-runtime v0.22.4
+)
+
+replace github.com/eu-sovereign-cloud/ecp/foundation/delegator => ../../delegator
+
+replace github.com/eu-sovereign-cloud/ecp/foundation/gateway => ../../gateway
+
+require (
+	github.com/google/go-cmp v0.7.0 // indirect
+	k8s.io/apiextensions-apiserver v0.34.3 // indirect
 )
