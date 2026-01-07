@@ -5,9 +5,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type ProjectRepository = *CommonRepository[*v1alpha1.Project]
+// ProjectRepository is a typed alias for CommonRepository specialized for Project.
+type ProjectRepository = CommonRepository[*v1alpha1.Project]
 
 // NewProjectRepository creates a new instance of ProjectRepository.
-func NewProjectRepository(client client.Client) ProjectRepository {
-	return NewCommonRepository[*v1alpha1.Project](client)
+func NewProjectRepository(c client.Client) *ProjectRepository {
+	return NewCommonRepository[*v1alpha1.Project](c)
 }
