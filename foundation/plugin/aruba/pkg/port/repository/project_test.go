@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"k8s.io/apimachinery/pkg/api/errors"
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,24 +32,28 @@ func newFakeProjectClientWithObject(project *v1alpha1.Project) client.Client {
 func TestProjectRepository_Load(t *testing.T) {
 	ctx := context.Background()
 	// Create a fake client with one Project object
-	project := &v1alpha1.Project{
+
+	prj := &v1alpha1.Project{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "demo-project",
 			Namespace: "default",
 		},
 	}
-	fakeClient := newFakeProjectClientWithObject(project)
+
+	fakeClient := newFakeProjectClientWithObject(prj)
 
 	// Create repository
 	repo := repository.NewCommonRepository[*v1alpha1.Project](fakeClient)
 
 	// Prepare an empty Project object to load into
-	toLoad := &v1alpha1.Project{
+	toLoad := &v1alpha1.Project{}
+
+	// load the Project via a BlockStorage's ProjectReference
+	bs := &v1alpha1.BlockStorage{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "demo-project",
+			Name:      "storage-project",
 			Namespace: "default",
 		},
-	}
 
 	// Call Load
 	err := repo.Load(ctx, toLoad)
@@ -115,5 +120,9 @@ func TestProjectRepository_Delete(t *testing.T) {
 
 	err := repo.Delete(ctx, project)
 	require.NoError(t, err, "expected Load to succeed")
+
+	err = repo.Load(ctx, project)
+	assert.Error(t, err)
+	assert.True(t, errors.IsNotFound(err))
 
 }
