@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 
+	"k8s.io/apimachinery/pkg/api/errors"
+
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
 	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/repository"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -32,32 +34,42 @@ func newFakeProjectClientWithObject(project *v1alpha1.Project) client.Client {
 func TestProjectRepository_Load(t *testing.T) {
 	ctx := context.Background()
 	// Create a fake client with one Project object
-	project := &v1alpha1.Project{
+
+	prj := &v1alpha1.Project{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "demo-project",
 			Namespace: "default",
 		},
 	}
-	fakeClient := newFakeProjectClientWithObject(project)
+
+	fakeClient := newFakeProjectClientWithObject(prj)
 
 	// Create repository
 	repo := repository.NewCommonRepository[*v1alpha1.Project](fakeClient)
 
 	// Prepare an empty Project object to load into
-	toLoad := &v1alpha1.Project{
+	toLoad := &v1alpha1.Project{}
+
+	// load the Project via a BlockStorage's ProjectReference
+	bs := &v1alpha1.BlockStorage{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "demo-project",
+			Name:      "storage-project",
 			Namespace: "default",
 		},
-	}
 
-	// Call Load
-	err := repo.Load(ctx, toLoad)
+		Spec: v1alpha1.BlockStorageSpec{
+			ProjectReference: v1alpha1.ResourceReference{
+				Name:      "demo-project",
+				Namespace: "default",
+			},
+		},
+	}
+	err := repo.ResolveReference(ctx, bs.Spec.ProjectReference, toLoad)
 	assert.NoError(t, err, "expected Load to succeed")
 
 	// Check that the loaded object matches the original
-	assert.Equal(t, project.Name, toLoad.Name)
-	assert.Equal(t, project.Namespace, toLoad.Namespace)
+	assert.Equal(t, prj.Name, toLoad.Name)
+	assert.Equal(t, prj.Namespace, toLoad.Namespace)
 }
 
 func TestProjectRepository_Create(t *testing.T) {
@@ -96,7 +108,18 @@ func TestProjectRepository_Update(t *testing.T) {
 	project.Spec.Tenant = "tenant"
 	err := repo.Update(ctx, project)
 	assert.NoError(t, err, "expected Load to succeed")
-	assert.NotNil(t, project.Spec.Tenant)
+
+	updated := &v1alpha1.Project{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "demo-project",
+			Namespace: "default",
+		},
+	}
+
+	err = repo.Load(ctx, updated)
+
+	assert.NoError(t, err, "expected Load to succeed")
+	assert.NotNil(t, updated.Spec.Tenant)
 
 }
 
@@ -116,5 +139,9 @@ func TestProjectRepository_Delete(t *testing.T) {
 
 	err := repo.Delete(ctx, project)
 	assert.NoError(t, err, "expected Load to succeed")
+
+	err = repo.Load(ctx, project)
+	assert.Error(t, err)
+	assert.True(t, errors.IsNotFound(err))
 
 }
