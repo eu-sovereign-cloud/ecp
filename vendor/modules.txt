@@ -1,6 +1,7 @@
 ## workspace
 # github.com/Arubacloud/arubacloud-resource-operator v0.0.1-alpha4
 ## explicit; go 1.24.0
+github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1
 # github.com/apapsch/go-jsonmerge/v2 v2.0.0
 ## explicit; go 1.12
 github.com/apapsch/go-jsonmerge/v2
@@ -38,6 +39,8 @@ github.com/fatih/color
 # github.com/fxamacker/cbor/v2 v2.9.0
 ## explicit; go 1.20
 github.com/fxamacker/cbor/v2
+# github.com/go-logr/logr v1.4.2
+## explicit; go 1.18
 # github.com/go-logr/logr v1.4.3
 ## explicit; go 1.18
 github.com/go-logr/logr
@@ -172,7 +175,7 @@ go.uber.org/mock/gomock
 # go.yaml.in/yaml/v2 v2.4.2
 ## explicit; go 1.15
 # go.yaml.in/yaml/v2 v2.4.3
-## go 1.15
+## explicit; go 1.15
 go.yaml.in/yaml/v2
 # go.yaml.in/yaml/v3 v3.0.4
 ## explicit; go 1.16
@@ -187,7 +190,7 @@ golang.org/x/mod/semver
 # golang.org/x/net v0.43.0
 ## explicit; go 1.24.0
 # golang.org/x/net v0.47.0
-## go 1.24.0
+## explicit; go 1.24.0
 golang.org/x/net/http/httpguts
 golang.org/x/net/http2
 golang.org/x/net/http2/hpack
@@ -196,7 +199,7 @@ golang.org/x/net/internal/httpcommon
 # golang.org/x/oauth2 v0.27.0
 ## explicit; go 1.24.0
 # golang.org/x/oauth2 v0.32.0
-## go 1.24.0
+## explicit; go 1.24.0
 golang.org/x/oauth2
 golang.org/x/oauth2/internal
 # golang.org/x/sync v0.16.0
@@ -207,19 +210,19 @@ golang.org/x/sync/errgroup
 # golang.org/x/sys v0.35.0
 ## explicit; go 1.24.0
 # golang.org/x/sys v0.38.0
-## go 1.24.0
+## explicit; go 1.24.0
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
 # golang.org/x/term v0.34.0
 ## explicit; go 1.24.0
 # golang.org/x/term v0.37.0
-## go 1.24.0
+## explicit; go 1.24.0
 golang.org/x/term
 # golang.org/x/text v0.28.0
 ## explicit; go 1.24.0
 # golang.org/x/text v0.31.0
-## go 1.24.0
+## explicit; go 1.24.0
 golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
@@ -227,7 +230,7 @@ golang.org/x/text/unicode/norm
 # golang.org/x/time v0.9.0
 ## explicit; go 1.23.0
 # golang.org/x/time v0.12.0
-## go 1.23.0
+## explicit; go 1.23.0
 golang.org/x/time/rate
 # golang.org/x/tools v0.36.0
 ## explicit; go 1.24.0
@@ -260,7 +263,7 @@ golang.org/x/tools/internal/versions
 # google.golang.org/protobuf v1.36.7
 ## explicit; go 1.23
 # google.golang.org/protobuf v1.36.10
-## go 1.23
+## explicit; go 1.23
 google.golang.org/protobuf/encoding/protodelim
 google.golang.org/protobuf/encoding/prototext
 google.golang.org/protobuf/encoding/protowire
@@ -342,6 +345,7 @@ k8s.io/api/flowcontrol/v1
 k8s.io/api/flowcontrol/v1beta1
 k8s.io/api/flowcontrol/v1beta2
 k8s.io/api/flowcontrol/v1beta3
+k8s.io/api/imagepolicy/v1alpha1
 k8s.io/api/networking/v1
 k8s.io/api/networking/v1beta1
 k8s.io/api/node/v1
@@ -422,6 +426,7 @@ k8s.io/apimachinery/pkg/util/managedfields/internal
 k8s.io/apimachinery/pkg/util/mergepatch
 k8s.io/apimachinery/pkg/util/naming
 k8s.io/apimachinery/pkg/util/net
+k8s.io/apimachinery/pkg/util/rand
 k8s.io/apimachinery/pkg/util/runtime
 k8s.io/apimachinery/pkg/util/sets
 k8s.io/apimachinery/pkg/util/strategicpatch
@@ -436,6 +441,7 @@ k8s.io/apimachinery/third_party/forked/golang/json
 k8s.io/apimachinery/third_party/forked/golang/reflect
 # k8s.io/client-go v0.34.1
 ## explicit; go 1.24.0
+k8s.io/client-go/applyconfigurations
 k8s.io/client-go/applyconfigurations/admissionregistration/v1
 k8s.io/client-go/applyconfigurations/admissionregistration/v1alpha1
 k8s.io/client-go/applyconfigurations/admissionregistration/v1beta1
@@ -465,6 +471,7 @@ k8s.io/client-go/applyconfigurations/flowcontrol/v1
 k8s.io/client-go/applyconfigurations/flowcontrol/v1beta1
 k8s.io/client-go/applyconfigurations/flowcontrol/v1beta2
 k8s.io/client-go/applyconfigurations/flowcontrol/v1beta3
+k8s.io/client-go/applyconfigurations/imagepolicy/v1alpha1
 k8s.io/client-go/applyconfigurations/internal
 k8s.io/client-go/applyconfigurations/meta/v1
 k8s.io/client-go/applyconfigurations/networking/v1
@@ -756,10 +763,14 @@ k8s.io/utils/trace
 sigs.k8s.io/controller-runtime/pkg/client
 sigs.k8s.io/controller-runtime/pkg/client/apiutil
 sigs.k8s.io/controller-runtime/pkg/client/config
+sigs.k8s.io/controller-runtime/pkg/client/fake
+sigs.k8s.io/controller-runtime/pkg/client/interceptor
 sigs.k8s.io/controller-runtime/pkg/conversion
 sigs.k8s.io/controller-runtime/pkg/envtest
+sigs.k8s.io/controller-runtime/pkg/internal/field/selector
 sigs.k8s.io/controller-runtime/pkg/internal/flock
 sigs.k8s.io/controller-runtime/pkg/internal/log
+sigs.k8s.io/controller-runtime/pkg/internal/objectutil
 sigs.k8s.io/controller-runtime/pkg/internal/testing/addr
 sigs.k8s.io/controller-runtime/pkg/internal/testing/certs
 sigs.k8s.io/controller-runtime/pkg/internal/testing/controlplane
