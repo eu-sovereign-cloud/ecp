@@ -49,10 +49,58 @@ spec:
                 type: integer
               skuRef:
                 description: SkuRef Reference to the SKU of the block storage.
+                properties:
+                  provider:
+                    description: Provider Provider of the resource. If not set, the
+                      provider is inferred from the context.
+                    type: string
+                  region:
+                    description: Region Region of the resource. If not set, the region
+                      is inferred from the context.
+                    type: string
+                  resource:
+                    description: |-
+                      Resource Name and type of the resource. Must be in the format `<type>/<name>`.
+                      The type is the resource type, and the name is the resource name.
+                    type: string
+                  tenant:
+                    description: Tenant Tenant of the resource. If not set, the tenant
+                      is inferred from the context.
+                    type: string
+                  workspace:
+                    description: Workspace Workspace of the resource. If not set,
+                      the workspace is inferred from the context.
+                    type: string
+                required:
+                - resource
                 type: object
               sourceImageRef:
                 description: SourceImageRef Reference to the source image used as
                   the base for creating the block storage.
+                properties:
+                  provider:
+                    description: Provider Provider of the resource. If not set, the
+                      provider is inferred from the context.
+                    type: string
+                  region:
+                    description: Region Region of the resource. If not set, the region
+                      is inferred from the context.
+                    type: string
+                  resource:
+                    description: |-
+                      Resource Name and type of the resource. Must be in the format `<type>/<name>`.
+                      The type is the resource type, and the name is the resource name.
+                    type: string
+                  tenant:
+                    description: Tenant Tenant of the resource. If not set, the tenant
+                      is inferred from the context.
+                    type: string
+                  workspace:
+                    description: Workspace Workspace of the resource. If not set,
+                      the workspace is inferred from the context.
+                    type: string
+                required:
+                - resource
                 type: object
             required:
             - sizeGB
@@ -64,6 +112,30 @@ spec:
               attachedTo:
                 description: AttachedTo Reference to the instance the block storage
                   is attached to.
+                properties:
+                  provider:
+                    description: Provider Provider of the resource. If not set, the
+                      provider is inferred from the context.
+                    type: string
+                  region:
+                    description: Region Region of the resource. If not set, the region
+                      is inferred from the context.
+                    type: string
+                  resource:
+                    description: |-
+                      Resource Name and type of the resource. Must be in the format `<type>/<name>`.
+                      The type is the resource type, and the name is the resource name.
+                    type: string
+                  tenant:
+                    description: Tenant Tenant of the resource. If not set, the tenant
+                      is inferred from the context.
+                    type: string
+                  workspace:
+                    description: Workspace Workspace of the resource. If not set,
+                      the workspace is inferred from the context.
+                    type: string
+                required:
+                - resource
                 type: object
               conditions:
                 items:

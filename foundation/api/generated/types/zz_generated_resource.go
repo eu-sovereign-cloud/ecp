@@ -258,8 +258,8 @@ type GlobalResourceMetadata struct {
 
 	// Ref Reference to a resource. The reference is represented as the full URN (Uniform Resource Name) name of the resource.
 	// The reference can be used to refer to a resource in other resources.
-	Ref      *Reference `json:"ref,omitempty"`
-	Resource string     `json:"resource"`
+	Ref      *ReferenceObject `json:"ref,omitempty"`
+	Resource string           `json:"resource"`
 
 	// ResourceVersion Incremented on every modification of the resource. Used for optimistic concurrency control.
 	ResourceVersion int    `json:"resourceVersion"`
@@ -294,8 +294,8 @@ type GlobalTenantResourceMetadata struct {
 
 	// Ref Reference to a resource. The reference is represented as the full URN (Uniform Resource Name) name of the resource.
 	// The reference can be used to refer to a resource in other resources.
-	Ref      *Reference `json:"ref,omitempty"`
-	Resource string     `json:"resource"`
+	Ref      *ReferenceObject `json:"ref,omitempty"`
+	Resource string           `json:"resource"`
 
 	// ResourceVersion Incremented on every modification of the resource. Used for optimistic concurrency control.
 	ResourceVersion int `json:"resourceVersion"`
@@ -437,7 +437,7 @@ type RegionalNetworkResourceMetadata struct {
 
 	// Ref Reference to a resource. The reference is represented as the full URN (Uniform Resource Name) name of the resource.
 	// The reference can be used to refer to a resource in other resources.
-	Ref *Reference `json:"ref,omitempty"`
+	Ref *ReferenceObject `json:"ref,omitempty"`
 
 	// Region Reference to the region where the resource is located
 	Region   string `json:"region"`
@@ -482,7 +482,7 @@ type RegionalResourceMetadata struct {
 
 	// Ref Reference to a resource. The reference is represented as the full URN (Uniform Resource Name) name of the resource.
 	// The reference can be used to refer to a resource in other resources.
-	Ref *Reference `json:"ref,omitempty"`
+	Ref *ReferenceObject `json:"ref,omitempty"`
 
 	// Region Reference to the region where the resource is located
 	Region   string `json:"region"`
@@ -524,7 +524,7 @@ type RegionalWorkspaceResourceMetadata struct {
 
 	// Ref Reference to a resource. The reference is represented as the full URN (Uniform Resource Name) name of the resource.
 	// The reference can be used to refer to a resource in other resources.
-	Ref *Reference `json:"ref,omitempty"`
+	Ref *ReferenceObject `json:"ref,omitempty"`
 
 	// Region Reference to the region where the resource is located
 	Region   string `json:"region"`
@@ -559,7 +559,7 @@ type ResourceMetadata struct {
 
 	// Ref Reference to a resource. The reference is represented as the full URN (Uniform Resource Name) name of the resource.
 	// The reference can be used to refer to a resource in other resources.
-	Ref *Reference `json:"ref,omitempty"`
+	Ref *ReferenceObject `json:"ref,omitempty"`
 }
 
 // ResourceMetadataKind Type of the resource
@@ -601,7 +601,7 @@ type SkuResourceMetadata struct {
 
 	// Ref Reference to a resource. The reference is represented as the full URN (Uniform Resource Name) name of the resource.
 	// The reference can be used to refer to a resource in other resources.
-	Ref *Reference `json:"ref,omitempty"`
+	Ref *ReferenceObject `json:"ref,omitempty"`
 
 	// Region Reference to the region where the resource is located
 	Region   string `json:"region"`
@@ -695,7 +695,7 @@ type TypeMetadata struct {
 
 	// Ref Reference to a resource. The reference is represented as the full URN (Uniform Resource Name) name of the resource.
 	// The reference can be used to refer to a resource in other resources.
-	Ref *Reference `json:"ref,omitempty"`
+	Ref *ReferenceObject `json:"ref,omitempty"`
 }
 
 // TypeMetadataKind Type of the resource

@@ -90,11 +90,11 @@ type NetworkSpec struct {
 	Cidr Cidr `json:"cidr"`
 
 	// RouteTableRef Reference to the route table used by default for all Subnets.
-	RouteTableRef Reference `json:"routeTableRef"`
+	RouteTableRef ReferenceObject `json:"routeTableRef"`
 
 	// SkuRef Reference to the SKU used by default for all NIC in this Network.
 	// Can be overridden by the NIC.
-	SkuRef Reference `json:"skuRef"`
+	SkuRef ReferenceObject `json:"skuRef"`
 }
 
 // NetworkStatus defines model for NetworkStatus.
@@ -112,7 +112,7 @@ type NetworkStatus struct {
 	Conditions []StatusCondition `json:"conditions"`
 
 	// RouteTableRef Reference to the route table used by default for all Subnets.
-	RouteTableRef *Reference `json:"routeTableRef,omitempty"`
+	RouteTableRef *ReferenceObject `json:"routeTableRef,omitempty"`
 
 	// State Current phase of the resource:
 	// - pending: not available, waiting for other resources

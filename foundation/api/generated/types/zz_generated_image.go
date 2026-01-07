@@ -61,7 +61,7 @@ type Image struct {
 // [Image Handling](/docs/content/Other/image-handling) section.
 type ImageSpec struct {
 	// BlockStorageRef Reference to the block storage used to store the image.
-	BlockStorageRef Reference `json:"blockStorageRef"`
+	BlockStorageRef ReferenceObject `json:"blockStorageRef"`
 
 	// Boot Boot type for the Image
 	Boot *ImageSpecBoot `json:"boot,omitempty"`

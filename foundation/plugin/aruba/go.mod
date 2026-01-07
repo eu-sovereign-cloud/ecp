@@ -7,6 +7,8 @@ require github.com/eu-sovereign-cloud/ecp/foundation/gateway v0.0.0
 
 require github.com/Arubacloud/arubacloud-resource-operator v0.0.1-alpha4 // indirect
 
+require go.uber.org/mock v0.6.0 // indirect
+
 replace github.com/eu-sovereign-cloud/ecp/foundation/delegator => ../../delegator
 
 replace github.com/eu-sovereign-cloud/ecp/foundation/gateway => ../../gateway

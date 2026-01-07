@@ -169,6 +169,9 @@ github.com/stretchr/testify/require
 # github.com/x448/float16 v0.8.4
 ## explicit; go 1.11
 github.com/x448/float16
+# go.uber.org/mock v0.6.0
+## explicit; go 1.23.0
+go.uber.org/mock/gomock
 # go.yaml.in/yaml/v2 v2.4.2
 ## explicit; go 1.15
 # go.yaml.in/yaml/v2 v2.4.3
