@@ -17,31 +17,31 @@ type GenericDelegated[
 	SB any, // SECA bundle type
 	AB any, // Aruba bundle type
 ] struct {
-	secaResolver  resolver_port.DependenciesResolver[S, SB]
-	converter     converter_port.Converter[SB, AB]
-	arubaResolver resolver_port.DependenciesResolver[AB, AB]
-	mutator       mutator_port.Mutator[AB, SB]
+	resolveSECAFunc resolver_port.ResolveDependenciesFunc[S, SB]
+	convertFunc     converter_port.ConvertFunc[SB, AB]
+	resolvArubaFunc resolver_port.ResolveDependenciesFunc[AB, AB]
+	mutateFunc      mutator_port.MutateFunc[AB, SB]
 }
 
 var _ delegated_port.Delegated[seca_gateway_port.IdentifiableResource] = (*GenericDelegated[seca_gateway_port.IdentifiableResource, any, any])(nil)
 
 func (d *GenericDelegated[S, SB, AB]) Do(ctx context.Context, resource S) error {
-	secaBundle, err := d.secaResolver.ResolveDependencies(ctx, resource)
+	secaBundle, err := d.resolveSECAFunc(ctx, resource)
 	if err != nil {
 		return err
 	}
 
-	arubaBundle, err := d.converter.FromSECAToAruba(secaBundle)
+	arubaBundle, err := d.convertFunc(secaBundle)
 	if err != nil {
 		return err
 	}
 
-	arubaBundle, err = d.arubaResolver.ResolveDependencies(ctx, arubaBundle)
+	arubaBundle, err = d.resolvArubaFunc(ctx, arubaBundle)
 	if err != nil {
 		return err
 	}
 
-	if err := d.mutator.Mutate(arubaBundle, secaBundle); err != nil {
+	if err := d.mutateFunc(arubaBundle, secaBundle); err != nil {
 		return err
 	}
 
