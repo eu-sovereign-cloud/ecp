@@ -16,8 +16,9 @@ type GenericDelegated[
 	SB any, // SECA bundle type
 	AB any, // Aruba bundle type
 ] struct {
-	secaResolver resolver_port.DependenciesResolver[S, SB]
-	converter    converter_port.Converter[SB, AB]
+	secaResolver  resolver_port.DependenciesResolver[S, SB]
+	converter     converter_port.Converter[SB, AB]
+	arubaResolver resolver_port.DependenciesResolver[AB, AB]
 }
 
 var _ delegated_port.Delegated[seca_gateway_port.IdentifiableResource] = (*GenericDelegated[seca_gateway_port.IdentifiableResource, any, any])(nil)
@@ -28,7 +29,12 @@ func (d *GenericDelegated[S, SB, AB]) Do(ctx context.Context, resource S) error 
 		return err
 	}
 
-	_, err = d.converter.FromSECAToAruba(secaBundle)
+	arubaBundle, err := d.converter.FromSECAToAruba(secaBundle)
+	if err != nil {
+		return err
+	}
+
+	arubaBundle, err = d.arubaResolver.ResolveDependencies(ctx, arubaBundle)
 	if err != nil {
 		return err
 	}
