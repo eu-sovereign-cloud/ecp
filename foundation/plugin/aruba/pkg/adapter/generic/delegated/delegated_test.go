@@ -12,6 +12,7 @@ import (
 //go:generate mockgen -package delegated -destination=zz_mock_identifiable_test.go github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port IdentifiableResource
 //go:generate mockgen -package delegated -destination=zz_mock_resolver_test.go github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/resolver DependenciesResolver
 //go:generate mockgen -package delegated -destination=zz_mock_converter_test.go github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/converter Converter
+//go:generate mockgen -package delegated -destination=zz_mock_mutator_test.go github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/mutator Mutator
 
 func TestGenericDelegated_Do(t *testing.T) {
 	const (
@@ -66,7 +67,7 @@ func TestGenericDelegated_Do(t *testing.T) {
 			}
 
 			return &secaBundleType{main: main}, nil
-		})
+		}).Times(1)
 
 		//
 		// And a delegated which uses this above mentioned converter
@@ -107,7 +108,7 @@ func TestGenericDelegated_Do(t *testing.T) {
 			}
 
 			return &secaBundleType{main: main}, nil
-		})
+		}).Times(1)
 
 		//
 		// And a converter which will return an error when detect bad data
@@ -144,7 +145,7 @@ func TestGenericDelegated_Do(t *testing.T) {
 		defer ctrl.Finish()
 
 		//
-		// Given a SECA identifiable resource containig bad data
+		// Given a SECA identifiable resource
 		resource := NewMockIdentifiableResource(ctrl)
 
 		resource.EXPECT().GetWorkspace().Return(goodResourceWorkspace).Times(1)
@@ -163,7 +164,7 @@ func TestGenericDelegated_Do(t *testing.T) {
 			}
 
 			return &secaBundleType{main: main}, nil
-		})
+		}).Times(1)
 
 		//
 		// And a converter which will inject a bad tag value
@@ -197,7 +198,7 @@ func TestGenericDelegated_Do(t *testing.T) {
 			main.dependency = map[string]any{resourceTagKey: goodResourceTagValue}
 
 			return main, nil
-		})
+		}).Times(1)
 
 		//
 		// And a delegated which uses this above mentioned converter
@@ -205,6 +206,101 @@ func TestGenericDelegated_Do(t *testing.T) {
 			secaResolver:  secaResolver,
 			converter:     converter,
 			arubaResolver: arubaResolver,
+		}
+
+		//
+		// When we try to perform the delegated action
+		err := delegated.Do(t.Context(), resource)
+
+		//
+		// Then it should return the conversion error properly wrapped
+		require.ErrorIs(t, err, errInvalidTag)
+	})
+
+	t.Run("should report an error when mutation fails", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		//
+		// Given a SECA identifiable resource
+		resource := NewMockIdentifiableResource(ctrl)
+
+		resource.EXPECT().GetWorkspace().Return(goodResourceWorkspace).Times(1)
+		resource.EXPECT().GetName().Return(goodResourceName).Times(2)
+
+		//
+		// And a SECA dependencies resolver
+		secaResolver := NewMockDependenciesResolver[*MockIdentifiableResource, *secaBundleType](ctrl)
+
+		secaResolver.EXPECT().ResolveDependencies(
+			gomock.AssignableToTypeOf(t.Context()),
+			gomock.AssignableToTypeOf(resource),
+		).DoAndReturn(func(ctx context.Context, main *MockIdentifiableResource) (*secaBundleType, error) {
+			if main.GetWorkspace() != goodResourceWorkspace {
+				return nil, errInvalidWorkspace
+			}
+
+			return &secaBundleType{main: main}, nil
+		}).Times(1)
+
+		//
+		// And a converter
+		converter := NewMockConverter[*secaBundleType, *arubaBundleType](ctrl)
+
+		converter.EXPECT().FromSECAToAruba(gomock.AssignableToTypeOf(&secaBundleType{})).DoAndReturn(
+			func(from *secaBundleType) (*arubaBundleType, error) {
+				if from.main.GetName() != goodResourceName {
+					return nil, errInvalidName
+				}
+
+				return &arubaBundleType{main: map[string]any{
+					"name":         from.main.GetName(),
+					resourceTagKey: goodResourceTagValue,
+				}}, nil
+			},
+		).Times(1)
+
+		//
+		// And a Aruba dependencies resolver which will inject a bad tag value
+		arubaResolver := NewMockDependenciesResolver[*arubaBundleType, *arubaBundleType](ctrl)
+
+		arubaResolver.EXPECT().ResolveDependencies(
+			gomock.AssignableToTypeOf(t.Context()),
+			gomock.AssignableToTypeOf(&arubaBundleType{}),
+		).DoAndReturn(func(ctx context.Context, main *arubaBundleType) (*arubaBundleType, error) {
+			if main.main[resourceTagKey] != goodResourceTagValue {
+				return nil, errInvalidTag
+			}
+
+			main.dependency = map[string]any{resourceTagKey: badResourceTagValue}
+
+			return main, nil
+		})
+
+		//
+		// And a mutator which will return an error when detect a bad tag value
+		mutator := NewMockMutator[*arubaBundleType, *secaBundleType](ctrl)
+
+		mutator.EXPECT().Mutate(
+			gomock.AssignableToTypeOf(&arubaBundleType{}),
+			gomock.AssignableToTypeOf(&secaBundleType{}),
+		).DoAndReturn(
+			func(mutable *arubaBundleType, params *secaBundleType) error {
+				if mutable.dependency[resourceTagKey] != goodResourceTagValue {
+					return errInvalidTag
+				}
+
+				return nil
+			},
+		).Times(1)
+
+		//
+		// And a delegated which uses this above mentioned converter
+		delegated := GenericDelegated[*MockIdentifiableResource, *secaBundleType, *arubaBundleType]{
+			secaResolver:  secaResolver,
+			converter:     converter,
+			arubaResolver: arubaResolver,
+			mutator:       mutator,
 		}
 
 		//
