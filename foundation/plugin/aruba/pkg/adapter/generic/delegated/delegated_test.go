@@ -72,7 +72,7 @@ func TestGenericDelegated_Do(t *testing.T) {
 		//
 		// And a delegated which uses this above mentioned converter
 		delegated := GenericDelegated[*MockIdentifiableResource, *secaBundleType, *arubaBundleType]{
-			secaResolver: secaResolver,
+			resolveSECAFunc: secaResolver.ResolveDependencies,
 		}
 
 		//
@@ -127,8 +127,8 @@ func TestGenericDelegated_Do(t *testing.T) {
 		//
 		// And a delegated which uses this above mentioned converter
 		delegated := GenericDelegated[*MockIdentifiableResource, *secaBundleType, *arubaBundleType]{
-			secaResolver: secaResolver,
-			converter:    converter,
+			resolveSECAFunc: secaResolver.ResolveDependencies,
+			convertFunc:     converter.FromSECAToAruba,
 		}
 
 		//
@@ -203,9 +203,9 @@ func TestGenericDelegated_Do(t *testing.T) {
 		//
 		// And a delegated which uses this above mentioned converter
 		delegated := GenericDelegated[*MockIdentifiableResource, *secaBundleType, *arubaBundleType]{
-			secaResolver:  secaResolver,
-			converter:     converter,
-			arubaResolver: arubaResolver,
+			resolveSECAFunc: secaResolver.ResolveDependencies,
+			convertFunc:     converter.FromSECAToAruba,
+			resolvArubaFunc: arubaResolver.ResolveDependencies,
 		}
 
 		//
@@ -297,10 +297,10 @@ func TestGenericDelegated_Do(t *testing.T) {
 		//
 		// And a delegated which uses this above mentioned converter
 		delegated := GenericDelegated[*MockIdentifiableResource, *secaBundleType, *arubaBundleType]{
-			secaResolver:  secaResolver,
-			converter:     converter,
-			arubaResolver: arubaResolver,
-			mutator:       mutator,
+			resolveSECAFunc: secaResolver.ResolveDependencies,
+			convertFunc:     converter.FromSECAToAruba,
+			resolvArubaFunc: arubaResolver.ResolveDependencies,
+			mutateFunc:      mutator.Mutate,
 		}
 
 		//
