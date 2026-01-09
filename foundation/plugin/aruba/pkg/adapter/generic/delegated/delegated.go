@@ -5,6 +5,7 @@ import (
 
 	seca_gateway_port "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 
+	resolver_bypass "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/generic/resolver"
 	converter_port "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/converter"
 	delegated_port "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/delegated"
 	mutator_port "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/mutator"
@@ -12,16 +13,18 @@ import (
 	resolver_port "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/resolver"
 )
 
-// GenericDelegated acts as a standard framework for all delegated resource operations for the Aruba Plugin.
+// GenericDelegated acts as a standard framework for all delegated resource
+// operations for the Aruba Plugin.
 //
-// It defines the data structures used throughout the process using the following type parameters:
+// It defines the data structures used throughout the process using the
+// following type parameters:
 //
 //   - S: The original SECA resource type.
 //   - SB: The structure which should hold the dependencies for the SECA resource.
 //   - AB: The structure which should hold all the Aruba resource we need to the operation.
 //
-// The elements intended to handle the SB and AB types can be composed by arrangements of elements
-// capable to handle its underlying types.
+// The elements intended to handle the SB and AB types can be composed by
+// arrangements of elements capable to handle its underlying types.
 //
 // Usage Example:
 //
@@ -61,7 +64,8 @@ type GenericDelegated[
 
 var _ delegated_port.Delegated[seca_gateway_port.IdentifiableResource] = (*GenericDelegated[seca_gateway_port.IdentifiableResource, any, any])(nil)
 
-// NewDelegated creates a new instance of GenericDelegated with the provided handler functions.
+// NewDelegated creates a new instance of GenericDelegated with the provided
+// handler functions.
 func NewDelegated[S seca_gateway_port.IdentifiableResource, SB any, AB any](
 	resolveSECAFunc resolver_port.ResolveDependenciesFunc[S, SB],
 	convertFunc converter_port.ConvertFunc[SB, AB],
@@ -75,6 +79,26 @@ func NewDelegated[S seca_gateway_port.IdentifiableResource, SB any, AB any](
 		resolveSECA:  resolveSECAFunc,
 		convert:      convertFunc,
 		resolveAruba: resolveArubaFunc,
+		mutate:       mutateFunc,
+		propagate:    propagateFunc,
+		condition:    conditionFunc,
+		wait:         waitFunc,
+	}
+}
+
+// NewStraightDelegated creates a new instance of GenericDelegated, for
+// resources which do not need bundle, with the provided handler functions.
+func NewStraightDelegated[S seca_gateway_port.IdentifiableResource, A any](
+	convertFunc converter_port.ConvertFunc[S, A],
+	mutateFunc mutator_port.MutateFunc[A, S],
+	propagateFunc repository_port.CLUDFunc[A],
+	conditionFunc repository_port.WaitConditionFunc[A],
+	waitFunc repository_port.WaitUntilFunc[A],
+) *GenericDelegated[S, S, A] {
+	return &GenericDelegated[S, S, A]{
+		resolveSECA:  resolver_bypass.BypassResolveDependenciesFunc[S],
+		convert:      convertFunc,
+		resolveAruba: resolver_bypass.BypassResolveDependenciesFunc[A],
 		mutate:       mutateFunc,
 		propagate:    propagateFunc,
 		condition:    conditionFunc,
