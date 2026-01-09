@@ -15,6 +15,38 @@ import (
 // data.
 type CLUDFunc[T any] func(ctx context.Context, resource T) error
 
+// ListFunc is a generic function for listing instances of a given type from a
+// repository.
+//
+// Important: type T must always be a reference (pointer) for the underlying
+// entity model to ensure consistent behavior across all repository operations.
+//
+// Important: because List functions can mutate data on resources references
+// passed as parameters, please deepcopy them if you need to keep the original
+// data.
+type ListFunc[T any] func(ctx context.Context, resource T) ([]T, error)
+
+// WatchFunc is a generic function for watching changes to instances of a given
+// type in a repository.
+//
+// Important: type T must always be a reference (pointer) for the underlying
+// entity model to ensure consistent behavior across all repository operations.
+type WatchFunc[T any] func(ctx context.Context, resource T) (out chan T, cancel func(), err error)
+
+// WaitUntilFunc is a generic function for watching changes to instances of a
+// given type in a repository until a condition is met.
+//
+// Important: type T must always be a reference (pointer) for the underlying
+// entity model to ensure consistent behavior across all repository operations.
+type WaitUntilFunc[T any] func(ctx context.Context, resource T, condition WaitConditionFunc[T]) (T, error)
+
+// WaitConditionFunc is a function that returns true if a given resource
+// matches a condition.
+//
+// Important: type T must always be a reference (pointer) for the underlying
+// entity model to ensure consistent behavior across all repository operations.
+type WaitConditionFunc[T any] func(resource T) bool
+
 // Repository is a generic interface for a repository of resources.
 // It combines the Reader, Writer, and Watcher interfaces.
 //
@@ -108,4 +140,28 @@ type Watcher[T any] interface {
 	//     }
 	//   }
 	Watch(ctx context.Context, resource T) (out chan T, cancel func(), err error)
+
+	// WaitUntil monitors a resource for changes until a condition is met.
+	//
+	// The 'resource' argument specifies which resource to watch, filtering by
+	// the fields that are set.
+	//
+	// The 'condition' argument is a function that will be called with each
+	// update of the resource. The watch will continue until the condition
+	// returns true.
+	//
+	// It will return the first version of the resource which matches the
+	// condition.
+	//
+	// Finally, it can return an error if setting up the watch fails.
+	//
+	// Example usage:
+	//   condition := func(r *MyResource) bool {
+	//     return r.Status == "Ready"
+	//   }
+	//   updatedResource, err := watcher.WaitUntil(ctx, myResource, condition)
+	//   if err != nil {
+	//     // handle error
+	//   }
+	WaitUntil(ctx context.Context, resource T, condition WaitConditionFunc[T]) (T, error)
 }
