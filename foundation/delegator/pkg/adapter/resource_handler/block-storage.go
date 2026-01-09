@@ -41,13 +41,16 @@ func (h *BlockStorageResourceHandler) HandleReconcile(ctx context.Context, resou
 	var delegate delegator_port.DelegatedFunc[*regional.BlockStorageDomain]
 
 	switch {
-	case wantCreate(resource):
+	case isPending(resource):
+		delegate = bypassPlugin
+
+	case wantCreate(resource) || wantRetryCreate(resource):
 		delegate = h.plugin.Create
 
 	case wantDelete(resource):
 		delegate = h.plugin.Delete
 
-	case wantIncreaseSize(resource):
+	case wantIncreaseSize(resource) || wantRetryIncreaseSize(resource):
 		delegate = h.plugin.IncreaseSize
 
 	default:
@@ -73,57 +76,29 @@ func (h *BlockStorageResourceHandler) HandleReconcile(ctx context.Context, resou
 		return nil
 	}
 
-	// Handle success of the delegated actions.
-	var setState delegator_port.SetStateFunc[*regional.BlockStorageDomain]
-
 	switch {
-	case wantCreate(resource):
+	case isPending(resource):
+		setResourceState(resource, regional.ResourceStateCreating)
+
+	case wantCreate(resource) || wantRetryCreate(resource):
 		resource.Status.SizeGB = resource.Spec.SizeGB
 
-		state := regional.ResourceStateActive
-		resource.Status.State = &state
-
-		resource.Status.Conditions = append(resource.Status.Conditions, regional.StatusCondition{
-			LastTransitionAt: time.Now(),
-			State:            state,
-		})
-
-		setState = func(ctx context.Context, resource *regional.BlockStorageDomain) error {
-			if _, err := h.repo.Update(ctx, resource); err != nil {
-				return err
-			}
-
-			return nil
-		}
+		setResourceState(resource, regional.ResourceStateActive)
 
 	case wantDelete(resource):
-		setState = h.repo.Delete
+		setResourceState(resource, regional.ResourceStateDeleting)
 
-	case wantIncreaseSize(resource):
+	case wantIncreaseSize(resource) || wantRetryIncreaseSize(resource):
 		resource.Status.SizeGB = resource.Spec.SizeGB
 
-		state := regional.ResourceStateActive
-		resource.Status.State = &state
-
-		resource.Status.Conditions = append(resource.Status.Conditions, regional.StatusCondition{
-			LastTransitionAt: time.Now(),
-			State:            state,
-		})
-
-		setState = func(ctx context.Context, resource *regional.BlockStorageDomain) error {
-			if _, err := h.repo.Update(ctx, resource); err != nil {
-				return err
-			}
-
-			return nil
-		}
+		setResourceState(resource, regional.ResourceStateActive)
 
 	default:
 		log.Fatal("must never achieve that condition")
 	}
 
 	// Set the status of the resource properly.
-	if err := setState(ctx, resource); err != nil {
+	if _, err := h.repo.Update(ctx, resource); err != nil {
 		return err // TODO: better error handling.
 	}
 
@@ -144,6 +119,10 @@ func blockDecreaseSize(_ context.Context, resource *regional.BlockStorageDomain)
 //
 // Reconciliation Actions Conditions
 
+func isPending(resource *regional.BlockStorageDomain) bool {
+	return *(resource.Status.State) == regional.ResourceStatePending
+}
+
 func wantCreate(resource *regional.BlockStorageDomain) bool {
 	return *(resource.Status.State) == regional.ResourceStateCreating
 }
@@ -154,4 +133,29 @@ func wantDelete(resource *regional.BlockStorageDomain) bool {
 
 func wantIncreaseSize(resource *regional.BlockStorageDomain) bool {
 	return *(resource.Status.State) == regional.ResourceStateUpdating && resource.Spec.SizeGB > resource.Status.SizeGB
+}
+
+func wantRetryCreate(resource *regional.BlockStorageDomain) bool {
+	return *(resource.Status.State) == regional.ResourceStateError &&
+		resource.Status.Conditions[len(resource.Status.Conditions)-2].State == regional.ResourceStateCreating
+}
+
+func wantRetryIncreaseSize(resource *regional.BlockStorageDomain) bool {
+	return *(resource.Status.State) == regional.ResourceStateError &&
+		resource.Status.Conditions[len(resource.Status.Conditions)-2].State == regional.ResourceStateUpdating &&
+		resource.Spec.SizeGB > resource.Status.SizeGB
+}
+
+//
+// Helpers
+
+func bypassPlugin(_ context.Context, _ *regional.BlockStorageDomain) error { return nil }
+
+func setResourceState(resource *regional.BlockStorageDomain, state regional.ResourceState) {
+	resource.Status.State = &state
+
+	resource.Status.Conditions = append(resource.Status.Conditions, regional.StatusCondition{
+		LastTransitionAt: time.Now(),
+		State:            state,
+	})
 }
