@@ -3,6 +3,7 @@ package storage
 import (
 	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
+	"k8s.io/utils/ptr"
 
 	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/block-storages/v1"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation"
@@ -23,9 +24,9 @@ func BlockStorageToAPI(domain *regional.BlockStorageDomain) *sdkschema.BlockStor
 			SizeGB: domain.Spec.SizeGB,
 			SkuRef: referenceObjectToAPI(domain.Spec.SkuRef),
 		},
-		// Labels:      domain.Labels,
-		// Annotations: domain.Annotations,
-		// Extensions:  domain.Extensions,
+		Labels:      domain.Labels,
+		Annotations: domain.Annotations,
+		Extensions:  domain.Extensions,
 	}
 
 	if domain.Spec.SourceImageRef != nil {
@@ -131,11 +132,11 @@ func BlockStorageFromAPI(sdk sdkschema.BlockStorage, params regional.UpsertParam
 
 func referenceObjectToAPI(ref regional.ReferenceObject) sdkschema.Reference {
 	refObj := sdkschema.ReferenceObject{
-		Provider:  strPtr(ref.Provider),
-		Region:    strPtr(ref.Region),
+		Provider:  ptr.To(ref.Provider),
+		Region:    ptr.To(ref.Region),
 		Resource:  ref.Resource,
-		Tenant:    strPtr(ref.Tenant),
-		Workspace: strPtr(ref.Workspace),
+		Tenant:    ptr.To(ref.Tenant),
+		Workspace: ptr.To(ref.Workspace),
 	}
 	var result sdkschema.Reference
 	_ = result.FromReferenceObject(refObj)
@@ -155,11 +156,11 @@ func referenceObjectFromAPI(ref sdkschema.Reference) regional.ReferenceObject {
 	refObj, err := ref.AsReferenceObject()
 	if err == nil {
 		return regional.ReferenceObject{
-			Provider:  strVal(refObj.Provider),
-			Region:    strVal(refObj.Region),
+			Provider:  ptr.Deref(refObj.Provider, ""),
+			Region:    ptr.Deref(refObj.Region, ""),
 			Resource:  refObj.Resource,
-			Tenant:    strVal(refObj.Tenant),
-			Workspace: strVal(refObj.Workspace),
+			Tenant:    ptr.Deref(refObj.Tenant, ""),
+			Workspace: ptr.Deref(refObj.Workspace, ""),
 		}
 	}
 	// Handle ReferenceURN as a fallback
@@ -177,25 +178,11 @@ func statusConditionsToAPI(conditions []regional.StatusCondition) []sdkschema.St
 	for i, c := range conditions {
 		result[i] = sdkschema.StatusCondition{
 			LastTransitionAt: c.LastTransitionAt,
-			Message:          strPtr(c.Message),
-			Reason:           strPtr(c.Reason),
+			Message:          ptr.To(c.Message),
+			Reason:           ptr.To(c.Reason),
 			State:            sdkschema.ResourceState(c.State),
-			Type:             strPtr(c.Type),
+			Type:             ptr.To(c.Type),
 		}
 	}
 	return result
-}
-
-func strPtr(s string) *string {
-	if s == "" {
-		return nil
-	}
-	return &s
-}
-
-func strVal(s *string) string {
-	if s == nil {
-		return ""
-	}
-	return *s
 }
