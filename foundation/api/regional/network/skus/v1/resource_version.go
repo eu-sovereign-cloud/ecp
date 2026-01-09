@@ -11,11 +11,16 @@ import (
 )
 
 // SKUResource is the resource name for network SKUs.
-const SKUResource = "skus"
+const (
+	SKUResource = "skus"
+	SKUKind     = "SKU"
+)
 
 var (
-	SKUGR  = schema.GroupResource{Group: network.Group, Resource: SKUResource}
 	SKUGVR = schema.GroupVersionResource{
 		Group: network.Group, Version: network.Version, Resource: SKUResource,
+	}
+	SKUGVK = schema.GroupVersionKind{
+		Group: network.Group, Version: network.Version, Kind: SKUKind,
 	}
 )

@@ -11,11 +11,16 @@ import (
 )
 
 // SKUResource is the resource name for storage SKUs.
-const SKUResource = "skus"
+const (
+	SKUResource = "skus"
+	SKUKind     = "SKU"
+)
 
 var (
-	SKUGR  = schema.GroupResource{Group: storage.Group, Resource: SKUResource}
 	SKUGVR = schema.GroupVersionResource{
 		Group: storage.Group, Version: storage.Version, Resource: SKUResource,
+	}
+	SKUGVK = schema.GroupVersionKind{
+		Group: storage.Group, Version: storage.Version, Kind: SKUKind,
 	}
 )
