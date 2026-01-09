@@ -13,6 +13,7 @@ import (
 	context "context"
 	reflect "reflect"
 
+	repository "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/repository"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -104,6 +105,21 @@ func NewMockWatcher[T any](ctrl *gomock.Controller) *MockWatcher[T] {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockWatcher[T]) EXPECT() *MockWatcherMockRecorder[T] {
 	return m.recorder
+}
+
+// WaitUntil mocks base method.
+func (m *MockWatcher[T]) WaitUntil(ctx context.Context, resource T, condition repository.WaitConditionFunc[T]) (T, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "WaitUntil", ctx, resource, condition)
+	ret0, _ := ret[0].(T)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// WaitUntil indicates an expected call of WaitUntil.
+func (mr *MockWatcherMockRecorder[T]) WaitUntil(ctx, resource, condition any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WaitUntil", reflect.TypeOf((*MockWatcher[T])(nil).WaitUntil), ctx, resource, condition)
 }
 
 // Watch mocks base method.
