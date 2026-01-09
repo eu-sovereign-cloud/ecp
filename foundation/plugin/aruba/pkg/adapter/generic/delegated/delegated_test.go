@@ -7,6 +7,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 	gomock "go.uber.org/mock/gomock"
+
+	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/repository"
 )
 
 //go:generate mockgen -package delegated -destination=zz_mock_identifiable_test.go github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port IdentifiableResource
@@ -32,6 +34,7 @@ func TestGenericDelegated_Do(t *testing.T) {
 		errInvalidWorkspace = errors.New("invalid workspace")
 		errInvalidName      = errors.New("invalid name")
 		errInvalidTag       = errors.New("invalid tag")
+		errConditionNotMet  = errors.New("condition not met")
 	)
 
 	type secaBundleType struct {
@@ -376,7 +379,7 @@ func TestGenericDelegated_Do(t *testing.T) {
 		})
 
 		//
-		// And a mutator  which will inject a bad tag value
+		// And a mutator which will inject a bad tag value
 		mutator := NewMockMutator[*arubaBundleType, *secaBundleType](ctrl)
 
 		mutator.EXPECT().Mutate(
@@ -428,5 +431,285 @@ func TestGenericDelegated_Do(t *testing.T) {
 		//
 		// Then it should return the propagation error properly wrapped
 		require.ErrorIs(t, err, errInvalidTag)
+	})
+
+	t.Run("should report an error when watching fails", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		//
+		// Given a SECA identifiable resource
+		resource := NewMockIdentifiableResource(ctrl)
+
+		resource.EXPECT().GetWorkspace().Return(goodResourceWorkspace).Times(1)
+		resource.EXPECT().GetName().Return(goodResourceName).Times(2)
+
+		//
+		// And a SECA dependencies resolver
+		secaResolver := NewMockDependenciesResolver[*MockIdentifiableResource, *secaBundleType](ctrl)
+
+		secaResolver.EXPECT().ResolveDependencies(
+			gomock.AssignableToTypeOf(t.Context()),
+			gomock.AssignableToTypeOf(resource),
+		).DoAndReturn(func(ctx context.Context, main *MockIdentifiableResource) (*secaBundleType, error) {
+			if main.GetWorkspace() != goodResourceWorkspace {
+				return nil, errInvalidWorkspace
+			}
+
+			return &secaBundleType{main: main}, nil
+		}).Times(1)
+
+		//
+		// And a converter
+		converter := NewMockConverter[*secaBundleType, *arubaBundleType](ctrl)
+
+		converter.EXPECT().FromSECAToAruba(gomock.AssignableToTypeOf(&secaBundleType{})).DoAndReturn(
+			func(from *secaBundleType) (*arubaBundleType, error) {
+				if from.main.GetName() != goodResourceName {
+					return nil, errInvalidName
+				}
+
+				return &arubaBundleType{main: map[string]any{
+					"name":         from.main.GetName(),
+					resourceTagKey: goodResourceTagValue,
+				}}, nil
+			},
+		).Times(1)
+
+		//
+		// And a Aruba dependencies resolver
+		arubaResolver := NewMockDependenciesResolver[*arubaBundleType, *arubaBundleType](ctrl)
+
+		arubaResolver.EXPECT().ResolveDependencies(
+			gomock.AssignableToTypeOf(t.Context()),
+			gomock.AssignableToTypeOf(&arubaBundleType{}),
+		).DoAndReturn(func(ctx context.Context, main *arubaBundleType) (*arubaBundleType, error) {
+			if main.main[resourceTagKey] != goodResourceTagValue {
+				return nil, errInvalidTag
+			}
+
+			main.dependency = map[string]any{resourceTagKey: goodResourceTagValue}
+
+			return main, nil
+		})
+
+		//
+		// And a mutator
+		mutator := NewMockMutator[*arubaBundleType, *secaBundleType](ctrl)
+
+		mutator.EXPECT().Mutate(
+			gomock.AssignableToTypeOf(&arubaBundleType{}),
+			gomock.AssignableToTypeOf(&secaBundleType{}),
+		).DoAndReturn(
+			func(mutable *arubaBundleType, params *secaBundleType) error {
+				if mutable.dependency[resourceTagKey] != goodResourceTagValue {
+					return errInvalidTag
+				}
+
+				mutable.dependency[resourceTagKey] = goodResourceTagValue
+
+				return nil
+			},
+		).Times(1)
+
+		//
+		// And a repository writer
+		writer := NewMockWriter[*arubaBundleType](ctrl)
+
+		writer.EXPECT().Update(
+			gomock.AssignableToTypeOf(t.Context()),
+			gomock.AssignableToTypeOf(&arubaBundleType{}),
+		).DoAndReturn(
+			func(ctx context.Context, resource *arubaBundleType) error {
+				if resource.dependency[resourceTagKey] != goodResourceTagValue {
+					return errInvalidTag
+				}
+
+				return nil
+			},
+		).Times(1)
+
+		//
+		// And a condition function which always return false
+		condition := func(_ *arubaBundleType) bool { return false }
+
+		//
+		// And a watcher which will return and error for the first time that
+		// the condition does not match
+		watcher := NewMockWatcher[*arubaBundleType](ctrl)
+
+		watcher.EXPECT().WaitUntil(
+			gomock.AssignableToTypeOf(t.Context()),
+			gomock.AssignableToTypeOf(&arubaBundleType{}),
+			gomock.AssignableToTypeOf(condition),
+		).DoAndReturn(
+			func(ctx context.Context, resource *arubaBundleType, condition repository.WaitConditionFunc[*arubaBundleType]) error {
+				if !condition(resource) {
+					return errConditionNotMet
+				}
+
+				return nil
+			},
+		).Times(1)
+
+		//
+		// And a delegated which uses these above mentioned elements
+		delegated := GenericDelegated[*MockIdentifiableResource, *secaBundleType, *arubaBundleType]{
+			resolveSECAFunc: secaResolver.ResolveDependencies,
+			convertFunc:     converter.FromSECAToAruba,
+			resolvArubaFunc: arubaResolver.ResolveDependencies,
+			mutateFunc:      mutator.Mutate,
+			propagateFunc:   writer.Update,
+			conditionFunc:   condition,
+			watchFunc:       watcher.WaitUntil,
+		}
+
+		//
+		// When we try to perform the delegated action
+		err := delegated.Do(t.Context(), resource)
+
+		//
+		// Then it should return the propagation error properly wrapped
+		require.ErrorIs(t, err, errConditionNotMet)
+	})
+
+	t.Run("should succeed", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		//
+		// Given a SECA identifiable resource
+		resource := NewMockIdentifiableResource(ctrl)
+
+		resource.EXPECT().GetWorkspace().Return(goodResourceWorkspace).Times(1)
+		resource.EXPECT().GetName().Return(goodResourceName).Times(2)
+
+		//
+		// And a SECA dependencies resolver
+		secaResolver := NewMockDependenciesResolver[*MockIdentifiableResource, *secaBundleType](ctrl)
+
+		secaResolver.EXPECT().ResolveDependencies(
+			gomock.AssignableToTypeOf(t.Context()),
+			gomock.AssignableToTypeOf(resource),
+		).DoAndReturn(func(ctx context.Context, main *MockIdentifiableResource) (*secaBundleType, error) {
+			if main.GetWorkspace() != goodResourceWorkspace {
+				return nil, errInvalidWorkspace
+			}
+
+			return &secaBundleType{main: main}, nil
+		}).Times(1)
+
+		//
+		// And a converter
+		converter := NewMockConverter[*secaBundleType, *arubaBundleType](ctrl)
+
+		converter.EXPECT().FromSECAToAruba(gomock.AssignableToTypeOf(&secaBundleType{})).DoAndReturn(
+			func(from *secaBundleType) (*arubaBundleType, error) {
+				if from.main.GetName() != goodResourceName {
+					return nil, errInvalidName
+				}
+
+				return &arubaBundleType{main: map[string]any{
+					"name":         from.main.GetName(),
+					resourceTagKey: goodResourceTagValue,
+				}}, nil
+			},
+		).Times(1)
+
+		//
+		// And a Aruba dependencies resolver
+		arubaResolver := NewMockDependenciesResolver[*arubaBundleType, *arubaBundleType](ctrl)
+
+		arubaResolver.EXPECT().ResolveDependencies(
+			gomock.AssignableToTypeOf(t.Context()),
+			gomock.AssignableToTypeOf(&arubaBundleType{}),
+		).DoAndReturn(func(ctx context.Context, main *arubaBundleType) (*arubaBundleType, error) {
+			if main.main[resourceTagKey] != goodResourceTagValue {
+				return nil, errInvalidTag
+			}
+
+			main.dependency = map[string]any{resourceTagKey: goodResourceTagValue}
+
+			return main, nil
+		})
+
+		//
+		// And a mutator
+		mutator := NewMockMutator[*arubaBundleType, *secaBundleType](ctrl)
+
+		mutator.EXPECT().Mutate(
+			gomock.AssignableToTypeOf(&arubaBundleType{}),
+			gomock.AssignableToTypeOf(&secaBundleType{}),
+		).DoAndReturn(
+			func(mutable *arubaBundleType, params *secaBundleType) error {
+				if mutable.dependency[resourceTagKey] != goodResourceTagValue {
+					return errInvalidTag
+				}
+
+				mutable.dependency[resourceTagKey] = goodResourceTagValue
+
+				return nil
+			},
+		).Times(1)
+
+		//
+		// And a repository writer
+		writer := NewMockWriter[*arubaBundleType](ctrl)
+
+		writer.EXPECT().Update(
+			gomock.AssignableToTypeOf(t.Context()),
+			gomock.AssignableToTypeOf(&arubaBundleType{}),
+		).DoAndReturn(
+			func(ctx context.Context, resource *arubaBundleType) error {
+				if resource.dependency[resourceTagKey] != goodResourceTagValue {
+					return errInvalidTag
+				}
+
+				return nil
+			},
+		).Times(1)
+
+		//
+		// And a condition function which always return true
+		condition := func(_ *arubaBundleType) bool { return true }
+
+		//
+		// And a watcher which will return and error for the first time that
+		// the condition does not match
+		watcher := NewMockWatcher[*arubaBundleType](ctrl)
+
+		watcher.EXPECT().WaitUntil(
+			gomock.AssignableToTypeOf(t.Context()),
+			gomock.AssignableToTypeOf(&arubaBundleType{}),
+			gomock.AssignableToTypeOf(condition),
+		).DoAndReturn(
+			func(ctx context.Context, resource *arubaBundleType, condition repository.WaitConditionFunc[*arubaBundleType]) error {
+				if !condition(resource) {
+					return errConditionNotMet
+				}
+
+				return nil
+			},
+		).Times(1)
+
+		//
+		// And a delegated which uses these above mentioned elements
+		delegated := GenericDelegated[*MockIdentifiableResource, *secaBundleType, *arubaBundleType]{
+			resolveSECAFunc: secaResolver.ResolveDependencies,
+			convertFunc:     converter.FromSECAToAruba,
+			resolvArubaFunc: arubaResolver.ResolveDependencies,
+			mutateFunc:      mutator.Mutate,
+			propagateFunc:   writer.Update,
+			conditionFunc:   condition,
+			watchFunc:       watcher.WaitUntil,
+		}
+
+		//
+		// When we try to perform the delegated action
+		err := delegated.Do(t.Context(), resource)
+
+		//
+		// Then it should succeed
+		require.NoError(t, err)
 	})
 }
