@@ -76,7 +76,7 @@ func TestGenericDelegated_Do(t *testing.T) {
 		//
 		// And a delegated which uses these above mentioned elements
 		delegated := GenericDelegated[*MockIdentifiableResource, *secaBundleType, *arubaBundleType]{
-			resolveSECAFunc: secaResolver.ResolveDependencies,
+			resolveSECA: secaResolver.ResolveDependencies,
 		}
 
 		//
@@ -132,8 +132,8 @@ func TestGenericDelegated_Do(t *testing.T) {
 		//
 		// And a delegated which uses these above mentioned elements
 		delegated := GenericDelegated[*MockIdentifiableResource, *secaBundleType, *arubaBundleType]{
-			resolveSECAFunc: secaResolver.ResolveDependencies,
-			convertFunc:     converter.FromSECAToAruba,
+			resolveSECA: secaResolver.ResolveDependencies,
+			convert:     converter.FromSECAToAruba,
 		}
 
 		//
@@ -208,9 +208,9 @@ func TestGenericDelegated_Do(t *testing.T) {
 		//
 		// And a delegated which uses these above mentioned elements
 		delegated := GenericDelegated[*MockIdentifiableResource, *secaBundleType, *arubaBundleType]{
-			resolveSECAFunc: secaResolver.ResolveDependencies,
-			convertFunc:     converter.FromSECAToAruba,
-			resolvArubaFunc: arubaResolver.ResolveDependencies,
+			resolveSECA:  secaResolver.ResolveDependencies,
+			convert:      converter.FromSECAToAruba,
+			resolveAruba: arubaResolver.ResolveDependencies,
 		}
 
 		//
@@ -303,10 +303,10 @@ func TestGenericDelegated_Do(t *testing.T) {
 		//
 		// And a delegated which uses these above mentioned elements
 		delegated := GenericDelegated[*MockIdentifiableResource, *secaBundleType, *arubaBundleType]{
-			resolveSECAFunc: secaResolver.ResolveDependencies,
-			convertFunc:     converter.FromSECAToAruba,
-			resolvArubaFunc: arubaResolver.ResolveDependencies,
-			mutateFunc:      mutator.Mutate,
+			resolveSECA:  secaResolver.ResolveDependencies,
+			convert:      converter.FromSECAToAruba,
+			resolveAruba: arubaResolver.ResolveDependencies,
+			mutate:       mutator.Mutate,
 		}
 
 		//
@@ -417,11 +417,11 @@ func TestGenericDelegated_Do(t *testing.T) {
 		//
 		// And a delegated which uses these above mentioned elements
 		delegated := GenericDelegated[*MockIdentifiableResource, *secaBundleType, *arubaBundleType]{
-			resolveSECAFunc: secaResolver.ResolveDependencies,
-			convertFunc:     converter.FromSECAToAruba,
-			resolvArubaFunc: arubaResolver.ResolveDependencies,
-			mutateFunc:      mutator.Mutate,
-			propagateFunc:   writer.Update,
+			resolveSECA:  secaResolver.ResolveDependencies,
+			convert:      converter.FromSECAToAruba,
+			resolveAruba: arubaResolver.ResolveDependencies,
+			mutate:       mutator.Mutate,
+			propagate:    writer.Update,
 		}
 
 		//
@@ -543,25 +543,25 @@ func TestGenericDelegated_Do(t *testing.T) {
 			gomock.AssignableToTypeOf(&arubaBundleType{}),
 			gomock.AssignableToTypeOf(condition),
 		).DoAndReturn(
-			func(ctx context.Context, resource *arubaBundleType, condition repository.WaitConditionFunc[*arubaBundleType]) error {
+			func(ctx context.Context, resource *arubaBundleType, condition repository.WaitConditionFunc[*arubaBundleType]) (*arubaBundleType, error) {
 				if !condition(resource) {
-					return errConditionNotMet
+					return nil, errConditionNotMet
 				}
 
-				return nil
+				return resource, nil
 			},
 		).Times(1)
 
 		//
 		// And a delegated which uses these above mentioned elements
 		delegated := GenericDelegated[*MockIdentifiableResource, *secaBundleType, *arubaBundleType]{
-			resolveSECAFunc: secaResolver.ResolveDependencies,
-			convertFunc:     converter.FromSECAToAruba,
-			resolvArubaFunc: arubaResolver.ResolveDependencies,
-			mutateFunc:      mutator.Mutate,
-			propagateFunc:   writer.Update,
-			conditionFunc:   condition,
-			watchFunc:       watcher.WaitUntil,
+			resolveSECA:  secaResolver.ResolveDependencies,
+			convert:      converter.FromSECAToAruba,
+			resolveAruba: arubaResolver.ResolveDependencies,
+			mutate:       mutator.Mutate,
+			propagate:    writer.Update,
+			condition:    condition,
+			wait:         watcher.WaitUntil,
 		}
 
 		//
@@ -683,25 +683,25 @@ func TestGenericDelegated_Do(t *testing.T) {
 			gomock.AssignableToTypeOf(&arubaBundleType{}),
 			gomock.AssignableToTypeOf(condition),
 		).DoAndReturn(
-			func(ctx context.Context, resource *arubaBundleType, condition repository.WaitConditionFunc[*arubaBundleType]) error {
+			func(ctx context.Context, resource *arubaBundleType, condition repository.WaitConditionFunc[*arubaBundleType]) (*arubaBundleType, error) {
 				if !condition(resource) {
-					return errConditionNotMet
+					return nil, errConditionNotMet
 				}
 
-				return nil
+				return resource, nil
 			},
 		).Times(1)
 
 		//
 		// And a delegated which uses these above mentioned elements
 		delegated := GenericDelegated[*MockIdentifiableResource, *secaBundleType, *arubaBundleType]{
-			resolveSECAFunc: secaResolver.ResolveDependencies,
-			convertFunc:     converter.FromSECAToAruba,
-			resolvArubaFunc: arubaResolver.ResolveDependencies,
-			mutateFunc:      mutator.Mutate,
-			propagateFunc:   writer.Update,
-			conditionFunc:   condition,
-			watchFunc:       watcher.WaitUntil,
+			resolveSECA:  secaResolver.ResolveDependencies,
+			convert:      converter.FromSECAToAruba,
+			resolveAruba: arubaResolver.ResolveDependencies,
+			mutate:       mutator.Mutate,
+			propagate:    writer.Update,
+			condition:    condition,
+			wait:         watcher.WaitUntil,
 		}
 
 		//
