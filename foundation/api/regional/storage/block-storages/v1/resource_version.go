@@ -11,11 +11,16 @@ import (
 )
 
 // BlockStorageResource is the resource name for storage block-storage instances.
-const BlockStorageResource = "block-storages"
+const (
+	BlockStorageResource = "block-storages"
+	BlockStorageKind     = "BlockStorage"
+)
 
 var (
-	BlockStorageGR  = schema.GroupResource{Group: storage.Group, Resource: BlockStorageResource}
 	BlockStorageGVR = schema.GroupVersionResource{
 		Group: storage.Group, Version: storage.Version, Resource: BlockStorageResource,
+	}
+	BlockStorageGVK = schema.GroupVersionKind{
+		Group: storage.Group, Version: storage.Version, Kind: BlockStorageKind,
 	}
 )

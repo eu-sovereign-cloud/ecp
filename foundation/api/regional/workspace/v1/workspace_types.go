@@ -8,6 +8,7 @@ import (
 )
 
 // +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 // +kubebuilder:resource:path=workspaces,scope=Namespaced,shortName=workspace
 // +k8s:openapi-gen=true
 
