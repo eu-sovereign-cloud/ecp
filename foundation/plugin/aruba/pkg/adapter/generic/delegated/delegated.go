@@ -2,14 +2,13 @@ package delegated
 
 import (
 	"context"
-	"errors"
 
 	seca_gateway_port "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 
 	converter_port "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/converter"
 	delegated_port "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/delegated"
 	mutator_port "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/mutator"
-	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/repository"
+	repository_port "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/repository"
 	resolver_port "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/resolver"
 )
 
@@ -22,7 +21,9 @@ type GenericDelegated[
 	convertFunc     converter_port.ConvertFunc[SB, AB]
 	resolvArubaFunc resolver_port.ResolveDependenciesFunc[AB, AB]
 	mutateFunc      mutator_port.MutateFunc[AB, SB]
-	propagateFunc   repository.CLUDFunc[AB]
+	propagateFunc   repository_port.CLUDFunc[AB]
+	conditionFunc   repository_port.WaitConditionFunc[AB]
+	watchFunc       repository_port.WaitUntilFunc[AB]
 }
 
 var _ delegated_port.Delegated[seca_gateway_port.IdentifiableResource] = (*GenericDelegated[seca_gateway_port.IdentifiableResource, any, any])(nil)
@@ -51,5 +52,9 @@ func (d *GenericDelegated[S, SB, AB]) Do(ctx context.Context, resource S) error 
 		return err
 	}
 
-	return errors.New("not implemented")
+	if _, err := d.watchFunc(ctx, arubaBundle, d.conditionFunc); err != nil {
+		return err
+	}
+
+	return nil
 }
