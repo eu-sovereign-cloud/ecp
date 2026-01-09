@@ -9,6 +9,7 @@ import (
 	converter_port "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/converter"
 	delegated_port "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/delegated"
 	mutator_port "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/mutator"
+	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/repository"
 	resolver_port "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/resolver"
 )
 
@@ -21,6 +22,7 @@ type GenericDelegated[
 	convertFunc     converter_port.ConvertFunc[SB, AB]
 	resolvArubaFunc resolver_port.ResolveDependenciesFunc[AB, AB]
 	mutateFunc      mutator_port.MutateFunc[AB, SB]
+	propagateFunc   repository.CLUDFunc[AB]
 }
 
 var _ delegated_port.Delegated[seca_gateway_port.IdentifiableResource] = (*GenericDelegated[seca_gateway_port.IdentifiableResource, any, any])(nil)
@@ -42,6 +44,10 @@ func (d *GenericDelegated[S, SB, AB]) Do(ctx context.Context, resource S) error 
 	}
 
 	if err := d.mutateFunc(arubaBundle, secaBundle); err != nil {
+		return err
+	}
+
+	if err := d.propagateFunc(ctx, arubaBundle); err != nil {
 		return err
 	}
 
