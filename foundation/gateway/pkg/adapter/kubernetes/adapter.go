@@ -233,6 +233,16 @@ func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
 		return nil, fmt.Errorf("%w: failed to convert %s to unstructured: %w", model.ErrValidation, a.gvr.Resource, err)
 	}
 
+	gotObj, err := ri.Get(ctx, m.GetName(), metav1.GetOptions{})
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to get resource", "name", m.GetName(), "resource", a.gvr.Resource, "error", err)
+		modelErr := model.ErrUnavailable
+		if kerrs.IsNotFound(err) {
+			modelErr = model.ErrNotFound
+		}
+		return nil, fmt.Errorf("%w: failed to retrieve %s '%s': %w", modelErr, a.gvr.Resource, m.GetName(), err)
+	}
+	uobj.SetResourceVersion(gotObj.GetResourceVersion())
 	ures, err := ri.Update(ctx, uobj, metav1.UpdateOptions{})
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to update resource", "name", m.GetName(), "resource", a.gvr.Resource, "error", err)

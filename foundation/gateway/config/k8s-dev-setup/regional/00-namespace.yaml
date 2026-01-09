@@ -1,0 +1,10 @@
+---
+# Namespace for the "seca" tenant (hash of "seca")
+# This namespace is used for storage SKUs, workspaces, and other regional resources
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: 69e09dd4c334335d2f0a4a52c9ff87b76b0f9e1b147d62a5f2b8f965
+  labels:
+    secapi.cloud/tenant-id: seca
+
