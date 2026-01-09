@@ -15,33 +15,27 @@ REGIONAL_KUBECONFIG_PATH="${KUBECONFIG_DIR}/regional-config"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GATEWAY_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 API_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-API_CRDS_DIR="${API_ROOT}/api/generated/crds"  # Correct location (previously mis-set to apis)
+API_CRDS_DIR="${API_ROOT}/api/generated/crds"
 CONFIG_SETUP_DIR="${GATEWAY_ROOT}/config/k8s-dev-setup"
-REGIONAL_STORAGE_CONFIG_DIR="${CONFIG_SETUP_DIR}/regional/storage"
+REGIONAL_CONFIG_DIR="${CONFIG_SETUP_DIR}/regional"
 
 # Docker Images
 GLOBAL_IMAGE="registry.secapi.cloud/global-server:latest"
 REGIONAL_IMAGE="registry.secapi.cloud/regional-server:latest"
 
-# Deployment and CRD files (updated to point to new api folder & correct config dir)
+# Deployment and RBAC files
 GLOBAL_DEPLOYMENT_YAML="${CONFIG_SETUP_DIR}/global-deployment.yaml"
 REGIONAL_DEPLOYMENT_YAML="${CONFIG_SETUP_DIR}/regional-deployment.yaml"
-REGION_CRD_YAML="${API_CRDS_DIR}/regions/v1.secapi.cloud_regions.yaml"
 REGIONS_RBAC_YAML="${CONFIG_SETUP_DIR}/global_regions_rbac.yaml"
-# Storage SKU CRD & RBAC for regional cluster
-STORAGE_SKU_CRD_YAML="${API_CRDS_DIR}/storage/storage.v1.secapi.cloud_skus.yaml"
-REGIONAL_STORAGE_SKU_CR="${REGIONAL_STORAGE_CONFIG_DIR}/storage-sku.yaml"
-REGIONAL_STORAGE_SKU_RBAC_YAML="${REGIONAL_STORAGE_CONFIG_DIR}/regional-storage-sku-rbac.yaml"
 
-# Verify required files exist early to fail fast
+# Verify required files/directories exist early to fail fast
 ensure_file() { if [ ! -f "$1" ]; then echo "Error: Required file not found: $1" >&2; exit 1; fi }
+ensure_dir() { if [ ! -d "$1" ]; then echo "Error: Required directory not found: $1" >&2; exit 1; fi }
 ensure_file "${GLOBAL_DEPLOYMENT_YAML}"
 ensure_file "${REGIONAL_DEPLOYMENT_YAML}"
-ensure_file "${REGION_CRD_YAML}"
 ensure_file "${REGIONS_RBAC_YAML}"
-ensure_file "${STORAGE_SKU_CRD_YAML}"
-ensure_file "${REGIONAL_STORAGE_SKU_CR}"
-ensure_file "${REGIONAL_STORAGE_SKU_RBAC_YAML}"
+ensure_dir "${API_CRDS_DIR}"
+ensure_dir "${REGIONAL_CONFIG_DIR}"
 
 # Region Details
 REGION_NAME="region"
@@ -90,36 +84,37 @@ echo "--- Step 3: Loading local Docker images into clusters ---"
 kind load docker-image "${GLOBAL_IMAGE}" --name "${GLOBAL_CLUSTER_NAME}"
 kind load docker-image "${REGIONAL_IMAGE}" --name "${REGIONAL_CLUSTER_NAME}"
 
-# 5. Apply Region CRD to the global cluster
-echo "--- Step 4: Applying Region CRD to the global cluster ---"
-kubectl --kubeconfig "${GLOBAL_KUBECONFIG_PATH}" apply -f "${REGION_CRD_YAML}"
+# 5. Apply all CRDs from API_CRDS_DIR to both clusters
+echo "--- Step 4: Applying all CRDs from ${API_CRDS_DIR} ---"
+kubectl --kubeconfig "${GLOBAL_KUBECONFIG_PATH}" apply -R -f "${API_CRDS_DIR}"
+kubectl --kubeconfig "${REGIONAL_KUBECONFIG_PATH}" apply -R -f "${API_CRDS_DIR}"
+
+# Wait for all CRDs to be established
+echo "Waiting for CRDs to be established..."
+kubectl --kubeconfig "${GLOBAL_KUBECONFIG_PATH}" wait --for=condition=Established crd --all --timeout=60s || {
+  echo "Warning: Some global CRDs may not be established" >&2
+}
+kubectl --kubeconfig "${REGIONAL_KUBECONFIG_PATH}" wait --for=condition=Established crd --all --timeout=60s || {
+  echo "Warning: Some regional CRDs may not be established" >&2
+}
 
 # 6. Apply RBAC to the global cluster
 echo "--- Step 5: Applying RBAC configuration to the global cluster ---"
 kubectl --kubeconfig "${GLOBAL_KUBECONFIG_PATH}" apply -f "${REGIONS_RBAC_YAML}"
 
-# 7. Apply StorageSKU CRD to the regional cluster
-echo "--- Step 6: Applying StorageSKU CRD to the regional cluster ---"
-kubectl --kubeconfig "${REGIONAL_KUBECONFIG_PATH}" apply -f "${STORAGE_SKU_CRD_YAML}"
-kubectl --kubeconfig "${REGIONAL_KUBECONFIG_PATH}" apply -f "${REGIONAL_STORAGE_SKU_CR}"
-# Wait until CRD is established to avoid race conditions with controllers
-kubectl --kubeconfig "${REGIONAL_KUBECONFIG_PATH}" wait --for=condition=Established crd/storage-skus.storage.v1.secapi.cloud --timeout=60s || {
-  echo "Warning: StorageSKU CRD establishment wait timed out" >&2
-}
+# 7. Apply regional CRs and RBAC (storage, workspace, etc.)
+echo "--- Step 6: Applying regional CRs and RBAC ---"
+kubectl --kubeconfig "${REGIONAL_KUBECONFIG_PATH}" apply -R -f "${REGIONAL_CONFIG_DIR}"
 
-# 8. Apply StorageSKU RBAC to the regional cluster
-echo "--- Step 7: Applying StorageSKU RBAC to the regional cluster ---"
-kubectl --kubeconfig "${REGIONAL_KUBECONFIG_PATH}" apply -f "${REGIONAL_STORAGE_SKU_RBAC_YAML}"
-
-# 9. Apply deployments to clusters
-echo "--- Step 8: Applying deployments ---"
+# 8. Apply deployments to clusters
+echo "--- Step 7: Applying deployments ---"
 kubectl --kubeconfig "${GLOBAL_KUBECONFIG_PATH}" apply -f "${GLOBAL_DEPLOYMENT_YAML}"
 kubectl --kubeconfig "${REGIONAL_KUBECONFIG_PATH}" apply -f "${REGIONAL_DEPLOYMENT_YAML}"
 echo "Deployments applied. Waiting for services to be ready..."
 sleep 15 # Give services and endpoints time to initialize
 
-# 10. Discover the regional service endpoint
-echo "--- Step 9: Discovering regional service endpoint ---"
+# 9. Discover the regional service endpoint
+echo "--- Step 8: Discovering regional service endpoint ---"
 # For kind, the node's IP is the IP of its control-plane Docker container
 NODE_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${REGIONAL_CLUSTER_NAME}-control-plane")
 if [ -z "$NODE_IP" ]; then
@@ -138,8 +133,8 @@ echo "Discovered Regional Service NodePort: ${NODE_PORT}"
 REGIONAL_API_ENDPOINT="http://${NODE_IP}:${NODE_PORT}"
 echo "Constructed Regional API Endpoint: ${REGIONAL_API_ENDPOINT}"
 
-# 11. Generate and apply the Region CR to the global cluster
-echo "--- Step 10: Registering regional cluster in the global cluster ---"
+# 10. Generate and apply the Region CR to the global cluster
+echo "--- Step 9: Registering regional cluster in the global cluster ---"
 cat <<EOF | kubectl --kubeconfig "${GLOBAL_KUBECONFIG_PATH}" apply -f -
 apiVersion: v1.secapi.cloud/v1
 kind: Region
