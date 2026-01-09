@@ -155,9 +155,6 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 			Logger: logger,
 		},
 	)
-	defer func(httpServer *http.Server) {
-		_ = httpServer.Close()
-	}(httpServer)
 	if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		logger.Error("failed to start regional API server", "error", err)
 		log.Fatal(err, " - failed to start regional API server")
