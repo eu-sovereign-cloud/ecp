@@ -1,6 +1,7 @@
 ## workspace
 # github.com/Arubacloud/arubacloud-resource-operator v0.0.1-alpha4
 ## explicit; go 1.24.0
+github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1
 # github.com/apapsch/go-jsonmerge/v2 v2.0.0
 ## explicit; go 1.12
 github.com/apapsch/go-jsonmerge/v2
@@ -20,6 +21,8 @@ github.com/emicklei/go-restful/v3/log
 # github.com/eu-sovereign-cloud/ecp/foundation/api v0.0.1 => ./foundation/api
 ## explicit; go 1.24
 # github.com/eu-sovereign-cloud/ecp/foundation/delegator v0.0.0 => ./foundation/delegator
+## explicit; go 1.24
+# github.com/eu-sovereign-cloud/ecp/foundation/gateway v0.0.0 => ./foundation/gateway
 ## explicit; go 1.24
 # github.com/eu-sovereign-cloud/go-sdk v0.2.0
 ## explicit; go 1.24
