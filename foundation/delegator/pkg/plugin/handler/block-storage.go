@@ -81,32 +81,45 @@ func (h *BlockStorageResourceHandler) HandleReconcile(ctx context.Context, resou
 
 	switch {
 	case isPending(resource):
-		setResourceState(resource, regional.ResourceStateCreating)
+		return h.setResourceState(ctx, resource, regional.ResourceStateCreating)
 
 	case wantCreate(resource):
 		resource.Status.SizeGB = resource.Spec.SizeGB
 
-		setResourceState(resource, regional.ResourceStateActive)
+		return h.setResourceState(ctx, resource, regional.ResourceStateActive)
 
 	case wantDelete(resource):
-		setResourceState(resource, regional.ResourceStateDeleting)
+		return h.setResourceState(ctx, resource, regional.ResourceStateDeleting)
 
 	case wantIncreaseSize(resource):
 		resource.Status.SizeGB = resource.Spec.SizeGB
 
-		setResourceState(resource, regional.ResourceStateActive)
+		return h.setResourceState(ctx, resource, regional.ResourceStateActive)
 
 	case wantRetryCreate(resource):
-		setResourceState(resource, regional.ResourceStateCreating)
+		return h.setResourceState(ctx, resource, regional.ResourceStateCreating)
 
 	case wantRetryIncreaseSize(resource):
-		setResourceState(resource, regional.ResourceStateUpdating)
+		return h.setResourceState(ctx, resource, regional.ResourceStateUpdating)
 
 	default:
 		log.Fatal("must never achieve that condition")
 	}
 
-	// Set the status of the resource properly.
+	return nil
+}
+
+//
+// Helper Methods
+
+func (h *BlockStorageResourceHandler) setResourceState(ctx context.Context, resource *regional.BlockStorageDomain, state regional.ResourceState) error {
+	resource.Status.State = &state
+
+	resource.Status.Conditions = append(resource.Status.Conditions, regional.StatusCondition{
+		LastTransitionAt: time.Now(),
+		State:            state,
+	})
+
 	if _, err := h.repo.Update(ctx, resource); err != nil {
 		return err // TODO: better error handling.
 	}
@@ -153,16 +166,4 @@ func wantRetryIncreaseSize(resource *regional.BlockStorageDomain) bool {
 	return *(resource.Status.State) == regional.ResourceStateError &&
 		resource.Status.Conditions[len(resource.Status.Conditions)-2].State == regional.ResourceStateUpdating &&
 		resource.Spec.SizeGB > resource.Status.SizeGB
-}
-
-//
-// Helpers
-
-func setResourceState(resource *regional.BlockStorageDomain, state regional.ResourceState) {
-	resource.Status.State = &state
-
-	resource.Status.Conditions = append(resource.Status.Conditions, regional.StatusCondition{
-		LastTransitionAt: time.Now(),
-		State:            state,
-	})
 }
