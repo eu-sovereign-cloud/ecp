@@ -4,17 +4,15 @@ import (
 	"context"
 	"testing"
 
-	"k8s.io/apimachinery/pkg/api/errors"
-
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
-	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/repository"
-	"k8s.io/apimachinery/pkg/runtime"
-
 	"github.com/stretchr/testify/assert"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	generic_repository "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/generic/repository"
 )
 
 func newFakeProjectClientWithObject(project *v1alpha1.Project) client.Client {
@@ -45,7 +43,7 @@ func TestProjectRepository_Load(t *testing.T) {
 	fakeClient := newFakeProjectClientWithObject(prj)
 
 	// Create repository
-	repo := repository.NewCommonRepository[*v1alpha1.Project](fakeClient)
+	repo := generic_repository.NewGenericRepository[*v1alpha1.Project](fakeClient)
 
 	// Prepare an empty Project object to load into
 	toLoad := &v1alpha1.Project{}
@@ -84,7 +82,7 @@ func TestProjectRepository_Create(t *testing.T) {
 	fakeClient := newFakeProjectClientWithObject(nil)
 
 	// Create repository
-	repo := repository.NewCommonRepository[*v1alpha1.Project](fakeClient)
+	repo := generic_repository.NewGenericRepository[*v1alpha1.Project](fakeClient)
 
 	err := repo.Create(ctx, project)
 	assert.NoError(t, err, "expected Load to succeed")
@@ -103,7 +101,7 @@ func TestProjectRepository_Update(t *testing.T) {
 	fakeClient := newFakeProjectClientWithObject(project)
 
 	// Create repository
-	repo := repository.NewCommonRepository[*v1alpha1.Project](fakeClient)
+	repo := generic_repository.NewGenericRepository[*v1alpha1.Project](fakeClient)
 
 	project.Spec.Tenant = "tenant"
 	err := repo.Update(ctx, project)
@@ -135,7 +133,7 @@ func TestProjectRepository_Delete(t *testing.T) {
 	fakeClient := newFakeProjectClientWithObject(project)
 
 	// Create repository
-	repo := repository.NewCommonRepository[*v1alpha1.Project](fakeClient)
+	repo := generic_repository.NewGenericRepository[*v1alpha1.Project](fakeClient)
 
 	err := repo.Delete(ctx, project)
 	assert.NoError(t, err, "expected Load to succeed")

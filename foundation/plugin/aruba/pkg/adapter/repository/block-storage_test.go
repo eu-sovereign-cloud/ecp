@@ -5,11 +5,12 @@ import (
 	"testing"
 
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
-	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/repository"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+
+	generic_repository "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/generic/repository"
 )
 
 func newFakeStorageClientWithObject(storage *v1alpha1.BlockStorage) client.Client {
@@ -44,7 +45,7 @@ func TestBlockStorage_Load(t *testing.T) {
 	fakeClient := newFakeStorageClientWithObject(st)
 
 	// Create repository
-	repo := repository.NewCommonRepository[*v1alpha1.BlockStorage](fakeClient)
+	repo := generic_repository.NewGenericRepository[*v1alpha1.BlockStorage](fakeClient)
 
 	// Prepare an empty Project object to load into
 	toLoad := &v1alpha1.BlockStorage{}
