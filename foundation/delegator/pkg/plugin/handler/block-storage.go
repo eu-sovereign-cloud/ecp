@@ -1,4 +1,4 @@
-package resourcehandler
+package handler
 
 import (
 	"context"
@@ -42,16 +42,19 @@ func (h *BlockStorageResourceHandler) HandleReconcile(ctx context.Context, resou
 
 	switch {
 	case isPending(resource):
-		delegate = bypassPlugin
+		delegate = BypassDelegated[*regional.BlockStorageDomain]
 
-	case wantCreate(resource) || wantRetryCreate(resource):
+	case wantCreate(resource):
 		delegate = h.plugin.Create
 
 	case wantDelete(resource):
 		delegate = h.plugin.Delete
 
-	case wantIncreaseSize(resource) || wantRetryIncreaseSize(resource):
+	case wantIncreaseSize(resource):
 		delegate = h.plugin.IncreaseSize
+
+	case wantRetryCreate(resource) || wantRetryIncreaseSize(resource):
+		delegate = BypassDelegated[*regional.BlockStorageDomain]
 
 	default:
 		return nil // Nothing to do.
@@ -80,7 +83,7 @@ func (h *BlockStorageResourceHandler) HandleReconcile(ctx context.Context, resou
 	case isPending(resource):
 		setResourceState(resource, regional.ResourceStateCreating)
 
-	case wantCreate(resource) || wantRetryCreate(resource):
+	case wantCreate(resource):
 		resource.Status.SizeGB = resource.Spec.SizeGB
 
 		setResourceState(resource, regional.ResourceStateActive)
@@ -88,10 +91,16 @@ func (h *BlockStorageResourceHandler) HandleReconcile(ctx context.Context, resou
 	case wantDelete(resource):
 		setResourceState(resource, regional.ResourceStateDeleting)
 
-	case wantIncreaseSize(resource) || wantRetryIncreaseSize(resource):
+	case wantIncreaseSize(resource):
 		resource.Status.SizeGB = resource.Spec.SizeGB
 
 		setResourceState(resource, regional.ResourceStateActive)
+
+	case wantRetryCreate(resource):
+		setResourceState(resource, regional.ResourceStateCreating)
+
+	case wantRetryIncreaseSize(resource):
+		setResourceState(resource, regional.ResourceStateUpdating)
 
 	default:
 		log.Fatal("must never achieve that condition")
@@ -148,8 +157,6 @@ func wantRetryIncreaseSize(resource *regional.BlockStorageDomain) bool {
 
 //
 // Helpers
-
-func bypassPlugin(_ context.Context, _ *regional.BlockStorageDomain) error { return nil }
 
 func setResourceState(resource *regional.BlockStorageDomain, state regional.ResourceState) {
 	resource.Status.State = &state
