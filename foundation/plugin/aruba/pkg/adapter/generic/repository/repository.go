@@ -136,7 +136,7 @@ func (r *GenericRepository[T, L]) Watch(
 			r.handle(ictx, obj, resource, out, &wg)
 		},
 		UpdateFunc: func(oldObj, newObj interface{}) {
-if oldObj.(client.Object).GetResourceVersion() == newObj.(client.Object).GetResourceVersion() {
+			if oldObj.(client.Object).GetResourceVersion() == newObj.(client.Object).GetResourceVersion() {
 				fmt.Printf("Resource version unchanged for object %+v, skipping update handling\n", newObj)
 				return
 			}
