@@ -1,4 +1,4 @@
-package resourcehandler
+package handler
 
 import (
 	"context"
@@ -60,5 +60,9 @@ func (h *GenericDelegatorResourceHandler[T]) HandleAdmission(ctx context.Context
 		return fmt.Errorf("admission failed: %w", err)
 	}
 
+	return nil
+}
+
+func BypassDelegated[T gateway_port.IdentifiableResource](_ context.Context, _ T) error {
 	return nil
 }
