@@ -13,6 +13,10 @@ type DeleteWorkspace struct {
 	Repo   port.WriterRepo[*regional.WorkspaceDomain]
 }
 
-func (c *DeleteWorkspace) Do(ctx context.Context) error {
-	return nil
+func (c *DeleteWorkspace) Do(ctx context.Context, ir port.IdentifiableResource) error {
+	domain := &regional.WorkspaceDomain{}
+	domain.Name = ir.GetName()
+	domain.Tenant = ir.GetTenant()
+
+	return c.Repo.Delete(ctx, domain)
 }

@@ -4,14 +4,15 @@ import (
 	"log/slog"
 	"net/http"
 
+	sdkworkspace "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1"
+	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
+
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/regional/workspace"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/service/handler"
 	apiworkspace "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/workspace"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
-	sdkworkspace "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1"
-	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 )
 
 type Workspace struct {
@@ -32,9 +33,19 @@ func (h Workspace) ListWorkspaces(w http.ResponseWriter, r *http.Request, tenant
 	)
 }
 
-func (h Workspace) DeleteWorkspace(w http.ResponseWriter, r *http.Request, tenant schema.TenantPathParam, name schema.ResourcePathParam, params sdkworkspace.DeleteWorkspaceParams) {
-	// TODO implement me
-	panic("implement me")
+func (h Workspace) DeleteWorkspace(
+	w http.ResponseWriter, r *http.Request, tenant schema.TenantPathParam, name schema.ResourcePathParam, params sdkworkspace.DeleteWorkspaceParams,
+) {
+	ir := &regional.Metadata{
+		Scope: scope.Scope{
+			Tenant: tenant,
+		},
+		CommonMetadata: model.CommonMetadata{
+			Name: name,
+		},
+	}
+
+	handler.HandleDelete(w, r, h.Logger.With("provider", "workspace").With("resource", "workspace"), ir, h.Delete)
 }
 
 func (h Workspace) GetWorkspace(w http.ResponseWriter, r *http.Request, tenant schema.TenantPathParam, name schema.ResourcePathParam) {
@@ -50,7 +61,9 @@ func (h Workspace) GetWorkspace(w http.ResponseWriter, r *http.Request, tenant s
 	handler.HandleGet(w, r, h.Logger.With("provider", "workspace").With("resource", "workspace"), ir, h.Get, apiworkspace.DomainToAPI)
 }
 
-func (h Workspace) CreateOrUpdateWorkspace(w http.ResponseWriter, r *http.Request, tenant schema.TenantPathParam, name schema.ResourcePathParam, params sdkworkspace.CreateOrUpdateWorkspaceParams) {
+func (h Workspace) CreateOrUpdateWorkspace(
+	w http.ResponseWriter, r *http.Request, tenant schema.TenantPathParam, name schema.ResourcePathParam, params sdkworkspace.CreateOrUpdateWorkspaceParams,
+) {
 	var ifUnmodifiedSince int
 	if params.IfUnmodifiedSince != nil {
 		ifUnmodifiedSince = *params.IfUnmodifiedSince

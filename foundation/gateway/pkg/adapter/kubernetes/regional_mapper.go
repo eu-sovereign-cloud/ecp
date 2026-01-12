@@ -159,8 +159,7 @@ func MapWorkspaceDomainToCR(domain *regional.WorkspaceDomain) (client.Object, er
 
 	crLabels := labels.OriginalToKeyed(domain.Labels)
 	crLabels[labels.InternalTenantLabel] = domain.Tenant
-
-	return &workspacev1.Workspace{
+	cr := &workspacev1.Workspace{
 		ObjectMeta: v1.ObjectMeta{
 			Name:      domain.Name,
 			Namespace: ComputeNamespace(domain),
@@ -172,7 +171,9 @@ func MapWorkspaceDomainToCR(domain *regional.WorkspaceDomain) (client.Object, er
 			Labels:      slices.Collect(maps.Keys(domain.Labels)),
 		},
 		Spec: spec,
-	}, nil
+	}
+	cr.SetGroupVersionKind(workspacev1.WorkspaceGVK)
+	return cr, nil
 }
 
 // mapCRToStatusConditionDomain maps a types.StatusCondition to a regional.StatusConditionDomain.

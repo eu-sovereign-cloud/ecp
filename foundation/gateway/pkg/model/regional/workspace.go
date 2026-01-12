@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
+
 	regionsv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regions/v1"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
-	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 )
 
 // NOTE: Should base URLs and Provider names be passed at API deployment time?
@@ -61,6 +62,7 @@ func MapWorkspaceDomainToAPI(domain WorkspaceDomain, verb string) schema.Workspa
 			LastModifiedAt:  domain.UpdatedAt,
 			Kind:            schema.RegionalResourceMetadataKindResourceKindWorkspace,
 			Name:            domain.Name,
+			Tenant:          domain.Tenant,
 			Provider:        domain.Provider,
 			Region:          domain.Region,
 			Resource:        fmt.Sprintf(TenantScopedResourceFormat, domain.Tenant, schema.RegionalResourceMetadataKindResourceKindWorkspace, domain.Name),
