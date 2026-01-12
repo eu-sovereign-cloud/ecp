@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"fmt"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -206,12 +207,83 @@ func MapBlockStorageDomainToCR(domain *regional.BlockStorageDomain) (client.Obje
 }
 
 // mapDomainReferenceObjectToCR converts a domain ReferenceObject to a generated types ReferenceObject.
+// It parses the Resource path to extract embedded segments (providers, regions, tenants, workspaces)
+// and sets the corresponding fields. Extracted segments are stripped from the Resource path.
+// If a segment is not in the path, it falls back to the domain value.
 func mapDomainReferenceObjectToCR(ref regional.ReferenceObject) genv1.ReferenceObject {
-	return genv1.ReferenceObject{
-		Provider:  ptr.To(ref.Provider),
-		Region:    ptr.To(ref.Region),
-		Resource:  ref.Resource,
-		Tenant:    ptr.To(ref.Tenant),
-		Workspace: ptr.To(ref.Workspace),
+	resource := ref.Resource
+	result := genv1.ReferenceObject{}
+
+	// Extract values from Resource path or fall back to domain values
+	if provider, remaining := extractAndStripSegment(resource, "providers/"); provider != "" {
+		result.Provider = ptr.To(provider)
+		resource = remaining
+	} else if ref.Provider != "" {
+		result.Provider = ptr.To(ref.Provider)
 	}
+
+	if region, remaining := extractAndStripSegment(resource, "regions/"); region != "" {
+		result.Region = ptr.To(region)
+		resource = remaining
+	} else if ref.Region != "" {
+		result.Region = ptr.To(ref.Region)
+	}
+
+	if tenant, remaining := extractAndStripSegment(resource, "tenants/"); tenant != "" {
+		result.Tenant = ptr.To(tenant)
+		resource = remaining
+	} else if ref.Tenant != "" {
+		result.Tenant = ptr.To(ref.Tenant)
+	}
+
+	if workspace, remaining := extractAndStripSegment(resource, "workspaces/"); workspace != "" {
+		result.Workspace = ptr.To(workspace)
+		resource = remaining
+	} else if ref.Workspace != "" {
+		result.Workspace = ptr.To(ref.Workspace)
+	}
+
+	result.Resource = resource
+	return result
+}
+
+// extractAndStripSegment extracts the value following a segment prefix in a resource path
+// and returns the remaining path with the segment removed.
+// For example, extractAndStripSegment("workspaces/ws-1/block-storages/my-storage", "workspaces/")
+// returns ("ws-1", "block-storages/my-storage").
+// Returns empty strings if the segment is not found.
+func extractAndStripSegment(resource, segment string) (value, remaining string) {
+	var startIdx int
+	var prefixLen int
+
+	if strings.HasPrefix(resource, segment) {
+		startIdx = len(segment)
+		prefixLen = 0
+	} else if idx := strings.Index(resource, "/"+segment); idx >= 0 {
+		startIdx = idx + 1 + len(segment)
+		prefixLen = idx
+	} else {
+		return "", ""
+	}
+
+	// Find the end of the value (next "/" or end of string)
+	endIdx := strings.Index(resource[startIdx:], "/")
+	if endIdx < 0 {
+		// Segment is at the end, return the value and prefix as remaining
+		value = resource[startIdx:]
+		if prefixLen > 0 {
+			remaining = resource[:prefixLen]
+		}
+		return value, remaining
+	}
+
+	value = resource[startIdx : startIdx+endIdx]
+	// Build remaining: prefix + suffix after the segment
+	suffix := resource[startIdx+endIdx+1:]
+	if prefixLen > 0 {
+		remaining = resource[:prefixLen] + "/" + suffix
+	} else {
+		remaining = suffix
+	}
+	return value, remaining
 }
