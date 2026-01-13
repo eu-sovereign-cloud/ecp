@@ -14,14 +14,14 @@ import (
 )
 
 // GenericController implements a generic Kubernetes controller that reconciles
-// resources by delegating the logic to a ResourceHandler.
+// resources by delegating the logic to a PluginHandler.
 //
 // It is designed to work with any resource that implements the IdentifiableResource
 // interface and has a corresponding Kubernetes representation (CRD).
 type GenericController[D gateway.IdentifiableResource, K client.Object] struct {
 	client      client.Client
 	k8sToDomain kubernetes.K8sToDomain[D]
-	handler     delegator.ResourceHandler[D]
+	handler     delegator.PluginHandler[D]
 	prototype   K
 	logger      *slog.Logger
 }
@@ -30,7 +30,7 @@ type GenericController[D gateway.IdentifiableResource, K client.Object] struct {
 func NewGenericController[D gateway.IdentifiableResource, K client.Object](
 	client client.Client,
 	k8sToDomain kubernetes.K8sToDomain[D],
-	handler delegator.ResourceHandler[D],
+	handler delegator.PluginHandler[D],
 	prototype K,
 	logger *slog.Logger,
 ) *GenericController[D, K] {

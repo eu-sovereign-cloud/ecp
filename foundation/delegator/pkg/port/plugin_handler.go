@@ -6,11 +6,11 @@ import (
 	gateway_port "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 )
 
-// ResourceHandler defines the contract for handling resource-specific logic.
+// PluginHandler defines the contract for handling resource-specific logic.
 //
 // It is intended to be implemented for each resource type that the delegator
 // manages.
-type ResourceHandler[T gateway_port.IdentifiableResource] interface {
+type PluginHandler[T gateway_port.IdentifiableResource] interface {
 	// HandleAdmission validates a resource during admission control. It's
 	// designed to be a hook that can reject a resource creation or update
 	// based on defined policies or conditions.
