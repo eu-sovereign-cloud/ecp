@@ -8,9 +8,9 @@ import (
 )
 
 // ProjectRepository is a typed alias for CommonRepository specialized for Project.
-type ProjectRepository = generic_repository.GenericRepository[*v1alpha1.Project]
+type ProjectRepository = generic_repository.GenericRepository[*v1alpha1.Project, *v1alpha1.ProjectList]
 
 // NewProjectRepository creates a new instance of ProjectRepository.
 func NewProjectRepository(c client.Client) *ProjectRepository {
-	return generic_repository.NewGenericRepository[*v1alpha1.Project](c)
+	return generic_repository.NewGenericRepository[*v1alpha1.Project, *v1alpha1.ProjectList](c, &v1alpha1.ProjectList{})
 }
