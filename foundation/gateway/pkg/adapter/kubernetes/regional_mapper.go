@@ -161,9 +161,10 @@ func MapWorkspaceDomainToCR(domain *regional.WorkspaceDomain) (client.Object, er
 	crLabels[labels.InternalTenantLabel] = domain.Tenant
 	cr := &workspacev1.Workspace{
 		ObjectMeta: v1.ObjectMeta{
-			Name:      domain.Name,
-			Namespace: ComputeNamespace(domain),
-			Labels:    crLabels,
+			Name:            domain.Name,
+			Namespace:       ComputeNamespace(domain),
+			Labels:          crLabels,
+			ResourceVersion: domain.ResourceVersion,
 		},
 		RegionalCommonData: common.RegionalCommonData{
 			Annotations: domain.Annotations,

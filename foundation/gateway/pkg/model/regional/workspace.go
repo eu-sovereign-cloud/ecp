@@ -87,10 +87,16 @@ func MapWorkspaceDomainToAPI(domain WorkspaceDomain, verb string) schema.Workspa
 
 // MapWorkspaceAPIToDomain maps a schema.Workspace API object to WorkspaceDomain.
 func MapWorkspaceAPIToDomain(sdk schema.Workspace, params UpsertParams) WorkspaceDomain {
+	resourceVersion := ""
+	if params.IfUnmodifiedSince != 0 {
+		resourceVersion = strconv.Itoa(params.IfUnmodifiedSince)
+	}
+
 	return WorkspaceDomain{
 		Metadata: Metadata{
 			CommonMetadata: model.CommonMetadata{
-				Name: params.Name,
+				Name:            params.Name,
+				ResourceVersion: resourceVersion,
 			},
 			Scope: scope.Scope{
 				Tenant: params.GetTenant(),
