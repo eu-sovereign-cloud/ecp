@@ -2,6 +2,8 @@ package repository
 
 import (
 	"context"
+
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // CLUDFunc is a generic function for CLUD (Create, Load, Update and Delete)
@@ -78,9 +80,9 @@ type Reader[T any] interface {
 	Load(ctx context.Context, resource T) error
 	// List retrieves a list of resources from the repository.
 	//
-	// The resources to be listed can be filtered by the fields set in the
-	// provided 'resource' argument.
-	List(ctx context.Context, resource T) ([]T, error)
+	// The resources to be listed can be filtered by list options provided in the
+	// 'opts' argument.
+	List(ctx context.Context, opts ...client.ListOption) ([]T, error)
 }
 
 // Writer is a generic interface for writing resources to a repository.
