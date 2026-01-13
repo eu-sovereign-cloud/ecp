@@ -16,7 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
-//go:generate mockgen -package controller -destination=zz_mock_resource_handler_test.go github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/port ResourceHandler
+//go:generate mockgen -package controller -destination=zz_mock_plugin_handler_test.go github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/port PluginHandler
 
 // TestDomainResource is a dummy implementation of IdentifiableResource for testing.
 type TestDomainResource struct {
@@ -122,7 +122,7 @@ func TestGenericController_Reconcile(t *testing.T) {
 
 		//
 		// And a resource handler which will succeed
-		mockHandler := NewMockResourceHandler[*TestDomainResource](ctrl)
+		mockHandler := NewMockPluginHandler[*TestDomainResource](ctrl)
 		mockHandler.EXPECT().HandleReconcile(gomock.Any(), domainRes).Return(nil).Times(1)
 
 		//
@@ -158,7 +158,7 @@ func TestGenericController_Reconcile(t *testing.T) {
 
 		//
 		// And a resource handler
-		mockHandler := NewMockResourceHandler[*TestDomainResource](ctrl)
+		mockHandler := NewMockPluginHandler[*TestDomainResource](ctrl)
 
 		//
 		// And a generic controller using these elements
@@ -206,7 +206,7 @@ func TestGenericController_Reconcile(t *testing.T) {
 
 		//
 		// And a resource handler
-		mockHandler := NewMockResourceHandler[*TestDomainResource](ctrl)
+		mockHandler := NewMockPluginHandler[*TestDomainResource](ctrl)
 
 		//
 		// And a generic controller using these elements
@@ -254,7 +254,7 @@ func TestGenericController_Reconcile(t *testing.T) {
 
 		//
 		// And a resource handler which will return an error
-		mockHandler := NewMockResourceHandler[*TestDomainResource](ctrl)
+		mockHandler := NewMockPluginHandler[*TestDomainResource](ctrl)
 		mockHandler.EXPECT().HandleReconcile(gomock.Any(), domainRes).Return(errHandler).Times(1)
 
 		//

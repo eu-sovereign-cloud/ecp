@@ -13,19 +13,19 @@ import (
 	delegator_port "github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/port"
 )
 
-type BlockStorageResourceHandler struct {
-	GenericDelegatorResourceHandler[*regional.BlockStorageDomain]
+type BlockStoragePluginHandler struct {
+	GenericPluginHandler[*regional.BlockStorageDomain]
 	repo   gateway_port.Repo[*regional.BlockStorageDomain]
 	plugin plugin.BlockStorage
 }
 
-var _ delegator_port.ResourceHandler[*regional.BlockStorageDomain] = (*BlockStorageResourceHandler)(nil)
+var _ delegator_port.PluginHandler[*regional.BlockStorageDomain] = (*BlockStoragePluginHandler)(nil)
 
-func NewBlockStorageResourceHandler(
+func NewBlockStoragePluginHandler(
 	repo gateway_port.Repo[*regional.BlockStorageDomain],
 	plugin plugin.BlockStorage,
-) *BlockStorageResourceHandler {
-	handler := &BlockStorageResourceHandler{
+) *BlockStoragePluginHandler {
+	handler := &BlockStoragePluginHandler{
 		repo:   repo,
 		plugin: plugin,
 	}
@@ -36,7 +36,7 @@ func NewBlockStorageResourceHandler(
 	return handler
 }
 
-func (h *BlockStorageResourceHandler) HandleReconcile(ctx context.Context, resource *regional.BlockStorageDomain) error {
+func (h *BlockStoragePluginHandler) HandleReconcile(ctx context.Context, resource *regional.BlockStorageDomain) error {
 	// Find delegate operation which should be done.
 	var delegate delegator_port.DelegatedFunc[*regional.BlockStorageDomain]
 
@@ -112,7 +112,7 @@ func (h *BlockStorageResourceHandler) HandleReconcile(ctx context.Context, resou
 //
 // Helper Methods
 
-func (h *BlockStorageResourceHandler) setResourceState(ctx context.Context, resource *regional.BlockStorageDomain, state regional.ResourceState) error {
+func (h *BlockStoragePluginHandler) setResourceState(ctx context.Context, resource *regional.BlockStorageDomain, state regional.ResourceState) error {
 	resource.Status.State = &state
 
 	resource.Status.Conditions = append(resource.Status.Conditions, regional.StatusCondition{
