@@ -127,7 +127,7 @@ func TestGenericController_Reconcile(t *testing.T) {
 
 		//
 		// And a generic controller using these elements
-		reconciler := NewGenericController[*TestDomainResource, *TestK8sResource](
+		reconciler := NewGenericController[*TestDomainResource](
 			fakeClient,
 			converter,
 			mockHandler,
@@ -162,7 +162,7 @@ func TestGenericController_Reconcile(t *testing.T) {
 
 		//
 		// And a generic controller using these elements
-		reconciler := NewGenericController[*TestDomainResource, *TestK8sResource](
+		reconciler := NewGenericController[*TestDomainResource](
 			fakeClient,
 			converter,
 			mockHandler,
@@ -210,7 +210,7 @@ func TestGenericController_Reconcile(t *testing.T) {
 
 		//
 		// And a generic controller using these elements
-		reconciler := NewGenericController[*TestDomainResource, *TestK8sResource](
+		reconciler := NewGenericController[*TestDomainResource](
 			fakeClient,
 			converter,
 			mockHandler,
@@ -259,7 +259,7 @@ func TestGenericController_Reconcile(t *testing.T) {
 
 		//
 		// And a generic controller using these elements
-		reconciler := NewGenericController[*TestDomainResource, *TestK8sResource](
+		reconciler := NewGenericController[*TestDomainResource](
 			fakeClient,
 			converter,
 			mockHandler,
