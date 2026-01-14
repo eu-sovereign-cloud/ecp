@@ -23,11 +23,12 @@ import (
 // It is designed to work with any resource that implements the IdentifiableResource
 // interface and has a corresponding Kubernetes representation (CRD).
 type GenericController[D gateway.IdentifiableResource] struct {
-	client      client.Client
-	k8sToDomain kubernetes.K8sToDomain[D]
-	handler     delegator.PluginHandler[D]
-	prototype   client.Object
-	logger      *slog.Logger
+	client       client.Client
+	k8sToDomain  kubernetes.K8sToDomain[D]
+	handler      delegator.PluginHandler[D]
+	prototype    client.Object
+	requeueAfter time.Duration
+	logger       *slog.Logger
 }
 
 // NewGenericController creates a new instance of GenericController.
@@ -36,15 +37,24 @@ func NewGenericController[D gateway.IdentifiableResource](
 	k8sToDomain kubernetes.K8sToDomain[D],
 	handler delegator.PluginHandler[D],
 	prototype client.Object,
+	requeueAfter time.Duration,
 	logger *slog.Logger,
 ) *GenericController[D] {
 	return &GenericController[D]{
-		client:      client,
-		k8sToDomain: k8sToDomain,
-		handler:     handler,
-		prototype:   prototype,
-		logger:      logger,
+		client:       client,
+		k8sToDomain:  k8sToDomain,
+		handler:      handler,
+		prototype:    prototype,
+		requeueAfter: requeueAfter,
+		logger:       logger,
 	}
+}
+
+// SetupWithManager sets up the controller with the Manager.
+func (r *GenericController[D]) SetupWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		For(r.prototype).
+		Complete(r)
 }
 
 // Reconcile implements the reconcile.Reconciler interface.
@@ -83,17 +93,10 @@ func (r *GenericController[D]) Reconcile(ctx context.Context, req ctrl.Request) 
 	// 3. Delegate to the specific handler
 	if err := r.handler.HandleReconcile(ctx, domainResource); err != nil {
 		logger.Error("handler failed to reconcile", "error", err)
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: r.requeueAfter}, err
 	}
 
 	return ctrl.Result{}, nil
-}
-
-// SetupWithManager sets up the controller with the Manager.
-func (r *GenericController[D]) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(r.prototype).
-		Complete(r)
 }
 
 func (r *GenericController[D]) updateStatusCondition(ctx context.Context, obj client.Object, condition metav1.Condition) {
