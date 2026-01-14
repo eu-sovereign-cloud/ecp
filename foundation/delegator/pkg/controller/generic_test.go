@@ -176,6 +176,7 @@ func TestGenericController_Reconcile(t *testing.T) {
 			converter,
 			mockHandler,
 			prototype,
+			0,
 			logger,
 		)
 
@@ -220,6 +221,7 @@ func TestGenericController_Reconcile(t *testing.T) {
 			converter,
 			mockHandler,
 			prototype,
+			0,
 			logger,
 		)
 
@@ -280,6 +282,7 @@ func TestGenericController_Reconcile(t *testing.T) {
 			converter,
 			mockHandler,
 			prototype,
+			0,
 			logger,
 		)
 
@@ -349,13 +352,14 @@ func TestGenericController_Reconcile(t *testing.T) {
 			converter,
 			mockHandler,
 			prototype,
+			5*time.Minute,
 			logger,
 		)
 
 		//
 		// When we try to reconcile the resource
 		req := k8srt.Request{NamespacedName: client.ObjectKey{Name: testName, Namespace: testNamespace}}
-		_, err := reconciler.Reconcile(t.Context(), req)
+		res, err := reconciler.Reconcile(t.Context(), req)
 
 		//
 		// Then it should return the handler error
@@ -364,6 +368,10 @@ func TestGenericController_Reconcile(t *testing.T) {
 		//
 		// And the error should be logged
 		require.Contains(t, buf.String(), "handler failed to reconcile")
+
+		//
+		// And the result has the requeue properly set
+		require.Equal(t, k8srt.Result{RequeueAfter: 5 * time.Minute}, res)
 	})
 }
 
@@ -373,7 +381,6 @@ func TestGenericController_updateStatusCondition(t *testing.T) {
 		testNamespace = "default"
 	)
 
-	// Common Setup
 	scheme := runtime.NewScheme()
 	scheme.AddKnownTypes(testGVK.GroupVersion(), &TestK8sResource{})
 
@@ -421,6 +428,7 @@ func TestGenericController_updateStatusCondition(t *testing.T) {
 			nil, // k8sToDomain not needed
 			nil, // handler not needed
 			prototype,
+			0,
 			logger,
 		)
 
@@ -502,6 +510,7 @@ func TestGenericController_updateStatusCondition(t *testing.T) {
 			nil,
 			nil,
 			prototype,
+			0,
 			logger,
 		)
 
@@ -583,6 +592,7 @@ func TestGenericController_updateStatusCondition(t *testing.T) {
 			nil,
 			nil,
 			prototype,
+			0,
 			logger,
 		)
 
@@ -646,6 +656,7 @@ func TestGenericController_updateStatusCondition(t *testing.T) {
 			nil,
 			nil,
 			prototype,
+			0,
 			logger,
 		)
 
@@ -693,6 +704,7 @@ func TestGenericController_updateStatusCondition(t *testing.T) {
 			nil,
 			nil,
 			prototype,
+			0,
 			logger,
 		)
 
@@ -747,6 +759,7 @@ func TestGenericController_updateStatusCondition(t *testing.T) {
 			nil,
 			nil,
 			prototype,
+			0,
 			logger,
 		)
 
