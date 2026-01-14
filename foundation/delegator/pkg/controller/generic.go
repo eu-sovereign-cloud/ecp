@@ -18,23 +18,23 @@ import (
 //
 // It is designed to work with any resource that implements the IdentifiableResource
 // interface and has a corresponding Kubernetes representation (CRD).
-type GenericController[D gateway.IdentifiableResource, K client.Object] struct {
+type GenericController[D gateway.IdentifiableResource] struct {
 	client      client.Client
 	k8sToDomain kubernetes.K8sToDomain[D]
 	handler     delegator.PluginHandler[D]
-	prototype   K
+	prototype   client.Object
 	logger      *slog.Logger
 }
 
 // NewGenericController creates a new instance of GenericController.
-func NewGenericController[D gateway.IdentifiableResource, K client.Object](
+func NewGenericController[D gateway.IdentifiableResource](
 	client client.Client,
 	k8sToDomain kubernetes.K8sToDomain[D],
 	handler delegator.PluginHandler[D],
-	prototype K,
+	prototype client.Object,
 	logger *slog.Logger,
-) *GenericController[D, K] {
-	return &GenericController[D, K]{
+) *GenericController[D] {
+	return &GenericController[D]{
 		client:      client,
 		k8sToDomain: k8sToDomain,
 		handler:     handler,
@@ -44,7 +44,7 @@ func NewGenericController[D gateway.IdentifiableResource, K client.Object](
 }
 
 // Reconcile implements the reconcile.Reconciler interface.
-func (r *GenericController[D, K]) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *GenericController[D]) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := r.logger.With("resource", req.NamespacedName)
 
 	// 1. Fetch the K8s object
@@ -52,7 +52,7 @@ func (r *GenericController[D, K]) Reconcile(ctx context.Context, req ctrl.Reques
 	// we have a clean object to unmarshal into.
 	// K is constrained by client.Object, so the assertion is safe at runtime
 	// as long as the prototype is a pointer to a struct that implements client.Object.
-	obj := r.prototype.DeepCopyObject().(K)
+	obj := r.prototype.DeepCopyObject().(client.Object)
 	if err := r.client.Get(ctx, req.NamespacedName, obj); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
@@ -77,7 +77,7 @@ func (r *GenericController[D, K]) Reconcile(ctx context.Context, req ctrl.Reques
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *GenericController[D, K]) SetupWithManager(mgr ctrl.Manager) error {
+func (r *GenericController[D]) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(r.prototype).
 		Complete(r)
