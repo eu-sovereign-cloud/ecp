@@ -18,7 +18,6 @@ import (
 	storageskuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/skus/v1"
 	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/workspace/v1"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/api/generated/types"
 	"github.com/eu-sovereign-cloud/ecp/foundation/api/regional/common"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes/convert"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes/labels"
@@ -182,7 +181,7 @@ func MapWorkspaceDomainToCR(domain *regional.WorkspaceDomain) (client.Object, er
 }
 
 // mapCRToStatusConditionDomain maps a types.StatusCondition to a regional.StatusConditionDomain.
-func mapCRToStatusConditionDomain(crStatusCondition types.StatusCondition) regional.StatusConditionDomain {
+func mapCRToStatusConditionDomain(crStatusCondition genv1.StatusCondition) regional.StatusConditionDomain {
 	return regional.StatusConditionDomain{
 		Type:             ptr.Deref(crStatusCondition.Type, ""),
 		State:            mapCRToResourceStateDomain(crStatusCondition.State),
@@ -193,7 +192,7 @@ func mapCRToStatusConditionDomain(crStatusCondition types.StatusCondition) regio
 }
 
 // mapCRToStatusConditionDomains maps a slice of types.StatusCondition to a slice of regional.StatusConditionDomain.
-func mapCRToStatusConditionDomains(crStatusConditions []types.StatusCondition) []regional.StatusConditionDomain {
+func mapCRToStatusConditionDomains(crStatusConditions []genv1.StatusCondition) []regional.StatusConditionDomain {
 	conditions := make([]regional.StatusConditionDomain, len(crStatusConditions))
 	for i, cond := range crStatusConditions {
 		conditions[i] = mapCRToStatusConditionDomain(cond)
@@ -202,22 +201,22 @@ func mapCRToStatusConditionDomains(crStatusConditions []types.StatusCondition) [
 }
 
 // mapCRToResourceStateDomain maps types.ResourceState to regional.ResourceStateDomain.
-func mapCRToResourceStateDomain(crResourceState types.ResourceState) regional.ResourceStateDomain {
+func mapCRToResourceStateDomain(crResourceState genv1.ResourceState) regional.ResourceStateDomain {
 	var state regional.ResourceStateDomain
 	switch crResourceState {
-	case types.ResourceStatePending:
+	case genv1.ResourceStatePending:
 		state = regional.ResourceStatePending
-	case types.ResourceStateCreating:
+	case genv1.ResourceStateCreating:
 		state = regional.ResourceStateCreating
-	case types.ResourceStateActive:
+	case genv1.ResourceStateActive:
 		state = regional.ResourceStateActive
-	case types.ResourceStateUpdating:
+	case genv1.ResourceStateUpdating:
 		state = regional.ResourceStateUpdating
-	case types.ResourceStateDeleting:
+	case genv1.ResourceStateDeleting:
 		state = regional.ResourceStateDeleting
-	case types.ResourceStateSuspended:
+	case genv1.ResourceStateSuspended:
 		state = regional.ResourceStateSuspended
-	case types.ResourceStateError:
+	case genv1.ResourceStateError:
 		state = regional.ResourceStateError
 	default:
 		state = ""

@@ -5,7 +5,7 @@ import (
 	"strconv"
 
 	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/workspace/v1"
-	"github.com/eu-sovereign-cloud/ecp/foundation/api/regions/v1"
+	v1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regions/v1"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/status"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
