@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"context"
 	"crypto/sha3"
+	"errors"
 	"fmt"
 	"log/slog"
 
@@ -46,6 +47,50 @@ type WriterAdapter[T port.IdentifiableResource] struct {
 	k8sToDomain K8sToDomain[T]
 }
 
+// WatcherAdapter implements the port.WatcherRepo interface for a specific resource type.
+type WatcherAdapter[T port.IdentifiableResource] struct {
+	Adapter
+	k8sToDomain K8sToDomain[T]
+}
+
+// RepoAdapter implements the port.WatcherRepo interface for a specific resource type.
+type RepoAdapter[T port.IdentifiableResource] struct {
+	*ReaderAdapter[T]
+	*WriterAdapter[T]
+	*WatcherAdapter[T]
+}
+
+// NewRepoAdapter creates a new Kubernetes adapter for the port.WriterRepo port.
+func NewRepoAdapter[T port.IdentifiableResource](
+	client dynamic.Interface,
+	gvr schema.GroupVersionResource,
+	logger *slog.Logger,
+	domainToK8s DomainToK8s[T],
+	k8sToDomain K8sToDomain[T],
+) *RepoAdapter[T] {
+	return &RepoAdapter[T]{
+		ReaderAdapter: NewReaderAdapter[T](
+			client,
+			gvr,
+			logger,
+			k8sToDomain,
+		),
+		WriterAdapter: NewWriterAdapter(
+			client,
+			gvr,
+			logger,
+			domainToK8s,
+			k8sToDomain,
+		),
+		WatcherAdapter: NewWatcherAdapter(
+			client,
+			gvr,
+			logger,
+			k8sToDomain,
+		),
+	}
+}
+
 // NewReaderAdapter creates a new Kubernetes adapter for the port.ReaderRepo port.
 func NewReaderAdapter[T port.IdentifiableResource](
 	client dynamic.Interface,
@@ -78,6 +123,23 @@ func NewWriterAdapter[T port.IdentifiableResource](
 			logger: logger,
 		},
 		domainToK8s: domainToK8s,
+		k8sToDomain: k8sToDomain,
+	}
+}
+
+// NewWatcherAdapter creates a new Kubernetes adapter for the port.ReaderRepo port.
+func NewWatcherAdapter[T port.IdentifiableResource](
+	client dynamic.Interface,
+	gvr schema.GroupVersionResource,
+	logger *slog.Logger,
+	k8sToDomain K8sToDomain[T],
+) *WatcherAdapter[T] {
+	return &WatcherAdapter[T]{
+		Adapter: Adapter{
+			client: client,
+			gvr:    gvr,
+			logger: logger,
+		},
 		k8sToDomain: k8sToDomain,
 	}
 }
@@ -295,6 +357,12 @@ func (a *WriterAdapter[T]) Delete(ctx context.Context, m T) error {
 	}
 
 	return nil
+}
+
+// Watch implements the port.WatcherRepo interface.
+func (a *WatcherAdapter[T]) Watch(ctx context.Context, m chan<- T) error {
+	// TODO: implement the watch method of the kubernetes repo adapter.
+	return errors.New("not implemented")
 }
 
 func (a *WriterAdapter[T]) toUnstructured(m T) (*unstructured.Unstructured, error) {
