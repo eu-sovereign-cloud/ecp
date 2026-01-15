@@ -82,7 +82,13 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		logger.Error("failed to create kubeclient", slog.Any("error", err))
 		log.Fatal(err, " - failed to create kubeclient")
 	}
-
+	writerAdapter := kubernetes.NewWriterAdapter(
+		client.Client,
+		blockstoragev1.BlockStorageGVR,
+		logger,
+		kubernetes.MapBlockStorageDomainToCR,
+		kubernetes.MapCRToBlockStorageDomain,
+	)
 	httpServer := httpserver.New(
 		httpserver.Options{
 			Addr: addr,
@@ -125,24 +131,16 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 						),
 					},
 					CreateBlockStorage: &storage.CreateBlockStorage{
-						Logger: logger,
-						BlockStorageRepo: kubernetes.NewWriterAdapter(
-							client.Client,
-							blockstoragev1.BlockStorageGVR,
-							logger,
-							kubernetes.MapBlockStorageDomainToCR,
-							kubernetes.MapCRToBlockStorageDomain,
-						),
+						Logger:           logger,
+						BlockStorageRepo: writerAdapter,
 					},
 					UpdateBlockStorage: &storage.UpdateBlockStorage{
-						Logger: logger,
-						BlockStorageRepo: kubernetes.NewWriterAdapter(
-							client.Client,
-							blockstoragev1.BlockStorageGVR,
-							logger,
-							kubernetes.MapBlockStorageDomainToCR,
-							kubernetes.MapCRToBlockStorageDomain,
-						),
+						Logger:           logger,
+						BlockStorageRepo: writerAdapter,
+					},
+					DeleteStorage: &storage.DeleteBlockStorage{
+						Logger:           logger,
+						BlockStorageRepo: writerAdapter,
 					},
 					Logger: logger,
 				}, sdkstorageapi.StdHTTPServerOptions{

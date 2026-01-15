@@ -23,6 +23,7 @@ type Storage struct {
 	GetStorage         *storage.GetBlockStorage
 	CreateBlockStorage *storage.CreateBlockStorage
 	UpdateBlockStorage *storage.UpdateBlockStorage
+	DeleteStorage      *storage.DeleteBlockStorage
 	Logger             *slog.Logger
 }
 
@@ -93,9 +94,20 @@ func (h Storage) ListBlockStorages(
 func (h Storage) DeleteBlockStorage(
 	w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam,
 	workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam,
-	params sdkstorage.DeleteBlockStorageParams,
+	_ sdkstorage.DeleteBlockStorageParams,
 ) {
-	// TODO implement me
+	handler.HandleDelete(w, r, h.Logger.With("provider", "storage").With("resource", "block-storage"),
+		&regional.Metadata{
+			CommonMetadata: model.CommonMetadata{
+				Name: name,
+			},
+			Scope: scope.Scope{
+				Tenant:    tenant,
+				Workspace: workspace,
+			},
+		},
+		h.DeleteStorage,
+	)
 }
 
 func (h Storage) GetBlockStorage(
