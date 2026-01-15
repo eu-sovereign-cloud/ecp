@@ -64,18 +64,8 @@ func (h Workspace) GetWorkspace(w http.ResponseWriter, r *http.Request, tenant s
 func (h Workspace) CreateOrUpdateWorkspace(
 	w http.ResponseWriter, r *http.Request, tenant schema.TenantPathParam, name schema.ResourcePathParam, params sdkworkspace.CreateOrUpdateWorkspaceParams,
 ) {
-	var ifUnmodifiedSince int
-	if params.IfUnmodifiedSince != nil {
-		ifUnmodifiedSince = *params.IfUnmodifiedSince
-	}
 	upsertOptions := handler.UpsertOptions[schema.Workspace, *regional.WorkspaceDomain, schema.Workspace]{
-		Params: regional.UpsertParams{
-			Scope: scope.Scope{
-				Tenant: tenant,
-			},
-			Name:              name,
-			IfUnmodifiedSince: ifUnmodifiedSince,
-		},
+		Params:      apiworkspace.UpsertParamsFromAPI(params, tenant, name),
 		Creator:     h.Create,
 		Updater:     h.Update,
 		SDKToDomain: apiworkspace.APIToDomain,

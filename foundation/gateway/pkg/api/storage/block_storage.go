@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/status"
 	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 	"k8s.io/utils/ptr"
@@ -36,7 +37,7 @@ func BlockStorageToAPI(domain *regional.BlockStorageDomain) *sdkschema.BlockStor
 	if domain.Status != nil {
 		bs.Status = &sdkschema.BlockStorageStatus{
 			SizeGB:     domain.Status.SizeGB,
-			Conditions: statusConditionsToAPI(domain.Status.Conditions),
+			Conditions: status.MapConditionDomainsToAPI(domain.Status.Conditions),
 		}
 		if domain.Status.AttachedTo != nil {
 			bs.Status.AttachedTo = referenceObjectPtrToAPI(domain.Status.AttachedTo)
@@ -171,18 +172,4 @@ func referenceObjectFromAPI(ref sdkschema.Reference) regional.ReferenceObject {
 		}
 	}
 	return regional.ReferenceObject{}
-}
-
-func statusConditionsToAPI(conditions []regional.StatusConditionDomain) []sdkschema.StatusCondition {
-	result := make([]sdkschema.StatusCondition, len(conditions))
-	for i, c := range conditions {
-		result[i] = sdkschema.StatusCondition{
-			LastTransitionAt: c.LastTransitionAt,
-			Message:          ptr.To(c.Message),
-			Reason:           ptr.To(c.Reason),
-			State:            sdkschema.ResourceState(c.State),
-			Type:             ptr.To(c.Type),
-		}
-	}
-	return result
 }

@@ -2,8 +2,6 @@ package regional
 
 import (
 	"time"
-
-	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 )
 
 // ResourceStateDomain represents the current phase of a resource lifecycle.
@@ -38,48 +36,4 @@ type StatusConditionDomain struct {
 	State ResourceStateDomain
 	// Type of condition (provider-specific).
 	Type string
-}
-
-// mapResourceStateDomainToAPI maps ResourceStateDomain to a schema.ResourceState.
-func mapResourceStateDomainToAPI(domain ResourceStateDomain) schema.ResourceState {
-	var state schema.ResourceState
-	switch domain {
-	case ResourceStatePending:
-		state = schema.ResourceStatePending
-	case ResourceStateCreating:
-		state = schema.ResourceStateCreating
-	case ResourceStateActive:
-		state = schema.ResourceStateActive
-	case ResourceStateUpdating:
-		state = schema.ResourceStateUpdating
-	case ResourceStateDeleting:
-		state = schema.ResourceStateDeleting
-	case ResourceStateSuspended:
-		state = schema.ResourceStateSuspended
-	case ResourceStateError:
-		state = schema.ResourceStateError
-	default:
-		state = ""
-	}
-	return state
-}
-
-// mapConditionsInStatusDomainToAPI maps StatusDomain.Conditions to a slice of schema.StatusCondition.
-func mapConditionsInStatusDomainToAPI(domain StatusDomain) []schema.StatusCondition {
-	conditions := make([]schema.StatusCondition, len(domain.Conditions))
-	for i, cond := range domain.Conditions {
-		conditions[i] = mapConditionDomainToAPI(cond)
-	}
-	return conditions
-}
-
-// mapConditionDomainToAPI maps a StatusConditionDomain to a schema.StatusCondition.
-func mapConditionDomainToAPI(domain StatusConditionDomain) schema.StatusCondition {
-	return schema.StatusCondition{
-		Type:             &domain.Type,
-		State:            mapResourceStateDomainToAPI(domain.State),
-		LastTransitionAt: domain.LastTransitionAt,
-		Reason:           &domain.Reason,
-		Message:          &domain.Message,
-	}
 }
