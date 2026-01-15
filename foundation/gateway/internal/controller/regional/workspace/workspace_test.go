@@ -147,8 +147,16 @@ func TestWorkspaceController(t *testing.T) {
 				},
 			},
 			Spec: regional.WorkspaceSpec{
-				"test-key":    "test-value",
-				"test-number": "42",
+				"test-string": "test-value",
+				"test-number": int64(42),
+				"test-bool":   true,
+				"test-list":   []string{"a", "b", "c"},
+				"test-map": map[string]interface{}{
+					"inner-string": "inner-value",
+					"inner-number": int64(7),
+					"inner-bool":   false,
+					"inner-list":   []int64{1, 2, 3},
+				},
 			},
 		}
 
@@ -157,8 +165,16 @@ func TestWorkspaceController(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, createdDomain)
 		require.Equal(t, workspaceName, createdDomain.Name)
-		require.Equal(t, "test-value", createdDomain.Spec["test-key"])
-		require.Equal(t, "42", createdDomain.Spec["test-number"])
+		require.Equal(t, "test-value", createdDomain.Spec["test-string"])
+		require.Equal(t, int64(42), createdDomain.Spec["test-number"])
+		require.Equal(t, true, createdDomain.Spec["test-bool"])
+		require.Equal(t, []interface{}{"a", "b", "c"}, createdDomain.Spec["test-list"])
+		require.Equal(t, map[string]interface{}{
+			"inner-string": "inner-value",
+			"inner-number": int64(7),
+			"inner-bool":   false,
+			"inner-list":   []interface{}{int64(1), int64(2), int64(3)},
+		}, createdDomain.Spec["test-map"])
 	})
 
 	t.Run("get_workspace", func(t *testing.T) {
@@ -175,8 +191,16 @@ func TestWorkspaceController(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, retrievedDomain)
 		require.Equal(t, workspaceName, retrievedDomain.Name)
-		require.Equal(t, "test-value", retrievedDomain.Spec["test-key"])
-		require.Equal(t, "42", retrievedDomain.Spec["test-number"])
+		require.Equal(t, "test-value", retrievedDomain.Spec["test-string"])
+		require.Equal(t, int64(42), retrievedDomain.Spec["test-number"])
+		require.Equal(t, true, retrievedDomain.Spec["test-bool"])
+		require.Equal(t, []interface{}{"a", "b", "c"}, retrievedDomain.Spec["test-list"])
+		require.Equal(t, map[string]interface{}{
+			"inner-string": "inner-value",
+			"inner-number": int64(7),
+			"inner-bool":   false,
+			"inner-list":   []interface{}{int64(1), int64(2), int64(3)},
+		}, retrievedDomain.Spec["test-map"])
 	})
 
 	t.Run("get_nonexistent_workspace", func(t *testing.T) {
@@ -211,16 +235,19 @@ func TestWorkspaceController(t *testing.T) {
 				},
 			},
 			Spec: regional.WorkspaceSpec{
-				"test-key":    "updated-value",
-				"test-number": "84",
+				"test-string": "updated-value",
+				"test-number": int64(84),
 			},
 		}
 
 		updatedDomain, err := updateController.Do(ctx, updateDomain)
 		require.NoError(t, err)
 		require.NotNil(t, updatedDomain)
-		require.Equal(t, "updated-value", updatedDomain.Spec["test-key"])
-		require.Equal(t, "84", updatedDomain.Spec["test-number"])
+		require.Equal(t, "updated-value", updatedDomain.Spec["test-string"])
+		require.Equal(t, int64(84), updatedDomain.Spec["test-number"])
+		require.Nil(t, updatedDomain.Spec["test-bool"])
+		require.Nil(t, updatedDomain.Spec["test-list"])
+		require.Nil(t, updatedDomain.Spec["test-map"])
 	})
 
 	t.Run("delete_workspace", func(t *testing.T) {

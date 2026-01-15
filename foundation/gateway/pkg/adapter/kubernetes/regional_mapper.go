@@ -102,7 +102,7 @@ func MapCRToWorkspaceDomain(obj client.Object) (*regional.WorkspaceDomain, error
 
 	spec := make(map[string]interface{}, len(cr.Spec))
 	for k, v := range cr.Spec {
-		spec[k] = v
+		spec[k] = convert.StringToInterface(v)
 	}
 
 	crLabels := cr.GetLabels()
