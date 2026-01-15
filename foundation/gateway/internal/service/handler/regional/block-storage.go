@@ -97,15 +97,13 @@ func (h Storage) DeleteBlockStorage(
 	_ sdkstorage.DeleteBlockStorageParams,
 ) {
 	handler.HandleDelete(w, r, h.Logger.With("provider", "storage").With("resource", "block-storage"),
-		&regional.BlockStorageDomain{
-			Metadata: regional.Metadata{
-				CommonMetadata: model.CommonMetadata{
-					Name: name,
-				},
-				Scope: scope.Scope{
-					Tenant:    tenant,
-					Workspace: workspace,
-				},
+		&regional.Metadata{
+			CommonMetadata: model.CommonMetadata{
+				Name: name,
+			},
+			Scope: scope.Scope{
+				Tenant:    tenant,
+				Workspace: workspace,
 			},
 		},
 		h.DeleteStorage,
