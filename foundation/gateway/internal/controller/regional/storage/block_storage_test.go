@@ -83,7 +83,39 @@ func TestStorageController_CreateAndGetBlockStorage(t *testing.T) {
 		),
 	}
 
-	t.Run("create_and_get_block_storage", func(t *testing.T) {
+	updateController := UpdateBlockStorage{
+		Logger: slog.Default(),
+		BlockStorageRepo: kubernetes.NewWriterAdapter(
+			dynClient,
+			blockstoragev1.BlockStorageGVR,
+			slog.Default(),
+			kubernetes.MapBlockStorageDomainToCR,
+			kubernetes.MapCRToBlockStorageDomain,
+		),
+	}
+
+	deleteController := DeleteBlockStorage{
+		Logger: slog.Default(),
+		BlockStorageRepo: kubernetes.NewWriterAdapter(
+			dynClient,
+			blockstoragev1.BlockStorageGVR,
+			slog.Default(),
+			kubernetes.MapBlockStorageDomainToCR,
+			kubernetes.MapCRToBlockStorageDomain,
+		),
+	}
+
+	listController := ListBlockStorages{
+		Logger: slog.Default(),
+		BlockStorageRepo: kubernetes.NewReaderAdapter(
+			dynClient,
+			blockstoragev1.BlockStorageGVR,
+			slog.Default(),
+			kubernetes.MapCRToBlockStorageDomain,
+		),
+	}
+
+	t.Run("create_update_list_delete_block_storage", func(t *testing.T) {
 		// Create a block storage domain object
 		createDomain := &regional.BlockStorageDomain{
 			Metadata: regional.Metadata{
@@ -128,6 +160,39 @@ func TestStorageController_CreateAndGetBlockStorage(t *testing.T) {
 		require.Equal(t, blockStorageName, retrievedDomain.Name)
 		require.Equal(t, 100, retrievedDomain.Spec.SizeGB)
 		require.Equal(t, "standard-ssd", retrievedDomain.Spec.SkuRef.Resource)
+
+		// Update the block storage
+		createDomain.Spec.SizeGB = 200
+		updatedDomain, err := updateController.Do(ctx, createDomain)
+		require.NoError(t, err)
+		require.Equal(t, 200, updatedDomain.Spec.SizeGB)
+
+		// Verify update with Get
+		retrievedDomain, err = getController.Do(ctx, &metadata)
+		require.NoError(t, err)
+		require.Equal(t, 200, retrievedDomain.Spec.SizeGB)
+
+		// List block storages and verify ours exists
+		listParams := model.ListParams{Scope: scope.Scope{Tenant: tenant}}
+		items, _, err := listController.Do(ctx, listParams)
+		require.NoError(t, err)
+		require.NotEmpty(t, items)
+		found := false
+		for _, it := range items {
+			if it != nil && it.Name == blockStorageName {
+				found = true
+				break
+			}
+		}
+		require.True(t, found, "expected block storage to be present in list")
+
+		// Delete the block storage (DeleteBlockStorage expects IdentifiableResource)
+		err = deleteController.Do(ctx, &metadata)
+		require.NoError(t, err)
+
+		// Verify deletion
+		_, err = getController.Do(ctx, &metadata)
+		require.Error(t, err)
 	})
 
 	t.Run("get_nonexistent_block_storage", func(t *testing.T) {
