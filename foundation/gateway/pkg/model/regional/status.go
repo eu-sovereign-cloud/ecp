@@ -31,13 +31,13 @@ type StatusConditionDomain struct {
 	// LastTransitionAt is the last time the condition transitioned from one status to another.
 	LastTransitionAt time.Time
 	// Message is a human-readable message indicating details about the transition.
-	Message *string
+	Message string
 	// Reason for the condition's last transition in CamelCase.
-	Reason *string
-	// State is the current phase of the resource.package regional
+	Reason string
+	// State is the current phase of the resource.
 	State ResourceStateDomain
 	// Type of condition (provider-specific).
-	Type *string
+	Type string
 }
 
 // mapResourceStateDomainToAPI maps ResourceStateDomain to a schema.ResourceState.
@@ -76,10 +76,10 @@ func mapConditionsInStatusDomainToAPI(domain StatusDomain) []schema.StatusCondit
 // mapConditionDomainToAPI maps a StatusConditionDomain to a schema.StatusCondition.
 func mapConditionDomainToAPI(domain StatusConditionDomain) schema.StatusCondition {
 	return schema.StatusCondition{
-		Type:             domain.Type,
+		Type:             &domain.Type,
 		State:            mapResourceStateDomainToAPI(domain.State),
 		LastTransitionAt: domain.LastTransitionAt,
-		Reason:           domain.Reason,
-		Message:          domain.Message,
+		Reason:           &domain.Reason,
+		Message:          &domain.Message,
 	}
 }
