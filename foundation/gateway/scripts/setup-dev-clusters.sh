@@ -15,31 +15,27 @@ REGIONAL_KUBECONFIG_PATH="${KUBECONFIG_DIR}/regional-config"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GATEWAY_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 API_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-API_CRDS_DIR="${API_ROOT}/api/generated/crds"  # Correct location (previously mis-set to apis)
+API_CRDS_DIR="${API_ROOT}/api/generated/crds"
 CONFIG_SETUP_DIR="${GATEWAY_ROOT}/config/k8s-dev-setup"
-REGIONAL_STORAGE_CONFIG_DIR="${CONFIG_SETUP_DIR}/regional/storage"
+REGIONAL_CONFIG_DIR="${CONFIG_SETUP_DIR}/regional"
 
 # Docker Images
 GLOBAL_IMAGE="registry.secapi.cloud/global-server:latest"
 REGIONAL_IMAGE="registry.secapi.cloud/regional-server:latest"
 
-# Deployment and CRD files (updated to point to new api folder & correct config dir)
+# Deployment and RBAC files
 GLOBAL_DEPLOYMENT_YAML="${CONFIG_SETUP_DIR}/global-deployment.yaml"
 REGIONAL_DEPLOYMENT_YAML="${CONFIG_SETUP_DIR}/regional-deployment.yaml"
 REGIONS_RBAC_YAML="${CONFIG_SETUP_DIR}/global_regions_rbac.yaml"
-# Storage SKU CR & RBAC for regional cluster
-REGIONAL_STORAGE_SKU_CR="${REGIONAL_STORAGE_CONFIG_DIR}/storage-sku.yaml"
-REGIONAL_STORAGE_SKU_RBAC_YAML="${REGIONAL_STORAGE_CONFIG_DIR}/regional-storage-sku-rbac.yaml"
 
-# Verify required files exist early to fail fast
+# Verify required files/directories exist early to fail fast
 ensure_file() { if [ ! -f "$1" ]; then echo "Error: Required file not found: $1" >&2; exit 1; fi }
 ensure_dir() { if [ ! -d "$1" ]; then echo "Error: Required directory not found: $1" >&2; exit 1; fi }
 ensure_file "${GLOBAL_DEPLOYMENT_YAML}"
 ensure_file "${REGIONAL_DEPLOYMENT_YAML}"
 ensure_file "${REGIONS_RBAC_YAML}"
-ensure_file "${REGIONAL_STORAGE_SKU_CR}"
-ensure_file "${REGIONAL_STORAGE_SKU_RBAC_YAML}"
 ensure_dir "${API_CRDS_DIR}"
+ensure_dir "${REGIONAL_CONFIG_DIR}"
 
 # Region Details
 REGION_NAME="region"
@@ -88,7 +84,7 @@ echo "--- Step 3: Loading local Docker images into clusters ---"
 kind load docker-image "${GLOBAL_IMAGE}" --name "${GLOBAL_CLUSTER_NAME}"
 kind load docker-image "${REGIONAL_IMAGE}" --name "${REGIONAL_CLUSTER_NAME}"
 
-# 5. Apply all CRDs from API_CRDS_DIR
+# 5. Apply all CRDs from API_CRDS_DIR to both clusters
 echo "--- Step 4: Applying all CRDs from ${API_CRDS_DIR} ---"
 kubectl --kubeconfig "${GLOBAL_KUBECONFIG_PATH}" apply -R -f "${API_CRDS_DIR}"
 kubectl --kubeconfig "${REGIONAL_KUBECONFIG_PATH}" apply -R -f "${API_CRDS_DIR}"
@@ -106,10 +102,9 @@ kubectl --kubeconfig "${REGIONAL_KUBECONFIG_PATH}" wait --for=condition=Establis
 echo "--- Step 5: Applying RBAC configuration to the global cluster ---"
 kubectl --kubeconfig "${GLOBAL_KUBECONFIG_PATH}" apply -f "${REGIONS_RBAC_YAML}"
 
-# 7. Apply StorageSKU CR and RBAC to the regional cluster
-echo "--- Step 6: Applying StorageSKU CR and RBAC to the regional cluster ---"
-kubectl --kubeconfig "${REGIONAL_KUBECONFIG_PATH}" apply -f "${REGIONAL_STORAGE_SKU_CR}"
-kubectl --kubeconfig "${REGIONAL_KUBECONFIG_PATH}" apply -f "${REGIONAL_STORAGE_SKU_RBAC_YAML}"
+# 7. Apply regional CRs and RBAC (storage, workspace, etc.)
+echo "--- Step 6: Applying regional CRs and RBAC ---"
+kubectl --kubeconfig "${REGIONAL_KUBECONFIG_PATH}" apply -R -f "${REGIONAL_CONFIG_DIR}"
 
 # 8. Apply deployments to clusters
 echo "--- Step 7: Applying deployments ---"
