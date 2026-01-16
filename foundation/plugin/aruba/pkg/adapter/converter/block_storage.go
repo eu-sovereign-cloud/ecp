@@ -5,10 +5,9 @@ import (
 	"math"
 
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type BlockStorageConverter struct {
