@@ -66,7 +66,7 @@ func (h *BlockStorageResourceHandler) HandleReconcile(ctx context.Context, resou
 		state := regional.ResourceStateError
 		resource.Status.State = &state
 
-		resource.Status.Conditions = append(resource.Status.Conditions, regional.StatusCondition{
+		resource.Status.Conditions = append(resource.Status.Conditions, regional.StatusConditionDomain{
 			LastTransitionAt: time.Now(),
 			Message:          err.Error(),
 			State:            state,
@@ -112,10 +112,10 @@ func (h *BlockStorageResourceHandler) HandleReconcile(ctx context.Context, resou
 //
 // Helper Methods
 
-func (h *BlockStorageResourceHandler) setResourceState(ctx context.Context, resource *regional.BlockStorageDomain, state regional.ResourceState) error {
+func (h *BlockStorageResourceHandler) setResourceState(ctx context.Context, resource *regional.BlockStorageDomain, state regional.ResourceStateDomain) error {
 	resource.Status.State = &state
 
-	resource.Status.Conditions = append(resource.Status.Conditions, regional.StatusCondition{
+	resource.Status.Conditions = append(resource.Status.Conditions, regional.StatusConditionDomain{
 		LastTransitionAt: time.Now(),
 		State:            state,
 	})
