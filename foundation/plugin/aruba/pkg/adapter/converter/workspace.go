@@ -20,7 +20,7 @@ func (c *WorkspaceProjectConverter) FromSECAToAruba(from *regional.WorkspaceDoma
 		spec.Description = v
 	}
 
-	spec.Tenant = from.Metadata.Tenant
+	spec.Tenant = from.Tenant
 
 	if v, ok := from.Spec["tags"].([]string); ok {
 		spec.Tags = v
@@ -42,10 +42,10 @@ func (c *WorkspaceProjectConverter) FromSECAToAruba(from *regional.WorkspaceDoma
 			APIVersion: "arubacloud.com/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      from.Metadata.Workspace,
+			Name:      from.Workspace,
 			Namespace: c.Namespace,
 			Labels: map[string]string{
-				"seca.workspace/id": from.Metadata.Workspace,
+				"seca.workspace/id": from.Workspace,
 			},
 		},
 		Spec:   spec,
