@@ -2,8 +2,11 @@ package converter
 
 import (
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
 )
 
 type WorkspaceProjectConverter struct {
@@ -65,8 +68,13 @@ func (c *WorkspaceProjectConverter) FromArubaToSECA(
 
 	ws := &regional.WorkspaceDomain{
 		Metadata: regional.Metadata{
-			Tenant:    from.Spec.Tenant,
-			Workspace: from.Name,
+			CommonMetadata: model.CommonMetadata{
+				Name: from.Name,
+			},
+			Scope: scope.Scope{
+				Tenant:    from.Spec.Tenant,
+				Workspace: from.Name,
+			},
 		},
 		Spec: spec,
 		Status: regional.WorkspaceStatusDomain{

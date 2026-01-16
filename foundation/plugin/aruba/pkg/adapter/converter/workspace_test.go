@@ -4,9 +4,13 @@ import (
 	"testing"
 
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
-	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/converter"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
+
+	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/converter"
 )
 
 func TestWorkspaceProjectConverter_FromSECAToAruba(t *testing.T) {
@@ -21,9 +25,14 @@ func TestWorkspaceProjectConverter_FromSECAToAruba(t *testing.T) {
 			namespace: "test-namespace",
 			input: &regional.WorkspaceDomain{
 				Metadata: regional.Metadata{
-					Region:    "region-1",
-					Tenant:    "tenant-123",
-					Workspace: "workspace-abc",
+					Region: "region-1",
+					CommonMetadata: model.CommonMetadata{
+						Name: "workspace-abc",
+					},
+					Scope: scope.Scope{
+						Tenant:    "tenant-123",
+						Workspace: "workspace-abc",
+					},
 				},
 				Spec: map[string]interface{}{
 					"description": "My test project",
