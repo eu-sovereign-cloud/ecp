@@ -4,10 +4,11 @@ import (
 	"testing"
 
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
-		v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
+
 	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/converter"
 )
 
@@ -22,7 +23,7 @@ func TestBlockStorageConverter_FromSECAToAruba(t *testing.T) {
 			name:      "happy path",
 			namespace: "default",
 			input: &regional.BlockStorageDomain{
-				Metadata: model.Metadata{
+				Metadata: regional.Metadata{
 					CommonMetadata: model.CommonMetadata{
 						Name: "my-block-storage",
 					},
@@ -35,7 +36,7 @@ func TestBlockStorageConverter_FromSECAToAruba(t *testing.T) {
 					},
 				},
 				Status: &regional.BlockStorageStatus{
-					State: func() *regional.ResourceState {
+					State: func() *regional.ResourceStateDomain {
 						s := regional.ResourceStateActive
 						return &s
 					}(),
@@ -97,12 +98,12 @@ func TestBlockStorageConverter_FromArubaToSECA(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: v1alpha1.BlockStorageSpec{
-					SizeGb: 50,
-					Tenant: "tenant-456",
-					DataCenter: "IT-BG1",
+					SizeGb:        50,
+					Tenant:        "tenant-456",
+					DataCenter:    "IT-BG1",
 					BillingPeriod: "Monthly",
-					ProjectReference: v1alpha1.ResourceReference {
-						Name: "project-789",
+					ProjectReference: v1alpha1.ResourceReference{
+						Name:      "project-789",
 						Namespace: "default",
 					},
 					Location: v1alpha1.Location{
