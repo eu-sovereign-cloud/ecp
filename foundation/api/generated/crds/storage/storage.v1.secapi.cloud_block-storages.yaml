@@ -1,4 +1,3 @@
----
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
@@ -19,8 +18,7 @@ spec:
   - name: v1
     schema:
       openAPIV3Schema:
-        description: BlockStorage is the API for getting storage block-storage instances
-          information.
+        description: BlockStorage is the API for getting storage block-storage instances information.
         properties:
           apiVersion:
             description: |-
@@ -47,16 +45,21 @@ spec:
               sizeGB:
                 description: SizeGB Size of the block storage in GB.
                 type: integer
+                x-kubernetes-validations:
+                - rule: "!oldSelf.hasValue() || self >= oldSelf.value()"
+                  message: "spec.sizeGB cannot be decreased"
+                  optionalOldSelf: true
+                - rule: "self > 0"
+                  message: "spec.sizeGB must be greater than 0"
+
               skuRef:
                 description: SkuRef Reference to the SKU of the block storage.
                 properties:
                   provider:
-                    description: Provider Provider of the resource. If not set, the
-                      provider is inferred from the context.
+                    description: Provider Provider of the resource. If not set, the provider is inferred from the context.
                     type: string
                   region:
-                    description: Region Region of the resource. If not set, the region
-                      is inferred from the context.
+                    description: Region Region of the resource. If not set, the region is inferred from the context.
                     type: string
                   resource:
                     description: |-
@@ -64,27 +67,22 @@ spec:
                       The type is the resource type, and the name is the resource name.
                     type: string
                   tenant:
-                    description: Tenant Tenant of the resource. If not set, the tenant
-                      is inferred from the context.
+                    description: Tenant Tenant of the resource. If not set, the tenant is inferred from the context.
                     type: string
                   workspace:
-                    description: Workspace Workspace of the resource. If not set,
-                      the workspace is inferred from the context.
+                    description: Workspace Workspace of the resource. If not set, the workspace is inferred from the context.
                     type: string
                 required:
                 - resource
                 type: object
               sourceImageRef:
-                description: SourceImageRef Reference to the source image used as
-                  the base for creating the block storage.
+                description: SourceImageRef Reference to the source image used as the base for creating the block storage.
                 properties:
                   provider:
-                    description: Provider Provider of the resource. If not set, the
-                      provider is inferred from the context.
+                    description: Provider Provider of the resource. If not set, the provider is inferred from the context.
                     type: string
                   region:
-                    description: Region Region of the resource. If not set, the region
-                      is inferred from the context.
+                    description: Region Region of the resource. If not set, the region is inferred from the context.
                     type: string
                   resource:
                     description: |-
@@ -92,12 +90,10 @@ spec:
                       The type is the resource type, and the name is the resource name.
                     type: string
                   tenant:
-                    description: Tenant Tenant of the resource. If not set, the tenant
-                      is inferred from the context.
+                    description: Tenant Tenant of the resource. If not set, the tenant is inferred from the context.
                     type: string
                   workspace:
-                    description: Workspace Workspace of the resource. If not set,
-                      the workspace is inferred from the context.
+                    description: Workspace Workspace of the resource. If not set, the workspace is inferred from the context.
                     type: string
                 required:
                 - resource
@@ -110,16 +106,13 @@ spec:
             description: BlockStorageStatus defines model for BlockStorageStatus.
             properties:
               attachedTo:
-                description: AttachedTo Reference to the instance the block storage
-                  is attached to.
+                description: AttachedTo Reference to the instance the block storage is attached to.
                 properties:
                   provider:
-                    description: Provider Provider of the resource. If not set, the
-                      provider is inferred from the context.
+                    description: Provider Provider of the resource. If not set, the provider is inferred from the context.
                     type: string
                   region:
-                    description: Region Region of the resource. If not set, the region
-                      is inferred from the context.
+                    description: Region Region of the resource. If not set, the region is inferred from the context.
                     type: string
                   resource:
                     description: |-
@@ -127,12 +120,10 @@ spec:
                       The type is the resource type, and the name is the resource name.
                     type: string
                   tenant:
-                    description: Tenant Tenant of the resource. If not set, the tenant
-                      is inferred from the context.
+                    description: Tenant Tenant of the resource. If not set, the tenant is inferred from the context.
                     type: string
                   workspace:
-                    description: Workspace Workspace of the resource. If not set,
-                      the workspace is inferred from the context.
+                    description: Workspace Workspace of the resource. If not set, the workspace is inferred from the context.
                     type: string
                 required:
                 - resource
@@ -153,8 +144,7 @@ spec:
                       format: date-time
                       type: string
                     message:
-                      description: Message A human-readable message indicating details
-                        about the transition.
+                      description: Message A human-readable message indicating details about the transition.
                       type: string
                     reason:
                       description: |-
