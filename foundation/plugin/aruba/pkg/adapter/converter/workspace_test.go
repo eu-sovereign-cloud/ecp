@@ -117,12 +117,12 @@ func TestWorkspaceProjectConverter_FromArubaToSECA(t *testing.T) {
 			assert: func(t *testing.T, workspace *regional.WorkspaceDomain) {
 				t.Helper()
 
-				if workspace.Metadata.Workspace != "workspace-abc" {
-					t.Errorf("expected workspace name 'workspace-abc', got %s", workspace.Metadata.Workspace)
+				if workspace.Workspace != "workspace-abc" {
+					t.Errorf("expected workspace name 'workspace-abc', got %s", workspace.Workspace)
 				}
 
-				if workspace.Metadata.Tenant != "tenant-123" {
-					t.Errorf("expected tenant 'tenant-123', got %s", workspace.Metadata.Tenant)
+				if workspace.Tenant != "tenant-123" {
+					t.Errorf("expected tenant 'tenant-123', got %s", workspace.Tenant)
 				}
 
 				if desc, ok := workspace.Spec["description"].(string); !ok || desc != "My test project" {
