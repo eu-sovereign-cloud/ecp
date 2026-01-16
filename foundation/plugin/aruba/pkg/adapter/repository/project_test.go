@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -63,11 +63,11 @@ func TestProjectRepository_Load(t *testing.T) {
 		},
 	}
 	err := repo.ResolveReference(ctx, bs.Spec.ProjectReference, toLoad)
-	assert.NoError(t, err, "expected Load to succeed")
+	require.NoError(t, err, "expected Load to succeed")
 
 	// Check that the loaded object matches the original
-	assert.Equal(t, prj.Name, toLoad.Name)
-	assert.Equal(t, prj.Namespace, toLoad.Namespace)
+	require.Equal(t, prj.Name, toLoad.Name)
+	require.Equal(t, prj.Namespace, toLoad.Namespace)
 }
 
 func TestProjectRepository_Create(t *testing.T) {
@@ -85,7 +85,7 @@ func TestProjectRepository_Create(t *testing.T) {
 	repo := generic_repository.NewGenericRepository[*v1alpha1.Project](fakeClient)
 
 	err := repo.Create(ctx, project)
-	assert.NoError(t, err, "expected Load to succeed")
+	require.NoError(t, err, "expected Load to succeed")
 
 }
 
@@ -105,7 +105,7 @@ func TestProjectRepository_Update(t *testing.T) {
 
 	project.Spec.Tenant = "tenant"
 	err := repo.Update(ctx, project)
-	assert.NoError(t, err, "expected Load to succeed")
+	require.NoError(t, err, "expected Load to succeed")
 
 	updated := &v1alpha1.Project{
 		ObjectMeta: metav1.ObjectMeta{
@@ -116,8 +116,8 @@ func TestProjectRepository_Update(t *testing.T) {
 
 	err = repo.Load(ctx, updated)
 
-	assert.NoError(t, err, "expected Load to succeed")
-	assert.NotNil(t, updated.Spec.Tenant)
+	require.NoError(t, err, "expected Load to succeed")
+	require.NotNil(t, updated.Spec.Tenant)
 
 }
 
@@ -136,10 +136,10 @@ func TestProjectRepository_Delete(t *testing.T) {
 	repo := generic_repository.NewGenericRepository[*v1alpha1.Project](fakeClient)
 
 	err := repo.Delete(ctx, project)
-	assert.NoError(t, err, "expected Load to succeed")
+	require.NoError(t, err, "expected Load to succeed")
 
 	err = repo.Load(ctx, project)
-	assert.Error(t, err)
-	assert.True(t, errors.IsNotFound(err))
+	require.Error(t, err)
+	require.True(t, errors.IsNotFound(err))
 
 }

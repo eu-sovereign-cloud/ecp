@@ -113,8 +113,8 @@ func TestBlockStorageConverter_FromArubaToSECA(t *testing.T) {
 			},
 			assert: func(t *testing.T, bs *regional.BlockStorageDomain) {
 				t.Helper()
-				if bs.Metadata.Name != "my-block-storage" {
-					t.Errorf("expected block storage name 'my-block-storage', got %s", bs.Metadata.Name)
+				if bs.Name != "my-block-storage" {
+					t.Errorf("expected block storage name 'my-block-storage', got %s", bs.Name)
 				}
 
 				if bs.Spec.SizeGB != 50 {

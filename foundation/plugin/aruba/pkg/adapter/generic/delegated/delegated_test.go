@@ -52,7 +52,7 @@ func TestGenericDelegated_Do(t *testing.T) {
 		defer ctrl.Finish()
 
 		//
-		// Given a SECA identifiable resource containig bad data
+		// Given a SECA identifiable resource containing bad data
 		resource := NewMockIdentifiableResource(ctrl)
 
 		resource.EXPECT().GetWorkspace().Return(badResourceWorkspace).Times(1)

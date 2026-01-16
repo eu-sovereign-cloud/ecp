@@ -1,6 +1,9 @@
 package converter
 
 import (
+	"errors"
+	"math"
+
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -13,13 +16,18 @@ type BlockStorageConverter struct {
 
 func (c *BlockStorageConverter) FromSECAToAruba(from *regional.BlockStorageDomain) (*v1alpha1.BlockStorage, error) {
 
+	sizeGb, err := secaToArubaSize(from.Spec.SizeGB)
+	if err != nil {
+		return nil, err //TODO: better error handling
+	}
+
 	return &v1alpha1.BlockStorage{
 		ObjectMeta: v1.ObjectMeta{
-			Name:      from.Metadata.Name,
+			Name:      from.Name,
 			Namespace: "default",
 		},
 		Spec: v1alpha1.BlockStorageSpec{
-			SizeGb: int32(from.Spec.SizeGB),
+			SizeGb: sizeGb,
 			Tenant: from.Spec.SourceImageRef.Tenant,
 			Location: v1alpha1.Location{
 				Value: from.Spec.SourceImageRef.Region,
@@ -39,7 +47,7 @@ func (c *BlockStorageConverter) FromArubaToSECA(from *v1alpha1.BlockStorage) (*r
 	return &regional.BlockStorageDomain{
 		Metadata: regional.Metadata{
 			CommonMetadata: model.CommonMetadata{
-				Name: from.ObjectMeta.Name,
+				Name: from.Name,
 			},
 		},
 		Spec: regional.BlockStorageSpec{
@@ -52,4 +60,12 @@ func (c *BlockStorageConverter) FromArubaToSECA(from *v1alpha1.BlockStorage) (*r
 			},
 		},
 	}, nil
+}
+
+func secaToArubaSize(in int) (int32, error) {
+	if in > math.MaxInt32 || in < math.MinInt32 {
+		return 0, errors.New("storage size out of range")
+	}
+
+	return int32(in), nil //nolint:gosec // boundaries checked above
 }
