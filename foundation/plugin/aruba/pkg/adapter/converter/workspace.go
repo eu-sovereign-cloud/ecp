@@ -4,7 +4,10 @@ import (
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+<<<<<<< HEAD
 	kubernetesadapter "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
+=======
+>>>>>>> 4c617aa (fix(aruba plugin): fix workspace converter)
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
@@ -89,7 +92,12 @@ func (c *WorkspaceProjectConverter) FromArubaToSECA(
 				Name: from.Name,
 			},
 			Scope: scope.Scope{
+<<<<<<< HEAD
 				Tenant: tenant,
+=======
+				Tenant:    from.Spec.Tenant,
+				Workspace: from.Name,
+>>>>>>> 4c617aa (fix(aruba plugin): fix workspace converter)
 			},
 		},
 		Spec: spec,
