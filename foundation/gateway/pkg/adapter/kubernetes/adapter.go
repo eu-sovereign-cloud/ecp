@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/util/retry"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation/filter"
@@ -236,7 +237,7 @@ func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
 
 	// Use retry to handle conflicts due to resource version mismatches when resourceVersion is not explicitly set
 	var ures *unstructured.Unstructured
-	if uobj.GetResourceVersion() == "" {
+	if m.GetVersion() == "" {
 		err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			currentObj, getErr := ri.Get(ctx, m.GetName(), metav1.GetOptions{})
 			if getErr != nil {
@@ -283,14 +284,25 @@ func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
 func (a *WriterAdapter[T]) Delete(ctx context.Context, m T) error {
 	ri := a.client.Resource(a.gvr).Namespace(ComputeNamespace(m))
 
-	err := ri.Delete(ctx, m.GetName(), metav1.DeleteOptions{})
+	deleteOptions := metav1.DeleteOptions{}
+	if m.GetVersion() != "" {
+		deleteOptions.Preconditions = &metav1.Preconditions{
+			ResourceVersion: ptr.To(m.GetVersion()),
+		}
+	}
+	err := ri.Delete(ctx, m.GetName(), deleteOptions)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to delete resource", "name", m.GetName(), "resource", a.gvr.Resource, "error", err)
 
 		if kerrs.IsNotFound(err) {
 			return fmt.Errorf("%w: %s '%s' not found", model.ErrNotFound, a.gvr.Resource, m.GetName())
 		}
-
+		if kerrs.IsInvalid(err) {
+			return fmt.Errorf("%w: %s '%s': %w", model.ErrValidation, a.gvr.Resource, m.GetName(), err)
+		}
+		if kerrs.IsConflict(err) {
+			return fmt.Errorf("%w: %s '%s': %w", model.ErrConflict, a.gvr.Resource, m.GetName(), err)
+		}
 		return fmt.Errorf("%w: failed to delete %s '%s': %w", model.ErrUnavailable, a.gvr.Resource, m.GetName(), err)
 	}
 

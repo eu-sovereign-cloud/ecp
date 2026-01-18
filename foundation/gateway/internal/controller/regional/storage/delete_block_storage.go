@@ -18,5 +18,6 @@ func (c DeleteBlockStorage) Do(ctx context.Context, ir port.IdentifiableResource
 	domain.Name = ir.GetName()
 	domain.Tenant = ir.GetTenant()
 	domain.Workspace = ir.GetWorkspace()
+	domain.ResourceVersion = ir.GetVersion()
 	return c.BlockStorageRepo.Delete(ctx, domain)
 }

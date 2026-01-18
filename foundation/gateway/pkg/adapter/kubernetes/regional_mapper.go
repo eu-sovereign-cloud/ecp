@@ -304,15 +304,22 @@ func mapCRReferenceObjectToDomain(ref genv1.ReferenceObject) regional.ReferenceO
 
 // MapBlockStorageDomainToCR converts a BlockStorageDomain to a Kubernetes BlockStorage CR.
 func MapBlockStorageDomainToCR(domain *regional.BlockStorageDomain) (client.Object, error) {
-	cr := &blockstoragev1.BlockStorage{}
-	cr.SetGroupVersionKind(blockstoragev1.BlockStorageGVR.GroupVersion().WithKind("BlockStorage"))
-	cr.SetName(domain.Name)
+
+	cr := &blockstoragev1.BlockStorage{
+		ObjectMeta: v1.ObjectMeta{
+			Name:            domain.Name,
+			Namespace:       ComputeNamespace(domain),
+			ResourceVersion: domain.ResourceVersion,
+		},
+		Spec: genv1.BlockStorageSpec{
+			SizeGB: domain.Spec.SizeGB,
+			SkuRef: mapDomainReferenceObjectToCR(domain.Spec.SkuRef),
+		},
+	}
+	cr.SetGroupVersionKind(blockstoragev1.BlockStorageGVK)
 
 	// Merge CSP labels with internal labels
-	allLabels := make(map[string]string)
-	for k, v := range domain.Labels {
-		allLabels[k] = v
-	}
+	allLabels := labels.OriginalToKeyed(domain.Labels)
 	allLabels[labels.InternalTenantLabel] = domain.Tenant
 	allLabels[labels.InternalWorkspaceLabel] = domain.Workspace
 	if domain.Region != "" {
@@ -322,11 +329,6 @@ func MapBlockStorageDomainToCR(domain *regional.BlockStorageDomain) (client.Obje
 		allLabels[labels.InternalProviderLabel] = domain.Provider
 	}
 	cr.SetLabels(allLabels)
-
-	cr.Spec = genv1.BlockStorageSpec{
-		SizeGB: domain.Spec.SizeGB,
-		SkuRef: mapDomainReferenceObjectToCR(domain.Spec.SkuRef),
-	}
 
 	if domain.Spec.SourceImageRef != nil {
 		ref := mapDomainReferenceObjectToCR(*domain.Spec.SourceImageRef)
