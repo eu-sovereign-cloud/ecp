@@ -21,9 +21,6 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 )
 
-//go:generate mockgen -package controller -destination=zz_mock_blockstorage_repo_test.go github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port Repo
-//go:generate mockgen -package controller -destination=zz_mock_blockstorage_plugin_test.go github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/plugin BlockStorage
-
 func TestBlockStorageController_Reconcile(t *testing.T) {
 	const (
 		testName      = "test-bs"
