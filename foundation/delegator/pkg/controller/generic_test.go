@@ -171,7 +171,7 @@ func TestGenericController_Reconcile(t *testing.T) {
 
 		//
 		// And a generic controller using these elements
-		reconciler := NewGenericController[*TestDomainResource](
+		reconciler := NewGenericController(
 			fakeClient,
 			converter,
 			mockHandler,
@@ -216,7 +216,7 @@ func TestGenericController_Reconcile(t *testing.T) {
 
 		//
 		// And a generic controller using these elements
-		reconciler := NewGenericController[*TestDomainResource](
+		reconciler := NewGenericController(
 			fakeClient,
 			converter,
 			mockHandler,
@@ -277,7 +277,7 @@ func TestGenericController_Reconcile(t *testing.T) {
 
 		//
 		// And a generic controller using these elements
-		reconciler := NewGenericController[*TestDomainResource](
+		reconciler := NewGenericController(
 			fakeClient,
 			converter,
 			mockHandler,
@@ -347,7 +347,7 @@ func TestGenericController_Reconcile(t *testing.T) {
 
 		//
 		// And a generic controller using these elements
-		reconciler := NewGenericController[*TestDomainResource](
+		reconciler := NewGenericController(
 			fakeClient,
 			converter,
 			mockHandler,
@@ -718,8 +718,8 @@ func TestGenericController_updateStatusCondition(t *testing.T) {
 		reconciler.updateStatusCondition(t.Context(), badRes, condition)
 
 		//
-		// Then it should log the error
-		require.Contains(t, buf.String(), "failed to set conditions in unstructured object")
+		// Then it should log the new, earlier error
+		require.Contains(t, buf.String(), "failed to extract status from unstructured object")
 	})
 
 	t.Run("should log error when status update fails", func(t *testing.T) {
