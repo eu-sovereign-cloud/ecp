@@ -6,8 +6,10 @@ import (
 
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
 	"github.com/stretchr/testify/assert"
+	gomock "go.uber.org/mock/gomock"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	kcache "k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -46,7 +48,7 @@ func TestBlockStorage_Load(t *testing.T) {
 	fakeClient := newFakeStorageClientWithObject(st)
 
 	// Create repository
-	repo := generic_repository.NewGenericRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList](fakeClient, &v1alpha1.BlockStorageList{})
+	repo := generic_repository.NewGenericRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList](fakeClient, nil)
 
 	// Prepare an empty Project object to load into
 	toLoad := &v1alpha1.BlockStorage{}
@@ -83,12 +85,12 @@ func TestBlockStorage_List(t *testing.T) {
 	assert.NoError(t, fakeClient.Create(ctx, st2))
 
 	// Create repository
-	repo := generic_repository.NewGenericRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList](fakeClient, &v1alpha1.BlockStorageList{})
+	repo := generic_repository.NewGenericRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList](fakeClient, nil)
 
 	// List BlockStorage objects
 	storages, err := repo.List(ctx)
 	assert.NoError(t, err, "expected List to succeed")
-	assert.Len(t, storages, 2, "expected 2 BlockStorage objects")
+	assert.Len(t, storages.Items, 2, "expected 2 BlockStorage objects")
 }
 func TestBlockStorage_Create(t *testing.T) {
 	ctx := context.Background()
@@ -96,7 +98,7 @@ func TestBlockStorage_Create(t *testing.T) {
 	fakeClient := newFakeStorageClientWithObject(nil)
 
 	// Create repository
-	repo := generic_repository.NewGenericRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList](fakeClient, &v1alpha1.BlockStorageList{})
+	repo := generic_repository.NewGenericRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList](fakeClient, nil)
 
 	// Create a new BlockStorage object
 	storage := &v1alpha1.BlockStorage{
@@ -131,7 +133,7 @@ func TestBlockStorage_Update(t *testing.T) {
 	}
 	fakeClient := newFakeStorageClientWithObject(storage)
 	// Create repository
-	repo := generic_repository.NewGenericRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList](fakeClient, &v1alpha1.BlockStorageList{})
+	repo := generic_repository.NewGenericRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList](fakeClient, nil)
 
 	// Update the BlockStorage object
 	storage.Spec.SizeGb = 20
@@ -156,7 +158,7 @@ func TestBlockStorage_Delete(t *testing.T) {
 	fakeClient := newFakeStorageClientWithObject(storage)
 
 	// Create repository
-	repo := generic_repository.NewGenericRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList](fakeClient, &v1alpha1.BlockStorageList{})
+	repo := generic_repository.NewGenericRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList](fakeClient, nil)
 
 	// Delete the BlockStorage object
 	err := repo.Delete(ctx, storage)
@@ -166,4 +168,108 @@ func TestBlockStorage_Delete(t *testing.T) {
 	deleted := &v1alpha1.BlockStorage{}
 	err = fakeClient.Get(ctx, client.ObjectKey{Name: "storage-to-delete", Namespace: "default"}, deleted)
 	assert.Error(t, err, "expected not to find deleted BlockStorage")
+}
+
+func TestBlockStorage_Watch(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+	// Create a fake client with one BlockStorage object
+	storage := &v1alpha1.BlockStorage{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "storage-to-watch",
+			Namespace: "default",
+		},
+	}
+	fakeClient := newFakeStorageClientWithObject(storage)
+	cache := NewMockCache(mockCtrl)
+	informer := NewMockInformer(mockCtrl)
+
+	cache.EXPECT().
+		GetInformer(gomock.Any(), gomock.Any()).
+		Return(informer, nil).AnyTimes()
+
+	var capturedHandler kcache.ResourceEventHandler
+
+	informer.EXPECT().
+		AddEventHandler(gomock.Any()).
+		DoAndReturn(func(handler kcache.ResourceEventHandler) {
+			capturedHandler = handler
+
+			// Simulate an update to the BlockStorage object
+			updatedStorage := storage.DeepCopy()
+			updatedStorage.Spec.SizeGb = 50
+			assert.NoError(t, fakeClient.Update(ctx, updatedStorage), "expected Update to succeed")
+
+			go func() {
+				capturedHandler.OnUpdate(storage, updatedStorage)
+			}()
+
+		}).AnyTimes()
+	// Create repository
+	repo := generic_repository.NewGenericRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList](fakeClient, cache)
+
+	// Start watching the BlockStorage object
+	out, cancelWatch, err := repo.Watch(ctx, storage)
+	assert.NoError(t, err, "expected Watch to succeed")
+	defer cancelWatch()
+
+	// Verify that the update is received on the watch channel
+	select {
+	case updated := <-out:
+		assert.Equal(t, int32(50), updated.Spec.SizeGb, "expected updated SizeGb to be 50")
+	case <-ctx.Done():
+		t.Fatal("did not receive update on watch channel")
+	}
+}
+
+func TestBlockStorage_WaitUntil(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+	// Create a fake client with one BlockStorage object
+	storage := &v1alpha1.BlockStorage{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "storage-to-wait",
+			Namespace: "default",
+		},
+	}
+	fakeClient := newFakeStorageClientWithObject(storage)
+
+	// Create a cache
+	cache := NewMockCache(mockCtrl)
+	informer := NewMockInformer(mockCtrl)
+
+	cache.EXPECT().
+		GetInformer(gomock.Any(), gomock.Any()).
+		Return(informer, nil).
+		AnyTimes()
+
+	informer.EXPECT().
+		AddEventHandler(gomock.Any()).
+		DoAndReturn(func(handler kcache.ResourceEventHandler) {
+			// Simulate an update event after a short delay
+			go func() {
+				// Simulate an update to the BlockStorage
+				updatedStorage := storage.DeepCopy()
+				updatedStorage.Spec.SizeGb = 100
+				assert.NoError(t, fakeClient.Update(ctx, updatedStorage), "expected Update to succeed")
+				handler.OnUpdate(storage, updatedStorage)
+			}()
+		}).
+		AnyTimes()
+
+	// Create repository
+	repo := generic_repository.NewGenericRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList](fakeClient, cache)
+
+	out, err := repo.WaitUntil(ctx, storage, func(s *v1alpha1.BlockStorage) bool {
+		return s.Spec.SizeGb == 100
+	})
+	assert.NoError(t, err, "expected WaitUntil to succeed")
+
+	// Verify that the update is received
+	assert.Equal(t, int32(100), out.Spec.SizeGb, "expected to receive updated BlockStorage with SizeGb 100")
 }
