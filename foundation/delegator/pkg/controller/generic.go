@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"time"
 
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -115,33 +116,38 @@ func (r *GenericController[D]) updateStatusCondition(ctx context.Context, obj cl
 		uObj.SetGroupVersionKind(r.prototype.GetObjectKind().GroupVersionKind())
 	}
 
-	// Update conditions in the unstructured object
-	newConditions := []interface{}{}
-	existingConditions, found, _ := unstructured.NestedSlice(uObj.Object, "status", "conditions")
+	// Extract existing status conditions from the unstructured object.
+	statusConditions := &struct {
+		Conditions []metav1.Condition `json:"conditions,omitempty"`
+	}{}
+	statusMap, found, err := unstructured.NestedMap(uObj.Object, "status")
+	if err != nil {
+		logger.Error("failed to extract status from unstructured object", "error", err)
+		return
+	}
+
 	if found {
-		for _, c := range existingConditions {
-			cMap, ok := c.(map[string]interface{})
-			if !ok {
-				continue
-			}
-			if cMap["type"] == condition.Type {
-				continue
-			}
-			newConditions = append(newConditions, c)
+		// If the status field exists, convert it to our structured type.
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(statusMap, statusConditions); err != nil {
+			logger.Error("failed to convert status to structured conditions", "error", err)
+			return
 		}
 	}
 
-	cMap := map[string]interface{}{
-		"type":               condition.Type,
-		"status":             string(condition.Status),
-		"reason":             condition.Reason,
-		"message":            condition.Message,
-		"lastTransitionTime": condition.LastTransitionTime.Format(time.RFC3339),
-	}
-	newConditions = append(newConditions, cMap)
+	// Use the meta helper to set the new condition. This correctly handles
+	// adding a new condition or updating an existing one.
+	meta.SetStatusCondition(&statusConditions.Conditions, condition)
 
-	if err := unstructured.SetNestedSlice(uObj.Object, newConditions, "status", "conditions"); err != nil {
-		logger.Error("failed to set conditions in unstructured object", "error", err)
+	// Convert the updated conditions back to an unstructured map.
+	newStatusMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(statusConditions)
+	if err != nil {
+		logger.Error("failed to convert structured conditions to unstructured", "error", err)
+		return
+	}
+
+	// Set the updated status back on the object.
+	if err := unstructured.SetNestedMap(uObj.Object, newStatusMap, "status"); err != nil {
+		logger.Error("failed to set status map in unstructured object", "error", err)
 		return
 	}
 
