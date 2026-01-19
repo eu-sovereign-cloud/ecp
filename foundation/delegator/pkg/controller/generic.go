@@ -104,6 +104,9 @@ func (r *GenericController[D]) updateStatusCondition(ctx context.Context, obj cl
 	logger := r.logger.With("resource", client.ObjectKeyFromObject(obj))
 
 	// Update status via unstructured
+	//
+	// TODO: refactor according the issue https://github.com/eu-sovereign-cloud/ecp/issues/180
+	// Use an interface to help to manage the conditions instead convert to unstructured.
 	uMap, mapErr := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
 	if mapErr != nil {
 		logger.Error("failed to convert object to unstructured for status update", "error", mapErr)
