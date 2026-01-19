@@ -17,10 +17,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
-//go:generate mockgen -package controller -destination=zz_mock_plugin_handler_test.go github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/port PluginHandler
-//go:generate mockgen -package controller -destination=zz_mock_client_test.go sigs.k8s.io/controller-runtime/pkg/client Client
-//go:generate mockgen -package controller -destination=zz_mock_status_writer_test.go sigs.k8s.io/controller-runtime/pkg/client StatusWriter
-
 // TestDomainResource is a dummy implementation of IdentifiableResource for testing.
 type TestDomainResource struct {
 	Name      string
