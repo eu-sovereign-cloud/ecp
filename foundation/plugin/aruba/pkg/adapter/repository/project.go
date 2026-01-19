@@ -11,6 +11,6 @@ import (
 type ProjectRepository = generic_repository.GenericRepository[*v1alpha1.Project, *v1alpha1.ProjectList]
 
 // NewProjectRepository creates a new instance of ProjectRepository.
-func NewProjectRepository(c client.Client) *ProjectRepository {
-	return generic_repository.NewGenericRepository[*v1alpha1.Project, *v1alpha1.ProjectList](c, &v1alpha1.ProjectList{})
+func NewProjectRepository(c client.Client, cache generic_repository.Cache) *ProjectRepository {
+	return generic_repository.NewGenericRepository[*v1alpha1.Project, *v1alpha1.ProjectList](c, cache)
 }

@@ -58,8 +58,8 @@ type WaitConditionFunc[T any] func(resource T) bool
 // Important: because CLUD functions can mutate data on resources references
 // passed as parameters, please deepcopy them if you need to keep the original
 // data.
-type Repository[T any] interface {
-	Reader[T]
+type Repository[T any, L any] interface {
+	Reader[T, L]
 	Writer[T]
 	Watcher[T]
 }
@@ -72,7 +72,7 @@ type Repository[T any] interface {
 // Important: because CLUD functions can mutate data on resources references
 // passed as parameters, please deepcopy them if you need to keep the original
 // data.
-type Reader[T any] interface {
+type Reader[T any, L any] interface {
 	// Load retrieves a single resource from the repository.
 	//
 	// The resource to be loaded is identified by the fields set in the
@@ -82,7 +82,7 @@ type Reader[T any] interface {
 	//
 	// The resources to be listed can be filtered by list options provided in the
 	// 'opts' argument.
-	List(ctx context.Context, opts ...client.ListOption) ([]T, error)
+	List(ctx context.Context, opts ...client.ListOption) (L, error)
 }
 
 // Writer is a generic interface for writing resources to a repository.
