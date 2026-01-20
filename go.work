@@ -5,6 +5,7 @@ use (
 	./foundation/delegator
 	./foundation/gateway
 	./foundation/plugin/aruba
+	./foundation/plugin/dummy
 	./foundation/plugin/ionos
 )
 
