@@ -8,6 +8,8 @@ replace github.com/eu-sovereign-cloud/ecp/foundation/delegator => ../../delegato
 
 replace github.com/eu-sovereign-cloud/ecp/foundation/gateway => ../../gateway
 
+replace github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1 => ../../api/generated/types
+
 require (
 	github.com/Arubacloud/arubacloud-resource-operator v0.0.1-alpha5
 	github.com/google/uuid v1.6.0
