@@ -26,9 +26,7 @@ func HandleDelete(
 
 	err := deleter.Do(r.Context(), ir)
 	if err != nil {
-		logger.ErrorContext(r.Context(), "failed to delete", slog.Any("error", err))
-		status, message := apierr.ModelToHTTPError(err)
-		http.Error(w, message, status)
+		apierr.WriteErrorResponse(w, r, logger, err)
 		return
 	}
 

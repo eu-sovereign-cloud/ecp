@@ -4,14 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"net/http"
 
-	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
-	"k8s.io/apimachinery/pkg/api/errors"
-
+	apierr "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/errors"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
+	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 )
 
 // Getter defines the interface for controller Get operations
@@ -40,16 +38,7 @@ func HandleGet[D any, Out any](
 
 	domainObj, err := getter.Do(r.Context(), ir)
 	if err != nil {
-		if errors.IsNotFound(err) {
-			logger.InfoContext(r.Context(), "not found")
-			http.Error(w, fmt.Sprintf("%s not found", ir.GetName()), http.StatusNotFound)
-			return
-		}
-
-		// For all other errors (e.g., connection issues, CRD not registered),
-		// log the error and return a 500 Internal Server Error.
-		logger.ErrorContext(r.Context(), "failed to get", slog.Any("error", err))
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		apierr.WriteErrorResponse(w, r, logger, err)
 		return
 	}
 
@@ -57,8 +46,8 @@ func HandleGet[D any, Out any](
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	if err := enc.Encode(sdkObj); err != nil {
-		logger.ErrorContext(r.Context(), "failed to encode", slog.Any("error", err))
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		logger.ErrorContext(r.Context(), "failed to encode response", slog.Any("error", err))
+		apierr.WriteErrorResponse(w, r, logger, err)
 		return
 	}
 
