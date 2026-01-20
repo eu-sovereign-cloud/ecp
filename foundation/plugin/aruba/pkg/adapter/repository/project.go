@@ -14,11 +14,6 @@ import (
 type ProjectRepository = repository.GenericRepository[*v1alpha1.Project, *v1alpha1.ProjectList]
 
 // NewProjectRepository creates a new instance of ProjectRepository.
-<<<<<<< HEAD
 func NewProjectRepository(ctx context.Context, cli client.Client, ca crcache.Cache) *ProjectRepository {
 	return repository.NewGenericRepository[*v1alpha1.Project, *v1alpha1.ProjectList](ctx, cli, ca)
-=======
-func NewProjectRepository(c client.Client, cache crcache.Cache) *ProjectRepository {
-	return generic_repository.NewGenericRepository[*v1alpha1.Project, *v1alpha1.ProjectList](c, cache)
->>>>>>> e462b85 (feat: Use context with cancel inside handle method)
 }
