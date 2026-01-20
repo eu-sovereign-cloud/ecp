@@ -7,22 +7,22 @@ import (
 	"time"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
-	gateway_port "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
+	gateway "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/plugin"
-	delegator_port "github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/port"
+	delegator "github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/port"
 )
 
 type BlockStoragePluginHandler struct {
 	GenericPluginHandler[*regional.BlockStorageDomain]
-	repo   gateway_port.Repo[*regional.BlockStorageDomain]
+	repo   gateway.Repo[*regional.BlockStorageDomain]
 	plugin plugin.BlockStorage
 }
 
-var _ delegator_port.PluginHandler[*regional.BlockStorageDomain] = (*BlockStoragePluginHandler)(nil)
+var _ delegator.PluginHandler[*regional.BlockStorageDomain] = (*BlockStoragePluginHandler)(nil)
 
 func NewBlockStoragePluginHandler(
-	repo gateway_port.Repo[*regional.BlockStorageDomain],
+	repo gateway.Repo[*regional.BlockStorageDomain],
 	plugin plugin.BlockStorage,
 ) *BlockStoragePluginHandler {
 	handler := &BlockStoragePluginHandler{
@@ -38,7 +38,7 @@ func NewBlockStoragePluginHandler(
 
 func (h *BlockStoragePluginHandler) HandleReconcile(ctx context.Context, resource *regional.BlockStorageDomain) error {
 	// Find delegate operation which should be done.
-	var delegate delegator_port.DelegatedFunc[*regional.BlockStorageDomain]
+	var delegate delegator.DelegatedFunc[*regional.BlockStorageDomain]
 
 	switch {
 	case isPending(resource):
