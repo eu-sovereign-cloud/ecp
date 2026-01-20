@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"context"
 	"crypto/sha3"
+	"errors"
 	"fmt"
 	"log/slog"
 
@@ -12,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation/filter"
@@ -43,6 +45,50 @@ type WriterAdapter[T port.IdentifiableResource] struct {
 	Adapter
 	domainToK8s DomainToK8s[T]
 	k8sToDomain K8sToDomain[T]
+}
+
+// WatcherAdapter implements the port.WatcherRepo interface for a specific resource type.
+type WatcherAdapter[T port.IdentifiableResource] struct {
+	Adapter
+	k8sToDomain K8sToDomain[T]
+}
+
+// RepoAdapter implements the port.WatcherRepo interface for a specific resource type.
+type RepoAdapter[T port.IdentifiableResource] struct {
+	*ReaderAdapter[T]
+	*WriterAdapter[T]
+	*WatcherAdapter[T]
+}
+
+// NewRepoAdapter creates a new Kubernetes adapter for the port.WriterRepo port.
+func NewRepoAdapter[T port.IdentifiableResource](
+	client dynamic.Interface,
+	gvr schema.GroupVersionResource,
+	logger *slog.Logger,
+	domainToK8s DomainToK8s[T],
+	k8sToDomain K8sToDomain[T],
+) *RepoAdapter[T] {
+	return &RepoAdapter[T]{
+		ReaderAdapter: NewReaderAdapter[T](
+			client,
+			gvr,
+			logger,
+			k8sToDomain,
+		),
+		WriterAdapter: NewWriterAdapter(
+			client,
+			gvr,
+			logger,
+			domainToK8s,
+			k8sToDomain,
+		),
+		WatcherAdapter: NewWatcherAdapter(
+			client,
+			gvr,
+			logger,
+			k8sToDomain,
+		),
+	}
 }
 
 // NewReaderAdapter creates a new Kubernetes adapter for the port.ReaderRepo port.
@@ -77,6 +123,23 @@ func NewWriterAdapter[T port.IdentifiableResource](
 			logger: logger,
 		},
 		domainToK8s: domainToK8s,
+		k8sToDomain: k8sToDomain,
+	}
+}
+
+// NewWatcherAdapter creates a new Kubernetes adapter for the port.ReaderRepo port.
+func NewWatcherAdapter[T port.IdentifiableResource](
+	client dynamic.Interface,
+	gvr schema.GroupVersionResource,
+	logger *slog.Logger,
+	k8sToDomain K8sToDomain[T],
+) *WatcherAdapter[T] {
+	return &WatcherAdapter[T]{
+		Adapter: Adapter{
+			client: client,
+			gvr:    gvr,
+			logger: logger,
+		},
 		k8sToDomain: k8sToDomain,
 	}
 }
@@ -233,7 +296,24 @@ func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
 		return nil, fmt.Errorf("%w: failed to convert %s to unstructured: %w", model.ErrValidation, a.gvr.Resource, err)
 	}
 
-	ures, err := ri.Update(ctx, uobj, metav1.UpdateOptions{})
+	// Use retry to handle conflicts due to resource version mismatches when resourceVersion is not explicitly set
+	var ures *unstructured.Unstructured
+	if uobj.GetResourceVersion() == "" {
+		err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			currentObj, getErr := ri.Get(ctx, m.GetName(), metav1.GetOptions{})
+			if getErr != nil {
+				return getErr
+			}
+			uobj.SetResourceVersion(currentObj.GetResourceVersion())
+
+			var updateErr error
+			ures, updateErr = ri.Update(ctx, uobj, metav1.UpdateOptions{})
+			return updateErr
+		})
+	} else {
+		ures, err = ri.Update(ctx, uobj, metav1.UpdateOptions{})
+	}
+
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to update resource", "name", m.GetName(), "resource", a.gvr.Resource, "error", err)
 
@@ -277,6 +357,12 @@ func (a *WriterAdapter[T]) Delete(ctx context.Context, m T) error {
 	}
 
 	return nil
+}
+
+// Watch implements the port.WatcherRepo interface.
+func (a *WatcherAdapter[T]) Watch(ctx context.Context, m chan<- T) error {
+	// TODO: implement the watch method of the kubernetes repo adapter.
+	return errors.New("not implemented")
 }
 
 func (a *WriterAdapter[T]) toUnstructured(m T) (*unstructured.Unstructured, error) {

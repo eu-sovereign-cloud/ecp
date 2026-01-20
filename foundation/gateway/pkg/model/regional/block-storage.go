@@ -1,12 +1,8 @@
 package regional
 
-import (
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
-)
-
 // BlockStorageDomain represents the domain model for a block storage instance.
 type BlockStorageDomain struct {
-	model.Metadata
+	Metadata
 	Spec   BlockStorageSpec
 	Status *BlockStorageStatus
 }
@@ -21,7 +17,7 @@ type BlockStorageSpec struct {
 // BlockStorageStatus defines the status for a block storage instance.
 type BlockStorageStatus struct {
 	AttachedTo *ReferenceObject
-	Conditions []StatusCondition
+	Conditions []StatusConditionDomain
 	SizeGB     int
-	State      *ResourceState
+	State      *ResourceStateDomain
 }

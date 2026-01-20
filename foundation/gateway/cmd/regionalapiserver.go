@@ -13,8 +13,10 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 
-	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/skus/v1"
 	sdkstorageapi "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
+
+	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/block-storages/v1"
+	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/skus/v1"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/regional/storage"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/httpserver"
@@ -80,7 +82,13 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		logger.Error("failed to create kubeclient", slog.Any("error", err))
 		log.Fatal(err, " - failed to create kubeclient")
 	}
-
+	writerAdapter := kubernetes.NewWriterAdapter(
+		client.Client,
+		blockstoragev1.BlockStorageGVR,
+		logger,
+		kubernetes.MapBlockStorageDomainToCR,
+		kubernetes.MapCRToBlockStorageDomain,
+	)
 	httpServer := httpserver.New(
 		httpserver.Options{
 			Addr: addr,
@@ -104,6 +112,36 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 							kubernetes.MapCRToStorageSKUDomain,
 						),
 					},
+					ListStorages: &storage.ListBlockStorages{
+						Logger: logger,
+						BlockStorageRepo: kubernetes.NewReaderAdapter(
+							client.Client,
+							blockstoragev1.BlockStorageGVR,
+							logger,
+							kubernetes.MapCRToBlockStorageDomain,
+						),
+					},
+					GetStorage: &storage.GetBlockStorage{
+						Logger: logger,
+						BlockStorageRepo: kubernetes.NewReaderAdapter(
+							client.Client,
+							blockstoragev1.BlockStorageGVR,
+							logger,
+							kubernetes.MapCRToBlockStorageDomain,
+						),
+					},
+					CreateBlockStorage: &storage.CreateBlockStorage{
+						Logger:           logger,
+						BlockStorageRepo: writerAdapter,
+					},
+					UpdateBlockStorage: &storage.UpdateBlockStorage{
+						Logger:           logger,
+						BlockStorageRepo: writerAdapter,
+					},
+					DeleteStorage: &storage.DeleteBlockStorage{
+						Logger:           logger,
+						BlockStorageRepo: writerAdapter,
+					},
 					Logger: logger,
 				}, sdkstorageapi.StdHTTPServerOptions{
 					BaseURL:          apistorage.BaseURL,
@@ -115,7 +153,6 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 			Logger: logger,
 		},
 	)
-
 	if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		logger.Error("failed to start regional API server", "error", err)
 		log.Fatal(err, " - failed to start regional API server")

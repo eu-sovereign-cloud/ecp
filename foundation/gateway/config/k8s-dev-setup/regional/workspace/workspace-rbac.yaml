@@ -1,0 +1,24 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: workspace-reader
+  namespace: 69e09dd4c334335d2f0a4a52c9ff87b76b0f9e1b147d62a5f2b8f965 # seca tenant namespace
+rules:
+  - apiGroups: ["workspace.v1.secapi.cloud"]
+    resources: ["workspaces"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: workspace-reader-binding
+  namespace: 69e09dd4c334335d2f0a4a52c9ff87b76b0f9e1b147d62a5f2b8f965 # seca
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: default
+roleRef:
+  kind: Role
+  name: workspace-reader
+  apiGroup: rbac.authorization.k8s.io
+
