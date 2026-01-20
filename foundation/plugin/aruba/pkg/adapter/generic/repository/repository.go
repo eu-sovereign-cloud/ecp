@@ -7,13 +7,12 @@ import (
 	"sync"
 
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
-	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/repository"
-
 	"k8s.io/apimachinery/pkg/api/meta"
 	kcache "k8s.io/client-go/tools/cache"
 	crcache "sigs.k8s.io/controller-runtime/pkg/cache"
-
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/repository"
 )
 
 // GenericRepository is a generic repository for Kubernetes resources.
@@ -22,12 +21,14 @@ import (
 type GenericRepository[T client.Object, L client.ObjectList] struct {
 	client client.Client
 	cache  crcache.Cache
-	mu     sync.Mutex
+
+	informer     crcache.Informer
+	informerOnce *sync.Once
 }
 
 // NewGenericRepository creates a new instance of GenericRepository.
-func NewGenericRepository[T client.Object, L client.ObjectList](client client.Client, cache crcache.Cache) *GenericRepository[T, L] {
-	return &GenericRepository[T, L]{client: client, cache: cache}
+func NewGenericRepository[T client.Object, L client.ObjectList](_ context.Context, client client.Client, cache crcache.Cache) *GenericRepository[T, L] {
+	return &GenericRepository[T, L]{client: client, cache: cache, informerOnce: &sync.Once{}}
 }
 
 // Create adds a new resource of type T to the cluster.
@@ -107,37 +108,57 @@ func (r *GenericRepository[T, L]) Watch(
 	ctx context.Context,
 	resource T,
 ) (chan T, func(), error) {
-	out := make(chan T)
+	var informerErr error
+	r.informerOnce.Do(func() {
+		if r.informer == nil {
+			objType := reflect.New(reflect.TypeOf(resource).Elem()).Interface().(T)
+			// The informer is shared across all Watch calls for this repository instance.
+			// Its lifecycle should not be tied to the context of the first Watch() call.
+			// Using context.Background() makes it live for the duration of the application,
+			// which is a typical lifecycle for a shared informer.
+			r.informer, informerErr = r.cache.GetInformer(context.Background(), objType)
+		}
+	})
+	if informerErr != nil {
+		fmt.Printf("error getting informer: %v\n", informerErr) // TODO: replace for logger
+		r.informer = nil
+		r.informerOnce = &sync.Once{}
+
+		return nil, nil, informerErr
+	}
 
 	ictx, cancel := context.WithCancel(ctx)
+	out := make(chan T)
+	var wg sync.WaitGroup
 
-	// Create a zero value of T to get the informer
-	objType := reflect.New(reflect.TypeOf(resource).Elem()).Interface().(T)
-
-	informer, err := r.cache.GetInformer(ctx, objType)
-	if err != nil {
-		fmt.Printf("error getting informer: %v\n", err)
-		return nil, cancel, err
-	}
-
-	handler := &kcache.ResourceEventHandlerFuncs{
+	handler, err := r.informer.AddEventHandler(&kcache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			r.handle(ictx, obj, resource, out)
+			r.handle(ictx, obj, resource, out, &wg)
 		},
 		UpdateFunc: func(_, newObj interface{}) {
-			r.handle(ictx, newObj, resource, out)
+			r.handle(ictx, newObj, resource, out, &wg)
 		},
 		DeleteFunc: func(obj interface{}) {
-			r.handle(ictx, obj, resource, out)
+			r.handle(ictx, obj, resource, out, &wg)
 		},
+	})
+	if err != nil {
+		fmt.Printf("error adding handler to informer: %v\n", err) // TODO: replace for logger
+		cancel()
+		return nil, nil, err
 	}
 
-	r.mu.Lock()
-	r.addEventHandler(informer, handler)
-	r.mu.Unlock()
-
 	go func() {
+		// 1. Wait for the watch to be canceled.
 		<-ictx.Done()
+
+		// 2. Wait for any in-flight handle() calls to finish. They will either
+		//    complete the send or abort because the context is canceled.
+		wg.Wait()
+
+		// 3. Now that no handlers are trying to send, it's safe to remove the
+		//    handler and close the channel.
+		r.informer.RemoveEventHandler(handler)
 		close(out)
 	}()
 
@@ -155,24 +176,11 @@ func (r *GenericRepository[T, L]) ResolveReference(
 	return r.client.Get(ctx, key, resource)
 }
 
-// addEventHandler adds the event handler to the informer
-func (r *GenericRepository[T, L]) addEventHandler(
-	informer crcache.Informer,
-	handler kcache.ResourceEventHandler,
-) {
-	informer.AddEventHandler(handler)
-}
-
 // handle processes an event object and sends it to the output channel if it matches the filter
-func (r *GenericRepository[T, L]) handle(ctx context.Context,
-	obj interface{},
-	filter T,
-	out chan T,
-) {
-	select {
-	case <-ctx.Done():
+func (r *GenericRepository[T, L]) handle(ctx context.Context, obj interface{}, filter T, out chan T, wg *sync.WaitGroup) {
+	// Don't process anything if the context is already canceled.
+	if ctx.Err() != nil {
 		return
-	default:
 	}
 
 	// Type assert the object to T
@@ -191,13 +199,18 @@ func (r *GenericRepository[T, L]) handle(ctx context.Context,
 		return
 	}
 
-	// Send the copied object to the output channel
+	// Increment WaitGroup counter before attempting to send.
+	// This ensures that the cleanup process will wait for this goroutine to finish.
+	wg.Add(1)
+	defer wg.Done()
+
+	// Use a select statement to attempt the send. If the context is canceled
+	// while waiting, the send is aborted, preventing an indefinite block.
 	select {
-	case <-ctx.Done():
-		return
 	case out <- copied:
-	default:
-		// drop event if consumer is slow
+		// Sent successfully.
+	case <-ctx.Done():
+		// Context was canceled, abort the send.
 	}
 }
 
