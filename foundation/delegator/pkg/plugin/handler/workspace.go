@@ -6,22 +6,22 @@ import (
 	"time"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
-	gateway_port "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
+	gateway "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/plugin"
-	delegator_port "github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/port"
+	delegator "github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/port"
 )
 
 type WorkspacePluginHandler struct {
 	GenericPluginHandler[*regional.WorkspaceDomain]
-	repo   gateway_port.Repo[*regional.WorkspaceDomain]
+	repo   gateway.Repo[*regional.WorkspaceDomain]
 	plugin plugin.Workspace
 }
 
-var _ delegator_port.PluginHandler[*regional.WorkspaceDomain] = (*WorkspacePluginHandler)(nil)
+var _ delegator.PluginHandler[*regional.WorkspaceDomain] = (*WorkspacePluginHandler)(nil)
 
 func NewWorkspacePluginHandler(
-	repo gateway_port.Repo[*regional.WorkspaceDomain],
+	repo gateway.Repo[*regional.WorkspaceDomain],
 	plugin plugin.Workspace,
 ) *WorkspacePluginHandler {
 	handler := &WorkspacePluginHandler{
@@ -33,7 +33,7 @@ func NewWorkspacePluginHandler(
 }
 
 func (h *WorkspacePluginHandler) HandleReconcile(ctx context.Context, resource *regional.WorkspaceDomain) error {
-	var delegate delegator_port.DelegatedFunc[*regional.WorkspaceDomain]
+	var delegate delegator.DelegatedFunc[*regional.WorkspaceDomain]
 
 	switch {
 	case isWorkspacePending(resource):
