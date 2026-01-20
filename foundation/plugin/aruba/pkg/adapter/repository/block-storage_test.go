@@ -195,7 +195,7 @@ func TestBlockStorage_Watch(t *testing.T) {
 
 	informer.EXPECT().
 		AddEventHandler(gomock.Any()).
-		DoAndReturn(func(handler kcache.ResourceEventHandler) {
+		Do(func(handler kcache.ResourceEventHandler) {
 			capturedHandler = handler
 
 			// Simulate an update to the BlockStorage object
@@ -213,8 +213,8 @@ func TestBlockStorage_Watch(t *testing.T) {
 
 	// Start watching the BlockStorage object
 	out, cancelWatch, err := repo.Watch(ctx, storage)
-	assert.NoError(t, err, "expected Watch to succeed")
 	defer cancelWatch()
+	assert.NoError(t, err, "expected Watch to succeed")
 
 	// Verify that the update is received on the watch channel
 	select {
@@ -250,7 +250,7 @@ func TestBlockStorage_WaitUntil(t *testing.T) {
 
 	informer.EXPECT().
 		AddEventHandler(gomock.Any()).
-		DoAndReturn(func(handler kcache.ResourceEventHandler) {
+		Do(func(handler kcache.ResourceEventHandler) {
 			// Simulate an update event after a short delay
 			go func() {
 				// Simulate an update to the BlockStorage
@@ -268,6 +268,7 @@ func TestBlockStorage_WaitUntil(t *testing.T) {
 	out, err := repo.WaitUntil(ctx, storage, func(s *v1alpha1.BlockStorage) bool {
 		return s.Spec.SizeGb == 100
 	})
+
 	assert.NoError(t, err, "expected WaitUntil to succeed")
 
 	// Verify that the update is received

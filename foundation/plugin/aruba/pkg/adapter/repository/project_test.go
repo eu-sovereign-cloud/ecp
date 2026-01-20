@@ -251,7 +251,7 @@ func TestGenericRepository_WatchWithMockCache(t *testing.T) {
 
 	mockInformer.EXPECT().
 		AddEventHandler(gomock.Any()).
-		DoAndReturn(func(handler kcache.ResourceEventHandler) {
+		Do(func(handler kcache.ResourceEventHandler) {
 			updatedProject := project.DeepCopy()
 			updatedProject.Spec.Description = "Updated description"
 			capturedHandler = handler
@@ -270,8 +270,8 @@ func TestGenericRepository_WatchWithMockCache(t *testing.T) {
 	)
 
 	out, cancelWatch, err := repo.Watch(ctx, project)
-	require.NoError(t, err)
 	defer cancelWatch()
+	require.NoError(t, err)
 
 	require.NotNil(t, capturedHandler)
 
@@ -314,7 +314,7 @@ func TestGenericRepository_WatchWithMockCache_FailToMatch(t *testing.T) {
 
 	mockInformer.EXPECT().
 		AddEventHandler(gomock.Any()).
-		DoAndReturn(func(handler kcache.ResourceEventHandler) {
+		Do(func(handler kcache.ResourceEventHandler) {
 			updatedProject := project.DeepCopy()
 			updatedProject.Spec.Description = "Updated description"
 			capturedHandler = handler
@@ -338,8 +338,8 @@ func TestGenericRepository_WatchWithMockCache_FailToMatch(t *testing.T) {
 			Namespace: "default",
 		},
 	})
-	require.NoError(t, err)
 	defer cancelWatch()
+	require.NoError(t, err)
 
 	require.NotNil(t, capturedHandler)
 
