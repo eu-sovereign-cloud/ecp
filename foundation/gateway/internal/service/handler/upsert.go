@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -64,15 +65,17 @@ func HandleUpsert[In any, D any, Out any](
 	// Read and decode the request body
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		logger.ErrorContext(r.Context(), "failed to read request body", slog.Any("error", err))
-		http.Error(w, "failed to read request body", http.StatusBadRequest)
+		errMsg := "failed to read request body"
+		logger.ErrorContext(r.Context(), errMsg, slog.Any("error", err))
+		apierr.WriteErrorResponse(w, r, logger, fmt.Errorf("%s: %w", errMsg, err))
 		return
 	}
 
 	var apiObj In
 	if err := json.Unmarshal(body, &apiObj); err != nil {
-		logger.ErrorContext(r.Context(), "failed to decode request body", slog.Any("error", err))
-		http.Error(w, "invalid JSON in request body", http.StatusBadRequest)
+		errMsg := "invalid JSON in request body"
+		logger.ErrorContext(r.Context(), errMsg, slog.Any("error", err))
+		apierr.WriteErrorResponse(w, r, logger, fmt.Errorf("%w: invalid JSON in request body: %w", apierr.ErrBadRequest, err))
 		return
 	}
 
@@ -82,8 +85,7 @@ func HandleUpsert[In any, D any, Out any](
 	if err != nil {
 		if !errors.Is(err, model.ErrAlreadyExists) {
 			logger.ErrorContext(r.Context(), "failed to create resource", slog.Any("error", err))
-			status, message := apierr.ModelToHTTPError(err)
-			http.Error(w, message, status)
+			apierr.WriteErrorResponse(w, r, logger, err)
 			return
 		}
 
@@ -92,8 +94,7 @@ func HandleUpsert[In any, D any, Out any](
 		result, err = options.Updater.Do(r.Context(), domainObj)
 		if err != nil {
 			logger.ErrorContext(r.Context(), "failed to update resource", slog.Any("error", err))
-			status, message := apierr.ModelToHTTPError(err)
-			http.Error(w, message, status)
+			apierr.WriteErrorResponse(w, r, logger, err)
 			return
 		}
 	}
@@ -103,7 +104,7 @@ func HandleUpsert[In any, D any, Out any](
 	enc := json.NewEncoder(&buf)
 	if err := enc.Encode(sdkObj); err != nil {
 		logger.ErrorContext(r.Context(), "failed to encode response", slog.Any("error", err))
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		apierr.WriteErrorResponse(w, r, logger, err)
 		return
 	}
 

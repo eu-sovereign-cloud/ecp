@@ -140,7 +140,9 @@ func TestHandleUpsert(t *testing.T) {
 		})
 
 		assert.Equal(t, http.StatusBadRequest, rr.Code)
-		assert.Contains(t, rr.Body.String(), "invalid JSON in request body")
+		// Now returns structured JSON error
+		assert.Contains(t, rr.Body.String(), "\"status\":400")
+		assert.Contains(t, rr.Body.String(), "Invalid JSON")
 		mockCreator.AssertNotCalled(t, "Do")
 		mockUpdater.AssertNotCalled(t, "Do")
 	})
@@ -285,7 +287,9 @@ func TestHandleUpsert(t *testing.T) {
 		})
 
 		assert.Equal(t, http.StatusBadRequest, rr.Code)
-		assert.Contains(t, rr.Body.String(), "failed to read request body")
+		// Now returns structured JSON error
+		assert.Contains(t, rr.Body.String(), "\"status\":400")
+		assert.Contains(t, rr.Body.String(), "Failed to read")
 		mockCreator.AssertNotCalled(t, "Do")
 	})
 
@@ -459,7 +463,8 @@ func TestHandleUpsert(t *testing.T) {
 			DomainToSDK: domainToAPI,
 		})
 
-		assert.Equal(t, http.StatusPreconditionFailed, rr.Code)
+		// ErrConflict now correctly maps to 409 Conflict per RFC 7807 spec
+		assert.Equal(t, http.StatusConflict, rr.Code)
 		mockCreator.AssertExpectations(t)
 		mockUpdater.AssertExpectations(t)
 	})
