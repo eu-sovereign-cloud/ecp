@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
-	generic_repository "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/generic/repository"
+	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/generic/repository"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	gomock "go.uber.org/mock/gomock"
@@ -46,7 +46,7 @@ func TestProjectRepository_Load(t *testing.T) {
 	fakeClient := newFakeProjectClientWithObject(prj)
 
 	// Create repository
-	repo := generic_repository.NewGenericRepository[*v1alpha1.Project, *v1alpha1.ProjectList](fakeClient, nil)
+	repo := repository.NewGenericRepository[*v1alpha1.Project, *v1alpha1.ProjectList](ctx, fakeClient, nil)
 
 	// Prepare an empty Project object to load into
 	toLoad := &v1alpha1.Project{}
@@ -85,7 +85,7 @@ func TestProjectRepository_Create(t *testing.T) {
 	fakeClient := newFakeProjectClientWithObject(nil)
 
 	// Create repository
-	repo := generic_repository.NewGenericRepository[*v1alpha1.Project, *v1alpha1.ProjectList](fakeClient, nil)
+	repo := repository.NewGenericRepository[*v1alpha1.Project, *v1alpha1.ProjectList](ctx, fakeClient, nil)
 
 	err := repo.Create(ctx, project)
 	require.NoError(t, err, "expected Load to succeed")
@@ -104,7 +104,7 @@ func TestProjectRepository_Update(t *testing.T) {
 	fakeClient := newFakeProjectClientWithObject(project)
 
 	// Create repository
-	repo := generic_repository.NewGenericRepository[*v1alpha1.Project, *v1alpha1.ProjectList](fakeClient, nil)
+	repo := repository.NewGenericRepository[*v1alpha1.Project, *v1alpha1.ProjectList](ctx, fakeClient, nil)
 
 	project.Spec.Tenant = "tenant"
 	err := repo.Update(ctx, project)
@@ -136,7 +136,7 @@ func TestProjectRepository_Delete(t *testing.T) {
 	fakeClient := newFakeProjectClientWithObject(project)
 
 	// Create repository
-	repo := generic_repository.NewGenericRepository[*v1alpha1.Project, *v1alpha1.ProjectList](fakeClient, nil)
+	repo := repository.NewGenericRepository[*v1alpha1.Project, *v1alpha1.ProjectList](ctx, fakeClient, nil)
 
 	err := repo.Delete(ctx, project)
 	require.NoError(t, err, "expected Load to succeed")
@@ -168,7 +168,7 @@ func TestProjectRepository_List(t *testing.T) {
 	assert.NoError(t, fakeClient.Create(ctx, project2))
 
 	// Create repository
-	repo := generic_repository.NewGenericRepository[*v1alpha1.Project, *v1alpha1.ProjectList](fakeClient, nil)
+	repo := repository.NewGenericRepository[*v1alpha1.Project, *v1alpha1.ProjectList](ctx, fakeClient, nil)
 
 	res, err := repo.List(ctx, client.InNamespace("default"))
 	assert.NoError(t, err, "expected List to succeed")
@@ -193,6 +193,7 @@ func TestProjectRepository_WaitUntil(t *testing.T) {
 	// Create a cache
 	cache := NewMockCache(mockCtrl)
 	informer := NewMockInformer(mockCtrl)
+	informer.EXPECT().RemoveEventHandler(gomock.Any()).Return(nil).AnyTimes()
 
 	cache.EXPECT().
 		GetInformer(gomock.Any(), gomock.Any()).
@@ -201,19 +202,21 @@ func TestProjectRepository_WaitUntil(t *testing.T) {
 
 	informer.EXPECT().
 		AddEventHandler(gomock.Any()).
-		DoAndReturn(func(handler kcache.ResourceEventHandler) {
+		Do(func(handler kcache.ResourceEventHandler) {
 			// Simulate an update event after a short delay
 			go func() {
 				// Simulate an update to the project
 				updatedProject := project.DeepCopy()
 				updatedProject.Spec.Description = "Updated description"
+				assert.NoError(t, fakeClient.Update(ctx, updatedProject), "expected Update to succeed")
+
 				handler.OnUpdate(project, updatedProject)
 			}()
 		}).
 		AnyTimes()
 
 	// Create repository
-	repo := generic_repository.NewGenericRepository[*v1alpha1.Project, *v1alpha1.ProjectList](fakeClient, cache)
+	repo := repository.NewGenericRepository[*v1alpha1.Project, *v1alpha1.ProjectList](ctx, fakeClient, cache)
 
 	out, err := repo.WaitUntil(ctx, project, func(p *v1alpha1.Project) bool {
 		return p.Spec.Description == "Updated description"
@@ -248,6 +251,7 @@ func TestGenericRepository_WatchWithMockCache(t *testing.T) {
 		GetInformer(gomock.Any(), gomock.Any()).
 		Return(mockInformer, nil).
 		AnyTimes()
+	mockInformer.EXPECT().RemoveEventHandler(gomock.Any()).Return(nil).AnyTimes()
 
 	mockInformer.EXPECT().
 		AddEventHandler(gomock.Any()).
@@ -264,7 +268,7 @@ func TestGenericRepository_WatchWithMockCache(t *testing.T) {
 		}).
 		AnyTimes()
 
-	repo := generic_repository.NewGenericRepository[*v1alpha1.Project, *v1alpha1.ProjectList](
+	repo := repository.NewGenericRepository[*v1alpha1.Project, *v1alpha1.ProjectList](ctx,
 		fakeClient,
 		mockCache,
 	)
@@ -311,6 +315,7 @@ func TestGenericRepository_WatchWithMockCache_FailToMatch(t *testing.T) {
 		GetInformer(gomock.Any(), gomock.Any()).
 		Return(mockInformer, nil).
 		AnyTimes()
+	mockInformer.EXPECT().RemoveEventHandler(gomock.Any()).Return(nil).AnyTimes()
 
 	mockInformer.EXPECT().
 		AddEventHandler(gomock.Any()).
@@ -327,7 +332,7 @@ func TestGenericRepository_WatchWithMockCache_FailToMatch(t *testing.T) {
 		}).
 		AnyTimes()
 
-	repo := generic_repository.NewGenericRepository[*v1alpha1.Project, *v1alpha1.ProjectList](
+	repo := repository.NewGenericRepository[*v1alpha1.Project, *v1alpha1.ProjectList](ctx,
 		fakeClient,
 		mockCache,
 	)
