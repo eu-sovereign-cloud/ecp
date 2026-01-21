@@ -13,7 +13,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	generic_repository "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/generic/repository"
+	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/generic/repository"
 )
 
 func newFakeStorageClientWithObject(storage *v1alpha1.BlockStorage) client.Client {
@@ -31,7 +31,7 @@ func newFakeStorageClientWithObject(storage *v1alpha1.BlockStorage) client.Clien
 }
 
 func TestBlockStorage_Load(t *testing.T) {
-	_ = context.Background()
+	ctx := context.Background()
 	// Create a fake client with one Project object
 	st := &v1alpha1.BlockStorage{
 		ObjectMeta: metav1.ObjectMeta{
@@ -48,7 +48,7 @@ func TestBlockStorage_Load(t *testing.T) {
 	fakeClient := newFakeStorageClientWithObject(st)
 
 	// Create repository
-	repo := generic_repository.NewGenericRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList](fakeClient, nil)
+	repo := repository.NewGenericRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList](ctx, fakeClient, nil)
 
 	// Prepare an empty Project object to load into
 	toLoad := &v1alpha1.BlockStorage{}
@@ -85,7 +85,7 @@ func TestBlockStorage_List(t *testing.T) {
 	assert.NoError(t, fakeClient.Create(ctx, st2))
 
 	// Create repository
-	repo := generic_repository.NewGenericRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList](fakeClient, nil)
+	repo := repository.NewGenericRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList](ctx, fakeClient, nil)
 
 	// List BlockStorage objects
 	storages, err := repo.List(ctx)
@@ -98,7 +98,7 @@ func TestBlockStorage_Create(t *testing.T) {
 	fakeClient := newFakeStorageClientWithObject(nil)
 
 	// Create repository
-	repo := generic_repository.NewGenericRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList](fakeClient, nil)
+	repo := repository.NewGenericRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList](ctx, fakeClient, nil)
 
 	// Create a new BlockStorage object
 	storage := &v1alpha1.BlockStorage{
@@ -133,7 +133,7 @@ func TestBlockStorage_Update(t *testing.T) {
 	}
 	fakeClient := newFakeStorageClientWithObject(storage)
 	// Create repository
-	repo := generic_repository.NewGenericRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList](fakeClient, nil)
+	repo := repository.NewGenericRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList](ctx, fakeClient, nil)
 
 	// Update the BlockStorage object
 	storage.Spec.SizeGb = 20
@@ -158,7 +158,7 @@ func TestBlockStorage_Delete(t *testing.T) {
 	fakeClient := newFakeStorageClientWithObject(storage)
 
 	// Create repository
-	repo := generic_repository.NewGenericRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList](fakeClient, nil)
+	repo := repository.NewGenericRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList](ctx, fakeClient, nil)
 
 	// Delete the BlockStorage object
 	err := repo.Delete(ctx, storage)
@@ -192,6 +192,7 @@ func TestBlockStorage_Watch(t *testing.T) {
 		Return(informer, nil).AnyTimes()
 
 	var capturedHandler kcache.ResourceEventHandler
+	informer.EXPECT().RemoveEventHandler(gomock.Any()).Return(nil).AnyTimes()
 
 	informer.EXPECT().
 		AddEventHandler(gomock.Any()).
@@ -209,7 +210,7 @@ func TestBlockStorage_Watch(t *testing.T) {
 
 		}).AnyTimes()
 	// Create repository
-	repo := generic_repository.NewGenericRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList](fakeClient, cache)
+	repo := repository.NewGenericRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList](ctx, fakeClient, cache)
 
 	// Start watching the BlockStorage object
 	out, cancelWatch, err := repo.Watch(ctx, storage)
@@ -248,6 +249,8 @@ func TestBlockStorage_WaitUntil(t *testing.T) {
 		Return(informer, nil).
 		AnyTimes()
 
+	informer.EXPECT().RemoveEventHandler(gomock.Any()).Return(nil).AnyTimes()
+
 	informer.EXPECT().
 		AddEventHandler(gomock.Any()).
 		Do(func(handler kcache.ResourceEventHandler) {
@@ -263,7 +266,7 @@ func TestBlockStorage_WaitUntil(t *testing.T) {
 		AnyTimes()
 
 	// Create repository
-	repo := generic_repository.NewGenericRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList](fakeClient, cache)
+	repo := repository.NewGenericRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList](ctx, fakeClient, cache)
 
 	out, err := repo.WaitUntil(ctx, storage, func(s *v1alpha1.BlockStorage) bool {
 		return s.Spec.SizeGb == 100
