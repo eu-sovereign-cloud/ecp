@@ -20,11 +20,13 @@ type testResource struct {
 	name      string
 	tenant    string
 	workspace string
+	version   string
 }
 
 func (r *testResource) GetName() string      { return r.name }
 func (r *testResource) GetTenant() string    { return r.tenant }
 func (r *testResource) GetWorkspace() string { return r.workspace }
+func (r *testResource) GetVersion() string   { return r.version }
 
 // mockGetter is a generic mock implementing Getter[D]
 // It returns the preset object or error.

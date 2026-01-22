@@ -1,10 +1,12 @@
 package storage
 
 import (
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/status"
 	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 	"k8s.io/utils/ptr"
+
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/status"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 
 	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/block-storages/v1"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation"
@@ -101,7 +103,7 @@ func BlockStorageDomainToAPIIterator(domains []*regional.BlockStorageDomain, nex
 }
 
 // BlockStorageFromAPI converts an SDK BlockStorage to a BlockStorageDomain.
-func BlockStorageFromAPI(sdk sdkschema.BlockStorage, params regional.UpsertParams) *regional.BlockStorageDomain {
+func BlockStorageFromAPI(sdk sdkschema.BlockStorage, params port.IdentifiableResource) *regional.BlockStorageDomain {
 	domain := &regional.BlockStorageDomain{
 		Metadata: regional.Metadata{
 			CommonMetadata: model.CommonMetadata{

@@ -17,7 +17,7 @@ func ModelToHTTPError(err error) (int, string) {
 	case errors.Is(err, model.ErrValidation):
 		return http.StatusUnprocessableEntity, "resource validation failed"
 	case errors.Is(err, model.ErrConflict):
-		return http.StatusPreconditionFailed, "resource precondition failed"
+		return http.StatusPreconditionFailed, err.Error()
 	default:
 		return http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError)
 	}
