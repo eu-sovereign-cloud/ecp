@@ -98,45 +98,36 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		kubernetes.MapBlockStorageDomainToCR,
 		kubernetes.MapCRToBlockStorageDomain,
 	)
-
+	skuReaderAdapter := kubernetes.NewReaderAdapter(
+		client.Client,
+		skuv1.SKUGVR,
+		logger,
+		kubernetes.MapCRToStorageSKUDomain,
+	)
+	storageReaderAdapter := kubernetes.NewReaderAdapter(
+		client.Client,
+		blockstoragev1.BlockStorageGVR,
+		logger,
+		kubernetes.MapCRToBlockStorageDomain,
+	)
 	// Register storage handler
 	sdkstorageapi.HandlerWithOptions(
 		regionalhandler.Storage{
 			ListSKUs: &storage.ListSKUs{
-				Logger: logger,
-				SKURepo: kubernetes.NewReaderAdapter(
-					client.Client,
-					skuv1.SKUGVR,
-					logger,
-					kubernetes.MapCRToStorageSKUDomain,
-				),
+				Logger:  logger,
+				SKURepo: skuReaderAdapter,
 			},
 			GetSKU: &storage.GetSKU{
-				Logger: logger,
-				SKURepo: kubernetes.NewReaderAdapter(
-					client.Client,
-					skuv1.SKUGVR,
-					logger,
-					kubernetes.MapCRToStorageSKUDomain,
-				),
+				Logger:  logger,
+				SKURepo: skuReaderAdapter,
 			},
 			ListStorages: &storage.ListBlockStorages{
-				Logger: logger,
-				BlockStorageRepo: kubernetes.NewReaderAdapter(
-					client.Client,
-					blockstoragev1.BlockStorageGVR,
-					logger,
-					kubernetes.MapCRToBlockStorageDomain,
-				),
+				Logger:           logger,
+				BlockStorageRepo: storageReaderAdapter,
 			},
 			GetStorage: &storage.GetBlockStorage{
-				Logger: logger,
-				BlockStorageRepo: kubernetes.NewReaderAdapter(
-					client.Client,
-					blockstoragev1.BlockStorageGVR,
-					logger,
-					kubernetes.MapCRToBlockStorageDomain,
-				),
+				Logger:           logger,
+				BlockStorageRepo: storageReaderAdapter,
 			},
 			CreateBlockStorage: &storage.CreateBlockStorage{
 				Logger:           logger,
