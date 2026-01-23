@@ -13,12 +13,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	genv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/generated/types"
+	"github.com/eu-sovereign-cloud/ecp/foundation/api/regional/common"
 	netowrkskuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/network/skus/v1"
 	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/block-storages/v1"
 	storageskuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/skus/v1"
 	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/workspace/v1"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/api/regional/common"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes/convert"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes/labels"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
@@ -177,7 +177,68 @@ func MapWorkspaceDomainToCR(domain *regional.WorkspaceDomain) (client.Object, er
 		Spec: spec,
 	}
 	cr.SetGroupVersionKind(workspacev1.WorkspaceGVK)
+
+	if domain.Status.State != nil || len(domain.Status.Conditions) > 0 || domain.Status.ResourceCount != nil {
+		cr.Status = genv1.WorkspaceStatus{
+			State:         mapResourceStateDomainToCR(domain.Status.State),
+			Conditions:    mapStatusConditionDomainsToCR(domain.Status.Conditions),
+			ResourceCount: domain.Status.ResourceCount,
+		}
+	}
+
 	return cr, nil
+}
+
+// mapStatusConditionDomainToCR maps a regional.StatusConditionDomain to a types.StatusCondition.
+func mapStatusConditionDomainToCR(domainStatusCondition regional.StatusConditionDomain) genv1.StatusCondition {
+	var state genv1.ResourceState
+	if mappedState := mapResourceStateDomainToCR(&domainStatusCondition.State); mappedState != nil {
+		state = *mappedState
+	}
+
+	return genv1.StatusCondition{
+		Type:             ptr.To(domainStatusCondition.Type),
+		State:            state,
+		LastTransitionAt: v1.NewTime(domainStatusCondition.LastTransitionAt),
+		Reason:           ptr.To(domainStatusCondition.Reason),
+		Message:          ptr.To(domainStatusCondition.Message),
+	}
+}
+
+// mapStatusConditionDomainsToCR maps a slice of regional.StatusConditionDomain to a slice of types.StatusCondition.
+func mapStatusConditionDomainsToCR(domainStatusConditions []regional.StatusConditionDomain) []genv1.StatusCondition {
+	conditions := make([]genv1.StatusCondition, len(domainStatusConditions))
+	for i, cond := range domainStatusConditions {
+		conditions[i] = mapStatusConditionDomainToCR(cond)
+	}
+	return conditions
+}
+
+// mapResourceStateDomainToCR maps regional.ResourceStateDomain to types.ResourceState.
+func mapResourceStateDomainToCR(domainResourceState *regional.ResourceStateDomain) *genv1.ResourceState {
+	if domainResourceState == nil {
+		return nil
+	}
+	var state genv1.ResourceState
+	switch *domainResourceState {
+	case regional.ResourceStatePending:
+		state = genv1.ResourceStatePending
+	case regional.ResourceStateCreating:
+		state = genv1.ResourceStateCreating
+	case regional.ResourceStateActive:
+		state = genv1.ResourceStateActive
+	case regional.ResourceStateUpdating:
+		state = genv1.ResourceStateUpdating
+	case regional.ResourceStateDeleting:
+		state = genv1.ResourceStateDeleting
+	case regional.ResourceStateSuspended:
+		state = genv1.ResourceStateSuspended
+	case regional.ResourceStateError:
+		state = genv1.ResourceStateError
+	default:
+		return nil
+	}
+	return &state
 }
 
 // mapCRToStatusConditionDomain maps a types.StatusCondition to a regional.StatusConditionDomain.
@@ -273,19 +334,17 @@ func MapCRToBlockStorageDomain(obj client.Object) (*regional.BlockStorageDomain,
 		domain.Spec.SourceImageRef = &ref
 	}
 
+	domain.Status = &regional.BlockStorageStatus{
+		SizeGB:     cr.Status.SizeGB,
+		Conditions: mapCRToStatusConditionDomains(cr.Status.Conditions),
+	}
+	if cr.Status.AttachedTo != nil {
+		ref := mapCRReferenceObjectToDomain(*cr.Status.AttachedTo)
+		domain.Status.AttachedTo = &ref
+	}
 	if cr.Status.State != nil {
-		domain.Status = &regional.BlockStorageStatus{
-			SizeGB:     cr.Status.SizeGB,
-			Conditions: mapCRToStatusConditionDomains(cr.Status.Conditions),
-		}
-		if cr.Status.AttachedTo != nil {
-			ref := mapCRReferenceObjectToDomain(*cr.Status.AttachedTo)
-			domain.Status.AttachedTo = &ref
-		}
-		if cr.Status.State != nil {
-			state := regional.ResourceStateDomain(*cr.Status.State)
-			domain.Status.State = &state
-		}
+		state := regional.ResourceStateDomain(*cr.Status.State)
+		domain.Status.State = &state
 	}
 
 	return domain, nil
@@ -333,6 +392,18 @@ func MapBlockStorageDomainToCR(domain *regional.BlockStorageDomain) (client.Obje
 	if domain.Spec.SourceImageRef != nil {
 		ref := mapDomainReferenceObjectToCR(*domain.Spec.SourceImageRef)
 		cr.Spec.SourceImageRef = &ref
+	}
+
+	if domain.Status != nil && (domain.Status.State != nil || len(domain.Status.Conditions) > 0) {
+		cr.Status = genv1.BlockStorageStatus{
+			SizeGB:     domain.Status.SizeGB,
+			Conditions: mapStatusConditionDomainsToCR(domain.Status.Conditions),
+			State:      mapResourceStateDomainToCR(domain.Status.State),
+		}
+		if domain.Status.AttachedTo != nil {
+			ref := mapDomainReferenceObjectToCR(*domain.Status.AttachedTo)
+			cr.Status.AttachedTo = &ref
+		}
 	}
 
 	return cr, nil
