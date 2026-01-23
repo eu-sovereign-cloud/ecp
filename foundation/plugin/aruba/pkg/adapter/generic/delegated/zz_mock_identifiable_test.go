@@ -67,6 +67,20 @@ func (mr *MockIdentifiableResourceMockRecorder) GetTenant() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenant", reflect.TypeOf((*MockIdentifiableResource)(nil).GetTenant))
 }
 
+// GetVersion mocks base method.
+func (m *MockIdentifiableResource) GetVersion() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetVersion")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// GetVersion indicates an expected call of GetVersion.
+func (mr *MockIdentifiableResourceMockRecorder) GetVersion() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVersion", reflect.TypeOf((*MockIdentifiableResource)(nil).GetVersion))
+}
+
 // GetWorkspace mocks base method.
 func (m *MockIdentifiableResource) GetWorkspace() string {
 	m.ctrl.T.Helper()
@@ -79,40 +93,4 @@ func (m *MockIdentifiableResource) GetWorkspace() string {
 func (mr *MockIdentifiableResourceMockRecorder) GetWorkspace() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetWorkspace", reflect.TypeOf((*MockIdentifiableResource)(nil).GetWorkspace))
-}
-
-// SetName mocks base method.
-func (m *MockIdentifiableResource) SetName(name string) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "SetName", name)
-}
-
-// SetName indicates an expected call of SetName.
-func (mr *MockIdentifiableResourceMockRecorder) SetName(name any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetName", reflect.TypeOf((*MockIdentifiableResource)(nil).SetName), name)
-}
-
-// SetTenant mocks base method.
-func (m *MockIdentifiableResource) SetTenant(tenant string) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "SetTenant", tenant)
-}
-
-// SetTenant indicates an expected call of SetTenant.
-func (mr *MockIdentifiableResourceMockRecorder) SetTenant(tenant any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetTenant", reflect.TypeOf((*MockIdentifiableResource)(nil).SetTenant), tenant)
-}
-
-// SetWorkspace mocks base method.
-func (m *MockIdentifiableResource) SetWorkspace(workspace string) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "SetWorkspace", workspace)
-}
-
-// SetWorkspace indicates an expected call of SetWorkspace.
-func (mr *MockIdentifiableResourceMockRecorder) SetWorkspace(workspace any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetWorkspace", reflect.TypeOf((*MockIdentifiableResource)(nil).SetWorkspace), workspace)
 }
