@@ -23,11 +23,13 @@ type TestDomainResource struct {
 	Name      string
 	Tenant    string
 	Workspace string
+	Version   string
 }
 
 func (r *TestDomainResource) GetName() string      { return r.Name }
 func (r *TestDomainResource) GetTenant() string    { return r.Tenant }
 func (r *TestDomainResource) GetWorkspace() string { return r.Workspace }
+func (r *TestDomainResource) GetVersion() string   { return r.Version }
 
 // TestK8sResourceStatus is a dummy status for testing.
 type TestK8sResourceStatus struct {
