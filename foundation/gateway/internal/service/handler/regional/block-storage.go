@@ -97,7 +97,6 @@ func (h Storage) DeleteBlockStorage(
 	workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam,
 	params sdkstorage.DeleteBlockStorageParams,
 ) {
-
 	metadata := regional.Metadata{
 		CommonMetadata: model.CommonMetadata{
 			Name: name,

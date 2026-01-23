@@ -204,7 +204,6 @@ func DeleteNamespace(ctx context.Context, clientSet kubernetes.Interface, name s
 		return err
 	}
 	return nil
-
 }
 
 // List implements the port.ReaderRepo interface.
