@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	gateway "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 
 	delegato "github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/port"
@@ -65,4 +67,42 @@ func (h *GenericPluginHandler[T]) HandleAdmission(ctx context.Context, resource 
 
 func BypassDelegated[T gateway.IdentifiableResource](_ context.Context, _ T) error {
 	return nil
+}
+
+// conditionFromState creates a new regional.StatusConditionDomain with standard values.
+func conditionFromState(state regional.ResourceStateDomain) regional.StatusConditionDomain {
+	var message string
+	switch state { //nolint:exhaustive // regional.ResourceStateError is treated by a specific function.
+	case regional.ResourceStatePending:
+		message = "Resource is pending initialization."
+	case regional.ResourceStateCreating:
+		message = "Resource is being created."
+	case regional.ResourceStateActive:
+		message = "Resource is active and ready."
+	case regional.ResourceStateUpdating:
+		message = "Resource is being updated."
+	case regional.ResourceStateDeleting:
+		message = "Resource is being deleted."
+	case regional.ResourceStateSuspended:
+		message = "Resource is suspended."
+	}
+
+	return regional.StatusConditionDomain{
+		LastTransitionAt: time.Now(),
+		Type:             string(state),
+		State:            state,
+		Reason:           string(state),
+		Message:          message,
+	}
+}
+
+// conditionFromError creates a new regional.StatusConditionDomain with an error state and message.
+func conditionFromError(err error) regional.StatusConditionDomain {
+	return regional.StatusConditionDomain{
+		LastTransitionAt: time.Now(),
+		Type:             string(regional.ResourceStateError),
+		State:            regional.ResourceStateError,
+		Reason:           "ReconcileError", // A generic reason for reconciliation failures
+		Message:          err.Error(),
+	}
 }

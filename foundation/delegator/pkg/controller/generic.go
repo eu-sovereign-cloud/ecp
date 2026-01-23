@@ -92,9 +92,14 @@ func (r *GenericController[D]) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 
 	// 3. Delegate to the specific handler
-	if err := r.handler.HandleReconcile(ctx, domainResource); err != nil {
+	requeue, err := r.handler.HandleReconcile(ctx, domainResource)
+	if err != nil {
 		logger.Error("handler failed to reconcile", "error", err)
 		return ctrl.Result{RequeueAfter: r.requeueAfter}, err
+	}
+
+	if requeue {
+		return ctrl.Result{RequeueAfter: r.requeueAfter}, nil
 	}
 
 	return ctrl.Result{}, nil

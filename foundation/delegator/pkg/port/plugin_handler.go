@@ -14,18 +14,15 @@ type PluginHandler[T gateway.IdentifiableResource] interface {
 	// HandleAdmission validates a resource during admission control. It's
 	// designed to be a hook that can reject a resource creation or update
 	// based on defined policies or conditions.
-	//
-	// Note: It corresponds to the `HandleStorage.AddmissionHook(...) error` in
-	// the ptoposal.
 	HandleAdmission(ctx context.Context, resource T) error
 
 	// HandleReconcile processes the desired state of a resource and drives it
 	// towards the current state. This is the core of the reconciliation loop
 	// for a resource.
 	//
-	// Note: It corresponds to the `HandleStorage.Do(...) error` in the
-	// ptoposal.
-	HandleReconcile(ctx context.Context, resource T) error
+	// TODO: Is the boolean return for requeue sufficient? Or do we want to return a duration for requeue after?
+	// ISSUE: https://github.com/eu-sovereign-cloud/ecp/issues/187
+	HandleReconcile(ctx context.Context, resource T) (requeue bool, err error)
 }
 
 // RejectionConditionFunc is a function type that defines a condition for
