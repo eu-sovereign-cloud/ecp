@@ -70,7 +70,7 @@ func NewRepoAdapter[T port.IdentifiableResource](
 	k8sToDomain K8sToDomain[T],
 ) *RepoAdapter[T] {
 	return &RepoAdapter[T]{
-		ReaderAdapter: NewReaderAdapter[T](
+		ReaderAdapter: NewReaderAdapter(
 			client,
 			gvr,
 			logger,
@@ -287,7 +287,8 @@ func (a *WriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
 	return &res, nil
 }
 
-// Update implements the port.WriterRepo interface.
+// Update implements the port.WriterRepo interface. It handles both spec-only updates
+// and updates that include the status, using the appropriate Kubernetes API endpoints.
 func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
 	ri := a.client.Resource(a.gvr).Namespace(ComputeNamespace(m))
 
@@ -297,49 +298,110 @@ func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
 		return nil, fmt.Errorf("%w: failed to convert %s to unstructured: %w", model.ErrValidation, a.gvr.Resource, err)
 	}
 
-	// Use retry to handle conflicts due to resource version mismatches when resourceVersion is not explicitly set
-	var ures *unstructured.Unstructured
-	if m.GetVersion() == "" {
-		err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
-			currentObj, getErr := ri.Get(ctx, m.GetName(), metav1.GetOptions{})
+	// Determine if a status update is intended by checking for meaningful status data.
+	desiredStatus, statusExists, _ := unstructured.NestedMap(uobj.Object, "status")
+	conditions, conditionsExist, _ := unstructured.NestedSlice(desiredStatus, "conditions")
+
+	if !statusExists || !conditionsExist || len(conditions) == 0 {
+		// --- PATH A: Spec-only update (or status without conditions) ---
+		var ures *unstructured.Unstructured
+		updateErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			currentU, getErr := ri.Get(ctx, m.GetName(), metav1.GetOptions{})
 			if getErr != nil {
 				return getErr
 			}
-			uobj.SetResourceVersion(currentObj.GetResourceVersion())
+			uobj.SetResourceVersion(currentU.GetResourceVersion())
+
+			currentStatus, found, _ := unstructured.NestedMap(currentU.Object, "status")
+			if !found {
+				currentStatus = make(map[string]interface{})
+			}
+			if _, condsFound := currentStatus["conditions"]; !condsFound {
+				currentStatus["conditions"] = []interface{}{}
+			}
+			if err := unstructured.SetNestedField(uobj.Object, currentStatus, "status"); err != nil {
+				return err // This should not happen, but return if it does.
+			}
 
 			var updateErr error
 			ures, updateErr = ri.Update(ctx, uobj, metav1.UpdateOptions{})
 			return updateErr
 		})
-	} else {
-		ures, err = ri.Update(ctx, uobj, metav1.UpdateOptions{})
-	}
 
-	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to update resource", "name", m.GetName(), "resource", a.gvr.Resource, "error", err)
-
-		var errModel error
-		switch {
-		case kerrs.IsNotFound(err): // occurs when the resource to be updated does not exist or its namespace does not exist
-			errModel = model.ErrNotFound
-		case kerrs.IsConflict(err): // occurs when there is a resource version conflict during update
-			errModel = model.ErrConflict
-		case kerrs.IsInvalid(err): // occurs when the updated resource is semantically invalid
-			errModel = model.ErrValidation
-		default:
-			errModel = model.ErrUnavailable
+		if updateErr != nil {
+			return nil, a.mapUpdateError(updateErr, m.GetName())
 		}
-
-		return nil, fmt.Errorf("%w: failed to update %s '%s': %w", errModel, a.gvr.Resource, m.GetName(), err)
+		res, err := a.k8sToDomain(ures)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert from k8s object: %w", err)
+		}
+		return &res, nil
 	}
 
-	res, err := a.k8sToDomain(ures)
+	// --- PATH B: Update includes status with conditions ---
+	specUpdateObj := uobj.DeepCopy()
+	unstructured.RemoveNestedField(specUpdateObj.Object, "status")
+
+	updateSpecErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		currentObj, getErr := ri.Get(ctx, m.GetName(), metav1.GetOptions{})
+		if getErr != nil {
+			return getErr
+		}
+		specUpdateObj.SetResourceVersion(currentObj.GetResourceVersion())
+		_, updateErr := ri.Update(ctx, specUpdateObj, metav1.UpdateOptions{})
+		return updateErr
+	})
+	if updateSpecErr != nil {
+		return nil, a.mapUpdateError(updateSpecErr, m.GetName())
+	}
+
+	statusUpdateObj := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": uobj.GetAPIVersion(),
+			"kind":       uobj.GetKind(),
+			"metadata":   map[string]interface{}{"name": uobj.GetName(), "namespace": uobj.GetNamespace()},
+			"status":     desiredStatus,
+		},
+	}
+
+	updateStatusErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		currentObj, getErr := ri.Get(ctx, m.GetName(), metav1.GetOptions{})
+		if getErr != nil {
+			return getErr
+		}
+		statusUpdateObj.SetResourceVersion(currentObj.GetResourceVersion())
+		_, updateErr := ri.UpdateStatus(ctx, statusUpdateObj, metav1.UpdateOptions{})
+		return updateErr
+	})
+	if updateStatusErr != nil {
+		return nil, a.mapUpdateError(updateStatusErr, m.GetName())
+	}
+
+	finalUobj, getErr := ri.Get(ctx, m.GetName(), metav1.GetOptions{})
+	if getErr != nil {
+		return nil, fmt.Errorf("failed to retrieve updated resource: %w", getErr)
+	}
+	res, err := a.k8sToDomain(finalUobj)
 	if err != nil {
-		a.logger.ErrorContext(ctx, "conversion from k8s object failed", "resource", a.gvr.Resource, "error", err)
-		return nil, fmt.Errorf("%w: failed to convert %s from k8s object: %w", model.ErrValidation, a.gvr.Resource, err)
+		return nil, fmt.Errorf("failed to convert from k8s object: %w", err)
 	}
-
 	return &res, nil
+}
+
+func (a *WriterAdapter[T]) mapUpdateError(err error, name string) error {
+	a.logger.ErrorContext(context.Background(), "failed to update resource", "name", name, "resource", a.gvr.Resource, "error", err)
+	var errModel error
+	switch {
+	case kerrs.IsNotFound(err):
+		errModel = model.ErrNotFound
+	case kerrs.IsConflict(err):
+		errModel = model.ErrConflict
+	case kerrs.IsInvalid(err):
+		errModel = model.ErrValidation
+	default:
+		errModel = model.ErrUnavailable
+	}
+	return fmt.Errorf("%w: failed to update %s '%s': %w", errModel, a.gvr.Resource, name, err)
 }
 
 // Delete implements the port.WriterRepo interface.
