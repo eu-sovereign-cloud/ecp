@@ -9,16 +9,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	k8sschema "k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage"
 	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/workspace/v1"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/kubeclient"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes/labels"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
@@ -57,7 +54,7 @@ func TestWorkspaceController(t *testing.T) {
 	scheme := runtime.NewScheme()
 	require.NoError(t, storage.AddToScheme(scheme))
 
-	dynClient, err := dynamic.NewForConfig(cfg)
+	client, err := kubeclient.NewFromConfig(cfg)
 	require.NoError(t, err)
 
 	// Create valid Kubernetes namespace name (lowercase, alphanumeric and hyphens only)
@@ -66,32 +63,11 @@ func TestWorkspaceController(t *testing.T) {
 	if len(tenant) > 63 {
 		tenant = tenant[:63]
 	}
-	namespace := kubernetes.ComputeNamespace(&scope.Scope{Tenant: tenant})
 	const workspaceName = "test-workspace"
-	namespaceGVR := k8sschema.GroupVersionResource{Version: "v1", Resource: "namespaces"}
 
-	// Create the namespace object
-	namespaceObj := &unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"apiVersion": "v1",
-			"kind":       "Namespace",
-			"metadata": map[string]interface{}{
-				"name": namespace,
-			},
-		},
-	}
-
-	ctx := context.Background()
-	_, err = dynClient.Resource(namespaceGVR).Create(ctx, namespaceObj, metav1.CreateOptions{})
-	require.NoError(t, err)
-
-	// Cleanup namespace and all resources within it
-	t.Cleanup(func() {
-		_ = dynClient.Resource(namespaceGVR).Delete(context.Background(), namespace, metav1.DeleteOptions{})
-	})
-
-	writerRepo := kubernetes.NewWriterAdapter(
-		dynClient,
+	writerRepo := kubernetes.NewNamespaceManagingWriterAdapter(
+		client.Client,
+		client.ClientSet,
 		workspacev1.WorkspaceGVR,
 		slog.Default(),
 		kubernetes.MapWorkspaceDomainToCR,
@@ -99,7 +75,7 @@ func TestWorkspaceController(t *testing.T) {
 	)
 
 	readerRepo := kubernetes.NewReaderAdapter(
-		dynClient,
+		client.Client,
 		workspacev1.WorkspaceGVR,
 		slog.Default(),
 		kubernetes.MapCRToWorkspaceDomain,
@@ -130,6 +106,8 @@ func TestWorkspaceController(t *testing.T) {
 		Logger: slog.Default(),
 		Repo:   writerRepo,
 	}
+
+	ctx := context.Background()
 
 	t.Run("create_workspace", func(t *testing.T) {
 		// Create a workspace domain object

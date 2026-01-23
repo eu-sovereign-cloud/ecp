@@ -17,6 +17,7 @@ func (c *GetWorkspace) Do(ctx context.Context, ir port.IdentifiableResource) (*r
 	domain := &regional.WorkspaceDomain{}
 	domain.Name = ir.GetName()
 	domain.Tenant = ir.GetTenant()
+	domain.Workspace = ir.GetWorkspace()
 
 	if err := c.Repo.Load(ctx, &domain); err != nil {
 		return nil, err

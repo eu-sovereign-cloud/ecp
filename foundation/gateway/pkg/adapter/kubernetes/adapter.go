@@ -7,12 +7,14 @@ import (
 	"fmt"
 	"log/slog"
 
+	corev1 "k8s.io/api/core/v1"
 	kerrs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -20,7 +22,6 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation/filter"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes/labels"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
-	scopemodel "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 )
 
@@ -163,26 +164,47 @@ func ComputeNamespace(obj port.Scope) string {
 	return fmt.Sprintf("%x", hasher.Sum(nil))
 }
 
-// CreateNamespace creates a Kubernetes namespace if the name is not empty.
-func CreateNamespace(ctx context.Context, client dynamic.Interface, name, namespace string) error {
+// CreateNamespace creates a Kubernetes Namespace.
+func CreateNamespace(ctx context.Context, clientSet kubernetes.Interface, name string, ownerLabels map[string]string) (created bool, err error) {
 	if name == "" {
-		return fmt.Errorf("cannot create namespace with empty name")
+		return false, fmt.Errorf("cannot create namespace with empty name")
 	}
-	nsRI := client.Resource(schema.GroupVersionResource{Version: "v1", Resource: "namespaces"})
-	nsObj := &unstructured.Unstructured{Object: map[string]interface{}{
-		"apiVersion": "v1",
-		"kind":       "Namespace",
-		"metadata": map[string]interface{}{
-			"name":      name,
-			"namespace": namespace,
+	if clientSet == nil {
+		return false, fmt.Errorf("cannot create namespace %q: clientSet is nil", name)
+	}
+
+	ns := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   name,
+			Labels: ownerLabels,
 		},
-	}}
-	if _, err := nsRI.Create(ctx, nsObj, metav1.CreateOptions{}); err != nil {
-		if !kerrs.IsAlreadyExists(err) {
-			return fmt.Errorf("failed to create namespace %s exists: %w", name, err)
+	}
+	if _, err := clientSet.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{}); err != nil {
+		if kerrs.IsAlreadyExists(err) {
+			return false, nil
 		}
+		return false, fmt.Errorf("failed to create namespace %s: %w", name, err)
+	}
+	return true, nil
+}
+
+// DeleteNamespace deletes the namespace. It does not error if NotFound.
+func DeleteNamespace(ctx context.Context, clientSet kubernetes.Interface, name string) error {
+	if name == "" {
+		return nil
+	}
+	if clientSet == nil {
+		return fmt.Errorf("cannot delete namespace %q: clientSet is nil", name)
+	}
+
+	if err := clientSet.CoreV1().Namespaces().Delete(ctx, name, metav1.DeleteOptions{}); err != nil {
+		if kerrs.IsNotFound(err) {
+			return nil
+		}
+		return err
 	}
 	return nil
+
 }
 
 // List implements the port.ReaderRepo interface.
@@ -417,95 +439,122 @@ func (a *WriterAdapter[T]) toUnstructured(m T) (*unstructured.Unstructured, erro
 	return &unstructured.Unstructured{Object: uobj}, nil
 }
 
-// NamespaceManagingWriterAdapter is a writer adapter that manages namespaces for workspaces.
-// It wraps a base WriterAdapter and adds namespace management logic.
+// NamespaceManagingWriterAdapter wraps a WriterAdapter and ensures namespaces exist before creating resources.
+// It uses a typed clientset for Namespace operations when available.
 type NamespaceManagingWriterAdapter[T port.IdentifiableResource] struct {
 	*WriterAdapter[T]
-	client dynamic.Interface
-	logger *slog.Logger
+	client    dynamic.Interface
+	clientset kubernetes.Interface
+	logger    *slog.Logger
 }
 
-// NewNamespaceManagingWriterAdapter creates a new writer adapter that manages namespaces for workspaces.
+// NewNamespaceManagingWriterAdapter creates a new writer adapter that ensures namespaces for resources.
 func NewNamespaceManagingWriterAdapter[T port.IdentifiableResource](
-	client dynamic.Interface,
+	dynClient dynamic.Interface,
+	clientset kubernetes.Interface,
 	gvr schema.GroupVersionResource,
 	logger *slog.Logger,
 	domainToK8s DomainToK8s[T],
 	k8sToDomain K8sToDomain[T],
 ) *NamespaceManagingWriterAdapter[T] {
-	base := NewWriterAdapter(client, gvr, logger, domainToK8s, k8sToDomain)
+	base := NewWriterAdapter(dynClient, gvr, logger, domainToK8s, k8sToDomain)
 	return &NamespaceManagingWriterAdapter[T]{
 		WriterAdapter: base,
-		client:        client,
+		client:        dynClient,
+		clientset:     clientset,
 		logger:        logger,
 	}
 }
 
-// Create ensures the namespace exists for the resource before delegating to the base adapter.
-// For Workspace resources we ensure both tenant and workspace namespaces (tenant namespace is hash of tenant,
-// workspace namespace is hash of tenant/name). If we created any namespaces and resource creation fails,
-// we attempt to rollback the namespace created too.
-func (a *NamespaceManagingWriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
-	namespace := ComputeNamespace(&scopemodel.Scope{Tenant: m.GetTenant(), Workspace: ""})
-	name := ComputeNamespace(&scopemodel.Scope{Tenant: m.GetTenant(), Workspace: m.GetName()})
-	if namespace == "" {
-		return nil, fmt.Errorf("cannot compute namespace for tenant '%s'", m.GetTenant())
+// namespaceOwnedBy checks that the namespace contains all key/value pairs in expectedLabels.
+func namespaceOwnedBy(ctx context.Context, clientset kubernetes.Interface, nsName string, expectedLabels map[string]string) (bool, error) {
+	if clientset == nil {
+		return false, fmt.Errorf("clientset is nil")
 	}
-	nsRI := a.client.Resource(schema.GroupVersionResource{Version: "v1", Resource: "namespaces"})
-	createdByUs := false
-
-	nsObj := &unstructured.Unstructured{Object: map[string]interface{}{
-		"apiVersion": "v1",
-		"kind":       "Namespace",
-		"metadata": map[string]interface{}{
-			"name":      name,
-			"namespace": namespace,
-			"labels": map[string]string{
-				labels.InternalTenantLabel: m.GetTenant(),
-			},
-		},
-	}}
-	createdByUs = true
-	if _, err := nsRI.Create(ctx, nsObj, metav1.CreateOptions{}); err != nil {
-		if kerrs.IsAlreadyExists(err) {
-			// namespace already existed before our attempt
-			createdByUs = false
-		} else {
-			return nil, fmt.Errorf("failed to create namespace %s: %w", namespace, err)
+	ns, err := clientset.CoreV1().Namespaces().Get(ctx, nsName, metav1.GetOptions{})
+	if err != nil {
+		if kerrs.IsNotFound(err) {
+			return false, nil
 		}
+		return false, err
+	}
+	if ns.Labels == nil && len(expectedLabels) > 0 {
+		return false, nil
+	}
+	for k, v := range expectedLabels {
+		if got, ok := ns.Labels[k]; !ok || got != v {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+// Create ensures the computed namespace exists (for both tenant and workspace scopes) and rolls back if we created it and the resource creation fails.
+func (a *NamespaceManagingWriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
+	// Compute namespace for the resource (works for tenant-only and tenant+workspace scopes)
+	namespace := ComputeNamespace(m)
+	if namespace == "" {
+		return a.WriterAdapter.Create(ctx, m)
+	}
+
+	ownerLabels := map[string]string{}
+	if m.GetTenant() != "" {
+		ownerLabels[labels.InternalTenantLabel] = m.GetTenant()
+	}
+	if m.GetWorkspace() != "" {
+		ownerLabels[labels.InternalWorkspaceLabel] = m.GetWorkspace()
+	}
+
+	createdNS, err := CreateNamespace(ctx, a.clientset, namespace, ownerLabels)
+	if err != nil {
+		return nil, err
 	}
 
 	res, err := a.WriterAdapter.Create(ctx, m)
 	if err != nil {
-		// cleanup if we created the namespace
-		if createdByUs {
-			if delErr := nsRI.Delete(ctx, namespace, metav1.DeleteOptions{}); delErr != nil && !kerrs.IsNotFound(delErr) {
-				a.logger.ErrorContext(ctx, "failed to cleanup namespace after workspace create failure", "namespace", namespace, "error", delErr)
+		// rollback namespace only if we created it here and we still own it
+		if createdNS {
+			if owned, getErr := namespaceOwnedBy(ctx, a.clientset, namespace, ownerLabels); getErr == nil && owned {
+				if delErr := DeleteNamespace(ctx, a.clientset, namespace); delErr != nil && !kerrs.IsNotFound(delErr) {
+					a.logger.ErrorContext(ctx, "failed to rollback namespace created for resource", "namespace", namespace, "error", delErr)
+				}
+			} else if getErr != nil {
+				a.logger.ErrorContext(ctx, "failed to verify namespace ownership during rollback", "namespace", namespace, "error", getErr)
 			}
 		}
 		return nil, err
 	}
+
 	return res, nil
 }
 
-// Delete deletes the Workspace resource and then attempts to delete the associated namespace.
+// Delete deletes the resource and then attempts to delete the associated namespace only if it is owned by us.
 func (a *NamespaceManagingWriterAdapter[T]) Delete(ctx context.Context, m T) error {
-	// First, delete the workspace resource
 	if err := a.WriterAdapter.Delete(ctx, m); err != nil {
 		return err
 	}
+	// attempt to delete the namespace if owned
+	namespace := ComputeNamespace(m)
+	if namespace != "" {
+		// build expected labels similar to Create
+		expectedLabels := map[string]string{}
+		if t := m.GetTenant(); t != "" {
+			expectedLabels[labels.InternalTenantLabel] = t
+		}
+		if w := m.GetWorkspace(); w != "" {
+			expectedLabels[labels.InternalWorkspaceLabel] = w
+		}
+		expectedLabels["internal.ecp/created-by"] = "regional-api"
 
-	// Then, attempt to delete the namespace
-	namespace := ComputeNamespace(&scopemodel.Scope{Tenant: m.GetTenant(), Workspace: m.GetName()})
-	if namespace == "" {
-		a.logger.ErrorContext(ctx, "cannot compute namespace", "tenant", m.GetTenant())
-		return nil
-	}
-	nsRI := a.client.Resource(schema.GroupVersionResource{Version: "v1", Resource: "namespaces"})
-	if err := nsRI.Delete(ctx, namespace, metav1.DeleteOptions{}); err != nil {
-		if !kerrs.IsNotFound(err) {
-			a.logger.ErrorContext(ctx, "failed to delete namespace", "namespace", namespace, "error", err)
-			// Log the error but don't fail the workspace deletion
+		owned, err := namespaceOwnedBy(ctx, a.clientset, namespace, expectedLabels)
+		if err != nil {
+			a.logger.ErrorContext(ctx, "failed to check namespace ownership before delete", "namespace", namespace, "error", err)
+			return nil // don't fail deletion of resource because namespace check failed; resource already deleted
+		}
+		if owned {
+			if err := DeleteNamespace(ctx, a.clientset, namespace); err != nil && !kerrs.IsNotFound(err) {
+				a.logger.ErrorContext(ctx, "failed to delete namespace", "namespace", namespace, "error", err)
+			}
 		}
 	}
 

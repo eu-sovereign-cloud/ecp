@@ -52,7 +52,8 @@ func APIToDomain(api schema.Workspace, params port.IdentifiableResource) *region
 				ResourceVersion: params.GetVersion(),
 			},
 			Scope: scope.Scope{
-				Tenant: params.GetTenant(),
+				Tenant:    params.GetTenant(),
+				Workspace: params.GetName(),
 			},
 			Annotations: api.Annotations,
 			Labels:      api.Labels,
