@@ -18,7 +18,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation/filter"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes/labels"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
+	scopemodel "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 )
 
@@ -159,6 +161,28 @@ func ComputeNamespace(obj port.Scope) string {
 	}
 
 	return fmt.Sprintf("%x", hasher.Sum(nil))
+}
+
+// CreateNamespace creates a Kubernetes namespace if the name is not empty.
+func CreateNamespace(ctx context.Context, client dynamic.Interface, name, namespace string) error {
+	if name == "" {
+		return fmt.Errorf("cannot create namespace with empty name")
+	}
+	nsRI := client.Resource(schema.GroupVersionResource{Version: "v1", Resource: "namespaces"})
+	nsObj := &unstructured.Unstructured{Object: map[string]interface{}{
+		"apiVersion": "v1",
+		"kind":       "Namespace",
+		"metadata": map[string]interface{}{
+			"name":      name,
+			"namespace": namespace,
+		},
+	}}
+	if _, err := nsRI.Create(ctx, nsObj, metav1.CreateOptions{}); err != nil {
+		if !kerrs.IsAlreadyExists(err) {
+			return fmt.Errorf("failed to create namespace %s exists: %w", name, err)
+		}
+	}
+	return nil
 }
 
 // List implements the port.ReaderRepo interface.
@@ -391,4 +415,99 @@ func (a *WriterAdapter[T]) toUnstructured(m T) (*unstructured.Unstructured, erro
 	}
 
 	return &unstructured.Unstructured{Object: uobj}, nil
+}
+
+// NamespaceManagingWriterAdapter is a writer adapter that manages namespaces for workspaces.
+// It wraps a base WriterAdapter and adds namespace management logic.
+type NamespaceManagingWriterAdapter[T port.IdentifiableResource] struct {
+	*WriterAdapter[T]
+	client dynamic.Interface
+	logger *slog.Logger
+}
+
+// NewNamespaceManagingWriterAdapter creates a new writer adapter that manages namespaces for workspaces.
+func NewNamespaceManagingWriterAdapter[T port.IdentifiableResource](
+	client dynamic.Interface,
+	gvr schema.GroupVersionResource,
+	logger *slog.Logger,
+	domainToK8s DomainToK8s[T],
+	k8sToDomain K8sToDomain[T],
+) *NamespaceManagingWriterAdapter[T] {
+	base := NewWriterAdapter(client, gvr, logger, domainToK8s, k8sToDomain)
+	return &NamespaceManagingWriterAdapter[T]{
+		WriterAdapter: base,
+		client:        client,
+		logger:        logger,
+	}
+}
+
+// Create ensures the namespace exists for the resource before delegating to the base adapter.
+// For Workspace resources we ensure both tenant and workspace namespaces (tenant namespace is hash of tenant,
+// workspace namespace is hash of tenant/name). If we created any namespaces and resource creation fails,
+// we attempt to rollback the namespace created too.
+func (a *NamespaceManagingWriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
+	namespace := ComputeNamespace(&scopemodel.Scope{Tenant: m.GetTenant(), Workspace: ""})
+	name := ComputeNamespace(&scopemodel.Scope{Tenant: m.GetTenant(), Workspace: m.GetName()})
+	if namespace == "" {
+		return nil, fmt.Errorf("cannot compute namespace for tenant '%s'", m.GetTenant())
+	}
+	nsRI := a.client.Resource(schema.GroupVersionResource{Version: "v1", Resource: "namespaces"})
+	createdByUs := false
+
+	nsObj := &unstructured.Unstructured{Object: map[string]interface{}{
+		"apiVersion": "v1",
+		"kind":       "Namespace",
+		"metadata": map[string]interface{}{
+			"name":      name,
+			"namespace": namespace,
+			"labels": map[string]string{
+				labels.InternalTenantLabel: m.GetTenant(),
+			},
+		},
+	}}
+	createdByUs = true
+	if _, err := nsRI.Create(ctx, nsObj, metav1.CreateOptions{}); err != nil {
+		if kerrs.IsAlreadyExists(err) {
+			// namespace already existed before our attempt
+			createdByUs = false
+		} else {
+			return nil, fmt.Errorf("failed to create namespace %s: %w", namespace, err)
+		}
+	}
+
+	res, err := a.WriterAdapter.Create(ctx, m)
+	if err != nil {
+		// cleanup if we created the namespace
+		if createdByUs {
+			if delErr := nsRI.Delete(ctx, namespace, metav1.DeleteOptions{}); delErr != nil && !kerrs.IsNotFound(delErr) {
+				a.logger.ErrorContext(ctx, "failed to cleanup namespace after workspace create failure", "namespace", namespace, "error", delErr)
+			}
+		}
+		return nil, err
+	}
+	return res, nil
+}
+
+// Delete deletes the Workspace resource and then attempts to delete the associated namespace.
+func (a *NamespaceManagingWriterAdapter[T]) Delete(ctx context.Context, m T) error {
+	// First, delete the workspace resource
+	if err := a.WriterAdapter.Delete(ctx, m); err != nil {
+		return err
+	}
+
+	// Then, attempt to delete the namespace
+	namespace := ComputeNamespace(&scopemodel.Scope{Tenant: m.GetTenant(), Workspace: m.GetName()})
+	if namespace == "" {
+		a.logger.ErrorContext(ctx, "cannot compute namespace", "tenant", m.GetTenant())
+		return nil
+	}
+	nsRI := a.client.Resource(schema.GroupVersionResource{Version: "v1", Resource: "namespaces"})
+	if err := nsRI.Delete(ctx, namespace, metav1.DeleteOptions{}); err != nil {
+		if !kerrs.IsNotFound(err) {
+			a.logger.ErrorContext(ctx, "failed to delete namespace", "namespace", namespace, "error", err)
+			// Log the error but don't fail the workspace deletion
+		}
+	}
+
+	return nil
 }

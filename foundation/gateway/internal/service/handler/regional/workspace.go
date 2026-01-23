@@ -77,12 +77,12 @@ func (h Workspace) CreateOrUpdateWorkspace(
 
 	upsertOptions := handler.UpsertOptions[schema.Workspace, *regional.WorkspaceDomain, schema.Workspace]{
 		Params: &regional.Metadata{
+			Scope: scope.Scope{
+				Tenant: tenant,
+			},
 			CommonMetadata: model.CommonMetadata{
 				Name:            name,
 				ResourceVersion: resourceVersion,
-			},
-			Scope: scope.Scope{
-				Tenant: tenant,
 			},
 		},
 		Creator:     h.Create,
