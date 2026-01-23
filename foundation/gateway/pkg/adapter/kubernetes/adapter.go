@@ -544,7 +544,6 @@ func (a *NamespaceManagingWriterAdapter[T]) Delete(ctx context.Context, m T) err
 		if w := m.GetWorkspace(); w != "" {
 			expectedLabels[labels.InternalWorkspaceLabel] = w
 		}
-		expectedLabels["internal.ecp/created-by"] = "regional-api"
 
 		owned, err := namespaceOwnedBy(ctx, a.clientset, namespace, expectedLabels)
 		if err != nil {

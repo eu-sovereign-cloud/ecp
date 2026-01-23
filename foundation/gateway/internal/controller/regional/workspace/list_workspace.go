@@ -17,13 +17,12 @@ type ListWorkspace struct {
 }
 
 func (c *ListWorkspace) Do(ctx context.Context, params model.ListParams) ([]*regional.WorkspaceDomain, *string, error) {
-	// Work on a local copy so we don't mutate the caller's params.
 	lp := params
 
 	// If tenant is provided and workspace is empty, ensure the selector includes the tenant label as workspaces are to be listed from the internal tenant label.
-	if lp.Scope.Tenant != "" {
-		tenantSel := fmt.Sprintf("%s=%s", labels.InternalTenantLabel, lp.Scope.Tenant)
-		lp.Scope.Tenant = ""
+	if lp.Tenant != "" {
+		tenantSel := fmt.Sprintf("%s=%s", labels.InternalTenantLabel, lp.Tenant)
+		lp.Tenant = ""
 		if lp.Selector != "" {
 			lp.Selector = tenantSel + "," + lp.Selector
 		} else {
