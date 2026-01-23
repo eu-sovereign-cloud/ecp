@@ -19,16 +19,18 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		errRepo   = errors.New("repo failed")
 	)
 
-	t.Run("should do nothing if resource state is active", func(t *testing.T) {
+	t.Run("should do nothing if resource is active and requires no changes", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
 		//
-		// Given a resource with active state
+		// Given a resource with active state and matching spec/status
 		activeState := regional.ResourceStateActive
 		resource := &regional.BlockStorageDomain{
+			Spec: regional.BlockStorageSpec{SizeGB: 10},
 			Status: &regional.BlockStorageStatus{
-				State: &activeState,
+				State:  &activeState,
+				SizeGB: 10,
 			},
 		}
 
@@ -43,14 +45,15 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		err := handler.HandleReconcile(context.Background(), resource)
+		requeue, err := handler.HandleReconcile(context.Background(), resource)
 
 		//
-		// Then it should succeed
+		// Then it should succeed and not request a requeue
 		require.NoError(t, err)
+		require.False(t, requeue)
 	})
 
-	t.Run("should set state to creating when resource is pending", func(t *testing.T) {
+	t.Run("should set state to creating and requeue when resource is pending", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
@@ -82,11 +85,54 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		err := handler.HandleReconcile(context.Background(), resource)
+		requeue, err := handler.HandleReconcile(context.Background(), resource)
 
 		//
-		// Then it should succeed
+		// Then it should succeed and request a requeue
 		require.NoError(t, err)
+		require.True(t, requeue)
+	})
+
+	t.Run("should set state to updating and requeue when size is increased on an active resource", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		//
+		// Given an active resource with a spec size greater than its status size
+		activeState := regional.ResourceStateActive
+		resource := &regional.BlockStorageDomain{
+			Spec: regional.BlockStorageSpec{SizeGB: 20},
+			Status: &regional.BlockStorageStatus{
+				State:  &activeState,
+				SizeGB: 10,
+			},
+		}
+
+		//
+		// And a repo that is expected to be called once to update state to updating
+		mockRepo := NewMockRepo[*regional.BlockStorageDomain](ctrl)
+		mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(
+			func(_ context.Context, res *regional.BlockStorageDomain) (*regional.BlockStorageDomain, error) {
+				require.Equal(t, regional.ResourceStateUpdating, *res.Status.State)
+				return nil, nil
+			}).Times(1)
+
+		//
+		// And a plugin that is not expected to be called yet
+		mockPlugin := NewMockBlockStorage(ctrl)
+
+		//
+		// And a block storage plugin handler
+		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin)
+
+		//
+		// When we reconcile the resource
+		requeue, err := handler.HandleReconcile(context.Background(), resource)
+
+		//
+		// Then it should succeed and request a requeue
+		require.NoError(t, err)
+		require.True(t, requeue)
 	})
 
 	t.Run("should call plugin create and set state to active when resource is creating", func(t *testing.T) {
@@ -124,11 +170,12 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		err := handler.HandleReconcile(context.Background(), resource)
+		requeue, err := handler.HandleReconcile(context.Background(), resource)
 
 		//
-		// Then it should succeed
+		// Then it should succeed and not request a requeue
 		require.NoError(t, err)
+		require.False(t, requeue)
 	})
 
 	t.Run("should call plugin delete and set state to deleting when resource is deleting", func(t *testing.T) {
@@ -164,11 +211,12 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		err := handler.HandleReconcile(context.Background(), resource)
+		requeue, err := handler.HandleReconcile(context.Background(), resource)
 
 		//
-		// Then it should succeed
+		// Then it should succeed and not request a requeue
 		require.NoError(t, err)
+		require.False(t, requeue)
 	})
 
 	t.Run("should call plugin increase size and set state to active when resource is updating", func(t *testing.T) {
@@ -207,14 +255,15 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		err := handler.HandleReconcile(context.Background(), resource)
+		requeue, err := handler.HandleReconcile(context.Background(), resource)
 
 		//
-		// Then it should succeed
+		// Then it should succeed and not request a requeue
 		require.NoError(t, err)
+		require.False(t, requeue)
 	})
 
-	t.Run("should set state to creating on retry create", func(t *testing.T) {
+	t.Run("should set state to creating and requeue on retry create", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
@@ -250,14 +299,15 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		err := handler.HandleReconcile(context.Background(), resource)
+		requeue, err := handler.HandleReconcile(context.Background(), resource)
 
 		//
-		// Then it should succeed
+		// Then it should succeed and request a requeue
 		require.NoError(t, err)
+		require.True(t, requeue)
 	})
 
-	t.Run("should set state to updating on retry increase size", func(t *testing.T) {
+	t.Run("should set state to updating and requeue on retry increase size", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
@@ -295,14 +345,15 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		err := handler.HandleReconcile(context.Background(), resource)
+		requeue, err := handler.HandleReconcile(context.Background(), resource)
 
 		//
-		// Then it should succeed
+		// Then it should succeed and request a requeue
 		require.NoError(t, err)
+		require.True(t, requeue)
 	})
 
-	t.Run("should set state to error when plugin create fails", func(t *testing.T) {
+	t.Run("should set state to error and requeue when plugin create fails", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
@@ -337,11 +388,12 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		err := handler.HandleReconcile(context.Background(), resource)
+		requeue, err := handler.HandleReconcile(context.Background(), resource)
 
 		//
-		// Then the handler should handle the error gracefully and not return an error
+		// Then it should handle the error gracefully, not return an error, but request a requeue
 		require.NoError(t, err)
+		require.True(t, requeue)
 	})
 
 	t.Run("should return error when repo update fails after plugin failure", func(t *testing.T) {
@@ -373,7 +425,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		err := handler.HandleReconcile(context.Background(), resource)
+		_, err := handler.HandleReconcile(context.Background(), resource)
 
 		//
 		// Then it should return the repo error
@@ -408,7 +460,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		err := handler.HandleReconcile(context.Background(), resource)
+		_, err := handler.HandleReconcile(context.Background(), resource)
 
 		//
 		// Then it should return the repo error
@@ -471,7 +523,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		t.Fatalf("process ran with err %v, want exit status 1", err)
 	})
 
-	t.Run("should set state to error when plugin delete fails", func(t *testing.T) {
+	t.Run("should set state to error and requeue when plugin delete fails", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
@@ -485,7 +537,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		}
 
 		//
-		// Anda repo that is expected to be called once to update state to error
+		// And a repo that is expected to be called once to update state to error
 		mockRepo := NewMockRepo[*regional.BlockStorageDomain](ctrl)
 		mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(
 			func(_ context.Context, res *regional.BlockStorageDomain) (*regional.BlockStorageDomain, error) {
@@ -506,14 +558,15 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		err := handler.HandleReconcile(context.Background(), resource)
+		requeue, err := handler.HandleReconcile(context.Background(), resource)
 
 		//
-		// Then the handler should handle the error gracefully and not return an error
+		// Then it should handle the error gracefully and request a requeue
 		require.NoError(t, err)
+		require.True(t, requeue)
 	})
 
-	t.Run("should set state to error when plugin increase size fails", func(t *testing.T) {
+	t.Run("should set state to error and requeue when plugin increase size fails", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
@@ -550,11 +603,12 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		err := handler.HandleReconcile(context.Background(), resource)
+		requeue, err := handler.HandleReconcile(context.Background(), resource)
 
 		//
-		// Then the handler should handle the error gracefully and not return an error
+		// Then it should handle the error gracefully and request a requeue
 		require.NoError(t, err)
+		require.True(t, requeue)
 	})
 }
 
@@ -580,7 +634,7 @@ func TestBlockStoragePluginHandler_HandleAdmission(t *testing.T) {
 		err := handler.HandleAdmission(context.Background(), resource)
 
 		//
-		// Then tt should succeed
+		// Then it should succeed
 		require.NoError(t, err)
 	})
 

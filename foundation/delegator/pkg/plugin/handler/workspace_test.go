@@ -17,9 +17,10 @@ import (
 func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 	var (
 		errPlugin = errors.New("plugin failed")
+		errRepo   = errors.New("repo error")
 	)
 
-	t.Run("should do nothing if resource state is active", func(t *testing.T) {
+	t.Run("should do nothing if resource is active", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
@@ -45,14 +46,15 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		err := handler.HandleReconcile(context.Background(), resource)
+		requeue, err := handler.HandleReconcile(context.Background(), resource)
 
 		//
-		// Then it should succeed
+		// Then it should succeed and not request a requeue
 		require.NoError(t, err)
+		require.False(t, requeue)
 	})
 
-	t.Run("should set state to creating when resource is pending", func(t *testing.T) {
+	t.Run("should set state to creating and requeue when resource is pending", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
@@ -86,11 +88,12 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		err := handler.HandleReconcile(context.Background(), resource)
+		requeue, err := handler.HandleReconcile(context.Background(), resource)
 
 		//
-		// Then it should succeed
+		// Then it should succeed and request a requeue
 		require.NoError(t, err)
+		require.True(t, requeue)
 	})
 
 	t.Run("should call plugin create and set state to active when resource is creating", func(t *testing.T) {
@@ -128,11 +131,12 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		err := handler.HandleReconcile(context.Background(), resource)
+		requeue, err := handler.HandleReconcile(context.Background(), resource)
 
 		//
-		// Then it should succeed
+		// Then it should succeed and not request a requeue
 		require.NoError(t, err)
+		require.False(t, requeue)
 	})
 
 	t.Run("should call plugin delete and set state to deleting when resource is deleting", func(t *testing.T) {
@@ -170,14 +174,15 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		err := handler.HandleReconcile(context.Background(), resource)
+		requeue, err := handler.HandleReconcile(context.Background(), resource)
 
 		//
-		// Then it should succeed
+		// Then it should succeed and not request a requeue
 		require.NoError(t, err)
+		require.False(t, requeue)
 	})
 
-	t.Run("should set state to error when plugin create fails", func(t *testing.T) {
+	t.Run("should set state to error and requeue when plugin create fails", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
@@ -214,11 +219,12 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		err := handler.HandleReconcile(context.Background(), resource)
+		requeue, err := handler.HandleReconcile(context.Background(), resource)
 
 		//
-		// Then it should succeed (error is handled by updating status)
+		// Then it should succeed, handle the error, and request a requeue
 		require.NoError(t, err)
+		require.True(t, requeue)
 	})
 
 	t.Run("should return error when repo update fails after plugin failure", func(t *testing.T) {
@@ -238,13 +244,11 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// And a plugin that returns an error
-		errPlugin := errors.New("plugin error")
 		mockPlugin := NewMockWorkspace(ctrl)
 		mockPlugin.EXPECT().Create(gomock.Any(), gomock.Any()).Return(errPlugin)
 
 		//
 		// And a repo that returns an error on update
-		errRepo := errors.New("repo error")
 		mockRepo := NewMockRepo[*regional.WorkspaceDomain](ctrl)
 		mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil, errRepo)
 
@@ -254,14 +258,14 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		err := handler.HandleReconcile(context.Background(), resource)
+		_, err := handler.HandleReconcile(context.Background(), resource)
 
 		//
 		// Then it should return the repo error
 		require.ErrorIs(t, err, errRepo)
 	})
 
-	t.Run("should set state to error when plugin delete fails", func(t *testing.T) {
+	t.Run("should set state to error and requeue when plugin delete fails", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
@@ -298,14 +302,15 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		err := handler.HandleReconcile(context.Background(), resource)
+		requeue, err := handler.HandleReconcile(context.Background(), resource)
 
 		//
-		// Then it should succeed (error is handled by updating status)
+		// Then it should succeed, handle the error, and request a requeue
 		require.NoError(t, err)
+		require.True(t, requeue)
 	})
 
-	t.Run("should set state to creating on retry create", func(t *testing.T) {
+	t.Run("should set state to creating and requeue on retry create", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
@@ -344,11 +349,12 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		err := handler.HandleReconcile(context.Background(), resource)
+		requeue, err := handler.HandleReconcile(context.Background(), resource)
 
 		//
-		// Then it should succeed
+		// Then it should succeed and request a requeue
 		require.NoError(t, err)
+		require.True(t, requeue)
 	})
 
 	t.Run("should do nothing for unhandled states", func(t *testing.T) {
@@ -377,11 +383,12 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		err := handler.HandleReconcile(context.Background(), resource)
+		requeue, err := handler.HandleReconcile(context.Background(), resource)
 
 		//
 		// Then it should succeed and do nothing
 		require.NoError(t, err)
+		require.False(t, requeue)
 	})
 
 	t.Run("should return error when repo update fails in setResourceState", func(t *testing.T) {
@@ -401,7 +408,6 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// And a repo that returns an error on update
-		errRepo := errors.New("repo update error")
 		mockRepo := NewMockRepo[*regional.WorkspaceDomain](ctrl)
 		mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil, errRepo).Times(1)
 
@@ -415,7 +421,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		err := handler.HandleReconcile(context.Background(), resource)
+		_, err := handler.HandleReconcile(context.Background(), resource)
 
 		//
 		// Then it should return the repo error
