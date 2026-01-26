@@ -7,6 +7,7 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/plugin"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/generic/delegated"
+	mutator_bypass "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/generic/mutator"
 	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/converter"
 	repository "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/repository"
 )
@@ -22,44 +23,31 @@ type WorkspaceHandler struct {
 	deleteDelegated *delegated.GenericDelegated[*regional.WorkspaceDomain, *regional.WorkspaceDomain, *v1alpha1.Project]
 }
 
+// NewWorkspaceHandler creates a new WorkspaceHandler with the provided repository and converter.
+// It sets up the necessary delegated operations for creating and deleting WorkspaceDomain resources.
+// The handler uses bypass mutators since no mutation is needed on the Aruba Project objects.
 func NewWorkspaceHandler(repo repository.Repository[*v1alpha1.Project, *v1alpha1.ProjectList], conv converter.Converter[*regional.WorkspaceDomain, *v1alpha1.Project]) *WorkspaceHandler {
-	mutate := func(ab *v1alpha1.Project, sb *regional.WorkspaceDomain) error {
-		return nil
-	}
-
-	// Condition function for creation
-	createdCondition := func(p *v1alpha1.Project) bool {
-		return p.Status.Phase == v1alpha1.ResourcePhaseCreated
-	}
-
-	// Condition function for deletion
-	deletedCondition := func(p *v1alpha1.Project) bool {
-		return p.Status.Phase == v1alpha1.ResourcePhaseDeleted
-	}
-
-	// Propagate for create
-	createPropagate := func(ctx context.Context, ab *v1alpha1.Project) error {
-		return repo.Create(ctx, ab)
-	}
-
-	// Propagate for delete
-	deletePropagate := func(ctx context.Context, ab *v1alpha1.Project) error {
-		return repo.Delete(ctx, ab)
-	}
-
 	return &WorkspaceHandler{
 		createDelegated: delegated.NewStraightDelegated(
 			conv.FromSECAToAruba,
-			mutate,
-			createPropagate,
-			createdCondition,
+			mutator_bypass.BypassMutateFunc[*v1alpha1.Project, *regional.WorkspaceDomain],
+			func(ctx context.Context, ab *v1alpha1.Project) error {
+				return repo.Create(ctx, ab)
+			},
+			func(p *v1alpha1.Project) bool {
+				return p.Status.Phase == v1alpha1.ResourcePhaseCreated
+			},
 			repo.WaitUntil,
 		),
 		deleteDelegated: delegated.NewStraightDelegated(
-			conv.FromSECAToAruba, // convert
-			mutate,
-			deletePropagate,
-			deletedCondition,
+			conv.FromSECAToAruba,
+			mutator_bypass.BypassMutateFunc[*v1alpha1.Project, *regional.WorkspaceDomain],
+			func(ctx context.Context, ab *v1alpha1.Project) error {
+				return repo.Delete(ctx, ab)
+			},
+			func(p *v1alpha1.Project) bool {
+				return p.Status.Phase == v1alpha1.ResourcePhaseDeleted
+			},
 			repo.WaitUntil,
 		),
 	}
@@ -67,9 +55,7 @@ func NewWorkspaceHandler(repo repository.Repository[*v1alpha1.Project, *v1alpha1
 
 // Create creates a new WorkspaceDomain by creating an Aruba Project.
 func (h *WorkspaceHandler) Create(ctx context.Context, resource *regional.WorkspaceDomain) error {
-
 	return h.createDelegated.Do(ctx, resource)
-
 }
 
 // Delete deletes an existing WorkspaceDomain by deleting the corresponding Aruba Project.
