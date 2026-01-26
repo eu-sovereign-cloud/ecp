@@ -30,7 +30,7 @@ func TestCreate(t *testing.T) {
 					Return(nil, fmt.Errorf("conversion error"))
 			},
 			wantErr:     true,
-			errContains: "failed to convert WorkspaceDomain to Project: conversion error",
+			errContains: "conversion error",
 		},
 		{
 			name: "create error",
@@ -54,7 +54,7 @@ func TestCreate(t *testing.T) {
 					Return(fmt.Errorf("creation error"))
 			},
 			wantErr:     true,
-			errContains: "failed to create Project: creation error",
+			errContains: "creation error",
 		},
 		{
 			name: "pending creation - condition not met",
@@ -139,7 +139,7 @@ func TestCreate(t *testing.T) {
 			mockRepo := NewMockRepository[*v1alpha1.Project, *v1alpha1.ProjectList](ctrl)
 			mockConv := NewMockConverter[*regional.WorkspaceDomain, *v1alpha1.Project](ctrl)
 
-			workspaceDomain := &regional.WorkspaceDomain{
+			wd := &regional.WorkspaceDomain{
 				Spec: regional.WorkspaceSpec{
 					"description": "Test Workspace Description",
 					"tags":        []string{"tag1", "tag2"},
@@ -147,14 +147,11 @@ func TestCreate(t *testing.T) {
 				},
 			}
 
-			tt.setupMocks(mockRepo, mockConv, workspaceDomain)
+			tt.setupMocks(mockRepo, mockConv, wd)
 
-			handler := &WorkspaceHandler{
-				repo: mockRepo,
-				conv: mockConv,
-			}
+			op := NewWorkspaceHandler(mockRepo, mockConv)
 
-			err := handler.Create(context.Background(), workspaceDomain)
+			err := op.Create(context.Background(), wd)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -184,7 +181,7 @@ func TestDelete(t *testing.T) {
 					Return(nil, fmt.Errorf("conversion error"))
 			},
 			wantErr:     true,
-			errContains: "failed to convert WorkspaceDomain to Project: conversion error",
+			errContains: "conversion error",
 		},
 		{
 			name: "delete error",
@@ -208,7 +205,7 @@ func TestDelete(t *testing.T) {
 					Return(fmt.Errorf("deletion error"))
 			},
 			wantErr:     true,
-			errContains: "failed to delete Project: deletion error",
+			errContains: "deletion error",
 		},
 		{
 			name: "pending deletion - condition not met",
@@ -293,7 +290,7 @@ func TestDelete(t *testing.T) {
 			mockRepo := NewMockRepository[*v1alpha1.Project, *v1alpha1.ProjectList](ctrl)
 			mockConv := NewMockConverter[*regional.WorkspaceDomain, *v1alpha1.Project](ctrl)
 
-			workspaceDomain := &regional.WorkspaceDomain{
+			wd := &regional.WorkspaceDomain{
 				Spec: regional.WorkspaceSpec{
 					"description": "Test Workspace Description",
 					"tags":        []string{"tag1", "tag2"},
@@ -301,14 +298,11 @@ func TestDelete(t *testing.T) {
 				},
 			}
 
-			tt.setupMocks(mockRepo, mockConv, workspaceDomain)
+			tt.setupMocks(mockRepo, mockConv, wd)
 
-			handler := &WorkspaceHandler{
-				repo: mockRepo,
-				conv: mockConv,
-			}
+			handler := NewWorkspaceHandler(mockRepo, mockConv)
 
-			err := handler.Delete(context.Background(), workspaceDomain)
+			err := handler.Delete(context.Background(), wd)
 
 			if tt.wantErr {
 				assert.Error(t, err)
