@@ -97,17 +97,20 @@ func (h Storage) DeleteBlockStorage(
 	workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam,
 	params sdkstorage.DeleteBlockStorageParams,
 ) {
-	handler.HandleDelete(w, r, h.Logger.With("provider", "storage").With("resource", "block-storage"),
-		&regional.Metadata{
-			CommonMetadata: model.CommonMetadata{
-				Name:            name,
-				ResourceVersion: strconv.Itoa(*params.IfUnmodifiedSince),
-			},
-			Scope: scope.Scope{
-				Tenant:    tenant,
-				Workspace: workspace,
-			},
+	metadata := regional.Metadata{
+		CommonMetadata: model.CommonMetadata{
+			Name: name,
 		},
+		Scope: scope.Scope{
+			Tenant:    tenant,
+			Workspace: workspace,
+		},
+	}
+	if params.IfUnmodifiedSince != nil {
+		metadata.ResourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
+	}
+	handler.HandleDelete(w, r, h.Logger.With("provider", "storage").With("resource", "block-storage"),
+		&metadata,
 		h.DeleteStorage,
 	)
 }
