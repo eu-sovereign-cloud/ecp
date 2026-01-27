@@ -2,6 +2,7 @@ package repository_test
 
 import (
 	context "context"
+	"sync"
 	"testing"
 	"time"
 
@@ -200,17 +201,20 @@ func TestProjectRepository_WaitUntil(t *testing.T) {
 		Return(informer, nil).
 		AnyTimes()
 
+	var errUpdate error
+	var wg sync.WaitGroup
 	informer.EXPECT().
 		AddEventHandler(gomock.Any()).
 		Do(func(handler kcache.ResourceEventHandler) {
 			// Simulate an update event after a short delay
+			wg.Add(1)
 			go func() {
 				// Simulate an update to the project
 				updatedProject := project.DeepCopy()
 				updatedProject.Spec.Description = "Updated description"
-				require.NoError(t, fakeClient.Update(ctx, updatedProject), "expected Update to succeed")
-
+				errUpdate = fakeClient.Update(ctx, updatedProject)
 				handler.OnUpdate(project, updatedProject)
+				wg.Done()
 			}()
 		}).
 		AnyTimes()
@@ -224,7 +228,9 @@ func TestProjectRepository_WaitUntil(t *testing.T) {
 	require.NoError(t, err, "expected WaitUntil to succeed")
 
 	// Wait for the update to be received
+	wg.Wait()
 	require.Equal(t, "Updated description", out.Spec.Description, "expected to receive updated project")
+	require.NoError(t, errUpdate, "expected Update to succeed")
 }
 
 // TestGenericRepository_Watch_WithMockCache tests the Watch method of GenericRepository using a mock Cache and Informer.
