@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	gomock "go.uber.org/mock/gomock"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -81,16 +81,16 @@ func TestBlockStorage_List(t *testing.T) {
 	}
 
 	fakeClient := newFakeStorageClientWithObject(nil)
-	assert.NoError(t, fakeClient.Create(ctx, st1))
-	assert.NoError(t, fakeClient.Create(ctx, st2))
+	require.NoError(t, fakeClient.Create(ctx, st1))
+	require.NoError(t, fakeClient.Create(ctx, st2))
 
 	// Create repository
 	repo := repository.NewGenericRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList](ctx, fakeClient, nil)
 
 	// List BlockStorage objects
 	storages, err := repo.List(ctx)
-	assert.NoError(t, err, "expected List to succeed")
-	assert.Len(t, storages.Items, 2, "expected 2 BlockStorage objects")
+	require.NoError(t, err, "expected List to succeed")
+	require.Len(t, storages.Items, 2, "expected 2 BlockStorage objects")
 }
 func TestBlockStorage_Create(t *testing.T) {
 	ctx := context.Background()
@@ -109,14 +109,14 @@ func TestBlockStorage_Create(t *testing.T) {
 	}
 
 	err := repo.Create(ctx, storage)
-	assert.NoError(t, err, "expected Create to succeed")
+	require.NoError(t, err, "expected Create to succeed")
 
 	// Verify that the BlockStorage was created
 	loaded := &v1alpha1.BlockStorage{}
 	err = fakeClient.Get(ctx, client.ObjectKey{Name: "new-storage", Namespace: "default"}, loaded)
-	assert.NoError(t, err, "expected to find created BlockStorage")
-	assert.Equal(t, storage.Name, loaded.Name)
-	assert.Equal(t, storage.Namespace, loaded.Namespace)
+	require.NoError(t, err, "expected to find created BlockStorage")
+	require.Equal(t, storage.Name, loaded.Name)
+	require.Equal(t, storage.Namespace, loaded.Namespace)
 }
 
 func TestBlockStorage_Update(t *testing.T) {
@@ -138,13 +138,13 @@ func TestBlockStorage_Update(t *testing.T) {
 	// Update the BlockStorage object
 	storage.Spec.SizeGb = 20
 	err := repo.Update(ctx, storage)
-	assert.NoError(t, err, "expected Update to succeed")
+	require.NoError(t, err, "expected Update to succeed")
 
 	// Verify that the BlockStorage was updated
 	updated := &v1alpha1.BlockStorage{}
 	err = fakeClient.Get(ctx, client.ObjectKey{Name: "existing-storage", Namespace: "default"}, updated)
-	assert.NoError(t, err, "expected to find updated BlockStorage")
-	assert.Equal(t, int32(20), updated.Spec.SizeGb)
+	require.NoError(t, err, "expected to find updated BlockStorage")
+	require.Equal(t, int32(20), updated.Spec.SizeGb)
 }
 func TestBlockStorage_Delete(t *testing.T) {
 	ctx := context.Background()
@@ -162,12 +162,12 @@ func TestBlockStorage_Delete(t *testing.T) {
 
 	// Delete the BlockStorage object
 	err := repo.Delete(ctx, storage)
-	assert.NoError(t, err, "expected Delete to succeed")
+	require.NoError(t, err, "expected Delete to succeed")
 
 	// Verify that the BlockStorage was deleted
 	deleted := &v1alpha1.BlockStorage{}
 	err = fakeClient.Get(ctx, client.ObjectKey{Name: "storage-to-delete", Namespace: "default"}, deleted)
-	assert.Error(t, err, "expected not to find deleted BlockStorage")
+	require.Error(t, err, "expected not to find deleted BlockStorage")
 }
 
 func TestBlockStorage_Watch(t *testing.T) {
@@ -202,7 +202,7 @@ func TestBlockStorage_Watch(t *testing.T) {
 			// Simulate an update to the BlockStorage object
 			updatedStorage := storage.DeepCopy()
 			updatedStorage.Spec.SizeGb = 50
-			assert.NoError(t, fakeClient.Update(ctx, updatedStorage), "expected Update to succeed")
+			require.NoError(t, fakeClient.Update(ctx, updatedStorage), "expected Update to succeed")
 
 			go func() {
 				capturedHandler.OnUpdate(storage, updatedStorage)
@@ -215,12 +215,12 @@ func TestBlockStorage_Watch(t *testing.T) {
 	// Start watching the BlockStorage object
 	out, cancelWatch, err := repo.Watch(ctx, storage)
 	defer cancelWatch()
-	assert.NoError(t, err, "expected Watch to succeed")
+	require.NoError(t, err, "expected Watch to succeed")
 
 	// Verify that the update is received on the watch channel
 	select {
 	case updated := <-out:
-		assert.Equal(t, int32(50), updated.Spec.SizeGb, "expected updated SizeGb to be 50")
+		require.Equal(t, int32(50), updated.Spec.SizeGb, "expected updated SizeGb to be 50")
 	case <-ctx.Done():
 		t.Fatal("did not receive update on watch channel")
 	}
@@ -259,7 +259,7 @@ func TestBlockStorage_WaitUntil(t *testing.T) {
 				// Simulate an update to the BlockStorage
 				updatedStorage := storage.DeepCopy()
 				updatedStorage.Spec.SizeGb = 100
-				assert.NoError(t, fakeClient.Update(ctx, updatedStorage), "expected Update to succeed")
+				require.NoError(t, fakeClient.Update(ctx, updatedStorage), "expected Update to succeed")
 				handler.OnUpdate(storage, updatedStorage)
 			}()
 		}).
@@ -272,8 +272,8 @@ func TestBlockStorage_WaitUntil(t *testing.T) {
 		return s.Spec.SizeGb == 100
 	})
 
-	assert.NoError(t, err, "expected WaitUntil to succeed")
+	require.NoError(t, err, "expected WaitUntil to succeed")
 
 	// Verify that the update is received
-	assert.Equal(t, int32(100), out.Spec.SizeGb, "expected to receive updated BlockStorage with SizeGb 100")
+	require.Equal(t, int32(100), out.Spec.SizeGb, "expected to receive updated BlockStorage with SizeGb 100")
 }
