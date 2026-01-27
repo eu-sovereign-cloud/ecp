@@ -23,9 +23,9 @@ func MapRegionDomainToSDK(dom RegionDomain, verb string) schema.Region {
 	for _, z := range dom.Zones {
 		zones = append(zones, schema.Zone(z))
 	}
-	resVersion := 0
+	var resVersion int64
 	// resourceVersion is best-effort numeric
-	if rv, err := strconv.Atoi(dom.ResourceVersion); err == nil {
+	if rv, err := strconv.ParseInt(dom.ResourceVersion, 10, 64); err == nil {
 		resVersion = rv
 	}
 	refObj := schema.ReferenceObject{Resource: fmt.Sprintf("%s/%s", RegionBaseURL, dom.Name)}
