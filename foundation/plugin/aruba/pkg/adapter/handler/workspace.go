@@ -31,9 +31,7 @@ func NewWorkspaceHandler(repo repository.Repository[*v1alpha1.Project, *v1alpha1
 		createDelegated: delegated.NewStraightDelegated(
 			conv.FromSECAToAruba,
 			mutator_bypass.BypassMutateFunc[*v1alpha1.Project, *regional.WorkspaceDomain],
-			func(ctx context.Context, ab *v1alpha1.Project) error {
-				return repo.Create(ctx, ab)
-			},
+			repo.Create,
 			func(p *v1alpha1.Project) bool {
 				return p.Status.Phase == v1alpha1.ResourcePhaseCreated
 			},
@@ -42,9 +40,7 @@ func NewWorkspaceHandler(repo repository.Repository[*v1alpha1.Project, *v1alpha1
 		deleteDelegated: delegated.NewStraightDelegated(
 			conv.FromSECAToAruba,
 			mutator_bypass.BypassMutateFunc[*v1alpha1.Project, *regional.WorkspaceDomain],
-			func(ctx context.Context, ab *v1alpha1.Project) error {
-				return repo.Delete(ctx, ab)
-			},
+			repo.Delete,
 			func(p *v1alpha1.Project) bool {
 				return p.Status.Phase == v1alpha1.ResourcePhaseDeleted
 			},
