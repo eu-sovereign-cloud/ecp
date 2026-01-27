@@ -6,8 +6,6 @@ import (
 	"time"
 
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
-	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/generic/repository"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	gomock "go.uber.org/mock/gomock"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -16,6 +14,8 @@ import (
 	kcache "k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+
+	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/generic/repository"
 )
 
 func newFakeProjectClientWithObject(project *v1alpha1.Project) client.Client {
@@ -164,15 +164,15 @@ func TestProjectRepository_List(t *testing.T) {
 	}
 
 	fakeClient := newFakeProjectClientWithObject(nil)
-	assert.NoError(t, fakeClient.Create(ctx, project1))
-	assert.NoError(t, fakeClient.Create(ctx, project2))
+	require.NoError(t, fakeClient.Create(ctx, project1))
+	require.NoError(t, fakeClient.Create(ctx, project2))
 
 	// Create repository
 	repo := repository.NewGenericRepository[*v1alpha1.Project, *v1alpha1.ProjectList](ctx, fakeClient, nil)
 
 	res, err := repo.List(ctx, client.InNamespace("default"))
-	assert.NoError(t, err, "expected List to succeed")
-	assert.Len(t, res.Items, 2, "expected to find 2 projects")
+	require.NoError(t, err, "expected List to succeed")
+	require.Len(t, res.Items, 2, "expected to find 2 projects")
 
 }
 
@@ -208,7 +208,7 @@ func TestProjectRepository_WaitUntil(t *testing.T) {
 				// Simulate an update to the project
 				updatedProject := project.DeepCopy()
 				updatedProject.Spec.Description = "Updated description"
-				assert.NoError(t, fakeClient.Update(ctx, updatedProject), "expected Update to succeed")
+				require.NoError(t, fakeClient.Update(ctx, updatedProject), "expected Update to succeed")
 
 				handler.OnUpdate(project, updatedProject)
 			}()
@@ -221,10 +221,10 @@ func TestProjectRepository_WaitUntil(t *testing.T) {
 	out, err := repo.WaitUntil(ctx, project, func(p *v1alpha1.Project) bool {
 		return p.Spec.Description == "Updated description"
 	})
-	assert.NoError(t, err, "expected WaitUntil to succeed")
+	require.NoError(t, err, "expected WaitUntil to succeed")
 
 	// Wait for the update to be received
-	assert.Equal(t, "Updated description", out.Spec.Description, "expected to receive updated project")
+	require.Equal(t, "Updated description", out.Spec.Description, "expected to receive updated project")
 }
 
 // TestGenericRepository_Watch_WithMockCache tests the Watch method of GenericRepository using a mock Cache and Informer.
@@ -283,8 +283,8 @@ func TestGenericRepository_WatchWithMockCache(t *testing.T) {
 
 	select {
 	case received := <-out:
-		assert.Equal(t, "demo-project", received.Name)
-		assert.Equal(t, "Updated description", received.Spec.Description)
+		require.Equal(t, "demo-project", received.Name)
+		require.Equal(t, "Updated description", received.Spec.Description)
 	case <-time.After(2 * time.Second):
 		t.Fatal("expected watch event")
 	}
