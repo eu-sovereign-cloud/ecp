@@ -11,10 +11,7 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-//go:generate mockgen -package=handler -destination=./zz_mock_workspace_repository.go github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/repository Repository,Writer,Watcher,Reader
-//go:generate mockgen -package=handler -destination=./zz_mock_workspace_converter.go github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/converter Converter
-
-func TestCreate(t *testing.T) {
+func TestWorkspace_create(t *testing.T) {
 	tests := []struct {
 		name        string
 		setupMocks  func(*MockRepository[*v1alpha1.Project, *v1alpha1.ProjectList], *MockConverter[*regional.WorkspaceDomain, *v1alpha1.Project], *regional.WorkspaceDomain)
@@ -165,7 +162,7 @@ func TestCreate(t *testing.T) {
 	}
 }
 
-func TestDelete(t *testing.T) {
+func TestWorkspace_delete(t *testing.T) {
 	tests := []struct {
 		name        string
 		setupMocks  func(*MockRepository[*v1alpha1.Project, *v1alpha1.ProjectList], *MockConverter[*regional.WorkspaceDomain, *v1alpha1.Project], *regional.WorkspaceDomain)
