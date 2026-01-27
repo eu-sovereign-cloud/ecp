@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"strconv"
 
+	sdkworkspace "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1"
+	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
+
 	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/workspace/v1"
 	v1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regions/v1"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation"
@@ -11,8 +14,7 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
-	sdkworkspace "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1"
-	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 )
 
 func ListParamsFromAPI(params sdkworkspace.ListWorkspacesParams, tenant string) model.ListParams {
@@ -38,39 +40,20 @@ func ListParamsFromAPI(params sdkworkspace.ListWorkspacesParams, tenant string) 
 	}
 }
 
-func UpsertParamsFromAPI(params sdkworkspace.CreateOrUpdateWorkspaceParams, tenant string, name string) regional.UpsertParams {
-	var ifUnmodifiedSince int
-	if params.IfUnmodifiedSince != nil {
-		ifUnmodifiedSince = *params.IfUnmodifiedSince
-	}
-
-	return regional.UpsertParams{
-		Scope: scope.Scope{
-			Tenant: tenant,
-		},
-		Name:              name,
-		IfUnmodifiedSince: ifUnmodifiedSince,
-	}
-}
-
 func DomainToAPI(domain *regional.WorkspaceDomain) schema.Workspace {
 	return mapWorkspaceDomainToAPI(*domain, "get")
 }
 
-func APIToDomain(api schema.Workspace, params regional.UpsertParams) *regional.WorkspaceDomain {
-	resourceVersion := ""
-	if params.IfUnmodifiedSince != 0 {
-		resourceVersion = strconv.Itoa(params.IfUnmodifiedSince)
-	}
-
+func APIToDomain(api schema.Workspace, params port.IdentifiableResource) *regional.WorkspaceDomain {
 	return &regional.WorkspaceDomain{
 		Metadata: regional.Metadata{
 			CommonMetadata: model.CommonMetadata{
-				Name:            params.Name,
-				ResourceVersion: resourceVersion,
+				Name:            params.GetName(),
+				ResourceVersion: params.GetVersion(),
 			},
 			Scope: scope.Scope{
-				Tenant: params.GetTenant(),
+				Tenant:    params.GetTenant(),
+				Workspace: params.GetName(),
 			},
 			Annotations: api.Annotations,
 			Labels:      api.Labels,

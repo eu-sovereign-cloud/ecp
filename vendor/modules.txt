@@ -1,4 +1,6 @@
 ## workspace
+# github.com/Masterminds/semver/v3 v3.4.0
+## explicit; go 1.21
 # github.com/apapsch/go-jsonmerge/v2 v2.0.0
 ## explicit; go 1.12
 github.com/apapsch/go-jsonmerge/v2
@@ -15,8 +17,8 @@ github.com/davecgh/go-spew/spew
 ## explicit; go 1.13
 github.com/emicklei/go-restful/v3
 github.com/emicklei/go-restful/v3/log
-# github.com/eu-sovereign-cloud/ecp/foundation/delegator v0.0.0 => ./foundation/delegator
-## explicit; go 1.24
+# github.com/eu-sovereign-cloud/ecp/foundation/api v0.0.1 => ./foundation/api
+## explicit; go 1.24.0
 # github.com/eu-sovereign-cloud/go-sdk v0.3.33
 ## explicit; go 1.24
 github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.compute.v1
@@ -33,7 +35,7 @@ github.com/evanphx/json-patch/v5/internal/json
 ## explicit; go 1.17
 github.com/fatih/color
 # github.com/fsnotify/fsnotify v1.9.0
-## go 1.17
+## explicit; go 1.17
 github.com/fsnotify/fsnotify
 github.com/fsnotify/fsnotify/internal
 # github.com/fxamacker/cbor/v2 v2.9.0
@@ -42,6 +44,10 @@ github.com/fxamacker/cbor/v2
 # github.com/go-logr/logr v1.4.3
 ## explicit; go 1.18
 github.com/go-logr/logr
+github.com/go-logr/logr/slogr
+# github.com/go-logr/zapr v1.3.0
+## explicit; go 1.18
+github.com/go-logr/zapr
 # github.com/go-openapi/jsonpointer v0.21.0
 ## explicit; go 1.20
 github.com/go-openapi/jsonpointer
@@ -70,7 +76,7 @@ github.com/gobwas/glob/util/strings
 github.com/gogo/protobuf/proto
 github.com/gogo/protobuf/sortkeys
 # github.com/google/btree v1.1.3
-## go 1.18
+## explicit; go 1.18
 github.com/google/btree
 # github.com/google/gnostic-models v0.7.0
 ## explicit; go 1.22
@@ -124,6 +130,10 @@ github.com/munnerz/goautoneg
 ## explicit; go 1.20
 github.com/oapi-codegen/runtime
 github.com/oapi-codegen/runtime/types
+# github.com/onsi/ginkgo/v2 v2.25.1
+## explicit; go 1.23.0
+# github.com/onsi/gomega v1.38.1
+## explicit; go 1.24.0
 # github.com/pkg/errors v0.9.1
 ## explicit
 github.com/pkg/errors
@@ -151,8 +161,6 @@ github.com/prometheus/common/model
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
-# github.com/spf13/cobra v1.9.1
-## explicit; go 1.15
 # github.com/spf13/cobra v1.10.1
 ## explicit; go 1.15
 github.com/spf13/cobra
@@ -174,6 +182,20 @@ github.com/x448/float16
 # go.uber.org/mock v0.6.0
 ## explicit; go 1.23.0
 go.uber.org/mock/gomock
+# go.uber.org/multierr v1.11.0
+## explicit; go 1.19
+go.uber.org/multierr
+# go.uber.org/zap v1.27.0
+## explicit; go 1.19
+go.uber.org/zap
+go.uber.org/zap/buffer
+go.uber.org/zap/internal
+go.uber.org/zap/internal/bufferpool
+go.uber.org/zap/internal/color
+go.uber.org/zap/internal/exit
+go.uber.org/zap/internal/pool
+go.uber.org/zap/internal/stacktrace
+go.uber.org/zap/zapcore
 # go.yaml.in/yaml/v2 v2.4.2
 ## explicit; go 1.15
 go.yaml.in/yaml/v2
@@ -241,7 +263,7 @@ golang.org/x/tools/internal/typeparams
 golang.org/x/tools/internal/typesinternal
 golang.org/x/tools/internal/versions
 # gomodules.xyz/jsonpatch/v2 v2.4.0
-## go 1.20
+## explicit; go 1.20
 gomodules.xyz/jsonpatch/v2
 # google.golang.org/protobuf v1.36.7
 ## explicit; go 1.22
@@ -361,7 +383,7 @@ k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset
 k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/scheme
 k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1
 k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1beta1
-# k8s.io/apimachinery v0.34.1
+# k8s.io/apimachinery v0.34.3
 ## explicit; go 1.24.0
 k8s.io/apimachinery/pkg/api/equality
 k8s.io/apimachinery/pkg/api/errors
@@ -671,7 +693,11 @@ k8s.io/client-go/pkg/apis/clientauthentication/install
 k8s.io/client-go/pkg/apis/clientauthentication/v1
 k8s.io/client-go/pkg/apis/clientauthentication/v1beta1
 k8s.io/client-go/pkg/version
+k8s.io/client-go/plugin/pkg/client/auth
+k8s.io/client-go/plugin/pkg/client/auth/azure
 k8s.io/client-go/plugin/pkg/client/auth/exec
+k8s.io/client-go/plugin/pkg/client/auth/gcp
+k8s.io/client-go/plugin/pkg/client/auth/oidc
 k8s.io/client-go/rest
 k8s.io/client-go/rest/watch
 k8s.io/client-go/restmapper
@@ -787,6 +813,7 @@ sigs.k8s.io/controller-runtime/pkg/internal/testing/controlplane
 sigs.k8s.io/controller-runtime/pkg/internal/testing/process
 sigs.k8s.io/controller-runtime/pkg/leaderelection
 sigs.k8s.io/controller-runtime/pkg/log
+sigs.k8s.io/controller-runtime/pkg/log/zap
 sigs.k8s.io/controller-runtime/pkg/manager
 sigs.k8s.io/controller-runtime/pkg/manager/signals
 sigs.k8s.io/controller-runtime/pkg/metrics
@@ -838,4 +865,3 @@ sigs.k8s.io/structured-merge-diff/v6/value
 # sigs.k8s.io/yaml v1.6.0
 ## explicit; go 1.22
 sigs.k8s.io/yaml
-# github.com/eu-sovereign-cloud/ecp/foundation/api v0.0.1 => ./foundation/api

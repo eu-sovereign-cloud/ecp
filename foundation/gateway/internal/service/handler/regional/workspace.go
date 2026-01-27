@@ -3,6 +3,7 @@ package regionalhandler
 import (
 	"log/slog"
 	"net/http"
+	"strconv"
 
 	sdkworkspace "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1"
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
@@ -36,12 +37,18 @@ func (h Workspace) ListWorkspaces(w http.ResponseWriter, r *http.Request, tenant
 func (h Workspace) DeleteWorkspace(
 	w http.ResponseWriter, r *http.Request, tenant schema.TenantPathParam, name schema.ResourcePathParam, params sdkworkspace.DeleteWorkspaceParams,
 ) {
+	var resourceVersion string
+	if params.IfUnmodifiedSince != nil {
+		resourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
+	}
 	ir := &regional.Metadata{
 		Scope: scope.Scope{
-			Tenant: tenant,
+			Tenant:    tenant,
+			Workspace: name,
 		},
 		CommonMetadata: model.CommonMetadata{
-			Name: name,
+			Name:            name,
+			ResourceVersion: resourceVersion,
 		},
 	}
 
@@ -51,7 +58,8 @@ func (h Workspace) DeleteWorkspace(
 func (h Workspace) GetWorkspace(w http.ResponseWriter, r *http.Request, tenant schema.TenantPathParam, name schema.ResourcePathParam) {
 	ir := &regional.Metadata{
 		Scope: scope.Scope{
-			Tenant: tenant,
+			Tenant:    tenant,
+			Workspace: name,
 		},
 		CommonMetadata: model.CommonMetadata{
 			Name: name,
@@ -64,8 +72,22 @@ func (h Workspace) GetWorkspace(w http.ResponseWriter, r *http.Request, tenant s
 func (h Workspace) CreateOrUpdateWorkspace(
 	w http.ResponseWriter, r *http.Request, tenant schema.TenantPathParam, name schema.ResourcePathParam, params sdkworkspace.CreateOrUpdateWorkspaceParams,
 ) {
+	var resourceVersion string
+	if params.IfUnmodifiedSince != nil {
+		resourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
+	}
+
 	upsertOptions := handler.UpsertOptions[schema.Workspace, *regional.WorkspaceDomain, schema.Workspace]{
-		Params:      apiworkspace.UpsertParamsFromAPI(params, tenant, name),
+		Params: &regional.Metadata{
+			Scope: scope.Scope{
+				Tenant:    tenant,
+				Workspace: name,
+			},
+			CommonMetadata: model.CommonMetadata{
+				Name:            name,
+				ResourceVersion: resourceVersion,
+			},
+		},
 		Creator:     h.Create,
 		Updater:     h.Update,
 		SDKToDomain: apiworkspace.APIToDomain,

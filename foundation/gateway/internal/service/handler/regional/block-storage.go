@@ -3,6 +3,7 @@ package regionalhandler
 import (
 	"log/slog"
 	"net/http"
+	"strconv"
 
 	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
@@ -94,18 +95,22 @@ func (h Storage) ListBlockStorages(
 func (h Storage) DeleteBlockStorage(
 	w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam,
 	workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam,
-	_ sdkstorage.DeleteBlockStorageParams,
+	params sdkstorage.DeleteBlockStorageParams,
 ) {
-	handler.HandleDelete(w, r, h.Logger.With("provider", "storage").With("resource", "block-storage"),
-		&regional.Metadata{
-			CommonMetadata: model.CommonMetadata{
-				Name: name,
-			},
-			Scope: scope.Scope{
-				Tenant:    tenant,
-				Workspace: workspace,
-			},
+	metadata := regional.Metadata{
+		CommonMetadata: model.CommonMetadata{
+			Name: name,
 		},
+		Scope: scope.Scope{
+			Tenant:    tenant,
+			Workspace: workspace,
+		},
+	}
+	if params.IfUnmodifiedSince != nil {
+		metadata.ResourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
+	}
+	handler.HandleDelete(w, r, h.Logger.With("provider", "storage").With("resource", "block-storage"),
+		&metadata,
 		h.DeleteStorage,
 	)
 }
@@ -134,20 +139,22 @@ func (h Storage) CreateOrUpdateBlockStorage(
 	workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam,
 	params sdkstorage.CreateOrUpdateBlockStorageParams,
 ) {
-	var ifUnmodifiedSince int
+	var resourceVersion string
 	if params.IfUnmodifiedSince != nil {
-		ifUnmodifiedSince = *params.IfUnmodifiedSince
+		resourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
 	}
 
 	handler.HandleUpsert(w, r, h.Logger.With("provider", "storage").With("resource", "block-storage"),
 		handler.UpsertOptions[sdkschema.BlockStorage, *regional.BlockStorageDomain, *sdkschema.BlockStorage]{
-			Params: regional.UpsertParams{
+			Params: &regional.Metadata{
+				CommonMetadata: model.CommonMetadata{
+					Name:            name,
+					ResourceVersion: resourceVersion,
+				},
 				Scope: scope.Scope{
 					Tenant:    tenant,
 					Workspace: workspace,
 				},
-				Name:              name,
-				IfUnmodifiedSince: ifUnmodifiedSince,
 			},
 			Creator:     h.CreateBlockStorage,
 			Updater:     h.UpdateBlockStorage,

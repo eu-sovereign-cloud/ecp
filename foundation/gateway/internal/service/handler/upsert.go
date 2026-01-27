@@ -10,9 +10,10 @@ import (
 	"log/slog"
 	"net/http"
 
-	apierr "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/errors"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
+
+	apierr "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/errors"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 )
@@ -28,11 +29,11 @@ type Updater[T any] interface {
 }
 
 // SDKToDomain defines the function type for mapping SDK objects to domain objects
-type SDKToDomain[In any, D any] func(sdk In, params regional.UpsertParams) D
+type SDKToDomain[In any, D any] func(sdk In, params port.IdentifiableResource) D
 
 // UpsertOptions contains the configuration for HandleUpsert
 type UpsertOptions[In any, D any, Out any] struct {
-	Params      regional.UpsertParams
+	Params      port.IdentifiableResource
 	Creator     Creator[D]
 	Updater     Updater[D]
 	SDKToDomain SDKToDomain[In, D]
@@ -81,16 +82,25 @@ func HandleUpsert[In any, D any, Out any](
 
 	domainObj := options.SDKToDomain(apiObj, options.Params)
 
-	result, err := options.Creator.Do(r.Context(), domainObj)
-	if err != nil {
-		if !errors.Is(err, model.ErrAlreadyExists) {
-			logger.ErrorContext(r.Context(), "failed to create resource", slog.Any("error", err))
-			apierr.WriteErrorResponse(w, r, logger, err)
-			return
-		}
+	// Determine whether to create or update based on IfUnmodifiedSince header
+	shouldUpdate := options.Params.GetVersion() != ""
 
-		// The resource already exists, so we'll attempt to update it.
-		logger.InfoContext(r.Context(), "resource already exists, attempting update")
+	var result D
+	if !shouldUpdate {
+		result, err = options.Creator.Do(r.Context(), domainObj)
+		if err != nil {
+			if !errors.Is(err, model.ErrAlreadyExists) {
+				logger.ErrorContext(r.Context(), "failed to create resource", slog.Any("error", err))
+				apierr.WriteErrorResponse(w, r, logger, err)
+				return
+			}
+			// Resource already exists, fall through to update
+			logger.InfoContext(r.Context(), "resource already exists, attempting update")
+			shouldUpdate = true
+		}
+	}
+
+	if shouldUpdate {
 		result, err = options.Updater.Do(r.Context(), domainObj)
 		if err != nil {
 			logger.ErrorContext(r.Context(), "failed to update resource", slog.Any("error", err))

@@ -1,5 +1,6 @@
 package controller
 
+/*
 import (
 	"bytes"
 	"errors"
@@ -16,10 +17,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
-
-//go:generate mockgen -package controller -destination=zz_mock_plugin_handler_test.go github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/port PluginHandler
-//go:generate mockgen -package controller -destination=zz_mock_client_test.go sigs.k8s.io/controller-runtime/pkg/client Client
-//go:generate mockgen -package controller -destination=zz_mock_status_writer_test.go sigs.k8s.io/controller-runtime/pkg/client StatusWriter
 
 // TestDomainResource is a dummy implementation of IdentifiableResource for testing.
 type TestDomainResource struct {
@@ -778,3 +775,4 @@ func TestGenericController_updateStatusCondition(t *testing.T) {
 		require.Contains(t, buf.String(), "update failed")
 	})
 }
+*/

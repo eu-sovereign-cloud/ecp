@@ -8,7 +8,7 @@ require (
 	github.com/gobwas/glob v0.2.3
 	github.com/spf13/cobra v1.10.1
 	github.com/stretchr/testify v1.11.1
-	k8s.io/apimachinery v0.34.1
+	k8s.io/apimachinery v0.34.3
 	k8s.io/client-go v0.34.1
 	sigs.k8s.io/controller-runtime v0.22.4
 )

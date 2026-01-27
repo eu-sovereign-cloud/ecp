@@ -1,10 +1,13 @@
 go 1.25.0
 
+toolchain go1.24.10
+
 use (
 	./foundation/api
 	./foundation/delegator
 	./foundation/gateway
 	./foundation/plugin/aruba
+	./foundation/plugin/dummy
 	./foundation/plugin/ionos
 )
 

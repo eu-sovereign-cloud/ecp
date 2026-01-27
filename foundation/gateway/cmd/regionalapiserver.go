@@ -14,17 +14,21 @@ import (
 	"k8s.io/client-go/util/homedir"
 
 	sdkstorageapi "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
+	sdkworkspaceapi "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1"
 
 	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/block-storages/v1"
 	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/skus/v1"
+	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/workspace/v1"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/regional/storage"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/regional/workspace"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/httpserver"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/kubeclient"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/logger"
 	regionalhandler "github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/service/handler/regional"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
 	apistorage "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/storage"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 )
 
 var (
@@ -82,75 +86,125 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		logger.Error("failed to create kubeclient", slog.Any("error", err))
 		log.Fatal(err, " - failed to create kubeclient")
 	}
-	writerAdapter := kubernetes.NewWriterAdapter(
+
+	// Create a shared mux for all regional handlers
+	mux := http.NewServeMux()
+
+	// Block storage writer adapter
+	blockStorageWriterAdapter := kubernetes.NewWriterAdapter(
 		client.Client,
 		blockstoragev1.BlockStorageGVR,
 		logger,
 		kubernetes.MapBlockStorageDomainToCR,
 		kubernetes.MapCRToBlockStorageDomain,
 	)
+	skuReaderAdapter := kubernetes.NewReaderAdapter(
+		client.Client,
+		skuv1.SKUGVR,
+		logger,
+		kubernetes.MapCRToStorageSKUDomain,
+	)
+	storageReaderAdapter := kubernetes.NewReaderAdapter(
+		client.Client,
+		blockstoragev1.BlockStorageGVR,
+		logger,
+		kubernetes.MapCRToBlockStorageDomain,
+	)
+	// Register storage handler
+	sdkstorageapi.HandlerWithOptions(
+		regionalhandler.Storage{
+			ListSKUs: &storage.ListSKUs{
+				Logger:  logger,
+				SKURepo: skuReaderAdapter,
+			},
+			GetSKU: &storage.GetSKU{
+				Logger:  logger,
+				SKURepo: skuReaderAdapter,
+			},
+			ListStorages: &storage.ListBlockStorages{
+				Logger:           logger,
+				BlockStorageRepo: storageReaderAdapter,
+			},
+			GetStorage: &storage.GetBlockStorage{
+				Logger:           logger,
+				BlockStorageRepo: storageReaderAdapter,
+			},
+			CreateBlockStorage: &storage.CreateBlockStorage{
+				Logger:           logger,
+				BlockStorageRepo: blockStorageWriterAdapter,
+			},
+			UpdateBlockStorage: &storage.UpdateBlockStorage{
+				Logger:           logger,
+				BlockStorageRepo: blockStorageWriterAdapter,
+			},
+			DeleteStorage: &storage.DeleteBlockStorage{
+				Logger:           logger,
+				BlockStorageRepo: blockStorageWriterAdapter,
+			},
+			Logger: logger,
+		}, sdkstorageapi.StdHTTPServerOptions{
+			BaseURL:          apistorage.BaseURL,
+			BaseRouter:       mux,
+			Middlewares:      nil,
+			ErrorHandlerFunc: nil,
+		},
+	)
+
+	// Workspace writer adapter that also manages namespace lifecycle
+	workspaceWriterAdapter := kubernetes.NewNamespaceManagingWriterAdapter(
+		client.Client,
+		client.ClientSet,
+		workspacev1.WorkspaceGVR,
+		logger,
+		kubernetes.MapWorkspaceDomainToCR,
+		kubernetes.MapCRToWorkspaceDomain,
+	)
+
+	// Workspace reader adapter
+	workspaceReaderAdapter := kubernetes.NewReaderAdapter(
+		client.Client,
+		workspacev1.WorkspaceGVR,
+		logger,
+		kubernetes.MapCRToWorkspaceDomain,
+	)
+
+	// Register workspace handler
+	sdkworkspaceapi.HandlerWithOptions(
+		regionalhandler.Workspace{
+			Logger: logger,
+			Create: &workspace.CreateWorkspace{
+				Logger: logger,
+				Repo:   workspaceWriterAdapter,
+			},
+			Update: &workspace.UpdateWorkspace{
+				Logger: logger,
+				Repo:   workspaceWriterAdapter,
+			},
+			Delete: &workspace.DeleteWorkspace{
+				Logger: logger,
+				Repo:   workspaceWriterAdapter,
+			},
+			List: &workspace.ListWorkspace{
+				Logger: logger,
+				Repo:   workspaceReaderAdapter,
+			},
+			Get: &workspace.GetWorkspace{
+				Logger: logger,
+				Repo:   workspaceReaderAdapter,
+			},
+		}, sdkworkspaceapi.StdHTTPServerOptions{
+			BaseURL:          regional.WorkspaceBaseURL,
+			BaseRouter:       mux,
+			Middlewares:      nil,
+			ErrorHandlerFunc: nil,
+		},
+	)
+
 	httpServer := httpserver.New(
 		httpserver.Options{
-			Addr: addr,
-			Handler: sdkstorageapi.HandlerWithOptions(
-				regionalhandler.Storage{
-					ListSKUs: &storage.ListSKUs{
-						Logger: logger,
-						SKURepo: kubernetes.NewReaderAdapter(
-							client.Client,
-							skuv1.SKUGVR,
-							logger,
-							kubernetes.MapCRToStorageSKUDomain,
-						),
-					},
-					GetSKU: &storage.GetSKU{
-						Logger: logger,
-						SKURepo: kubernetes.NewReaderAdapter(
-							client.Client,
-							skuv1.SKUGVR,
-							logger,
-							kubernetes.MapCRToStorageSKUDomain,
-						),
-					},
-					ListStorages: &storage.ListBlockStorages{
-						Logger: logger,
-						BlockStorageRepo: kubernetes.NewReaderAdapter(
-							client.Client,
-							blockstoragev1.BlockStorageGVR,
-							logger,
-							kubernetes.MapCRToBlockStorageDomain,
-						),
-					},
-					GetStorage: &storage.GetBlockStorage{
-						Logger: logger,
-						BlockStorageRepo: kubernetes.NewReaderAdapter(
-							client.Client,
-							blockstoragev1.BlockStorageGVR,
-							logger,
-							kubernetes.MapCRToBlockStorageDomain,
-						),
-					},
-					CreateBlockStorage: &storage.CreateBlockStorage{
-						Logger:           logger,
-						BlockStorageRepo: writerAdapter,
-					},
-					UpdateBlockStorage: &storage.UpdateBlockStorage{
-						Logger:           logger,
-						BlockStorageRepo: writerAdapter,
-					},
-					DeleteStorage: &storage.DeleteBlockStorage{
-						Logger:           logger,
-						BlockStorageRepo: writerAdapter,
-					},
-					Logger: logger,
-				}, sdkstorageapi.StdHTTPServerOptions{
-					BaseURL:          apistorage.BaseURL,
-					BaseRouter:       nil,
-					Middlewares:      nil,
-					ErrorHandlerFunc: nil,
-				},
-			),
-			Logger: logger,
+			Addr:    addr,
+			Handler: mux,
+			Logger:  logger,
 		},
 	)
 	if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {

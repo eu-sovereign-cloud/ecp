@@ -17,6 +17,8 @@ func (c *DeleteWorkspace) Do(ctx context.Context, ir port.IdentifiableResource) 
 	domain := &regional.WorkspaceDomain{}
 	domain.Name = ir.GetName()
 	domain.Tenant = ir.GetTenant()
+	domain.ResourceVersion = ir.GetVersion()
+	domain.Workspace = ir.GetWorkspace()
 
 	return c.Repo.Delete(ctx, domain)
 }
