@@ -109,7 +109,7 @@ func (r *GenericRepository[T, L]) Watch(
 	resource T,
 ) (chan T, func(), error) {
 	var informerErr error
-	r.informerOnce.Do(func() {
+	r.informerOnce.Do(func() { //nolint:contextcheck // We want the informer to be alive after the call end.
 		if r.informer == nil {
 			objType := reflect.New(reflect.TypeOf(resource).Elem()).Interface().(T)
 			// The informer is shared across all Watch calls for this repository instance.
@@ -158,7 +158,7 @@ func (r *GenericRepository[T, L]) Watch(
 
 		// 3. Now that no handlers are trying to send, it's safe to remove the
 		//    handler and close the channel.
-		r.informer.RemoveEventHandler(handler)
+		r.informer.RemoveEventHandler(handler) //nolint:errcheck // TODO: better error handling
 		close(out)
 	}()
 
