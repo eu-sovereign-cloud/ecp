@@ -35,6 +35,31 @@ const (
 	GlobalResourceMetadataKindResourceKindWorkspace            GlobalResourceMetadataKind = "workspace"
 )
 
+// Defines values for GlobalTenantResourceMetadataKind.
+const (
+	GlobalTenantResourceMetadataKindResourceKindActivityLog          GlobalTenantResourceMetadataKind = "activity-log"
+	GlobalTenantResourceMetadataKindResourceKindBlockStorage         GlobalTenantResourceMetadataKind = "block-storage"
+	GlobalTenantResourceMetadataKindResourceKindImage                GlobalTenantResourceMetadataKind = "image"
+	GlobalTenantResourceMetadataKindResourceKindInstance             GlobalTenantResourceMetadataKind = "instance"
+	GlobalTenantResourceMetadataKindResourceKindInstanceSku          GlobalTenantResourceMetadataKind = "instance-sku"
+	GlobalTenantResourceMetadataKindResourceKindInternetGateway      GlobalTenantResourceMetadataKind = "internet-gateway"
+	GlobalTenantResourceMetadataKindResourceKindNetwork              GlobalTenantResourceMetadataKind = "network"
+	GlobalTenantResourceMetadataKindResourceKindNetworkLoadBalancer  GlobalTenantResourceMetadataKind = "network-load-balancer"
+	GlobalTenantResourceMetadataKindResourceKindNetworkSku           GlobalTenantResourceMetadataKind = "network-sku"
+	GlobalTenantResourceMetadataKindResourceKindNic                  GlobalTenantResourceMetadataKind = "nic"
+	GlobalTenantResourceMetadataKindResourceKindObjectStorageAccount GlobalTenantResourceMetadataKind = "object-storage-account"
+	GlobalTenantResourceMetadataKindResourceKindPublicIP             GlobalTenantResourceMetadataKind = "public-ip"
+	GlobalTenantResourceMetadataKindResourceKindRegion               GlobalTenantResourceMetadataKind = "region"
+	GlobalTenantResourceMetadataKindResourceKindRole                 GlobalTenantResourceMetadataKind = "role"
+	GlobalTenantResourceMetadataKindResourceKindRoleAssignment       GlobalTenantResourceMetadataKind = "role-assignment"
+	GlobalTenantResourceMetadataKindResourceKindRoutingTable         GlobalTenantResourceMetadataKind = "routing-table"
+	GlobalTenantResourceMetadataKindResourceKindSecurityGroup        GlobalTenantResourceMetadataKind = "security-group"
+	GlobalTenantResourceMetadataKindResourceKindSecurityGroupRule    GlobalTenantResourceMetadataKind = "security-group-rule"
+	GlobalTenantResourceMetadataKindResourceKindStorageSku           GlobalTenantResourceMetadataKind = "storage-sku"
+	GlobalTenantResourceMetadataKindResourceKindSubnet               GlobalTenantResourceMetadataKind = "subnet"
+	GlobalTenantResourceMetadataKindResourceKindWorkspace            GlobalTenantResourceMetadataKind = "workspace"
+)
+
 // Defines values for RegionalNetworkResourceMetadataKind.
 const (
 	RegionalNetworkResourceMetadataKindResourceKindActivityLog          RegionalNetworkResourceMetadataKind = "activity-log"
@@ -137,13 +162,37 @@ const (
 
 // Defines values for ResourceState.
 const (
-	ResourceStateActive    ResourceState = "active"
-	ResourceStateCreating  ResourceState = "creating"
-	ResourceStateDeleting  ResourceState = "deleting"
-	ResourceStateError     ResourceState = "error"
-	ResourceStatePending   ResourceState = "pending"
-	ResourceStateSuspended ResourceState = "suspended"
-	ResourceStateUpdating  ResourceState = "updating"
+	ResourceStateActive   ResourceState = "active"
+	ResourceStateCreating ResourceState = "creating"
+	ResourceStateDeleting ResourceState = "deleting"
+	ResourceStateError    ResourceState = "error"
+	ResourceStatePending  ResourceState = "pending"
+	ResourceStateUpdating ResourceState = "updating"
+)
+
+// Defines values for SkuResourceMetadataKind.
+const (
+	SkuResourceMetadataKindResourceKindActivityLog          SkuResourceMetadataKind = "activity-log"
+	SkuResourceMetadataKindResourceKindBlockStorage         SkuResourceMetadataKind = "block-storage"
+	SkuResourceMetadataKindResourceKindImage                SkuResourceMetadataKind = "image"
+	SkuResourceMetadataKindResourceKindInstance             SkuResourceMetadataKind = "instance"
+	SkuResourceMetadataKindResourceKindInstanceSku          SkuResourceMetadataKind = "instance-sku"
+	SkuResourceMetadataKindResourceKindInternetGateway      SkuResourceMetadataKind = "internet-gateway"
+	SkuResourceMetadataKindResourceKindNetwork              SkuResourceMetadataKind = "network"
+	SkuResourceMetadataKindResourceKindNetworkLoadBalancer  SkuResourceMetadataKind = "network-load-balancer"
+	SkuResourceMetadataKindResourceKindNetworkSku           SkuResourceMetadataKind = "network-sku"
+	SkuResourceMetadataKindResourceKindNic                  SkuResourceMetadataKind = "nic"
+	SkuResourceMetadataKindResourceKindObjectStorageAccount SkuResourceMetadataKind = "object-storage-account"
+	SkuResourceMetadataKindResourceKindPublicIP             SkuResourceMetadataKind = "public-ip"
+	SkuResourceMetadataKindResourceKindRegion               SkuResourceMetadataKind = "region"
+	SkuResourceMetadataKindResourceKindRole                 SkuResourceMetadataKind = "role"
+	SkuResourceMetadataKindResourceKindRoleAssignment       SkuResourceMetadataKind = "role-assignment"
+	SkuResourceMetadataKindResourceKindRoutingTable         SkuResourceMetadataKind = "routing-table"
+	SkuResourceMetadataKindResourceKindSecurityGroup        SkuResourceMetadataKind = "security-group"
+	SkuResourceMetadataKindResourceKindSecurityGroupRule    SkuResourceMetadataKind = "security-group-rule"
+	SkuResourceMetadataKindResourceKindStorageSku           SkuResourceMetadataKind = "storage-sku"
+	SkuResourceMetadataKindResourceKindSubnet               SkuResourceMetadataKind = "subnet"
+	SkuResourceMetadataKindResourceKindWorkspace            SkuResourceMetadataKind = "workspace"
 )
 
 // Defines values for TypeMetadataKind.
@@ -208,15 +257,51 @@ type GlobalResourceMetadata struct {
 	Resource string     `json:"resource"`
 
 	// ResourceVersion Incremented on every modification of the resource. Used for optimistic concurrency control.
-	ResourceVersion int `json:"resourceVersion"`
+	ResourceVersion int64  `json:"resourceVersion"`
+	Verb            string `json:"verb"`
+}
+
+// GlobalResourceMetadataKind Type of the resource
+type GlobalResourceMetadataKind string
+
+// GlobalTenantResourceMetadata defines model for GlobalTenantResourceMetadata.
+type GlobalTenantResourceMetadata struct {
+	// ApiVersion API version of the resource
+	ApiVersion string `json:"apiVersion"`
+
+	// CreatedAt Indicates the time when the resource was created. The field is set by the provider and should not be modified by the user.
+	CreatedAt time.Time `json:"createdAt"`
+
+	// DeletedAt If set, indicates the time when the resource was marked for deletion. Resources with this field set are considered pending deletion.
+	DeletedAt *time.Time `json:"deletedAt,omitempty"`
+
+	// Kind Type of the resource
+	Kind GlobalTenantResourceMetadataKind `json:"kind"`
+
+	// LastModifiedAt Indicates the time when the resource was created or last modified. Field is used for "If-Unmodified-Since" logic for concurrency control. The provider guarantees that a modification on a single resource can happen only once every millisecond.
+	LastModifiedAt time.Time `json:"lastModifiedAt"`
+
+	// Name Resource identifier in dash-case (kebab-case) format. Must start and end with an alphanumeric character.
+	// Can contain lowercase letters, numbers, and hyphens. Multiple segments can be joined with dots.
+	// Each segment follows the same rules.
+	Name     string `json:"name"`
+	Provider string `json:"provider"`
+
+	// Ref Reference to a resource. The reference is represented as the full URN (Uniform Resource Name) name of the resource.
+	// The reference can be used to refer to a resource in other resources.
+	Ref      *Reference `json:"ref,omitempty"`
+	Resource string     `json:"resource"`
+
+	// ResourceVersion Incremented on every modification of the resource. Used for optimistic concurrency control.
+	ResourceVersion int64 `json:"resourceVersion"`
 
 	// Tenant Tenant identifier
 	Tenant string `json:"tenant"`
 	Verb   string `json:"verb"`
 }
 
-// GlobalResourceMetadataKind Type of the resource
-type GlobalResourceMetadataKind string
+// GlobalTenantResourceMetadataKind Type of the resource
+type GlobalTenantResourceMetadataKind string
 
 // Labels User-defined key/value pairs that are mutable and can be used to
 // organize and categorize resources. They can be used to filter resources.
@@ -235,7 +320,7 @@ type ModificationMetadata struct {
 	LastModifiedAt time.Time `json:"lastModifiedAt"`
 
 	// ResourceVersion Incremented on every modification of the resource. Used for optimistic concurrency control.
-	ResourceVersion int `json:"resourceVersion"`
+	ResourceVersion int64 `json:"resourceVersion"`
 }
 
 // NameMetadata Metadata for resource names
@@ -354,7 +439,7 @@ type RegionalNetworkResourceMetadata struct {
 	Resource string `json:"resource"`
 
 	// ResourceVersion Incremented on every modification of the resource. Used for optimistic concurrency control.
-	ResourceVersion int `json:"resourceVersion"`
+	ResourceVersion int64 `json:"resourceVersion"`
 
 	// Tenant Tenant identifier
 	Tenant string `json:"tenant"`
@@ -399,7 +484,7 @@ type RegionalResourceMetadata struct {
 	Resource string `json:"resource"`
 
 	// ResourceVersion Incremented on every modification of the resource. Used for optimistic concurrency control.
-	ResourceVersion int `json:"resourceVersion"`
+	ResourceVersion int64 `json:"resourceVersion"`
 
 	// Tenant Tenant identifier
 	Tenant string `json:"tenant"`
@@ -441,7 +526,7 @@ type RegionalWorkspaceResourceMetadata struct {
 	Resource string `json:"resource"`
 
 	// ResourceVersion Incremented on every modification of the resource. Used for optimistic concurrency control.
-	ResourceVersion int `json:"resourceVersion"`
+	ResourceVersion int64 `json:"resourceVersion"`
 
 	// Tenant Tenant identifier
 	Tenant string `json:"tenant"`
@@ -481,7 +566,6 @@ type ResourceMetadataKind string
 // - active: available for data layer usage
 // - updating: available for data layer usage
 // - deleting: maybe still available for data layer user, can fail any moment
-// - suspended: not available, provider specific behavior (payment issue, user decided to suspend)
 // - error: failed to fulfill the request; would be related to provider issue or customer related input.
 type ResourceState string
 
@@ -495,8 +579,35 @@ type ResponseMetadata struct {
 	Verb      string  `json:"verb"`
 }
 
-// SkuResourceMetadata Metadata for resource names
-type SkuResourceMetadata = NameMetadata
+// SkuResourceMetadata defines model for SkuResourceMetadata.
+type SkuResourceMetadata struct {
+	// ApiVersion API version of the resource
+	ApiVersion string `json:"apiVersion"`
+
+	// Kind Type of the resource
+	Kind SkuResourceMetadataKind `json:"kind"`
+
+	// Name Resource identifier in dash-case (kebab-case) format. Must start and end with an alphanumeric character.
+	// Can contain lowercase letters, numbers, and hyphens. Multiple segments can be joined with dots.
+	// Each segment follows the same rules.
+	Name     string `json:"name"`
+	Provider string `json:"provider"`
+
+	// Ref Reference to a resource. The reference is represented as the full URN (Uniform Resource Name) name of the resource.
+	// The reference can be used to refer to a resource in other resources.
+	Ref *Reference `json:"ref,omitempty"`
+
+	// Region Reference to the region where the resource is located
+	Region   string `json:"region"`
+	Resource string `json:"resource"`
+
+	// Tenant Tenant identifier
+	Tenant string `json:"tenant"`
+	Verb   string `json:"verb"`
+}
+
+// SkuResourceMetadataKind Type of the resource
+type SkuResourceMetadataKind string
 
 // Status Current status of the resource
 type Status struct {
@@ -508,7 +619,6 @@ type Status struct {
 	// - active: available for data layer usage
 	// - updating: available for data layer usage
 	// - deleting: maybe still available for data layer user, can fail any moment
-	// - suspended: not available, provider specific behavior (payment issue, user decided to suspend)
 	// - error: failed to fulfill the request; would be related to provider issue or customer related input.
 	State *ResourceState `json:"state,omitempty"`
 }
@@ -537,7 +647,6 @@ type StatusCondition struct {
 	// - active: available for data layer usage
 	// - updating: available for data layer usage
 	// - deleting: maybe still available for data layer user, can fail any moment
-	// - suspended: not available, provider specific behavior (payment issue, user decided to suspend)
 	// - error: failed to fulfill the request; would be related to provider issue or customer related input.
 	State ResourceState `json:"state"`
 

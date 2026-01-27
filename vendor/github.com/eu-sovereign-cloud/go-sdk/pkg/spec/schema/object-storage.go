@@ -19,7 +19,7 @@ type ObjectStorageAccount struct {
 	Labels Labels `json:"labels,omitempty"`
 
 	// Metadata Metadata for global resources with name, permission, modification, type, and tenant information.
-	Metadata *GlobalResourceMetadata `json:"metadata,omitempty"`
+	Metadata *GlobalTenantResourceMetadata `json:"metadata,omitempty"`
 
 	// Spec The specification of an object storage account, including the region and zone.
 	Spec ObjectStorageAccountSpec `json:"spec"`
