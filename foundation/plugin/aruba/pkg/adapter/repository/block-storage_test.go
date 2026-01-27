@@ -2,6 +2,7 @@ package repository_test
 
 import (
 	"context"
+	"sync"
 	"testing"
 
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
@@ -251,16 +252,20 @@ func TestBlockStorage_WaitUntil(t *testing.T) {
 
 	informer.EXPECT().RemoveEventHandler(gomock.Any()).Return(nil).AnyTimes()
 
+	var errUpdate error
+	var wg sync.WaitGroup
 	informer.EXPECT().
 		AddEventHandler(gomock.Any()).
 		Do(func(handler kcache.ResourceEventHandler) {
 			// Simulate an update event after a short delay
+			wg.Add(1)
 			go func() {
 				// Simulate an update to the BlockStorage
 				updatedStorage := storage.DeepCopy()
 				updatedStorage.Spec.SizeGb = 100
-				require.NoError(t, fakeClient.Update(ctx, updatedStorage), "expected Update to succeed")
+				errUpdate = fakeClient.Update(ctx, updatedStorage)
 				handler.OnUpdate(storage, updatedStorage)
+				wg.Done()
 			}()
 		}).
 		AnyTimes()
@@ -275,5 +280,7 @@ func TestBlockStorage_WaitUntil(t *testing.T) {
 	require.NoError(t, err, "expected WaitUntil to succeed")
 
 	// Verify that the update is received
+	wg.Wait()
 	require.Equal(t, int32(100), out.Spec.SizeGb, "expected to receive updated BlockStorage with SizeGb 100")
+	require.NoError(t, errUpdate, "expected Update to succeed")
 }
