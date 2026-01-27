@@ -69,7 +69,7 @@ func (h *BlockStorageHandler) Delete(ctx context.Context, resource *regional.Blo
 	return h.deleteDelegated.Do(ctx, resource)
 }
 
-// Delete deletes an existing BlockStorageDomain by deleting the corresponding Aruba BlockStorage.
+// IncreaseSize increases the size of an existing BlockStorageDomain by updating the corresponding Aruba BlockStorage.
 func (h *BlockStorageHandler) IncreaseSize(ctx context.Context, resource *regional.BlockStorageDomain) error {
 	return h.increaseSizeDelegated.Do(ctx, resource)
 }
