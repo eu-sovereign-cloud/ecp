@@ -1,5 +1,5 @@
 # Build the manager binary
-FROM golang:1.24-bookworm as builder
+FROM golang:1.24-bookworm AS builder
 
 WORKDIR /workspace
 
