@@ -27,23 +27,35 @@ func (c *BlockStorageConverter) FromSECAToAruba(from *regional.BlockStorageDomai
 		return nil, err //TODO: better error handling
 	}
 
+	tenant := from.Metadata.Scope.Tenant
+	region := from.Metadata.Region
+
+	workspace := ""
+	if from.Metadata.Labels != nil {
+		workspace = from.Metadata.Labels["secapi.cloud/workspace"]
+	}
+
 	return &v1alpha1.BlockStorage{
 		ObjectMeta: v1.ObjectMeta{
-			Name:      from.Name,
+			Name:      from.Metadata.Name,
 			Namespace: c.namespace,
+			Labels: map[string]string{
+				"seca.blockstorage/id": from.Metadata.Name,
+			},
 		},
 		Spec: v1alpha1.BlockStorageSpec{
 			SizeGb: sizeGb,
-			Tenant: from.Spec.SourceImageRef.Tenant,
+			Tenant: tenant,
 			Location: v1alpha1.Location{
-				Value: from.Spec.SourceImageRef.Region,
+				Value: region,
 			},
 			ProjectReference: v1alpha1.ResourceReference{
-				Name: from.Spec.SourceImageRef.Workspace,
+				Name:      workspace,
+				Namespace: c.namespace,
 			},
 
 			DataCenter:    "IT-BG1",
-			BillingPeriod: "Monthly",
+			BillingPeriod: "Hour", // supported values: "Hour", "Month",
 		},
 	}, nil
 

@@ -48,10 +48,10 @@ func (c *WorkspaceProjectConverter) FromSECAToAruba(from *regional.WorkspaceDoma
 			APIVersion: "arubacloud.com/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      from.Workspace,
+			Name:      from.Metadata.Name,
 			Namespace: c.Namespace,
 			Labels: map[string]string{
-				"seca.workspace/id": from.Workspace,
+				"seca.workspace/id": from.Metadata.Name,
 			},
 		},
 		Spec:   spec,
