@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Define a namespace for all resources
+namespace: ecp-dummy-delegator
+
+# List of resources to be applied
+resources:
+  - namespace.yaml
+  - serviceaccount.yaml
+  - clusterrole.yaml
+  - clusterrolebinding.yaml
+  - deployment.yaml
+
+# Parameterization for image
+# To change the image, use the command:
+# kustomize edit set image dummy-delegator-image=my-registry/my-image:my-tag
+images:
+- name: dummy-delegator-image
+  newName: localhost/ecp-dummy-delegator
+  newTag: latest
