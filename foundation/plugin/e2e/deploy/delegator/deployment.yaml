@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dummy-delegator-depl
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dummy-delegator
+  template:
+    metadata:
+      labels:
+        app: dummy-delegator
+    spec:
+      serviceAccountName: delegator-sa
+      containers:
+      - name: manager
+        image: dummy-delegator-image:latest # Kustomize will replace this
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8081
+          name: healthz
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: healthz
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: healthz
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - "ALL"
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
