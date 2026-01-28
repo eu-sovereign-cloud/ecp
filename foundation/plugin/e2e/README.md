@@ -146,4 +146,3 @@ To deploy and test against a remote Kubernetes cluster, ensure you have configur
     make clean-all
     ```
 This will remove all deployments, services, and CRDs that were created.
-

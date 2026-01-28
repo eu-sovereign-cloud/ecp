@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -31,6 +32,8 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(workspacev1.AddToScheme(scheme))
 	utilruntime.Must(storage.AddToScheme(scheme))
+	utilruntime.Must(v1alpha1.AddToScheme(scheme))
+
 }
 
 func main() {
@@ -60,8 +63,8 @@ func main() {
 
 	// 4. Instantiate worksace  and block storage converter
 
-	wc := converter.NewWorkspaceProjectConverter("aruba-system")
-	bc := converter.NewBlockStorageConverter("aruba-system")
+	wc := converter.NewWorkspaceProjectConverter()
+	bc := converter.NewBlockStorageConverter()
 	// 5 . Create workspace and block storage handler
 	wsPlugin := aruba.NewWorkspaceHandler(wr, wc)
 	bsPlugin := aruba.NewBlockStorageHandler(br, bc)
