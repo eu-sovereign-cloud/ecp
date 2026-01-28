@@ -13,6 +13,12 @@ type WorkspaceProjectConverter struct {
 	Namespace string
 }
 
+func NewWorkspaceProjectConverter(namespace string) *WorkspaceProjectConverter {
+	return &WorkspaceProjectConverter{
+		Namespace: namespace,
+	}
+}
+
 func (c *WorkspaceProjectConverter) FromSECAToAruba(from *regional.WorkspaceDomain) (*v1alpha1.Project, error) {
 	spec := v1alpha1.ProjectSpec{}
 

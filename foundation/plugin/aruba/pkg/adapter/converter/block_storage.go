@@ -11,6 +11,13 @@ import (
 )
 
 type BlockStorageConverter struct {
+	namespace string
+}
+
+func NewBlockStorageConverter(namespace string) *BlockStorageConverter {
+	return &BlockStorageConverter{
+		namespace: namespace,
+	}
 }
 
 func (c *BlockStorageConverter) FromSECAToAruba(from *regional.BlockStorageDomain) (*v1alpha1.BlockStorage, error) {
@@ -23,7 +30,7 @@ func (c *BlockStorageConverter) FromSECAToAruba(from *regional.BlockStorageDomai
 	return &v1alpha1.BlockStorage{
 		ObjectMeta: v1.ObjectMeta{
 			Name:      from.Name,
-			Namespace: "default",
+			Namespace: c.namespace,
 		},
 		Spec: v1alpha1.BlockStorageSpec{
 			SizeGb: sizeGb,
