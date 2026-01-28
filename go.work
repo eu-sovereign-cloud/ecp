@@ -8,6 +8,7 @@ use (
 	./foundation/gateway
 	./foundation/plugin/aruba
 	./foundation/plugin/dummy
+	./foundation/plugin/e2e
 	./foundation/plugin/ionos
 )
 
