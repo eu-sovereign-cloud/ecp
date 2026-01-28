@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log/slog"
 	"os"
 	"time"
@@ -12,11 +13,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	e2e "github.com/eu-sovereign-cloud/ecp/foundation/plugin/e2e/pkg/plugin"
-
 	"github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage"
 	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/workspace/v1"
 	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/builder"
+	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/converter"
+	aruba "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/handler"
+	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/repository"
 
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
@@ -50,17 +52,27 @@ func main() {
 		os.Exit(1)
 	}
 
-	// 3. Instantiate e2e plugins
-	bsPlugin := e2e.NewBlockStorage(logger.With("plugin", "blockstorage"))
-	wsPlugin := e2e.NewWorkspace(logger.With("plugin", "workspace"))
+	ctx := context.TODO()
 
-	// 4. Create a plugin set
+	// 3. Instantiate workspace and block storage repository
+	wr := repository.NewProjectRepository(ctx, mgr.GetClient(), mgr.GetCache())
+	br := repository.NewBlockStorageRepository(ctx, mgr.GetClient(), mgr.GetCache())
+
+	// 4. Instantiate worksace  and block storage converter
+
+	wc := converter.NewWorkspaceProjectConverter("aruba-system")
+	bc := converter.NewBlockStorageConverter("aruba-system")
+	// 5 . Create workspace and block storage handler
+	wsPlugin := aruba.NewWorkspaceHandler(wr, wc)
+	bsPlugin := aruba.NewBlockStorageHandler(br, bc)
+
+	// 6. Create a plugin set
 	pluginSet := builder.NewPluginSet(
 		builder.WithBlockStorage(bsPlugin),
 		builder.WithWorkspace(wsPlugin),
 	)
 
-	// 5. Create the controller set
+	// 7. Create the controller set
 	controllerSet, err := builder.NewControllerSet(
 		builder.WithConfig(mgr.GetConfig()),
 		builder.WithClient(mgr.GetClient()),
@@ -68,12 +80,13 @@ func main() {
 		builder.WithLogger(logger.With("component", "controller-set")),
 		builder.WithRequeueAfter(1*time.Second), // TODO: parameter for that
 	)
+
 	if err != nil {
 		logger.Error("unable to create controller set", "error", err)
 		os.Exit(1)
 	}
 
-	// 6. Setup controllers with manager
+	// 8. Setup controllers with manager
 	if err := controllerSet.SetupWithManager(mgr); err != nil {
 		logger.Error("unable to setup controllers with manager", "error", err)
 		os.Exit(1)
@@ -88,7 +101,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	// 7. Start manager
+	// 9. Start manager
 	logger.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		logger.Error("problem running manager", "error", err)
