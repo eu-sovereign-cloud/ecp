@@ -13,6 +13,12 @@ type WorkspaceProjectConverter struct {
 	Namespace string
 }
 
+func NewWorkspaceProjectConverter(namespace string) *WorkspaceProjectConverter {
+	return &WorkspaceProjectConverter{
+		Namespace: namespace,
+	}
+}
+
 func (c *WorkspaceProjectConverter) FromSECAToAruba(from *regional.WorkspaceDomain) (*v1alpha1.Project, error) {
 	spec := v1alpha1.ProjectSpec{}
 
@@ -42,10 +48,10 @@ func (c *WorkspaceProjectConverter) FromSECAToAruba(from *regional.WorkspaceDoma
 			APIVersion: "arubacloud.com/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      from.Workspace,
+			Name:      from.Metadata.Name,
 			Namespace: c.Namespace,
 			Labels: map[string]string{
-				"seca.workspace/id": from.Workspace,
+				"seca.workspace/id": from.Metadata.Name,
 			},
 		},
 		Spec:   spec,

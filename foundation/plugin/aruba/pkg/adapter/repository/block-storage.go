@@ -10,8 +10,8 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/generic/repository"
 )
 
-type StorageRepository = *repository.GenericRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList]
+type BlockStorageRepository = *repository.GenericRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList]
 
-func NewStorageRepository(ctx context.Context, cli client.Client, ca crcache.Cache) StorageRepository {
+func NewBlockStorageRepository(ctx context.Context, cli client.Client, ca crcache.Cache) BlockStorageRepository {
 	return repository.NewGenericRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList](ctx, cli, ca)
 }
