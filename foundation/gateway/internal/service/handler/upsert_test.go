@@ -171,7 +171,7 @@ func TestHandleUpsert(t *testing.T) {
 		updatedDomainObj := TestDomain{ID: "test-resource", Data: "updated-data-from-updater"}
 		outObj := TestOut{ID: "test-resource", Data: "updated-data-from-updater"}
 
-		errAlreadyExists := model.ErrAlreadyExists
+		errAlreadyExists := model.NewError(model.KindAlreadyExists, nil)
 		mockCreator.On("Do", mock.Anything, domainObj).Return(nil, errAlreadyExists)
 		mockUpdater.On("Do", mock.Anything, domainObj).Return(updatedDomainObj, nil)
 
@@ -214,7 +214,7 @@ func TestHandleUpsert(t *testing.T) {
 		inObj := TestIn{Data: "test-data"}
 		domainObj := TestDomain{ID: "test-resource", Data: "test-data"}
 
-		errAlreadyExists := model.ErrAlreadyExists
+		errAlreadyExists := model.NewError(model.KindAlreadyExists, nil)
 		errUpdateFailed := errors.New("update failed")
 		mockCreator.On("Do", mock.Anything, domainObj).Return(nil, errAlreadyExists)
 		mockUpdater.On("Do", mock.Anything, domainObj).Return(nil, errUpdateFailed)
@@ -362,7 +362,7 @@ func TestHandleUpsert(t *testing.T) {
 		inObj := TestIn{Data: "test-data"}
 		domainObj := TestDomain{ID: "test-resource", Data: "test-data"}
 
-		mockCreator.On("Do", mock.Anything, domainObj).Return(nil, model.ErrNotFound)
+		mockCreator.On("Do", mock.Anything, domainObj).Return(nil, model.NewError(model.KindNotFound, nil))
 
 		body, _ := json.Marshal(inObj)
 		req := httptest.NewRequest(http.MethodPut, "/test", bytes.NewReader(body))
@@ -397,7 +397,7 @@ func TestHandleUpsert(t *testing.T) {
 		inObj := TestIn{Data: "test-data"}
 		domainObj := TestDomain{ID: "test-resource", Data: "test-data"}
 
-		mockCreator.On("Do", mock.Anything, domainObj).Return(nil, model.ErrValidation)
+		mockCreator.On("Do", mock.Anything, domainObj).Return(nil, model.NewError(model.KindValidation, nil))
 
 		body, _ := json.Marshal(inObj)
 		req := httptest.NewRequest(http.MethodPut, "/test", bytes.NewReader(body))
@@ -433,8 +433,8 @@ func TestHandleUpsert(t *testing.T) {
 		inObj := TestIn{Data: "test-data"}
 		domainObj := TestDomain{ID: "test-resource", Data: "test-data"}
 
-		mockCreator.On("Do", mock.Anything, domainObj).Return(nil, model.ErrAlreadyExists)
-		mockUpdater.On("Do", mock.Anything, domainObj).Return(nil, model.ErrNotFound)
+		mockCreator.On("Do", mock.Anything, domainObj).Return(nil, model.NewError(model.KindAlreadyExists, nil))
+		mockUpdater.On("Do", mock.Anything, domainObj).Return(nil, model.NewError(model.KindNotFound, nil))
 
 		body, _ := json.Marshal(inObj)
 		req := httptest.NewRequest(http.MethodPut, "/test", bytes.NewReader(body))
@@ -470,8 +470,8 @@ func TestHandleUpsert(t *testing.T) {
 		inObj := TestIn{Data: "test-data"}
 		domainObj := TestDomain{ID: "test-resource", Data: "test-data"}
 
-		mockCreator.On("Do", mock.Anything, domainObj).Return(nil, model.ErrAlreadyExists)
-		mockUpdater.On("Do", mock.Anything, domainObj).Return(nil, model.ErrConflict)
+		mockCreator.On("Do", mock.Anything, domainObj).Return(nil, model.NewError(model.KindAlreadyExists, nil))
+		mockUpdater.On("Do", mock.Anything, domainObj).Return(nil, model.NewError(model.KindConflict, nil))
 
 		body, _ := json.Marshal(inObj)
 		req := httptest.NewRequest(http.MethodPut, "/test", bytes.NewReader(body))
@@ -508,8 +508,8 @@ func TestHandleUpsert(t *testing.T) {
 		inObj := TestIn{Data: "test-data"}
 		domainObj := TestDomain{ID: "test-resource", Data: "test-data"}
 
-		mockCreator.On("Do", mock.Anything, domainObj).Return(nil, model.ErrAlreadyExists)
-		mockUpdater.On("Do", mock.Anything, domainObj).Return(nil, model.ErrValidation)
+		mockCreator.On("Do", mock.Anything, domainObj).Return(nil, model.NewError(model.KindAlreadyExists, nil))
+		mockUpdater.On("Do", mock.Anything, domainObj).Return(nil, model.NewError(model.KindValidation, nil))
 
 		body, _ := json.Marshal(inObj)
 		req := httptest.NewRequest(http.MethodPut, "/test", bytes.NewReader(body))

@@ -2,7 +2,7 @@ package errors
 
 import (
 	"encoding/json"
-	stderrors "errors"
+	"errors"
 	"log/slog"
 	"net/http"
 
@@ -12,21 +12,20 @@ import (
 
 // Sentinel errors for http handlers
 var (
-	ErrBadRequest         = stderrors.New("bad request")
-	ErrPreconditionFailed = stderrors.New("precondition failed")
+	ErrBadRequest         = errors.New("bad request")
+	ErrPreconditionFailed = errors.New("precondition failed")
 )
 
-// DomainToSDKError converts a pure domain error to an RFC 7807 SDK error
-// This is the adapter's responsibility - mapping domain to protocol
+// DomainToSDKError converts a domain error to an RFC 7807 SDK error.
+// This is the adapter's responsibility - mapping domain to protocol.
 func DomainToSDKError(err error, requestPath string) schema.Error {
-	// Check for domain ValidationError with field information
-	var validationErr *model.ValidationError
-	if stderrors.As(err, &validationErr) {
-		return convertValidationError(validationErr, requestPath)
+	// Check for domain Error with rich context
+	if domainErr := model.AsError(err); domainErr != nil {
+		return convertDomainError(domainErr, requestPath)
 	}
 
-	// Map domain errors to HTTP responses
-	status, title, errorType := mapDomainErrorToHTTP(err)
+	// Map non-domain errors to HTTP responses
+	status, title, errorType := mapErrorToHTTP(err)
 
 	sdkErr := schema.Error{
 		Type:     string(errorType),
@@ -43,58 +42,59 @@ func DomainToSDKError(err error, requestPath string) schema.Error {
 	return sdkErr
 }
 
-// convertValidationError converts domain ValidationError to SDK error with sources
-func convertValidationError(domainErr *model.ValidationError, requestPath string) schema.Error {
+// convertDomainError converts a domain Error to SDK error with full context.
+func convertDomainError(domainErr *model.Error, requestPath string) schema.Error {
+	status, title, errorType := mapKindToHTTP(domainErr.Kind)
+
 	sdkErr := schema.Error{
-		Type:     string(schema.ErrorTypeValidationError),
-		Title:    "Unprocessable Entity",
-		Status:   float32(http.StatusUnprocessableEntity),
+		Type:     string(errorType),
+		Title:    title,
+		Status:   float32(status),
 		Instance: requestPath,
+		Detail:   domainErr.Error(),
 	}
 
-	sdkErr.Detail = domainErr.Error()
-
-	// Convert domain field name to JSON pointer
-	if domainErr.Field != "" {
-		sdkErr.Sources = []schema.ErrorSource{
-			{
-				Pointer:   toJSONPointer(domainErr.Field),
-				Parameter: domainErr.Field,
-			},
+	// Convert domain sources to SDK sources
+	if len(domainErr.Sources) > 0 {
+		sdkErr.Sources = make([]schema.ErrorSource, len(domainErr.Sources))
+		for i, src := range domainErr.Sources {
+			sdkErr.Sources[i] = schema.ErrorSource{
+				Pointer:   src.Name,
+				Parameter: src.Value,
+			}
 		}
 	}
 
 	return sdkErr
 }
 
-// toJSONPointer converts a domain field name to a JSON Pointer
-// This is an adapter concern - mapping domain concepts to SDK format
-func toJSONPointer(fieldName string) string {
-	// Simple conversion: "Size" -> "/spec/size"
-	// In real implementation, this would use proper field mapping
-	return "/spec/" + fieldName
+// mapKindToHTTP maps domain error kinds to HTTP status, title, and type.
+func mapKindToHTTP(kind model.ErrKind) (int, string, schema.ErrorType) {
+	switch kind {
+	case model.KindForbidden:
+		return http.StatusForbidden, "Forbidden", schema.ErrorTypeForbidden
+	case model.KindNotFound:
+		return http.StatusNotFound, "Not Found", schema.ErrorTypeResourceNotFound
+	case model.KindConflict, model.KindAlreadyExists:
+		return http.StatusConflict, "Conflict", schema.ErrorTypeResourceConflict
+	case model.KindValidation:
+		return http.StatusUnprocessableEntity, "Unprocessable Entity", schema.ErrorTypeValidationError
+	case model.KindUnavailable:
+		return http.StatusInternalServerError, "Service Unavailable", schema.ErrorTypeInternalServerError
+	default:
+		return http.StatusInternalServerError, "Internal Server Error", schema.ErrorTypeInternalServerError
+	}
 }
 
-// mapDomainErrorToHTTP maps domain errors to HTTP status, title, and type
-func mapDomainErrorToHTTP(err error) (int, string, schema.ErrorType) {
+// mapErrorToHTTP maps non-domain errors to HTTP status, title, and type.
+func mapErrorToHTTP(err error) (int, string, schema.ErrorType) {
 	switch {
-	case stderrors.Is(err, model.ErrForbidden):
-		return http.StatusForbidden, "Forbidden", schema.ErrorTypeForbidden
-	case stderrors.Is(err, model.ErrNotFound):
-		return http.StatusNotFound, "Not Found", schema.ErrorTypeResourceNotFound
-	case stderrors.Is(err, model.ErrAlreadyExists), stderrors.Is(err, model.ErrConflict):
-		return http.StatusConflict, "Conflict", schema.ErrorTypeResourceConflict
-	case stderrors.Is(err, model.ErrValidation):
-		return http.StatusUnprocessableEntity, "Unprocessable Entity", schema.ErrorTypeValidationError
-	case stderrors.Is(err, model.ErrUnavailable):
-		return http.StatusInternalServerError, "Service Unavailable", schema.ErrorTypeInternalServerError
-	// errors generated by the http handlers
-	case stderrors.Is(err, ErrBadRequest):
+	case errors.Is(err, ErrBadRequest):
 		return http.StatusBadRequest, "Bad Request", schema.ErrorTypeInvalidRequest
-	case stderrors.Is(err, ErrPreconditionFailed):
-		return http.StatusBadRequest, "PreconditionFailed", schema.ErrorTypePreconditionFailed
+	case errors.Is(err, ErrPreconditionFailed):
+		return http.StatusPreconditionFailed, "Precondition Failed", schema.ErrorTypePreconditionFailed
 	default:
-		return http.StatusInternalServerError, "Service Unavailable", schema.ErrorTypeInternalServerError
+		return http.StatusInternalServerError, "Internal Server Error", schema.ErrorTypeInternalServerError
 	}
 }
 
@@ -115,7 +115,6 @@ func WriteErrorResponse(w http.ResponseWriter, r *http.Request, logger *slog.Log
 
 	if encodeErr := json.NewEncoder(w).Encode(sdkError); encodeErr != nil {
 		logger.ErrorContext(r.Context(), "failed to encode error response", slog.Any("error", encodeErr))
-		// Fallback to plain text error
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 	}
 }
