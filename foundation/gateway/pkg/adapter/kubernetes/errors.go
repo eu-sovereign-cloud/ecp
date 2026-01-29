@@ -5,9 +5,8 @@ import (
 	kerrs "k8s.io/apimachinery/pkg/api/errors"
 )
 
-// adapterToDomainError converts a Kubernetes API error to a domain Error.
-// It maps Kubernetes error types to the appropriate domain error kinds.
-func adapterToDomainError(err error) *model.Error {
+// kubeToDomainError converts a Kubernetes API error to a domain Error.
+func kubeToDomainError(err error) *model.Error {
 	if err == nil {
 		return nil
 	}
@@ -16,7 +15,7 @@ func adapterToDomainError(err error) *model.Error {
 	return model.NewError(kind, err)
 }
 
-// k8sToDomainErrorKind determines the domain error kind from a Kubernetes error.
+// k8sToDomainErrorKind maps the standard Kubernetes error values to domain error kinds.
 func k8sToDomainErrorKind(err error) model.ErrKind {
 	switch {
 	case kerrs.IsNotFound(err):

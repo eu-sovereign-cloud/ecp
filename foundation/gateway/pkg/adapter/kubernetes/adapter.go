@@ -226,7 +226,7 @@ func (a *ReaderAdapter[T]) List(ctx context.Context, params model.ListParams, li
 	ulist, err := ri.List(ctx, lo)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to list resources", "resource", a.gvr.Resource, "error", err)
-		return nil, adapterToDomainError(err)
+		return nil, kubeToDomainError(err)
 	}
 
 	// Apply client-side filtering for selectors not handled by the API
@@ -236,7 +236,7 @@ func (a *ReaderAdapter[T]) List(ctx context.Context, params model.ListParams, li
 			matched, k8sHandled, err := filter.MatchLabels(item.GetLabels(), params.Selector)
 			if err != nil {
 				a.logger.ErrorContext(ctx, "label filter evaluation failed", "resource", a.gvr.Resource, "item", item.GetName(), "error", err)
-				return nil, model.NewError(model.KindValidation, err)
+				return nil, model.NewError(model.KindValidation, err).WithSource("selector", params.Selector)
 			}
 			if k8sHandled { // The filter was fully handled by the K8s API
 				filteredItems = ulist.Items
@@ -274,7 +274,7 @@ func (a *ReaderAdapter[T]) Load(ctx context.Context, obj *T) error {
 	uobj, err := ri.Get(ctx, v.GetName(), metav1.GetOptions{})
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to get resource", "name", v.GetName(), "resource", a.gvr.Resource, "error", err)
-		return adapterToDomainError(err)
+		return kubeToDomainError(err)
 	}
 	converted, err := a.k8sToDomain(uobj)
 	if err != nil {
@@ -298,7 +298,7 @@ func (a *WriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
 	ures, err := ri.Create(ctx, uobj, metav1.CreateOptions{})
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to create resource", "name", m.GetName(), "resource", a.gvr.Resource, "error", err)
-		return nil, adapterToDomainError(err)
+		return nil, kubeToDomainError(err)
 	}
 
 	res, err := a.k8sToDomain(ures)
@@ -352,7 +352,7 @@ func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
 		})
 
 		if updateErr != nil {
-			return nil, adapterToDomainError(updateErr)
+			return nil, kubeToDomainError(updateErr)
 		}
 		res, err := a.k8sToDomain(ures)
 		if err != nil {
@@ -375,7 +375,7 @@ func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
 		return updateErr
 	})
 	if updateSpecErr != nil {
-		return nil, adapterToDomainError(updateSpecErr)
+		return nil, kubeToDomainError(updateSpecErr)
 	}
 
 	statusUpdateObj := &unstructured.Unstructured{
@@ -397,7 +397,7 @@ func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
 		return updateErr
 	})
 	if updateStatusErr != nil {
-		return nil, adapterToDomainError(updateStatusErr)
+		return nil, kubeToDomainError(updateStatusErr)
 	}
 
 	finalUobj, getErr := ri.Get(ctx, m.GetName(), metav1.GetOptions{})
@@ -424,7 +424,7 @@ func (a *WriterAdapter[T]) Delete(ctx context.Context, m T) error {
 	err := ri.Delete(ctx, m.GetName(), deleteOptions)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to delete resource", "name", m.GetName(), "resource", a.gvr.Resource, "error", err)
-		return adapterToDomainError(err)
+		return kubeToDomainError(err)
 	}
 
 	return nil
