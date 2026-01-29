@@ -1,7 +1,9 @@
 #!/bin/bash
-set -eo pipefail
+source "$(dirname "$0")/common.sh"
 
-CLUSTER_NAME=${CLUSTER_NAME:-"dummy-delegator-cluster"}
+export USE_KIND=true
+setup_kube_vars
+
 
 echo "Deleting KIND cluster '${CLUSTER_NAME}'..."
 kind delete cluster --name "${CLUSTER_NAME}"

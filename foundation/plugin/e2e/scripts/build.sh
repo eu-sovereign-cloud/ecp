@@ -1,21 +1,28 @@
 #!/bin/bash
-set -eo pipefail
+source "$(dirname "$0")/common.sh"
 
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+setup_env
+check_component_arg "$1"
+source_config
+setup_registry_vars "$1"
 
-IMG=${IMG:-"ecp-e2e-delegator"}
-VERSION=${VERSION:-"latest"}
+FULL_IMAGE_NAME=$IMAGE_NAME
 
-if [ -n "$REGISTRY" ]; then
-    IMAGE_NAME="${REGISTRY}/${IMG}:${VERSION}"
-else
-    IMAGE_NAME="${IMG}:${VERSION}"
+# Generate the local tag for KIND
+USE_KIND=true setup_registry_vars "$1"
+LOCAL_IMAGE_NAME=$IMAGE_NAME
+
+DOCKER_BUILD_CONTEXT="${SCRIPT_DIR}/../../../.."
+DOCKERFILE_PATH="${SCRIPT_DIR}/../build/${COMPONENT}/Dockerfile"
+
+# Build with the full name
+docker build -t "${FULL_IMAGE_NAME}" -f "${DOCKERFILE_PATH}" "${DOCKER_BUILD_CONTEXT}"
+echo "Image built: ${FULL_IMAGE_NAME}"
+
+# Re-tag for local/KIND use if the names are different
+if [ "${FULL_IMAGE_NAME}" != "${LOCAL_IMAGE_NAME}" ]; then
+    docker tag "${FULL_IMAGE_NAME}" "${LOCAL_IMAGE_NAME}"
+    echo "Image also tagged as: ${LOCAL_IMAGE_NAME}"
 fi
 
 
-DOCKER_BUILD_CONTEXT="${SCRIPT_DIR}/../../../.."
-DOCKERFILE_PATH="${SCRIPT_DIR}/../build/Dockerfile"
-
-docker build -t "${IMAGE_NAME}" -f "${DOCKERFILE_PATH}" "${DOCKER_BUILD_CONTEXT}"
-
-echo "Image built: ${IMAGE_NAME}"
