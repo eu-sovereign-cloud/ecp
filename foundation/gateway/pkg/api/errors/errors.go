@@ -72,15 +72,15 @@ func convertDomainError(domainErr *model.Error, requestPath string) schema.Error
 func mapKindToHTTP(kind model.ErrKind) (int, string, schema.ErrorType) {
 	switch kind {
 	case model.KindForbidden:
-		return http.StatusForbidden, "Forbidden", schema.ErrorTypeForbidden
+		return http.StatusForbidden, model.KindForbidden.String(), schema.ErrorTypeForbidden
 	case model.KindNotFound:
-		return http.StatusNotFound, "Not Found", schema.ErrorTypeResourceNotFound
+		return http.StatusNotFound, model.KindNotFound.String(), schema.ErrorTypeResourceNotFound
 	case model.KindConflict, model.KindAlreadyExists:
-		return http.StatusConflict, "Conflict", schema.ErrorTypeResourceConflict
+		return http.StatusConflict, model.KindConflict.String(), schema.ErrorTypeResourceConflict
 	case model.KindValidation:
-		return http.StatusUnprocessableEntity, "Unprocessable Entity", schema.ErrorTypeValidationError
+		return http.StatusUnprocessableEntity, model.KindValidation.String(), schema.ErrorTypeValidationError
 	case model.KindUnavailable:
-		return http.StatusInternalServerError, "Service Unavailable", schema.ErrorTypeInternalServerError
+		return http.StatusInternalServerError, model.KindUnavailable.String(), schema.ErrorTypeInternalServerError
 	default:
 		return http.StatusInternalServerError, "Internal Server Error", schema.ErrorTypeInternalServerError
 	}
