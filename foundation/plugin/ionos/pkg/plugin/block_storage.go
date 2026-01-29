@@ -9,9 +9,11 @@ import (
 	ionosv1alpha1 "github.com/ionos-cloud/provider-upjet-ionoscloud/apis/namespaced/compute/v1alpha1"
 	"k8s.io/utils/ptr"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	delegator "github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/port"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 )
 
@@ -42,7 +44,10 @@ func (b *BlockStorage) Create(ctx context.Context, resource *regional.BlockStora
 			},
 			ManagedResourceSpec: v2.ManagedResourceSpec{
 				ProviderConfigReference: &v1.ProviderConfigReference{
+					// todo move back to namespaced provider config once we can create users/tenants
+					// which should create a namespaced provider config per workspace
 					Name: ProviderConfigName,
+					Kind: "ClusterProviderConfig",
 				},
 			},
 		},
@@ -68,14 +73,27 @@ func (b *BlockStorage) Delete(ctx context.Context, resource *regional.BlockStora
 		},
 	}
 
-	err := b.client.Delete(ctx, volume)
-	if err != nil {
-		b.logger.Error("failed to delete volume", "error", err)
+	if err := b.client.Get(ctx, client.ObjectKeyFromObject(volume), volume); err != nil {
+		if apierrors.IsNotFound(err) {
+			b.logger.Info("volume already gone", "volume_name", volume.Name)
+			return nil
+		}
+		b.logger.Error("failed to get volume before delete", "error", err)
 		return err
 	}
 
-	b.logger.Info("volume deleted successfully", "volume_name", volume.Name)
-	return nil
+	if volume.GetDeletionTimestamp().IsZero() {
+		b.logger.Info("deleting volume", "volume_name", volume.Name)
+		if err := b.client.Delete(ctx, volume); err != nil {
+			if !apierrors.IsNotFound(err) {
+				b.logger.Error("failed to delete volume", "error", err)
+				return err
+			}
+		}
+	}
+
+	b.logger.Info("waiting for volume deletion", "volume_name", volume.Name)
+	return delegator.ErrStillProcessing
 }
 
 func (b *BlockStorage) IncreaseSize(ctx context.Context, resource *regional.BlockStorageDomain) error {

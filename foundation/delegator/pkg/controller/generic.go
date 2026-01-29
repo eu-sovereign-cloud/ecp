@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"time"
 
@@ -58,26 +59,64 @@ func (r *GenericController[D]) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
+const finalizerName = "secapi.cloud.foundation/cleanup"
+
 // Reconcile implements the reconcile.Reconciler interface.
 func (r *GenericController[D]) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := r.logger.With("resource", req.NamespacedName)
 
 	// 1. Fetch the K8s object
-	// We use DeepCopyObject to create a new instance of the prototype to ensure
-	// we have a clean object to unmarshal into.
-	// K is constrained by client.Object, so the assertion is safe at runtime
-	// as long as the prototype is a pointer to a struct that implements client.Object.
 	obj := r.prototype.DeepCopyObject().(client.Object)
 	if err := r.client.Get(ctx, req.NamespacedName, obj); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	// 2. Convert to Domain object
+	// 2. Handle finalizers
+	if obj.GetDeletionTimestamp().IsZero() {
+		// Resource is not being deleted, ensure finalizer exists
+		if !containsString(obj.GetFinalizers(), finalizerName) {
+			obj.SetFinalizers(append(obj.GetFinalizers(), finalizerName))
+			if err := r.client.Update(ctx, obj); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+	} else {
+		// Resource is being deleted
+		if containsString(obj.GetFinalizers(), finalizerName) {
+			// 3. Convert to Domain object for cleanup
+			domainResource, err := r.k8sToDomain(obj)
+			if err != nil {
+				logger.Error("failed to convert k8s object to domain resource during deletion", "error", err)
+				return ctrl.Result{}, err
+			}
+
+			// 4. Delegate to the specific handler for cleanup
+			requeue, err := r.handler.HandleReconcile(ctx, domainResource)
+			if err != nil {
+				if errors.Is(err, delegator.ErrStillProcessing) {
+					return ctrl.Result{RequeueAfter: r.requeueAfter}, nil
+				}
+				logger.Error("handler failed to cleanup resource", "error", err)
+				return ctrl.Result{RequeueAfter: r.requeueAfter}, err
+			}
+
+			if requeue {
+				return ctrl.Result{RequeueAfter: r.requeueAfter}, nil
+			}
+
+			// Cleanup complete, remove finalizer
+			obj.SetFinalizers(removeString(obj.GetFinalizers(), finalizerName))
+			if err := r.client.Update(ctx, obj); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+		return ctrl.Result{}, nil
+	}
+
+	// 5. Convert to Domain object for normal reconciliation
 	domainResource, err := r.k8sToDomain(obj)
 	if err != nil {
-		// If conversion fails, it's likely a permanent error (e.g. invalid data in CRD
-		// that passed schema validation but failed domain validation).
-		// We log it and update the status, but do not requeue to avoid hot loops.
+		// If conversion fails, it's likely a permanent error
 		logger.Error("failed to convert k8s object to domain resource", "error", err)
 
 		r.updateStatusCondition(ctx, obj, metav1.Condition{
@@ -91,9 +130,12 @@ func (r *GenericController[D]) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{}, nil
 	}
 
-	// 3. Delegate to the specific handler
+	// 6. Delegate to the specific handler
 	requeue, err := r.handler.HandleReconcile(ctx, domainResource)
 	if err != nil {
+		if errors.Is(err, delegator.ErrStillProcessing) {
+			return ctrl.Result{RequeueAfter: r.requeueAfter}, nil
+		}
 		logger.Error("handler failed to reconcile", "error", err)
 		return ctrl.Result{RequeueAfter: r.requeueAfter}, err
 	}
@@ -103,6 +145,26 @@ func (r *GenericController[D]) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 
 	return ctrl.Result{}, nil
+}
+
+func containsString(slice []string, s string) bool {
+	for _, item := range slice {
+		if item == s {
+			return true
+		}
+	}
+	return false
+}
+
+func removeString(slice []string, s string) []string {
+	result := []string{}
+	for _, item := range slice {
+		if item == s {
+			continue
+		}
+		result = append(result, item)
+	}
+	return result
 }
 
 func (r *GenericController[D]) updateStatusCondition(ctx context.Context, obj client.Object, condition metav1.Condition) {

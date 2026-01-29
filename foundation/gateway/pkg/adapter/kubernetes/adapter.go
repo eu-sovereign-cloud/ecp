@@ -345,9 +345,8 @@ func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
 
 	// Determine if a status update is intended by checking for meaningful status data.
 	desiredStatus, statusExists, _ := unstructured.NestedMap(uobj.Object, "status")
-	conditions, conditionsExist, _ := unstructured.NestedSlice(desiredStatus, "conditions")
 
-	if !statusExists || !conditionsExist || len(conditions) == 0 {
+	if !statusExists {
 		// --- PATH A: Spec-only update (or status without conditions) ---
 		var ures *unstructured.Unstructured
 		updateErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {

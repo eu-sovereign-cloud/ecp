@@ -17,6 +17,8 @@ import (
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
+
+	delegator "github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/port"
 )
 
 const ProviderConfigName = "cluster-ionos-provider-config"
@@ -107,53 +109,28 @@ func (w *Workspace) Delete(ctx context.Context, resource *regional.WorkspaceDoma
 
 	key := client.ObjectKey{Name: resource.GetName(), Namespace: ns}
 
-	// Issue a delete to ensure Crossplane starts finalization / external cleanup.
 	datacenter := &ionosv1alpha1.Datacenter{}
 	if err := w.client.Get(ctx, key, datacenter); err != nil {
 		if apierrors.IsNotFound(err) {
-			// Already gone.
+			// finally
+			w.logger.Info("datacenter already gone", "namespace", ns, "datacenter_name", resource.GetName())
 			return nil
 		}
 		w.logger.Error("failed to get datacenter before delete", "error", err)
 		return err
 	}
-	datacenter.SetConditions(v1.Deleting())
-	if err := w.client.Delete(ctx, datacenter); err != nil {
-		// If it's already gone, treat as success.
-		if !apierrors.IsNotFound(err) {
-			w.logger.Error("failed to delete datacenter", "error", err)
-			return err
+
+	if datacenter.GetDeletionTimestamp().IsZero() {
+		datacenter.SetConditions(v1.Deleting())
+		w.logger.Info("deleting datacenter", "namespace", ns, "datacenter_name", resource.GetName())
+		if err := w.client.Delete(ctx, datacenter); err != nil {
+			if !apierrors.IsNotFound(err) {
+				w.logger.Error("failed to delete datacenter", "error", err)
+				return err
+			}
 		}
 	}
 
-	// const (
-	// 	pollEvery     = 2 * time.Second
-	// 	deleteTimeout = 10 * time.Minute
-	// )
-	//
-	// // Wait until the Datacenter resource is fully removed from the API.
-	// // This implicitly waits for Crossplane finalizers (e.g. finalizer.managedresource.crossplane.io)
-	// // to complete and thus also blocks Workspace/namespace deletion until external cleanup is done.
-	// if err := wait.PollUntilContextTimeout(ctx, pollEvery, deleteTimeout, true, func(ctx context.Context) (bool, error) {
-	// 	err := w.client.Get(ctx, key, &ionosv1alpha1.Datacenter{})
-	// 	if apierrors.IsNotFound(err) {
-	// 		return true, nil
-	// 	}
-	// 	if err != nil {
-	// 		return false, err
-	// 	}
-	// 	w.logger.Info("waiting for datacenter deletion", "namespace", ns, "datacenter_name", resource.GetName())
-	// 	return false, nil
-	// }); err != nil {
-	// 	// Make timeouts explicit; these typically mean Crossplane/provider couldn't remove finalizers.
-	// 	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, wait.ErrWaitTimeout) {
-	// 		w.logger.Error("timed out waiting for datacenter deletion (likely stuck on Crossplane finalizer)", "namespace", ns, "datacenter_name", resource.GetName(), "error", err)
-	// 		return err
-	// 	}
-	// 	w.logger.Error("failed while waiting for datacenter deletion", "error", err)
-	// 	return err
-	// }
-
-	w.logger.Info("datacenter deleted successfully", "namespace", ns, "datacenter_name", resource.GetName())
-	return nil
+	w.logger.Info("waiting for datacenter deletion", "namespace", ns, "datacenter_name", resource.GetName())
+	return delegator.ErrStillProcessing
 }
