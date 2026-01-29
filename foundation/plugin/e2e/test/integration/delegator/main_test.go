@@ -8,7 +8,6 @@ import (
 	"log"
 	"log/slog"
 	"os"
-	"os/exec"
 	"testing"
 	"time"
 
@@ -31,7 +30,7 @@ import (
 )
 
 const (
-	testNamespace = "ecp-dummy-delegator"
+	testNamespace = "e2e-ecp"
 	pollInterval  = 5 * time.Second
 	timeout       = 2 * time.Minute
 )
@@ -45,12 +44,6 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	//
-	// Given a running KIND cluster
-	if err := setup(); err != nil {
-		log.Fatalf("Failed to setup integration tests: %v", err)
-	}
-
 	// Initialize k8s scheme for client-go
 	s := runtime.NewScheme()
 	utilruntime.Must(scheme.AddToScheme(s))
@@ -104,37 +97,22 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Failed to wait for namespace %s: %v", testNamespace, err)
 	}
 
-	if err := createTestNamespaces(context.Background()); err != nil {
+	// Define and create namespaces for test resources
+	namespacesToCreate := []string{
+		kubernetesadapter.ComputeNamespace(&scope.Scope{Tenant: "test-tenant"}),
+		kubernetesadapter.ComputeNamespace(&scope.Scope{Tenant: "test-tenant", Workspace: "test-workspace"}),
+	}
+	if err := createTestNamespaces(context.Background(), namespacesToCreate); err != nil {
 		log.Fatalf("Failed to create test namespaces: %v", err)
 	}
 
-	//
 	// When running the test suite
 	code := m.Run()
 
-	//
-	// Then teardown the cluster
-	if err := teardown(); err != nil {
-		log.Printf("Failed to teardown integration tests: %v", err)
-	}
+	// Manually clean up namespaces after tests are done
+	cleanupTestNamespaces(context.Background(), namespacesToCreate)
 
 	os.Exit(code)
-}
-
-func setup() error {
-	log.Println("Setting up KIND cluster for integration tests...")
-	cmd := exec.Command("make", "-C", "../../", "kind-start")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
-}
-
-func teardown() error {
-	log.Println("Tearing down KIND cluster...")
-	cmd := exec.Command("make", "-C", "../../", "kind-stop")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
 }
 
 func waitForNamespace(ctx context.Context, namespace string) error {
@@ -153,13 +131,8 @@ func waitForNamespace(ctx context.Context, namespace string) error {
 	})
 }
 
-func createTestNamespaces(ctx context.Context) error {
+func createTestNamespaces(ctx context.Context, nsToCreate []string) error {
 	log.Println("Creating test namespaces...")
-	nsToCreate := []string{
-		kubernetesadapter.ComputeNamespace(&scope.Scope{Tenant: "test-tenant"}),
-		kubernetesadapter.ComputeNamespace(&scope.Scope{Tenant: "test-tenant", Workspace: "test-workspace"}),
-	}
-
 	for _, nsName := range nsToCreate {
 		ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: nsName}}
 		if err := k8sClient.Create(ctx, ns); err != nil && !kerrors.IsAlreadyExists(err) {
@@ -168,4 +141,17 @@ func createTestNamespaces(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func cleanupTestNamespaces(ctx context.Context, nsToDelete []string) {
+	log.Println("Cleaning up test namespaces...")
+	for _, nsName := range nsToDelete {
+		ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: nsName}}
+		// Use a short timeout for deletion to avoid hanging
+		deleteCtx, cancel := context.WithTimeout(ctx, 1*time.Minute)
+		defer cancel()
+		if err := k8sClient.Delete(deleteCtx, ns); err != nil && !kerrors.IsNotFound(err) {
+			log.Printf("Failed to delete namespace %s: %v", nsName, err)
+		}
+	}
 }
