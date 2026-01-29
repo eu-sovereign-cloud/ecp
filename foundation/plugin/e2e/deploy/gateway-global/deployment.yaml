@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway-global-depl
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gateway-global
+  template:
+    metadata:
+      labels:
+        app: gateway-global
+    spec:
+      serviceAccountName: gateway-global-sa
+      imagePullSecrets:
+      - name: gateway-global-registry-secret
+      containers:
+      - name: manager
+        image: gateway-global-image:latest # Kustomize will replace this
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 40000
+          name: dlv
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - "ALL"
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault

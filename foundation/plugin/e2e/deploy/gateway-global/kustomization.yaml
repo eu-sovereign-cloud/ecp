@@ -2,4 +2,15 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 # Define a namespace for all resources
-namespace: ecp-gateway-global
+namespace: e2e-ecp
+
+resources:
+  - namespace.yaml
+  - registry-secret.yaml
+  - serviceaccount.yaml
+  - deployment.yaml
+
+images:
+- name: gateway-global-image
+  newName: localhost/e2e-ecp-gateway-global
+  newTag: latest
