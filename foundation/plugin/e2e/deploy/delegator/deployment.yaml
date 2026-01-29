@@ -1,21 +1,23 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: dummy-delegator-depl
+  name: delegator-depl
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: dummy-delegator
+      app: delegator
   template:
     metadata:
       labels:
-        app: dummy-delegator
+        app: delegator
     spec:
       serviceAccountName: delegator-sa
+      imagePullSecrets:
+      - name: delegator-registry-secret
       containers:
       - name: manager
-        image: dummy-delegator-image:latest # Kustomize will replace this
+        image: delegator-image:latest # Kustomize will replace this
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8081

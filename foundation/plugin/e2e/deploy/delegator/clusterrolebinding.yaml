@@ -9,4 +9,4 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: delegator-sa
-  namespace: ecp-dummy-delegator
+  namespace: e2e-ecp

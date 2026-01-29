@@ -9,9 +9,9 @@ RUN go install github.com/go-delve/delve/cmd/dlv@latest
 # Copy all the sources
 COPY . .
 
-# Build the e2e delegator with debug information
+# Build the delegator with debug information
 WORKDIR /workspace/foundation/plugin/e2e
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -gcflags="all=-N -l" -o manager cmd/main.go
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -gcflags="all=-N -l" -o delegator cmd/delegator/main.go
 
 # Use a more hacking-friendly base image for easier debugging and access
 FROM debian:bookworm-slim
@@ -29,16 +29,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy the manager binary from the builder stage
 WORKDIR /app
-COPY --from=builder /workspace/foundation/plugin/e2e/manager .
+COPY --from=builder /workspace/foundation/plugin/e2e/delegator .
 
 # Copy dlv (Delve debugger) for debugging. Assume dlv is in /go/bin in the builder image.
 COPY --from=builder /go/bin/dlv /usr/local/bin/dlv
 
 # Expose default Delve debugger port
 EXPOSE 40000
+# Expose healthz port
+EXPOSE 8081
 
 # Create a non-root user with a specific UID and switch to it
 RUN groupadd -r -g 1001 appuser && useradd -r -u 1001 -g appuser appuser
 USER 1001
 
-ENTRYPOINT ["/app/manager"]
+ENTRYPOINT ["/app/delegator"]

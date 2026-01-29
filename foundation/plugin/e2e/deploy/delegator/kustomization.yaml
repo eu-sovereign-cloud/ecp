@@ -2,11 +2,12 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 # Define a namespace for all resources
-namespace: ecp-dummy-delegator
+namespace: e2e-ecp
 
 # List of resources to be applied
 resources:
   - namespace.yaml
+  - registry-secret.yaml
   - serviceaccount.yaml
   - clusterrole.yaml
   - clusterrolebinding.yaml
@@ -14,8 +15,8 @@ resources:
 
 # Parameterization for image
 # To change the image, use the command:
-# kustomize edit set image dummy-delegator-image=my-registry/my-image:my-tag
+# kustomize edit set image delegator-image=my-registry/my-image:my-tag
 images:
-- name: dummy-delegator-image
-  newName: localhost/ecp-dummy-delegator
+- name: delegator-image
+  newName: localhost/e2e-ecp-delegator
   newTag: latest
