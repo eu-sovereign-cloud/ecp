@@ -20,5 +20,13 @@ func (c *DeleteWorkspace) Do(ctx context.Context, ir port.IdentifiableResource) 
 	domain.ResourceVersion = ir.GetVersion()
 	domain.Workspace = ir.GetWorkspace()
 
-	return c.Repo.Delete(ctx, domain)
+	// Instead of deleting the Workspace CR immediately, mark it as Deleting so
+	// the delegator controller can run plugin.Delete (which will remove finalizers
+	// and handle external cleanup). This avoids removing the CR before the plugin
+	// has a chance to perform cleanup.
+	state := regional.ResourceStateDeleting
+	domain.Status.State = &state
+
+	_, err := c.Repo.Update(ctx, domain)
+	return err
 }

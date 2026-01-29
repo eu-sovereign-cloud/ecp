@@ -67,7 +67,13 @@ func (h *WorkspacePluginHandler) HandleReconcile(ctx context.Context, resource *
 		return false, h.setResourceState(ctx, resource, regional.ResourceStateActive)
 
 	case wantWorkspaceDelete(resource):
-		return false, h.setResourceState(ctx, resource, regional.ResourceStateDeleting)
+		// plugin.Delete already ran successfully; now remove the CR so the resource is gone.
+		// this implies that external cleanup is fully done!
+		if err := h.repo.Delete(ctx, resource); err != nil {
+			return false, err
+		}
+		// No further state update necessary; resource has been deleted.
+		return false, nil
 
 	case wantWorkspaceRetryCreate(resource):
 		return true, h.setResourceState(ctx, resource, regional.ResourceStateCreating)
