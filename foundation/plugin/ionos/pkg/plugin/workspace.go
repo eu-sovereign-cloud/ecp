@@ -12,10 +12,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 )
 
-const ProviderConfigName = "ionos-provider-config"
+const ProviderConfigName = "cluster-ionos-provider-config"
 
 type Workspace struct {
 	client client.Client
@@ -31,14 +32,21 @@ func (w *Workspace) Create(ctx context.Context, resource *regional.WorkspaceDoma
 
 	// Map ECP Workspace to Crossplane Datacenter (logical grouping of resources)
 	datacenter := &ionosv1alpha1.Datacenter{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: ionosv1alpha1.CRDVersion,
+			Kind:       ionosv1alpha1.Datacenter_Kind,
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      resource.GetName(),
-			Namespace: resource.GetTenant(),
+			Namespace: kubernetes.ComputeNamespace(resource),
 		},
 		Spec: ionosv1alpha1.DatacenterSpec{
 			ManagedResourceSpec: v2.ManagedResourceSpec{
 				ProviderConfigReference: &v1.ProviderConfigReference{
+					// todo move back to namespaced provider config once we can create users/tenants
+					// which should create a namespaced provider config per workspace
 					Name: ProviderConfigName,
+					Kind: "ClusterProviderConfig",
 				},
 			},
 			ForProvider: ionosv1alpha1.DatacenterParameters{
@@ -63,9 +71,13 @@ func (w *Workspace) Delete(ctx context.Context, resource *regional.WorkspaceDoma
 	w.logger.Info("ionos workspace plugin: Delete called", "resource_name", resource.GetName())
 
 	datacenter := &ionosv1alpha1.Datacenter{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: ionosv1alpha1.CRDVersion,
+			Kind:       ionosv1alpha1.Datacenter_Kind,
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      resource.GetName(),
-			Namespace: resource.GetTenant(),
+			Namespace: kubernetes.ComputeNamespace(resource),
 		},
 	}
 
@@ -78,5 +90,3 @@ func (w *Workspace) Delete(ctx context.Context, resource *regional.WorkspaceDoma
 	w.logger.Info("datacenter deleted successfully", "datacenter_name", datacenter.Name)
 	return nil
 }
-
-// Note: Workspace may not have an "IncreaseSize" equivalent; adjust based on actual interface

@@ -8,17 +8,18 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+
+	ionosapis "github.com/ionos-cloud/provider-upjet-ionoscloud/apis/namespaced/compute/v1alpha1"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage"
 	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/workspace/v1"
 	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/builder"
-
 	ionosplugin "github.com/eu-sovereign-cloud/ecp/foundation/plugin/ionos/pkg/plugin"
-
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
 
 var (
@@ -29,7 +30,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(workspacev1.AddToScheme(scheme))
 	utilruntime.Must(storage.AddToScheme(scheme))
-	// Add Crossplane schemes if needed
+	utilruntime.Must(ionosapis.AddToScheme(scheme))
 }
 
 func main() {
@@ -42,9 +43,12 @@ func main() {
 
 	// 2. Create manager
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:                 scheme,
-		HealthProbeBindAddress: ":8081",
-		LeaderElection:         false,
+		Scheme: scheme,
+		Metrics: metricsserver.Options{
+			SecureServing: false,
+			BindAddress:   ":8083",
+		},
+		HealthProbeBindAddress: ":8082",
 	})
 	if err != nil {
 		logger.Error("unable to start manager", "error", err)
