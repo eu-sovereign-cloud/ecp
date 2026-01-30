@@ -85,6 +85,9 @@ func (h *WorkspacePluginHandler) HandleReconcile(ctx context.Context, resource *
 func (h *WorkspacePluginHandler) setResourceState(ctx context.Context, resource *regional.WorkspaceDomain, state regional.ResourceStateDomain) error {
 	// TODO: Why the BlockStorage Status is a pointer and the Workspace Status is a nasted structure?
 	// ISSUE: https://github.com/eu-sovereign-cloud/ecp/issues/188
+	if resource.Status == nil {
+		resource.Status = &regional.WorkspaceStatusDomain{}
+	}
 	resource.Status.State = &state
 
 	if resource.Status.Conditions == nil {
@@ -105,6 +108,9 @@ func (h *WorkspacePluginHandler) setResourceErrorState(ctx context.Context, reso
 
 	// TODO: Why the BlockStorage Status is a pointer and the Workspace Status is a nasted structure?
 	// ISSUE: https://github.com/eu-sovereign-cloud/ecp/issues/188
+	if resource.Status == nil {
+		resource.Status = &regional.WorkspaceStatusDomain{}
+	}
 	resource.Status.State = &state
 
 	if resource.Status.Conditions == nil {
