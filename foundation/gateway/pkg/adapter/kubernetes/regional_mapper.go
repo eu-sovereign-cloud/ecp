@@ -118,7 +118,8 @@ func MapCRToWorkspaceDomain(obj client.Object) (*regional.WorkspaceDomain, error
 			Provider:        internalLabels[labels.InternalProviderLabel],
 		},
 		Scope: scope.Scope{
-			Tenant: internalLabels[labels.InternalTenantLabel],
+			Tenant:    internalLabels[labels.InternalTenantLabel],
+			Workspace: cr.GetName(),
 		},
 		Region:      internalLabels[labels.InternalRegionLabel],
 		Labels:      labels.KeyedToOriginal(keyedLabels, cr.RegionalCommonData.Labels),
