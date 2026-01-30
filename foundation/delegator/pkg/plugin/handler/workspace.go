@@ -121,19 +121,21 @@ func (h *WorkspacePluginHandler) setResourceErrorState(ctx context.Context, reso
 }
 
 func isWorkspacePending(resource *regional.WorkspaceDomain) bool {
-	return resource.Status.State == nil || *(resource.Status.State) == regional.ResourceStatePending
+	return resource.Status == nil || resource.Status.State == nil || *(resource.Status.State) == regional.ResourceStatePending
 }
 
 func wantWorkspaceCreate(resource *regional.WorkspaceDomain) bool {
-	return *(resource.Status.State) == regional.ResourceStateCreating
+	return resource.Status != nil && resource.Status.State != nil && *(resource.Status.State) == regional.ResourceStateCreating
 }
 
 func wantWorkspaceDelete(resource *regional.WorkspaceDomain) bool {
-	return *(resource.Status.State) == regional.ResourceStateDeleting
+	return resource.Status != nil && resource.Status.State != nil && *(resource.Status.State) == regional.ResourceStateDeleting
 }
 
 func wantWorkspaceRetryCreate(resource *regional.WorkspaceDomain) bool {
-	return *(resource.Status.State) == regional.ResourceStateError &&
+	return resource.Status != nil &&
+		resource.Status.State != nil &&
+		*(resource.Status.State) == regional.ResourceStateError &&
 		len(resource.Status.Conditions) > 1 &&
 		resource.Status.Conditions[len(resource.Status.Conditions)-2].State == regional.ResourceStateCreating
 }
