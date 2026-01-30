@@ -7,7 +7,7 @@ PROVIDER_PKG="${PROVIDER_PKG:-}"
 PROVIDER_NAME="${PROVIDER_NAME:-}"
 
 # ProviderConfig/Secret defaults (can be overridden)
-PROVIDER_CONFIG_NAME="${PROVIDER_CONFIG_NAME:-ionos-provider-config}"
+PROVIDER_CONFIG_NAME="${PROVIDER_CONFIG_NAME:-cluster-ionos-provider-config}"
 PROVIDER_CONFIG_SECRET="${PROVIDER_CONFIG_SECRET:-ionos-credentials}"
 PROVIDER_CONFIG_SECRET_NS="${PROVIDER_CONFIG_SECRET_NS:-crossplane-system}"
 
@@ -111,9 +111,9 @@ fi
 # Build ProviderConfig YAML only (do not create the secret here)
 providerconfig_yaml=$(cat <<EOF
 apiVersion: upjet-ionoscloud.m.ionoscloud.io/v1beta1
-kind: ProviderConfig
+kind: ClusterProviderConfig
 metadata:
-  namespace: ${PROVIDER_CONFIG_SECRET_NS}
+#  namespace: ${PROVIDER_CONFIG_SECRET_NS}
   name: ${PROVIDER_CONFIG_NAME}
 spec:
   credentials:
@@ -126,7 +126,8 @@ EOF
 )
 
 # Apply ProviderConfig
-echo "Applying ProviderConfig ${PROVIDER_CONFIG_NAME} in namespace ${PROVIDER_CONFIG_SECRET_NS}..."
+#echo "Applying ProviderConfig ${PROVIDER_CONFIG_NAME} in namespace ${PROVIDER_CONFIG_SECRET_NS}..."
+echo "Applying ProviderConfig ${PROVIDER_CONFIG_NAME}"
 apply_output=$(echo "${providerconfig_yaml}" | kubectl ${KUBECTL_ARGS} apply -f - 2>&1 || true)
 # Print the raw kubectl apply output for transparency
 echo "${apply_output}"
@@ -149,19 +150,28 @@ verify_elapsed=0
 found=false
 while [[ ${verify_elapsed} -lt ${verify_timeout} ]]; do
   # Try group-qualified get (if API server has registered that resource string)
-  if kubectl ${KUBECTL_ARGS} get providerconfig.upjet-ionoscloud.m.ionoscloud.io "${PROVIDER_CONFIG_NAME}" -n "${PROVIDER_CONFIG_SECRET_NS}" >/dev/null 2>&1; then
-    echo "ProviderConfig ${PROVIDER_CONFIG_NAME} confirmed in namespace ${PROVIDER_CONFIG_SECRET_NS} (group-qualified)."
+#  if kubectl ${KUBECTL_ARGS} get providerconfig.upjet-ionoscloud.m.ionoscloud.io "${PROVIDER_CONFIG_NAME}" -n "${PROVIDER_CONFIG_SECRET_NS}" >/dev/null 2>&1; then
+#    echo "ProviderConfig ${PROVIDER_CONFIG_NAME} confirmed in namespace ${PROVIDER_CONFIG_SECRET_NS} (group-qualified)."
+#    found=true
+#    break
+#  fi
+  if kubectl ${KUBECTL_ARGS} get providerconfig.upjet-ionoscloud.m.ionoscloud.io "${PROVIDER_CONFIG_NAME}" >/dev/null 2>&1; then
+    echo "ProviderConfig ${PROVIDER_CONFIG_NAME} confirmed."
     found=true
     break
   fi
-
   # Try generic namespaced listing (covers other registration formats)
-  if kubectl ${KUBECTL_ARGS} get -n "${PROVIDER_CONFIG_SECRET_NS}" -o name 2>/dev/null | grep -q "/${PROVIDER_CONFIG_NAME}$"; then
-    echo "ProviderConfig ${PROVIDER_CONFIG_NAME} confirmed in namespace ${PROVIDER_CONFIG_SECRET_NS} (listed)."
+#  if kubectl ${KUBECTL_ARGS} get -n "${PROVIDER_CONFIG_SECRET_NS}" -o name 2>/dev/null | grep -q "/${PROVIDER_CONFIG_NAME}$"; then
+#    echo "ProviderConfig ${PROVIDER_CONFIG_NAME} confirmed in namespace ${PROVIDER_CONFIG_SECRET_NS} (listed)."
+#    found=true
+#    break
+#  fi
+  # Try generic namespaced listing (covers other registration formats)
+  if kubectl ${KUBECTL_ARGS} get -o name 2>/dev/null | grep -q "/${PROVIDER_CONFIG_NAME}$"; then
+    echo "ProviderConfig ${PROVIDER_CONFIG_NAME} confirmed (listed)."
     found=true
     break
   fi
-
   sleep ${verify_interval}
   verify_elapsed=$((verify_elapsed + verify_interval))
 done
