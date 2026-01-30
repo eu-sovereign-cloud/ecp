@@ -165,19 +165,19 @@ func isBlockStoragePending(resource *regional.BlockStorageDomain) bool {
 }
 
 func wantBlockStorageCreate(resource *regional.BlockStorageDomain) bool {
-	return *(resource.Status.State) == regional.ResourceStateCreating
+	return resource.Status != nil && resource.Status.State != nil && *(resource.Status.State) == regional.ResourceStateCreating
 }
 
 func wantBlockStorageDelete(resource *regional.BlockStorageDomain) bool {
-	return *(resource.Status.State) == regional.ResourceStateDeleting
+	return resource.Status != nil && resource.Status.State != nil && *(resource.Status.State) == regional.ResourceStateDeleting
 }
 
 func isBlockStorageActiveAndNeedsUpdate(resource *regional.BlockStorageDomain) bool {
-	return *(resource.Status.State) == regional.ResourceStateActive && wantBlockStorageIncreaseSize(resource)
+	return resource.Status != nil && resource.Status.State != nil && *(resource.Status.State) == regional.ResourceStateActive && wantBlockStorageIncreaseSize(resource)
 }
 
 func isBlockStorageUpdatingToIncreaseSize(resource *regional.BlockStorageDomain) bool {
-	return *(resource.Status.State) == regional.ResourceStateUpdating && wantBlockStorageIncreaseSize(resource)
+	return resource.Status != nil && resource.Status.State != nil && *(resource.Status.State) == regional.ResourceStateUpdating && wantBlockStorageIncreaseSize(resource)
 }
 
 func wantBlockStorageIncreaseSize(resource *regional.BlockStorageDomain) bool {
@@ -185,13 +185,17 @@ func wantBlockStorageIncreaseSize(resource *regional.BlockStorageDomain) bool {
 }
 
 func wantBlockStorageRetryCreate(resource *regional.BlockStorageDomain) bool {
-	return *(resource.Status.State) == regional.ResourceStateError &&
+	return resource.Status != nil &&
+		resource.Status.State != nil &&
+		*(resource.Status.State) == regional.ResourceStateError &&
 		len(resource.Status.Conditions) > 1 &&
 		resource.Status.Conditions[len(resource.Status.Conditions)-2].State == regional.ResourceStateCreating
 }
 
 func wantBlockStorageRetryIncreaseSize(resource *regional.BlockStorageDomain) bool {
-	return *(resource.Status.State) == regional.ResourceStateError &&
+	return resource.Status != nil &&
+		resource.Status.State != nil &&
+		*(resource.Status.State) == regional.ResourceStateError &&
 		len(resource.Status.Conditions) > 1 &&
 		resource.Status.Conditions[len(resource.Status.Conditions)-2].State == regional.ResourceStateUpdating &&
 		resource.Spec.SizeGB > resource.Status.SizeGB
