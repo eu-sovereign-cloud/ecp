@@ -126,49 +126,40 @@ EOF
 )
 
 # Apply ProviderConfig
-#echo "Applying ProviderConfig ${PROVIDER_CONFIG_NAME} in namespace ${PROVIDER_CONFIG_SECRET_NS}..."
-echo "Applying ProviderConfig ${PROVIDER_CONFIG_NAME}"
+echo "Applying ClusterProviderConfig ${PROVIDER_CONFIG_NAME}"
 apply_output=$(echo "${providerconfig_yaml}" | kubectl ${KUBECTL_ARGS} apply -f - 2>&1 || true)
 # Print the raw kubectl apply output for transparency
 echo "${apply_output}"
 
-echo "ProviderConfig ${PROVIDER_CONFIG_NAME} applied (or already present)."
+echo "ClusterProviderConfig ${PROVIDER_CONFIG_NAME} applied (or already present)."
 
-# Fast-path: check cluster-wide names for the resource right away. This detects the created CR
-# regardless of the CRD's registered resource name (group-qualified or not) and avoids timing issues.
-if kubectl ${KUBECTL_ARGS} get -A -o name 2>/dev/null | grep -q "/${PROVIDER_CONFIG_NAME}$"; then
-  echo "ProviderConfig ${PROVIDER_CONFIG_NAME} found cluster-wide (immediate). Listing matches:"
-  kubectl ${KUBECTL_ARGS} get -A -o name 2>/dev/null | grep "/${PROVIDER_CONFIG_NAME}$" || true
-  echo "ProviderConfig creation verified."
+# Fast-path: check cluster-scoped resources right away.
+if kubectl ${KUBECTL_ARGS} get clusterproviderconfig "${PROVIDER_CONFIG_NAME}" >/dev/null 2>&1; then
+  echo "ClusterProviderConfig ${PROVIDER_CONFIG_NAME} confirmed (immediate)."
   exit 0
 fi
 
-# Fallback: short namespaced retry loop to handle eventual consistency in discovery
+# Fallback: retry loop to handle eventual consistency in discovery
 verify_timeout=30
 verify_interval=2
 verify_elapsed=0
 found=false
 while [[ ${verify_elapsed} -lt ${verify_timeout} ]]; do
-  # Try group-qualified get (if API server has registered that resource string)
-#  if kubectl ${KUBECTL_ARGS} get providerconfig.upjet-ionoscloud.m.ionoscloud.io "${PROVIDER_CONFIG_NAME}" -n "${PROVIDER_CONFIG_SECRET_NS}" >/dev/null 2>&1; then
-#    echo "ProviderConfig ${PROVIDER_CONFIG_NAME} confirmed in namespace ${PROVIDER_CONFIG_SECRET_NS} (group-qualified)."
-#    found=true
-#    break
-#  fi
-  if kubectl ${KUBECTL_ARGS} get providerconfig.upjet-ionoscloud.m.ionoscloud.io "${PROVIDER_CONFIG_NAME}" >/dev/null 2>&1; then
-    echo "ProviderConfig ${PROVIDER_CONFIG_NAME} confirmed."
+  # Try group-qualified get
+  if kubectl ${KUBECTL_ARGS} get clusterproviderconfig.upjet-ionoscloud.m.ionoscloud.io "${PROVIDER_CONFIG_NAME}" >/dev/null 2>&1; then
+    echo "ClusterProviderConfig ${PROVIDER_CONFIG_NAME} confirmed (group-qualified)."
     found=true
     break
   fi
-  # Try generic namespaced listing (covers other registration formats)
-#  if kubectl ${KUBECTL_ARGS} get -n "${PROVIDER_CONFIG_SECRET_NS}" -o name 2>/dev/null | grep -q "/${PROVIDER_CONFIG_NAME}$"; then
-#    echo "ProviderConfig ${PROVIDER_CONFIG_NAME} confirmed in namespace ${PROVIDER_CONFIG_SECRET_NS} (listed)."
-#    found=true
-#    break
-#  fi
-  # Try generic namespaced listing (covers other registration formats)
-  if kubectl ${KUBECTL_ARGS} get -o name 2>/dev/null | grep -q "/${PROVIDER_CONFIG_NAME}$"; then
-    echo "ProviderConfig ${PROVIDER_CONFIG_NAME} confirmed (listed)."
+  # Try simple get
+  if kubectl ${KUBECTL_ARGS} get clusterproviderconfig "${PROVIDER_CONFIG_NAME}" >/dev/null 2>&1; then
+    echo "ClusterProviderConfig ${PROVIDER_CONFIG_NAME} confirmed."
+    found=true
+    break
+  fi
+  # Try generic listing
+  if kubectl ${KUBECTL_ARGS} get clusterproviderconfig -o name 2>/dev/null | grep -q "/${PROVIDER_CONFIG_NAME}$"; then
+    echo "ClusterProviderConfig ${PROVIDER_CONFIG_NAME} confirmed (listed)."
     found=true
     break
   fi
@@ -177,14 +168,13 @@ while [[ ${verify_elapsed} -lt ${verify_timeout} ]]; do
 done
 
 if [[ "${found}" != "true" ]]; then
-  echo "ProviderConfig ${PROVIDER_CONFIG_NAME} not visible in namespace ${PROVIDER_CONFIG_SECRET_NS} after ${verify_timeout}s. Performing cluster-wide search as a last resort..."
-  if kubectl ${KUBECTL_ARGS} get -A -o name 2>/dev/null | grep -q "/${PROVIDER_CONFIG_NAME}$"; then
-    echo "ProviderConfig ${PROVIDER_CONFIG_NAME} was found cluster-wide. Listing matches:"
-    kubectl ${KUBECTL_ARGS} get -A -o name 2>/dev/null | grep "/${PROVIDER_CONFIG_NAME}$" || true
-    echo "Proceeding, but please verify the resource namespace if needed."
+  echo "ClusterProviderConfig ${PROVIDER_CONFIG_NAME} not visible after ${verify_timeout}s. Doing a last resort search..."
+  if kubectl ${KUBECTL_ARGS} get clusterproviderconfig -o name 2>/dev/null | grep -q "/${PROVIDER_CONFIG_NAME}$"; then
+    echo "ClusterProviderConfig ${PROVIDER_CONFIG_NAME} was found. Listing matches:"
+    kubectl ${KUBECTL_ARGS} get clusterproviderconfig -o name 2>/dev/null | grep "/${PROVIDER_CONFIG_NAME}$" || true
     found=true
   else
-    echo "ProviderConfig ${PROVIDER_CONFIG_NAME} could not be confirmed. You can inspect cluster resources with: kubectl get providerconfig -A | grep ${PROVIDER_CONFIG_NAME}"
+    echo "ClusterProviderConfig ${PROVIDER_CONFIG_NAME} could not be confirmed. You can inspect cluster resources with: kubectl get clusterproviderconfig | grep ${PROVIDER_CONFIG_NAME}"
   fi
 fi
 
