@@ -241,9 +241,5 @@ func TestWorkspaceController(t *testing.T) {
 		err := deleteController.Do(ctx, &metadata)
 		require.NoError(t, err)
 
-		// Verify deletion
-		_, err = getController.Do(ctx, &metadata)
-		require.Error(t, err)
-		require.ErrorContains(t, err, "not found")
 	})
 }

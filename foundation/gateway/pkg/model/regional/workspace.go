@@ -11,7 +11,7 @@ type WorkspaceDomain struct {
 	Metadata
 
 	Spec   WorkspaceSpec
-	Status WorkspaceStatusDomain
+	Status *WorkspaceStatusDomain
 }
 
 type WorkspaceSpec = map[string]interface{}

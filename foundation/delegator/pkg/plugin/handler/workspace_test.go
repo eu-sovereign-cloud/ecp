@@ -28,7 +28,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		// Given a resource with active state
 		activeState := regional.ResourceStateActive
 		resource := &regional.WorkspaceDomain{
-			Status: regional.WorkspaceStatusDomain{
+			Status: &regional.WorkspaceStatusDomain{
 				StatusDomain: regional.StatusDomain{
 					State: &activeState,
 				},
@@ -62,7 +62,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		// Given a resource with pending state
 		pendingState := regional.ResourceStatePending
 		resource := &regional.WorkspaceDomain{
-			Status: regional.WorkspaceStatusDomain{
+			Status: &regional.WorkspaceStatusDomain{
 				StatusDomain: regional.StatusDomain{
 					State: &pendingState,
 				},
@@ -104,7 +104,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		// Given a resource with creating state
 		creatingState := regional.ResourceStateCreating
 		resource := &regional.WorkspaceDomain{
-			Status: regional.WorkspaceStatusDomain{
+			Status: &regional.WorkspaceStatusDomain{
 				StatusDomain: regional.StatusDomain{
 					State: &creatingState,
 				},
@@ -147,7 +147,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		// Given a resource with deleting state
 		deletingState := regional.ResourceStateDeleting
 		resource := &regional.WorkspaceDomain{
-			Status: regional.WorkspaceStatusDomain{
+			Status: &regional.WorkspaceStatusDomain{
 				StatusDomain: regional.StatusDomain{
 					State: &deletingState,
 				},
@@ -186,7 +186,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		// Given a resource with creating state
 		creatingState := regional.ResourceStateCreating
 		resource := &regional.WorkspaceDomain{
-			Status: regional.WorkspaceStatusDomain{
+			Status: &regional.WorkspaceStatusDomain{
 				StatusDomain: regional.StatusDomain{
 					State: &creatingState,
 				},
@@ -231,7 +231,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		// Given a resource with creating state
 		creatingState := regional.ResourceStateCreating
 		resource := &regional.WorkspaceDomain{
-			Status: regional.WorkspaceStatusDomain{
+			Status: &regional.WorkspaceStatusDomain{
 				StatusDomain: regional.StatusDomain{
 					State: &creatingState,
 				},
@@ -269,7 +269,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		// Given a resource with deleting state
 		deletingState := regional.ResourceStateDeleting
 		resource := &regional.WorkspaceDomain{
-			Status: regional.WorkspaceStatusDomain{
+			Status: &regional.WorkspaceStatusDomain{
 				StatusDomain: regional.StatusDomain{
 					State: &deletingState,
 				},
@@ -314,7 +314,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		// Given a resource with error state that was previously creating
 		errorState := regional.ResourceStateError
 		resource := &regional.WorkspaceDomain{
-			Status: regional.WorkspaceStatusDomain{
+			Status: &regional.WorkspaceStatusDomain{
 				StatusDomain: regional.StatusDomain{
 					State: &errorState,
 					Conditions: []regional.StatusConditionDomain{
@@ -361,7 +361,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		// Given a resource with an unhandled state (e.g., updating)
 		updatingState := regional.ResourceStateUpdating
 		resource := &regional.WorkspaceDomain{
-			Status: regional.WorkspaceStatusDomain{
+			Status: &regional.WorkspaceStatusDomain{
 				StatusDomain: regional.StatusDomain{
 					State: &updatingState,
 				},
@@ -395,7 +395,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		// Given a resource in pending state
 		pendingState := regional.ResourceStatePending
 		resource := &regional.WorkspaceDomain{
-			Status: regional.WorkspaceStatusDomain{
+			Status: &regional.WorkspaceStatusDomain{
 				StatusDomain: regional.StatusDomain{
 					State: &pendingState,
 				},
@@ -431,7 +431,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 
 			creatingState := regional.ResourceStateCreating
 			resource := &regional.WorkspaceDomain{
-				Status: regional.WorkspaceStatusDomain{
+				Status: &regional.WorkspaceStatusDomain{
 					StatusDomain: regional.StatusDomain{
 						State: &creatingState,
 					},
