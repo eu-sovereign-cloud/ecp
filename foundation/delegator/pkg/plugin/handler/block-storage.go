@@ -44,7 +44,7 @@ func (h *BlockStoragePluginHandler) HandleReconcile(ctx context.Context, resourc
 	case wantBlockStorageCreate(resource):
 		delegate = h.plugin.Create
 
-	case wantBlockStorageDelete(resource):
+	case resource.DeletedAt != nil || wantBlockStorageDelete(resource):
 		delegate = h.plugin.Delete
 
 	case isBlockStorageActiveAndNeedsUpdate(resource):
@@ -61,6 +61,9 @@ func (h *BlockStoragePluginHandler) HandleReconcile(ctx context.Context, resourc
 	}
 
 	if err := delegate(ctx, resource); err != nil {
+		if errors.Is(err, delegator.ErrStillProcessing) {
+			return true, nil
+		}
 		if err := h.setResourceErrorState(ctx, resource, err); err != nil {
 			return false, err // TODO: better errors handling
 		}
@@ -78,7 +81,7 @@ func (h *BlockStoragePluginHandler) HandleReconcile(ctx context.Context, resourc
 		return false, h.setResourceState(ctx, resource, regional.ResourceStateActive)
 
 	case wantBlockStorageDelete(resource):
-		return false, h.setResourceState(ctx, resource, regional.ResourceStateDeleting)
+		return false, h.repo.Delete(ctx, resource)
 
 	case isBlockStorageActiveAndNeedsUpdate(resource):
 		return true, h.setResourceState(ctx, resource, regional.ResourceStateUpdating)

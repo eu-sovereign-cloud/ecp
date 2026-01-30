@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"log"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
@@ -41,7 +42,7 @@ func (h *WorkspacePluginHandler) HandleReconcile(ctx context.Context, resource *
 	case wantWorkspaceCreate(resource):
 		delegate = h.plugin.Create
 
-	case wantWorkspaceDelete(resource):
+	case resource.DeletedAt != nil || wantWorkspaceDelete(resource):
 		delegate = h.plugin.Delete
 
 	case wantWorkspaceRetryCreate(resource):
@@ -52,6 +53,9 @@ func (h *WorkspacePluginHandler) HandleReconcile(ctx context.Context, resource *
 	}
 
 	if err := delegate(ctx, resource); err != nil {
+		if errors.Is(err, delegator.ErrStillProcessing) {
+			return true, nil
+		}
 		if err := h.setResourceErrorState(ctx, resource, err); err != nil {
 			return false, err // TODO: better errors handling
 		}
@@ -67,8 +71,7 @@ func (h *WorkspacePluginHandler) HandleReconcile(ctx context.Context, resource *
 		return false, h.setResourceState(ctx, resource, regional.ResourceStateActive)
 
 	case wantWorkspaceDelete(resource):
-		return false, h.setResourceState(ctx, resource, regional.ResourceStateDeleting)
-
+		return false, h.repo.Delete(ctx, resource)
 	case wantWorkspaceRetryCreate(resource):
 		return true, h.setResourceState(ctx, resource, regional.ResourceStateCreating)
 
