@@ -458,6 +458,7 @@ func (a *WriterAdapter[T]) Delete(ctx context.Context, m T) error {
 			ResourceVersion: ptr.To(m.GetVersion()),
 		}
 	}
+
 	err := ri.Delete(ctx, m.GetName(), deleteOptions)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to delete resource", "name", m.GetName(), "resource", a.gvr.Resource, "error", err)

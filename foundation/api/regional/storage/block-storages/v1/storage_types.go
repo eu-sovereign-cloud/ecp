@@ -17,8 +17,8 @@ type BlockStorage struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   genv1.BlockStorageSpec   `json:"spec,omitempty"`
-	Status genv1.BlockStorageStatus `json:"status,omitempty"`
+	Spec   genv1.BlockStorageSpec    `json:"spec,omitempty"`
+	Status *genv1.BlockStorageStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true

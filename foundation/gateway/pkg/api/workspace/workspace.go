@@ -103,7 +103,7 @@ func mapWorkspaceDomainToAPI(domain regional.WorkspaceDomain, verb string) schem
 	_ = ref.FromReferenceObject(refObj) // ignore mapping error, not critical internally
 
 	var resourceState *schema.ResourceState
-	if domain.Status.State != nil {
+	if domain.Status != nil && domain.Status.State != nil {
 		rs := status.MapResourceStateDomainToAPI(*domain.Status.State)
 		resourceState = &rs
 	}
@@ -126,11 +126,13 @@ func mapWorkspaceDomainToAPI(domain regional.WorkspaceDomain, verb string) schem
 		Labels:      domain.Labels,
 		Annotations: domain.Annotations,
 		Extensions:  domain.Extensions,
-		Status: &schema.WorkspaceStatus{
+	}
+	if domain.Status != nil {
+		sdk.Status = &schema.WorkspaceStatus{
 			ResourceCount: domain.Status.ResourceCount,
 			State:         resourceState,
 			Conditions:    status.MapConditionDomainsToAPI(domain.Status.Conditions),
-		},
+		}
 	}
 	if domain.DeletedAt != nil {
 		sdk.Metadata.DeletedAt = domain.DeletedAt

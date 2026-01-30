@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"slices"
+	"strings"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -74,7 +76,7 @@ func (r *GenericController[D]) Reconcile(ctx context.Context, req ctrl.Request) 
 	// 2. Handle finalizers
 	if obj.GetDeletionTimestamp().IsZero() {
 		// Resource is not being deleted, ensure finalizer exists
-		if !containsString(obj.GetFinalizers(), finalizerName) {
+		if !slices.Contains(obj.GetFinalizers(), finalizerName) {
 			obj.SetFinalizers(append(obj.GetFinalizers(), finalizerName))
 			if err := r.client.Update(ctx, obj); err != nil {
 				return ctrl.Result{}, err
@@ -82,7 +84,7 @@ func (r *GenericController[D]) Reconcile(ctx context.Context, req ctrl.Request) 
 		}
 	} else {
 		// Resource is being deleted
-		if containsString(obj.GetFinalizers(), finalizerName) {
+		if slices.Contains(obj.GetFinalizers(), finalizerName) {
 			// 3. Convert to Domain object for cleanup
 			domainResource, err := r.k8sToDomain(obj)
 			if err != nil {
@@ -105,7 +107,9 @@ func (r *GenericController[D]) Reconcile(ctx context.Context, req ctrl.Request) 
 			}
 
 			// Cleanup complete, remove finalizer
-			obj.SetFinalizers(removeString(obj.GetFinalizers(), finalizerName))
+			obj.SetFinalizers(slices.DeleteFunc(obj.GetFinalizers(), func(v string) bool {
+				return strings.EqualFold(v, finalizerName)
+			}))
 			if err := r.client.Update(ctx, obj); err != nil {
 				return ctrl.Result{}, err
 			}
@@ -145,26 +149,6 @@ func (r *GenericController[D]) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 
 	return ctrl.Result{}, nil
-}
-
-func containsString(slice []string, s string) bool {
-	for _, item := range slice {
-		if item == s {
-			return true
-		}
-	}
-	return false
-}
-
-func removeString(slice []string, s string) []string {
-	result := []string{}
-	for _, item := range slice {
-		if item == s {
-			continue
-		}
-		result = append(result, item)
-	}
-	return result
 }
 
 func (r *GenericController[D]) updateStatusCondition(ctx context.Context, obj client.Object, condition metav1.Condition) {

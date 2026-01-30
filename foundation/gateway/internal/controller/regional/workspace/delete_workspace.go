@@ -20,9 +20,13 @@ func (c *DeleteWorkspace) Do(ctx context.Context, ir port.IdentifiableResource) 
 	domain.ResourceVersion = ir.GetVersion()
 	domain.Workspace = ir.GetWorkspace()
 
-	// Soft delete, we just mark it
+	// soft delete
 	state := regional.ResourceStateDeleting
-	domain.Status.State = &state
+	domain.Status = &regional.WorkspaceStatusDomain{
+		StatusDomain: regional.StatusDomain{
+			State: &state,
+		},
+	}
 
 	_, err := c.Repo.Update(ctx, domain)
 	return err

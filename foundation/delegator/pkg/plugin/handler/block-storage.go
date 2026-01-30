@@ -81,7 +81,7 @@ func (h *BlockStoragePluginHandler) HandleReconcile(ctx context.Context, resourc
 		return false, h.setResourceState(ctx, resource, regional.ResourceStateActive)
 
 	case wantBlockStorageDelete(resource):
-		return false, h.setResourceState(ctx, resource, regional.ResourceStateDeleting)
+		return false, h.repo.Delete(ctx, resource)
 
 	case isBlockStorageActiveAndNeedsUpdate(resource):
 		return true, h.setResourceState(ctx, resource, regional.ResourceStateUpdating)
