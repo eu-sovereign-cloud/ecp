@@ -37,6 +37,10 @@ func (b *BlockStorage) Create(ctx context.Context, resource *regional.BlockStora
 		},
 		Spec: ionosv1alpha1.VolumeSpec{
 			ForProvider: ionosv1alpha1.VolumeParameters_2{
+				DatacenterIDSelector: &v1.NamespacedSelector{
+					MatchLabels: map[string]string{},
+					Namespace:   "",
+				}, // todo: link to datacenter created in workspace
 				Name:             ptr.To(resource.Name),
 				Size:             ptr.To(float64(resource.Spec.SizeGB)),
 				DiskType:         ptr.To("HDD"),
@@ -47,7 +51,7 @@ func (b *BlockStorage) Create(ctx context.Context, resource *regional.BlockStora
 					// todo move back to namespaced provider config once we can create users/tenants
 					// which should create a namespaced provider config per workspace
 					Name: ProviderConfigName,
-					Kind: "ClusterProviderConfig",
+					Kind: ProviderConfigType,
 				},
 			},
 		},

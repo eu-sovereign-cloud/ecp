@@ -22,6 +22,7 @@ import (
 )
 
 const ProviderConfigName = "cluster-ionos-provider-config"
+const ProviderConfigType = "ClusterProviderConfig"
 
 type Workspace struct {
 	client client.Client
@@ -78,7 +79,7 @@ func (w *Workspace) Create(ctx context.Context, resource *regional.WorkspaceDoma
 					// todo move back to namespaced provider config once we can create users/tenants
 					// which should create a namespaced provider config per workspace
 					Name: ProviderConfigName,
-					Kind: "ClusterProviderConfig",
+					Kind: ProviderConfigType,
 				},
 			},
 			ForProvider: ionosv1alpha1.DatacenterParameters{
