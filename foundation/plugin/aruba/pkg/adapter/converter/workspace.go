@@ -77,7 +77,7 @@ func (c *WorkspaceProjectConverter) FromArubaToSECA(
 			},
 		},
 		Spec: spec,
-		Status: regional.WorkspaceStatusDomain{
+		Status: &regional.WorkspaceStatusDomain{
 			StatusDomain: regional.StatusDomain{},
 		},
 	}
