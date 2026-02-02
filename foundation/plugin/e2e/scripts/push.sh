@@ -14,7 +14,7 @@ else
     echo "REGISTRY_USER and REGISTRY_PASSWORD are not set. Assuming you are already logged in."
 fi
 
-docker push --compress=false "${IMAGE_NAME}"
+docker push "${IMAGE_NAME}"
 
 echo "Image pushed: ${IMAGE_NAME}"
 

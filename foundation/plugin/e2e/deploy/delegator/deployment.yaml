@@ -18,7 +18,7 @@ spec:
       containers:
       - name: manager
         image: delegator-image:latest # Kustomize will replace this
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         ports:
         - containerPort: 8081
           name: healthz
