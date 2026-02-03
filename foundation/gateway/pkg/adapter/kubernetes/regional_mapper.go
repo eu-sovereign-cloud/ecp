@@ -118,8 +118,7 @@ func MapCRToWorkspaceDomain(obj client.Object) (*regional.WorkspaceDomain, error
 			Provider:        internalLabels[labels.InternalProviderLabel],
 		},
 		Scope: scope.Scope{
-			Tenant:    internalLabels[labels.InternalTenantLabel],
-			Workspace: cr.GetName(),
+			Tenant: internalLabels[labels.InternalTenantLabel],
 		},
 		Region:      internalLabels[labels.InternalRegionLabel],
 		Labels:      labels.KeyedToOriginal(keyedLabels, cr.RegionalCommonData.Labels),
@@ -169,7 +168,7 @@ func MapWorkspaceDomainToCR(domain *regional.WorkspaceDomain) (client.Object, er
 	cr := &workspacev1.Workspace{
 		ObjectMeta: v1.ObjectMeta{
 			Name:            domain.Name,
-			Namespace:       ComputeNamespace(domain),
+			Namespace:       ComputeNamespace(&scope.Scope{Tenant: domain.Tenant}),
 			Labels:          crLabels,
 			ResourceVersion: domain.ResourceVersion,
 		},
