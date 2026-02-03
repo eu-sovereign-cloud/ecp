@@ -44,7 +44,7 @@ func (h *BlockStoragePluginHandler) HandleReconcile(ctx context.Context, resourc
 	case wantBlockStorageCreate(resource):
 		delegate = h.plugin.Create
 
-	case resource.DeletedAt != nil || wantBlockStorageDelete(resource):
+	case wantBlockStorageDelete(resource):
 		delegate = h.plugin.Delete
 
 	case isBlockStorageActiveAndNeedsUpdate(resource):
@@ -105,8 +105,6 @@ func (h *BlockStoragePluginHandler) HandleReconcile(ctx context.Context, resourc
 }
 
 func (h *BlockStoragePluginHandler) setResourceState(ctx context.Context, resource *regional.BlockStorageDomain, state regional.ResourceStateDomain) error {
-	// TODO: Why the BlockStorage Status is a pointer and the Workspace Status is a nasted structure?
-	// ISSUE: https://github.com/eu-sovereign-cloud/ecp/issues/188
 	if resource.Status == nil {
 		resource.Status = &regional.BlockStorageStatus{}
 	}
@@ -127,8 +125,6 @@ func (h *BlockStoragePluginHandler) setResourceState(ctx context.Context, resour
 }
 
 func (h *BlockStoragePluginHandler) setResourceErrorState(ctx context.Context, resource *regional.BlockStorageDomain, err error) error {
-	// TODO: Why the BlockStorage Status is a pointer and the Workspace Status is a nasted structure?
-	// ISSUE: https://github.com/eu-sovereign-cloud/ecp/issues/188
 	if resource.Status == nil {
 		resource.Status = &regional.BlockStorageStatus{}
 	}
@@ -169,7 +165,7 @@ func wantBlockStorageCreate(resource *regional.BlockStorageDomain) bool {
 }
 
 func wantBlockStorageDelete(resource *regional.BlockStorageDomain) bool {
-	return resource.Status != nil && resource.Status.State != nil && *(resource.Status.State) == regional.ResourceStateDeleting
+	return resource.DeletedAt == nil && resource.Status != nil && resource.Status.State != nil && *(resource.Status.State) == regional.ResourceStateDeleting
 }
 
 func isBlockStorageActiveAndNeedsUpdate(resource *regional.BlockStorageDomain) bool {
