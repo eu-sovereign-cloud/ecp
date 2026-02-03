@@ -8,6 +8,9 @@ resources:
   - namespace.yaml
   - registry-secret.yaml
   - serviceaccount.yaml
+  - clusterrole.yaml
+  - clusterrolebinding.yaml
+  - service.yaml
   - deployment.yaml
 
 images:
