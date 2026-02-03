@@ -7,13 +7,13 @@ import (
 	"errors"
 	"testing"
 
+	ecpmodel "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
+	regionalmodel "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/util/wait"
-
-	ecpmodel "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
-	regionalmodel "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
 )
 
 func TestWorkspace(t *testing.T) {
@@ -57,7 +57,7 @@ func TestWorkspace(t *testing.T) {
 			if err := workspaceRepo.Load(ctx, &loadedWs); err != nil {
 				return false, err
 			}
-			if loadedWs.Status.State != nil && *loadedWs.Status.State == regionalmodel.ResourceStateActive {
+			if loadedWs.Status != nil && loadedWs.Status.State != nil && *loadedWs.Status.State == regionalmodel.ResourceStateActive {
 				return true, nil
 			}
 			return false, nil
@@ -99,7 +99,7 @@ func TestWorkspace(t *testing.T) {
 			if err := workspaceRepo.Load(ctx, &loadedWs); err != nil {
 				return false, err
 			}
-			if loadedWs.Status.State != nil && *loadedWs.Status.State == regionalmodel.ResourceStateActive {
+			if loadedWs.Status != nil && loadedWs.Status.State != nil && *loadedWs.Status.State == regionalmodel.ResourceStateActive {
 				return true, nil
 			}
 			return false, nil
@@ -108,7 +108,14 @@ func TestWorkspace(t *testing.T) {
 
 		//
 		// When we delete the workspace resource
-		err = workspaceRepo.Delete(t.Context(), wsDomain)
+
+		state := regional.ResourceStateDeleting
+		wsDomain.Status = &regional.WorkspaceStatusDomain{
+			StatusDomain: regional.StatusDomain{
+				State: &state,
+			},
+		}
+		_, err = workspaceRepo.Update(t.Context(), wsDomain)
 		require.NoError(t, err)
 
 		//

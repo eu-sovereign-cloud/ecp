@@ -14,7 +14,6 @@ import (
 	mutator_bypass "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/generic/mutator"
 	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/converter"
 	repository "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/repository"
-	"k8s.io/apimachinery/pkg/api/errors"
 )
 
 // Ensure WorkspaceHandler implements the Workspace interface
