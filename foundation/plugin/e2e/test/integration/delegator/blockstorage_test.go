@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 
 	ecpmodel "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	regionalmodel "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
 )
@@ -38,6 +39,7 @@ func TestBlockStorage(t *testing.T) {
 			Spec: regionalmodel.BlockStorageSpec{
 				SizeGB: 1,
 				SkuRef: regionalmodel.ReferenceObject{
+					Region:   "ITBG-Bergamo",
 					Resource: "sku-1",
 				},
 			},
@@ -92,6 +94,7 @@ func TestBlockStorage(t *testing.T) {
 			Spec: regionalmodel.BlockStorageSpec{
 				SizeGB: 1,
 				SkuRef: regionalmodel.ReferenceObject{
+					Region:   "ITBG-Bergamo",
 					Resource: "sku-1",
 				},
 			},
@@ -123,7 +126,13 @@ func TestBlockStorage(t *testing.T) {
 
 		//
 		// When we delete the block storage resource
-		err = blockStorageRepo.Delete(t.Context(), bsDomain)
+
+		// soft delete
+		state := regional.ResourceStateDeleting
+		bsDomain.Status = &regional.BlockStorageStatus{
+			State: &state,
+		}
+		_, err = blockStorageRepo.Update(t.Context(), bsDomain)
 		require.NoError(t, err)
 
 		//
@@ -171,6 +180,7 @@ func TestBlockStorage(t *testing.T) {
 			Spec: regionalmodel.BlockStorageSpec{
 				SizeGB: 1,
 				SkuRef: regionalmodel.ReferenceObject{
+					Region:   "ITBG-Bergamo",
 					Resource: "sku-1",
 				},
 			},

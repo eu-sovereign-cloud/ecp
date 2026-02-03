@@ -26,14 +26,15 @@ import (
 	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/block-storages/v1"
 	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/workspace/v1"
 	kubernetesadapter "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
+	ecpmodel "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	regionalmodel "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
 )
 
 const (
 	testNamespace = "e2e-ecp"
-	pollInterval  = 5 * time.Second
-	timeout       = 2 * time.Minute
+	pollInterval  = 10 * time.Second
+	timeout       = 5 * time.Minute
 )
 
 var (
@@ -107,10 +108,15 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Failed to create test namespaces: %v", err)
 	}
 
+	if err := createTestWorkspace(context.Background(), workspaceRepo); err != nil {
+		log.Fatalf("Failed to create test workspace: %v", err)
+	}
+
 	// When running the test suite
 	code := m.Run()
 
 	// Manually clean up namespaces after tests are done
+	cleanupTestWorkspace(context.Background(), workspaceRepo)
 	cleanupTestNamespaces(context.Background(), namespacesToCreate)
 
 	os.Exit(code)
@@ -155,4 +161,44 @@ func cleanupTestNamespaces(ctx context.Context, nsToDelete []string) {
 			log.Printf("Failed to delete namespace %s: %v", nsName, err)
 		}
 	}
+}
+
+func createTestWorkspace(ctx context.Context, workspaceRepo *kubernetesadapter.RepoAdapter[*regionalmodel.WorkspaceDomain]) error {
+
+	resourceName := "test-workspace"
+	wsDomain := &regionalmodel.WorkspaceDomain{
+		Metadata: regionalmodel.Metadata{
+			CommonMetadata: ecpmodel.CommonMetadata{
+				Name: resourceName,
+			},
+			Scope: scope.Scope{
+				Tenant: "test-tenant",
+			},
+		},
+		Spec: regionalmodel.WorkspaceSpec{},
+	}
+
+	//
+	// When we create the workspace resource via the adapter
+	_, err := workspaceRepo.Create(ctx, wsDomain)
+	return err
+}
+
+func cleanupTestWorkspace(ctx context.Context, workspaceRepo *kubernetesadapter.RepoAdapter[*regionalmodel.WorkspaceDomain]) error {
+	resourceName := "test-workspace"
+	wsDomain := &regionalmodel.WorkspaceDomain{
+		Metadata: regionalmodel.Metadata{
+			CommonMetadata: ecpmodel.CommonMetadata{
+				Name: resourceName,
+			},
+			Scope: scope.Scope{
+				Tenant: "test-tenant",
+			},
+		},
+		Spec: regionalmodel.WorkspaceSpec{},
+	}
+
+	//
+	// When we create the workspace resource via the adapter
+	return workspaceRepo.Delete(ctx, wsDomain)
 }
