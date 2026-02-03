@@ -9,9 +9,8 @@ RUN go install github.com/go-delve/delve/cmd/dlv@latest
 # Copy all the sources
 COPY . .
 
-# Build the gateway-regional with debug information
-WORKDIR /workspace/foundation/plugin/e2e
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -gcflags="all=-N -l" -o gateway-regional cmd/gateway-regional/main.go
+# Build the main ecp binary from the foundation/gateway module
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -gcflags="all=-N -l" -o ecp ./foundation/gateway
 
 # Use a more hacking-friendly base image for easier debugging and access
 FROM debian:bookworm-slim
@@ -27,9 +26,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     iputils-ping \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy the manager binary from the builder stage
+# Copy the ecp binary from the builder stage
 WORKDIR /app
-COPY --from=builder /workspace/foundation/plugin/e2e/gateway-regional .
+COPY --from=builder /workspace/ecp .
+
+# Copy the start script and make it executable
+COPY ./foundation/plugin/e2e/cmd/gateway-regional/start-regional.sh .
+RUN chmod +x /app/start-regional.sh
 
 # Copy dlv (Delve debugger) for debugging. Assume dlv is in /go/bin in the builder image.
 COPY --from=builder /go/bin/dlv /usr/local/bin/dlv
@@ -41,4 +44,4 @@ EXPOSE 40000
 RUN groupadd -r -g 1001 appuser && useradd -r -u 1001 -g appuser appuser
 USER 1001
 
-ENTRYPOINT ["/app/gateway-regional"]
+ENTRYPOINT ["/app/start-regional.sh"]
