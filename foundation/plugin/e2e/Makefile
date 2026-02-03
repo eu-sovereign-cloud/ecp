@@ -17,6 +17,9 @@ REGISTRY_URL ?= "default-registry"
 # Discover components automatically from the build directory
 COMPONENTS := $(notdir $(wildcard $(CURDIR)/build/*))
 
+# Discover deployments automatically from the build directory
+DEPLOYMENTS := $(notdir $(wildcard $(CURDIR)/deploy/*))
+
 # =====================================================================================
 # Main Targets
 # =====================================================================================
@@ -59,15 +62,15 @@ $(foreach comp,$(COMPONENTS),$(eval $(call push_rule,$(comp))))
 # Deployment to Kubernetes
 # =====================================================================================
 .PHONY: deploy-all
-deploy-all: $(addprefix deploy-,$(COMPONENTS)) ## Deploy all components to the configured Kubernetes cluster
+deploy-all: $(addprefix deploy-,$(DEPLOYMENTS)) ## Deploy all deployments to the configured Kubernetes cluster
 
 define deploy_rule
 .PHONY: deploy-$(1)
-deploy-$(1): ## Deploy a specific component to the configured Kubernetes cluster (e.g., make deploy-$(1))
+deploy-$(1): ## Deploy a specific deployment to the configured Kubernetes cluster (e.g., make deploy-$(1))
 	@echo "Deploying $(1) to Kubernetes cluster..."
 	@./scripts/deploy.sh $(1)
 endef
-$(foreach comp,$(COMPONENTS),$(eval $(call deploy_rule,$(comp))))
+$(foreach comp,$(DEPLOYMENTS),$(eval $(call deploy_rule,$(comp))))
 
 # =====================================================================================
 # KIND Cluster Management
@@ -94,45 +97,44 @@ endef
 $(foreach comp,$(COMPONENTS),$(eval $(call kind_load_rule,$(comp))))
 
 .PHONY: kind-deploy-all
-kind-deploy-all: $(addprefix kind-deploy-,$(COMPONENTS)) ## Deploy all components to the KIND cluster
+kind-deploy-all: $(addprefix kind-deploy-,$(DEPLOYMENTS)) ## Deploy all deployments to the KIND cluster
 
 define kind_deploy_rule
 .PHONY: kind-deploy-$(1)
-kind-deploy-$(1): ## Deploy a specific component to the KIND cluster (e.g., make kind-deploy-$(1))
+kind-deploy-$(1): ## Deploy a specific deployment to the KIND cluster (e.g., make kind-deploy-$(1))
 	@echo "Deploying $(1) to KIND cluster..."
 	@USE_KIND=true ./scripts/deploy.sh $(1)
 endef
-$(foreach comp,$(COMPONENTS),$(eval $(call kind_deploy_rule,$(comp))))
-
+$(foreach comp,$(DEPLOYMENTS),$(eval $(call kind_deploy_rule,$(comp))))
 
 # =====================================================================================
 # Cleanup
 # =====================================================================================
 .PHONY: clean-all
-clean-all: ## Clean all components and CRDs from the configured Kubernetes cluster
-	@$(MAKE) $(addprefix clean-,$(COMPONENTS))
+clean-all: ## Clean all deployments and CRDs from the configured Kubernetes cluster
+	@$(MAKE) $(addprefix clean-,$(DEPLOYMENTS))
 	@$(MAKE) clean-crds
 
 define clean_rule
 .PHONY: clean-$(1)
-clean-$(1): ## Clean a specific component from the configured Kubernetes cluster (e.g., make clean-$(1))
+clean-$(1): ## Clean a specific deployment from the configured Kubernetes cluster (e.g., make clean-$(1))
 	@echo "Cleaning $(1) from Kubernetes cluster..."
 	@./scripts/clean.sh $(1)
 endef
-$(foreach comp,$(COMPONENTS),$(eval $(call clean_rule,$(comp))))
+$(foreach comp,$(DEPLOYMENTS),$(eval $(call clean_rule,$(comp))))
 
 .PHONY: kind-clean-all
-kind-clean-all: ## Clean all components and CRDs from the KIND cluster
-	@$(MAKE) $(addprefix kind-clean-,$(COMPONENTS))
+kind-clean-all: ## Clean all deployments and CRDs from the KIND cluster
+	@$(MAKE) $(addprefix kind-clean-,$(DEPLOYMENTS))
 	@$(MAKE) kind-clean-crds
 
 define kind_clean_rule
 .PHONY: kind-clean-$(1)
-kind-clean-$(1): ## Clean a specific component from the KIND cluster (e.g., make kind-clean-$(1))
+kind-clean-$(1): ## Clean a specific deployment from the KIND cluster (e.g., make kind-clean-$(1))
 	@echo "Cleaning $(1) from KIND cluster..."
 	@USE_KIND=true ./scripts/clean.sh $(1)
 endef
-$(foreach comp,$(COMPONENTS),$(eval $(call kind_clean_rule,$(comp))))
+$(foreach comp,$(DEPLOYMENTS),$(eval $(call kind_clean_rule,$(comp))))
 
 .PHONY: clean-crds
 clean-crds: ## Clean all CRDs from the configured Kubernetes cluster
@@ -148,10 +150,21 @@ kind-clean-crds: ## Clean all CRDs from the KIND cluster
 # =====================================================================================
 # Integration tests
 # =====================================================================================
-.PHONY: test-delegator
-test-delegator: ## Run delegator integration tests against a configured cluster
-	@./scripts/test-delegator.sh
+.PHONY: test-all
+test-all: $(addprefix test-,$(COMPONENTS)) ## Run all integration tests
 
-.PHONY: kind-test-delegator
-kind-test-delegator: ## Run delegator integration tests against a configured KIND cluster
-	@USE_KIND=true ./scripts/test-delegator.sh
+.PHONY: kind-test-all
+kind-test-all: $(addprefix kind-test-,$(COMPONENTS)) ## Run all integration tests against KIND clusters
+
+# --- Generate test targets for each component ---
+define TEST_template
+.PHONY: test-$(1)
+test-$(1): ## Run $(1) integration tests against a configured cluster
+	@./scripts/run-test.sh $(1)
+
+.PHONY: kind-test-$(1)
+kind-test-$(1): ## Run $(1) integration tests against a configured KIND cluster
+	@USE_KIND=true ./scripts/run-test.sh $(1)
+endef
+
+$(foreach comp,$(COMPONENTS),$(eval $(call TEST_template,$(comp))))
