@@ -1,0 +1,24 @@
+apiVersion: v1.secapi.cloud/v1
+kind: Region
+metadata:
+  name: "region-one"
+spec:
+  availableZones:
+    - "region-one-a"
+    - "region-one-b"
+  providers:
+    - name: "seca.compute"
+      url: "http://regional-server.region-one.seca.cloud/providers/seca.compute/v1"
+      version: "v1"
+---
+apiVersion: v1.secapi.cloud/v1
+kind: Region
+metadata:
+  name: "region-two"
+spec:
+  availableZones:
+    - "region-two-a"
+  providers:
+    - name: "seca.storage"
+      url: "http://regional-server.region-two.seca.cloud/providers/seca.storage/v1"
+      version: "v1"
