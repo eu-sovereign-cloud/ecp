@@ -263,6 +263,9 @@ func TestGenericRepository_WatchWithMockCache(t *testing.T) {
 		AddEventHandler(gomock.Any()).
 		Do(func(handler kcache.ResourceEventHandler) {
 			updatedProject := project.DeepCopy()
+
+			updatedProject.ResourceVersion = "2"
+			project.ResourceVersion = "1"
 			updatedProject.Spec.Description = "Updated description"
 			capturedHandler = handler
 

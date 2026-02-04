@@ -9,6 +9,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 )
@@ -203,6 +205,11 @@ func TestBlockStorage_delete(t *testing.T) {
 					FromSECAToAruba(blockStorageDomain).
 					Return(bs, nil)
 
+				mockRepo.EXPECT().
+					Load(gomock.Any(), bs).
+					Return(nil).
+					AnyTimes()
+
 				mockRepo.
 					EXPECT().
 					Delete(context.Background(), bs).
@@ -238,6 +245,11 @@ func TestBlockStorage_delete(t *testing.T) {
 					EXPECT().
 					Delete(context.Background(), bs).
 					Return(nil).AnyTimes()
+
+				mockRepo.EXPECT().
+					Load(gomock.Any(), bs).
+					Return(nil).
+					AnyTimes()
 
 				mockRepo.
 					EXPECT().
@@ -279,6 +291,19 @@ func TestBlockStorage_delete(t *testing.T) {
 					EXPECT().
 					Delete(context.Background(), bs).
 					Return(nil).AnyTimes()
+
+				notFoundErr := errors.NewNotFound(
+					schema.GroupResource{
+						Group:    "your.group",
+						Resource: "your-resource",
+					},
+					blockStorageDomain.Name,
+				)
+
+				mockRepo.EXPECT().
+					Load(gomock.Any(), bs).
+					Return(notFoundErr).
+					AnyTimes()
 
 				mockRepo.
 					EXPECT().
@@ -358,6 +383,11 @@ func TestBlockStorage_increaseSize(t *testing.T) {
 					EXPECT().
 					FromSECAToAruba(blockStorageDomain).
 					Return(bs, nil).MaxTimes(1)
+
+				mockRepo.EXPECT().
+					Load(gomock.Any(), bs).
+					Return(nil).
+					AnyTimes()
 
 				mockRepo.
 					EXPECT().
