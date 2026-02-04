@@ -12,8 +12,3 @@ resources:
   - clusterrolebinding.yaml
   - service.yaml
   - deployment.yaml
-
-images:
-- name: gateway-regional-image
-  newName: localhost/e2e-ecp-gateway-regional
-  newTag: latest

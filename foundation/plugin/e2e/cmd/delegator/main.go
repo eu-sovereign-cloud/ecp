@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"time"
@@ -20,6 +21,7 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/converter"
 	aruba "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/handler"
 	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/repository"
+	dummyplugin "github.com/eu-sovereign-cloud/ecp/foundation/plugin/dummy/pkg/plugin"
 
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
@@ -33,7 +35,6 @@ func init() {
 	utilruntime.Must(workspacev1.AddToScheme(scheme))
 	utilruntime.Must(storage.AddToScheme(scheme))
 	utilruntime.Must(v1alpha1.AddToScheme(scheme))
-
 }
 
 func main() {
@@ -57,23 +58,30 @@ func main() {
 
 	ctx := context.TODO()
 
-	// 3. Instantiate workspace and block storage repository
-	wr := repository.NewProjectRepository(ctx, mgr.GetClient(), mgr.GetCache())
-	br := repository.NewBlockStorageRepository(ctx, mgr.GetClient(), mgr.GetCache())
+	// 3. Read PLUGIN environment variable
+	pluginType := os.Getenv("PLUGIN")
+	if pluginType == "" {
+		pluginType = "default" // Default to "default" if not set
+	}
 
-	// 4. Instantiate worksace  and block storage converter
+	// 4. Load the appropriate plugin set based on the environment variable
+	var pluginSet *builder.PluginSet
 
-	wc := converter.NewWorkspaceProjectConverter()
-	bc := converter.NewBlockStorageConverter()
-	// 5 . Create workspace and block storage handler
-	wsPlugin := aruba.NewWorkspaceHandler(wr, wc)
-	bsPlugin := aruba.NewBlockStorageHandler(br, bc)
+	switch pluginType {
+	case "default", "aruba":
+		pluginSet, err = loadArubaPluginSet(ctx, mgr, logger)
+	case "dummy":
+		pluginSet, err = loadDummyPluginSet(logger)
+	default:
+		// Use fmt.Fprintf for fatal errors before logger is fully propagated
+		fmt.Fprintf(os.Stderr, "Error: Invalid plugin type specified. Got '%s', expected 'aruba' or 'dummy'.\n", pluginType)
+		os.Exit(1)
+	}
 
-	// 6. Create a plugin set
-	pluginSet := builder.NewPluginSet(
-		builder.WithBlockStorage(bsPlugin),
-		builder.WithWorkspace(wsPlugin),
-	)
+	if err != nil {
+		logger.Error("failed to load plugin set", "error", err)
+		os.Exit(1)
+	}
 
 	// 7. Create the controller set
 	controllerSet, err := builder.NewControllerSet(
@@ -110,4 +118,36 @@ func main() {
 		logger.Error("problem running manager", "error", err)
 		os.Exit(1)
 	}
+}
+
+func loadArubaPluginSet(ctx context.Context, mgr ctrl.Manager, logger *slog.Logger) (*builder.PluginSet, error) {
+	logger.Info("Loading 'aruba' plugin set")
+	// Instantiate aruba-specific repositories
+	wr := repository.NewProjectRepository(ctx, mgr.GetClient(), mgr.GetCache())
+	br := repository.NewBlockStorageRepository(ctx, mgr.GetClient(), mgr.GetCache())
+
+	// Instantiate aruba-specific converters
+	wc := converter.NewWorkspaceProjectConverter()
+	bc := converter.NewBlockStorageConverter()
+
+	// Create aruba-specific handlers
+	wsPlugin := aruba.NewWorkspaceHandler(wr, wc)
+	bsPlugin := aruba.NewBlockStorageHandler(br, bc)
+
+	// Create and return the plugin set
+	return builder.NewPluginSet(
+		builder.WithBlockStorage(bsPlugin),
+		builder.WithWorkspace(wsPlugin),
+	), nil
+}
+
+func loadDummyPluginSet(logger *slog.Logger) (*builder.PluginSet, error) {
+	logger.Info("Loading 'dummy' plugin set")
+	bsPlugin := dummyplugin.NewBlockStorage(logger.With("plugin", "blockstorage"))
+	wsPlugin := dummyplugin.NewWorkspace(logger.With("plugin", "workspace"))
+
+	return builder.NewPluginSet(
+		builder.WithBlockStorage(bsPlugin),
+		builder.WithWorkspace(wsPlugin),
+	), nil
 }
