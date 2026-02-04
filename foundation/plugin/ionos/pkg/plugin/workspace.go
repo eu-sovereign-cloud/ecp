@@ -4,10 +4,11 @@ import (
 	"context"
 	"log/slog"
 
-	v1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
-	v2 "github.com/crossplane/crossplane-runtime/v2/apis/common/v2"
 	ionosv1alpha1 "github.com/ionos-cloud/provider-upjet-ionoscloud/apis/namespaced/compute/v1alpha1"
 	"k8s.io/utils/ptr"
+
+	v1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	v2 "github.com/crossplane/crossplane-runtime/v2/apis/common/v2"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -85,7 +86,7 @@ func (w *Workspace) Create(ctx context.Context, resource *regional.WorkspaceDoma
 			ForProvider: ionosv1alpha1.DatacenterParameters{
 				Name:        ptr.To(resource.GetName()),
 				Description: ptr.To("Workspace: " + resource.GetName()),
-				Location:    ptr.To("de/txl"), // Default location, should be configurable from region
+				Location:    ptr.To("es/vit"), // Default location, should be configurable from region
 			},
 		},
 	}

@@ -4,10 +4,12 @@ import (
 	"context"
 	"log/slog"
 
-	v1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
-	v2 "github.com/crossplane/crossplane-runtime/v2/apis/common/v2"
+	k8s "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
 	ionosv1alpha1 "github.com/ionos-cloud/provider-upjet-ionoscloud/apis/namespaced/compute/v1alpha1"
 	"k8s.io/utils/ptr"
+
+	v1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	v2 "github.com/crossplane/crossplane-runtime/v2/apis/common/v2"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,21 +32,32 @@ func (b *BlockStorage) Create(ctx context.Context, resource *regional.BlockStora
 	b.logger.Info("ionos block storage plugin: Create called", "resource_name", resource.GetName())
 
 	// Map ECP BlockStorage to Crossplane Volume
+	namespace := k8s.ComputeNamespace(resource)
+	b.logger.Info("block storage skuRef",
+		"region", resource.Spec.SkuRef.Region,
+		"tenant", resource.Spec.SkuRef.Tenant, "ws", resource.Spec.SkuRef.Workspace,
+		"provider", resource.Spec.SkuRef.Provider, "resource", resource.Spec.SkuRef.Resource)
+
 	volume := &ionosv1alpha1.Volume{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      resource.GetName(),
-			Namespace: "crossplane-system", // Adjust namespace as needed
+			Namespace: namespace,
 		},
 		Spec: ionosv1alpha1.VolumeSpec{
 			ForProvider: ionosv1alpha1.VolumeParameters_2{
-				DatacenterIDSelector: &v1.NamespacedSelector{
-					MatchLabels: map[string]string{},
-					Namespace:   "",
-				}, // todo: link to datacenter created in workspace
-				Name:             ptr.To(resource.Name),
-				Size:             ptr.To(float64(resource.Spec.SizeGB)),
-				DiskType:         ptr.To("HDD"),
+				DatacenterIDRef: &v1.NamespacedReference{
+					Name:      resource.GetWorkspace(),
+					Namespace: namespace,
+				},
+				Name: ptr.To(resource.Name),
+				Size: ptr.To(float64(resource.Spec.SizeGB)),
+				// todo access sku ref to retrieve block storage type
+				DiskType:         ptr.To("SSD"),
 				AvailabilityZone: ptr.To("AUTO"),
+				// todo access image ref to retrieve image
+				ImageName: ptr.To("ubuntu:22.04"),
+				// todo access attached server to retrieve ssh key
+				ImagePassword: ptr.To("dummyPw123"),
 			},
 			ManagedResourceSpec: v2.ManagedResourceSpec{
 				ProviderConfigReference: &v1.ProviderConfigReference{
@@ -73,7 +86,7 @@ func (b *BlockStorage) Delete(ctx context.Context, resource *regional.BlockStora
 	volume := &ionosv1alpha1.Volume{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      resource.GetName(),
-			Namespace: "crossplane-system",
+			Namespace: k8s.ComputeNamespace(resource),
 		},
 	}
 
@@ -105,7 +118,7 @@ func (b *BlockStorage) IncreaseSize(ctx context.Context, resource *regional.Bloc
 
 	// Fetch existing volume
 	volume := &ionosv1alpha1.Volume{}
-	err := b.client.Get(ctx, client.ObjectKey{Name: resource.GetName(), Namespace: "crossplane-system"}, volume)
+	err := b.client.Get(ctx, client.ObjectKey{Name: resource.GetName(), Namespace: k8s.ComputeNamespace(resource)}, volume)
 	if err != nil {
 		b.logger.Error("failed to get volume", "error", err)
 		return err
