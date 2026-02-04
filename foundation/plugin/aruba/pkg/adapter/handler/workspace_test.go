@@ -8,6 +8,8 @@ import (
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 )
@@ -197,6 +199,11 @@ func TestWorkspace_delete(t *testing.T) {
 					FromSECAToAruba(workspaceDomain).
 					Return(prj, nil)
 
+				mockRepo.EXPECT().
+					Load(gomock.Any(), prj).
+					Return(nil).
+					AnyTimes()
+
 				mockRepo.
 					EXPECT().
 					Delete(context.Background(), prj).
@@ -228,6 +235,11 @@ func TestWorkspace_delete(t *testing.T) {
 					EXPECT().
 					Delete(context.Background(), prj).
 					Return(nil).AnyTimes()
+
+				mockRepo.EXPECT().
+					Load(gomock.Any(), prj).
+					Return(nil).
+					AnyTimes()
 
 				mockRepo.
 					EXPECT().
@@ -265,6 +277,19 @@ func TestWorkspace_delete(t *testing.T) {
 					EXPECT().
 					Delete(context.Background(), prj).
 					Return(nil).AnyTimes()
+
+				notFoundErr := errors.NewNotFound(
+					schema.GroupResource{
+						Group:    "your.group",
+						Resource: "your-resource",
+					},
+					workspaceDomain.Name,
+				)
+
+				mockRepo.EXPECT().
+					Load(gomock.Any(), prj).
+					Return(notFoundErr).
+					AnyTimes()
 
 				mockRepo.
 					EXPECT().
