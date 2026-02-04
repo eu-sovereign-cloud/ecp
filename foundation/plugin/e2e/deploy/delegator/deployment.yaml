@@ -17,7 +17,10 @@ spec:
       - name: delegator-registry-secret
       containers:
       - name: manager
-        image: delegator-image:latest # Kustomize will replace this
+        image: "##IMAGE_NAME##"
+        env:
+        - name: PLUGIN
+          value: "##PLUGIN_TYPE##"
         imagePullPolicy: Always
         ports:
         - containerPort: 8081

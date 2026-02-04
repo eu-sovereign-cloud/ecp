@@ -17,7 +17,7 @@ spec:
       - name: gateway-global-registry-secret
       containers:
       - name: manager
-        image: gateway-regional-image:latest # Kustomize will replace this
+        image: "##IMAGE_NAME##"
         imagePullPolicy: Always
         ports:
         - containerPort: 40000
