@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"strconv"
 
+	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/workspace/v1"
+	v1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regions/v1"
 	sdkworkspace "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1"
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
-	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/workspace/v1"
-	v1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regions/v1"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/status"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
@@ -52,8 +52,7 @@ func APIToDomain(api schema.Workspace, params port.IdentifiableResource) *region
 				ResourceVersion: params.GetVersion(),
 			},
 			Scope: scope.Scope{
-				Tenant:    params.GetTenant(),
-				Workspace: params.GetName(),
+				Tenant: params.GetTenant(),
 			},
 			Annotations: api.Annotations,
 			Labels:      api.Labels,
