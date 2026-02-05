@@ -50,7 +50,7 @@ func TestWorkspaceAPI(t *testing.T) {
 		// And the workspace custom resource should eventually become active in the cluster
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
 			var createdWorkspace workspacev1.Workspace
-			ns := kubernetesadapter.ComputeNamespace(&scope.Scope{Tenant: testTenant, Workspace: workspaceName})
+			ns := kubernetesadapter.ComputeNamespace(&scope.Scope{Tenant: testTenant})
 			key := client.ObjectKey{
 				Namespace: ns,
 				Name:      workspaceName,
@@ -75,8 +75,7 @@ func TestWorkspaceAPI(t *testing.T) {
 					Name: workspaceName,
 				},
 				Scope: scope.Scope{
-					Tenant:    testTenant,
-					Workspace: workspaceName,
+					Tenant: testTenant,
 				},
 			},
 			Spec: regionalmodel.WorkspaceSpec{},
@@ -107,7 +106,7 @@ func TestWorkspaceAPI(t *testing.T) {
 		// And the resource is active in the cluster
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
 			var createdWorkspace workspacev1.Workspace
-			ns := kubernetesadapter.ComputeNamespace(&scope.Scope{Tenant: testTenant, Workspace: workspaceName})
+			ns := kubernetesadapter.ComputeNamespace(&scope.Scope{Tenant: testTenant})
 			key := client.ObjectKey{Namespace: ns, Name: workspaceName}
 			if err := k8sClient.Get(ctx, key, &createdWorkspace); err != nil {
 				return false, nil
@@ -133,7 +132,7 @@ func TestWorkspaceAPI(t *testing.T) {
 		// And the workspace custom resource should eventually be marked for deletion in the cluster
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
 			var createdWorkspace workspacev1.Workspace
-			ns := kubernetesadapter.ComputeNamespace(&scope.Scope{Tenant: testTenant, Workspace: workspaceName})
+			ns := kubernetesadapter.ComputeNamespace(&scope.Scope{Tenant: testTenant})
 			key := client.ObjectKey{Namespace: ns, Name: workspaceName}
 			if err := k8sClient.Get(ctx, key, &createdWorkspace); err != nil {
 				if kerrs.IsNotFound(err) {

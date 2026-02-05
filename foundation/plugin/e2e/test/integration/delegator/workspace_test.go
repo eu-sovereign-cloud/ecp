@@ -31,8 +31,7 @@ func TestWorkspace(t *testing.T) {
 					Name: workspaceName,
 				},
 				Scope: scope.Scope{
-					Tenant:    testTenant,
-					Workspace: workspaceName,
+					Tenant: testTenant,
 				},
 			},
 			Spec: regionalmodel.WorkspaceSpec{},
@@ -52,8 +51,7 @@ func TestWorkspace(t *testing.T) {
 						Name: workspaceName,
 					},
 					Scope: scope.Scope{
-						Tenant:    testTenant,
-						Workspace: workspaceName,
+						Tenant: testTenant,
 					},
 				},
 			}
@@ -91,8 +89,7 @@ func TestWorkspace(t *testing.T) {
 					Name: workspaceName,
 				},
 				Scope: scope.Scope{
-					Tenant:    testTenant,
-					Workspace: workspaceName,
+					Tenant: testTenant,
 				},
 			},
 			Spec: regionalmodel.WorkspaceSpec{},
@@ -107,8 +104,7 @@ func TestWorkspace(t *testing.T) {
 						Name: workspaceName,
 					},
 					Scope: scope.Scope{
-						Tenant:    testTenant,
-						Workspace: workspaceName,
+						Tenant: testTenant,
 					},
 				},
 			}
@@ -142,8 +138,7 @@ func TestWorkspace(t *testing.T) {
 						Name: workspaceName,
 					},
 					Scope: scope.Scope{
-						Tenant:    testTenant,
-						Workspace: workspaceName,
+						Tenant: testTenant,
 					},
 				},
 			}

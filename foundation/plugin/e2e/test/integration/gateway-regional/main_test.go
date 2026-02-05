@@ -237,8 +237,7 @@ func createTestWorkspace(ctx context.Context, workspaceRepo port.Repo[*regionalm
 				Name: testWorkspace,
 			},
 			Scope: scope.Scope{
-				Tenant:    testTenant,
-				Workspace: testWorkspace,
+				Tenant: testTenant,
 			},
 		},
 		Spec: regionalmodel.WorkspaceSpec{},
@@ -255,8 +254,7 @@ func cleanupTestWorkspace(ctx context.Context, workspaceRepo port.Repo[*regional
 				Name: testWorkspace,
 			},
 			Scope: scope.Scope{
-				Tenant:    testTenant,
-				Workspace: testWorkspace,
+				Tenant: testTenant,
 			},
 		},
 		Spec: regionalmodel.WorkspaceSpec{},
