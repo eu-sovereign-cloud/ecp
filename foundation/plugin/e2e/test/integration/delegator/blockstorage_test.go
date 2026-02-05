@@ -18,10 +18,10 @@ import (
 )
 
 func TestBlockStorage(t *testing.T) {
-	t.Parallel()
+	//t.Parallel()
 
 	t.Run("should create a block storage resource", func(t *testing.T) {
-		t.Parallel()
+		//t.Parallel()
 
 		//
 		// Given a unique block storage domain resource definition
@@ -32,8 +32,8 @@ func TestBlockStorage(t *testing.T) {
 					Name: resourceName,
 				},
 				Scope: scope.Scope{
-					Tenant:    "test-tenant",
-					Workspace: "test-workspace",
+					Tenant:    testTenant,
+					Workspace: testWorkspace,
 				},
 			},
 			Spec: regionalmodel.BlockStorageSpec{
@@ -59,8 +59,8 @@ func TestBlockStorage(t *testing.T) {
 						Name: resourceName,
 					},
 					Scope: scope.Scope{
-						Tenant:    "test-tenant",
-						Workspace: "test-workspace",
+						Tenant:    testTenant,
+						Workspace: testWorkspace,
 					},
 				},
 			}
@@ -76,7 +76,7 @@ func TestBlockStorage(t *testing.T) {
 	})
 
 	t.Run("should delete a block storage resource", func(t *testing.T) {
-		t.Parallel()
+		//t.Parallel()
 
 		//
 		// Given a unique block storage resource that is already created
@@ -87,8 +87,8 @@ func TestBlockStorage(t *testing.T) {
 					Name: resourceName,
 				},
 				Scope: scope.Scope{
-					Tenant:    "test-tenant",
-					Workspace: "test-workspace",
+					Tenant:    testTenant,
+					Workspace: testWorkspace,
 				},
 			},
 			Spec: regionalmodel.BlockStorageSpec{
@@ -109,8 +109,8 @@ func TestBlockStorage(t *testing.T) {
 						Name: resourceName,
 					},
 					Scope: scope.Scope{
-						Tenant:    "test-tenant",
-						Workspace: "test-workspace",
+						Tenant:    testTenant,
+						Workspace: testWorkspace,
 					},
 				},
 			}
@@ -144,8 +144,8 @@ func TestBlockStorage(t *testing.T) {
 						Name: resourceName,
 					},
 					Scope: scope.Scope{
-						Tenant:    "test-tenant",
-						Workspace: "test-workspace",
+						Tenant:    testTenant,
+						Workspace: testWorkspace,
 					},
 				},
 			}
@@ -162,7 +162,7 @@ func TestBlockStorage(t *testing.T) {
 	})
 
 	t.Run("should increase the size of a block storage resource", func(t *testing.T) {
-		t.Parallel()
+		//t.Parallel()
 
 		//
 		// Given a unique block storage resource that is already created
@@ -173,8 +173,8 @@ func TestBlockStorage(t *testing.T) {
 					Name: resourceName,
 				},
 				Scope: scope.Scope{
-					Tenant:    "test-tenant",
-					Workspace: "test-workspace",
+					Tenant:    testTenant,
+					Workspace: testWorkspace,
 				},
 			},
 			Spec: regionalmodel.BlockStorageSpec{
@@ -195,8 +195,8 @@ func TestBlockStorage(t *testing.T) {
 						Name: resourceName,
 					},
 					Scope: scope.Scope{
-						Tenant:    "test-tenant",
-						Workspace: "test-workspace",
+						Tenant:    testTenant,
+						Workspace: testWorkspace,
 					},
 				},
 			}
@@ -218,8 +218,8 @@ func TestBlockStorage(t *testing.T) {
 					Name: resourceName,
 				},
 				Scope: scope.Scope{
-					Tenant:    "test-tenant",
-					Workspace: "test-workspace",
+					Tenant:    testTenant,
+					Workspace: testWorkspace,
 				},
 			},
 		}
@@ -239,8 +239,8 @@ func TestBlockStorage(t *testing.T) {
 						Name: resourceName,
 					},
 					Scope: scope.Scope{
-						Tenant:    "test-tenant",
-						Workspace: "test-workspace",
+						Tenant:    testTenant,
+						Workspace: testWorkspace,
 					},
 				},
 			}

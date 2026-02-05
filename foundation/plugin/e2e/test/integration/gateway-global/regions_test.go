@@ -16,14 +16,14 @@ import (
 )
 
 func TestRegionAPI(t *testing.T) {
-	t.Parallel()
+	//t.Parallel()
 
 	//
 	// Given the global gateway is running and has registered regions from the kustomize deployment.
 	require.NotNil(t, regionClient, "region client should have been initialized")
 
 	t.Run("should retrieve a list of all available regions", func(t *testing.T) {
-		t.Parallel()
+		//t.Parallel()
 
 		//
 		// When we call the ListRegions method on the SDK client.
@@ -63,7 +63,7 @@ func TestRegionAPI(t *testing.T) {
 	})
 
 	t.Run("should retrieve a single specified region by name", func(t *testing.T) {
-		t.Parallel()
+		//t.Parallel()
 
 		//
 		// Given a specific region name we know exists.
