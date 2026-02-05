@@ -461,7 +461,7 @@ func (a *WriterAdapter[T]) Delete(ctx context.Context, m T) error {
 
 	err := ri.Delete(ctx, m.GetName(), deleteOptions)
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to delete resource", "name", m.GetName(), "resource", a.gvr.Resource, "error", err)
+		a.logger.ErrorContext(ctx, "failed to delete resource", "name", m.GetName(), "resource", a.gvr.Resource, "error", err, slog.Any("m", m))
 
 		if kerrs.IsNotFound(err) {
 			return fmt.Errorf("%w: %s '%s' not found", model.ErrNotFound, a.gvr.Resource, m.GetName())
@@ -509,6 +509,13 @@ type NamespaceManagingWriterAdapter[T port.IdentifiableResource] struct {
 	logger    *slog.Logger
 }
 
+// RepoAdapter implements the port.WatcherRepo interface for a specific resource type.
+type NamespaceManagingRepoAdapter[T port.IdentifiableResource] struct {
+	*ReaderAdapter[T]
+	*NamespaceManagingWriterAdapter[T]
+	*WatcherAdapter[T]
+}
+
 // NewNamespaceManagingWriterAdapter creates a new writer adapter that ensures namespaces for resources.
 func NewNamespaceManagingWriterAdapter[T port.IdentifiableResource](
 	dynClient dynamic.Interface,
@@ -524,6 +531,39 @@ func NewNamespaceManagingWriterAdapter[T port.IdentifiableResource](
 		client:        dynClient,
 		clientset:     clientset,
 		logger:        logger,
+	}
+}
+
+// NewRepoAdapter creates a new Kubernetes adapter for the port.WriterRepo port.
+func NewNamespaceManagingRepoAdapter[T port.IdentifiableResource](
+	dynClient dynamic.Interface,
+	clientset kubernetes.Interface,
+	gvr schema.GroupVersionResource,
+	logger *slog.Logger,
+	domainToK8s DomainToK8s[T],
+	k8sToDomain K8sToDomain[T],
+) *NamespaceManagingRepoAdapter[T] {
+	return &NamespaceManagingRepoAdapter[T]{
+		ReaderAdapter: NewReaderAdapter(
+			dynClient,
+			gvr,
+			logger,
+			k8sToDomain,
+		),
+		NamespaceManagingWriterAdapter: NewNamespaceManagingWriterAdapter[T](
+			dynClient,
+			clientset,
+			gvr,
+			logger,
+			domainToK8s,
+			k8sToDomain,
+		),
+		WatcherAdapter: NewWatcherAdapter(
+			dynClient,
+			gvr,
+			logger,
+			k8sToDomain,
+		),
 	}
 }
 
@@ -613,7 +653,7 @@ func (a *NamespaceManagingWriterAdapter[T]) Delete(ctx context.Context, m T) err
 		}
 		if owned {
 			if err := DeleteNamespace(ctx, a.clientset, namespace); err != nil && !kerrs.IsNotFound(err) {
-				a.logger.ErrorContext(ctx, "failed to delete namespace", "namespace", namespace, "error", err)
+				a.logger.ErrorContext(ctx, "failed to delete namespace", "namespace", namespace, "error", err, slog.Any("m", m))
 			}
 		}
 	}
