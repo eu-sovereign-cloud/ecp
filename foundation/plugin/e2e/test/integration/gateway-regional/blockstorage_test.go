@@ -18,24 +18,12 @@ import (
 
 	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/block-storages/v1"
 	kubernetesadapter "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
+	ecpmodel "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
+	regionalmodel "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 )
-
-// setupTestWorkspace ensures a workspace exists for the block storage tests.
-func setupTestWorkspace(t *testing.T, workspaceName string) {
-	t.Helper()
-
-	body, err := json.Marshal(schema.Workspace{})
-	require.NoError(t, err)
-
-	// Use CreateOrUpdate to ensure the workspace exists, making tests idempotent.
-	resp, err := workspaceClient.CreateOrUpdateWorkspaceWithBody(context.Background(), testTenant, workspaceName, nil, "application/json", bytes.NewReader(body))
-	require.NoError(t, err)
-	_ = resp.Body.Close()
-	require.Contains(t, []int{http.StatusOK, http.StatusCreated}, resp.StatusCode, "workspace should be created or already exist")
-}
 
 // newBlockStorageBody is a helper to construct the body for creating/updating block storage.
 func newBlockStorageBody(t *testing.T, sizeGB int) schema.BlockStorage {
@@ -53,17 +41,10 @@ func newBlockStorageBody(t *testing.T, sizeGB int) schema.BlockStorage {
 }
 
 func TestBlockStorageAPI(t *testing.T) {
-	t.Parallel()
-
-	// Given: The regional gateway is running and clients are initialized.
-	require.NotNil(t, storageClient, "storage client should have been initialized")
-	require.NotNil(t, k8sClient, "k8sClient should have been initialized")
-
-	// And: A workspace for our resources to live in.
-	setupTestWorkspace(t, testWorkspace)
+	//t.Parallel()
 
 	t.Run("should create a block storage resource via the gateway API", func(t *testing.T) {
-		t.Parallel()
+		//t.Parallel()
 
 		//
 		// Given a unique block storage resource definition
@@ -99,10 +80,32 @@ func TestBlockStorageAPI(t *testing.T) {
 			return false, nil
 		})
 		require.NoError(t, err, "block storage CR should become active")
+
+		//
+		// And we can cleanup the block storage
+		state := regional.ResourceStateDeleting
+		bsDomain := &regionalmodel.BlockStorageDomain{
+			Metadata: regionalmodel.Metadata{
+				CommonMetadata: ecpmodel.CommonMetadata{
+					Name: resourceName,
+				},
+				Scope: scope.Scope{
+					Tenant:    testTenant,
+					Workspace: testWorkspace,
+				},
+			},
+			Spec: regionalmodel.BlockStorageSpec{},
+			Status: &regional.BlockStorageStatus{
+				State: &state,
+			},
+		}
+
+		_, err = blockStorageRepo.Update(t.Context(), bsDomain)
+		require.NoError(t, err)
 	})
 
 	t.Run("should delete a block storage resource via the gateway API", func(t *testing.T) {
-		t.Parallel()
+		//t.Parallel()
 
 		//
 		// Given a unique block storage resource that has been created
@@ -150,6 +153,7 @@ func TestBlockStorageAPI(t *testing.T) {
 				if kerrors.IsNotFound(err) {
 					return true, nil // Successfully deleted
 				}
+
 				return false, err // Other error
 			}
 			return false, nil // Not deleted yet
@@ -158,26 +162,23 @@ func TestBlockStorageAPI(t *testing.T) {
 	})
 
 	t.Run("should increase the size of a block storage resource via the gateway API", func(t *testing.T) {
-		t.Parallel()
+		//t.Parallel()
 
 		//
 		// Given a unique block storage resource that is active with a size of 1GB
-		workspaceName := "test-bs-increase-ws-" + uuid.New().String()[:8]
-		setupTestWorkspace(t, workspaceName)
-
 		resourceName := "test-bs-increase-" + uuid.New().String()[:8]
 		blockStorageBody := newBlockStorageBody(t, 1)
 		createBody, err := json.Marshal(blockStorageBody)
 		require.NoError(t, err)
 
-		createResp, err := storageClient.CreateOrUpdateBlockStorageWithBody(context.Background(), testTenant, workspaceName, resourceName, nil, "application/json", bytes.NewReader(createBody))
+		createResp, err := storageClient.CreateOrUpdateBlockStorageWithBody(context.Background(), testTenant, testWorkspace, resourceName, nil, "application/json", bytes.NewReader(createBody))
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, createResp.StatusCode)
 		_ = createResp.Body.Close()
 
 		var createdBS blockstoragev1.BlockStorage
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
-			ns := kubernetesadapter.ComputeNamespace(&scope.Scope{Tenant: testTenant, Workspace: workspaceName})
+			ns := kubernetesadapter.ComputeNamespace(&scope.Scope{Tenant: testTenant, Workspace: testWorkspace})
 			key := client.ObjectKey{Namespace: ns, Name: resourceName}
 			if err := k8sClient.Get(ctx, key, &createdBS); err != nil {
 				return false, nil
@@ -195,7 +196,7 @@ func TestBlockStorageAPI(t *testing.T) {
 		updateBody, err := json.Marshal(updateBodyPayload)
 		require.NoError(t, err)
 
-		updateResp, err := storageClient.CreateOrUpdateBlockStorageWithBody(context.Background(), testTenant, workspaceName, resourceName, nil, "application/json", bytes.NewReader(updateBody))
+		updateResp, err := storageClient.CreateOrUpdateBlockStorageWithBody(context.Background(), testTenant, testWorkspace, resourceName, nil, "application/json", bytes.NewReader(updateBody))
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, updateResp.StatusCode)
 		_ = updateResp.Body.Close()
@@ -204,7 +205,7 @@ func TestBlockStorageAPI(t *testing.T) {
 		// Then the resource status should eventually reflect the new size of 2GB
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
 			var currentBS blockstoragev1.BlockStorage
-			ns := kubernetesadapter.ComputeNamespace(&scope.Scope{Tenant: testTenant, Workspace: workspaceName})
+			ns := kubernetesadapter.ComputeNamespace(&scope.Scope{Tenant: testTenant, Workspace: testWorkspace})
 			key := client.ObjectKey{Namespace: ns, Name: resourceName}
 			if err := k8sClient.Get(ctx, key, &currentBS); err != nil {
 				return false, nil
@@ -215,5 +216,27 @@ func TestBlockStorageAPI(t *testing.T) {
 			return false, nil
 		})
 		require.NoError(t, err, "block storage CR should have its size increased to 2GB")
+
+		//
+		// And we can cleanup the block storage
+		state := regional.ResourceStateDeleting
+		bsDomain := &regionalmodel.BlockStorageDomain{
+			Metadata: regionalmodel.Metadata{
+				CommonMetadata: ecpmodel.CommonMetadata{
+					Name: resourceName,
+				},
+				Scope: scope.Scope{
+					Tenant:    testTenant,
+					Workspace: testWorkspace,
+				},
+			},
+			Spec: regionalmodel.BlockStorageSpec{},
+			Status: &regional.BlockStorageStatus{
+				State: &state,
+			},
+		}
+
+		_, err = blockStorageRepo.Update(t.Context(), bsDomain)
+		require.NoError(t, err)
 	})
 }

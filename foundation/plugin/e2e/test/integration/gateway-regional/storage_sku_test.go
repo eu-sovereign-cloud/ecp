@@ -16,13 +16,10 @@ import (
 )
 
 func TestStorageSKU_API(t *testing.T) {
-	t.Parallel()
-
-	// Given: The regional gateway is running and the storage SKU has been deployed.
-	require.NotNil(t, storageClient, "storage client should have been initialized")
+	//t.Parallel()
 
 	t.Run("should retrieve a list of all available storage skus", func(t *testing.T) {
-		t.Parallel()
+		//t.Parallel()
 
 		//
 		// When we call the ListSkus method for our test tenant
@@ -56,7 +53,7 @@ func TestStorageSKU_API(t *testing.T) {
 	})
 
 	t.Run("should retrieve a single specified storage sku by name", func(t *testing.T) {
-		t.Parallel()
+		//t.Parallel()
 
 		//
 		// Given the name of the SKU we know exists

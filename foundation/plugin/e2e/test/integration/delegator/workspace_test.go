@@ -7,30 +7,32 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/util/wait"
+
 	ecpmodel "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	regionalmodel "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
-	"github.com/google/uuid"
-	"github.com/stretchr/testify/require"
-	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 func TestWorkspace(t *testing.T) {
-	t.Parallel()
+	//t.Parallel()
 	t.Run("should create a workspace resource", func(t *testing.T) {
-		t.Parallel()
+		//t.Parallel()
 
 		//
 		// Given a unique workspace domain resource definition
-		resourceName := "test-ws-create-" + uuid.New().String()[:8]
+		workspaceName := "test-ws-create-" + uuid.New().String()[:8]
 		wsDomain := &regionalmodel.WorkspaceDomain{
 			Metadata: regionalmodel.Metadata{
 				CommonMetadata: ecpmodel.CommonMetadata{
-					Name: resourceName,
+					Name: workspaceName,
 				},
 				Scope: scope.Scope{
-					Tenant: "test-tenant",
+					Tenant:    testTenant,
+					Workspace: workspaceName,
 				},
 			},
 			Spec: regionalmodel.WorkspaceSpec{},
@@ -47,10 +49,11 @@ func TestWorkspace(t *testing.T) {
 			loadedWs := &regionalmodel.WorkspaceDomain{
 				Metadata: regionalmodel.Metadata{
 					CommonMetadata: ecpmodel.CommonMetadata{
-						Name: resourceName,
+						Name: workspaceName,
 					},
 					Scope: scope.Scope{
-						Tenant: "test-tenant",
+						Tenant:    testTenant,
+						Workspace: workspaceName,
 					},
 				},
 			}
@@ -63,21 +66,33 @@ func TestWorkspace(t *testing.T) {
 			return false, nil
 		})
 		require.NoError(t, err, "workspace resource should become active")
+
+		//
+		// And we can cleanup the workspace
+		state := regional.ResourceStateDeleting
+		wsDomain.Status = &regional.WorkspaceStatusDomain{
+			StatusDomain: regional.StatusDomain{
+				State: &state,
+			},
+		}
+		_, err = workspaceRepo.Update(t.Context(), wsDomain)
+		require.NoError(t, err)
 	})
 
 	t.Run("should delete a workspace resource", func(t *testing.T) {
-		t.Parallel()
+		//t.Parallel()
 
 		//
 		// Given a unique workspace resource that is already created
-		resourceName := "test-ws-delete-" + uuid.New().String()[:8]
+		workspaceName := "test-ws-delete-" + uuid.New().String()[:8]
 		wsDomain := &regionalmodel.WorkspaceDomain{
 			Metadata: regionalmodel.Metadata{
 				CommonMetadata: ecpmodel.CommonMetadata{
-					Name: resourceName,
+					Name: workspaceName,
 				},
 				Scope: scope.Scope{
-					Tenant: "test-tenant",
+					Tenant:    testTenant,
+					Workspace: workspaceName,
 				},
 			},
 			Spec: regionalmodel.WorkspaceSpec{},
@@ -89,10 +104,11 @@ func TestWorkspace(t *testing.T) {
 			loadedWs := &regionalmodel.WorkspaceDomain{
 				Metadata: regionalmodel.Metadata{
 					CommonMetadata: ecpmodel.CommonMetadata{
-						Name: resourceName,
+						Name: workspaceName,
 					},
 					Scope: scope.Scope{
-						Tenant: "test-tenant",
+						Tenant:    testTenant,
+						Workspace: workspaceName,
 					},
 				},
 			}
@@ -108,7 +124,6 @@ func TestWorkspace(t *testing.T) {
 
 		//
 		// When we delete the workspace resource
-
 		state := regional.ResourceStateDeleting
 		wsDomain.Status = &regional.WorkspaceStatusDomain{
 			StatusDomain: regional.StatusDomain{
@@ -124,10 +139,11 @@ func TestWorkspace(t *testing.T) {
 			loadedWs := &regionalmodel.WorkspaceDomain{
 				Metadata: regionalmodel.Metadata{
 					CommonMetadata: ecpmodel.CommonMetadata{
-						Name: resourceName,
+						Name: workspaceName,
 					},
 					Scope: scope.Scope{
-						Tenant: "test-tenant",
+						Tenant:    testTenant,
+						Workspace: workspaceName,
 					},
 				},
 			}

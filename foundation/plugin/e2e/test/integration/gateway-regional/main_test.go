@@ -14,54 +14,57 @@ import (
 	"testing"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/google/uuid"
-
-	regionv1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
-	storagev1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
-	workspacev1sdk "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1"
-
-	corev1 "k8s.io/api/core/v1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/transport/spdy"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage"
+	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/block-storages/v1"
 	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/workspace/v1"
 	kubernetesadapter "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
+	ecpmodel "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
+	regionalmodel "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
+	regionv1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
+	storagev1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
+	workspacev1sdk "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1"
 )
 
 const (
-	testNamespace    = "e2e-ecp"
-	pollInterval     = 5 * time.Second
-	timeout          = 3 * time.Minute
-	testTenant       = "test-tenant"
-	testWorkspace    = "test-workspace"
-	testWorkspaceNew = "test-workspace-new"
+	pollInterval    = 5 * time.Second
+	timeout         = 3 * time.Minute
+	systemNamespace = "e2e-ecp"
+	testTenant      = "test-tenant"
+	testWorkspace   = "test-workspace"
 )
 
 var (
-	k8sClient       client.Client
-	clientset       *kubernetes.Clientset
-	testLogger      *slog.Logger
-	regionClient    *regionv1.ClientWithResponses
-	storageClient   *storagev1.ClientWithResponses
-	workspaceClient *workspacev1sdk.ClientWithResponses
+	k8sClient        client.Client
+	clientset        *kubernetes.Clientset
+	dynamicClient    dynamic.Interface
+	testLogger       *slog.Logger
+	regionClient     *regionv1.ClientWithResponses
+	storageClient    *storagev1.ClientWithResponses
+	workspaceClient  *workspacev1sdk.ClientWithResponses
+	workspaceRepo    port.Repo[*regionalmodel.WorkspaceDomain]
+	blockStorageRepo port.Repo[*regionalmodel.BlockStorageDomain]
 )
 
 func TestMain(m *testing.M) {
 	var err error
+
+	// Kubernetes clients setup
 	s := runtime.NewScheme()
 	utilruntime.Must(scheme.AddToScheme(s))
 	utilruntime.Must(workspacev1.AddToScheme(s))
@@ -79,6 +82,29 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Failed to create controller-runtime client: %v", err)
 	}
 
+	dynamicClient, err = dynamic.NewForConfig(restConfig)
+	if err != nil {
+		log.Fatalf("Failed to create dynamic client: %v", err)
+	}
+
+	// SECA repos setup
+	workspaceRepo = kubernetesadapter.NewNamespaceManagingRepoAdapter(
+		dynamicClient,
+		clientset,
+		workspacev1.WorkspaceGVR,
+		testLogger,
+		kubernetesadapter.MapWorkspaceDomainToCR,
+		kubernetesadapter.MapCRToWorkspaceDomain,
+	)
+
+	blockStorageRepo = kubernetesadapter.NewRepoAdapter(
+		dynamicClient,
+		blockstoragev1.BlockStorageGVR,
+		testLogger,
+		kubernetesadapter.MapBlockStorageDomainToCR,
+		kubernetesadapter.MapCRToBlockStorageDomain,
+	)
+
 	// Port forward for Global Gateway
 	globalPort, stopGlobalPF, err := startPortForward("gateway-global-svc", "app=gateway-global", restConfig)
 	if err != nil {
@@ -93,7 +119,7 @@ func TestMain(m *testing.M) {
 	}
 	defer close(stopRegionalPF)
 
-	// Initialize SDK Clients
+	// SECA SDK clients setup
 	globalURL := fmt.Sprintf("http://localhost:%d/providers/seca.region", globalPort)
 	regionClient, err = regionv1.NewClientWithResponses(globalURL)
 	if err != nil {
@@ -112,23 +138,18 @@ func TestMain(m *testing.M) {
 
 	testLogger = slog.New(slog.NewTextHandler(os.Stdout, nil))
 
-	// Create namespaces for tests
-	nsToCreate := []string{
-		kubernetesadapter.ComputeNamespace(&scope.Scope{Tenant: testTenant}),
-		kubernetesadapter.ComputeNamespace(&scope.Scope{Tenant: testTenant, Workspace: testWorkspace}),
-		kubernetesadapter.ComputeNamespace(&scope.Scope{Tenant: testTenant, Workspace: testWorkspaceNew}),
-		kubernetesadapter.ComputeNamespace(&scope.Scope{Tenant: testTenant, Workspace: "test-ws-create-" + uuid.New().String()[:8]}),
-		kubernetesadapter.ComputeNamespace(&scope.Scope{Tenant: testTenant, Workspace: "test-ws-delete-" + uuid.New().String()[:8]}),
-	}
-	if err := createTestNamespaces(context.Background(), nsToCreate); err != nil {
-		log.Fatalf("Failed to create test namespaces: %v", err)
+	// Provide Workspace for BlockStorage tests
+	if err := createTestWorkspace(context.Background(), workspaceRepo); err != nil {
+		log.Fatalf("Failed to create test workspace: %v", err)
 	}
 
-	log.Println("Test environment ready. Running tests...")
-	code := m.Run()
+	// When running the test suite
+	exitCode := m.Run()
 
-	cleanupTestNamespaces(context.Background(), nsToCreate)
-	os.Exit(code)
+	// Cleanup Workspace for BlockStorage tests
+	cleanupTestWorkspace(context.Background(), workspaceRepo)
+
+	os.Exit(exitCode)
 }
 
 func startPortForward(serviceName, labelSelector string, config *rest.Config) (uint16, chan struct{}, error) {
@@ -177,7 +198,7 @@ func setupK8sClient() (*rest.Config, *kubernetes.Clientset, error) {
 func setupPortForward(clientset *kubernetes.Clientset, config *rest.Config, serviceName, labelSelector string, stopCh, readyCh chan struct{}) (*portforward.PortForwarder, error) {
 	var podName string
 	err := wait.PollUntilContextTimeout(context.Background(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
-		pods, err := clientset.CoreV1().Pods(testNamespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
+		pods, err := clientset.CoreV1().Pods(systemNamespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
 		if err != nil {
 			return false, err
 		}
@@ -196,7 +217,7 @@ func setupPortForward(clientset *kubernetes.Clientset, config *rest.Config, serv
 	}
 
 	log.Printf("Found pod %s to port-forward to for service %s.", podName, serviceName)
-	reqURL, err := url.Parse(fmt.Sprintf("%s/api/v1/namespaces/%s/pods/%s/portforward", config.Host, testNamespace, podName))
+	reqURL, err := url.Parse(fmt.Sprintf("%s/api/v1/namespaces/%s/pods/%s/portforward", config.Host, systemNamespace, podName))
 	if err != nil {
 		return nil, err
 	}
@@ -209,25 +230,37 @@ func setupPortForward(clientset *kubernetes.Clientset, config *rest.Config, serv
 	return portforward.New(dialer, ports, stopCh, readyCh, io.Discard, io.Discard)
 }
 
-func createTestNamespaces(ctx context.Context, nsToCreate []string) error {
-	log.Println("Creating test namespaces...")
-	for _, nsName := range nsToCreate {
-		ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: nsName}}
-		if err := k8sClient.Create(ctx, ns); err != nil && !kerrors.IsAlreadyExists(err) {
-			return fmt.Errorf("failed to create namespace %s: %w", nsName, err)
-		}
+func createTestWorkspace(ctx context.Context, workspaceRepo port.Repo[*regionalmodel.WorkspaceDomain]) error {
+	wsDomain := &regionalmodel.WorkspaceDomain{
+		Metadata: regionalmodel.Metadata{
+			CommonMetadata: ecpmodel.CommonMetadata{
+				Name: testWorkspace,
+			},
+			Scope: scope.Scope{
+				Tenant:    testTenant,
+				Workspace: testWorkspace,
+			},
+		},
+		Spec: regionalmodel.WorkspaceSpec{},
 	}
-	return nil
+
+	_, err := workspaceRepo.Create(ctx, wsDomain)
+	return err
 }
 
-func cleanupTestNamespaces(ctx context.Context, nsToDelete []string) {
-	log.Println("Cleaning up test namespaces...")
-	for _, nsName := range nsToDelete {
-		ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: nsName}}
-		deleteCtx, cancel := context.WithTimeout(ctx, 1*time.Minute)
-		defer cancel()
-		if err := k8sClient.Delete(deleteCtx, ns); err != nil && !kerrors.IsNotFound(err) {
-			log.Printf("Failed to delete namespace %s: %v", nsName, err)
-		}
+func cleanupTestWorkspace(ctx context.Context, workspaceRepo port.Repo[*regionalmodel.WorkspaceDomain]) error {
+	wsDomain := &regionalmodel.WorkspaceDomain{
+		Metadata: regionalmodel.Metadata{
+			CommonMetadata: ecpmodel.CommonMetadata{
+				Name: testWorkspace,
+			},
+			Scope: scope.Scope{
+				Tenant:    testTenant,
+				Workspace: testWorkspace,
+			},
+		},
+		Spec: regionalmodel.WorkspaceSpec{},
 	}
+
+	return workspaceRepo.Delete(ctx, wsDomain)
 }
