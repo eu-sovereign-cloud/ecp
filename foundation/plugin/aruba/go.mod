@@ -4,10 +4,6 @@ go 1.24
 
 toolchain go1.24
 
-replace github.com/eu-sovereign-cloud/ecp/foundation/delegator => ../../delegator
-
-replace github.com/eu-sovereign-cloud/ecp/foundation/gateway => ../../gateway
-
 require (
 	github.com/Arubacloud/arubacloud-resource-operator v0.0.1-alpha5
 	github.com/google/uuid v1.6.0

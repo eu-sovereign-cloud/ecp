@@ -4,15 +4,13 @@ go 1.24
 
 toolchain go1.24
 
+tool sigs.k8s.io/controller-tools/cmd/controller-gen
+
 require (
 	github.com/oapi-codegen/runtime v1.1.2
 	k8s.io/apimachinery v0.34.3
 	sigs.k8s.io/controller-runtime v0.22.4
 )
-
-tool sigs.k8s.io/controller-tools/cmd/controller-gen
-
-replace github.com/eu-sovereign-cloud/ecp/foundation/api => ../api
 
 require (
 	github.com/Masterminds/semver/v3 v3.4.0 // indirect
