@@ -22,6 +22,7 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation/filter"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes/labels"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 )
 
@@ -592,18 +593,38 @@ func namespaceOwnedBy(ctx context.Context, clientset kubernetes.Interface, nsNam
 
 // Create ensures the computed namespace exists (for both tenant and workspace scopes) and rolls back if we created it and the resource creation fails.
 func (a *NamespaceManagingWriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
-	// Compute namespace for the resource (works for tenant-only and tenant+workspace scopes)
-	namespace := ComputeNamespace(m)
+	// The current SECA resource organization (https://spec.secapi.cloud/docs/content/Architecture/resource-organization)
+	// contains only three hierarchical levels: Tenants 1<->* Workspaces 1<->* SECA Resources.
+	//
+	// At present, there is not a Tenant entity defined, and the only entity
+	// which will really manage its namespace is the Workspace.
+	//
+	// The Workspace should be placed into the Tenant namespace, and it should
+	// not own that namespace because it will contains all the Workspaces and
+	// other elements owned by the Tenant.
+	//
+	// So, in fact, the Workspaces will create and manage namespaces for its
+	// underlying resources, and not for themselves.
+	//
+	// That's why the namespace name must always consider Tenant and Workspace
+	// names here.
+	tenant := m.GetTenant()
+	container := m.GetWorkspace()
+	if container == "" {
+		container = m.GetName()
+	}
+
+	namespace := ComputeNamespace(&scope.Scope{Tenant: tenant, Workspace: container})
 	if namespace == "" {
 		return a.WriterAdapter.Create(ctx, m)
 	}
 
 	ownerLabels := map[string]string{}
-	if m.GetTenant() != "" {
-		ownerLabels[labels.InternalTenantLabel] = m.GetTenant()
+	if tenant != "" {
+		ownerLabels[labels.InternalTenantLabel] = tenant
 	}
-	if m.GetWorkspace() != "" {
-		ownerLabels[labels.InternalWorkspaceLabel] = m.GetWorkspace()
+	if container != "" {
+		ownerLabels[labels.InternalWorkspaceLabel] = container
 	}
 
 	createdNS, err := CreateNamespace(ctx, a.clientset, namespace, ownerLabels)
@@ -631,19 +652,43 @@ func (a *NamespaceManagingWriterAdapter[T]) Create(ctx context.Context, m T) (*T
 
 // Delete deletes the resource and then attempts to delete the associated namespace only if it is owned by us.
 func (a *NamespaceManagingWriterAdapter[T]) Delete(ctx context.Context, m T) error {
+	// The current SECA resource organization (https://spec.secapi.cloud/docs/content/Architecture/resource-organization)
+	// contains only three hierarchical levels: Tenants 1<->* Workspaces 1<->* SECA Resources.
+	//
+	// At present, there is not a Tenant entity defined, and the only entity
+	// which will really manage its namespace is the Workspace.
+	//
+	// The Workspace should be placed into the Tenant namespace, and it should
+	// not own that namespace because it will contains all the Workspaces and
+	// other elements owned by the Tenant.
+	//
+	// So, in fact, the Workspaces will create and manage namespaces for its
+	// underlying resources, and not for themselves.
+	//
+	// That's why the namespace name must always consider Tenant and Workspace
+	// names here.
+	tenant := m.GetTenant()
+	container := m.GetWorkspace()
+	if container == "" {
+		container = m.GetName()
+	}
+
+	namespace := ComputeNamespace(&scope.Scope{Tenant: tenant, Workspace: container})
+
+	// Delete the resource which manages the namespace
 	if err := a.WriterAdapter.Delete(ctx, m); err != nil {
 		return err
 	}
+
 	// attempt to delete the namespace if owned
-	namespace := ComputeNamespace(m)
 	if namespace != "" {
 		// build expected labels similar to Create
 		expectedLabels := map[string]string{}
-		if t := m.GetTenant(); t != "" {
-			expectedLabels[labels.InternalTenantLabel] = t
+		if tenant != "" {
+			expectedLabels[labels.InternalTenantLabel] = tenant
 		}
-		if w := m.GetWorkspace(); w != "" {
-			expectedLabels[labels.InternalWorkspaceLabel] = w
+		if container != "" {
+			expectedLabels[labels.InternalWorkspaceLabel] = container
 		}
 
 		owned, err := namespaceOwnedBy(ctx, a.clientset, namespace, expectedLabels)
