@@ -68,8 +68,8 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Failed to create k8s client: %v", err)
 	}
 
-	// Initialize dynamic clientSet
-	clientSet, err := kubernetes.NewForConfig(restConfig)
+	// Initialize dynamic clientset
+	clientset, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
 		log.Fatalf("Failed to create clientset: %v", err)
 	}
@@ -94,7 +94,7 @@ func TestMain(m *testing.M) {
 
 	workspaceRepo = kubernetesadapter.NewNamespaceManagingRepoAdapter(
 		dynamicClient,
-		clientSet,
+		clientset,
 		workspacev1.WorkspaceGVR,
 		testLogger,
 		kubernetesadapter.MapWorkspaceDomainToCR,
@@ -122,8 +122,7 @@ func createTestWorkspace(ctx context.Context, workspaceRepo port.Repo[*regionalm
 				Name: testWorkspace,
 			},
 			Scope: scope.Scope{
-				Tenant:    testTenant,
-				Workspace: testWorkspace,
+				Tenant: testTenant,
 			},
 		},
 		Spec: regionalmodel.WorkspaceSpec{},
@@ -140,8 +139,7 @@ func cleanupTestWorkspace(ctx context.Context, workspaceRepo port.Repo[*regional
 				Name: testWorkspace,
 			},
 			Scope: scope.Scope{
-				Tenant:    testTenant,
-				Workspace: testWorkspace,
+				Tenant: testTenant,
 			},
 		},
 		Spec: regionalmodel.WorkspaceSpec{},
