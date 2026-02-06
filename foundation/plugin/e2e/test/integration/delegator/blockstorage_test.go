@@ -73,6 +73,28 @@ func TestBlockStorage(t *testing.T) {
 			return false, nil
 		})
 		require.NoError(t, err, "block storage resource should become active")
+
+		//
+		// And we can cleanup the block storage
+		state := regional.ResourceStateDeleting
+		bsDomain = &regionalmodel.BlockStorageDomain{
+			Metadata: regionalmodel.Metadata{
+				CommonMetadata: ecpmodel.CommonMetadata{
+					Name: resourceName,
+				},
+				Scope: scope.Scope{
+					Tenant:    testTenant,
+					Workspace: testWorkspace,
+				},
+			},
+			Spec: regionalmodel.BlockStorageSpec{},
+			Status: &regional.BlockStorageStatus{
+				State: &state,
+			},
+		}
+
+		_, err = blockStorageRepo.Update(t.Context(), bsDomain)
+		require.NoError(t, err)
 	})
 
 	t.Run("should delete a block storage resource", func(t *testing.T) {
@@ -253,5 +275,27 @@ func TestBlockStorage(t *testing.T) {
 			return false, nil
 		})
 		require.NoError(t, err, "block storage resource should have its size increased")
+
+		//
+		// And we can cleanup the block storage
+		state := regional.ResourceStateDeleting
+		updatedBsDomain = &regionalmodel.BlockStorageDomain{
+			Metadata: regionalmodel.Metadata{
+				CommonMetadata: ecpmodel.CommonMetadata{
+					Name: resourceName,
+				},
+				Scope: scope.Scope{
+					Tenant:    testTenant,
+					Workspace: testWorkspace,
+				},
+			},
+			Spec: regionalmodel.BlockStorageSpec{},
+			Status: &regional.BlockStorageStatus{
+				State: &state,
+			},
+		}
+
+		_, err = blockStorageRepo.Update(t.Context(), updatedBsDomain)
+		require.NoError(t, err)
 	})
 }

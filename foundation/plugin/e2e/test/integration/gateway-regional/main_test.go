@@ -33,6 +33,7 @@ import (
 	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/workspace/v1"
 	kubernetesadapter "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
 	ecpmodel "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	regionalmodel "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
@@ -248,6 +249,7 @@ func createTestWorkspace(ctx context.Context, workspaceRepo port.Repo[*regionalm
 }
 
 func cleanupTestWorkspace(ctx context.Context, workspaceRepo port.Repo[*regionalmodel.WorkspaceDomain]) error {
+	state := regional.ResourceStateDeleting
 	wsDomain := &regionalmodel.WorkspaceDomain{
 		Metadata: regionalmodel.Metadata{
 			CommonMetadata: ecpmodel.CommonMetadata{
@@ -258,7 +260,14 @@ func cleanupTestWorkspace(ctx context.Context, workspaceRepo port.Repo[*regional
 			},
 		},
 		Spec: regionalmodel.WorkspaceSpec{},
+		Status: &regional.WorkspaceStatusDomain{
+			StatusDomain: regional.StatusDomain{
+				State: &state,
+			},
+		},
 	}
 
-	return workspaceRepo.Delete(ctx, wsDomain)
+	_, err := workspaceRepo.Update(ctx, wsDomain)
+
+	return err
 }
