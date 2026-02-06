@@ -24,10 +24,8 @@ func (c *WorkspaceProjectConverter) FromSECAToAruba(from *regional.WorkspaceDoma
 		spec.Description = v
 	}
 
-	// namespace := kubernetesadapter.ComputeNamespace(&from.Metadata.Scope)
-
 	namespace := kubernetesadapter.ComputeNamespace(&scope.Scope{
-		Tenant: from.Metadata.Tenant,
+		Tenant: from.Tenant,
 	})
 
 	if v, ok := from.Spec["tags"].([]string); ok {
@@ -44,26 +42,25 @@ func (c *WorkspaceProjectConverter) FromSECAToAruba(from *regional.WorkspaceDoma
 		spec.Default = v
 	}
 
-	spec.Tenant = from.Scope.Tenant
+	spec.Tenant = from.Tenant
 
-	project := &v1alpha1.Project{
+	return &v1alpha1.Project{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Project",
 			APIVersion: "arubacloud.com/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      from.Metadata.Name,
+			Name:      from.Name,
 			Namespace: namespace,
 			Labels: map[string]string{
-				// "seca.workspace/workspace": from.Metadata.Workspace,
-				"seca.workspace/tenant":    from.Scope.Tenant,
-				"seca.workspace/namespace": namespace},
+				"seca.workspace/workspace": from.Workspace,
+				"seca.workspace/tenant":    from.Tenant,
+				"seca.workspace/namespace": namespace,
+			},
 		},
 		Spec:   spec,
 		Status: v1alpha1.ResourceStatus{},
-	}
-
-	return project, nil
+	}, nil
 }
 
 func (c *WorkspaceProjectConverter) FromArubaToSECA(
@@ -78,12 +75,11 @@ func (c *WorkspaceProjectConverter) FromArubaToSECA(
 	}
 
 	tenant := from.Labels["seca.workspace/tenant"]
-
 	if tenant == "" {
 		tenant = from.Spec.Tenant
 	}
 
-	ws := &regional.WorkspaceDomain{
+	return &regional.WorkspaceDomain{
 		Metadata: regional.Metadata{
 			CommonMetadata: model.CommonMetadata{
 				Name: from.Name,
@@ -96,7 +92,5 @@ func (c *WorkspaceProjectConverter) FromArubaToSECA(
 		Status: &regional.WorkspaceStatusDomain{
 			StatusDomain: regional.StatusDomain{},
 		},
-	}
-
-	return ws, nil
+	}, nil
 }
