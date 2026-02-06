@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: conformance
+  name: conformance
+  namespace: e2e-ecp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: conformance
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: conformance
+    spec:
+      serviceAccountName: conformance-sa
+      imagePullSecrets:
+      - name: conformance-registry-secret
+      containers:
+      - image: "##IMAGE_NAME##"
+        name: e2e-ecp-conformance
+        imagePullPolicy: Always
+        command: [ "sleep", "infinity" ]
+        resources: {}
+status: {}
