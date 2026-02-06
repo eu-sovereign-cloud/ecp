@@ -3,8 +3,8 @@ module github.com/eu-sovereign-cloud/ecp/foundation/gateway
 go 1.24
 
 require (
-	github.com/eu-sovereign-cloud/ecp/foundation/api v0.0.1
-	github.com/eu-sovereign-cloud/go-sdk v0.2.0
+	//github.com/eu-sovereign-cloud/ecp/foundation/api v0.0.1
+	github.com/eu-sovereign-cloud/go-sdk v0.3.33
 	github.com/gobwas/glob v0.2.3
 	github.com/spf13/cobra v1.10.1
 	github.com/stretchr/testify v1.11.1

@@ -57,9 +57,8 @@ type LoadBalancerTarget struct {
 	// Members Nic reference to the members as part of the LoadBalancerTarget
 	Members []Reference `json:"members"`
 
-	// Port A valid network port number.
-	// The port number is a 16-bit unsigned integer ranging from 1 to 65535.
-	Port *Port `json:"port,omitempty"`
+	// Port Backend port to which the load balancer will be forwarding the traffic to
+	Port *NetworkLoadBalancerPort `json:"port,omitempty"`
 
 	// ProxyProtocol Specifies the proxy protocol version. The proxy protocol is used to
 	// pass client connection information to the backend instances.
@@ -108,9 +107,8 @@ type NetworkLoadBalancer struct {
 // can have multiple targets, but the combination of port and protocol must
 // be unique to ensure proper routing.
 type NetworkLoadBalancerFrontend struct {
-	// Port A valid network port number.
-	// The port number is a 16-bit unsigned integer ranging from 1 to 65535.
-	Port Port `json:"port"`
+	// Port Frontend port to which the load balancer will be listening on
+	Port NetworkLoadBalancerPort `json:"port"`
 
 	// Protocol Frontend Protocol to which the load balancer will be listening on
 	Protocol NetworkLoadBalancerFrontendProtocol `json:"protocol"`
@@ -122,12 +120,20 @@ type NetworkLoadBalancerFrontend struct {
 // NetworkLoadBalancerFrontendProtocol Frontend Protocol to which the load balancer will be listening on
 type NetworkLoadBalancerFrontendProtocol string
 
+// NetworkLoadBalancerPort Load Balancer port to receive or forward the traffic
+type NetworkLoadBalancerPort = int
+
 // NetworkLoadBalancerSpec Defines the specification for a Network Load Balancer. A Load Balancer can have multiple
 // frontends, where each frontend may target multiple backend instances. Frontend ports and
 // protocols must be unique to ensure proper routing. The NIC associated with the proxy
 // determines whether the Load Balancer is internal or external.
 type NetworkLoadBalancerSpec struct {
-	Frontends []NetworkLoadBalancerFrontend `json:"frontends"`
+	// BackendPort Backend port to which the load balancer will be forwarding the traffic to
+	BackendPort *NetworkLoadBalancerPort `json:"backendPort,omitempty"`
+
+	// FrontendPort Frontend port to which the load balancer will be listening on
+	FrontendPort *NetworkLoadBalancerPort      `json:"frontendPort,omitempty"`
+	Frontends    []NetworkLoadBalancerFrontend `json:"frontends"`
 
 	// NicRef Reference to the NIC attached to the load balancer.
 	NicRef Reference `json:"nicRef"`
@@ -149,7 +155,6 @@ type NetworkLoadBalancerStatus struct {
 	// - active: available for data layer usage
 	// - updating: available for data layer usage
 	// - deleting: maybe still available for data layer user, can fail any moment
-	// - suspended: not available, provider specific behavior (payment issue, user decided to suspend)
 	// - error: failed to fulfill the request; would be related to provider issue or customer related input.
 	State *ResourceState `json:"state,omitempty"`
 }

@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	apierr "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/errors"
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
@@ -35,8 +36,8 @@ func HandleList[D any, Out any](
 ) {
 	domainObjs, nextSkipToken, err := lister.Do(r.Context(), params)
 	if err != nil {
-		logger.ErrorContext(r.Context(), "failed to list", slog.Any("error", err))
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		logger.ErrorContext(r.Context(), "failed to list resources", slog.Any("error", err))
+		apierr.WriteErrorResponse(w, r, logger, err)
 		return
 	}
 
@@ -44,8 +45,8 @@ func HandleList[D any, Out any](
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	if err := enc.Encode(sdkObj); err != nil {
-		logger.ErrorContext(r.Context(), "failed to encode", slog.Any("error", err))
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		logger.ErrorContext(r.Context(), "failed to encode response", slog.Any("error", err))
+		apierr.WriteErrorResponse(w, r, logger, err)
 		return
 	}
 

@@ -4,7 +4,6 @@ package integration
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/google/uuid"
@@ -140,13 +139,13 @@ func TestBlockStorage(t *testing.T) {
 					},
 				},
 			}
-			err := blockStorageRepo.Load(ctx, &loadedBs)
-			if err != nil && errors.Is(err, ecpmodel.ErrNotFound) { // Corrected IsNotFound check
-				return true, nil
-			}
-			if err != nil {
+			if err := blockStorageRepo.Load(ctx, &loadedBs); err != nil {
+				if errors.Is(err, ecpmodel.ErrForbidden) {
+					return true, nil
+				}
 				return false, err
 			}
+
 			return false, nil
 		})
 		require.NoError(t, err, "block storage resource should be deleted")
