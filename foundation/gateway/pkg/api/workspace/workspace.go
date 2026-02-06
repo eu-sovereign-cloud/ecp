@@ -52,8 +52,10 @@ func APIToDomain(api schema.Workspace, params port.IdentifiableResource) *region
 				ResourceVersion: params.GetVersion(),
 			},
 			Scope: scope.Scope{
-				Tenant:    params.GetTenant(),
-				Workspace: params.GetName(),
+				Tenant: params.GetTenant(),
+				// Workspaces do not have a workspace scope as they are a higher level resource, scoped only by tenant.
+				// Setting it to empty avoids incorrect namespace computation.
+				Workspace: "",
 			},
 			Annotations: api.Annotations,
 			Labels:      api.Labels,

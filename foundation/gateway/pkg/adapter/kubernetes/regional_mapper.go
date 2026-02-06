@@ -118,8 +118,10 @@ func MapCRToWorkspaceDomain(obj client.Object) (*regional.WorkspaceDomain, error
 			Provider:        internalLabels[labels.InternalProviderLabel],
 		},
 		Scope: scope.Scope{
-			Tenant:    internalLabels[labels.InternalTenantLabel],
-			Workspace: cr.GetName(),
+			Tenant: internalLabels[labels.InternalTenantLabel],
+			// Workspaces do not have a workspace scope as they are a higher level resource, scoped only by tenant.
+			// Setting it to empty avoids incorrect namespace computation.
+			Workspace: "",
 		},
 		Region:      internalLabels[labels.InternalRegionLabel],
 		Labels:      labels.KeyedToOriginal(keyedLabels, cr.RegionalCommonData.Labels),

@@ -44,7 +44,7 @@ func (h *BlockStoragePluginHandler) HandleReconcile(ctx context.Context, resourc
 	case wantBlockStorageCreate(resource):
 		delegate = h.plugin.Create
 
-	case resource.DeletedAt != nil || wantBlockStorageDelete(resource):
+	case wantBlockStorageDelete(resource):
 		delegate = h.plugin.Delete
 
 	case isBlockStorageActiveAndNeedsUpdate(resource):
@@ -169,7 +169,7 @@ func wantBlockStorageCreate(resource *regional.BlockStorageDomain) bool {
 }
 
 func wantBlockStorageDelete(resource *regional.BlockStorageDomain) bool {
-	return resource.Status != nil && resource.Status.State != nil && *(resource.Status.State) == regional.ResourceStateDeleting
+	return resource.DeletedAt == nil && resource.Status != nil && resource.Status.State != nil && *(resource.Status.State) == regional.ResourceStateDeleting
 }
 
 func isBlockStorageActiveAndNeedsUpdate(resource *regional.BlockStorageDomain) bool {

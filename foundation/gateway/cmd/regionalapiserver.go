@@ -151,9 +151,18 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 	)
 
 	// Workspace writer adapter that also manages namespace lifecycle
-	workspaceWriterAdapter := kubernetes.NewNamespaceManagingWriterAdapter(
+	// workspaceWriterAdapter := kubernetes.NewNamespaceManagingWriterAdapter(
+	// 	client.Client,
+	// 	client.ClientSet,
+	// 	workspacev1.WorkspaceGVR,
+	// 	logger,
+	// 	kubernetes.MapWorkspaceDomainToCR,
+	// 	kubernetes.MapCRToWorkspaceDomain,
+	// )
+
+	// Workspace reader adapter
+	workspaceWriterAdapter := kubernetes.NewWriterAdapter(
 		client.Client,
-		client.ClientSet,
 		workspacev1.WorkspaceGVR,
 		logger,
 		kubernetes.MapWorkspaceDomainToCR,
