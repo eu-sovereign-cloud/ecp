@@ -23,6 +23,17 @@ spec:
       - image: "##IMAGE_NAME##"
         name: e2e-ecp-conformance
         imagePullPolicy: Always
+        env:
+          - name: PROVIDER_REGION_V1
+            value: http://gateway-global-svc:80/providers/seca.region
+          - name: CLIENT_AUTH_TOKEN
+            value: test-token
+          - name: CLIENT_TENANT
+            value: test-tenant
+          - name: CLIENT_REGION
+            value: itbg-bergamo
+          - name: SCENARIOS_FILTER
+            value: Workspace.V1.List
         command: [ "sleep", "infinity" ]
         resources: {}
 status: {}
