@@ -6,6 +6,7 @@ namespace: e2e-ecp
 
 # List of resources to be applied
 resources:
+  - namespace.yaml
   - deployment.yaml
   - serviceaccount.yaml
   - registry-secret.yaml
