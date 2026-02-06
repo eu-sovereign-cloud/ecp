@@ -51,14 +51,14 @@ func TestRegionAPI(t *testing.T) {
 		foundRegionOne := false
 		foundRegionTwo := false
 		for _, region := range regionIterator.Items {
-			if region.Metadata != nil && region.Metadata.Name == "region-one" {
+			if region.Metadata != nil && region.Metadata.Name == "itbg-bergamo" {
 				foundRegionOne = true
 			}
 			if region.Metadata != nil && region.Metadata.Name == "region-two" {
 				foundRegionTwo = true
 			}
 		}
-		require.True(t, foundRegionOne, "should have found 'region-one'")
+		require.True(t, foundRegionOne, "should have found 'itbg-bergamo'")
 		require.True(t, foundRegionTwo, "should have found 'region-two'")
 	})
 
@@ -67,7 +67,7 @@ func TestRegionAPI(t *testing.T) {
 
 		//
 		// Given a specific region name we know exists.
-		const regionName = "region-one"
+		const regionName = "itbg-bergamo"
 
 		//
 		// When we call the GetRegion method with the specified name.
@@ -92,11 +92,11 @@ func TestRegionAPI(t *testing.T) {
 		require.Equal(t, regionName, region.Metadata.Name, "retrieved region name should match the requested name")
 
 		require.NotNil(t, region.Spec.Providers, "region should have providers")
-		require.Len(t, region.Spec.Providers, 1, "expected 1 provider for region-one")
+		require.Len(t, region.Spec.Providers, 4, "expected 4 provider for itbg-bergamo")
 		require.Equal(t, "seca.compute", region.Spec.Providers[0].Name, "provider name should match the definition")
 
 		require.NotNil(t, region.Spec.AvailableZones, "region should have available zones")
-		require.Len(t, region.Spec.AvailableZones, 2, "expected 2 available zones for region-one")
-		require.ElementsMatch(t, []string{"region-one-a", "region-one-b"}, region.Spec.AvailableZones, "available zones should match the definition")
+		require.Len(t, region.Spec.AvailableZones, 2, "expected 2 available zones for itbg-bergamo")
+		require.ElementsMatch(t, []string{"itbg-1", "itbg-2"}, region.Spec.AvailableZones, "available zones should match the definition")
 	})
 }

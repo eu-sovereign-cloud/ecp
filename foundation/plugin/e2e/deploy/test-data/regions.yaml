@@ -4,8 +4,8 @@ metadata:
   name: "itbg-bergamo"
 spec:
   availableZones:
-    - "region-one-a"
-    - "region-one-b"
+    - "itbg-1"
+    - "itbg-2"
   providers:
     - name: "seca.compute"
       url: "http://gateway-regional-svc:80/providers/seca.compute"
