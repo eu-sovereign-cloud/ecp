@@ -43,8 +43,7 @@ func (h Workspace) DeleteWorkspace(
 	}
 	ir := &regional.Metadata{
 		Scope: scope.Scope{
-			Tenant:    tenant,
-			Workspace: name,
+			Tenant: tenant,
 		},
 		CommonMetadata: model.CommonMetadata{
 			Name:            name,
@@ -58,8 +57,7 @@ func (h Workspace) DeleteWorkspace(
 func (h Workspace) GetWorkspace(w http.ResponseWriter, r *http.Request, tenant schema.TenantPathParam, name schema.ResourcePathParam) {
 	ir := &regional.Metadata{
 		Scope: scope.Scope{
-			Tenant:    tenant,
-			Workspace: name,
+			Tenant: tenant,
 		},
 		CommonMetadata: model.CommonMetadata{
 			Name: name,
@@ -80,8 +78,7 @@ func (h Workspace) CreateOrUpdateWorkspace(
 	upsertOptions := handler.UpsertOptions[schema.Workspace, *regional.WorkspaceDomain, schema.Workspace]{
 		Params: &regional.Metadata{
 			Scope: scope.Scope{
-				Tenant:    tenant,
-				Workspace: name,
+				Tenant: tenant,
 			},
 			CommonMetadata: model.CommonMetadata{
 				Name:            name,

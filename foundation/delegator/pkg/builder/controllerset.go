@@ -1,17 +1,19 @@
 package builder
 
 import (
+	"log"
 	"log/slog"
 	"time"
 
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/block-storages/v1"
 	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/workspace/v1"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
+	kubernetesadapter "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/controller"
@@ -59,20 +61,26 @@ func NewControllerSet(opts ...Option) (*ControllerSet, error) {
 		return nil, err
 	}
 
-	bsRepo := kubernetes.NewRepoAdapter(
+	clientset, err := kubernetes.NewForConfig(o.Config)
+	if err != nil {
+		log.Fatalf("Failed to create clientset: %v", err)
+	}
+
+	bsRepo := kubernetesadapter.NewRepoAdapter(
 		dynamicClient,
 		blockstoragev1.BlockStorageGVR,
 		o.Logger,
-		kubernetes.MapBlockStorageDomainToCR,
-		kubernetes.MapCRToBlockStorageDomain,
+		kubernetesadapter.MapBlockStorageDomainToCR,
+		kubernetesadapter.MapCRToBlockStorageDomain,
 	)
 	// todo - use namespace NewNamespaceManagingWriterAdapter to auto-cleanup namespace
-	wsRepo := kubernetes.NewRepoAdapter(
+	wsRepo := kubernetesadapter.NewNamespaceManagingRepoAdapter(
 		dynamicClient,
+		clientset,
 		workspacev1.WorkspaceGVR,
 		o.Logger,
-		kubernetes.MapWorkspaceDomainToCR,
-		kubernetes.MapCRToWorkspaceDomain,
+		kubernetesadapter.MapWorkspaceDomainToCR,
+		kubernetesadapter.MapCRToWorkspaceDomain,
 	)
 
 	// 4. Create the controllers
