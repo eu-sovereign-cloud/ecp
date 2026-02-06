@@ -2,7 +2,6 @@ package converter
 
 import (
 	"errors"
-	"log"
 	"math"
 
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
@@ -14,6 +13,12 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
 )
 
+const (
+	defaultRegion        = "ITBG-Bergamo"
+	defaultDatacenter    = "ITBG-1"
+	defaultBillingPeriod = "Hour" // supported values: "Hour", "Month"
+)
+
 type BlockStorageConverter struct {
 }
 
@@ -22,67 +27,52 @@ func NewBlockStorageConverter() *BlockStorageConverter {
 }
 
 func (c *BlockStorageConverter) FromSECAToAruba(from *regional.BlockStorageDomain) (*v1alpha1.BlockStorage, error) {
-
+	tenant := from.GetTenant()
+	workspace := from.GetWorkspace()
+	namespace := kubernetesadapter.ComputeNamespace(from) //TODO: ask to change repository for  ComputeNamespace from kubernetes adapter to scope
+	namespaceWorkspace := kubernetesadapter.ComputeNamespace(&scope.Scope{Tenant: tenant})
 	sizeGb, err := secaToArubaSize(from.Spec.SizeGB)
 	if err != nil {
 		return nil, err //TODO: better error handling
 	}
 
-	tenant := from.GetTenant()
-	workspace := from.GetWorkspace()
-
-	source := from.Spec.SourceImageRef
-
-	region := ""
-	if source != nil {
-		region = from.Spec.SourceImageRef.Region
-	}
-
-	if region == "" {
-		region = from.Spec.SkuRef.Region
-	}
-
-	//TODO: ask to change repository for  ComputeNamespace from kubernetes adapter to scope
-	namespace := kubernetesadapter.ComputeNamespace(&from.Metadata.Scope)
-
-	namespaceWs := kubernetesadapter.ComputeNamespace(&scope.Scope{
-		Tenant: tenant,
-	})
-
-	log.Println("project reference", "namespace", namespaceWs, "workspace", workspace)
-
-	bsConv := &v1alpha1.BlockStorage{
+	return &v1alpha1.BlockStorage{
 		ObjectMeta: v1.ObjectMeta{
-			Name:      from.Metadata.Name,
+			Name:      from.Name,
 			Namespace: namespace,
 			Labels: map[string]string{
 				"seca.blockstorage/workspace": workspace,
 				"seca.blockstorage/tenant":    tenant,
-				"seca.blockstorage/namespace": namespace},
+				"seca.blockstorage/namespace": namespace,
+				"seca.workspace/namespace":    namespaceWorkspace,
+			},
 		},
 		Spec: v1alpha1.BlockStorageSpec{
 			SizeGb: sizeGb,
 			Tenant: tenant,
 			Location: v1alpha1.Location{
-				Value: region,
+				Value: getRegionFromSpecOrDefault(from),
 			},
 			ProjectReference: v1alpha1.ResourceReference{
 				Name:      workspace,
-				Namespace: namespaceWs,
+				Namespace: namespaceWorkspace,
 			},
-
-			DataCenter:    "ITBG-1",
-			BillingPeriod: "Hour", // supported values: "Hour", "Month",
+			//todo: must be fixed
+			DataCenter:    defaultDatacenter,
+			BillingPeriod: defaultBillingPeriod,
 		},
-	}
-	log.Println("--->> BS CONVERTED", "result", bsConv)
-	return bsConv, nil
-
+	}, nil
 }
 
 func (c *BlockStorageConverter) FromArubaToSECA(from *v1alpha1.BlockStorage) (*regional.BlockStorageDomain, error) {
-	tenant := from.Labels["seca.blockstorage/tenant"]
-	workspace := from.Labels["seca.blockstorage/workspace"]
+	tenant, err := getTenantFromSpecOrError(from)
+	if err != nil {
+		return nil, err //TODO: better error handler management
+	}
+	workspace, err := getWorkspaceFromSpecOrError(from)
+	if err != nil {
+		return nil, err //TODO: better error handler management
+	}
 
 	return &regional.BlockStorageDomain{
 		Metadata: regional.Metadata{
@@ -112,4 +102,43 @@ func secaToArubaSize(in int) (int32, error) {
 	}
 
 	return int32(in), nil //nolint:gosec // boundaries checked above
+}
+
+// getRegionFromSpecOrDefault get region from source image or sku ref otherwise default value
+func getRegionFromSpecOrDefault(from *regional.BlockStorageDomain) string {
+	if from.Spec.SourceImageRef != nil {
+		return from.Spec.SourceImageRef.Region
+	}
+
+	if from.Spec.SkuRef.Region != "" {
+		return from.Spec.SkuRef.Region
+	}
+
+	return defaultRegion
+}
+
+// getTenantFromSpecOrLabel find on spec
+func getTenantFromSpecOrError(from *v1alpha1.BlockStorage) (string, error) {
+	if from.Spec.Tenant != "" {
+		return from.Spec.Tenant, nil
+	}
+
+	if from.Labels["seca.blockstorage/tenant"] != "" {
+		return from.Labels["seca.blockstorage/tenant"], nil
+	}
+
+	return "", errors.New("tenant is missing")
+}
+
+// getWorkspaceFromSpecOrLabels
+func getWorkspaceFromSpecOrError(from *v1alpha1.BlockStorage) (string, error) {
+	if from.Spec.ProjectReference.Name != "" {
+		return from.Spec.ProjectReference.Name, nil
+	}
+
+	if from.Labels["seca.blockstorage/workspace"] != "" {
+		return from.Labels["seca.blockstorage/workspace"], nil
+	}
+
+	return "", errors.New("workspace is missing")
 }
