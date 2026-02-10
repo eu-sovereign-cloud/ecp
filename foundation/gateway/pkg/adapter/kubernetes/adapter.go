@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	kerrs "k8s.io/apimachinery/pkg/api/errors"
@@ -13,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/retry"
@@ -305,7 +307,7 @@ func (a *WriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
 		return nil, fmt.Errorf("%w: failed to convert %s to k8s object: %w", model.ErrValidation, a.gvr.Resource, err)
 	}
 
-	ures, err := ri.Create(ctx, uobj, metav1.CreateOptions{})
+	_, err = ri.Create(ctx, uobj, metav1.CreateOptions{})
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to create resource", "name", m.GetName(), "resource", a.gvr.Resource, "error", err)
 
@@ -322,6 +324,43 @@ func (a *WriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
 		}
 
 		return nil, fmt.Errorf("%w: failed to create %s '%s': %w", errModel, a.gvr.Resource, m.GetName(), err)
+	}
+
+	var ures *unstructured.Unstructured
+	err = wait.PollUntilContextTimeout(ctx, 100*time.Millisecond, 2*time.Second, true, func(ctx context.Context) (bool, error) {
+		ures, err = ri.Get(ctx, uobj.GetName(), metav1.GetOptions{})
+		if err != nil {
+			return true, err
+		}
+
+		status, found, err := unstructured.NestedMap(ures.Object, "status")
+		if err != nil {
+			return true, err
+		}
+
+		if !found {
+			return false, nil
+		}
+
+		istate, found := status["state"]
+		if !found {
+			return false, nil
+		}
+
+		state, ok := istate.(string)
+		if !ok {
+			return false, nil
+		}
+
+		if state == "" {
+			return false, nil
+		}
+
+		return true, nil
+	})
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to fetch the k8s resource status", "resource", a.gvr.Resource, "error", err)
+		return nil, fmt.Errorf("server error: failed to fetch the %s status: %w", a.gvr.Resource, err) // TODO: review the "server error"
 	}
 
 	res, err := a.k8sToDomain(ures)
