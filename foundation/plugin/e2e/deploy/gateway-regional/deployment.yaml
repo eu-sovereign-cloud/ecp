@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway-regional-depl
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gateway-regional
+  template:
+    metadata:
+      labels:
+        app: gateway-regional
+    spec:
+      serviceAccountName: gateway-regional-sa
+      imagePullSecrets:
+      - name: gateway-global-registry-secret
+      containers:
+      - name: manager
+        image: "##IMAGE_NAME##"
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 40000
+          name: dlv
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - "ALL"
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault

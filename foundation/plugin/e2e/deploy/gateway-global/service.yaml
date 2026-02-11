@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway-global-svc
+  namespace: e2e-ecp
+spec:
+  type: ClusterIP
+  selector:
+    app: gateway-global
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080

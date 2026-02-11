@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	kerrs "k8s.io/apimachinery/pkg/api/errors"
@@ -13,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/retry"
@@ -22,6 +24,7 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation/filter"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes/labels"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 )
 
@@ -304,7 +307,7 @@ func (a *WriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
 		return nil, fmt.Errorf("%w: failed to convert %s to k8s object: %w", model.ErrValidation, a.gvr.Resource, err)
 	}
 
-	ures, err := ri.Create(ctx, uobj, metav1.CreateOptions{})
+	_, err = ri.Create(ctx, uobj, metav1.CreateOptions{})
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to create resource", "name", m.GetName(), "resource", a.gvr.Resource, "error", err)
 
@@ -321,6 +324,43 @@ func (a *WriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
 		}
 
 		return nil, fmt.Errorf("%w: failed to create %s '%s': %w", errModel, a.gvr.Resource, m.GetName(), err)
+	}
+
+	var ures *unstructured.Unstructured
+	err = wait.PollUntilContextTimeout(ctx, 100*time.Millisecond, 2*time.Second, true, func(ctx context.Context) (bool, error) {
+		ures, err = ri.Get(ctx, uobj.GetName(), metav1.GetOptions{})
+		if err != nil {
+			return true, err
+		}
+
+		status, found, err := unstructured.NestedMap(ures.Object, "status")
+		if err != nil {
+			return true, err
+		}
+
+		if !found {
+			return false, nil
+		}
+
+		istate, found := status["state"]
+		if !found {
+			return false, nil
+		}
+
+		state, ok := istate.(string)
+		if !ok {
+			return false, nil
+		}
+
+		if state == "" {
+			return false, nil
+		}
+
+		return true, nil
+	})
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to fetch the k8s resource status", "resource", a.gvr.Resource, "error", err)
+		return nil, fmt.Errorf("server error: failed to fetch the %s status: %w", a.gvr.Resource, err) // TODO: review the "server error"
 	}
 
 	res, err := a.k8sToDomain(ures)
@@ -461,7 +501,7 @@ func (a *WriterAdapter[T]) Delete(ctx context.Context, m T) error {
 
 	err := ri.Delete(ctx, m.GetName(), deleteOptions)
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to delete resource", "name", m.GetName(), "resource", a.gvr.Resource, "error", err)
+		a.logger.ErrorContext(ctx, "failed to delete resource", "name", m.GetName(), "resource", a.gvr.Resource, "error", err, slog.Any("m", m))
 
 		if kerrs.IsNotFound(err) {
 			return fmt.Errorf("%w: %s '%s' not found", model.ErrNotFound, a.gvr.Resource, m.GetName())
@@ -509,6 +549,13 @@ type NamespaceManagingWriterAdapter[T port.IdentifiableResource] struct {
 	logger    *slog.Logger
 }
 
+// RepoAdapter implements the port.WatcherRepo interface for a specific resource type.
+type NamespaceManagingRepoAdapter[T port.IdentifiableResource] struct {
+	*ReaderAdapter[T]
+	*NamespaceManagingWriterAdapter[T]
+	*WatcherAdapter[T]
+}
+
 // NewNamespaceManagingWriterAdapter creates a new writer adapter that ensures namespaces for resources.
 func NewNamespaceManagingWriterAdapter[T port.IdentifiableResource](
 	dynClient dynamic.Interface,
@@ -524,6 +571,39 @@ func NewNamespaceManagingWriterAdapter[T port.IdentifiableResource](
 		client:        dynClient,
 		clientset:     clientset,
 		logger:        logger,
+	}
+}
+
+// NewRepoAdapter creates a new Kubernetes adapter for the port.WriterRepo port.
+func NewNamespaceManagingRepoAdapter[T port.IdentifiableResource](
+	dynClient dynamic.Interface,
+	clientset kubernetes.Interface,
+	gvr schema.GroupVersionResource,
+	logger *slog.Logger,
+	domainToK8s DomainToK8s[T],
+	k8sToDomain K8sToDomain[T],
+) *NamespaceManagingRepoAdapter[T] {
+	return &NamespaceManagingRepoAdapter[T]{
+		ReaderAdapter: NewReaderAdapter(
+			dynClient,
+			gvr,
+			logger,
+			k8sToDomain,
+		),
+		NamespaceManagingWriterAdapter: NewNamespaceManagingWriterAdapter[T](
+			dynClient,
+			clientset,
+			gvr,
+			logger,
+			domainToK8s,
+			k8sToDomain,
+		),
+		WatcherAdapter: NewWatcherAdapter(
+			dynClient,
+			gvr,
+			logger,
+			k8sToDomain,
+		),
 	}
 }
 
@@ -552,18 +632,38 @@ func namespaceOwnedBy(ctx context.Context, clientset kubernetes.Interface, nsNam
 
 // Create ensures the computed namespace exists (for both tenant and workspace scopes) and rolls back if we created it and the resource creation fails.
 func (a *NamespaceManagingWriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
-	// Compute namespace for the resource (works for tenant-only and tenant+workspace scopes)
-	namespace := ComputeNamespace(m)
+	// The current SECA resource organization (https://spec.secapi.cloud/docs/content/Architecture/resource-organization)
+	// contains only three hierarchical levels: Tenants 1<->* Workspaces 1<->* SECA Resources.
+	//
+	// At present, there is not a Tenant entity defined, and the only entity
+	// which will really manage its namespace is the Workspace.
+	//
+	// The Workspace should be placed into the Tenant namespace, and it should
+	// not own that namespace because it will contains all the Workspaces and
+	// other elements owned by the Tenant.
+	//
+	// So, in fact, the Workspaces will create and manage namespaces for its
+	// underlying resources, and not for themselves.
+	//
+	// That's why the namespace name must always consider Tenant and Workspace
+	// names here.
+	tenant := m.GetTenant()
+	container := m.GetWorkspace()
+	if container == "" {
+		container = m.GetName()
+	}
+
+	namespace := ComputeNamespace(&scope.Scope{Tenant: tenant, Workspace: container})
 	if namespace == "" {
 		return a.WriterAdapter.Create(ctx, m)
 	}
 
 	ownerLabels := map[string]string{}
-	if m.GetTenant() != "" {
-		ownerLabels[labels.InternalTenantLabel] = m.GetTenant()
+	if tenant != "" {
+		ownerLabels[labels.InternalTenantLabel] = tenant
 	}
-	if m.GetWorkspace() != "" {
-		ownerLabels[labels.InternalWorkspaceLabel] = m.GetWorkspace()
+	if container != "" {
+		ownerLabels[labels.InternalWorkspaceLabel] = container
 	}
 
 	createdNS, err := CreateNamespace(ctx, a.clientset, namespace, ownerLabels)
@@ -591,19 +691,43 @@ func (a *NamespaceManagingWriterAdapter[T]) Create(ctx context.Context, m T) (*T
 
 // Delete deletes the resource and then attempts to delete the associated namespace only if it is owned by us.
 func (a *NamespaceManagingWriterAdapter[T]) Delete(ctx context.Context, m T) error {
+	// The current SECA resource organization (https://spec.secapi.cloud/docs/content/Architecture/resource-organization)
+	// contains only three hierarchical levels: Tenants 1<->* Workspaces 1<->* SECA Resources.
+	//
+	// At present, there is not a Tenant entity defined, and the only entity
+	// which will really manage its namespace is the Workspace.
+	//
+	// The Workspace should be placed into the Tenant namespace, and it should
+	// not own that namespace because it will contains all the Workspaces and
+	// other elements owned by the Tenant.
+	//
+	// So, in fact, the Workspaces will create and manage namespaces for its
+	// underlying resources, and not for themselves.
+	//
+	// That's why the namespace name must always consider Tenant and Workspace
+	// names here.
+	tenant := m.GetTenant()
+	container := m.GetWorkspace()
+	if container == "" {
+		container = m.GetName()
+	}
+
+	namespace := ComputeNamespace(&scope.Scope{Tenant: tenant, Workspace: container})
+
+	// Delete the resource which manages the namespace
 	if err := a.WriterAdapter.Delete(ctx, m); err != nil {
 		return err
 	}
+
 	// attempt to delete the namespace if owned
-	namespace := ComputeNamespace(m)
 	if namespace != "" {
 		// build expected labels similar to Create
 		expectedLabels := map[string]string{}
-		if t := m.GetTenant(); t != "" {
-			expectedLabels[labels.InternalTenantLabel] = t
+		if tenant != "" {
+			expectedLabels[labels.InternalTenantLabel] = tenant
 		}
-		if w := m.GetWorkspace(); w != "" {
-			expectedLabels[labels.InternalWorkspaceLabel] = w
+		if container != "" {
+			expectedLabels[labels.InternalWorkspaceLabel] = container
 		}
 
 		owned, err := namespaceOwnedBy(ctx, a.clientset, namespace, expectedLabels)
@@ -613,7 +737,7 @@ func (a *NamespaceManagingWriterAdapter[T]) Delete(ctx context.Context, m T) err
 		}
 		if owned {
 			if err := DeleteNamespace(ctx, a.clientset, namespace); err != nil && !kerrs.IsNotFound(err) {
-				a.logger.ErrorContext(ctx, "failed to delete namespace", "namespace", namespace, "error", err)
+				a.logger.ErrorContext(ctx, "failed to delete namespace", "namespace", namespace, "error", err, slog.Any("m", m))
 			}
 		}
 	}

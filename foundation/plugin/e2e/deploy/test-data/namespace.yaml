@@ -1,0 +1,6 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: f7ec6f666803cd9d9814d4c055217581afbff53f3c35fd6c5e6b444d
+  labels:
+    "secapi.cloud/tenant-id": "test-tenant"

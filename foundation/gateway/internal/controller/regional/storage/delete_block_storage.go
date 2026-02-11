@@ -19,5 +19,14 @@ func (c DeleteBlockStorage) Do(ctx context.Context, ir port.IdentifiableResource
 	domain.Tenant = ir.GetTenant()
 	domain.Workspace = ir.GetWorkspace()
 	domain.ResourceVersion = ir.GetVersion()
-	return c.BlockStorageRepo.Delete(ctx, domain)
+
+	state := regional.ResourceStateDeleting
+
+	domain.Status = &regional.BlockStorageStatus{
+		State: &state,
+	}
+
+	_, err := c.BlockStorageRepo.Update(ctx, domain)
+
+	return err
 }

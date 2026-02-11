@@ -1,0 +1,17 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: gateway-regional-crole
+rules:
+- apiGroups: ["storage.v1.secapi.cloud"]
+  resources: ["block-storages", "block-storages/status"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["storage.v1.secapi.cloud"]
+  resources: ["skus"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["workspace.v1.secapi.cloud"]
+  resources: ["workspaces", "workspaces/status"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: [""]
+  resources: ["namespaces"]
+  verbs: ["get", "list", "watch", "create", "delete"]

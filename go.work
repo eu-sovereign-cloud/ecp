@@ -1,6 +1,6 @@
 go 1.24
 
-toolchain go1.24.10
+toolchain go1.24
 
 use (
 	./foundation/api
@@ -8,7 +8,16 @@ use (
 	./foundation/gateway
 	./foundation/plugin/aruba
 	./foundation/plugin/dummy
+	./foundation/plugin/e2e
 	./foundation/plugin/ionos
 )
 
-replace github.com/eu-sovereign-cloud/ecp/foundation/api v0.0.1 => ./foundation/api
+replace (
+	github.com/eu-sovereign-cloud/ecp/foundation/api v0.0.1 => ./foundation/api
+	github.com/eu-sovereign-cloud/ecp/foundation/delegator v0.0.1 => ./foundation/delegator
+	github.com/eu-sovereign-cloud/ecp/foundation/gateway v0.0.1 => ./foundation/gateway
+	github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba v0.0.1 => ./foundation/plugin/aruba
+	github.com/eu-sovereign-cloud/ecp/foundation/plugin/dummy v0.0.1 => ./foundation/plugin/dummy
+	github.com/eu-sovereign-cloud/ecp/foundation/plugin/e2e v0.0.1 => ./foundation/plugin/e2e
+	github.com/eu-sovereign-cloud/ecp/foundation/plugin/ionos v0.0.1 => ./foundation/plugin/ionos
+)

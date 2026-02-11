@@ -1,0 +1,23 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: delegator-crole
+rules:
+- apiGroups: ["storage.v1.secapi.cloud"]
+  resources: ["block-storages", "block-storages/status"]
+  verbs: ["get", "list", "watch", "update", "patch", "create", "delete"]
+- apiGroups: ["workspace.v1.secapi.cloud"]
+  resources: ["workspaces", "workspaces/status"]
+  verbs: ["get", "list", "watch", "update", "patch", "create", "delete"]
+- apiGroups: ["coordination.k8s.io"]
+  resources: ["leases"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: [""]
+  resources: ["namespaces"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["arubacloud.com"]
+  resources: ["projects", "projects/status"]
+  verbs: ["get", "list", "watch", "update", "patch", "create", "delete"]
+- apiGroups: ["arubacloud.com"]
+  resources: ["blockstorages", "blockstorages/status"]
+  verbs: ["get", "list", "watch", "update", "patch", "create", "delete"]  
