@@ -117,6 +117,7 @@ func APIToDomain(api schema.Workspace, params port.IdentifiableResource) *region
 			Annotations: api.Annotations,
 			Labels:      api.Labels,
 			Extensions:  api.Extensions,
+			Region:      "region", // this is expected to be sourced from a global config set when the gateway is initialized
 		},
 		Spec: api.Spec,
 	}
