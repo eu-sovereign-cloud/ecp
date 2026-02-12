@@ -304,6 +304,8 @@ func (a *WriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
 		return nil, fmt.Errorf("%w: failed to convert %s to k8s object: %w", model.ErrValidation, a.gvr.Resource, err)
 	}
 
+	desiredStatus, hasStatus, _ := unstructured.NestedMap(uobj.Object, "status")
+	// status subresource is ignored on create so it must be polled after creation
 	ures, err := ri.Create(ctx, uobj, metav1.CreateOptions{})
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to create resource", "name", m.GetName(), "resource", a.gvr.Resource, "error", err)
@@ -321,6 +323,10 @@ func (a *WriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
 		}
 
 		return nil, fmt.Errorf("%w: failed to create %s '%s': %w", errModel, a.gvr.Resource, m.GetName(), err)
+	}
+
+	if hasStatus {
+		_ = unstructured.SetNestedMap(ures.Object, desiredStatus, "status")
 	}
 
 	res, err := a.k8sToDomain(ures)
