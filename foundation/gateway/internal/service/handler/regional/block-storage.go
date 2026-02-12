@@ -130,7 +130,7 @@ func (h Storage) GetBlockStorage(
 			},
 		},
 		h.GetStorage,
-		apistorage.BlockStorageToAPI,
+		apistorage.BlockStorageToAPIWithVerb(http.MethodGet),
 	)
 }
 
@@ -159,7 +159,7 @@ func (h Storage) CreateOrUpdateBlockStorage(
 			Creator:     h.CreateBlockStorage,
 			Updater:     h.UpdateBlockStorage,
 			SDKToDomain: apistorage.BlockStorageFromAPI,
-			DomainToSDK: apistorage.BlockStorageToAPI,
+			DomainToSDK: apistorage.BlockStorageToAPIWithVerb(http.MethodPut),
 		},
 	)
 }

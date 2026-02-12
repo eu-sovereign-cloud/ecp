@@ -40,55 +40,15 @@ func ListParamsFromAPI(params sdkworkspace.ListWorkspacesParams, tenant string) 
 	}
 }
 
+func DomainToAPIWithVerb(verb string) func(domain *regional.WorkspaceDomain) schema.Workspace {
+	return func(domain *regional.WorkspaceDomain) schema.Workspace {
+		sdk := DomainToAPI(domain)
+		sdk.Metadata.Verb = verb
+		return sdk
+	}
+}
+
 func DomainToAPI(domain *regional.WorkspaceDomain) schema.Workspace {
-	return mapWorkspaceDomainToAPI(*domain, "get")
-}
-
-func APIToDomain(api schema.Workspace, params port.IdentifiableResource) *regional.WorkspaceDomain {
-	return &regional.WorkspaceDomain{
-		Metadata: regional.Metadata{
-			CommonMetadata: model.CommonMetadata{
-				Name:            params.GetName(),
-				ResourceVersion: params.GetVersion(),
-			},
-			Scope: scope.Scope{
-				Tenant: params.GetTenant(),
-				// Workspaces do not have a workspace scope as they are a higher level resource, scoped only by tenant.
-				// Setting it to empty avoids incorrect namespace computation.
-				Workspace: "",
-			},
-			Annotations: api.Annotations,
-			Labels:      api.Labels,
-			Extensions:  api.Extensions,
-		},
-		Spec: api.Spec,
-	}
-}
-
-func DomainToAPIIterator(domainWorkspaces []*regional.WorkspaceDomain, nextSkipToken *string) *sdkworkspace.WorkspaceIterator {
-	sdkWorkspaces := make([]schema.Workspace, len(domainWorkspaces))
-	for i, dom := range domainWorkspaces {
-		sdkWorkspaces[i] = mapWorkspaceDomainToAPI(*dom, "list")
-	}
-
-	iterator := &sdkworkspace.WorkspaceIterator{
-		Items: sdkWorkspaces,
-		Metadata: schema.ResponseMetadata{
-			Provider: regional.ProviderWorkspaceName,
-			Resource: workspacev1.Resource,
-			Verb:     "list",
-		},
-	}
-
-	if nextSkipToken != nil {
-		iterator.Metadata.SkipToken = nextSkipToken
-	}
-
-	return iterator
-}
-
-// mapWorkspaceDomainToAPI maps a WorkspaceDomain to schema.Workspace API object.
-func mapWorkspaceDomainToAPI(domain regional.WorkspaceDomain, verb string) schema.Workspace {
 	resVersion := 0
 	// resourceVersion is best-effort numeric
 	if rv, err := strconv.Atoi(domain.ResourceVersion); err == nil {
@@ -123,7 +83,6 @@ func mapWorkspaceDomainToAPI(domain regional.WorkspaceDomain, verb string) schem
 			Resource:        fmt.Sprintf(regional.TenantScopedResourceFormat, domain.Tenant, schema.RegionalResourceMetadataKindResourceKindWorkspace, domain.Name),
 			Ref:             &ref,
 			ResourceVersion: resVersion,
-			Verb:            verb,
 		},
 		Labels:      domain.Labels,
 		Annotations: domain.Annotations,
@@ -140,4 +99,48 @@ func mapWorkspaceDomainToAPI(domain regional.WorkspaceDomain, verb string) schem
 		sdk.Metadata.DeletedAt = domain.DeletedAt
 	}
 	return sdk
+}
+
+func APIToDomain(api schema.Workspace, params port.IdentifiableResource) *regional.WorkspaceDomain {
+	return &regional.WorkspaceDomain{
+		Metadata: regional.Metadata{
+			CommonMetadata: model.CommonMetadata{
+				Name:            params.GetName(),
+				ResourceVersion: params.GetVersion(),
+			},
+			Scope: scope.Scope{
+				Tenant: params.GetTenant(),
+				// Workspaces do not have a workspace scope as they are a higher level resource, scoped only by tenant.
+				// Setting it to empty avoids incorrect namespace computation.
+				Workspace: "",
+			},
+			Annotations: api.Annotations,
+			Labels:      api.Labels,
+			Extensions:  api.Extensions,
+		},
+		Spec: api.Spec,
+	}
+}
+
+func DomainToAPIIterator(domainWorkspaces []*regional.WorkspaceDomain, nextSkipToken *string) *sdkworkspace.WorkspaceIterator {
+	sdkWorkspaces := make([]schema.Workspace, len(domainWorkspaces))
+	domainToApi := DomainToAPIWithVerb("list")
+	for i, dom := range domainWorkspaces {
+		sdkWorkspaces[i] = domainToApi(dom)
+	}
+
+	iterator := &sdkworkspace.WorkspaceIterator{
+		Items: sdkWorkspaces,
+		Metadata: schema.ResponseMetadata{
+			Provider: regional.ProviderWorkspaceName,
+			Resource: workspacev1.Resource,
+			Verb:     "list",
+		},
+	}
+
+	if nextSkipToken != nil {
+		iterator.Metadata.SkipToken = nextSkipToken
+	}
+
+	return iterator
 }

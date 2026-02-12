@@ -15,6 +15,15 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
 )
 
+// BlockStorageToAPIWithVerb returns a function that converts a BlockStorageDomain to its SDK representation and sets the provided verb in the metadata.
+func BlockStorageToAPIWithVerb(verb string) func(domain *regional.BlockStorageDomain) *sdkschema.BlockStorage {
+	return func(domain *regional.BlockStorageDomain) *sdkschema.BlockStorage {
+		bs := BlockStorageToAPI(domain)
+		bs.Metadata.Verb = verb
+		return bs
+	}
+}
+
 // BlockStorageToAPI converts a BlockStorageDomain to its SDK representation.
 func BlockStorageToAPI(domain *regional.BlockStorageDomain) *sdkschema.BlockStorage {
 	bs := &sdkschema.BlockStorage{
