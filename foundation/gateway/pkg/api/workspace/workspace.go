@@ -118,7 +118,7 @@ func mapWorkspaceDomainToAPI(domain regional.WorkspaceDomain, verb string) schem
 			Kind:            schema.RegionalResourceMetadataKindResourceKindWorkspace,
 			Name:            domain.Name,
 			Tenant:          domain.Tenant,
-			Provider:        domain.Provider,
+			Provider:        regional.ProviderWorkspaceName,
 			Region:          domain.Region,
 			Resource:        fmt.Sprintf(regional.TenantScopedResourceFormat, domain.Tenant, schema.RegionalResourceMetadataKindResourceKindWorkspace, domain.Name),
 			Ref:             &ref,

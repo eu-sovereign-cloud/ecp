@@ -22,6 +22,7 @@ func BlockStorageToAPI(domain *regional.BlockStorageDomain) *sdkschema.BlockStor
 			Name:      domain.Name,
 			Tenant:    domain.GetTenant(),
 			Workspace: domain.GetWorkspace(),
+			Provider:  ProviderStorageName,
 		},
 		Spec: sdkschema.BlockStorageSpec{
 			SizeGB: domain.Spec.SizeGB,
