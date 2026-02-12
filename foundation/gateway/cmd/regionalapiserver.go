@@ -13,6 +13,8 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 
+	sdkcomputeapi "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.compute.v1"
+	sdknetworkapi "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.network.v1"
 	sdkstorageapi "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	sdkworkspaceapi "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1"
 
@@ -27,6 +29,8 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/logger"
 	regionalhandler "github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/service/handler/regional"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
+	apicompute "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/compute"
+	apinetwork "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/network"
 	apistorage "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/storage"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 )
@@ -90,6 +94,10 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 	// Create a shared mux for all regional handlers
 	mux := http.NewServeMux()
 
+	sdkcomputeapi.HandlerWithOptions(regionalhandler.Compute{},
+		sdkcomputeapi.StdHTTPServerOptions{BaseURL: apicompute.BaseURL, BaseRouter: mux, Middlewares: nil, ErrorHandlerFunc: nil})
+	sdknetworkapi.HandlerWithOptions(regionalhandler.Network{},
+		sdknetworkapi.StdHTTPServerOptions{BaseURL: apinetwork.BaseURL, BaseRouter: mux, Middlewares: nil, ErrorHandlerFunc: nil})
 	// Block storage writer adapter
 	blockStorageWriterAdapter := kubernetes.NewWriterAdapter(
 		client.Client,
