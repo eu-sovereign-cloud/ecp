@@ -1,14 +1,13 @@
-package network
+package compute
 
 import (
-	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
-
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
+	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 )
 
 const (
-	BaseURL             = "/providers/seca.network"
-	ProviderStorageName = "seca.network/v1"
+	BaseURL             = "/providers/seca.compute"
+	ProviderStorageName = "seca.compute/v1"
 )
 
 // SkuToAPI converts a NetworkSKUDomain to its SDK representation.

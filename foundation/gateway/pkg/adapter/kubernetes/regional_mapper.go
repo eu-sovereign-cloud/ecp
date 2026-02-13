@@ -168,6 +168,7 @@ func MapWorkspaceDomainToCR(domain *regional.WorkspaceDomain) (client.Object, er
 
 	crLabels := labels.OriginalToKeyed(domain.Labels)
 	crLabels[labels.InternalTenantLabel] = domain.Tenant
+	crLabels[labels.InternalRegionLabel] = domain.Region
 	cr := &workspacev1.Workspace{
 		ObjectMeta: v1.ObjectMeta{
 			Name:            domain.Name,

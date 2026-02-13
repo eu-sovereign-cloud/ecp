@@ -66,7 +66,7 @@ func (h Workspace) GetWorkspace(w http.ResponseWriter, r *http.Request, tenant s
 		},
 	}
 
-	handler.HandleGet(w, r, h.Logger.With("provider", "workspace").With("resource", "workspace"), ir, h.Get, apiworkspace.DomainToAPI)
+	handler.HandleGet(w, r, h.Logger.With("provider", "workspace").With("resource", "workspace"), ir, h.Get, apiworkspace.DomainToAPIWithVerb(http.MethodGet))
 }
 
 func (h Workspace) CreateOrUpdateWorkspace(
@@ -91,7 +91,7 @@ func (h Workspace) CreateOrUpdateWorkspace(
 		Creator:     h.Create,
 		Updater:     h.Update,
 		SDKToDomain: apiworkspace.APIToDomain,
-		DomainToSDK: apiworkspace.DomainToAPI,
+		DomainToSDK: apiworkspace.DomainToAPIWithVerb(http.MethodPut),
 	}
 
 	handler.HandleUpsert(

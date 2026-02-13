@@ -13,6 +13,8 @@ type Compute struct {
 	logger *slog.Logger
 }
 
+var _ sdkcompute.ServerInterface = (*Compute)(nil) // Ensure Compute implements the sdkcompute.ServerInterface.
+
 func (c Compute) ListSkus(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, params sdkcompute.ListSkusParams) {
 	// TODO implement me
 	c.logger.Debug("implement me")
