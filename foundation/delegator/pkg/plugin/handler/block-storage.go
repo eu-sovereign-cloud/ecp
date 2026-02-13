@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	gateway "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 
@@ -38,22 +39,36 @@ func (h *BlockStoragePluginHandler) HandleReconcile(ctx context.Context, resourc
 	var delegate delegator.DelegatedFunc[*regional.BlockStorageDomain]
 
 	switch {
+	case isBlockStorageAccepted(resource):
+		log.Println("-->DETECT isBlockStorageAccepted", "resource", resource)
+		delegate = BypassDelegated[*regional.BlockStorageDomain]
 	case isBlockStoragePending(resource):
+		log.Println("-->DETECT isBlockStoragePending", "resource", resource)
 		delegate = BypassDelegated[*regional.BlockStorageDomain]
 
-	case wantBlockStorageCreate(resource):
+	case isBlockStorageCreating(resource):
+		log.Println("-->DETECT isBlockStorageCreating", "resource", resource)
 		delegate = h.plugin.Create
 
 	case wantBlockStorageDelete(resource):
-		delegate = h.plugin.Delete
-
-	case isBlockStorageActiveAndNeedsUpdate(resource):
+		log.Println("-->DETECT wantBlockStorageDelete", "resource", resource)
+		// Transition to deleting state before calling plugin.Delete
 		delegate = BypassDelegated[*regional.BlockStorageDomain]
 
-	case isBlockStorageUpdatingToIncreaseSize(resource):
+	case isBlockStorageDeleting(resource):
+		log.Println("-->DETECT isBlockStorageDeleting", "resource", resource)
+		delegate = h.plugin.Delete
+
+	case wantBlockStorageIncreaseSize(resource):
+		log.Println("-->DETECT wantBlockStorageIncreaseSize", "resource", resource)
+		delegate = BypassDelegated[*regional.BlockStorageDomain]
+
+	case isBlockStorageIncreasingSize(resource):
+		log.Println("-->DETECT isBlockStorageIncreasingSize", "resource", resource)
 		delegate = h.plugin.IncreaseSize
 
 	case wantBlockStorageRetryCreate(resource) || wantBlockStorageRetryIncreaseSize(resource):
+		log.Println("-->DETECT wantBlockStorageRetryCreate or wantBlockStorageRetryIncreaseSize", "resource", resource)
 		delegate = BypassDelegated[*regional.BlockStorageDomain]
 
 	default:
@@ -64,38 +79,54 @@ func (h *BlockStoragePluginHandler) HandleReconcile(ctx context.Context, resourc
 		if errors.Is(err, delegator.ErrStillProcessing) {
 			return true, nil
 		}
-		if err := h.setResourceErrorState(ctx, resource, err); err != nil {
-			return false, err // TODO: better errors handling
+		if requeue, err := h.setResourceErrorState(ctx, resource, err, false); err != nil {
+			return requeue, err // TODO: better errors handling
 		}
 
 		return true, nil
 	}
 
 	switch {
-	case isBlockStoragePending(resource):
-		return true, h.setResourceState(ctx, resource, regional.ResourceStateCreating)
 
-	case wantBlockStorageCreate(resource):
+	case isBlockStorageAccepted(resource):
+		log.Println("-->REACT isBlockStorageAccepted", "resource", resource)
+		return h.setResourceState(ctx, resource, regional.ResourceStatePending, false)
+
+	case isBlockStoragePending(resource):
+		log.Println("-->REACT isBlockStoragePending", "resource", resource)
+		return h.setResourceState(ctx, resource, regional.ResourceStateCreating, true)
+
+	case isBlockStorageCreating(resource):
+		log.Println("-->REACT isBlockStorageCreating", "resource", resource)
 		resource.Status.SizeGB = resource.Spec.SizeGB
 
-		return false, h.setResourceState(ctx, resource, regional.ResourceStateActive)
+		return h.setResourceState(ctx, resource, regional.ResourceStateActive, false)
 
 	case wantBlockStorageDelete(resource):
-		return false, h.repo.Delete(ctx, resource)
+		log.Println("-->REACT wantBlockStorageDelete (setting state to Deleting)", "resource", resource)
+		return h.setResourceState(ctx, resource, regional.ResourceStateDeleting, true)
 
-	case isBlockStorageActiveAndNeedsUpdate(resource):
-		return true, h.setResourceState(ctx, resource, regional.ResourceStateUpdating)
+	case isBlockStorageDeleting(resource):
+		log.Println("-->REACT isBlockStorageDeleting", "resource", resource)
+		return false, nil // Let the controller handle finalizer removal and actual deletion from K8s
 
-	case isBlockStorageUpdatingToIncreaseSize(resource):
+	case wantBlockStorageIncreaseSize(resource):
+		log.Println("-->REACT wantBlockStorageIncreaseSize", "resource", resource)
+		return h.setResourceState(ctx, resource, regional.ResourceStateUpdating, true)
+
+	case isBlockStorageIncreasingSize(resource):
+		log.Println("-->REACT isBlockStorageIncreasingSize", "resource", resource)
 		resource.Status.SizeGB = resource.Spec.SizeGB
 
-		return false, h.setResourceState(ctx, resource, regional.ResourceStateActive)
+		return h.setResourceState(ctx, resource, regional.ResourceStateActive, false)
 
 	case wantBlockStorageRetryCreate(resource):
-		return true, h.setResourceState(ctx, resource, regional.ResourceStateCreating)
+		log.Println("-->REACT wantBlockStorageRetryCreate", "resource", resource)
+		return h.setResourceState(ctx, resource, regional.ResourceStateCreating, true)
 
 	case wantBlockStorageRetryIncreaseSize(resource):
-		return true, h.setResourceState(ctx, resource, regional.ResourceStateUpdating)
+		log.Println("-->REACT wantBlockStorageRetryIncreaseSize", "resource", resource)
+		return h.setResourceState(ctx, resource, regional.ResourceStateUpdating, true)
 
 	default:
 		log.Fatal("must never achieve that condition")
@@ -104,7 +135,7 @@ func (h *BlockStoragePluginHandler) HandleReconcile(ctx context.Context, resourc
 	return false, nil
 }
 
-func (h *BlockStoragePluginHandler) setResourceState(ctx context.Context, resource *regional.BlockStorageDomain, state regional.ResourceStateDomain) error {
+func (h *BlockStoragePluginHandler) setResourceState(ctx context.Context, resource *regional.BlockStorageDomain, state regional.ResourceStateDomain, requeue bool) (bool, error) {
 	if resource.Status == nil {
 		resource.Status = &regional.BlockStorageStatus{}
 	}
@@ -118,13 +149,17 @@ func (h *BlockStoragePluginHandler) setResourceState(ctx context.Context, resour
 	resource.Status.Conditions = append(resource.Status.Conditions, conditionFromState(state))
 
 	if _, err := h.repo.Update(ctx, resource); err != nil {
-		return err // TODO: better error handling.
+		if errors.Is(err, model.ErrNotFound) {
+			return false, nil
+		}
+
+		return requeue, err
 	}
 
-	return nil
+	return requeue, nil
 }
 
-func (h *BlockStoragePluginHandler) setResourceErrorState(ctx context.Context, resource *regional.BlockStorageDomain, err error) error {
+func (h *BlockStoragePluginHandler) setResourceErrorState(ctx context.Context, resource *regional.BlockStorageDomain, err error, requeue bool) (bool, error) {
 	if resource.Status == nil {
 		resource.Status = &regional.BlockStorageStatus{}
 	}
@@ -139,10 +174,14 @@ func (h *BlockStoragePluginHandler) setResourceErrorState(ctx context.Context, r
 	resource.Status.Conditions = append(resource.Status.Conditions, conditionFromError(err))
 
 	if _, err := h.repo.Update(ctx, resource); err != nil {
-		return err // TODO: better error handling.
+		if errors.Is(err, model.ErrNotFound) {
+			return false, nil
+		}
+
+		return requeue, err
 	}
 
-	return nil
+	return requeue, nil
 }
 
 func blockDecreaseSize(_ context.Context, resource *regional.BlockStorageDomain) error {
@@ -156,32 +195,44 @@ func blockDecreaseSize(_ context.Context, resource *regional.BlockStorageDomain)
 	return nil
 }
 
+func isBlockStorageAccepted(resource *regional.BlockStorageDomain) bool {
+	return resource.Status == nil || resource.Status.State == nil
+}
+
 func isBlockStoragePending(resource *regional.BlockStorageDomain) bool {
-	return resource.Status == nil || resource.Status.State == nil || *(resource.Status.State) == regional.ResourceStatePending
+	return resource.DeletedAt == nil && (resource.Status == nil || resource.Status.State == nil || *(resource.Status.State) == regional.ResourceStatePending)
 }
 
-func wantBlockStorageCreate(resource *regional.BlockStorageDomain) bool {
-	return resource.Status != nil && resource.Status.State != nil && *(resource.Status.State) == regional.ResourceStateCreating
+func isBlockStorageCreating(resource *regional.BlockStorageDomain) bool {
+	return resource.DeletedAt == nil && resource.Status != nil && resource.Status.State != nil && *(resource.Status.State) == regional.ResourceStateCreating
 }
 
+// wantBlockStorageDelete detects when K8s deletion has been triggered (DeletedAt is set)
+// but the resource state hasn't been transitioned to Deleting yet.
 func wantBlockStorageDelete(resource *regional.BlockStorageDomain) bool {
-	return resource.DeletedAt == nil && resource.Status != nil && resource.Status.State != nil && *(resource.Status.State) == regional.ResourceStateDeleting
+	return resource.DeletedAt != nil && (resource.Status == nil || resource.Status.State == nil || *(resource.Status.State) != regional.ResourceStateDeleting)
 }
 
-func isBlockStorageActiveAndNeedsUpdate(resource *regional.BlockStorageDomain) bool {
-	return resource.Status != nil && resource.Status.State != nil && *(resource.Status.State) == regional.ResourceStateActive && wantBlockStorageIncreaseSize(resource)
-}
-
-func isBlockStorageUpdatingToIncreaseSize(resource *regional.BlockStorageDomain) bool {
-	return resource.Status != nil && resource.Status.State != nil && *(resource.Status.State) == regional.ResourceStateUpdating && wantBlockStorageIncreaseSize(resource)
+// isBlockStorageDeleting detects when K8s deletion has been triggered (DeletedAt is set).
+func isBlockStorageDeleting(resource *regional.BlockStorageDomain) bool {
+	return resource.DeletedAt != nil && resource.Status != nil && resource.Status.State != nil && *(resource.Status.State) == regional.ResourceStateDeleting
 }
 
 func wantBlockStorageIncreaseSize(resource *regional.BlockStorageDomain) bool {
+	return resource.DeletedAt == nil && resource.Status != nil && resource.Status.State != nil && *(resource.Status.State) == regional.ResourceStateActive && detectIncreaseSizeCondition(resource)
+}
+
+func isBlockStorageIncreasingSize(resource *regional.BlockStorageDomain) bool {
+	return resource.DeletedAt == nil && resource.Status != nil && resource.Status.State != nil && *(resource.Status.State) == regional.ResourceStateUpdating && detectIncreaseSizeCondition(resource)
+}
+
+func detectIncreaseSizeCondition(resource *regional.BlockStorageDomain) bool {
 	return resource.Spec.SizeGB > resource.Status.SizeGB
 }
 
 func wantBlockStorageRetryCreate(resource *regional.BlockStorageDomain) bool {
-	return resource.Status != nil &&
+	return resource.DeletedAt == nil &&
+		resource.Status != nil &&
 		resource.Status.State != nil &&
 		*(resource.Status.State) == regional.ResourceStateError &&
 		len(resource.Status.Conditions) > 1 &&
@@ -189,7 +240,8 @@ func wantBlockStorageRetryCreate(resource *regional.BlockStorageDomain) bool {
 }
 
 func wantBlockStorageRetryIncreaseSize(resource *regional.BlockStorageDomain) bool {
-	return resource.Status != nil &&
+	return resource.DeletedAt == nil &&
+		resource.Status != nil &&
 		resource.Status.State != nil &&
 		*(resource.Status.State) == regional.ResourceStateError &&
 		len(resource.Status.Conditions) > 1 &&

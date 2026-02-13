@@ -5,9 +5,11 @@ import (
 	"crypto/sha3"
 	"errors"
 	"fmt"
+	"log"
 	"log/slog"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	corev1 "k8s.io/api/core/v1"
 	kerrs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -281,19 +283,28 @@ func (a *ReaderAdapter[T]) Load(ctx context.Context, obj *T) error {
 
 	uobj, err := ri.Get(ctx, v.GetName(), metav1.GetOptions{})
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to get resource", "name", v.GetName(), "resource", a.gvr.Resource, "error", err)
 		modelErr := model.ErrUnavailable
 		if kerrs.IsNotFound(err) {
+			// We need to to return a specific error to signad the "Not Found"
+			// condition, but we don't need to log that because it's normal.
 			modelErr = model.ErrNotFound
+		} else {
+			// Otherwise, for other errors, we need to log them.
+			a.logger.ErrorContext(ctx, "failed to get resource", "name", v.GetName(), "resource", a.gvr.Resource, "error", err)
 		}
+
 		return fmt.Errorf("%w: failed to retrieve %s '%s': %w", modelErr, a.gvr.Resource, v.GetName(), err)
 	}
+
 	converted, err := a.k8sToDomain(uobj)
 	if err != nil {
+		// We even log the conversion errors.
 		a.logger.ErrorContext(ctx, "conversion failed", "resource", a.gvr.Resource, "error", err)
 		return fmt.Errorf("%w: failed to convert %s: %w", model.ErrValidation, a.gvr.Resource, err)
 	}
+
 	*obj = converted
+
 	return nil
 }
 
@@ -375,100 +386,143 @@ func (a *WriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
 // Update implements the port.WriterRepo interface. It handles both spec-only updates
 // and updates that include the status, using the appropriate Kubernetes API endpoints.
 func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
-	ri := a.client.Resource(a.gvr).Namespace(ComputeNamespace(m))
+	log.Printf("--->>> WriterAdapter:Update:m='%+v'", m)
 
+	// 1 - Convert from business domain model to K8s unstructured
 	uobj, err := a.toUnstructured(m)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "conversion from T to unstructured failed", "resource", a.gvr.Resource, "error", err)
 		return nil, fmt.Errorf("%w: failed to convert %s to unstructured: %w", model.ErrValidation, a.gvr.Resource, err)
 	}
+	log.Printf("--->>> WriterAdapter:Update:uobj='%+v'", uobj)
 
+	// 2 - Decompose the object by extracting...
+
+	// 2.1 - Elements of the metadata
+
+	// 2.2 - The Spec
 	// Determine if a status update is intended by checking for meaningful status data.
-	desiredStatus, statusExists, _ := unstructured.NestedMap(uobj.Object, "status")
+	desiredSpec, specFound, err := unstructured.NestedMap(uobj.Object, "spec")
+	if err != nil {
+		log.Printf("--->>> WriterAdapter:Update: Error extracting Spec: '%+v'", err)
+		return nil, err // TODO: better error handling
+	}
 
-	if !statusExists {
-		// --- PATH A: Spec-only update (or status without conditions) ---
-		var ures *unstructured.Unstructured
-		updateErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-			currentU, getErr := ri.Get(ctx, m.GetName(), metav1.GetOptions{})
+	// 2.2 - The status
+	desiredStatus, statusFound, err := unstructured.NestedMap(uobj.Object, "status")
+	if err != nil {
+		log.Printf("--->>> WriterAdapter:Update: Error extracting Status: '%+v'", err)
+		return nil, err // TODO: better error handling
+	}
+	log.Printf("--->>> WriterAdapter:Update:desiredStatus='%+v'", desiredStatus)
+
+	// 3 - Setup the K8s Client Interface to the resource and namespace
+	ri := a.client.Resource(a.gvr).Namespace(ComputeNamespace(m))
+	log.Printf("--->>> WriterAdapter:Update:ri='%+v'", ri)
+
+	// 4 - Update the Spec if present
+	if specFound {
+		log.Println("--->>> WriterAdapter:Update: SPEC FOUND")
+		log.Printf("--->>> WriterAdapter:Update:desiredSpec='%+v'", desiredSpec)
+		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			currObj, getErr := ri.Get(ctx, m.GetName(), metav1.GetOptions{})
 			if getErr != nil {
 				return getErr
 			}
-			uobj.SetResourceVersion(currentU.GetResourceVersion())
+			log.Printf("--->>> WriterAdapter:Update:<SPEC UPDATE>:currObj='%+v'", currObj)
 
-			currentStatus, found, _ := unstructured.NestedMap(currentU.Object, "status")
-			if !found {
-				currentStatus = make(map[string]interface{})
-			}
-			if _, condsFound := currentStatus["conditions"]; !condsFound {
-				currentStatus["conditions"] = []interface{}{}
-			}
-			if err := unstructured.SetNestedField(uobj.Object, currentStatus, "status"); err != nil {
-				return err // This should not happen, but return if it does.
+			// Skip spec updating when deleting
+			if !currObj.GetDeletionTimestamp().IsZero() {
+				log.Println("--->>> WriterAdapter:Update:<SPEC UPDATE>: IS DELETING")
+				return nil
 			}
 
-			var updateErr error
-			ures, updateErr = ri.Update(ctx, uobj, metav1.UpdateOptions{})
-			return updateErr
+			// Extract the current spec
+			currSpec, found, err := unstructured.NestedMap(currObj.Object, "spec")
+			if err != nil {
+				log.Printf("--->>> WriterAdapter:Update: Error extracting Current Spec: '%+v'", err)
+				return err // TODO: better error handling
+			}
+
+			// Skip it the spec did not changed
+			if found && cmp.Equal(currSpec, desiredSpec) {
+				log.Println("--->>> WriterAdapter:Update:<SPEC UPDATE>: SPEC NOT CHANGED")
+				return nil
+			}
+
+			// Set the desired spec on the current object
+			if err := unstructured.SetNestedMap(currObj.Object, desiredSpec, "spec"); err != nil {
+				return err // TODO: better error handling
+			}
+
+			// Update the resource spec on K8s
+			if _, err := ri.Update(ctx, currObj, metav1.UpdateOptions{}); err != nil {
+				return err // TODO: better error handling
+			}
+
+			// At this point everything is OK
+			return nil
 		})
-
-		if updateErr != nil {
-			return nil, a.mapUpdateError(updateErr, m.GetName())
-		}
-		res, err := a.k8sToDomain(ures)
 		if err != nil {
-			return nil, fmt.Errorf("failed to convert from k8s object: %w", err)
+			return nil, a.mapUpdateError(err, m.GetName())
 		}
-		return &res, nil
 	}
 
-	// --- PATH B: Update includes status with conditions ---
-	specUpdateObj := uobj.DeepCopy()
-	unstructured.RemoveNestedField(specUpdateObj.Object, "status")
+	// 5 - Update the status if present
+	if statusFound {
+		log.Println("--->>> WriterAdapter:Update: STATUS FOUND")
+		log.Printf("--->>> WriterAdapter:Update:desiredStatus='%+v'", desiredStatus)
+		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			currObj, getErr := ri.Get(ctx, m.GetName(), metav1.GetOptions{})
+			if getErr != nil {
+				return getErr
+			}
+			log.Printf("--->>> WriterAdapter:Update:<STATUS UPDATE>:currObj='%+v'", currObj)
 
-	updateSpecErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		currentObj, getErr := ri.Get(ctx, m.GetName(), metav1.GetOptions{})
-		if getErr != nil {
-			return getErr
+			// Extract the current status
+			currStatus, found, err := unstructured.NestedMap(currObj.Object, "status")
+			if err != nil {
+				log.Printf("--->>> WriterAdapter:Update: Error extracting Current Status: '%+v'", err)
+				return err // TODO: better error handling
+			}
+
+			// Skip it the status did not changed
+			if found && cmp.Equal(currStatus, desiredStatus) {
+				log.Println("--->>> WriterAdapter:Update:<STATUS UPDATE>: STATUS NOT CHANGED")
+				return nil
+			}
+
+			// Set the desired status on the current object
+			if err := unstructured.SetNestedMap(currObj.Object, desiredStatus, "status"); err != nil {
+				return err // TODO: better error handling
+			}
+
+			// Update the resource status on K8s
+			if _, err := ri.UpdateStatus(ctx, currObj, metav1.UpdateOptions{}); err != nil {
+				return err // TODO: better error handling
+			}
+
+			// At this point everything is OK
+			return nil
+		})
+		if err != nil {
+			return nil, a.mapUpdateError(err, m.GetName())
 		}
-		specUpdateObj.SetResourceVersion(currentObj.GetResourceVersion())
-		_, updateErr := ri.Update(ctx, specUpdateObj, metav1.UpdateOptions{})
-		return updateErr
-	})
-	if updateSpecErr != nil {
-		return nil, a.mapUpdateError(updateSpecErr, m.GetName())
 	}
 
-	statusUpdateObj := &unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"apiVersion": uobj.GetAPIVersion(),
-			"kind":       uobj.GetKind(),
-			"metadata":   map[string]interface{}{"name": uobj.GetName(), "namespace": uobj.GetNamespace()},
-			"status":     desiredStatus,
-		},
+	// 6 - Load the final object from K8s
+	currObj, err := ri.Get(ctx, m.GetName(), metav1.GetOptions{})
+	if err != nil {
+		return nil, a.mapUpdateError(err, m.GetName())
 	}
+	log.Printf("--->>> WriterAdapter:Update:<FINAL RESULT>:currObj='%+v'", currObj)
 
-	updateStatusErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		currentObj, getErr := ri.Get(ctx, m.GetName(), metav1.GetOptions{})
-		if getErr != nil {
-			return getErr
-		}
-		statusUpdateObj.SetResourceVersion(currentObj.GetResourceVersion())
-		_, updateErr := ri.UpdateStatus(ctx, statusUpdateObj, metav1.UpdateOptions{})
-		return updateErr
-	})
-	if updateStatusErr != nil {
-		return nil, a.mapUpdateError(updateStatusErr, m.GetName())
-	}
-
-	finalUobj, getErr := ri.Get(ctx, m.GetName(), metav1.GetOptions{})
-	if getErr != nil {
-		return nil, fmt.Errorf("failed to retrieve updated resource: %w", getErr)
-	}
-	res, err := a.k8sToDomain(finalUobj)
+	res, err := a.k8sToDomain(currObj)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert from k8s object: %w", err)
 	}
+	log.Printf("--->>> WriterAdapter:Update:<FINAL RESULT>:res='%+v'", res)
+
 	return &res, nil
 }
 
@@ -478,6 +532,8 @@ func (a *WriterAdapter[T]) mapUpdateError(err error, name string) error {
 	switch {
 	case kerrs.IsNotFound(err):
 		errModel = model.ErrNotFound
+	case kerrs.IsGone(err):
+		errModel = model.ErrGone
 	case kerrs.IsConflict(err):
 		errModel = model.ErrConflict
 	case kerrs.IsInvalid(err):
