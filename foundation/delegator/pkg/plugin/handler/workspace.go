@@ -36,19 +36,33 @@ func (h *WorkspacePluginHandler) HandleReconcile(ctx context.Context, resource *
 	var delegate delegator.DelegatedFunc[*regional.WorkspaceDomain]
 
 	switch {
+
+	case isWorkspaceAccepted(resource):
+		log.Println("-->DETECT isWorkspaceAccepted", "resource", resource)
+		delegate = BypassDelegated[*regional.WorkspaceDomain]
 	case isWorkspacePending(resource):
+		log.Println("-->DETECT isWorkspacePending", "resource", resource)
 		delegate = BypassDelegated[*regional.WorkspaceDomain]
 
-	case wantWorkspaceCreate(resource):
+	case isWorkspaceCreating(resource):
+		log.Println("-->DETECT isWorkspaceCreating", "resource", resource)
 		delegate = h.plugin.Create
 
 	case wantWorkspaceDelete(resource):
+		log.Println("-->DETECT wantWorkspaceDelete (K8s deletion started)", "resource", resource)
+		// Transition to deleting state before calling plugin.Delete
+		delegate = BypassDelegated[*regional.WorkspaceDomain]
+
+	case isWorkspaceDeleting(resource):
+		log.Println("-->DETECT isWorkspaceDeleting", "resource", resource)
 		delegate = h.plugin.Delete
 
 	case wantWorkspaceRetryCreate(resource):
+		log.Println("-->DETECT wantWorkspaceRetryCreate", "resource", resource)
 		delegate = BypassDelegated[*regional.WorkspaceDomain]
 
 	default:
+		log.Println("-->DETECT default", "resource", resource)
 		return false, nil // Nothing to do.
 	}
 
@@ -64,16 +78,29 @@ func (h *WorkspacePluginHandler) HandleReconcile(ctx context.Context, resource *
 	}
 
 	switch {
+
+	case isWorkspaceAccepted(resource):
+		log.Println("-->REACT isWorskspaceAccepted", "resource", resource)
+		return false, h.setResourceState(ctx, resource, regional.ResourceStatePending)
+
 	case isWorkspacePending(resource):
+		log.Println("-->REACT isWorkspacePending", "resource", resource)
 		return true, h.setResourceState(ctx, resource, regional.ResourceStateCreating)
 
-	case wantWorkspaceCreate(resource):
+	case isWorkspaceCreating(resource):
+		log.Println("-->REACT isWorkspaceCreating", "resource", resource)
 		return false, h.setResourceState(ctx, resource, regional.ResourceStateActive)
 
 	case wantWorkspaceDelete(resource):
-		return false, h.repo.Delete(ctx, resource)
+		log.Println("-->REACT wantWorkspaceDelete (setting state to Deleting)", "resource", resource)
+		return true, h.setResourceState(ctx, resource, regional.ResourceStateDeleting)
+
+	case isWorkspaceDeleting(resource):
+		log.Println("-->REACT isWorkspaceDeleting (cleanup done, controller will remove finalizer)")
+		return false, nil // Let the controller handle finalizer removal and actual deletion from K8s
 
 	case wantWorkspaceRetryCreate(resource):
+		log.Println("-->REACT wantWorkspaceRetryCreate", "resource", resource)
 		return true, h.setResourceState(ctx, resource, regional.ResourceStateCreating)
 
 	default:
@@ -122,20 +149,29 @@ func (h *WorkspacePluginHandler) setResourceErrorState(ctx context.Context, reso
 	return nil
 }
 
-func isWorkspacePending(resource *regional.WorkspaceDomain) bool {
-	return resource.Status == nil || resource.Status.State == nil || *(resource.Status.State) == regional.ResourceStatePending
+func isWorkspaceAccepted(resource *regional.WorkspaceDomain) bool {
+	return resource.Status == nil || resource.Status.State == nil
 }
 
-func wantWorkspaceCreate(resource *regional.WorkspaceDomain) bool {
-	return resource.Status != nil && *(resource.Status.State) == regional.ResourceStateCreating
+func isWorkspacePending(resource *regional.WorkspaceDomain) bool {
+	return resource.Status != nil && resource.Status.State != nil && *(resource.Status.State) == regional.ResourceStatePending
+}
+
+func isWorkspaceCreating(resource *regional.WorkspaceDomain) bool {
+	return resource.DeletedAt == nil && resource.Status != nil && resource.Status.State != nil && *(resource.Status.State) == regional.ResourceStateCreating
 }
 
 func wantWorkspaceDelete(resource *regional.WorkspaceDomain) bool {
-	return resource.DeletedAt == nil && resource.Status != nil && resource.Status.State != nil && *(resource.Status.State) == regional.ResourceStateDeleting
+	return resource.DeletedAt != nil && (resource.Status == nil || resource.Status.State == nil || *(resource.Status.State) != regional.ResourceStateDeleting)
+}
+
+func isWorkspaceDeleting(resource *regional.WorkspaceDomain) bool {
+	return resource.DeletedAt != nil && resource.Status != nil && resource.Status.State != nil && *(resource.Status.State) == regional.ResourceStateDeleting
 }
 
 func wantWorkspaceRetryCreate(resource *regional.WorkspaceDomain) bool {
-	return resource.Status != nil && *(resource.Status.State) == regional.ResourceStateError &&
+	return resource.DeletedAt == nil && resource.Status != nil && resource.Status.State != nil &&
+		*(resource.Status.State) == regional.ResourceStateError &&
 		len(resource.Status.Conditions) > 1 &&
 		resource.Status.Conditions[len(resource.Status.Conditions)-2].State == regional.ResourceStateCreating
 }

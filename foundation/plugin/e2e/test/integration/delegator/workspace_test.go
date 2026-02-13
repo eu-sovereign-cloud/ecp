@@ -12,7 +12,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 
 	ecpmodel "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	regionalmodel "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
 )
@@ -67,13 +66,7 @@ func TestWorkspace(t *testing.T) {
 
 		//
 		// And we can cleanup the workspace
-		state := regional.ResourceStateDeleting
-		wsDomain.Status = &regional.WorkspaceStatusDomain{
-			StatusDomain: regional.StatusDomain{
-				State: &state,
-			},
-		}
-		_, err = workspaceRepo.Update(t.Context(), wsDomain)
+		err = workspaceRepo.Delete(t.Context(), wsDomain)
 		require.NoError(t, err)
 	})
 
@@ -120,13 +113,7 @@ func TestWorkspace(t *testing.T) {
 
 		//
 		// When we delete the workspace resource
-		state := regional.ResourceStateDeleting
-		wsDomain.Status = &regional.WorkspaceStatusDomain{
-			StatusDomain: regional.StatusDomain{
-				State: &state,
-			},
-		}
-		_, err = workspaceRepo.Update(t.Context(), wsDomain)
+		err = workspaceRepo.Delete(t.Context(), wsDomain)
 		require.NoError(t, err)
 
 		//

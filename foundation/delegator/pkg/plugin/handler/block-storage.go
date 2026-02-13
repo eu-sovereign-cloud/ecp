@@ -38,22 +38,36 @@ func (h *BlockStoragePluginHandler) HandleReconcile(ctx context.Context, resourc
 	var delegate delegator.DelegatedFunc[*regional.BlockStorageDomain]
 
 	switch {
+	case isBlockStorageAccepted(resource):
+		log.Println("-->DETECT isBlockStorageAccepted", "resource", resource)
+		delegate = BypassDelegated[*regional.BlockStorageDomain]
 	case isBlockStoragePending(resource):
+		log.Println("-->DETECT isBlockStoragePending", "resource", resource)
 		delegate = BypassDelegated[*regional.BlockStorageDomain]
 
-	case wantBlockStorageCreate(resource):
+	case isBlockStorageCreating(resource):
+		log.Println("-->DETECT isBlockStorageCreating", "resource", resource)
 		delegate = h.plugin.Create
 
 	case wantBlockStorageDelete(resource):
-		delegate = h.plugin.Delete
-
-	case isBlockStorageActiveAndNeedsUpdate(resource):
+		log.Println("-->DETECT wantBlockStorageDelete", "resource", resource)
+		// Transition to deleting state before calling plugin.Delete
 		delegate = BypassDelegated[*regional.BlockStorageDomain]
 
-	case isBlockStorageUpdatingToIncreaseSize(resource):
+	case isBlockStorageDeleting(resource):
+		log.Println("-->DETECT isBlockStorageDeleting", "resource", resource)
+		delegate = h.plugin.Delete
+
+	case wantBlockStorageIncreaseSize(resource):
+		log.Println("-->DETECT wantBlockStorageIncreaseSize", "resource", resource)
+		delegate = BypassDelegated[*regional.BlockStorageDomain]
+
+	case isBlockStorageIncreasingSize(resource):
+		log.Println("-->DETECT isBlockStorageIncreasingSize", "resource", resource)
 		delegate = h.plugin.IncreaseSize
 
 	case wantBlockStorageRetryCreate(resource) || wantBlockStorageRetryIncreaseSize(resource):
+		log.Println("-->DETECT wantBlockStorageRetryCreate or wantBlockStorageRetryIncreaseSize", "resource", resource)
 		delegate = BypassDelegated[*regional.BlockStorageDomain]
 
 	default:
@@ -72,29 +86,44 @@ func (h *BlockStoragePluginHandler) HandleReconcile(ctx context.Context, resourc
 	}
 
 	switch {
+
+	case isBlockStorageAccepted(resource):
+		log.Println("-->REACT isBlockStorageAccepted", "resource", resource)
+		return false, h.setResourceState(ctx, resource, regional.ResourceStatePending)
 	case isBlockStoragePending(resource):
+		log.Println("-->REACT isBlockStoragePending", "resource", resource)
 		return true, h.setResourceState(ctx, resource, regional.ResourceStateCreating)
 
-	case wantBlockStorageCreate(resource):
+	case isBlockStorageCreating(resource):
+		log.Println("-->REACT isBlockStorageCreating", "resource", resource)
 		resource.Status.SizeGB = resource.Spec.SizeGB
 
 		return false, h.setResourceState(ctx, resource, regional.ResourceStateActive)
 
 	case wantBlockStorageDelete(resource):
-		return false, h.repo.Delete(ctx, resource)
+		log.Println("-->REACT wantBlockStorageDelete (setting state to Deleting)", "resource", resource)
+		return true, h.setResourceState(ctx, resource, regional.ResourceStateDeleting)
 
-	case isBlockStorageActiveAndNeedsUpdate(resource):
+	case isBlockStorageDeleting(resource):
+		log.Println("-->REACT isBlockStorageDeleting", "resource", resource)
+		return false, nil // Let the controller handle finalizer removal and actual deletion from K8s
+
+	case wantBlockStorageIncreaseSize(resource):
+		log.Println("-->REACT wantBlockStorageIncreaseSize", "resource", resource)
 		return true, h.setResourceState(ctx, resource, regional.ResourceStateUpdating)
 
-	case isBlockStorageUpdatingToIncreaseSize(resource):
+	case isBlockStorageIncreasingSize(resource):
+		log.Println("-->REACT isBlockStorageIncreasingSize", "resource", resource)
 		resource.Status.SizeGB = resource.Spec.SizeGB
 
 		return false, h.setResourceState(ctx, resource, regional.ResourceStateActive)
 
 	case wantBlockStorageRetryCreate(resource):
+		log.Println("-->REACT wantBlockStorageRetryCreate", "resource", resource)
 		return true, h.setResourceState(ctx, resource, regional.ResourceStateCreating)
 
 	case wantBlockStorageRetryIncreaseSize(resource):
+		log.Println("-->REACT wantBlockStorageRetryIncreaseSize", "resource", resource)
 		return true, h.setResourceState(ctx, resource, regional.ResourceStateUpdating)
 
 	default:
@@ -156,32 +185,44 @@ func blockDecreaseSize(_ context.Context, resource *regional.BlockStorageDomain)
 	return nil
 }
 
+func isBlockStorageAccepted(resource *regional.BlockStorageDomain) bool {
+	return resource.Status == nil || resource.Status.State == nil
+}
+
 func isBlockStoragePending(resource *regional.BlockStorageDomain) bool {
-	return resource.Status == nil || resource.Status.State == nil || *(resource.Status.State) == regional.ResourceStatePending
+	return resource.DeletedAt == nil && (resource.Status == nil || resource.Status.State == nil || *(resource.Status.State) == regional.ResourceStatePending)
 }
 
-func wantBlockStorageCreate(resource *regional.BlockStorageDomain) bool {
-	return resource.Status != nil && resource.Status.State != nil && *(resource.Status.State) == regional.ResourceStateCreating
+func isBlockStorageCreating(resource *regional.BlockStorageDomain) bool {
+	return resource.DeletedAt == nil && resource.Status != nil && resource.Status.State != nil && *(resource.Status.State) == regional.ResourceStateCreating
 }
 
+// wantBlockStorageDelete detects when K8s deletion has been triggered (DeletedAt is set)
+// but the resource state hasn't been transitioned to Deleting yet.
 func wantBlockStorageDelete(resource *regional.BlockStorageDomain) bool {
-	return resource.DeletedAt == nil && resource.Status != nil && resource.Status.State != nil && *(resource.Status.State) == regional.ResourceStateDeleting
+	return resource.DeletedAt != nil && (resource.Status == nil || resource.Status.State == nil || *(resource.Status.State) != regional.ResourceStateDeleting)
 }
 
-func isBlockStorageActiveAndNeedsUpdate(resource *regional.BlockStorageDomain) bool {
-	return resource.Status != nil && resource.Status.State != nil && *(resource.Status.State) == regional.ResourceStateActive && wantBlockStorageIncreaseSize(resource)
-}
-
-func isBlockStorageUpdatingToIncreaseSize(resource *regional.BlockStorageDomain) bool {
-	return resource.Status != nil && resource.Status.State != nil && *(resource.Status.State) == regional.ResourceStateUpdating && wantBlockStorageIncreaseSize(resource)
+// isBlockStorageDeleting detects when K8s deletion has been triggered (DeletedAt is set).
+func isBlockStorageDeleting(resource *regional.BlockStorageDomain) bool {
+	return resource.DeletedAt != nil && resource.Status != nil && resource.Status.State != nil && *(resource.Status.State) == regional.ResourceStateDeleting
 }
 
 func wantBlockStorageIncreaseSize(resource *regional.BlockStorageDomain) bool {
+	return resource.DeletedAt == nil && resource.Status != nil && resource.Status.State != nil && *(resource.Status.State) == regional.ResourceStateActive && detectIncreaseSizeCondition(resource)
+}
+
+func isBlockStorageIncreasingSize(resource *regional.BlockStorageDomain) bool {
+	return resource.DeletedAt == nil && resource.Status != nil && resource.Status.State != nil && *(resource.Status.State) == regional.ResourceStateUpdating && detectIncreaseSizeCondition(resource)
+}
+
+func detectIncreaseSizeCondition(resource *regional.BlockStorageDomain) bool {
 	return resource.Spec.SizeGB > resource.Status.SizeGB
 }
 
 func wantBlockStorageRetryCreate(resource *regional.BlockStorageDomain) bool {
-	return resource.Status != nil &&
+	return resource.DeletedAt == nil &&
+		resource.Status != nil &&
 		resource.Status.State != nil &&
 		*(resource.Status.State) == regional.ResourceStateError &&
 		len(resource.Status.Conditions) > 1 &&
@@ -189,7 +230,8 @@ func wantBlockStorageRetryCreate(resource *regional.BlockStorageDomain) bool {
 }
 
 func wantBlockStorageRetryIncreaseSize(resource *regional.BlockStorageDomain) bool {
-	return resource.Status != nil &&
+	return resource.DeletedAt == nil &&
+		resource.Status != nil &&
 		resource.Status.State != nil &&
 		*(resource.Status.State) == regional.ResourceStateError &&
 		len(resource.Status.Conditions) > 1 &&

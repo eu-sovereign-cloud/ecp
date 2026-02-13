@@ -424,19 +424,29 @@ func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
 
 	// --- PATH B: Update includes status with conditions ---
 	specUpdateObj := uobj.DeepCopy()
-	unstructured.RemoveNestedField(specUpdateObj.Object, "status")
+	wantedSpec, found, err := unstructured.NestedMap(specUpdateObj.Object, "spec")
+	if err != nil {
+		return nil, err // TODO: better error handling
+	}
 
-	updateSpecErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		currentObj, getErr := ri.Get(ctx, m.GetName(), metav1.GetOptions{})
-		if getErr != nil {
-			return getErr
+	if found && uobj.GetDeletionTimestamp().IsZero() {
+		updateSpecErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			currentObj, getErr := ri.Get(ctx, m.GetName(), metav1.GetOptions{})
+			if getErr != nil {
+				return getErr
+			}
+
+			if err := unstructured.SetNestedMap(currentObj.Object, wantedSpec, "spec"); err != nil {
+				return err // TODO: better error handling
+			}
+
+			specUpdateObj.SetResourceVersion(currentObj.GetResourceVersion())
+			_, updateErr := ri.Update(ctx, specUpdateObj, metav1.UpdateOptions{})
+			return updateErr
+		})
+		if updateSpecErr != nil {
+			return nil, a.mapUpdateError(updateSpecErr, m.GetName())
 		}
-		specUpdateObj.SetResourceVersion(currentObj.GetResourceVersion())
-		_, updateErr := ri.Update(ctx, specUpdateObj, metav1.UpdateOptions{})
-		return updateErr
-	})
-	if updateSpecErr != nil {
-		return nil, a.mapUpdateError(updateSpecErr, m.GetName())
 	}
 
 	statusUpdateObj := &unstructured.Unstructured{
