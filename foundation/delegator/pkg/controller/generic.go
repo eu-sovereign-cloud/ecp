@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"errors"
+	"log"
 	"log/slog"
 	"slices"
 	"strings"
@@ -16,6 +17,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	gateway "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 
 	delegator "github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/port"
@@ -67,59 +69,35 @@ const finalizerName = "secapi.cloud.foundation/cleanup"
 func (r *GenericController[D]) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := r.logger.With("resource", req.NamespacedName)
 
+	log.Println(" --->> 0 - REQ", "req", req)
+
+	var obj client.Object
+
 	// 1. Fetch the K8s object
-	obj := r.prototype.DeepCopyObject().(client.Object)
+	obj = r.prototype.DeepCopyObject().(client.Object)
 	if err := r.client.Get(ctx, req.NamespacedName, obj); err != nil {
+		log.Println(" --->> 1 - ERR", "err", err)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
+	log.Println(" --->> 1 - OBJ", "obj", obj)
+
 	// 2. Handle finalizers
-	if obj.GetDeletionTimestamp().IsZero() {
-		// Resource is not being deleted, ensure finalizer exists
-		if !slices.Contains(obj.GetFinalizers(), finalizerName) {
-			obj.SetFinalizers(append(obj.GetFinalizers(), finalizerName))
-			if err := r.client.Update(ctx, obj); err != nil {
-				return ctrl.Result{}, err
-			}
+	if obj.GetDeletionTimestamp().IsZero() && !slices.Contains(obj.GetFinalizers(), finalizerName) {
+		obj.SetFinalizers(append(obj.GetFinalizers(), finalizerName))
+		if err := r.client.Update(ctx, obj); err != nil {
+			log.Println(" --->> 2 - ERR", "err", err)
+			return ctrl.Result{}, err
 		}
-	} else {
-		// Resource is being deleted
-		if slices.Contains(obj.GetFinalizers(), finalizerName) {
-			// 3. Convert to Domain object for cleanup
-			domainResource, err := r.k8sToDomain(obj)
-			if err != nil {
-				logger.Error("failed to convert k8s object to domain resource during deletion", "error", err)
-				return ctrl.Result{}, err
-			}
 
-			// 4. Delegate to the specific handler for cleanup
-			requeue, err := r.handler.HandleReconcile(ctx, domainResource)
-			if err != nil {
-				if errors.Is(err, delegator.ErrStillProcessing) {
-					return ctrl.Result{RequeueAfter: r.requeueAfter}, nil
-				}
-				logger.Error("handler failed to cleanup resource", "error", err)
-				return ctrl.Result{RequeueAfter: r.requeueAfter}, err
-			}
-
-			if requeue {
-				return ctrl.Result{RequeueAfter: r.requeueAfter}, nil
-			}
-
-			// Cleanup complete, remove finalizer
-			obj.SetFinalizers(slices.DeleteFunc(obj.GetFinalizers(), func(v string) bool {
-				return strings.EqualFold(v, finalizerName)
-			}))
-			if err := r.client.Update(ctx, obj); err != nil {
-				return ctrl.Result{}, err
-			}
-		}
-		return ctrl.Result{}, nil
+		log.Println(" --->> 2 - OBJ", "obj", obj)
+		return ctrl.Result{RequeueAfter: r.requeueAfter}, nil
 	}
 
-	// 5. Convert to Domain object for normal reconciliation
+	// 3. Convert to Domain object for normal reconciliation
 	domainResource, err := r.k8sToDomain(obj)
 	if err != nil {
+		log.Println(" --->> 3 - ERR", "err", err)
 		// If conversion fails, it's likely a permanent error
 		logger.Error("failed to convert k8s object to domain resource", "error", err)
 
@@ -131,12 +109,17 @@ func (r *GenericController[D]) Reconcile(ctx context.Context, req ctrl.Request) 
 			LastTransitionTime: metav1.Now(),
 		})
 
+		log.Println(" --->> 3 - ERROR STATUS SET")
 		return ctrl.Result{}, nil
 	}
 
-	// 6. Delegate to the specific handler
+	log.Println(" --->> 3 - DOMAIN", "domainResource", domainResource)
+
+	// 4. Delegate to the specific handler
 	requeue, err := r.handler.HandleReconcile(ctx, domainResource)
 	if err != nil {
+		log.Println(" --->> 4 - ERR", "err", err)
+
 		if errors.Is(err, delegator.ErrStillProcessing) {
 			return ctrl.Result{RequeueAfter: r.requeueAfter}, nil
 		}
@@ -144,10 +127,36 @@ func (r *GenericController[D]) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{RequeueAfter: r.requeueAfter}, err
 	}
 
+	log.Println(" --->> 4 - SUCESS")
+
+	// 5. Requeue the request if necessary
 	if requeue {
+		log.Println(" --->> 5 - REQUEUE")
 		return ctrl.Result{RequeueAfter: r.requeueAfter}, nil
 	}
 
+	// 6. Refresh the K8s object
+	obj = r.prototype.DeepCopyObject().(client.Object)
+	if err := r.client.Get(ctx, req.NamespacedName, obj); err != nil {
+		log.Println(" --->> 6 - ERR", "err", err)
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	log.Println(" --->> 6 - OBJ", "obj", obj)
+
+	// 7. Check if the resource deletion process is complete
+	if !obj.GetDeletionTimestamp().IsZero() && getStateFromObject(obj) == regional.ResourceStateDeleting && slices.Contains(obj.GetFinalizers(), finalizerName) {
+		log.Println(" --->> 7 - REMOVE FINALIZERS")
+		obj.SetFinalizers(slices.DeleteFunc(obj.GetFinalizers(), func(v string) bool {
+			return strings.EqualFold(v, finalizerName)
+		}))
+		if err := r.client.Update(ctx, obj); err != nil {
+			log.Println(" --->> 7 - ERR", "err", err)
+			return ctrl.Result{}, err
+		}
+	}
+
+	log.Println(" --->> 8 - THE END")
 	return ctrl.Result{}, nil
 }
 
@@ -208,4 +217,20 @@ func (r *GenericController[D]) updateStatusCondition(ctx context.Context, obj cl
 	if err := r.client.Status().Update(ctx, uObj); err != nil {
 		logger.Error("failed to update status", "error", err)
 	}
+}
+
+func getStateFromObject(obj client.Object) regional.ResourceStateDomain {
+	// Extract status via unstructured
+	uMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
+	if err != nil {
+		return ""
+	}
+	uObj := &unstructured.Unstructured{Object: uMap}
+
+	state, found, err := unstructured.NestedString(uObj.Object, "status", "state")
+	if err != nil || !found {
+		return ""
+	}
+
+	return regional.ResourceStateDomain(state)
 }
