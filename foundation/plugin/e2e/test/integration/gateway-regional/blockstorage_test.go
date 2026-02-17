@@ -83,7 +83,6 @@ func TestBlockStorageAPI(t *testing.T) {
 
 		//
 		// And we can cleanup the block storage
-		state := regional.ResourceStateDeleting
 		bsDomain := &regionalmodel.BlockStorageDomain{
 			Metadata: regionalmodel.Metadata{
 				CommonMetadata: ecpmodel.CommonMetadata{
@@ -95,12 +94,9 @@ func TestBlockStorageAPI(t *testing.T) {
 				},
 			},
 			Spec: regionalmodel.BlockStorageSpec{},
-			Status: &regional.BlockStorageStatus{
-				State: &state,
-			},
 		}
 
-		_, err = blockStorageRepo.Update(t.Context(), bsDomain)
+		err = blockStorageRepo.Delete(t.Context(), bsDomain)
 		require.NoError(t, err)
 	})
 
@@ -219,7 +215,6 @@ func TestBlockStorageAPI(t *testing.T) {
 
 		//
 		// And we can cleanup the block storage
-		state := regional.ResourceStateDeleting
 		bsDomain := &regionalmodel.BlockStorageDomain{
 			Metadata: regionalmodel.Metadata{
 				CommonMetadata: ecpmodel.CommonMetadata{
@@ -231,12 +226,9 @@ func TestBlockStorageAPI(t *testing.T) {
 				},
 			},
 			Spec: regionalmodel.BlockStorageSpec{},
-			Status: &regional.BlockStorageStatus{
-				State: &state,
-			},
 		}
 
-		_, err = blockStorageRepo.Update(t.Context(), bsDomain)
+		err = blockStorageRepo.Delete(t.Context(), bsDomain)
 		require.NoError(t, err)
 	})
 }
