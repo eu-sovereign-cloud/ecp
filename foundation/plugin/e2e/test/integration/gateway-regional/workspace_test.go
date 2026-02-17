@@ -68,7 +68,6 @@ func TestWorkspaceAPI(t *testing.T) {
 
 		//
 		// And we can cleanup the workspace
-		state := regional.ResourceStateDeleting
 		wsDomain := &regionalmodel.WorkspaceDomain{
 			Metadata: regionalmodel.Metadata{
 				CommonMetadata: ecpmodel.CommonMetadata{
@@ -79,14 +78,9 @@ func TestWorkspaceAPI(t *testing.T) {
 				},
 			},
 			Spec: regionalmodel.WorkspaceSpec{},
-			Status: &regional.WorkspaceStatusDomain{
-				StatusDomain: regional.StatusDomain{
-					State: &state,
-				},
-			},
 		}
 
-		_, err = workspaceRepo.Update(t.Context(), wsDomain)
+		err = workspaceRepo.Delete(t.Context(), wsDomain)
 		require.NoError(t, err)
 	})
 
