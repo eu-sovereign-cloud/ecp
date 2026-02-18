@@ -77,8 +77,10 @@ func (h *BlockStoragePluginHandler) HandleReconcile(ctx context.Context, resourc
 
 	if err := delegate(ctx, resource); err != nil {
 		if errors.Is(err, delegator.ErrStillProcessing) {
+			log.Println("-->DETECT still processing", "resource", resource)
 			return true, nil
 		}
+		log.Println("-->DETECT error from delegate", "error", err, "resource", resource)
 		if requeue, err := h.setResourceErrorState(ctx, resource, err, false); err != nil {
 			return requeue, err // TODO: better errors handling
 		}
