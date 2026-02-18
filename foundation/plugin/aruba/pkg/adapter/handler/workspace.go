@@ -10,6 +10,7 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/plugin"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 
+	delegator "github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/port"
 	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/generic/delegated"
 	mutator_bypass "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/generic/mutator"
 	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/converter"
@@ -44,14 +45,14 @@ func NewWorkspaceHandler(repo repository.Repository[*v1alpha1.Project, *v1alpha1
 		func(p *v1alpha1.Project) bool {
 			return p.Status.Phase == v1alpha1.ResourcePhaseCreated
 		},
-		repo.WaitUntil,
+		handler.waitUntilManagedError,
 	)
 	handler.deleteDelegated = delegated.NewStraightDelegated(
 		conv.FromSECAToAruba,
 		mutator_bypass.BypassMutateFunc[*v1alpha1.Project, *regional.WorkspaceDomain],
 		repo.Delete,
 		handler.checkWsDeleteCondition,
-		repo.WaitUntil,
+		handler.waitUntilManagedError,
 	)
 
 	return handler
@@ -75,4 +76,21 @@ func (h *WorkspaceHandler) checkWsDeleteCondition(resource *v1alpha1.Project) bo
 	err := h.repository.Load(ctx, resource)
 
 	return errors.IsNotFound(err)
+}
+
+// waitUntilManagedError waits until the provided condition is met for the given resource.
+// If the condition is not met within the timeout, it returns delegator.ErrStillProcessing to indicate that the operation is still in progress.
+func (h *WorkspaceHandler) waitUntilManagedError(ctx context.Context, resource *v1alpha1.Project, condition repository.WaitConditionFunc[*v1alpha1.Project]) (*v1alpha1.Project, error) {
+
+	proj, err := h.repository.WaitUntil(ctx, resource, condition)
+
+	if err != nil {
+		// Check if the error is due to the resource not being found, which can be expected during deletion
+		if errors.IsTimeout(err) {
+			return nil, delegator.ErrStillProcessing // Resource is gone, treat as successful deletion
+		}
+		return nil, err // Return other errors for handling
+	}
+
+	return proj, nil
 }
