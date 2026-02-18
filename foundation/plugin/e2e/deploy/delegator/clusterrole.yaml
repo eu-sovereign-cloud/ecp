@@ -21,3 +21,7 @@ rules:
 - apiGroups: ["arubacloud.com"]
   resources: ["blockstorages", "blockstorages/status"]
   verbs: ["get", "list", "watch", "update", "patch", "create", "delete"]  
+- apiGroups: ["storage.v1.secapi.cloud"]
+  resources: ["skus"]
+  verbs: ["get", "list", "watch"]
+
