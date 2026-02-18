@@ -10,14 +10,19 @@ import (
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/dynamic"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage"
+	storageskuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/skus/v1"
 	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/workspace/v1"
 	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/builder"
+	kubernetesadapter "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
+
 	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/converter"
 	aruba "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/handler"
 	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/repository"
@@ -56,6 +61,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	dyn, err := getDynamicClient(mgr)
+	if err != nil {
+		logger.Error("unable to start dynamic client", "error", err)
+		os.Exit(1)
+	}
 	ctx := context.TODO()
 
 	// 3. Read PLUGIN environment variable
@@ -69,7 +79,7 @@ func main() {
 
 	switch pluginType {
 	case "default", "aruba":
-		pluginSet, err = loadArubaPluginSet(ctx, mgr, logger)
+		pluginSet, err = loadArubaPluginSet(ctx, dyn, mgr, logger)
 	case "dummy":
 		pluginSet, err = loadDummyPluginSet(logger)
 	default:
@@ -120,8 +130,13 @@ func main() {
 	}
 }
 
-func loadArubaPluginSet(ctx context.Context, mgr ctrl.Manager, logger *slog.Logger) (*builder.PluginSet, error) {
+func loadArubaPluginSet(ctx context.Context, dyn dynamic.Interface, mgr ctrl.Manager, logger *slog.Logger) (*builder.PluginSet, error) {
 	logger.Info("Loading 'aruba' plugin set")
+
+	// Instantiate seca-specific repositories
+	secaWsRepo := kubernetesadapter.NewReaderAdapter(dyn, workspacev1.WorkspaceGVR, logger, kubernetesadapter.MapCRToWorkspaceDomain)
+	secaSkuRepo := kubernetesadapter.NewReaderAdapter(dyn, storageskuv1.SKUGVR, logger, kubernetesadapter.MapCRToStorageSKUDomain)
+
 	// Instantiate aruba-specific repositories
 	wr := repository.NewProjectRepository(ctx, mgr.GetClient(), mgr.GetCache())
 	br := repository.NewBlockStorageRepository(ctx, mgr.GetClient(), mgr.GetCache())
@@ -132,7 +147,7 @@ func loadArubaPluginSet(ctx context.Context, mgr ctrl.Manager, logger *slog.Logg
 
 	// Create aruba-specific handlers
 	wsPlugin := aruba.NewWorkspaceHandler(wr, wc)
-	bsPlugin := aruba.NewBlockStorageHandler(br, bc)
+	bsPlugin := aruba.NewBlockStorageHandler(secaWsRepo, secaSkuRepo, br, wr, bc, wc)
 
 	// Create and return the plugin set
 	return builder.NewPluginSet(
@@ -150,4 +165,13 @@ func loadDummyPluginSet(logger *slog.Logger) (*builder.PluginSet, error) {
 		builder.WithBlockStorage(bsPlugin),
 		builder.WithWorkspace(wsPlugin),
 	), nil
+}
+
+func getDynamicClient(mgr manager.Manager) (*dynamic.DynamicClient, error) {
+	// mgr.GetConfig() returns the *rest.Config
+	dynClient, err := dynamic.NewForConfig(mgr.GetConfig())
+	if err != nil {
+		return nil, err
+	}
+	return dynClient, nil
 }
