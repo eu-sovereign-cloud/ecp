@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ionos-plugin
+  namespace: default
+  labels:
+    app: ionos-plugin
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ionos-plugin
+  template:
+    metadata:
+      labels:
+        app: ionos-plugin
+    spec:
+      containers:
+      - name: ionos-plugin
+        image: ionos-plugin:dev
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8080
+          name: http
+        - containerPort: 8082
+          name: healthz
+        - containerPort: 8083
+          name: metrics
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8082
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8082
+          initialDelaySeconds: 10
+          periodSeconds: 10
