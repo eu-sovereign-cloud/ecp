@@ -43,8 +43,9 @@ func TestWorkspace(t *testing.T) {
 
 		//
 		// Then the resource should eventually become active
+		var loadedWs *regionalmodel.WorkspaceDomain
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
-			loadedWs := &regionalmodel.WorkspaceDomain{
+			loadedWs = &regionalmodel.WorkspaceDomain{
 				Metadata: regionalmodel.Metadata{
 					CommonMetadata: ecpmodel.CommonMetadata{
 						Name: workspaceName,
@@ -63,7 +64,10 @@ func TestWorkspace(t *testing.T) {
 			return false, nil
 		})
 		require.NoError(t, err, "workspace resource should become active")
-
+		require.NotNil(t, loadedWs)
+		require.NotNil(t, loadedWs.Status)
+		require.NotNil(t, loadedWs.Status.State)
+		require.Equal(t, regionalmodel.ResourceStateActive, *loadedWs.Status.State)
 		//
 		// And we can cleanup the workspace
 		err = workspaceRepo.Delete(t.Context(), wsDomain)
@@ -90,8 +94,9 @@ func TestWorkspace(t *testing.T) {
 		_, err := workspaceRepo.Create(t.Context(), wsDomain)
 		require.NoError(t, err)
 
+		var loadedWs *regionalmodel.WorkspaceDomain
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
-			loadedWs := &regionalmodel.WorkspaceDomain{
+			loadedWs = &regionalmodel.WorkspaceDomain{
 				Metadata: regionalmodel.Metadata{
 					CommonMetadata: ecpmodel.CommonMetadata{
 						Name: workspaceName,
@@ -110,7 +115,10 @@ func TestWorkspace(t *testing.T) {
 			return false, nil
 		})
 		require.NoError(t, err, "workspace resource should become active before deletion")
-
+		require.NotNil(t, loadedWs)
+		require.NotNil(t, loadedWs.Status)
+		require.NotNil(t, loadedWs.Status.State)
+		require.Equal(t, regionalmodel.ResourceStateActive, *loadedWs.Status.State)
 		//
 		// When we delete the workspace resource
 		err = workspaceRepo.Delete(t.Context(), wsDomain)
@@ -119,7 +127,7 @@ func TestWorkspace(t *testing.T) {
 		//
 		// Then the resource should eventually be removed
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
-			loadedWs := &regionalmodel.WorkspaceDomain{
+			loadedWs = &regionalmodel.WorkspaceDomain{
 				Metadata: regionalmodel.Metadata{
 					CommonMetadata: ecpmodel.CommonMetadata{
 						Name: workspaceName,
@@ -139,5 +147,6 @@ func TestWorkspace(t *testing.T) {
 			return false, nil
 		})
 		require.NoError(t, err, "workspace resource should be deleted")
+
 	})
 }

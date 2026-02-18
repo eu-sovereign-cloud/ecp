@@ -52,8 +52,11 @@ func TestBlockStorage(t *testing.T) {
 
 		//
 		// Then the resource should eventually become active
+
+		var loadedBs *regionalmodel.BlockStorageDomain
+
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
-			loadedBs := &regionalmodel.BlockStorageDomain{
+			loadedBs = &regionalmodel.BlockStorageDomain{
 				Metadata: regionalmodel.Metadata{
 					CommonMetadata: ecpmodel.CommonMetadata{
 						Name: resourceName,
@@ -73,6 +76,10 @@ func TestBlockStorage(t *testing.T) {
 			return false, nil
 		})
 		require.NoError(t, err, "block storage resource should become active")
+		require.NotNil(t, loadedBs)
+		require.NotNil(t, loadedBs.Status)
+		require.NotNil(t, loadedBs.Status.State)
+		require.Equal(t, regionalmodel.ResourceStateActive, *loadedBs.Status.State)
 
 		//
 		// And we can cleanup the block storage
@@ -107,8 +114,10 @@ func TestBlockStorage(t *testing.T) {
 		_, err := blockStorageRepo.Create(t.Context(), bsDomain)
 		require.NoError(t, err)
 
+		var loadedBs *regionalmodel.BlockStorageDomain
+
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
-			loadedBs := &regionalmodel.BlockStorageDomain{
+			loadedBs = &regionalmodel.BlockStorageDomain{
 				Metadata: regionalmodel.Metadata{
 					CommonMetadata: ecpmodel.CommonMetadata{
 						Name: resourceName,
@@ -128,6 +137,10 @@ func TestBlockStorage(t *testing.T) {
 			return false, nil
 		})
 		require.NoError(t, err, "block storage resource should become active before deletion")
+		require.NotNil(t, loadedBs)
+		require.NotNil(t, loadedBs.Status)
+		require.NotNil(t, loadedBs.Status.State)
+		require.Equal(t, regionalmodel.ResourceStateActive, *loadedBs.Status.State)
 
 		//
 		// When we delete the block storage resource
@@ -137,7 +150,7 @@ func TestBlockStorage(t *testing.T) {
 		//
 		// Then the resource should eventually be removed
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
-			loadedBs := &regionalmodel.BlockStorageDomain{
+			loadedBs = &regionalmodel.BlockStorageDomain{
 				Metadata: regionalmodel.Metadata{
 					CommonMetadata: ecpmodel.CommonMetadata{
 						Name: resourceName,
@@ -188,8 +201,9 @@ func TestBlockStorage(t *testing.T) {
 		require.NoError(t, err)
 
 		log.Println("---> INIT CREATE BS-INCREASESIZE", "name", resourceName)
+		var loadedBs *regionalmodel.BlockStorageDomain
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
-			loadedBs := &regionalmodel.BlockStorageDomain{
+			loadedBs = &regionalmodel.BlockStorageDomain{
 				Metadata: regionalmodel.Metadata{
 					CommonMetadata: ecpmodel.CommonMetadata{
 						Name: resourceName,
@@ -216,6 +230,11 @@ func TestBlockStorage(t *testing.T) {
 			return false, nil
 		})
 		require.NoError(t, err, "block storage resource should become active with initial size")
+		require.NotNil(t, loadedBs)
+		require.NotNil(t, loadedBs.Status)
+		require.NotNil(t, loadedBs.Status.State)
+		require.Equal(t, regionalmodel.ResourceStateActive, *loadedBs.Status.State)
+		require.Equal(t, 1, loadedBs.Status.SizeGB)
 		log.Println("---> END CREATE BS-INCREASESIZE", "name", resourceName)
 		//
 		// When we update the block storage resource with an increased size
@@ -266,6 +285,11 @@ func TestBlockStorage(t *testing.T) {
 			return false, nil
 		})
 		require.NoError(t, err, "block storage resource should have its size increased")
+		require.NotNil(t, currentBs)
+		require.NotNil(t, currentBs.Status)
+		require.NotNil(t, currentBs.Status.State)
+		require.Equal(t, regionalmodel.ResourceStateActive, *currentBs.Status.State)
+		require.Equal(t, 2, currentBs.Status.SizeGB)
 		log.Println("---> END UPDATE BS-INCREASESIZE", "name", resourceName)
 		//
 		// And we can cleanup the block storage
