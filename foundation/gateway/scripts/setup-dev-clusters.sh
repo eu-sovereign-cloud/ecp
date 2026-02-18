@@ -27,6 +27,7 @@ REGIONAL_IMAGE="registry.secapi.cloud/regional-server:latest"
 GLOBAL_DEPLOYMENT_YAML="${CONFIG_SETUP_DIR}/global-deployment.yaml"
 REGIONAL_DEPLOYMENT_YAML="${CONFIG_SETUP_DIR}/regional-deployment.yaml"
 REGIONS_RBAC_YAML="${CONFIG_SETUP_DIR}/global_regions_rbac.yaml"
+REGIONAL_RBAC_YAML="${CONFIG_SETUP_DIR}/regional_rbac.yaml"
 
 # Verify required files/directories exist early to fail fast
 ensure_file() { if [ ! -f "$1" ]; then echo "Error: Required file not found: $1" >&2; exit 1; fi }
@@ -34,6 +35,7 @@ ensure_dir() { if [ ! -d "$1" ]; then echo "Error: Required directory not found:
 ensure_file "${GLOBAL_DEPLOYMENT_YAML}"
 ensure_file "${REGIONAL_DEPLOYMENT_YAML}"
 ensure_file "${REGIONS_RBAC_YAML}"
+ensure_file "${REGIONAL_RBAC_YAML}"
 ensure_dir "${API_CRDS_DIR}"
 ensure_dir "${REGIONAL_CONFIG_DIR}"
 
@@ -104,6 +106,7 @@ kubectl --kubeconfig "${GLOBAL_KUBECONFIG_PATH}" apply -f "${REGIONS_RBAC_YAML}"
 
 # 7. Apply regional CRs and RBAC (storage, workspace, etc.)
 echo "--- Step 6: Applying regional CRs and RBAC ---"
+kubectl --kubeconfig "${REGIONAL_KUBECONFIG_PATH}" apply -f "${REGIONAL_RBAC_YAML}"
 kubectl --kubeconfig "${REGIONAL_KUBECONFIG_PATH}" apply -R -f "${REGIONAL_CONFIG_DIR}"
 
 # 8. Apply deployments to clusters

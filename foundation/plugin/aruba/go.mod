@@ -1,6 +1,6 @@
 module github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba
 
-go 1.24
+go 1.24.0
 
 toolchain go1.24.10
 
