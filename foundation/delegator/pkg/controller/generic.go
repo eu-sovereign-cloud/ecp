@@ -15,6 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
@@ -60,6 +61,11 @@ func NewGenericController[D gateway.IdentifiableResource](
 func (r *GenericController[D]) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(r.prototype).
+		WithOptions(controller.Options{
+			// This allows 10 wrokers to process the queue in parallel
+			// TODO: make this configurable
+			MaxConcurrentReconciles: 10,
+		}).
 		Complete(r)
 }
 
