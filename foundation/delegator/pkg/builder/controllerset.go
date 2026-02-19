@@ -73,7 +73,7 @@ func NewControllerSet(opts ...Option) (*ControllerSet, error) {
 		kubernetesadapter.MapBlockStorageDomainToCR,
 		kubernetesadapter.MapCRToBlockStorageDomain,
 	)
-
+	// TODO - use namespace NewNamespaceManagingWriterAdapter to auto-cleanup namespace
 	wsRepo := kubernetesadapter.NewNamespaceManagingRepoAdapter(
 		dynamicClient,
 		clientset,

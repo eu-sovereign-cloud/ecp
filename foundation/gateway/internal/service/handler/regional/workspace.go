@@ -43,8 +43,7 @@ func (h Workspace) DeleteWorkspace(
 	}
 	ir := &regional.Metadata{
 		Scope: scope.Scope{
-			Tenant:    tenant,
-			Workspace: "",
+			Tenant: tenant,
 		},
 		CommonMetadata: model.CommonMetadata{
 			Name:            name,
@@ -58,15 +57,14 @@ func (h Workspace) DeleteWorkspace(
 func (h Workspace) GetWorkspace(w http.ResponseWriter, r *http.Request, tenant schema.TenantPathParam, name schema.ResourcePathParam) {
 	ir := &regional.Metadata{
 		Scope: scope.Scope{
-			Tenant:    tenant,
-			Workspace: "",
+			Tenant: tenant,
 		},
 		CommonMetadata: model.CommonMetadata{
 			Name: name,
 		},
 	}
 
-	handler.HandleGet(w, r, h.Logger.With("provider", "workspace").With("resource", "workspace"), ir, h.Get, apiworkspace.DomainToAPIWithVerb(http.MethodGet))
+	handler.HandleGet(w, r, h.Logger.With("provider", "workspace").With("resource", "workspace"), ir, h.Get, apiworkspace.DomainToAPI)
 }
 
 func (h Workspace) CreateOrUpdateWorkspace(
@@ -80,8 +78,7 @@ func (h Workspace) CreateOrUpdateWorkspace(
 	upsertOptions := handler.UpsertOptions[schema.Workspace, *regional.WorkspaceDomain, schema.Workspace]{
 		Params: &regional.Metadata{
 			Scope: scope.Scope{
-				Tenant:    tenant,
-				Workspace: "",
+				Tenant: tenant,
 			},
 			CommonMetadata: model.CommonMetadata{
 				Name:            name,
@@ -91,7 +88,7 @@ func (h Workspace) CreateOrUpdateWorkspace(
 		Creator:     h.Create,
 		Updater:     h.Update,
 		SDKToDomain: apiworkspace.APIToDomain,
-		DomainToSDK: apiworkspace.DomainToAPIWithVerb(http.MethodPut),
+		DomainToSDK: apiworkspace.DomainToAPI,
 	}
 
 	handler.HandleUpsert(

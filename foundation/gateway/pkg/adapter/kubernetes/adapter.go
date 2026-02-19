@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	corev1 "k8s.io/api/core/v1"
 	kerrs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -172,6 +173,7 @@ func CreateNamespace(ctx context.Context, clientSet kubernetes.Interface, name s
 	if name == "" {
 		return false, fmt.Errorf("cannot create namespace with empty name")
 	}
+
 	if clientSet == nil {
 		return false, fmt.Errorf("cannot create namespace %q: clientSet is nil", name)
 	}
@@ -182,12 +184,15 @@ func CreateNamespace(ctx context.Context, clientSet kubernetes.Interface, name s
 			Labels: ownerLabels,
 		},
 	}
+
 	if _, err := clientSet.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{}); err != nil {
 		if kerrs.IsAlreadyExists(err) {
 			return false, nil
 		}
+
 		return false, fmt.Errorf("failed to create namespace %s: %w", name, err)
 	}
+
 	return true, nil
 }
 
@@ -196,6 +201,7 @@ func DeleteNamespace(ctx context.Context, clientSet kubernetes.Interface, name s
 	if name == "" {
 		return nil
 	}
+
 	if clientSet == nil {
 		return fmt.Errorf("cannot delete namespace %q: clientSet is nil", name)
 	}
@@ -204,7 +210,9 @@ func DeleteNamespace(ctx context.Context, clientSet kubernetes.Interface, name s
 		if kerrs.IsNotFound(err) {
 			return nil
 		}
+
 		return err
+
 	}
 	return nil
 }
@@ -212,9 +220,11 @@ func DeleteNamespace(ctx context.Context, clientSet kubernetes.Interface, name s
 // List implements the port.ReaderRepo interface.
 func (a *ReaderAdapter[T]) List(ctx context.Context, params model.ListParams, list *[]T) (*string, error) {
 	lo := metav1.ListOptions{}
+
 	if params.Limit > 0 {
 		lo.Limit = int64(params.Limit)
 	}
+
 	if params.SkipToken != "" {
 		lo.Continue = params.SkipToken
 	}
@@ -227,14 +237,15 @@ func (a *ReaderAdapter[T]) List(ctx context.Context, params model.ListParams, li
 	ri := a.client.Resource(a.gvr).Namespace(ComputeNamespace(&params))
 
 	ulist, err := ri.List(ctx, lo)
-	modelErr := model.ErrUnavailable
-	if kerrs.IsForbidden(err) {
-		modelErr = model.ErrForbidden
-	}
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to list resources", "resource", a.gvr.Resource, "error", err)
-		return nil, fmt.Errorf("%w: failed to list resources for %s: %w", modelErr, a.gvr.Resource, err)
+		modelErr := model.ErrUnavailable
+		if kerrs.IsForbidden(err) {
+			modelErr = model.ErrForbidden
+		}
 
+		a.logger.ErrorContext(ctx, "failed to list resources", "resource", a.gvr.Resource, "error", err)
+
+		return nil, fmt.Errorf("%w: failed to list resources for %s: %w", modelErr, a.gvr.Resource, err)
 	}
 
 	// Apply client-side filtering for selectors not handled by the API
@@ -244,12 +255,16 @@ func (a *ReaderAdapter[T]) List(ctx context.Context, params model.ListParams, li
 			matched, k8sHandled, err := filter.MatchLabels(item.GetLabels(), params.Selector)
 			if err != nil {
 				a.logger.ErrorContext(ctx, "label filter evaluation failed", "resource", a.gvr.Resource, "item", item.GetName(), "error", err)
+
 				return nil, fmt.Errorf("%w: label filter for %s failed: %w", model.ErrValidation, a.gvr.Resource, err)
 			}
+
 			if k8sHandled { // The filter was fully handled by the K8s API
 				filteredItems = ulist.Items
+
 				break
 			}
+
 			if matched {
 				filteredItems = append(filteredItems, item)
 			}
@@ -261,16 +276,21 @@ func (a *ReaderAdapter[T]) List(ctx context.Context, params model.ListParams, li
 	*list = make([]T, 0, len(filteredItems))
 	for _, item := range filteredItems {
 		converted, err := a.k8sToDomain(&item)
+
 		if err != nil {
 			a.logger.ErrorContext(ctx, "conversion failed", "resource", a.gvr.Resource, "error", err)
+
 			return nil, fmt.Errorf("%w: failed to convert %s: %w", model.ErrValidation, a.gvr.Resource, err)
 		}
+
 		*list = append(*list, converted)
 	}
+
 	next := ulist.GetContinue()
 	if next == "" {
 		return nil, nil
 	}
+
 	return &next, nil
 }
 
@@ -281,19 +301,29 @@ func (a *ReaderAdapter[T]) Load(ctx context.Context, obj *T) error {
 
 	uobj, err := ri.Get(ctx, v.GetName(), metav1.GetOptions{})
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to get resource", "name", v.GetName(), "resource", a.gvr.Resource, "error", err)
 		modelErr := model.ErrUnavailable
 		if kerrs.IsNotFound(err) {
+			// We need to to return a specific error to signad the "Not Found"
+			// condition, but we don't need to log that because it's normal.
 			modelErr = model.ErrNotFound
+		} else {
+			// Otherwise, for other errors, we need to log them.
+			a.logger.ErrorContext(ctx, "failed to get resource", "name", v.GetName(), "resource", a.gvr.Resource, "error", err)
 		}
+
 		return fmt.Errorf("%w: failed to retrieve %s '%s': %w", modelErr, a.gvr.Resource, v.GetName(), err)
 	}
+
 	converted, err := a.k8sToDomain(uobj)
 	if err != nil {
+		// We even log the conversion errors.
 		a.logger.ErrorContext(ctx, "conversion failed", "resource", a.gvr.Resource, "error", err)
+
 		return fmt.Errorf("%w: failed to convert %s: %w", model.ErrValidation, a.gvr.Resource, err)
 	}
+
 	*obj = converted
+
 	return nil
 }
 
@@ -304,11 +334,12 @@ func (a *WriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
 	uobj, err := a.toUnstructured(m)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "conversion to k8s object failed", "resource", a.gvr.Resource, "error", err)
+
 		return nil, fmt.Errorf("%w: failed to convert %s to k8s object: %w", model.ErrValidation, a.gvr.Resource, err)
 	}
 
 	_, err = ri.Create(ctx, uobj, metav1.CreateOptions{})
-	if err != nil {
+	if err != nil { // TODO: check if the map error function work for that case
 		a.logger.ErrorContext(ctx, "failed to create resource", "name", m.GetName(), "resource", a.gvr.Resource, "error", err)
 
 		var errModel error
@@ -327,12 +358,13 @@ func (a *WriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
 	}
 
 	var ures *unstructured.Unstructured
-	err = wait.PollUntilContextTimeout(ctx, 1*time.Second, 100*time.Second, true, func(ctx context.Context) (bool, error) {
+	err = wait.PollUntilContextTimeout(ctx, 100*time.Millisecond, 2*time.Second, true, func(ctx context.Context) (bool, error) {
 		ures, err = ri.Get(ctx, uobj.GetName(), metav1.GetOptions{})
 		if err != nil {
 			return true, err
 		}
 
+		// TODO: simplify this block using proper unstructured methods
 		status, found, err := unstructured.NestedMap(ures.Object, "status")
 		if err != nil {
 			return true, err
@@ -360,12 +392,14 @@ func (a *WriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
 	})
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to fetch the k8s resource status", "resource", a.gvr.Resource, "error", err)
+
 		return nil, fmt.Errorf("server error: failed to fetch the %s status: %w", a.gvr.Resource, err) // TODO: review the "server error"
 	}
 
 	res, err := a.k8sToDomain(ures)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "conversion from k8s object failed", "resource", a.gvr.Resource, "error", err)
+
 		return nil, fmt.Errorf("%w: failed to convert %s from k8s object: %w", model.ErrValidation, a.gvr.Resource, err)
 	}
 
@@ -375,100 +409,124 @@ func (a *WriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
 // Update implements the port.WriterRepo interface. It handles both spec-only updates
 // and updates that include the status, using the appropriate Kubernetes API endpoints.
 func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
-	ri := a.client.Resource(a.gvr).Namespace(ComputeNamespace(m))
-
+	// 1 - Convert from business domain model to K8s unstructured
 	uobj, err := a.toUnstructured(m)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "conversion from T to unstructured failed", "resource", a.gvr.Resource, "error", err)
+
 		return nil, fmt.Errorf("%w: failed to convert %s to unstructured: %w", model.ErrValidation, a.gvr.Resource, err)
 	}
 
-	// Determine if a status update is intended by checking for meaningful status data.
-	desiredStatus, statusExists, _ := unstructured.NestedMap(uobj.Object, "status")
+	// 2 - Decompose the object by extracting...
 
-	if !statusExists {
-		// --- PATH A: Spec-only update (or status without conditions) ---
-		var ures *unstructured.Unstructured
-		updateErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-			currentU, getErr := ri.Get(ctx, m.GetName(), metav1.GetOptions{})
+	// 2.1 - Elements of the metadata
+
+	// 2.2 - The Spec
+	// Determine if a status update is intended by checking for meaningful status data.
+	desiredSpec, specFound, err := unstructured.NestedMap(uobj.Object, "spec")
+	if err != nil {
+		return nil, err // TODO: better error handling
+	}
+
+	// 2.2 - The status
+	desiredStatus, statusFound, err := unstructured.NestedMap(uobj.Object, "status")
+	if err != nil {
+		return nil, err // TODO: better error handling
+	}
+
+	// 3 - Setup the K8s Client Interface to the resource and namespace
+	ri := a.client.Resource(a.gvr).Namespace(ComputeNamespace(m))
+
+	// 4 - Update the Spec if present
+	if specFound {
+		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			currObj, getErr := ri.Get(ctx, m.GetName(), metav1.GetOptions{})
 			if getErr != nil {
 				return getErr
 			}
-			uobj.SetResourceVersion(currentU.GetResourceVersion())
 
-			currentStatus, found, _ := unstructured.NestedMap(currentU.Object, "status")
-			if !found {
-				currentStatus = make(map[string]interface{})
-			}
-			if _, condsFound := currentStatus["conditions"]; !condsFound {
-				currentStatus["conditions"] = []interface{}{}
-			}
-			if err := unstructured.SetNestedField(uobj.Object, currentStatus, "status"); err != nil {
-				return err // This should not happen, but return if it does.
+			// Skip spec updating when deleting
+			if !currObj.GetDeletionTimestamp().IsZero() {
+				return nil
 			}
 
-			var updateErr error
-			ures, updateErr = ri.Update(ctx, uobj, metav1.UpdateOptions{})
-			return updateErr
+			// Extract the current spec
+			currSpec, found, err := unstructured.NestedMap(currObj.Object, "spec")
+			if err != nil {
+				return err // TODO: better error handling
+			}
+
+			// Skip it the spec did not changed
+			if found && cmp.Equal(currSpec, desiredSpec) {
+				return nil
+			}
+
+			// Set the desired spec on the current object
+			if err := unstructured.SetNestedMap(currObj.Object, desiredSpec, "spec"); err != nil {
+				return err // TODO: better error handling
+			}
+
+			// Update the resource spec on K8s
+			if _, err := ri.Update(ctx, currObj, metav1.UpdateOptions{}); err != nil {
+				return err // TODO: better error handling
+			}
+
+			// At this point everything is OK
+			return nil
 		})
-
-		if updateErr != nil {
-			return nil, a.mapUpdateError(updateErr, m.GetName())
-		}
-		res, err := a.k8sToDomain(ures)
 		if err != nil {
-			return nil, fmt.Errorf("failed to convert from k8s object: %w", err)
+			return nil, a.mapUpdateError(err, m.GetName())
 		}
-		return &res, nil
 	}
 
-	// --- PATH B: Update includes status with conditions ---
-	specUpdateObj := uobj.DeepCopy()
-	unstructured.RemoveNestedField(specUpdateObj.Object, "status")
+	// 5 - Update the status if present
+	if statusFound {
+		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			currObj, getErr := ri.Get(ctx, m.GetName(), metav1.GetOptions{})
+			if getErr != nil {
+				return getErr
+			}
 
-	updateSpecErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		currentObj, getErr := ri.Get(ctx, m.GetName(), metav1.GetOptions{})
-		if getErr != nil {
-			return getErr
+			// Extract the current status
+			currStatus, found, err := unstructured.NestedMap(currObj.Object, "status")
+			if err != nil {
+				return err // TODO: better error handling
+			}
+
+			// Skip it the status did not changed
+			if found && cmp.Equal(currStatus, desiredStatus) {
+				return nil
+			}
+
+			// Set the desired status on the current object
+			if err := unstructured.SetNestedMap(currObj.Object, desiredStatus, "status"); err != nil {
+				return err // TODO: better error handling
+			}
+
+			// Update the resource status on K8s
+			if _, err := ri.UpdateStatus(ctx, currObj, metav1.UpdateOptions{}); err != nil {
+				return err // TODO: better error handling
+			}
+
+			// At this point everything is OK
+			return nil
+		})
+		if err != nil {
+			return nil, a.mapUpdateError(err, m.GetName())
 		}
-		specUpdateObj.SetResourceVersion(currentObj.GetResourceVersion())
-		_, updateErr := ri.Update(ctx, specUpdateObj, metav1.UpdateOptions{})
-		return updateErr
-	})
-	if updateSpecErr != nil {
-		return nil, a.mapUpdateError(updateSpecErr, m.GetName())
 	}
 
-	statusUpdateObj := &unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"apiVersion": uobj.GetAPIVersion(),
-			"kind":       uobj.GetKind(),
-			"metadata":   map[string]interface{}{"name": uobj.GetName(), "namespace": uobj.GetNamespace()},
-			"status":     desiredStatus,
-		},
+	// 6 - Load the final object from K8s
+	currObj, err := ri.Get(ctx, m.GetName(), metav1.GetOptions{})
+	if err != nil {
+		return nil, a.mapUpdateError(err, m.GetName())
 	}
 
-	updateStatusErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		currentObj, getErr := ri.Get(ctx, m.GetName(), metav1.GetOptions{})
-		if getErr != nil {
-			return getErr
-		}
-		statusUpdateObj.SetResourceVersion(currentObj.GetResourceVersion())
-		_, updateErr := ri.UpdateStatus(ctx, statusUpdateObj, metav1.UpdateOptions{})
-		return updateErr
-	})
-	if updateStatusErr != nil {
-		return nil, a.mapUpdateError(updateStatusErr, m.GetName())
-	}
-
-	finalUobj, getErr := ri.Get(ctx, m.GetName(), metav1.GetOptions{})
-	if getErr != nil {
-		return nil, fmt.Errorf("failed to retrieve updated resource: %w", getErr)
-	}
-	res, err := a.k8sToDomain(finalUobj)
+	res, err := a.k8sToDomain(currObj)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert from k8s object: %w", err)
 	}
+
 	return &res, nil
 }
 
@@ -478,6 +536,8 @@ func (a *WriterAdapter[T]) mapUpdateError(err error, name string) error {
 	switch {
 	case kerrs.IsNotFound(err):
 		errModel = model.ErrNotFound
+	case kerrs.IsGone(err):
+		errModel = model.ErrGone
 	case kerrs.IsConflict(err):
 		errModel = model.ErrConflict
 	case kerrs.IsInvalid(err):
@@ -528,12 +588,14 @@ func (a *WriterAdapter[T]) toUnstructured(m T) (*unstructured.Unstructured, erro
 	obj, err := a.domainToK8s(m)
 	if err != nil {
 		a.logger.Error("conversion to k8s object failed", "resource", a.gvr.Resource, "error", err)
+
 		return nil, fmt.Errorf("failed to convert %s to k8s object: %w", a.gvr.Resource, err)
 	}
 
 	uobj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
 	if err != nil {
 		a.logger.Error("conversion to unstructured failed", "resource", a.gvr.Resource, "error", err)
+
 		return nil, fmt.Errorf("failed to convert k8s object to unstructured: %w", err)
 	}
 
@@ -612,21 +674,26 @@ func namespaceOwnedBy(ctx context.Context, clientset kubernetes.Interface, nsNam
 	if clientset == nil {
 		return false, fmt.Errorf("clientset is nil")
 	}
+
 	ns, err := clientset.CoreV1().Namespaces().Get(ctx, nsName, metav1.GetOptions{})
 	if err != nil {
 		if kerrs.IsNotFound(err) {
 			return false, nil
 		}
+
 		return false, err
 	}
+
 	if ns.Labels == nil && len(expectedLabels) > 0 {
 		return false, nil
 	}
+
 	for k, v := range expectedLabels {
 		if got, ok := ns.Labels[k]; !ok || got != v {
 			return false, nil
 		}
 	}
+
 	return true, nil
 }
 
@@ -662,17 +729,16 @@ func (a *NamespaceManagingWriterAdapter[T]) Create(ctx context.Context, m T) (*T
 	if tenant != "" {
 		ownerLabels[labels.InternalTenantLabel] = tenant
 	}
+
 	if container != "" {
 		ownerLabels[labels.InternalWorkspaceLabel] = container
 	}
 
 	createdNS, err := CreateNamespace(ctx, a.clientset, namespace, ownerLabels)
 	if err != nil {
-		a.logger.Error("failed to create namespace", "resource", a.gvr.Resource, "tenant", tenant, "container", container, "error", err)
 		return nil, err
 	}
 
-	a.logger.Info("created namespace", "namespace", namespace, "tenant", tenant, "container", container)
 	res, err := a.WriterAdapter.Create(ctx, m)
 	if err != nil {
 		// rollback namespace only if we created it here and we still own it
@@ -685,6 +751,7 @@ func (a *NamespaceManagingWriterAdapter[T]) Create(ctx context.Context, m T) (*T
 				a.logger.ErrorContext(ctx, "failed to verify namespace ownership during rollback", "namespace", namespace, "error", getErr)
 			}
 		}
+
 		return nil, err
 	}
 
@@ -728,6 +795,7 @@ func (a *NamespaceManagingWriterAdapter[T]) Delete(ctx context.Context, m T) err
 		if tenant != "" {
 			expectedLabels[labels.InternalTenantLabel] = tenant
 		}
+
 		if container != "" {
 			expectedLabels[labels.InternalWorkspaceLabel] = container
 		}
@@ -735,6 +803,7 @@ func (a *NamespaceManagingWriterAdapter[T]) Delete(ctx context.Context, m T) err
 		owned, err := namespaceOwnedBy(ctx, a.clientset, namespace, expectedLabels)
 		if err != nil {
 			a.logger.ErrorContext(ctx, "failed to check namespace ownership before delete", "namespace", namespace, "error", err)
+
 			return nil // don't fail deletion of resource because namespace check failed; resource already deleted
 		}
 		if owned {

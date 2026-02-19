@@ -21,3 +21,6 @@ bin/
 .DS_Store
 scripts/common-template/dist/
 /foundation/gateway/gateway
+
+# Ignore local e2e context
+/foundation/plugin/e2e/context/
