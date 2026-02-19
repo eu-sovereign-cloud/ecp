@@ -3,7 +3,6 @@ package controller
 import (
 	"context"
 	"errors"
-	"log"
 	"log/slog"
 	"slices"
 	"strings"
@@ -75,35 +74,27 @@ const finalizerName = "secapi.cloud.foundation/cleanup"
 func (r *GenericController[D]) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := r.logger.With("resource", req.NamespacedName)
 
-	log.Println(" --->> 0 - REQ", "req", req)
-
 	var obj client.Object
 
 	// 1. Fetch the K8s object
 	obj = r.prototype.DeepCopyObject().(client.Object)
 	if err := r.client.Get(ctx, req.NamespacedName, obj); err != nil {
-		log.Println(" --->> 1 - ERR", "err", err)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
-
-	log.Println(" --->> 1 - OBJ", "obj", obj)
 
 	// 2. Handle finalizers
 	if obj.GetDeletionTimestamp().IsZero() && !slices.Contains(obj.GetFinalizers(), finalizerName) {
 		obj.SetFinalizers(append(obj.GetFinalizers(), finalizerName))
 		if err := r.client.Update(ctx, obj); err != nil {
-			log.Println(" --->> 2 - ERR", "err", err)
 			return ctrl.Result{}, err
 		}
 
-		log.Println(" --->> 2 - OBJ", "obj", obj)
 		return ctrl.Result{RequeueAfter: r.requeueAfter}, nil
 	}
 
 	// 3. Convert to Domain object for normal reconciliation
 	domainResource, err := r.k8sToDomain(obj)
 	if err != nil {
-		log.Println(" --->> 3 - ERR", "err", err)
 		// If conversion fails, it's likely a permanent error
 		logger.Error("failed to convert k8s object to domain resource", "error", err)
 
@@ -115,17 +106,12 @@ func (r *GenericController[D]) Reconcile(ctx context.Context, req ctrl.Request) 
 			LastTransitionTime: metav1.Now(),
 		})
 
-		log.Println(" --->> 3 - ERROR STATUS SET")
 		return ctrl.Result{}, nil
 	}
-
-	log.Println(" --->> 3 - DOMAIN", "domainResource", domainResource)
 
 	// 4. Delegate to the specific handler
 	requeue, err := r.handler.HandleReconcile(ctx, domainResource)
 	if err != nil {
-		log.Println(" --->> 4 - ERR", "err", err)
-
 		if errors.Is(err, delegator.ErrStillProcessing) {
 			return ctrl.Result{RequeueAfter: r.requeueAfter}, nil
 		}
@@ -133,36 +119,29 @@ func (r *GenericController[D]) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{RequeueAfter: r.requeueAfter}, err
 	}
 
-	log.Println(" --->> 4 - SUCESS")
-
 	// 5. Requeue the request if necessary
 	if requeue {
-		log.Println(" --->> 5 - REQUEUE")
 		return ctrl.Result{RequeueAfter: r.requeueAfter}, nil
 	}
 
 	// 6. Refresh the K8s object
 	obj = r.prototype.DeepCopyObject().(client.Object)
 	if err := r.client.Get(ctx, req.NamespacedName, obj); err != nil {
-		log.Println(" --->> 6 - ERR", "err", err)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	log.Println(" --->> 6 - OBJ", "obj", obj)
-
 	// 7. Check if the resource deletion process is complete
-	if !obj.GetDeletionTimestamp().IsZero() && getStateFromObject(obj) == regional.ResourceStateDeleting && slices.Contains(obj.GetFinalizers(), finalizerName) {
-		log.Println(" --->> 7 - REMOVE FINALIZERS")
+	if !obj.GetDeletionTimestamp().IsZero() &&
+		getStateFromObject(obj) == regional.ResourceStateDeleting &&
+		slices.Contains(obj.GetFinalizers(), finalizerName) {
 		obj.SetFinalizers(slices.DeleteFunc(obj.GetFinalizers(), func(v string) bool {
 			return strings.EqualFold(v, finalizerName)
 		}))
 		if err := r.client.Update(ctx, obj); err != nil {
-			log.Println(" --->> 7 - ERR", "err", err)
 			return ctrl.Result{}, err
 		}
 	}
 
-	log.Println(" --->> 8 - THE END")
 	return ctrl.Result{}, nil
 }
 

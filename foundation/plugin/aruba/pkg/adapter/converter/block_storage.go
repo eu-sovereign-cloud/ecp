@@ -29,11 +29,11 @@ func NewBlockStorageConverter() *BlockStorageConverter {
 func (c *BlockStorageConverter) FromSECAToAruba(from *regional.BlockStorageDomain) (*v1alpha1.BlockStorage, error) {
 	tenant := from.GetTenant()
 	workspace := from.GetWorkspace()
-	namespace := kubernetesadapter.ComputeNamespace(from) //TODO: ask to change repository for  ComputeNamespace from kubernetes adapter to scope
+	namespace := kubernetesadapter.ComputeNamespace(from) // TODO: ask to change repository for  ComputeNamespace from kubernetes adapter to scope
 	namespaceWorkspace := kubernetesadapter.ComputeNamespace(&scope.Scope{Tenant: tenant})
 	sizeGb, err := secaToArubaSize(from.Spec.SizeGB)
 	if err != nil {
-		return nil, err //TODO: better error handling
+		return nil, err // TODO: better error handling
 	}
 
 	return &v1alpha1.BlockStorage{
@@ -57,7 +57,7 @@ func (c *BlockStorageConverter) FromSECAToAruba(from *regional.BlockStorageDomai
 				Name:      workspace,
 				Namespace: namespaceWorkspace,
 			},
-			//todo: must be fixed
+			// TODO: must be fixed
 			DataCenter:    defaultDatacenter,
 			BillingPeriod: defaultBillingPeriod,
 		},
@@ -67,11 +67,11 @@ func (c *BlockStorageConverter) FromSECAToAruba(from *regional.BlockStorageDomai
 func (c *BlockStorageConverter) FromArubaToSECA(from *v1alpha1.BlockStorage) (*regional.BlockStorageDomain, error) {
 	tenant, err := getTenantFromSpecOrError(from)
 	if err != nil {
-		return nil, err //TODO: better error handler management
+		return nil, err // TODO: better error handler management
 	}
 	workspace, err := getWorkspaceFromSpecOrError(from)
 	if err != nil {
-		return nil, err //TODO: better error handler management
+		return nil, err // TODO: better error handler management
 	}
 
 	return &regional.BlockStorageDomain{

@@ -129,11 +129,11 @@ func createTestWorkspace(ctx context.Context, workspaceRepo port.Repo[*regionalm
 	}
 
 	_, err := workspaceRepo.Create(ctx, wsDomain)
+
 	return err
 }
 
 func cleanupTestWorkspace(ctx context.Context, workspaceRepo port.Repo[*regionalmodel.WorkspaceDomain]) error {
-	log.Printf("-------->>> START OF CLEANUP TEST-WORKSPACE <<<---------")
 	wsDomain := &regionalmodel.WorkspaceDomain{
 		Metadata: regionalmodel.Metadata{
 			CommonMetadata: ecpmodel.CommonMetadata{
@@ -146,7 +146,5 @@ func cleanupTestWorkspace(ctx context.Context, workspaceRepo port.Repo[*regional
 		Spec: regionalmodel.WorkspaceSpec{},
 	}
 
-	err := workspaceRepo.Delete(ctx, wsDomain)
-	log.Printf("-------->>> END OF CLEANUP TEST-WORKSPACE <<<---------")
-	return err
+	return workspaceRepo.Delete(ctx, wsDomain)
 }

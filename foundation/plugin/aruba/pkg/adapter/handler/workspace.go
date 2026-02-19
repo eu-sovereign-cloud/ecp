@@ -69,7 +69,7 @@ func (h *WorkspaceHandler) Delete(ctx context.Context, resource *regional.Worksp
 }
 
 func (h *WorkspaceHandler) checkWsDeleteCondition(resource *v1alpha1.Project) bool {
-	//TODO: refactor design completely
+	// TODO: refactor design completely
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 

@@ -5,7 +5,6 @@ import (
 	"crypto/sha3"
 	"errors"
 	"fmt"
-	"log"
 	"log/slog"
 	"time"
 
@@ -174,6 +173,7 @@ func CreateNamespace(ctx context.Context, clientSet kubernetes.Interface, name s
 	if name == "" {
 		return false, fmt.Errorf("cannot create namespace with empty name")
 	}
+
 	if clientSet == nil {
 		return false, fmt.Errorf("cannot create namespace %q: clientSet is nil", name)
 	}
@@ -184,12 +184,15 @@ func CreateNamespace(ctx context.Context, clientSet kubernetes.Interface, name s
 			Labels: ownerLabels,
 		},
 	}
+
 	if _, err := clientSet.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{}); err != nil {
 		if kerrs.IsAlreadyExists(err) {
 			return false, nil
 		}
+
 		return false, fmt.Errorf("failed to create namespace %s: %w", name, err)
 	}
+
 	return true, nil
 }
 
@@ -198,6 +201,7 @@ func DeleteNamespace(ctx context.Context, clientSet kubernetes.Interface, name s
 	if name == "" {
 		return nil
 	}
+
 	if clientSet == nil {
 		return fmt.Errorf("cannot delete namespace %q: clientSet is nil", name)
 	}
@@ -206,7 +210,9 @@ func DeleteNamespace(ctx context.Context, clientSet kubernetes.Interface, name s
 		if kerrs.IsNotFound(err) {
 			return nil
 		}
+
 		return err
+
 	}
 	return nil
 }
@@ -214,9 +220,11 @@ func DeleteNamespace(ctx context.Context, clientSet kubernetes.Interface, name s
 // List implements the port.ReaderRepo interface.
 func (a *ReaderAdapter[T]) List(ctx context.Context, params model.ListParams, list *[]T) (*string, error) {
 	lo := metav1.ListOptions{}
+
 	if params.Limit > 0 {
 		lo.Limit = int64(params.Limit)
 	}
+
 	if params.SkipToken != "" {
 		lo.Continue = params.SkipToken
 	}
@@ -229,14 +237,15 @@ func (a *ReaderAdapter[T]) List(ctx context.Context, params model.ListParams, li
 	ri := a.client.Resource(a.gvr).Namespace(ComputeNamespace(&params))
 
 	ulist, err := ri.List(ctx, lo)
-	modelErr := model.ErrUnavailable
-	if kerrs.IsForbidden(err) {
-		modelErr = model.ErrForbidden
-	}
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to list resources", "resource", a.gvr.Resource, "error", err)
-		return nil, fmt.Errorf("%w: failed to list resources for %s: %w", modelErr, a.gvr.Resource, err)
+		modelErr := model.ErrUnavailable
+		if kerrs.IsForbidden(err) {
+			modelErr = model.ErrForbidden
+		}
 
+		a.logger.ErrorContext(ctx, "failed to list resources", "resource", a.gvr.Resource, "error", err)
+
+		return nil, fmt.Errorf("%w: failed to list resources for %s: %w", modelErr, a.gvr.Resource, err)
 	}
 
 	// Apply client-side filtering for selectors not handled by the API
@@ -246,12 +255,16 @@ func (a *ReaderAdapter[T]) List(ctx context.Context, params model.ListParams, li
 			matched, k8sHandled, err := filter.MatchLabels(item.GetLabels(), params.Selector)
 			if err != nil {
 				a.logger.ErrorContext(ctx, "label filter evaluation failed", "resource", a.gvr.Resource, "item", item.GetName(), "error", err)
+
 				return nil, fmt.Errorf("%w: label filter for %s failed: %w", model.ErrValidation, a.gvr.Resource, err)
 			}
+
 			if k8sHandled { // The filter was fully handled by the K8s API
 				filteredItems = ulist.Items
+
 				break
 			}
+
 			if matched {
 				filteredItems = append(filteredItems, item)
 			}
@@ -263,16 +276,21 @@ func (a *ReaderAdapter[T]) List(ctx context.Context, params model.ListParams, li
 	*list = make([]T, 0, len(filteredItems))
 	for _, item := range filteredItems {
 		converted, err := a.k8sToDomain(&item)
+
 		if err != nil {
 			a.logger.ErrorContext(ctx, "conversion failed", "resource", a.gvr.Resource, "error", err)
+
 			return nil, fmt.Errorf("%w: failed to convert %s: %w", model.ErrValidation, a.gvr.Resource, err)
 		}
+
 		*list = append(*list, converted)
 	}
+
 	next := ulist.GetContinue()
 	if next == "" {
 		return nil, nil
 	}
+
 	return &next, nil
 }
 
@@ -300,6 +318,7 @@ func (a *ReaderAdapter[T]) Load(ctx context.Context, obj *T) error {
 	if err != nil {
 		// We even log the conversion errors.
 		a.logger.ErrorContext(ctx, "conversion failed", "resource", a.gvr.Resource, "error", err)
+
 		return fmt.Errorf("%w: failed to convert %s: %w", model.ErrValidation, a.gvr.Resource, err)
 	}
 
@@ -315,11 +334,12 @@ func (a *WriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
 	uobj, err := a.toUnstructured(m)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "conversion to k8s object failed", "resource", a.gvr.Resource, "error", err)
+
 		return nil, fmt.Errorf("%w: failed to convert %s to k8s object: %w", model.ErrValidation, a.gvr.Resource, err)
 	}
 
 	_, err = ri.Create(ctx, uobj, metav1.CreateOptions{})
-	if err != nil {
+	if err != nil { // TODO: check if the map error function work for that case
 		a.logger.ErrorContext(ctx, "failed to create resource", "name", m.GetName(), "resource", a.gvr.Resource, "error", err)
 
 		var errModel error
@@ -344,6 +364,7 @@ func (a *WriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
 			return true, err
 		}
 
+		// TODO: simplify this block using proper unstructured methods
 		status, found, err := unstructured.NestedMap(ures.Object, "status")
 		if err != nil {
 			return true, err
@@ -371,12 +392,14 @@ func (a *WriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
 	})
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to fetch the k8s resource status", "resource", a.gvr.Resource, "error", err)
+
 		return nil, fmt.Errorf("server error: failed to fetch the %s status: %w", a.gvr.Resource, err) // TODO: review the "server error"
 	}
 
 	res, err := a.k8sToDomain(ures)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "conversion from k8s object failed", "resource", a.gvr.Resource, "error", err)
+
 		return nil, fmt.Errorf("%w: failed to convert %s from k8s object: %w", model.ErrValidation, a.gvr.Resource, err)
 	}
 
@@ -386,15 +409,13 @@ func (a *WriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
 // Update implements the port.WriterRepo interface. It handles both spec-only updates
 // and updates that include the status, using the appropriate Kubernetes API endpoints.
 func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
-	log.Printf("--->>> WriterAdapter:Update:m='%+v'", m)
-
 	// 1 - Convert from business domain model to K8s unstructured
 	uobj, err := a.toUnstructured(m)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "conversion from T to unstructured failed", "resource", a.gvr.Resource, "error", err)
+
 		return nil, fmt.Errorf("%w: failed to convert %s to unstructured: %w", model.ErrValidation, a.gvr.Resource, err)
 	}
-	log.Printf("--->>> WriterAdapter:Update:uobj='%+v'", uobj)
 
 	// 2 - Decompose the object by extracting...
 
@@ -404,49 +425,39 @@ func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
 	// Determine if a status update is intended by checking for meaningful status data.
 	desiredSpec, specFound, err := unstructured.NestedMap(uobj.Object, "spec")
 	if err != nil {
-		log.Printf("--->>> WriterAdapter:Update: Error extracting Spec: '%+v'", err)
 		return nil, err // TODO: better error handling
 	}
 
 	// 2.2 - The status
 	desiredStatus, statusFound, err := unstructured.NestedMap(uobj.Object, "status")
 	if err != nil {
-		log.Printf("--->>> WriterAdapter:Update: Error extracting Status: '%+v'", err)
 		return nil, err // TODO: better error handling
 	}
-	log.Printf("--->>> WriterAdapter:Update:desiredStatus='%+v'", desiredStatus)
 
 	// 3 - Setup the K8s Client Interface to the resource and namespace
 	ri := a.client.Resource(a.gvr).Namespace(ComputeNamespace(m))
-	log.Printf("--->>> WriterAdapter:Update:ri='%+v'", ri)
 
 	// 4 - Update the Spec if present
 	if specFound {
-		log.Println("--->>> WriterAdapter:Update: SPEC FOUND")
-		log.Printf("--->>> WriterAdapter:Update:desiredSpec='%+v'", desiredSpec)
 		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			currObj, getErr := ri.Get(ctx, m.GetName(), metav1.GetOptions{})
 			if getErr != nil {
 				return getErr
 			}
-			log.Printf("--->>> WriterAdapter:Update:<SPEC UPDATE>:currObj='%+v'", currObj)
 
 			// Skip spec updating when deleting
 			if !currObj.GetDeletionTimestamp().IsZero() {
-				log.Println("--->>> WriterAdapter:Update:<SPEC UPDATE>: IS DELETING")
 				return nil
 			}
 
 			// Extract the current spec
 			currSpec, found, err := unstructured.NestedMap(currObj.Object, "spec")
 			if err != nil {
-				log.Printf("--->>> WriterAdapter:Update: Error extracting Current Spec: '%+v'", err)
 				return err // TODO: better error handling
 			}
 
 			// Skip it the spec did not changed
 			if found && cmp.Equal(currSpec, desiredSpec) {
-				log.Println("--->>> WriterAdapter:Update:<SPEC UPDATE>: SPEC NOT CHANGED")
 				return nil
 			}
 
@@ -470,25 +481,20 @@ func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
 
 	// 5 - Update the status if present
 	if statusFound {
-		log.Println("--->>> WriterAdapter:Update: STATUS FOUND")
-		log.Printf("--->>> WriterAdapter:Update:desiredStatus='%+v'", desiredStatus)
 		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			currObj, getErr := ri.Get(ctx, m.GetName(), metav1.GetOptions{})
 			if getErr != nil {
 				return getErr
 			}
-			log.Printf("--->>> WriterAdapter:Update:<STATUS UPDATE>:currObj='%+v'", currObj)
 
 			// Extract the current status
 			currStatus, found, err := unstructured.NestedMap(currObj.Object, "status")
 			if err != nil {
-				log.Printf("--->>> WriterAdapter:Update: Error extracting Current Status: '%+v'", err)
 				return err // TODO: better error handling
 			}
 
 			// Skip it the status did not changed
 			if found && cmp.Equal(currStatus, desiredStatus) {
-				log.Println("--->>> WriterAdapter:Update:<STATUS UPDATE>: STATUS NOT CHANGED")
 				return nil
 			}
 
@@ -515,13 +521,11 @@ func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
 	if err != nil {
 		return nil, a.mapUpdateError(err, m.GetName())
 	}
-	log.Printf("--->>> WriterAdapter:Update:<FINAL RESULT>:currObj='%+v'", currObj)
 
 	res, err := a.k8sToDomain(currObj)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert from k8s object: %w", err)
 	}
-	log.Printf("--->>> WriterAdapter:Update:<FINAL RESULT>:res='%+v'", res)
 
 	return &res, nil
 }
@@ -584,12 +588,14 @@ func (a *WriterAdapter[T]) toUnstructured(m T) (*unstructured.Unstructured, erro
 	obj, err := a.domainToK8s(m)
 	if err != nil {
 		a.logger.Error("conversion to k8s object failed", "resource", a.gvr.Resource, "error", err)
+
 		return nil, fmt.Errorf("failed to convert %s to k8s object: %w", a.gvr.Resource, err)
 	}
 
 	uobj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
 	if err != nil {
 		a.logger.Error("conversion to unstructured failed", "resource", a.gvr.Resource, "error", err)
+
 		return nil, fmt.Errorf("failed to convert k8s object to unstructured: %w", err)
 	}
 
@@ -668,21 +674,26 @@ func namespaceOwnedBy(ctx context.Context, clientset kubernetes.Interface, nsNam
 	if clientset == nil {
 		return false, fmt.Errorf("clientset is nil")
 	}
+
 	ns, err := clientset.CoreV1().Namespaces().Get(ctx, nsName, metav1.GetOptions{})
 	if err != nil {
 		if kerrs.IsNotFound(err) {
 			return false, nil
 		}
+
 		return false, err
 	}
+
 	if ns.Labels == nil && len(expectedLabels) > 0 {
 		return false, nil
 	}
+
 	for k, v := range expectedLabels {
 		if got, ok := ns.Labels[k]; !ok || got != v {
 			return false, nil
 		}
 	}
+
 	return true, nil
 }
 
@@ -718,6 +729,7 @@ func (a *NamespaceManagingWriterAdapter[T]) Create(ctx context.Context, m T) (*T
 	if tenant != "" {
 		ownerLabels[labels.InternalTenantLabel] = tenant
 	}
+
 	if container != "" {
 		ownerLabels[labels.InternalWorkspaceLabel] = container
 	}
@@ -739,6 +751,7 @@ func (a *NamespaceManagingWriterAdapter[T]) Create(ctx context.Context, m T) (*T
 				a.logger.ErrorContext(ctx, "failed to verify namespace ownership during rollback", "namespace", namespace, "error", getErr)
 			}
 		}
+
 		return nil, err
 	}
 
@@ -782,6 +795,7 @@ func (a *NamespaceManagingWriterAdapter[T]) Delete(ctx context.Context, m T) err
 		if tenant != "" {
 			expectedLabels[labels.InternalTenantLabel] = tenant
 		}
+
 		if container != "" {
 			expectedLabels[labels.InternalWorkspaceLabel] = container
 		}
@@ -789,6 +803,7 @@ func (a *NamespaceManagingWriterAdapter[T]) Delete(ctx context.Context, m T) err
 		owned, err := namespaceOwnedBy(ctx, a.clientset, namespace, expectedLabels)
 		if err != nil {
 			a.logger.ErrorContext(ctx, "failed to check namespace ownership before delete", "namespace", namespace, "error", err)
+
 			return nil // don't fail deletion of resource because namespace check failed; resource already deleted
 		}
 		if owned {

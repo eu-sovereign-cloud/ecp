@@ -5,7 +5,6 @@ package integration
 import (
 	"context"
 	"errors"
-	"log"
 	"testing"
 
 	"github.com/google/uuid"
@@ -200,7 +199,6 @@ func TestBlockStorage(t *testing.T) {
 		_, err := blockStorageRepo.Create(t.Context(), bsDomain)
 		require.NoError(t, err)
 
-		log.Println("---> INIT CREATE BS-INCREASESIZE", "name", resourceName)
 		var loadedBs *regionalmodel.BlockStorageDomain
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
 			loadedBs = &regionalmodel.BlockStorageDomain{
@@ -215,27 +213,24 @@ func TestBlockStorage(t *testing.T) {
 				},
 			}
 
-			log.Println("---> DURING Load BS-INCREASESIZE", "name", resourceName, "status", loadedBs.Status)
-
 			if err := blockStorageRepo.Load(ctx, &loadedBs); err != nil {
 				return false, err
 			}
-			log.Println("---> DURING STATUS CHECK BS-INCREASESIZE", "name", resourceName, "status", loadedBs.Status)
 
 			if loadedBs.Status != nil && loadedBs.Status.State != nil && *loadedBs.Status.State == regionalmodel.ResourceStateActive && loadedBs.Status.SizeGB == 1 {
 				return true, nil
 			}
 
-			log.Println("---> DURING CREATE BS-INCREASESIZE", "name", resourceName, "status", loadedBs.Status)
 			return false, nil
 		})
+
 		require.NoError(t, err, "block storage resource should become active with initial size")
 		require.NotNil(t, loadedBs)
 		require.NotNil(t, loadedBs.Status)
 		require.NotNil(t, loadedBs.Status.State)
 		require.Equal(t, regionalmodel.ResourceStateActive, *loadedBs.Status.State)
 		require.Equal(t, 1, loadedBs.Status.SizeGB)
-		log.Println("---> END CREATE BS-INCREASESIZE", "name", resourceName)
+
 		//
 		// When we update the block storage resource with an increased size
 		updatedBsDomain := &regionalmodel.BlockStorageDomain{
@@ -258,8 +253,6 @@ func TestBlockStorage(t *testing.T) {
 
 		//
 		// Then the resource status should eventually reflect the new size
-		log.Println("---> PRE UPDATE BS-INCREASESIZE", "name", resourceName)
-
 		var currentBs *regionalmodel.BlockStorageDomain
 
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
@@ -277,20 +270,20 @@ func TestBlockStorage(t *testing.T) {
 			if err := blockStorageRepo.Load(ctx, &currentBs); err != nil {
 				return false, err
 			}
-			log.Println("---> DURING UPDATE BS-INCREASESIZE", "name", resourceName, "status", currentBs.Status)
 
 			if currentBs.Status != nil && *currentBs.Status.State == regionalmodel.ResourceStateActive && currentBs.Status.SizeGB == 2 {
 				return true, nil
 			}
 			return false, nil
 		})
+
 		require.NoError(t, err, "block storage resource should have its size increased")
 		require.NotNil(t, currentBs)
 		require.NotNil(t, currentBs.Status)
 		require.NotNil(t, currentBs.Status.State)
 		require.Equal(t, regionalmodel.ResourceStateActive, *currentBs.Status.State)
 		require.Equal(t, 2, currentBs.Status.SizeGB)
-		log.Println("---> END UPDATE BS-INCREASESIZE", "name", resourceName)
+
 		//
 		// And we can cleanup the block storage
 		err = blockStorageRepo.Delete(t.Context(), currentBs)
