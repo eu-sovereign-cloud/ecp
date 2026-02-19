@@ -5,7 +5,7 @@ PLUGIN_IMAGE ?= ionos-plugin:dev
 # Name of the regional kind cluster (used by `kind load docker-image`)
 REGIONAL_CLUSTER_NAME ?= regional
 
-.PHONY: install-crossplane install-provider create-secret provider-config install-all verify-provider create-token-secret install-on-regional docker-build-plugin install-plugin-on-regional
+.PHONY: install-crossplane install-provider create-secret provider-config install-all verify-provider create-token-secret install-on-regional docker-build-plugin install-plugin-on-regional install-ecp-crds-on-regional
 
 # Crossplane install via Helm
 install-crossplane:
@@ -59,12 +59,19 @@ docker-build-plugin:
 		-t $(PLUGIN_IMAGE) \
 		../../../../
 
+# Install ECP CRDs on the regional cluster (required for the plugin manager to sync caches)
+install-ecp-crds-on-regional:
+	@if [[ -z "$$REGIONAL_KUBECONFIG" ]]; then echo "Error: REGIONAL_KUBECONFIG must be set"; exit 1; fi
+	kubectl --kubeconfig $$REGIONAL_KUBECONFIG apply -f ../../../api/generated/crds/workspace/workspace.v1.secapi.cloud_workspaces.yaml
+	kubectl --kubeconfig $$REGIONAL_KUBECONFIG apply -f ../../../api/generated/crds/storage/storage.v1.secapi.cloud_block-storages.yaml
+
 # Load the plugin image into the regional cluster and apply the Deployment manifest.
 # Requires REGIONAL_KUBECONFIG to point at the regional cluster kubeconfig.
 # Usage:
 #   make install-plugin-on-regional REGIONAL_KUBECONFIG=/path/to/regional.kubeconfig
-install-plugin-on-regional: docker-build-plugin
+install-plugin-on-regional: docker-build-plugin install-ecp-crds-on-regional
 	@if [[ -z "$$REGIONAL_KUBECONFIG" ]]; then echo "Error: REGIONAL_KUBECONFIG must be set"; exit 1; fi
 	kind load docker-image $(PLUGIN_IMAGE) --name $(REGIONAL_CLUSTER_NAME)
+	kubectl --kubeconfig $$REGIONAL_KUBECONFIG apply -f rbac.yaml
 	kubectl --kubeconfig $$REGIONAL_KUBECONFIG apply -f ionos-plugin-deployment.yaml
 	kubectl --kubeconfig $$REGIONAL_KUBECONFIG rollout status deployment/ionos-plugin

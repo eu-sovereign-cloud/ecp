@@ -15,6 +15,7 @@ spec:
       labels:
         app: ionos-plugin
     spec:
+      serviceAccountName: ionos-plugin
       containers:
       - name: ionos-plugin
         image: ionos-plugin:dev

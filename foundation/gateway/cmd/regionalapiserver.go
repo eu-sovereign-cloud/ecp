@@ -57,7 +57,7 @@ func init() {
 		&regionalHost, "regionalHost", "0.0.0.0", "Host to bind the server to",
 	)
 	regionalApiServerCMD.Flags().StringVarP(
-		&regionalPort, "regionalPort", "p", "8080", "Port to bind the server to",
+		&regionalPort, "regionalPort", "p", "9092", "Port to bind the server to",
 	)
 	regionalApiServerCMD.Flags().StringVar(
 		&regionalKubeconfig, "kubeconfig", filepath.Join(homedir.HomeDir(), ".kube", "config"),

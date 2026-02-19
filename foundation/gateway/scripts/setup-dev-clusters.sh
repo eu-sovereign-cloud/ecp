@@ -6,6 +6,10 @@ set -euo pipefail
 GLOBAL_CLUSTER_NAME="global"
 REGIONAL_CLUSTER_NAME="regional"
 
+# Increase etcd quota to avoid: etcdserver: mvcc: database space exceeded
+# Default etcd quota is typically ~2GiB; bumping helps dev clusters with lots of CRDs/resources/events.
+ETCD_QUOTA_BACKEND_BYTES="${ETCD_QUOTA_BACKEND_BYTES:-8589934592}" # 8GiB
+
 # Kubeconfig files will be created in this directory
 KUBECONFIG_DIR="${HOME}/.kube/multi-cluster-demo"
 GLOBAL_KUBECONFIG_PATH="${KUBECONFIG_DIR}/global-config"
@@ -51,6 +55,30 @@ check_command() {
   fi
 }
 
+create_kind_cluster() {
+  local name="$1"
+
+  # Create a temporary kind config that increases etcd quota.
+  # kind uses kubeadm under the hood; this patch sets etcd local extra args.
+  local kind_cfg
+  kind_cfg="$(mktemp)"
+  cat >"${kind_cfg}" <<EOF
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+kubeadmConfigPatches:
+  - |
+    kind: ClusterConfiguration
+    etcd:
+      local:
+        extraArgs:
+          quota-backend-bytes: "${ETCD_QUOTA_BACKEND_BYTES}"
+EOF
+
+  echo "Creating kind cluster '${name}' with etcd quota-backend-bytes=${ETCD_QUOTA_BACKEND_BYTES}"
+  kind create cluster --name "${name}" --config "${kind_cfg}"
+  rm -f "${kind_cfg}"
+}
+
 # --- Script ---
 
 # 1. Check for dependencies
@@ -60,8 +88,8 @@ check_command "docker"
 
 # 2. Create clusters with kind
 echo "--- Step 1: Creating 'global' and 'regional' clusters with kind ---"
-kind create cluster --name "${GLOBAL_CLUSTER_NAME}"
-kind create cluster --name "${REGIONAL_CLUSTER_NAME}"
+create_kind_cluster "${GLOBAL_CLUSTER_NAME}"
+create_kind_cluster "${REGIONAL_CLUSTER_NAME}"
 
 # 3. Save kubeconfig files
 echo "--- Step 2: Saving kubeconfig files to '${KUBECONFIG_DIR}' ---"
