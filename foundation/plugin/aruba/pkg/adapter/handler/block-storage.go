@@ -2,10 +2,11 @@ package handler
 
 import (
 	"context"
-	"log"
 	"time"
 
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
+	"k8s.io/apimachinery/pkg/api/errors"
+
 	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/plugin"
 	delegator "github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/port"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
@@ -14,12 +15,10 @@ import (
 	repo "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/generic/delegated"
-	resolver_bypass "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/generic/resolver"
-
 	mutator_bypass "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/generic/mutator"
+	resolver_bypass "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/generic/resolver"
 	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/converter"
 	repository "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/repository"
-	"k8s.io/apimachinery/pkg/api/errors"
 )
 
 // Ensure BlockStorageHandler implements the BlockStorage interface
@@ -122,7 +121,7 @@ func (h *BlockStorageHandler) IncreaseSize(ctx context.Context, resource *region
 }
 
 func (h *BlockStorageHandler) checkBsDeleteCondition(resource *ArubaBlockStorageBundle) bool {
-	//TODO: refactor design completely
+	// TODO: refactor design completely
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
@@ -132,7 +131,7 @@ func (h *BlockStorageHandler) checkBsDeleteCondition(resource *ArubaBlockStorage
 }
 
 func (h *BlockStorageHandler) checkBsIncreaseSizeCondition(resource *ArubaBlockStorageBundle) bool {
-	//TODO: refactor design completely
+	// TODO: refactor design completely
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
@@ -173,11 +172,11 @@ func (h *BlockStorageHandler) resolveSecaBlockStorageDependencies(ctx context.Co
 
 	err := h.wsRepository.Load(ctx, &ws)
 	if err != nil {
-		return nil, delegator.ErrStillProcessing //TODO: better error handling
+		return nil, delegator.ErrStillProcessing // TODO: better error handling
 	}
 
 	if ws.Status == nil || ws.Status.State == nil || *ws.Status.State != regional.ResourceStateActive {
-		return nil, delegator.ErrStillProcessing //TODO: better error handling
+		return nil, delegator.ErrStillProcessing // TODO: better error handling
 	}
 
 	storageSku := &regional.StorageSKUDomain{
@@ -193,7 +192,7 @@ func (h *BlockStorageHandler) resolveSecaBlockStorageDependencies(ctx context.Co
 
 	err = h.skuRepository.Load(ctx, &storageSku)
 	if err != nil {
-		return nil, err //TODO: better error handling
+		return nil, err // TODO: better error handling
 	}
 
 	return &SecaBlockStorageBundle{
@@ -210,6 +209,7 @@ func (h *BlockStorageHandler) resolveArubaBlockStorageDependencies(ctx context.C
 		if errors.IsNotFound(err) {
 			return nil, delegator.ErrStillProcessing // Project not found, wait for it to be created
 		}
+
 		return nil, err // Other errors should be returned for handling
 	}
 
@@ -230,7 +230,7 @@ func (h *BlockStorageHandler) FromSECABundleToAruba(from *SecaBlockStorageBundle
 		prj, err := h.wsConverter.FromSECAToAruba(from.Workspace)
 
 		if err != nil {
-			return nil, err //TODO: better error handling
+			return nil, err // TODO: better error handling
 		}
 
 		response.Project = prj
@@ -239,7 +239,7 @@ func (h *BlockStorageHandler) FromSECABundleToAruba(from *SecaBlockStorageBundle
 	bs, err := h.bsConverter.FromSECAToAruba(from.BlockStorage)
 
 	if err != nil {
-		return nil, err //TODO: better error handling
+		return nil, err // TODO: better error handling
 	}
 
 	response.BlockStorage = bs
@@ -248,17 +248,14 @@ func (h *BlockStorageHandler) FromSECABundleToAruba(from *SecaBlockStorageBundle
 }
 
 func (h *BlockStorageHandler) propagateCreate(ctx context.Context, from *ArubaBlockStorageBundle) error {
-	log.Println("-->PROPAGATE CREATE", "from", from)
 	return h.bsRepository.Create(ctx, from.BlockStorage)
 }
 
 func (h *BlockStorageHandler) propagateDelete(ctx context.Context, from *ArubaBlockStorageBundle) error {
-	log.Println("-->PROPAGATE DELETE", "from", from)
 	return h.bsRepository.Delete(ctx, from.BlockStorage)
 }
 
 func (h *BlockStorageHandler) propagateUpdate(ctx context.Context, from *ArubaBlockStorageBundle) error {
-	log.Println("-->PROPAGATE UPDATE", "from", from)
 	return h.bsRepository.Update(ctx, from.BlockStorage)
 }
 
@@ -284,6 +281,7 @@ func (h *BlockStorageHandler) waitUntilManagedError(ctx context.Context, resourc
 		if errors.IsTimeout(err) {
 			return nil, delegator.ErrStillProcessing // Resource is gone, treat as successful deletion
 		}
+
 		return nil, err // Return other errors for handling
 	}
 

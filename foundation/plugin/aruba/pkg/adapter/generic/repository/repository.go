@@ -120,7 +120,7 @@ func (r *GenericRepository[T, L]) Watch(
 		}
 	})
 	if informerErr != nil {
-		fmt.Printf("error getting informer: %v\n", informerErr) // TODO: replace for logger
+		// TODO: log error here
 		r.informer = nil
 		r.informerOnce = &sync.Once{}
 
@@ -146,7 +146,7 @@ func (r *GenericRepository[T, L]) Watch(
 		},
 	})
 	if err != nil {
-		fmt.Printf("error adding handler to informer: %v\n", err) // TODO: replace for logger
+		// TODO: log error here
 		cancel()
 		return nil, nil, err
 	}

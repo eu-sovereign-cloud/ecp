@@ -28,7 +28,6 @@ func (b *BlockStorage) Delete(ctx context.Context, resource *regional.BlockStora
 	b.logger.Info("dummy block storage plugin: Delete called", "resource_name", resource.GetName())
 	delay := blockStorageDelay()
 	b.logger.Info("dummy block storage plugin: Delete finished", "resource_name", resource.GetName(), "delay(seconds)", delay)
-
 	return nil
 }
 
