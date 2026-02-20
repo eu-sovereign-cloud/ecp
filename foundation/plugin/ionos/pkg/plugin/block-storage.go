@@ -4,19 +4,18 @@ import (
 	"context"
 	"log/slog"
 
-	k8s "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
-	ionosv1alpha1 "github.com/ionos-cloud/provider-upjet-ionoscloud/apis/namespaced/compute/v1alpha1"
-	"k8s.io/utils/ptr"
-
 	v1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	v2 "github.com/crossplane/crossplane-runtime/v2/apis/common/v2"
-
+	ionosv1alpha1 "github.com/ionos-cloud/provider-upjet-ionoscloud/apis/namespaced/compute/v1alpha1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	delegator "github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/port"
+	k8s "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
 )
 
 type BlockStorage struct {
@@ -32,7 +31,7 @@ func (b *BlockStorage) Create(ctx context.Context, resource *regional.BlockStora
 	b.logger.Info("ionos block storage plugin: Create called", "resource_name", resource.GetName())
 
 	// Map ECP BlockStorage to Crossplane Volume
-	namespace := k8s.ComputeNamespace(resource)
+	namespace := k8s.ComputeNamespace(&scope.Scope{Tenant: resource.GetTenant()})
 	b.logger.Info("block storage skuRef",
 		"region", resource.Spec.SkuRef.Region,
 		"tenant", resource.Spec.SkuRef.Tenant, "ws", resource.Spec.SkuRef.Workspace,
@@ -82,11 +81,12 @@ func (b *BlockStorage) Create(ctx context.Context, resource *regional.BlockStora
 
 func (b *BlockStorage) Delete(ctx context.Context, resource *regional.BlockStorageDomain) error {
 	b.logger.Info("ionos block storage plugin: Delete called", "resource_name", resource.GetName())
+	namespace := k8s.ComputeNamespace(&scope.Scope{Tenant: resource.GetTenant()})
 
 	volume := &ionosv1alpha1.Volume{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      resource.GetName(),
-			Namespace: k8s.ComputeNamespace(resource),
+			Namespace: namespace,
 		},
 	}
 

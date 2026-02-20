@@ -38,7 +38,7 @@ func (w *Workspace) Create(ctx context.Context, resource *regional.WorkspaceDoma
 	w.logger.Info("ionos workspace plugin: Create called", "resource_name", resource.GetName())
 
 	// Workspaces are tenant-scoped in ECP; compute namespace from tenant only.
-	ownedNamespace := kubernetes.ComputeNamespace(&scope.Scope{Tenant: resource.GetTenant(), Workspace: resource.GetName()})
+	ownedNamespace := kubernetes.ComputeNamespace(&scope.Scope{Tenant: resource.GetTenant()})
 
 	// 1) Check whether the Ionos Datacenter already exists. If it does, treat Create as idempotent.
 	datacenterExists := &ionosv1alpha1.Datacenter{}
@@ -91,6 +91,7 @@ func (w *Workspace) Create(ctx context.Context, resource *regional.WorkspaceDoma
 			// },
 		},
 		Spec: ionosv1alpha1.DatacenterSpec{
+
 			ManagedResourceSpec: v2.ManagedResourceSpec{
 				ProviderConfigReference: &v1.ProviderConfigReference{
 					// todo move back to namespaced provider config once we can create users/tenants

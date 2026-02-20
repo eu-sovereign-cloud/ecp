@@ -14,8 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package reference contains utilities for working with cross-resource
-// references.
 package reference
 
 import (
@@ -233,10 +231,9 @@ func (r *APINamespacedResolver) ResolveMultiple(ctx context.Context, req MultiNa
 		return MultiNamespacedResolutionResponse{ResolvedValues: req.CurrentValues, ResolvedReferences: req.References}, nil
 	}
 
-	valueMap := make(map[string]xpv1.NamespacedReference)
-
 	// The references are already set - resolve them.
 	if len(req.References) > 0 {
+		resolvedVals := make([]string, len(req.References))
 		for i := range req.References {
 			ns := req.References[i].Namespace
 			if ns == "" {
@@ -251,12 +248,10 @@ func (r *APINamespacedResolver) ResolveMultiple(ctx context.Context, req MultiNa
 				return MultiNamespacedResolutionResponse{}, errors.Wrap(err, errGetManaged)
 			}
 
-			valueMap[req.Extract(req.To.Managed)] = req.References[i]
+			resolvedVals[i] = req.Extract(req.To.Managed)
 		}
 
-		sortedKeys, sortedRefs := sortGenericMapByKeys(valueMap)
-
-		rsp := MultiNamespacedResolutionResponse{ResolvedValues: sortedKeys, ResolvedReferences: sortedRefs}
+		rsp := MultiNamespacedResolutionResponse{ResolvedValues: resolvedVals, ResolvedReferences: req.References}
 
 		return rsp, rsp.Validate()
 	}
@@ -272,6 +267,7 @@ func (r *APINamespacedResolver) ResolveMultiple(ctx context.Context, req MultiNa
 		return MultiNamespacedResolutionResponse{}, errors.Wrap(err, errListManaged)
 	}
 
+	valueMap := make(map[string]xpv1.NamespacedReference)
 	for _, to := range req.To.List.GetItems() {
 		if ControllersMustMatchNamespaced(req.Selector) && !meta.HaveSameController(r.from, to) {
 			continue

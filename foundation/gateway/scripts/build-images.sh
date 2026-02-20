@@ -23,6 +23,7 @@ fi
 REGISTRY="${REGISTRY:-registry.secapi.cloud}"
 GLOBAL_IMAGE_TAG="${GLOBAL_IMAGE_TAG:-global-server:latest}"
 REGIONAL_IMAGE_TAG="${REGIONAL_IMAGE_TAG:-regional-server:latest}"
+BUILD_SKIP_TESTS="${BUILD_SKIP_TESTS:-}"
 
 GLOBAL_IMAGE_REF="${REGISTRY}/${GLOBAL_IMAGE_TAG}"
 REGIONAL_IMAGE_REF="${REGISTRY}/${REGIONAL_IMAGE_TAG}"
@@ -32,9 +33,9 @@ REGIONAL_IMAGE_REF="${REGISTRY}/${REGIONAL_IMAGE_TAG}"
 echo "--- Building Docker images (context: ${REPO_ROOT}) ---"
 
 echo "Building global server image: ${GLOBAL_IMAGE_REF}"
-docker build -t "${GLOBAL_IMAGE_REF}" -f "${BUILD_DIR}/Dockerfile.global" "${REPO_ROOT}"
+docker build -t "${GLOBAL_IMAGE_REF}" --build-arg BUILD_SKIP_TESTS="${BUILD_SKIP_TESTS}" -f "${BUILD_DIR}/Dockerfile.global" "${REPO_ROOT}"
 
 echo "Building regional server image: ${REGIONAL_IMAGE_REF}"
-docker build -t "${REGIONAL_IMAGE_REF}" -f "${BUILD_DIR}/Dockerfile.regional" "${REPO_ROOT}"
+docker build -t "${REGIONAL_IMAGE_REF}" --build-arg BUILD_SKIP_TESTS="${BUILD_SKIP_TESTS}" -f "${BUILD_DIR}/Dockerfile.regional" "${REPO_ROOT}"
 
 echo "--- Docker images built successfully! ---"

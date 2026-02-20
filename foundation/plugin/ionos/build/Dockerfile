@@ -17,8 +17,11 @@ COPY foundation/delegator/go.sum foundation/delegator/go.sum
 COPY foundation/gateway/go.mod foundation/gateway/go.mod
 COPY foundation/gateway/go.sum foundation/gateway/go.sum
 COPY foundation/plugin/aruba/go.mod foundation/plugin/aruba/go.mod
+COPY foundation/plugin/aruba/go.sum foundation/plugin/aruba/go.sum
 COPY foundation/plugin/dummy/go.mod foundation/plugin/dummy/go.mod
 COPY foundation/plugin/dummy/go.sum foundation/plugin/dummy/go.sum
+COPY foundation/plugin/e2e/go.mod foundation/plugin/e2e/go.mod
+COPY foundation/plugin/e2e/go.sum foundation/plugin/e2e/go.sum
 COPY foundation/plugin/ionos/go.mod foundation/plugin/ionos/go.mod
 COPY foundation/plugin/ionos/go.sum foundation/plugin/ionos/go.sum
 

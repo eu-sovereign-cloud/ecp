@@ -812,6 +812,5 @@ func (a *NamespaceManagingWriterAdapter[T]) Delete(ctx context.Context, m T) err
 			}
 		}
 	}
-
 	return nil
 }

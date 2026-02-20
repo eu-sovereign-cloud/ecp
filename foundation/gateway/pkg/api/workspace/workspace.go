@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"strconv"
 
-	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/workspace/v1"
-	v1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regions/v1"
 	sdkworkspace "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1"
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
+
+	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/workspace/v1"
+	v1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regions/v1"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/status"
@@ -57,15 +58,25 @@ func APIToDomain(api schema.Workspace, params port.IdentifiableResource) *region
 			Annotations: api.Annotations,
 			Labels:      api.Labels,
 			Extensions:  api.Extensions,
+			Region:      "region", // this is expected to be sourced from a global config set when the gateway is initialized
 		},
 		Spec: api.Spec,
 	}
 }
 
+func DomainToAPIWithVerb(verb string) func(domain *regional.WorkspaceDomain) schema.Workspace {
+	return func(domain *regional.WorkspaceDomain) schema.Workspace {
+		sdk := DomainToAPI(domain)
+		sdk.Metadata.Verb = verb
+		return sdk
+	}
+}
+
 func DomainToAPIIterator(domainWorkspaces []*regional.WorkspaceDomain, nextSkipToken *string) *sdkworkspace.WorkspaceIterator {
 	sdkWorkspaces := make([]schema.Workspace, len(domainWorkspaces))
+	domainToApi := DomainToAPIWithVerb("list")
 	for i, dom := range domainWorkspaces {
-		sdkWorkspaces[i] = mapWorkspaceDomainToAPI(*dom, "list")
+		sdkWorkspaces[i] = domainToApi(dom)
 	}
 
 	iterator := &sdkworkspace.WorkspaceIterator{
@@ -115,7 +126,7 @@ func mapWorkspaceDomainToAPI(domain regional.WorkspaceDomain, verb string) schem
 			Kind:            schema.RegionalResourceMetadataKindResourceKindWorkspace,
 			Name:            domain.Name,
 			Tenant:          domain.Tenant,
-			Provider:        domain.Provider,
+			Provider:        regional.ProviderWorkspaceName,
 			Region:          domain.Region,
 			Resource:        fmt.Sprintf(regional.TenantScopedResourceFormat, domain.Tenant, schema.RegionalResourceMetadataKindResourceKindWorkspace, domain.Name),
 			Ref:             &ref,

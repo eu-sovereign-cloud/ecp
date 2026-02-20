@@ -33,7 +33,19 @@ SECATEST_RETRY_BASE_INTERVAL ?= 30
 SECATEST_RETRY_MAX_ATTEMPTS  ?= 30
 SECATEST_RESULTS_PATH        ?= ./results
 
-.PHONY: secatest secatest-install-crd secatest-install-plugin secatest-port-forward-global secatest-port-forward-regional
+.PHONY: secatest-scaffolding secatest secatest-install-crd secatest-install-plugin secatest-port-forward-global secatest-port-forward-regional
+
+# Setup the development environment from scratch
+# Usage:
+#   make secatest-scaffolding IONOS_TOKEN=xxxxx
+secatest-scaffolding:
+	$(MAKE) -C ../gateway create-dev-clusters
+	$(MAKE) -C ../plugin/ionos/deploy install-all
+	$(MAKE) secatest-install-plugin
+	$(MAKE) secatest-install-crd
+
+secatest-clean-scaffolding:
+	$(MAKE) -C ../gateway clean-dev-clusters
 
 # Apply the Region CRD to the global cluster
 secatest-install-crd:
