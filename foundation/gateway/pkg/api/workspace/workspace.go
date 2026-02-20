@@ -50,10 +50,12 @@ func APIToDomain(api schema.Workspace, params port.IdentifiableResource) *region
 			CommonMetadata: model.CommonMetadata{
 				Name:            params.GetName(),
 				ResourceVersion: params.GetVersion(),
+				Provider:        api.Metadata.Provider,
 			},
 			Scope: scope.Scope{
 				Tenant: params.GetTenant(),
 			},
+			Region:      api.Metadata.Region,
 			Annotations: api.Annotations,
 			Labels:      api.Labels,
 			Extensions:  api.Extensions,
