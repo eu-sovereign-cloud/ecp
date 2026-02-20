@@ -20,7 +20,7 @@ run-regional-server:
 .PHONY: docker-build-images
 docker-build-images:
 	@echo "Building Docker images..."
-	@BUILD_SKIP_TESTS=$(BUILD_SKIP_TESTS) ./scripts/build-images.sh
+	@./scripts/build-images.sh
 
 .PHONY: build-gateway
 build-gateway:

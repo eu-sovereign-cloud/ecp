@@ -417,107 +417,29 @@ func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
 		return nil, fmt.Errorf("%w: failed to convert %s to unstructured: %w", model.ErrValidation, a.gvr.Resource, err)
 	}
 
-	// 2 - Decompose the object by extracting...
-
-	// 2.1 - Elements of the metadata
-
-	// 2.2 - The Spec
-	// Determine if a status update is intended by checking for meaningful status data.
-	desiredSpec, specFound, err := unstructured.NestedMap(uobj.Object, "spec")
-	if err != nil {
-		return nil, err // TODO: better error handling
-	}
-
-	// 2.2 - The status
+	// 2 - Decompose desired state
 	desiredStatus, statusFound, err := unstructured.NestedMap(uobj.Object, "status")
 	if err != nil {
-		return nil, err // TODO: better error handling
+		return nil, err
 	}
 
 	// 3 - Setup the K8s Client Interface to the resource and namespace
-	ri := a.client.Resource(a.gvr).Namespace(ComputeNamespace(m))
+	resourceInterface := a.client.Resource(a.gvr).Namespace(ComputeNamespace(m))
 
-	// 4 - Update the Spec if present
-	if specFound {
-		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-			currObj, getErr := ri.Get(ctx, m.GetName(), metav1.GetOptions{})
-			if getErr != nil {
-				return getErr
-			}
-
-			// Skip spec updating when deleting
-			if !currObj.GetDeletionTimestamp().IsZero() {
-				return nil
-			}
-
-			// Extract the current spec
-			currSpec, found, err := unstructured.NestedMap(currObj.Object, "spec")
-			if err != nil {
-				return err // TODO: better error handling
-			}
-
-			// Skip it the spec did not changed
-			if found && cmp.Equal(currSpec, desiredSpec) {
-				return nil
-			}
-
-			// Set the desired spec on the current object
-			if err := unstructured.SetNestedMap(currObj.Object, desiredSpec, "spec"); err != nil {
-				return err // TODO: better error handling
-			}
-
-			// Update the resource spec on K8s
-			if _, err := ri.Update(ctx, currObj, metav1.UpdateOptions{}); err != nil {
-				return err // TODO: better error handling
-			}
-
-			// At this point everything is OK
-			return nil
-		})
-		if err != nil {
-			return nil, a.mapUpdateError(err, m.GetName())
-		}
+	// 4 - Update the Spec and Metadata if present
+	if err := a.updateMetadataAndSpec(ctx, resourceInterface, m.GetName(), uobj); err != nil {
+		return nil, a.mapUpdateError(err, m.GetName())
 	}
 
 	// 5 - Update the status if present
 	if statusFound {
-		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-			currObj, getErr := ri.Get(ctx, m.GetName(), metav1.GetOptions{})
-			if getErr != nil {
-				return getErr
-			}
-
-			// Extract the current status
-			currStatus, found, err := unstructured.NestedMap(currObj.Object, "status")
-			if err != nil {
-				return err // TODO: better error handling
-			}
-
-			// Skip it the status did not changed
-			if found && cmp.Equal(currStatus, desiredStatus) {
-				return nil
-			}
-
-			// Set the desired status on the current object
-			if err := unstructured.SetNestedMap(currObj.Object, desiredStatus, "status"); err != nil {
-				return err // TODO: better error handling
-			}
-
-			// Update the resource status on K8s
-			if _, err := ri.UpdateStatus(ctx, currObj, metav1.UpdateOptions{}); err != nil {
-				return err // TODO: better error handling
-			}
-
-			// At this point everything is OK
-			return nil
-		})
-		if err != nil {
+		if err := a.updateStatus(ctx, resourceInterface, m, desiredStatus); err != nil {
 			return nil, a.mapUpdateError(err, m.GetName())
 		}
 	}
 
 	// 6 - Load the final object from K8s
-	currObj, err := ri.Get(ctx, m.GetName(), metav1.GetOptions{})
+	currObj, err := resourceInterface.Get(ctx, m.GetName(), metav1.GetOptions{})
 	if err != nil {
 		return nil, a.mapUpdateError(err, m.GetName())
 	}
@@ -528,6 +450,94 @@ func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
 	}
 
 	return &res, nil
+}
+
+func (a *WriterAdapter[T]) updateMetadataAndSpec(
+	ctx context.Context,
+	ri dynamic.ResourceInterface,
+	name string,
+	desired *unstructured.Unstructured,
+) error {
+	desiredLabels := desired.GetLabels()
+	desiredAnnotations := desired.GetAnnotations()
+	desiredSpec, specFound, err := unstructured.NestedMap(desired.Object, "spec")
+	if err != nil {
+		return err
+	}
+
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		currObj, getErr := ri.Get(ctx, name, metav1.GetOptions{})
+		if getErr != nil {
+			return getErr
+		}
+
+		if !currObj.GetDeletionTimestamp().IsZero() {
+			return nil
+		}
+
+		currSpec, currSpecFound, err := unstructured.NestedMap(currObj.Object, "spec")
+		if err != nil {
+			return err
+		}
+
+		currLabels := currObj.GetLabels()
+		currAnnotations := currObj.GetAnnotations()
+
+		specChanged := specFound && (!currSpecFound || !cmp.Equal(currSpec, desiredSpec))
+		labelsChanged := !cmp.Equal(currLabels, desiredLabels)
+		annotationsChanged := !cmp.Equal(currAnnotations, desiredAnnotations)
+
+		if !specChanged && !labelsChanged && !annotationsChanged {
+			return nil
+		}
+
+		if specChanged {
+			if err := unstructured.SetNestedMap(currObj.Object, desiredSpec, "spec"); err != nil {
+				return err
+			}
+		}
+		if labelsChanged {
+			currObj.SetLabels(desiredLabels)
+		}
+		if annotationsChanged {
+			currObj.SetAnnotations(desiredAnnotations)
+		}
+
+		_, err = ri.Update(ctx, currObj, metav1.UpdateOptions{})
+
+		return err
+	})
+}
+
+func (a *WriterAdapter[T]) updateStatus(
+	ctx context.Context,
+	ri dynamic.ResourceInterface,
+	m T,
+	desiredStatus map[string]interface{},
+) error {
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		currObj, getErr := ri.Get(ctx, m.GetName(), metav1.GetOptions{})
+		if getErr != nil {
+			return getErr
+		}
+
+		currStatus, found, err := unstructured.NestedMap(currObj.Object, "status")
+		if err != nil {
+			return err
+		}
+
+		if found && cmp.Equal(currStatus, desiredStatus) {
+			return nil
+		}
+
+		if err := unstructured.SetNestedMap(currObj.Object, desiredStatus, "status"); err != nil {
+			return err
+		}
+
+		_, err = ri.UpdateStatus(ctx, currObj, metav1.UpdateOptions{})
+
+		return err
+	})
 }
 
 func (a *WriterAdapter[T]) mapUpdateError(err error, name string) error {
@@ -578,8 +588,36 @@ func (a *WriterAdapter[T]) Delete(ctx context.Context, m T) error {
 	return nil
 }
 
+// Delete deletes the resource and then attempts to delete the associated namespace only if it is owned by us.
+func (a *NamespaceManagingWriterAdapter[T]) Delete(ctx context.Context, m T) error {
+	// The current SECA resource organization (https://spec.secapi.cloud/docs/content/Architecture/resource-organization)
+	// contains only three hierarchical levels: Tenants 1<->* Workspaces 1<->* SECA Resources.
+	//
+	// At present, there is not a Tenant entity defined, and the only entity
+	// which will really manage its namespace is the Workspace.
+	//
+	// The Workspace should be placed into the Tenant namespace, and it should
+	// not own that namespace because it will contains all the Workspaces and
+	// other elements owned by the Tenant.
+	//
+	// So, in fact, the Workspaces will create and manage namespaces for its
+	// underlying resources, and not for themselves.
+	//
+	// That's why the namespace name must always consider Tenant and Workspace
+	// names here.
+
+	// Delete the resource which manages the namespace
+	if err := a.WriterAdapter.Delete(ctx, m); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Watch implements the port.WatcherRepo interface.
 func (a *WatcherAdapter[T]) Watch(ctx context.Context, m chan<- T) error {
+	_ = ctx
+	_ = m
 	// TODO: implement the watch method of the kubernetes repo adapter.
 	return errors.New("not implemented")
 }
@@ -756,61 +794,4 @@ func (a *NamespaceManagingWriterAdapter[T]) Create(ctx context.Context, m T) (*T
 	}
 
 	return res, nil
-}
-
-// Delete deletes the resource and then attempts to delete the associated namespace only if it is owned by us.
-func (a *NamespaceManagingWriterAdapter[T]) Delete(ctx context.Context, m T) error {
-	// The current SECA resource organization (https://spec.secapi.cloud/docs/content/Architecture/resource-organization)
-	// contains only three hierarchical levels: Tenants 1<->* Workspaces 1<->* SECA Resources.
-	//
-	// At present, there is not a Tenant entity defined, and the only entity
-	// which will really manage its namespace is the Workspace.
-	//
-	// The Workspace should be placed into the Tenant namespace, and it should
-	// not own that namespace because it will contains all the Workspaces and
-	// other elements owned by the Tenant.
-	//
-	// So, in fact, the Workspaces will create and manage namespaces for its
-	// underlying resources, and not for themselves.
-	//
-	// That's why the namespace name must always consider Tenant and Workspace
-	// names here.
-	tenant := m.GetTenant()
-	container := m.GetWorkspace()
-	if container == "" {
-		container = m.GetName()
-	}
-
-	namespace := ComputeNamespace(&scope.Scope{Tenant: tenant, Workspace: container})
-
-	// Delete the resource which manages the namespace
-	if err := a.WriterAdapter.Delete(ctx, m); err != nil {
-		return err
-	}
-
-	// attempt to delete the namespace if owned
-	if namespace != "" {
-		// build expected labels similar to Create
-		expectedLabels := map[string]string{}
-		if tenant != "" {
-			expectedLabels[labels.InternalTenantLabel] = tenant
-		}
-
-		if container != "" {
-			expectedLabels[labels.InternalWorkspaceLabel] = container
-		}
-
-		owned, err := namespaceOwnedBy(ctx, a.clientset, namespace, expectedLabels)
-		if err != nil {
-			a.logger.ErrorContext(ctx, "failed to check namespace ownership before delete", "namespace", namespace, "error", err)
-
-			return nil // don't fail deletion of resource because namespace check failed; resource already deleted
-		}
-		if owned {
-			if err := DeleteNamespace(ctx, a.clientset, namespace); err != nil && !kerrs.IsNotFound(err) {
-				a.logger.ErrorContext(ctx, "failed to delete namespace", "namespace", namespace, "error", err, slog.Any("m", m))
-			}
-		}
-	}
-	return nil
 }

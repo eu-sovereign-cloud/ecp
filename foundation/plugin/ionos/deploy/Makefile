@@ -55,7 +55,6 @@ install-on-regional:
 #   make docker-build-plugin PLUGIN_IMAGE=my-registry/ionos-plugin:v1.0
 docker-build-plugin:
 	docker build \
-		--build-arg BUILD_SKIP_TESTS=$(BUILD_SKIP_TESTS) \
 		-f ../build/Dockerfile \
 		-t $(PLUGIN_IMAGE) \
 		../../../../
