@@ -1,18 +1,24 @@
 package storage
 
 import (
+	"fmt"
+	"strconv"
+	"strings"
+
 	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
+	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 	"k8s.io/utils/ptr"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/status"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
-
+	"github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage"
 	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/block-storages/v1"
+	regionv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regions/v1"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/status"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 )
 
 // BlockStorageToAPIWithVerb returns a function that converts a BlockStorageDomain to its SDK representation and sets the provided verb in the metadata.
@@ -26,12 +32,35 @@ func BlockStorageToAPIWithVerb(verb string) func(domain *regional.BlockStorageDo
 
 // BlockStorageToAPI converts a BlockStorageDomain to its SDK representation.
 func BlockStorageToAPI(domain *regional.BlockStorageDomain) *sdkschema.BlockStorage {
+	resVersion := 0
+	// resourceVersion is best-effort numeric
+	if rv, err := strconv.Atoi(domain.ResourceVersion); err == nil {
+		resVersion = rv
+	}
+
+	refObj := schema.ReferenceObject{
+		Resource: fmt.Sprintf(regional.ResourceFormat, schema.RegionalResourceMetadataKindResourceKindWorkspace, domain.Name),
+		Provider: &domain.Provider,
+		Region:   &domain.Region,
+		Tenant:   &domain.Tenant,
+	}
+	ref := schema.Reference{}
+	_ = ref.FromReferenceObject(refObj) // ignore mapping error, not critical internally
+
 	bs := &sdkschema.BlockStorage{
 		Metadata: &sdkschema.RegionalWorkspaceResourceMetadata{
-			Name:      domain.Name,
-			Tenant:    domain.GetTenant(),
-			Workspace: domain.GetWorkspace(),
-			Provider:  ProviderStorageName,
+			ApiVersion:      storage.Version,
+			CreatedAt:       domain.CreatedAt,
+			LastModifiedAt:  domain.UpdatedAt,
+			Kind:            schema.RegionalWorkspaceResourceMetadataKindResourceKindBlockStorage,
+			Name:            domain.Name,
+			Tenant:          domain.GetTenant(),
+			Workspace:       domain.GetWorkspace(),
+			Provider:        ProviderStorageName,
+			Region:          strings.ToLower(domain.Region),
+			Ref:             &ref,
+			Resource:        fmt.Sprintf(regional.WorkspaceScopedResourceFormat, domain.Tenant, domain.Workspace, schema.RegionalResourceMetadataKindResourceKindBlockStorage, domain.Name),
+			ResourceVersion: resVersion,
 		},
 		Spec: sdkschema.BlockStorageSpec{
 			SizeGB: domain.Spec.SizeGB,
@@ -59,7 +88,9 @@ func BlockStorageToAPI(domain *regional.BlockStorageDomain) *sdkschema.BlockStor
 			bs.Status.State = &state
 		}
 	}
-
+	if domain.DeletedAt != nil {
+		bs.Metadata.DeletedAt = domain.DeletedAt
+	}
 	return bs
 }
 
@@ -126,6 +157,7 @@ func BlockStorageFromAPI(sdk sdkschema.BlockStorage, params port.IdentifiableRes
 			Labels:      sdk.Labels,
 			Annotations: sdk.Annotations,
 			Extensions:  sdk.Extensions,
+			Region:      regionv1.Kind,
 		},
 		Spec: regional.BlockStorageSpec{
 			SizeGB: sdk.Spec.SizeGB,

@@ -115,12 +115,12 @@ func (b *BlockStorage) Delete(ctx context.Context, resource *regional.BlockStora
 
 func (b *BlockStorage) IncreaseSize(ctx context.Context, resource *regional.BlockStorageDomain) error {
 	b.logger.Info("ionos block storage plugin: IncreaseSize called", "resource_name", resource.GetName(), "new_size_gb", resource.Spec.SizeGB)
-
+	namespace := k8s.ComputeNamespace(&scope.Scope{Tenant: resource.GetTenant()})
 	// Fetch existing volume
 	volume := &ionosv1alpha1.Volume{}
-	err := b.client.Get(ctx, client.ObjectKey{Name: resource.GetName(), Namespace: k8s.ComputeNamespace(resource)}, volume)
+	err := b.client.Get(ctx, client.ObjectKey{Name: resource.GetName(), Namespace: namespace}, volume)
 	if err != nil {
-		b.logger.Error("failed to get volume", "error", err)
+		b.logger.Error("failed to get volume", "name", resource.GetName(), "namespace", namespace, "error", err)
 		return err
 	}
 
@@ -129,10 +129,10 @@ func (b *BlockStorage) IncreaseSize(ctx context.Context, resource *regional.Bloc
 
 	err = b.client.Update(ctx, volume)
 	if err != nil {
-		b.logger.Error("failed to update volume size", "error", err)
+		b.logger.Error("failed to update volume size", "name", resource.GetName(), "namespace", namespace, "error", err)
 		return err
 	}
 
-	b.logger.Info("volume size increased successfully", "volume_name", volume.Name)
+	b.logger.Info("volume size increased successfully", "volume_name", volume.Name, "namespace", namespace)
 	return nil
 }
