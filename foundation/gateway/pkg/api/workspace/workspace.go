@@ -2,6 +2,7 @@ package workspace
 
 import (
 	"fmt"
+	"net/http"
 	"strconv"
 
 	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/workspace/v1"
@@ -40,8 +41,16 @@ func ListParamsFromAPI(params sdkworkspace.ListWorkspacesParams, tenant string) 
 	}
 }
 
-func DomainToAPI(domain *regional.WorkspaceDomain) schema.Workspace {
-	return mapWorkspaceDomainToAPI(*domain, "get")
+func DomainToAPIWithVerb(verb string) func(domain *regional.WorkspaceDomain) *schema.Workspace {
+	return func(domain *regional.WorkspaceDomain) *schema.Workspace {
+		sdk := DomainToAPI(domain)
+		sdk.Metadata.Verb = verb
+		return sdk
+	}
+}
+
+func DomainToAPI(domain *regional.WorkspaceDomain) *schema.Workspace {
+	return mapWorkspaceDomainToAPI(*domain, http.MethodGet)
 }
 
 func APIToDomain(api schema.Workspace, params port.IdentifiableResource) *regional.WorkspaceDomain {
@@ -67,7 +76,7 @@ func APIToDomain(api schema.Workspace, params port.IdentifiableResource) *region
 func DomainToAPIIterator(domainWorkspaces []*regional.WorkspaceDomain, nextSkipToken *string) *sdkworkspace.WorkspaceIterator {
 	sdkWorkspaces := make([]schema.Workspace, len(domainWorkspaces))
 	for i, dom := range domainWorkspaces {
-		sdkWorkspaces[i] = mapWorkspaceDomainToAPI(*dom, "list")
+		sdkWorkspaces[i] = *(mapWorkspaceDomainToAPI(*dom, http.MethodGet))
 	}
 
 	iterator := &sdkworkspace.WorkspaceIterator{
@@ -75,7 +84,7 @@ func DomainToAPIIterator(domainWorkspaces []*regional.WorkspaceDomain, nextSkipT
 		Metadata: schema.ResponseMetadata{
 			Provider: regional.ProviderWorkspaceName,
 			Resource: workspacev1.Resource,
-			Verb:     "list",
+			Verb:     http.MethodGet,
 		},
 	}
 
@@ -87,7 +96,7 @@ func DomainToAPIIterator(domainWorkspaces []*regional.WorkspaceDomain, nextSkipT
 }
 
 // mapWorkspaceDomainToAPI maps a WorkspaceDomain to schema.Workspace API object.
-func mapWorkspaceDomainToAPI(domain regional.WorkspaceDomain, verb string) schema.Workspace {
+func mapWorkspaceDomainToAPI(domain regional.WorkspaceDomain, verb string) *schema.Workspace {
 	resVersion := 0
 	// resourceVersion is best-effort numeric
 	if rv, err := strconv.Atoi(domain.ResourceVersion); err == nil {
@@ -108,8 +117,7 @@ func mapWorkspaceDomainToAPI(domain regional.WorkspaceDomain, verb string) schem
 		rs := status.MapResourceStateDomainToAPI(*domain.Status.State)
 		resourceState = &rs
 	}
-	sdk := schema.Workspace{
-		Spec: domain.Spec,
+	sdk := &schema.Workspace{
 		Metadata: &schema.RegionalResourceMetadata{
 			ApiVersion:      v1.Version,
 			CreatedAt:       domain.CreatedAt,
@@ -127,6 +135,7 @@ func mapWorkspaceDomainToAPI(domain regional.WorkspaceDomain, verb string) schem
 		Labels:      domain.Labels,
 		Annotations: domain.Annotations,
 		Extensions:  domain.Extensions,
+		Spec:        domain.Spec,
 	}
 	if domain.Status != nil {
 		sdk.Status = &schema.WorkspaceStatus{
