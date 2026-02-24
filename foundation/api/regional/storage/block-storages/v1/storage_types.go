@@ -4,6 +4,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	genv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/generated/types"
+	"github.com/eu-sovereign-cloud/ecp/foundation/api/regional/common"
 	"github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage"
 )
 
@@ -17,8 +18,9 @@ type BlockStorage struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   genv1.BlockStorageSpec    `json:"spec,omitempty"`
-	Status *genv1.BlockStorageStatus `json:"status,omitempty"`
+	Spec               genv1.BlockStorageSpec    `json:"spec,omitempty"`
+	RegionalCommonData common.RegionalCommonData `json:"regionalCommonData,omitempty"`
+	Status             *genv1.BlockStorageStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
