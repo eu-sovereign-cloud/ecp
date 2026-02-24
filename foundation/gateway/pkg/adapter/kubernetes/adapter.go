@@ -419,16 +419,22 @@ func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
 
 	// 2 - Decompose the object by extracting...
 
-	// 2.1 - Elements of the metadata
+	// 2.1 - Labels
+	desiredLabels := uobj.GetLabels()
+	labelsFound := len(desiredLabels) > 0
 
-	// 2.2 - The Spec
+	// 2.2 - Annotations
+	desiredAnnotations := uobj.GetAnnotations()
+	annotationsFound := len(desiredAnnotations) > 0
+
+	// 2.3 - The Spec
 	// Determine if a status update is intended by checking for meaningful status data.
 	desiredSpec, specFound, err := unstructured.NestedMap(uobj.Object, "spec")
 	if err != nil {
 		return nil, err // TODO: better error handling
 	}
 
-	// 2.2 - The status
+	// 2.4 - The status
 	desiredStatus, statusFound, err := unstructured.NestedMap(uobj.Object, "status")
 	if err != nil {
 		return nil, err // TODO: better error handling
@@ -438,7 +444,7 @@ func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
 	ri := a.client.Resource(a.gvr).Namespace(ComputeNamespace(m))
 
 	// 4 - Update the Spec if present
-	if specFound {
+	if labelsFound || annotationsFound || specFound {
 		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			currObj, getErr := ri.Get(ctx, m.GetName(), metav1.GetOptions{})
 			if getErr != nil {
@@ -451,19 +457,22 @@ func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
 			}
 
 			// Extract the current spec
-			currSpec, found, err := unstructured.NestedMap(currObj.Object, "spec")
+			currSpec, currSpecFound, err := unstructured.NestedMap(currObj.Object, "spec")
 			if err != nil {
 				return err // TODO: better error handling
 			}
 
-			// Skip it the spec did not changed
-			if found && cmp.Equal(currSpec, desiredSpec) {
-				return nil
-			}
+			// Set labels
+			currObj.SetLabels(desiredLabels)
+
+			// Set annotations
+			currObj.SetAnnotations(desiredAnnotations)
 
 			// Set the desired spec on the current object
-			if err := unstructured.SetNestedMap(currObj.Object, desiredSpec, "spec"); err != nil {
-				return err // TODO: better error handling
+			if currSpecFound && !cmp.Equal(currSpec, desiredSpec) {
+				if err := unstructured.SetNestedMap(currObj.Object, desiredSpec, "spec"); err != nil {
+					return err // TODO: better error handling
+				}
 			}
 
 			// Update the resource spec on K8s
