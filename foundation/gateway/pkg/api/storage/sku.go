@@ -1,10 +1,11 @@
 package storage
 
 import (
-	v1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/skus/v1"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
 	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
+
+	v1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/skus/v1"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
@@ -20,7 +21,7 @@ const (
 func SkuToApi(domain *regional.StorageSKUDomain) *sdkschema.StorageSku {
 	return &sdkschema.StorageSku{
 		Metadata: &sdkschema.SkuResourceMetadata{
-			Name: domain.Name, // no namespace?
+			Name: domain.Name,
 		},
 		Spec: &sdkschema.StorageSkuSpec{
 			Iops:          int(domain.Spec.Iops),

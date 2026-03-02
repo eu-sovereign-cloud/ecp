@@ -1,56 +1,92 @@
 package storage
 
 import (
+	"fmt"
+	"strconv"
+	"strings"
+
 	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
+	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 	"k8s.io/utils/ptr"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/status"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
-
+	"github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage"
 	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/block-storages/v1"
+	regionv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regions/v1"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/status"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 )
 
-// BlockStorageToAPI converts a BlockStorageDomain to its SDK representation.
-func BlockStorageToAPI(domain *regional.BlockStorageDomain) *sdkschema.BlockStorage {
-	bs := &sdkschema.BlockStorage{
-		Metadata: &sdkschema.RegionalWorkspaceResourceMetadata{
-			Name:      domain.Name,
-			Tenant:    domain.GetTenant(),
-			Workspace: domain.GetWorkspace(),
-		},
-		Spec: sdkschema.BlockStorageSpec{
-			SizeGB: domain.Spec.SizeGB,
-			SkuRef: referenceObjectToAPI(domain.Spec.SkuRef),
-		},
-		Labels:      domain.Labels,
-		Annotations: domain.Annotations,
-		Extensions:  domain.Extensions,
-	}
-
-	if domain.Spec.SourceImageRef != nil {
-		bs.Spec.SourceImageRef = referenceObjectPtrToAPI(domain.Spec.SourceImageRef)
-	}
-
-	if domain.Status != nil {
-		bs.Status = &sdkschema.BlockStorageStatus{
-			SizeGB:     domain.Status.SizeGB,
-			Conditions: status.MapConditionDomainsToAPI(domain.Status.Conditions),
+// BlockStorageToAPIWithVerb returns a DomainToSDK-compatible mapper that converts a
+// BlockStorageDomain to its SDK representation with Metadata.Verb set to the given verb.
+func BlockStorageToAPIWithVerb(verb string) func(*regional.BlockStorageDomain) *sdkschema.BlockStorage {
+	return func(domain *regional.BlockStorageDomain) *sdkschema.BlockStorage {
+		resVersion := 0
+		// resourceVersion is best-effort numeric
+		if rv, err := strconv.Atoi(domain.ResourceVersion); err == nil {
+			resVersion = rv
 		}
-		if domain.Status.AttachedTo != nil {
-			bs.Status.AttachedTo = referenceObjectPtrToAPI(domain.Status.AttachedTo)
-		}
-		if domain.Status.State != nil {
-			state := sdkschema.ResourceState(*domain.Status.State)
-			bs.Status.State = &state
-		}
-	}
 
-	return bs
+		refObj := schema.ReferenceObject{
+			Resource: fmt.Sprintf(regional.ResourceFormat, schema.RegionalResourceMetadataKindResourceKindWorkspace, domain.Name),
+			Provider: &domain.Provider,
+			Region:   &domain.Region,
+			Tenant:   &domain.Tenant,
+		}
+		ref := schema.Reference{}
+		_ = ref.FromReferenceObject(refObj) // ignore mapping error, not critical internally
+
+		bs := &sdkschema.BlockStorage{
+			Metadata: &sdkschema.RegionalWorkspaceResourceMetadata{
+				ApiVersion:      storage.Version,
+				CreatedAt:       domain.CreatedAt,
+				LastModifiedAt:  domain.UpdatedAt,
+				Kind:            schema.RegionalWorkspaceResourceMetadataKindResourceKindBlockStorage,
+				Name:            domain.Name,
+				Tenant:          domain.GetTenant(),
+				Workspace:       domain.GetWorkspace(),
+				Provider:        ProviderStorageName,
+				Region:          strings.ToLower(domain.Region),
+				Ref:             &ref,
+				Resource:        fmt.Sprintf(regional.WorkspaceScopedResourceFormat, domain.Tenant, domain.Workspace, schema.RegionalResourceMetadataKindResourceKindBlockStorage, domain.Name),
+				ResourceVersion: resVersion,
+				Verb:            verb,
+			},
+			Spec: sdkschema.BlockStorageSpec{
+				SizeGB: domain.Spec.SizeGB,
+				SkuRef: referenceObjectToAPI(domain.Spec.SkuRef),
+			},
+			Labels:      domain.Labels,
+			Annotations: domain.Annotations,
+			Extensions:  domain.Extensions,
+		}
+
+		if domain.Spec.SourceImageRef != nil {
+			bs.Spec.SourceImageRef = referenceObjectPtrToAPI(domain.Spec.SourceImageRef)
+		}
+
+		if domain.Status != nil {
+			bs.Status = &sdkschema.BlockStorageStatus{
+				SizeGB:     domain.Status.SizeGB,
+				Conditions: status.MapConditionDomainsToAPI(domain.Status.Conditions),
+			}
+			if domain.Status.AttachedTo != nil {
+				bs.Status.AttachedTo = referenceObjectPtrToAPI(domain.Status.AttachedTo)
+			}
+			if domain.Status.State != nil {
+				state := sdkschema.ResourceState(*domain.Status.State)
+				bs.Status.State = &state
+			}
+		}
+		if domain.DeletedAt != nil {
+			bs.Metadata.DeletedAt = domain.DeletedAt
+		}
+		return bs
+	}
 }
 
 // BlockStorageListParamsFromAPI converts SDK ListBlockStoragesParams to model.ListParams.
@@ -82,8 +118,7 @@ func BlockStorageListParamsFromAPI(params sdkstorage.ListBlockStoragesParams, te
 func BlockStorageDomainToAPIIterator(domains []*regional.BlockStorageDomain, nextSkipToken *string) *sdkstorage.BlockStorageIterator {
 	items := make([]sdkschema.BlockStorage, len(domains))
 	for i := range domains {
-		mapped := BlockStorageToAPI(domains[i])
-		items[i] = *mapped
+		items[i] = *BlockStorageToAPIWithVerb("list")(domains[i])
 	}
 
 	iterator := &sdkstorage.BlockStorageIterator{
@@ -116,6 +151,7 @@ func BlockStorageFromAPI(sdk sdkschema.BlockStorage, params port.IdentifiableRes
 			Labels:      sdk.Labels,
 			Annotations: sdk.Annotations,
 			Extensions:  sdk.Extensions,
+			Region:      regionv1.Kind,
 		},
 		Spec: regional.BlockStorageSpec{
 			SizeGB: sdk.Spec.SizeGB,

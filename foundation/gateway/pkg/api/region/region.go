@@ -1,9 +1,10 @@
 package region
 
 import (
-	regionsv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regions/v1"
 	regionv1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
+
+	regionsv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regions/v1"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
@@ -51,7 +52,7 @@ func DomainToAPIIterator(domainRegions []*model.RegionDomain, nextSkipToken *str
 	return iterator
 }
 
-// DomainToSDK converts a RegionDomain to an SDK Region for Get operations
+// DomainToSDK converts a RegionDomain to an SDK Region for Get operations.
 func DomainToSDK(domain *model.RegionDomain) schema.Region {
 	return model.MapRegionDomainToSDK(*domain, "get")
 }
