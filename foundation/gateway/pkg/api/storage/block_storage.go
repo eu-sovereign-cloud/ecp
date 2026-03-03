@@ -14,8 +14,10 @@ import (
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/status"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/config"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional/consts"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 )
@@ -36,19 +38,8 @@ func BlockStorageToAPI(domain *regional.BlockStorageDomain) *sdkschema.BlockStor
 		resVersion = rv
 	}
 
-	refObj := schema.ReferenceObject{
-		Resource: fmt.Sprintf(
-			regional.ResourceFormat,
-			sdkschema.RegionalResourceMetadataKindResourceKindBlockStorage,
-			domain.Name,
-		),
-		Provider:  &domain.Provider,
-		Region:    &domain.Region,
-		Tenant:    &domain.Tenant,
-		Workspace: &domain.Workspace,
-	}
 	ref := schema.Reference{}
-	_ = ref.FromReferenceObject(refObj)
+	_ = ref.FromReferenceURN(fmt.Sprintf(regional.ResourceFormat, sdkschema.RegionalResourceMetadataKindResourceKindBlockStorage, domain.Name))
 
 	bs := &sdkschema.BlockStorage{
 		Metadata: &sdkschema.RegionalWorkspaceResourceMetadata{
@@ -78,6 +69,11 @@ func BlockStorageToAPI(domain *regional.BlockStorageDomain) *sdkschema.BlockStor
 			SizeGB: domain.Spec.SizeGB,
 			SkuRef: referenceObjectToAPI(domain.Spec.SkuRef),
 		},
+	}
+
+	// TODO: better solution to replace this workaround
+	if bs.Labels == nil {
+		bs.Labels = make(sdkschema.Labels)
 	}
 
 	if domain.Spec.SourceImageRef != nil {
@@ -137,7 +133,7 @@ func BlockStorageDomainToAPIIterator(domains []*regional.BlockStorageDomain, nex
 	iterator := &sdkstorage.BlockStorageIterator{
 		Items: items,
 		Metadata: sdkschema.ResponseMetadata{
-			Provider: ProviderStorageName,
+			Provider: consts.StorageProvider,
 			Resource: blockstoragev1.BlockStorageResource,
 			Verb:     "list",
 		},
@@ -157,13 +153,13 @@ func BlockStorageFromAPI(sdk sdkschema.BlockStorage, params port.IdentifiableRes
 			CommonMetadata: model.CommonMetadata{
 				Name:            params.GetName(),
 				ResourceVersion: params.GetVersion(),
-				Provider:        sdk.Metadata.Provider,
+				Provider:        consts.StorageProvider,
 			},
 			Scope: scope.Scope{
 				Tenant:    params.GetTenant(),
 				Workspace: params.GetWorkspace(),
 			},
-			Region:      sdk.Metadata.Region,
+			Region:      config.Singleton().Region(),
 			Labels:      sdk.Labels,
 			Annotations: sdk.Annotations,
 			Extensions:  sdk.Extensions,
