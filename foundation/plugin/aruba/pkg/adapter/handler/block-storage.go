@@ -2,10 +2,12 @@ package handler
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"time"
 
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/plugin"
 	delegator "github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/port"
@@ -127,7 +129,7 @@ func (h *BlockStorageHandler) checkBsDeleteCondition(resource *ArubaBlockStorage
 
 	err := h.bsRepository.Load(ctx, resource.BlockStorage)
 
-	return errors.IsNotFound(err)
+	return apierrors.IsNotFound(err)
 }
 
 func (h *BlockStorageHandler) checkBsIncreaseSizeCondition(resource *ArubaBlockStorageBundle) bool {
@@ -179,10 +181,19 @@ func (h *BlockStorageHandler) resolveSecaBlockStorageDependencies(ctx context.Co
 		return nil, delegator.ErrStillProcessing // TODO: better error handling
 	}
 
+	// TODO: this is a temporary solution, we should refactor the design to avoid this kind of parsing
+	// issue https://github.com/eu-sovereign-cloud/ecp/issues/216
+	splittedSKU := strings.Split(resource.Spec.SkuRef.Resource, "/")
+	if len(splittedSKU) != 2 {
+		return nil, errors.New("invalid SKU reference")
+	}
+
+	skuName := splittedSKU[1]
+
 	storageSku := &regional.StorageSKUDomain{
 		Metadata: regional.Metadata{
 			CommonMetadata: model.CommonMetadata{
-				Name: resource.Spec.SkuRef.Resource,
+				Name: skuName,
 			},
 			Scope: scope.Scope{
 				Tenant: resource.GetTenant(),
@@ -206,7 +217,7 @@ func (h *BlockStorageHandler) resolveSecaBlockStorageDependencies(ctx context.Co
 func (h *BlockStorageHandler) resolveArubaBlockStorageDependencies(ctx context.Context, resource *ArubaBlockStorageBundle) (*ArubaBlockStorageBundle, error) {
 	err := h.prjRepository.Load(ctx, resource.Project)
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return nil, delegator.ErrStillProcessing // Project not found, wait for it to be created
 		}
 
@@ -278,7 +289,7 @@ func (h *BlockStorageHandler) waitUntilManagedError(ctx context.Context, resourc
 
 	if err != nil {
 		// Check if the error is due to the resource not being found, which can be expected during deletion
-		if errors.IsTimeout(err) {
+		if apierrors.IsTimeout(err) {
 			return nil, delegator.ErrStillProcessing // Resource is gone, treat as successful deletion
 		}
 
