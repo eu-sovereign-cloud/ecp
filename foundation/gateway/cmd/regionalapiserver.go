@@ -13,12 +13,11 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 
-	sdkstorageapi "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
-	sdkworkspaceapi "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1"
-
 	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/block-storages/v1"
 	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/skus/v1"
 	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/workspace/v1"
+	sdkstorageapi "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
+	sdkworkspaceapi "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/regional/storage"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/regional/workspace"
@@ -27,11 +26,12 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/logger"
 	regionalhandler "github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/service/handler/regional"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
-	apistorage "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/storage"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/config"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional/consts"
 )
 
 var (
+	region             string
 	regionalHost       string
 	regionalPort       string
 	regionalKubeconfig string
@@ -50,6 +50,9 @@ var regionalApiServerCMD = &cobra.Command{
 
 func init() {
 	regionalApiServerCMD.Flags().StringVar(
+		&region, "region", "", "The region served by the regional gateway",
+	)
+	regionalApiServerCMD.Flags().StringVar(
 		&regionalHost, "regionalHost", "0.0.0.0", "Host to bind the server to",
 	)
 	regionalApiServerCMD.Flags().StringVarP(
@@ -64,7 +67,12 @@ func init() {
 
 // startRegional starts the backend HTTP server on the given address.
 func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
-	logger.Info("Starting regional API server on", slog.Any("addr", addr))
+	if region == "" {
+		region = os.Getenv("REGION")
+	}
+	config.Singleton().SetRegion(region)
+
+	logger.Info("Starting regional API server", slog.String("region", config.Singleton().Region()), slog.Any("addr", addr))
 
 	config, err := rest.InClusterConfig()
 	if err != nil {
@@ -143,7 +151,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 			},
 			Logger: logger,
 		}, sdkstorageapi.StdHTTPServerOptions{
-			BaseURL:          apistorage.BaseURL,
+			BaseURL:          consts.StorageBaseURL,
 			BaseRouter:       mux,
 			Middlewares:      nil,
 			ErrorHandlerFunc: nil,
@@ -193,7 +201,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 				Repo:   workspaceReaderAdapter,
 			},
 		}, sdkworkspaceapi.StdHTTPServerOptions{
-			BaseURL:          regional.WorkspaceBaseURL,
+			BaseURL:          consts.WorkspaceBaseURL,
 			BaseRouter:       mux,
 			Middlewares:      nil,
 			ErrorHandlerFunc: nil,
