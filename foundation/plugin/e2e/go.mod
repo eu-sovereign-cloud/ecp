@@ -6,7 +6,7 @@ toolchain go1.24
 
 require (
 	github.com/Arubacloud/arubacloud-resource-operator v0.0.1-alpha5
-	github.com/eu-sovereign-cloud/go-sdk v0.2.0
+	github.com/eu-sovereign-cloud/go-sdk v0.3.44
 	github.com/google/uuid v1.6.0
 	github.com/stretchr/testify v1.11.1
 	k8s.io/api v0.34.3
