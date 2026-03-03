@@ -12,8 +12,10 @@ import (
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/status"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/config"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional/consts"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 )
@@ -59,12 +61,12 @@ func APIToDomain(api schema.Workspace, params port.IdentifiableResource) *region
 			CommonMetadata: model.CommonMetadata{
 				Name:            params.GetName(),
 				ResourceVersion: params.GetVersion(),
-				Provider:        api.Metadata.Provider,
+				Provider:        consts.WorkspaceProvider,
 			},
 			Scope: scope.Scope{
 				Tenant: params.GetTenant(),
 			},
-			Region:      api.Metadata.Region,
+			Region:      config.Singleton().Region(),
 			Annotations: api.Annotations,
 			Labels:      api.Labels,
 			Extensions:  api.Extensions,
@@ -82,7 +84,7 @@ func DomainToAPIIterator(domainWorkspaces []*regional.WorkspaceDomain, nextSkipT
 	iterator := &sdkworkspace.WorkspaceIterator{
 		Items: sdkWorkspaces,
 		Metadata: schema.ResponseMetadata{
-			Provider: regional.ProviderWorkspaceName,
+			Provider: consts.WorkspaceProvider,
 			Resource: workspacev1.Resource,
 			Verb:     http.MethodGet,
 		},
@@ -103,14 +105,8 @@ func mapWorkspaceDomainToAPI(domain regional.WorkspaceDomain, verb string) *sche
 		resVersion = rv
 	}
 
-	refObj := schema.ReferenceObject{
-		Resource: fmt.Sprintf(regional.ResourceFormat, schema.RegionalResourceMetadataKindResourceKindWorkspace, domain.Name),
-		Provider: &domain.Provider,
-		Region:   &domain.Region,
-		Tenant:   &domain.Tenant,
-	}
 	ref := schema.Reference{}
-	_ = ref.FromReferenceObject(refObj) // ignore mapping error, not critical internally
+	_ = ref.FromReferenceURN(fmt.Sprintf(regional.ResourceFormat, schema.RegionalResourceMetadataKindResourceKindWorkspace, domain.Name))
 
 	var resourceState *schema.ResourceState
 	if domain.Status != nil && domain.Status.State != nil {
@@ -136,6 +132,10 @@ func mapWorkspaceDomainToAPI(domain regional.WorkspaceDomain, verb string) *sche
 		Annotations: domain.Annotations,
 		Extensions:  domain.Extensions,
 		Spec:        domain.Spec,
+	}
+	// TODO: better solution to replace this workaround
+	if sdk.Labels == nil {
+		sdk.Labels = make(schema.Labels)
 	}
 	if domain.Status != nil {
 		sdk.Status = &schema.WorkspaceStatus{
