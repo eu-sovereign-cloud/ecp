@@ -10,6 +10,9 @@ var (
 	// ErrNotFound - the requested resource does not exist.
 	ErrNotFound = errors.New("not found")
 
+	// ErrGone - the requested resource does not exist.
+	ErrGone = errors.New("gone")
+
 	// ErrConflict - resource creation or modification conflict.
 	ErrConflict = errors.New("conflict")
 

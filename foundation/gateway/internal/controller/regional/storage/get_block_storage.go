@@ -20,6 +20,8 @@ func (c GetBlockStorage) Do(
 	domain.Name = ir.GetName()
 	domain.Tenant = ir.GetTenant()
 	domain.Workspace = ir.GetWorkspace()
+	domain.ResourceVersion = ir.GetVersion()
+
 	if err := c.BlockStorageRepo.Load(ctx, &domain); err != nil {
 		return nil, err
 	}
