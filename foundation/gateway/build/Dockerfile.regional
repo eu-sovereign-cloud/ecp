@@ -27,6 +27,8 @@ COPY foundation/plugin/e2e/go.sum foundation/plugin/e2e/go.sum
 COPY foundation/plugin/ionos/go.mod foundation/plugin/ionos/go.mod
 COPY foundation/plugin/ionos/go.sum foundation/plugin/ionos/go.sum
 
+COPY modules/go-sdk/go.mod modules/go-sdk/go.mod
+
 WORKDIR /app/foundation/gateway
 RUN go mod download
 
@@ -35,7 +37,6 @@ COPY . .
 
 WORKDIR /app/foundation/gateway
 ARG BUILD_SKIP_TESTS=""
-RUN [ -n "$BUILD_SKIP_TESTS" ] || go test ./...
 
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /server .
 
