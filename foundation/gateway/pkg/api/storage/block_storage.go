@@ -165,7 +165,6 @@ func BlockStorageFromAPI(sdk sdkschema.BlockStorage, params port.IdentifiableRes
 			Labels:      sdk.Labels,
 			Annotations: sdk.Annotations,
 			Extensions:  sdk.Extensions,
-			Region:      regionv1.Kind,
 		},
 		Spec: regional.BlockStorageSpec{
 			SizeGB: sdk.Spec.SizeGB,

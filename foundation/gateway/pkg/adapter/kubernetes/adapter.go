@@ -446,7 +446,7 @@ func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
 	// 4 - Update the Spec if present
 	if labelsFound || annotationsFound || specFound {
 		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-			currObj, getErr := ri.Get(ctx, m.GetName(), metav1.GetOptions{})
+			currObj, getErr := resourceInterface.Get(ctx, m.GetName(), metav1.GetOptions{})
 			if getErr != nil {
 				return getErr
 			}
@@ -476,7 +476,7 @@ func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
 			}
 
 			// Update the resource spec on K8s
-			if _, err := ri.Update(ctx, currObj, metav1.UpdateOptions{}); err != nil {
+			if _, err := resourceInterface.Update(ctx, currObj, metav1.UpdateOptions{}); err != nil {
 				return err // TODO: better error handling
 			}
 
