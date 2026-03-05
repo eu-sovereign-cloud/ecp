@@ -18,3 +18,5 @@ replace (
 	github.com/eu-sovereign-cloud/ecp/foundation/plugin/dummy v0.0.1 => ./foundation/plugin/dummy
 	github.com/eu-sovereign-cloud/ecp/foundation/plugin/ionos v0.0.1 => ./foundation/plugin/ionos
 )
+
+replace github.com/eu-sovereign-cloud/go-sdk v0.3.44 => ./modules/go-sdk

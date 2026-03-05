@@ -92,8 +92,9 @@ func TestRegionAPI(t *testing.T) {
 		require.Equal(t, regionName, region.Metadata.Name, "retrieved region name should match the requested name")
 
 		require.NotNil(t, region.Spec.Providers, "region should have providers")
-		require.Len(t, region.Spec.Providers, 4, "expected 4 provider for itbg-bergamo")
-		require.Equal(t, "seca.compute", region.Spec.Providers[0].Name, "provider name should match the definition")
+		require.Len(t, region.Spec.Providers, 2, "expected 2 provider for itbg-bergamo")
+		require.Equal(t, "seca.storage", region.Spec.Providers[0].Name, "provider name should match the definition")
+		require.Equal(t, "seca.workspace", region.Spec.Providers[1].Name, "provider name should match the definition")
 
 		require.NotNil(t, region.Spec.AvailableZones, "region should have available zones")
 		require.Len(t, region.Spec.AvailableZones, 2, "expected 2 available zones for itbg-bergamo")

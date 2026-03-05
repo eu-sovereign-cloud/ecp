@@ -19,6 +19,9 @@ spec:
       - name: manager
         image: "##IMAGE_NAME##"
         imagePullPolicy: Always
+        env:
+        - name: REGION
+          value: itbg-bergamo
         ports:
         - containerPort: 40000
           name: dlv

@@ -11,8 +11,10 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/regional/workspace"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/service/handler"
 	apiworkspace "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/workspace"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/config"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional/consts"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
 )
 
@@ -42,13 +44,15 @@ func (h Workspace) DeleteWorkspace(
 		resourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
 	}
 	ir := &regional.Metadata{
+		CommonMetadata: model.CommonMetadata{
+			Name:            name,
+			Provider:        consts.WorkspaceProvider,
+			ResourceVersion: resourceVersion,
+		},
 		Scope: scope.Scope{
 			Tenant: tenant,
 		},
-		CommonMetadata: model.CommonMetadata{
-			Name:            name,
-			ResourceVersion: resourceVersion,
-		},
+		Region: config.Singleton().Region(),
 	}
 
 	handler.HandleDelete(w, r, h.Logger.With("provider", "workspace").With("resource", "workspace"), ir, h.Delete)
@@ -56,12 +60,14 @@ func (h Workspace) DeleteWorkspace(
 
 func (h Workspace) GetWorkspace(w http.ResponseWriter, r *http.Request, tenant schema.TenantPathParam, name schema.ResourcePathParam) {
 	ir := &regional.Metadata{
+		CommonMetadata: model.CommonMetadata{
+			Name:     name,
+			Provider: consts.WorkspaceProvider,
+		},
 		Scope: scope.Scope{
 			Tenant: tenant,
 		},
-		CommonMetadata: model.CommonMetadata{
-			Name: name,
-		},
+		Region: config.Singleton().Region(),
 	}
 
 	handler.HandleGet(w, r, h.Logger.With("provider", "workspace").With("resource", "workspace"), ir, h.Get, apiworkspace.DomainToAPIWithVerb(http.MethodGet))
@@ -75,15 +81,17 @@ func (h Workspace) CreateOrUpdateWorkspace(
 		resourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
 	}
 
-	upsertOptions := handler.UpsertOptions[schema.Workspace, *regional.WorkspaceDomain, schema.Workspace]{
+	upsertOptions := handler.UpsertOptions[schema.Workspace, *regional.WorkspaceDomain, *schema.Workspace]{
 		Params: &regional.Metadata{
+			CommonMetadata: model.CommonMetadata{
+				Name:            name,
+				Provider:        consts.WorkspaceProvider,
+				ResourceVersion: resourceVersion,
+			},
 			Scope: scope.Scope{
 				Tenant: tenant,
 			},
-			CommonMetadata: model.CommonMetadata{
-				Name:            name,
-				ResourceVersion: resourceVersion,
-			},
+			Region: config.Singleton().Region(),
 		},
 		Creator:     h.Create,
 		Updater:     h.Update,

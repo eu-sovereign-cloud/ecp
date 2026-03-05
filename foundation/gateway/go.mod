@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/eu-sovereign-cloud/ecp/foundation/api v0.0.1
-	github.com/eu-sovereign-cloud/go-sdk v0.2.0
+	github.com/eu-sovereign-cloud/go-sdk v0.3.44
 	github.com/gobwas/glob v0.2.3
 	github.com/google/go-cmp v0.7.0
 	github.com/spf13/cobra v1.10.2
