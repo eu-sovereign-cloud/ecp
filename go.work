@@ -1,6 +1,6 @@
 go 1.24
 
-toolchain go1.24.10
+toolchain go1.24
 
 use (
 	./foundation/api
@@ -11,4 +11,9 @@ use (
 	./foundation/plugin/ionos
 )
 
-replace github.com/eu-sovereign-cloud/ecp/foundation/api v0.0.1 => ./foundation/api
+replace (
+	github.com/eu-sovereign-cloud/ecp/foundation/api v0.0.1 => ./foundation/api
+	github.com/eu-sovereign-cloud/ecp/foundation/delegator v0.0.1 => ./foundation/delegator
+)
+
+replace github.com/eu-sovereign-cloud/go-sdk v0.3.46 => ./modules/go-sdk
