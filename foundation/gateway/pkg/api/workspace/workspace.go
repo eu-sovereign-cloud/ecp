@@ -71,23 +71,13 @@ func APIToDomain(api schema.Workspace, params port.IdentifiableResource) *region
 			Annotations: api.Annotations,
 			Labels:      api.Labels,
 			Extensions:  api.Extensions,
-			Region:      "region", // this is expected to be sourced from a global config set when the gateway is initialized
 		},
 		Spec: api.Spec,
 	}
 }
 
-func DomainToAPIWithVerb(verb string) func(domain *regional.WorkspaceDomain) schema.Workspace {
-	return func(domain *regional.WorkspaceDomain) schema.Workspace {
-		sdk := DomainToAPI(domain)
-		sdk.Metadata.Verb = verb
-		return sdk
-	}
-}
-
 func DomainToAPIIterator(domainWorkspaces []*regional.WorkspaceDomain, nextSkipToken *string) *sdkworkspace.WorkspaceIterator {
 	sdkWorkspaces := make([]schema.Workspace, len(domainWorkspaces))
-	domainToApi := DomainToAPIWithVerb("list")
 	for i, dom := range domainWorkspaces {
 		sdkWorkspaces[i] = *(mapWorkspaceDomainToAPI(*dom, http.MethodGet))
 	}
@@ -132,7 +122,7 @@ func mapWorkspaceDomainToAPI(domain regional.WorkspaceDomain, verb string) *sche
 			Kind:            schema.RegionalResourceMetadataKindResourceKindWorkspace,
 			Name:            domain.Name,
 			Tenant:          domain.Tenant,
-			Provider:        regional.ProviderWorkspaceName,
+			Provider:        domain.Provider,
 			Region:          domain.Region,
 			Resource:        fmt.Sprintf(regional.TenantScopedResourceFormat, domain.Tenant, schema.RegionalResourceMetadataKindResourceKindWorkspace, domain.Name),
 			Ref:             &ref,
