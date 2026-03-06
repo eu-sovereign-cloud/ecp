@@ -5,6 +5,7 @@ import (
 
 	v1 "github.com/eu-sovereign-cloud/ecp/foundation/api/generated/types"
 	"github.com/eu-sovereign-cloud/ecp/foundation/api/regional/common"
+	"github.com/eu-sovereign-cloud/ecp/foundation/api/regional/workspace"
 )
 
 // +kubebuilder:object:root=true
@@ -24,9 +25,14 @@ type Workspace struct {
 
 // +kubebuilder:object:root=true
 
+// WorkspaceList contains a list of Workspace.
 type WorkspaceList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 
 	Items []Workspace `json:"items"`
+}
+
+func init() {
+	workspace.SchemeBuilder.Register(&Workspace{}, &WorkspaceList{})
 }

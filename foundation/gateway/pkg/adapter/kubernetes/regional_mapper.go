@@ -15,7 +15,7 @@ import (
 	genv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/generated/types"
 	"github.com/eu-sovereign-cloud/ecp/foundation/api/regional/common"
 	netowrkskuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/network/skus/v1"
-	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/block-storages/v1"
+	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/block_storages/v1"
 	storageskuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/skus/v1"
 	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/workspace/v1"
 

@@ -21,6 +21,7 @@ type SKU struct {
 
 // +kubebuilder:object:root=true
 
+// SKUList contains a list of network SKU.
 type SKUList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

@@ -13,7 +13,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage"
-	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/workspace/v1"
+	"github.com/eu-sovereign-cloud/ecp/foundation/api/regional/workspace"
 	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/builder"
 
 	dummyplugin "github.com/eu-sovereign-cloud/ecp/foundation/plugin/dummy/pkg/plugin"
@@ -27,7 +27,7 @@ var (
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(workspacev1.AddToScheme(scheme))
+	utilruntime.Must(workspace.AddToScheme(scheme))
 	utilruntime.Must(storage.AddToScheme(scheme))
 }
 

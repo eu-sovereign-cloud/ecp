@@ -20,6 +20,6 @@ type BypassMutator[Mutable, Params any] struct{}
 var _ mutator.Mutator[any, any] = (*BypassMutator[any, any])(nil)
 
 // Mutate does nothing and returns nil.
-func (_ *BypassMutator[Mutable, Params]) Mutate(mutable Mutable, params Params) error {
+func (b *BypassMutator[Mutable, Params]) Mutate(mutable Mutable, params Params) error {
 	return nil
 }

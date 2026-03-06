@@ -12,8 +12,9 @@ import (
 	"testing"
 	"time"
 
-	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/block-storages/v1"
 	"github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage"
+	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/block_storages/v1"
+	"github.com/eu-sovereign-cloud/ecp/foundation/api/regional/workspace"
 	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/workspace/v1"
 	kubernetesadapter "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
 	regionalmodel "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
@@ -54,7 +55,7 @@ func TestMain(m *testing.M) {
 	// Initialize k8s scheme for client-go
 	s := runtime.NewScheme()
 	utilruntime.Must(scheme.AddToScheme(s))
-	utilruntime.Must(workspacev1.AddToScheme(s))
+	utilruntime.Must(workspace.AddToScheme(s))
 	utilruntime.Must(storage.AddToScheme(s))
 	utilruntime.Must(corev1.AddToScheme(s))
 
