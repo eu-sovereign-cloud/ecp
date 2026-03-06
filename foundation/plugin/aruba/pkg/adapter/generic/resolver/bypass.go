@@ -22,6 +22,6 @@ var _ resolver_port.DependenciesResolver[any, any] = (*BypassDependencyResolver[
 
 // ResolveDependencies returns the provided object as is, without resolving any
 // dependencies.
-func (_ *BypassDependencyResolver[T]) ResolveDependencies(ctx context.Context, main T) (T, error) {
+func (r *BypassDependencyResolver[T]) ResolveDependencies(ctx context.Context, main T) (T, error) {
 	return main, nil
 }

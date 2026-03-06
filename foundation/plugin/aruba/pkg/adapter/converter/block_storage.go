@@ -130,7 +130,7 @@ func getTenantFromSpecOrError(from *v1alpha1.BlockStorage) (string, error) {
 	return "", errors.New("tenant is missing")
 }
 
-// getWorkspaceFromSpecOrLabels
+// getWorkspaceFromSpecOrError finds workspace in spec or labels, returning an error if missing
 func getWorkspaceFromSpecOrError(from *v1alpha1.BlockStorage) (string, error) {
 	if from.Spec.ProjectReference.Name != "" {
 		return from.Spec.ProjectReference.Name, nil

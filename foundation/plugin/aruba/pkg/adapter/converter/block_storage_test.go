@@ -76,15 +76,12 @@ func TestBlockStorageConverter_FromSECAToAruba(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			converter := &converter.BlockStorageConverter{}
+			converter := converter.NewBlockStorageConverter()
 			result, err := converter.FromSECAToAruba(tt.input)
-
 			if err != nil {
-				tt.assert(t, nil)
+				t.Fatalf("unexpected error: %v", err)
 			}
-
 			tt.assert(t, result)
-
 		})
 
 	}
@@ -144,15 +141,12 @@ func TestBlockStorageConverter_FromArubaToSECA(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			converter := &converter.BlockStorageConverter{}
+			converter := converter.NewBlockStorageConverter()
 			result, err := converter.FromArubaToSECA(tt.input)
-
 			if err != nil {
-				tt.assert(t, nil)
+				t.Fatalf("unexpected error: %v", err)
 			}
-
 			tt.assert(t, result)
-
 		})
 
 	}

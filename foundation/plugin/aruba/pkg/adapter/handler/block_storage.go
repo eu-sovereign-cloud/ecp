@@ -235,7 +235,7 @@ func (h *BlockStorageHandler) resolveArubaBlockStorageDependencies(ctx context.C
 }
 
 func (h *BlockStorageHandler) FromSECABundleToAruba(from *SecaBlockStorageBundle) (*ArubaBlockStorageBundle, error) {
-	var response = &ArubaBlockStorageBundle{}
+	response := &ArubaBlockStorageBundle{}
 
 	if from.Workspace != nil {
 		prj, err := h.wsConverter.FromSECAToAruba(from.Workspace)
