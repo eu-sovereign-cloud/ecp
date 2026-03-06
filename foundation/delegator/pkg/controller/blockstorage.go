@@ -6,7 +6,7 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/block-storages/v1"
+	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/block_storages/v1"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	gateway "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"

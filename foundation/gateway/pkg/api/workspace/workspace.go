@@ -85,7 +85,7 @@ func DomainToAPIIterator(domainWorkspaces []*regional.WorkspaceDomain, nextSkipT
 		Items: sdkWorkspaces,
 		Metadata: schema.ResponseMetadata{
 			Provider: consts.WorkspaceProvider,
-			Resource: workspacev1.Resource,
+			Resource: workspacev1.WorkspaceResource,
 			Verb:     http.MethodGet,
 		},
 	}

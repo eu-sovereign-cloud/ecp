@@ -6,8 +6,8 @@ import (
 
 	"k8s.io/utils/ptr"
 
-	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/block-storages/v1"
-	v1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/workspace/v1"
+	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/block_storages/v1"
+	v1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/workspace"
 	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
