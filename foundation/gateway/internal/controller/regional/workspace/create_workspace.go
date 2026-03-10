@@ -21,5 +21,6 @@ func (c *CreateWorkspace) Do(ctx context.Context, domain *regional.WorkspaceDoma
 	if err != nil {
 		return nil, err
 	}
+
 	return *result, nil
 }
