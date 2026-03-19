@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
-	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
+
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 	"k8s.io/utils/ptr"
 
@@ -31,13 +31,13 @@ func BlockStorageToAPIWithVerb(verb string) func(*regional.BlockStorageDomain) *
 			resVersion = rv
 		}
 
-		refObj := schema.ReferenceObject{
-			Resource: fmt.Sprintf(regional.ResourceFormat, schema.RegionalResourceMetadataKindResourceKindWorkspace, domain.Name),
+		refObj := sdkschema.ReferenceObject{
+			Resource: fmt.Sprintf(regional.ResourceFormat, sdkschema.RegionalResourceMetadataKindResourceKindWorkspace, domain.Name),
 			Provider: &domain.Provider,
 			Region:   &domain.Region,
 			Tenant:   &domain.Tenant,
 		}
-		ref := schema.Reference{}
+		ref := sdkschema.Reference{}
 		_ = ref.FromReferenceObject(refObj) // ignore mapping error, not critical internally
 
 		bs := &sdkschema.BlockStorage{
@@ -45,14 +45,14 @@ func BlockStorageToAPIWithVerb(verb string) func(*regional.BlockStorageDomain) *
 				ApiVersion:      storage.Version,
 				CreatedAt:       domain.CreatedAt,
 				LastModifiedAt:  domain.UpdatedAt,
-				Kind:            schema.RegionalWorkspaceResourceMetadataKindResourceKindBlockStorage,
+				Kind:            sdkschema.RegionalWorkspaceResourceMetadataKindResourceKindBlockStorage,
 				Name:            domain.Name,
 				Tenant:          domain.GetTenant(),
 				Workspace:       domain.GetWorkspace(),
 				Provider:        ProviderStorageName,
 				Region:          strings.ToLower(domain.Region),
 				Ref:             &ref,
-				Resource:        fmt.Sprintf(regional.WorkspaceScopedResourceFormat, domain.Tenant, domain.Workspace, schema.RegionalResourceMetadataKindResourceKindBlockStorage, domain.Name),
+				Resource:        fmt.Sprintf(regional.WorkspaceScopedResourceFormat, domain.Tenant, domain.Workspace, sdkschema.RegionalResourceMetadataKindResourceKindBlockStorage, domain.Name),
 				ResourceVersion: resVersion,
 				Verb:            verb,
 			},
