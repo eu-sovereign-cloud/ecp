@@ -2,17 +2,20 @@ package workspace
 
 import (
 	"fmt"
+	"net/http"
 	"strconv"
-
-	sdkworkspace "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1"
-	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
 	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/workspace/v1"
 	v1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regions/v1"
+	sdkworkspace "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1"
+	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
+
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/status"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/config"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional/consts"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 )
@@ -40,8 +43,16 @@ func ListParamsFromAPI(params sdkworkspace.ListWorkspacesParams, tenant string) 
 	}
 }
 
-func DomainToAPI(domain *regional.WorkspaceDomain) schema.Workspace {
-	return mapWorkspaceDomainToAPI(*domain, "get")
+func DomainToAPIWithVerb(verb string) func(domain *regional.WorkspaceDomain) *schema.Workspace {
+	return func(domain *regional.WorkspaceDomain) *schema.Workspace {
+		sdk := DomainToAPI(domain)
+		sdk.Metadata.Verb = verb
+		return sdk
+	}
+}
+
+func DomainToAPI(domain *regional.WorkspaceDomain) *schema.Workspace {
+	return mapWorkspaceDomainToAPI(*domain, http.MethodGet)
 }
 
 func APIToDomain(api schema.Workspace, params port.IdentifiableResource) *regional.WorkspaceDomain {
@@ -50,11 +61,12 @@ func APIToDomain(api schema.Workspace, params port.IdentifiableResource) *region
 			CommonMetadata: model.CommonMetadata{
 				Name:            params.GetName(),
 				ResourceVersion: params.GetVersion(),
+				Provider:        consts.WorkspaceProvider,
 			},
 			Scope: scope.Scope{
-				Tenant:    params.GetTenant(),
-				Workspace: params.GetName(),
+				Tenant: params.GetTenant(),
 			},
+			Region:      config.Singleton().Region(),
 			Annotations: api.Annotations,
 			Labels:      api.Labels,
 			Extensions:  api.Extensions,
@@ -66,15 +78,15 @@ func APIToDomain(api schema.Workspace, params port.IdentifiableResource) *region
 func DomainToAPIIterator(domainWorkspaces []*regional.WorkspaceDomain, nextSkipToken *string) *sdkworkspace.WorkspaceIterator {
 	sdkWorkspaces := make([]schema.Workspace, len(domainWorkspaces))
 	for i, dom := range domainWorkspaces {
-		sdkWorkspaces[i] = mapWorkspaceDomainToAPI(*dom, "list")
+		sdkWorkspaces[i] = *(mapWorkspaceDomainToAPI(*dom, http.MethodGet))
 	}
 
 	iterator := &sdkworkspace.WorkspaceIterator{
 		Items: sdkWorkspaces,
 		Metadata: schema.ResponseMetadata{
-			Provider: regional.ProviderWorkspaceName,
+			Provider: consts.WorkspaceProvider,
 			Resource: workspacev1.Resource,
-			Verb:     "list",
+			Verb:     http.MethodGet,
 		},
 	}
 
@@ -86,29 +98,22 @@ func DomainToAPIIterator(domainWorkspaces []*regional.WorkspaceDomain, nextSkipT
 }
 
 // mapWorkspaceDomainToAPI maps a WorkspaceDomain to schema.Workspace API object.
-func mapWorkspaceDomainToAPI(domain regional.WorkspaceDomain, verb string) schema.Workspace {
+func mapWorkspaceDomainToAPI(domain regional.WorkspaceDomain, verb string) *schema.Workspace {
 	resVersion := 0
 	// resourceVersion is best-effort numeric
 	if rv, err := strconv.Atoi(domain.ResourceVersion); err == nil {
 		resVersion = rv
 	}
 
-	refObj := schema.ReferenceObject{
-		Resource: fmt.Sprintf(regional.ResourceFormat, schema.RegionalResourceMetadataKindResourceKindWorkspace, domain.Name),
-		Provider: &domain.Provider,
-		Region:   &domain.Region,
-		Tenant:   &domain.Tenant,
-	}
 	ref := schema.Reference{}
-	_ = ref.FromReferenceObject(refObj) // ignore mapping error, not critical internally
+	_ = ref.FromReferenceURN(fmt.Sprintf(regional.ResourceFormat, schema.RegionalResourceMetadataKindResourceKindWorkspace, domain.Name))
 
 	var resourceState *schema.ResourceState
 	if domain.Status != nil && domain.Status.State != nil {
 		rs := status.MapResourceStateDomainToAPI(*domain.Status.State)
 		resourceState = &rs
 	}
-	sdk := schema.Workspace{
-		Spec: domain.Spec,
+	sdk := &schema.Workspace{
 		Metadata: &schema.RegionalResourceMetadata{
 			ApiVersion:      v1.Version,
 			CreatedAt:       domain.CreatedAt,
@@ -126,6 +131,11 @@ func mapWorkspaceDomainToAPI(domain regional.WorkspaceDomain, verb string) schem
 		Labels:      domain.Labels,
 		Annotations: domain.Annotations,
 		Extensions:  domain.Extensions,
+		Spec:        domain.Spec,
+	}
+	// TODO: better solution to replace this workaround
+	if sdk.Labels == nil {
+		sdk.Labels = make(schema.Labels)
 	}
 	if domain.Status != nil {
 		sdk.Status = &schema.WorkspaceStatus{

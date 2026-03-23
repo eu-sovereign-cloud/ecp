@@ -29,6 +29,7 @@ func (in *BlockStorage) DeepCopyInto(out *BlockStorage) {
 	out.TypeMeta = in.TypeMeta
 	in.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
 	in.Spec.DeepCopyInto(&out.Spec)
+	in.RegionalCommonData.DeepCopyInto(&out.RegionalCommonData)
 	if in.Status != nil {
 		in, out := &in.Status, &out.Status
 		*out = new(types.BlockStorageStatus)

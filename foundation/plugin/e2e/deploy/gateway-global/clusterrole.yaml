@@ -1,0 +1,8 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: gateway-global-crole
+rules:
+- apiGroups: ["v1.secapi.cloud"]
+  resources: ["regions"]
+  verbs: ["get", "list", "watch"]
