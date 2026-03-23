@@ -16,6 +16,8 @@ import (
 	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/block-storages/v1"
 	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/skus/v1"
 	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/workspace/v1"
+	sdkcomputeapi "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.compute.v1"
+	sdknetworkapi "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.network.v1"
 	sdkstorageapi "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	sdkworkspaceapi "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1"
 
@@ -98,6 +100,10 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 	// Create a shared mux for all regional handlers
 	mux := http.NewServeMux()
 
+	sdkcomputeapi.HandlerWithOptions(regionalhandler.Compute{},
+		sdkcomputeapi.StdHTTPServerOptions{BaseURL: consts.NetworkBaseURL, BaseRouter: mux, Middlewares: nil, ErrorHandlerFunc: nil})
+	sdknetworkapi.HandlerWithOptions(regionalhandler.Network{},
+		sdknetworkapi.StdHTTPServerOptions{BaseURL: consts.ComputeBaseURL, BaseRouter: mux, Middlewares: nil, ErrorHandlerFunc: nil})
 	// Block storage writer adapter
 	blockStorageWriterAdapter := kubernetes.NewWriterAdapter(
 		client.Client,

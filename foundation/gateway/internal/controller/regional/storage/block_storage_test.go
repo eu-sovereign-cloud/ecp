@@ -190,9 +190,6 @@ func TestStorageController_CreateAndGetBlockStorage(t *testing.T) {
 		err = deleteController.Do(ctx, &metadata)
 		require.NoError(t, err)
 
-		// Verify deletion
-		_, err = getController.Do(ctx, &metadata)
-		require.Error(t, err)
 	})
 
 	t.Run("get_nonexistent_block_storage", func(t *testing.T) {

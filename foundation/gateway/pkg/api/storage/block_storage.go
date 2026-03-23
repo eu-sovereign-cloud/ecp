@@ -93,7 +93,9 @@ func BlockStorageToAPI(domain *regional.BlockStorageDomain) *sdkschema.BlockStor
 			bs.Status.State = &state
 		}
 	}
-
+	if domain.DeletedAt != nil {
+		bs.Metadata.DeletedAt = domain.DeletedAt
+	}
 	return bs
 }
 

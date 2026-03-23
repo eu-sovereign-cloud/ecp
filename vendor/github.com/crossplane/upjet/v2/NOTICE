@@ -1,0 +1,27 @@
+<!--
+SPDX-FileCopyrightText: 2023 The Crossplane Authors <https://crossplane.io>
+
+SPDX-License-Identifier: CC0-1.0
+-->
+
+This project is a larger work that combines with software written by third
+parties, licensed under their own terms.
+
+Notably, this larger work combines with the following Terraform components,
+which are licensed under the Mozilla Public License 2.0 (see
+<https://www.mozilla.org/en-US/MPL/2.0/> or the individual projects listed
+below).
+
+<https://github.com/hashicorp/hcl>
+<https://github.com/hashicorp/terraform-json>
+<https://github.com/hashicorp/terraform-plugin-framework>
+<https://github.com/hashicorp/terraform-plugin-go>
+<https://github.com/hashicorp/terraform-plugin-sdk>
+<https://github.com/hashicorp/go-plugin>
+<https://github.com/hashicorp/go-uuid>
+<https://github.com/hashicorp/go-version>
+<https://github.com/hashicorp/logutils>
+<https://github.com/hashicorp/terraform-plugin-log>
+<https://github.com/hashicorp/terraform-registry-address>
+<https://github.com/hashicorp/terraform-svchost>
+<https://github.com/hashicorp/yamux>
