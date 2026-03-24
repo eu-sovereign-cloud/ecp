@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	gateway "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 
@@ -36,13 +37,20 @@ func (h *WorkspacePluginHandler) HandleReconcile(ctx context.Context, resource *
 	var delegate delegator.DelegatedFunc[*regional.WorkspaceDomain]
 
 	switch {
+
+	case isWorkspaceAccepted(resource):
+		delegate = BypassDelegated[*regional.WorkspaceDomain]
+
 	case isWorkspacePending(resource):
 		delegate = BypassDelegated[*regional.WorkspaceDomain]
 
-	case wantWorkspaceCreate(resource):
+	case isWorkspaceCreating(resource):
 		delegate = h.plugin.Create
 
-	case resource.DeletedAt != nil || wantWorkspaceDelete(resource):
+	case wantWorkspaceDelete(resource):
+		delegate = BypassDelegated[*regional.WorkspaceDomain]
+
+	case isWorkspaceDeleting(resource):
 		delegate = h.plugin.Delete
 
 	case wantWorkspaceRetryCreate(resource):
@@ -56,24 +64,35 @@ func (h *WorkspacePluginHandler) HandleReconcile(ctx context.Context, resource *
 		if errors.Is(err, delegator.ErrStillProcessing) {
 			return true, nil
 		}
-		if err := h.setResourceErrorState(ctx, resource, err); err != nil {
-			return false, err // TODO: better errors handling
+
+		if requeue, err := h.setResourceErrorState(ctx, resource, err, false); err != nil {
+			return requeue, err // TODO: better errors handling
 		}
 
 		return true, nil
 	}
 
 	switch {
-	case isWorkspacePending(resource):
-		return true, h.setResourceState(ctx, resource, regional.ResourceStateCreating)
 
-	case wantWorkspaceCreate(resource):
-		return false, h.setResourceState(ctx, resource, regional.ResourceStateActive)
+	case isWorkspaceAccepted(resource):
+		return h.setResourceState(ctx, resource, regional.ResourceStatePending, false)
+
+	case isWorkspacePending(resource):
+		return h.setResourceState(ctx, resource, regional.ResourceStateCreating, true)
+
+	case isWorkspaceCreating(resource):
+		return h.setResourceState(ctx, resource, regional.ResourceStateActive, false)
 
 	case wantWorkspaceDelete(resource):
-		return false, h.repo.Delete(ctx, resource)
+		return h.setResourceState(ctx, resource, regional.ResourceStateDeleting, true)
+
+	case isWorkspaceDeleting(resource):
+		// Nothing to do: the delegator controller will remove the finalizers
+		// in order to end the deletion process.
+		return false, nil
+
 	case wantWorkspaceRetryCreate(resource):
-		return true, h.setResourceState(ctx, resource, regional.ResourceStateCreating)
+		return h.setResourceState(ctx, resource, regional.ResourceStateCreating, true)
 
 	default:
 		log.Fatal("must never achieve that condition")
@@ -82,9 +101,7 @@ func (h *WorkspacePluginHandler) HandleReconcile(ctx context.Context, resource *
 	return false, nil
 }
 
-func (h *WorkspacePluginHandler) setResourceState(ctx context.Context, resource *regional.WorkspaceDomain, state regional.ResourceStateDomain) error {
-	// TODO: Why the BlockStorage Status is a pointer and the Workspace Status is a nasted structure?
-	// ISSUE: https://github.com/eu-sovereign-cloud/ecp/issues/188
+func (h *WorkspacePluginHandler) setResourceState(ctx context.Context, resource *regional.WorkspaceDomain, state regional.ResourceStateDomain, requeue bool) (bool, error) {
 	if resource.Status == nil {
 		resource.Status = &regional.WorkspaceStatusDomain{}
 	}
@@ -97,20 +114,22 @@ func (h *WorkspacePluginHandler) setResourceState(ctx context.Context, resource 
 	resource.Status.Conditions = append(resource.Status.Conditions, conditionFromState(state))
 
 	if _, err := h.repo.Update(ctx, resource); err != nil {
-		return err
+		if errors.Is(err, model.ErrNotFound) {
+			return false, nil
+		}
+
+		return requeue, err
 	}
 
-	return nil
+	return requeue, nil
 }
 
-func (h *WorkspacePluginHandler) setResourceErrorState(ctx context.Context, resource *regional.WorkspaceDomain, err error) error {
-	state := regional.ResourceStateError
-
-	// TODO: Why the BlockStorage Status is a pointer and the Workspace Status is a nasted structure?
-	// ISSUE: https://github.com/eu-sovereign-cloud/ecp/issues/188
+func (h *WorkspacePluginHandler) setResourceErrorState(ctx context.Context, resource *regional.WorkspaceDomain, err error, requeue bool) (bool, error) {
 	if resource.Status == nil {
 		resource.Status = &regional.WorkspaceStatusDomain{}
 	}
+
+	state := regional.ResourceStateError
 	resource.Status.State = &state
 
 	if resource.Status.Conditions == nil {
@@ -120,27 +139,52 @@ func (h *WorkspacePluginHandler) setResourceErrorState(ctx context.Context, reso
 	resource.Status.Conditions = append(resource.Status.Conditions, conditionFromError(err))
 
 	if _, err := h.repo.Update(ctx, resource); err != nil {
-		return err
+		if errors.Is(err, model.ErrNotFound) {
+			return false, nil
+		}
+
+		return requeue, err
 	}
 
-	return nil
+	return requeue, nil
+}
+
+func isWorkspaceAccepted(resource *regional.WorkspaceDomain) bool {
+	return resource.Status == nil || resource.Status.State == nil
 }
 
 func isWorkspacePending(resource *regional.WorkspaceDomain) bool {
-	return resource.Status == nil || resource.Status.State == nil || *(resource.Status.State) == regional.ResourceStatePending
+	return resource.Status != nil &&
+		resource.Status.State != nil &&
+		*(resource.Status.State) == regional.ResourceStatePending
 }
 
-func wantWorkspaceCreate(resource *regional.WorkspaceDomain) bool {
-	return resource.Status != nil && resource.Status.State != nil && *(resource.Status.State) == regional.ResourceStateCreating
+func isWorkspaceCreating(resource *regional.WorkspaceDomain) bool {
+	return resource.DeletedAt == nil &&
+		resource.Status != nil &&
+		resource.Status.State != nil &&
+		*(resource.Status.State) == regional.ResourceStateCreating
+}
+
+func workspaceIsNotDeleting(resource *regional.WorkspaceDomain) bool {
+	return resource.Status == nil ||
+		resource.Status.State == nil ||
+		*(resource.Status.State) != regional.ResourceStateDeleting
 }
 
 func wantWorkspaceDelete(resource *regional.WorkspaceDomain) bool {
-	return resource.Status != nil && resource.Status.State != nil && *(resource.Status.State) == regional.ResourceStateDeleting
+	return resource.DeletedAt != nil && workspaceIsNotDeleting(resource)
+}
+
+func isWorkspaceDeleting(resource *regional.WorkspaceDomain) bool {
+	return resource.DeletedAt != nil &&
+		resource.Status != nil &&
+		resource.Status.State != nil &&
+		*(resource.Status.State) == regional.ResourceStateDeleting
 }
 
 func wantWorkspaceRetryCreate(resource *regional.WorkspaceDomain) bool {
-	return resource.Status != nil &&
-		resource.Status.State != nil &&
+	return resource.DeletedAt == nil && resource.Status != nil && resource.Status.State != nil &&
 		*(resource.Status.State) == regional.ResourceStateError &&
 		len(resource.Status.Conditions) > 1 &&
 		resource.Status.Conditions[len(resource.Status.Conditions)-2].State == regional.ResourceStateCreating

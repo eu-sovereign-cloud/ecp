@@ -59,6 +59,11 @@ build-gateway:
 	@echo "Building gateway binary via gateway Makefile..."
 	@$(MAKE) -C gateway build-gateway
 
+.PHONY: secatest
+secatest:
+	@echo "Running secatest e2e tests via e2e Makefile..."
+	@$(MAKE) -C e2e secatest
+
 
 
 define ECP_MAKE_HELP
@@ -73,6 +78,7 @@ ECP Targets:
 	docker-build-images    Build Docker images for the provider components
 	clean				   Clean up generated files
 	build-gateway          Build the gateway binary
+	secatest               Run secatest e2e tests
 endef
 
 export ECP_MAKE_HELP

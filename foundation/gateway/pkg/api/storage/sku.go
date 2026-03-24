@@ -2,18 +2,14 @@ package storage
 
 import (
 	v1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/skus/v1"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
 	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
-)
-
-const (
-	BaseURL             = "/providers/seca.storage"
-	ProviderStorageName = "seca.storage/v1"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional/consts"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
 )
 
 // SkuToApi converts a StorageSKUDomain to its SDK representation.
@@ -63,7 +59,7 @@ func SKUDomainToAPIIterator(domainSKUs []*regional.StorageSKUDomain, nextSkipTok
 	iterator := &sdkstorage.SkuIterator{
 		Items: sdkSKUs,
 		Metadata: sdkschema.ResponseMetadata{
-			Provider: ProviderStorageName,
+			Provider: consts.StorageProvider,
 			Resource: v1.SKUResource,
 			Verb:     "list",
 		},

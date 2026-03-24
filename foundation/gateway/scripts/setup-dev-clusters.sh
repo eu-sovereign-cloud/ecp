@@ -6,6 +6,10 @@ set -euo pipefail
 GLOBAL_CLUSTER_NAME="global"
 REGIONAL_CLUSTER_NAME="regional"
 
+# Increase etcd quota to avoid: etcdserver: mvcc: database space exceeded
+# Default etcd quota is typically ~2GiB; bumping helps dev clusters with lots of CRDs/resources/events.
+ETCD_QUOTA_BACKEND_BYTES="${ETCD_QUOTA_BACKEND_BYTES:-8589934592}" # 8GiB
+
 # Kubeconfig files will be created in this directory
 KUBECONFIG_DIR="${HOME}/.kube/multi-cluster-demo"
 GLOBAL_KUBECONFIG_PATH="${KUBECONFIG_DIR}/global-config"
@@ -27,6 +31,7 @@ REGIONAL_IMAGE="registry.secapi.cloud/regional-server:latest"
 GLOBAL_DEPLOYMENT_YAML="${CONFIG_SETUP_DIR}/global-deployment.yaml"
 REGIONAL_DEPLOYMENT_YAML="${CONFIG_SETUP_DIR}/regional-deployment.yaml"
 REGIONS_RBAC_YAML="${CONFIG_SETUP_DIR}/global_regions_rbac.yaml"
+REGIONAL_RBAC_YAML="${CONFIG_SETUP_DIR}/regional_rbac.yaml"
 
 # Verify required files/directories exist early to fail fast
 ensure_file() { if [ ! -f "$1" ]; then echo "Error: Required file not found: $1" >&2; exit 1; fi }
@@ -34,6 +39,7 @@ ensure_dir() { if [ ! -d "$1" ]; then echo "Error: Required directory not found:
 ensure_file "${GLOBAL_DEPLOYMENT_YAML}"
 ensure_file "${REGIONAL_DEPLOYMENT_YAML}"
 ensure_file "${REGIONS_RBAC_YAML}"
+ensure_file "${REGIONAL_RBAC_YAML}"
 ensure_dir "${API_CRDS_DIR}"
 ensure_dir "${REGIONAL_CONFIG_DIR}"
 
@@ -49,6 +55,30 @@ check_command() {
   fi
 }
 
+create_kind_cluster() {
+  local name="$1"
+
+  # Create a temporary kind config that increases etcd quota.
+  # kind uses kubeadm under the hood; this patch sets etcd local extra args.
+  local kind_cfg
+  kind_cfg="$(mktemp)"
+  cat >"${kind_cfg}" <<EOF
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+kubeadmConfigPatches:
+  - |
+    kind: ClusterConfiguration
+    etcd:
+      local:
+        extraArgs:
+          quota-backend-bytes: "${ETCD_QUOTA_BACKEND_BYTES}"
+EOF
+
+  echo "Creating kind cluster '${name}' with etcd quota-backend-bytes=${ETCD_QUOTA_BACKEND_BYTES}"
+  kind create cluster --name "${name}" --config "${kind_cfg}"
+  rm -f "${kind_cfg}"
+}
+
 # --- Script ---
 
 # 1. Check for dependencies
@@ -58,8 +88,8 @@ check_command "docker"
 
 # 2. Create clusters with kind
 echo "--- Step 1: Creating 'global' and 'regional' clusters with kind ---"
-kind create cluster --name "${GLOBAL_CLUSTER_NAME}"
-kind create cluster --name "${REGIONAL_CLUSTER_NAME}"
+create_kind_cluster "${GLOBAL_CLUSTER_NAME}"
+create_kind_cluster "${REGIONAL_CLUSTER_NAME}"
 
 # 3. Save kubeconfig files
 echo "--- Step 2: Saving kubeconfig files to '${KUBECONFIG_DIR}' ---"
@@ -104,6 +134,7 @@ kubectl --kubeconfig "${GLOBAL_KUBECONFIG_PATH}" apply -f "${REGIONS_RBAC_YAML}"
 
 # 7. Apply regional CRs and RBAC (storage, workspace, etc.)
 echo "--- Step 6: Applying regional CRs and RBAC ---"
+kubectl --kubeconfig "${REGIONAL_KUBECONFIG_PATH}" apply -f "${REGIONAL_RBAC_YAML}"
 kubectl --kubeconfig "${REGIONAL_KUBECONFIG_PATH}" apply -R -f "${REGIONAL_CONFIG_DIR}"
 
 # 8. Apply deployments to clusters

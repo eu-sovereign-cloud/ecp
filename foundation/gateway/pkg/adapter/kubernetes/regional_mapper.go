@@ -26,64 +26,8 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
 )
 
-func MapCRToNetworkSKUDomain(cr netowrkskuv1.SKU) *regional.NetworkSKUDomain {
-	return &regional.NetworkSKUDomain{
-		Metadata: regional.Metadata{
-			CommonMetadata: model.CommonMetadata{
-				Name: cr.GetName(),
-			},
-		},
-		Spec: regional.NetworkSKUSpec{
-			Bandwidth: cr.Spec.Bandwidth,
-			Packets:   cr.Spec.Packets,
-		},
-	}
-}
-
-// MapCRToStorageSKUDomain converts either concrete *storageskuv1.StorageSKU or unstructured.Unstructured into a StorageSKUDomain.
-func MapCRToStorageSKUDomain(obj client.Object) (*regional.StorageSKUDomain, error) {
-	var cr storageskuv1.SKU
-
-	switch t := obj.(type) {
-	case *storageskuv1.SKU:
-		cr = *t
-	case *unstructured.Unstructured:
-		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(t.Object, &cr); err != nil {
-			return nil, fmt.Errorf("failed to convert unstructured to StorageSKU: %w", err)
-		}
-	default:
-		return nil, fmt.Errorf("unsupported object type %T", obj)
-	}
-
-	crLabels := cr.GetLabels()
-	internalLabels := labels.GetInternalLabels(crLabels)
-	meta := regional.Metadata{
-		Labels: labels.GetCSPLabels(crLabels),
-		CommonMetadata: model.CommonMetadata{
-			Name:            cr.GetName(),
-			ResourceVersion: cr.GetResourceVersion(),
-			Provider:        internalLabels[labels.InternalProviderLabel],
-			CreatedAt:       cr.GetCreationTimestamp().Time,
-			UpdatedAt:       cr.GetCreationTimestamp().Time,
-		},
-		Region: internalLabels[labels.InternalRegionLabel],
-		Scope: scope.Scope{
-			Tenant: internalLabels[labels.InternalTenantLabel],
-		},
-	}
-	if ts := cr.GetDeletionTimestamp(); ts != nil {
-		meta.DeletedAt = &ts.Time
-	}
-
-	return &regional.StorageSKUDomain{
-		Metadata: meta,
-		Spec: regional.StorageSKUSpec{
-			Iops:          int64(cr.Spec.Iops),
-			MinVolumeSize: int64(cr.Spec.MinVolumeSize),
-			Type:          string(cr.Spec.Type),
-		},
-	}, nil
-}
+//
+// Workspace Domain
 
 // MapCRToWorkspaceDomain converts either concrete *workspacev1.Workspace or unstructured.Unstructured into a *regional.WorkspaceDomain.
 func MapCRToWorkspaceDomain(obj client.Object) (*regional.WorkspaceDomain, error) {
@@ -115,11 +59,11 @@ func MapCRToWorkspaceDomain(obj client.Object) (*regional.WorkspaceDomain, error
 			Name:            cr.GetName(),
 			ResourceVersion: cr.GetResourceVersion(),
 			CreatedAt:       cr.GetCreationTimestamp().Time,
-			Provider:        internalLabels[labels.InternalProviderLabel],
+			UpdatedAt:       cr.GetCreationTimestamp().Time,
+			Provider:        strings.ReplaceAll(internalLabels[labels.InternalProviderLabel], "_", "/"),
 		},
 		Scope: scope.Scope{
-			Tenant:    internalLabels[labels.InternalTenantLabel],
-			Workspace: cr.GetName(),
+			Tenant: internalLabels[labels.InternalTenantLabel],
 		},
 		Region:      internalLabels[labels.InternalRegionLabel],
 		Labels:      labels.KeyedToOriginal(keyedLabels, cr.RegionalCommonData.Labels),
@@ -166,10 +110,12 @@ func MapWorkspaceDomainToCR(domain *regional.WorkspaceDomain) (client.Object, er
 
 	crLabels := labels.OriginalToKeyed(domain.Labels)
 	crLabels[labels.InternalTenantLabel] = domain.Tenant
+	crLabels[labels.InternalProviderLabel] = strings.ReplaceAll(domain.Provider, "/", "_")
+	crLabels[labels.InternalRegionLabel] = domain.Region
 	cr := &workspacev1.Workspace{
 		ObjectMeta: v1.ObjectMeta{
 			Name:            domain.Name,
-			Namespace:       ComputeNamespace(domain),
+			Namespace:       ComputeNamespace(&scope.Scope{Tenant: domain.Tenant}),
 			Labels:          crLabels,
 			ResourceVersion: domain.ResourceVersion,
 		},
@@ -192,6 +138,203 @@ func MapWorkspaceDomainToCR(domain *regional.WorkspaceDomain) (client.Object, er
 
 	return cr, nil
 }
+
+//
+// Storage Domain
+
+// MapCRToStorageSKUDomain converts either concrete *storageskuv1.StorageSKU or unstructured.Unstructured into a StorageSKUDomain.
+func MapCRToStorageSKUDomain(obj client.Object) (*regional.StorageSKUDomain, error) {
+	var cr storageskuv1.SKU
+
+	switch t := obj.(type) {
+	case *storageskuv1.SKU:
+		cr = *t
+	case *unstructured.Unstructured:
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(t.Object, &cr); err != nil {
+			return nil, fmt.Errorf("failed to convert unstructured to StorageSKU: %w", err)
+		}
+	default:
+		return nil, fmt.Errorf("unsupported object type %T", obj)
+	}
+
+	crLabels := cr.GetLabels()
+	internalLabels := labels.GetInternalLabels(crLabels)
+	meta := regional.Metadata{
+		Labels: labels.GetCSPLabels(crLabels),
+		CommonMetadata: model.CommonMetadata{
+			Name:            cr.GetName(),
+			ResourceVersion: cr.GetResourceVersion(),
+			Provider:        internalLabels[labels.InternalProviderLabel],
+			CreatedAt:       cr.GetCreationTimestamp().Time,
+			UpdatedAt:       cr.GetCreationTimestamp().Time,
+		},
+		Region: internalLabels[labels.InternalRegionLabel],
+		Scope: scope.Scope{
+			Tenant: internalLabels[labels.InternalTenantLabel],
+		},
+	}
+	if ts := cr.GetDeletionTimestamp(); ts != nil {
+		meta.DeletedAt = &ts.Time
+	}
+
+	return &regional.StorageSKUDomain{
+		Metadata: meta,
+		Spec: regional.StorageSKUSpec{
+			Iops:          int64(cr.Spec.Iops),
+			MinVolumeSize: int64(cr.Spec.MinVolumeSize),
+			Type:          string(cr.Spec.Type),
+		},
+	}, nil
+}
+
+// MapCRToBlockStorageDomain converts either concrete *blockstoragev1.BlockStorage or unstructured.Unstructured into a BlockStorageDomain.
+func MapCRToBlockStorageDomain(obj client.Object) (*regional.BlockStorageDomain, error) {
+	var cr blockstoragev1.BlockStorage
+
+	switch t := obj.(type) {
+	case *blockstoragev1.BlockStorage:
+		cr = *t
+	case *unstructured.Unstructured:
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(t.Object, &cr); err != nil {
+			return nil, fmt.Errorf("failed to convert unstructured to BlockStorage: %w", err)
+		}
+	default:
+		return nil, fmt.Errorf("unsupported object type %T", obj)
+	}
+
+	spec := regional.BlockStorageSpec{
+		SizeGB: cr.Spec.SizeGB,
+		SkuRef: mapCRReferenceObjectToDomain(cr.Spec.SkuRef),
+	}
+
+	crLabels := cr.GetLabels()
+	internalLabels := labels.GetInternalLabels(crLabels)
+	keyedLabels := labels.GetKeyedLabels(crLabels)
+	// NOTE: Do we expect CSP labels on resources created by a user? If so, they'll need to be added as well.
+
+	meta := regional.Metadata{
+		CommonMetadata: model.CommonMetadata{
+			Name:            cr.GetName(),
+			ResourceVersion: cr.GetResourceVersion(),
+			CreatedAt:       cr.GetCreationTimestamp().Time,
+			UpdatedAt:       cr.GetCreationTimestamp().Time,
+			Provider:        strings.ReplaceAll(internalLabels[labels.InternalProviderLabel], "_", "/"),
+		},
+		Scope: scope.Scope{
+			Tenant:    internalLabels[labels.InternalTenantLabel],
+			Workspace: internalLabels[labels.InternalWorkspaceLabel],
+		},
+		Region:      internalLabels[labels.InternalRegionLabel],
+		Labels:      labels.KeyedToOriginal(keyedLabels, cr.RegionalCommonData.Labels),
+		Annotations: cr.RegionalCommonData.Annotations,
+		Extensions:  cr.RegionalCommonData.Extensions,
+	}
+	if ts := cr.GetDeletionTimestamp(); ts != nil {
+		meta.DeletedAt = &ts.Time
+	}
+
+	if cr.Spec.SourceImageRef != nil {
+		ref := mapCRReferenceObjectToDomain(*cr.Spec.SourceImageRef)
+		spec.SourceImageRef = &ref
+	}
+
+	if cr.Status == nil {
+		return &regional.BlockStorageDomain{
+			Metadata: meta,
+			Spec:     spec,
+		}, nil
+	}
+
+	status := &regional.BlockStorageStatus{
+		SizeGB:     cr.Status.SizeGB,
+		Conditions: mapCRToStatusConditionDomains(cr.Status.Conditions),
+	}
+
+	if cr.Status.AttachedTo != nil {
+		ref := mapCRReferenceObjectToDomain(*cr.Status.AttachedTo)
+		status.AttachedTo = &ref
+	}
+
+	if cr.Status.State != nil {
+		state := regional.ResourceStateDomain(*cr.Status.State)
+		status.State = &state
+	}
+
+	return &regional.BlockStorageDomain{
+		Metadata: meta,
+		Spec:     spec,
+		Status:   status,
+	}, nil
+}
+
+// MapBlockStorageDomainToCR converts a BlockStorageDomain to a Kubernetes BlockStorage CR.
+func MapBlockStorageDomainToCR(domain *regional.BlockStorageDomain) (client.Object, error) {
+
+	// Merge CSP labels with internal labels
+	crLabels := labels.OriginalToKeyed(domain.Labels)
+	crLabels[labels.InternalTenantLabel] = domain.Tenant
+	crLabels[labels.InternalWorkspaceLabel] = domain.Workspace
+	crLabels[labels.InternalProviderLabel] = strings.ReplaceAll(domain.Provider, "/", "_")
+	crLabels[labels.InternalRegionLabel] = domain.Region
+	cr := &blockstoragev1.BlockStorage{
+		ObjectMeta: v1.ObjectMeta{
+			Name:            domain.Name,
+			Namespace:       ComputeNamespace(domain),
+			Labels:          crLabels,
+			ResourceVersion: domain.ResourceVersion,
+		},
+		RegionalCommonData: common.RegionalCommonData{
+			Annotations: domain.Annotations,
+			Extensions:  domain.Extensions,
+			Labels:      slices.Collect(maps.Keys(domain.Labels)),
+		},
+		Spec: genv1.BlockStorageSpec{
+			SizeGB: domain.Spec.SizeGB,
+			SkuRef: mapDomainReferenceObjectToCR(domain.Spec.SkuRef),
+		},
+	}
+	cr.SetGroupVersionKind(blockstoragev1.BlockStorageGVK)
+
+	if domain.Spec.SourceImageRef != nil {
+		ref := mapDomainReferenceObjectToCR(*domain.Spec.SourceImageRef)
+		cr.Spec.SourceImageRef = &ref
+	}
+
+	if domain.Status != nil && (domain.Status.State != nil || len(domain.Status.Conditions) > 0) {
+		cr.Status = &genv1.BlockStorageStatus{
+			SizeGB:     domain.Status.SizeGB,
+			Conditions: mapStatusConditionDomainsToCR(domain.Status.Conditions),
+			State:      mapResourceStateDomainToCR(domain.Status.State),
+		}
+		if domain.Status.AttachedTo != nil {
+			ref := mapDomainReferenceObjectToCR(*domain.Status.AttachedTo)
+			cr.Status.AttachedTo = &ref
+		}
+	}
+
+	return cr, nil
+}
+
+//
+// Network Domain
+
+// MapCRToNetworkSKUDomain converts either concrete *networkskuv1.NetworkSKU or unstructured.Unstructured into a NetworkSKUDomain.
+func MapCRToNetworkSKUDomain(cr netowrkskuv1.SKU) *regional.NetworkSKUDomain {
+	return &regional.NetworkSKUDomain{
+		Metadata: regional.Metadata{
+			CommonMetadata: model.CommonMetadata{
+				Name: cr.GetName(),
+			},
+		},
+		Spec: regional.NetworkSKUSpec{
+			Bandwidth: cr.Spec.Bandwidth,
+			Packets:   cr.Spec.Packets,
+		},
+	}
+}
+
+//
+// Common
 
 // mapStatusConditionDomainToCR maps a regional.StatusConditionDomain to a types.StatusCondition.
 func mapStatusConditionDomainToCR(domainStatusCondition regional.StatusConditionDomain) genv1.StatusCondition {
@@ -289,77 +432,6 @@ func mapCRToResourceStateDomain(crResourceState genv1.ResourceState) regional.Re
 	return state
 }
 
-// MapCRToBlockStorageDomain converts either concrete *blockstoragev1.BlockStorage or unstructured.Unstructured into a BlockStorageDomain.
-func MapCRToBlockStorageDomain(obj client.Object) (*regional.BlockStorageDomain, error) {
-	var cr blockstoragev1.BlockStorage
-
-	switch t := obj.(type) {
-	case *blockstoragev1.BlockStorage:
-		cr = *t
-	case *unstructured.Unstructured:
-		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(t.Object, &cr); err != nil {
-			return nil, fmt.Errorf("failed to convert unstructured to BlockStorage: %w", err)
-		}
-	default:
-		return nil, fmt.Errorf("unsupported object type %T", obj)
-	}
-
-	crLabels := cr.GetLabels()
-	internalLabels := labels.GetInternalLabels(crLabels)
-	meta := regional.Metadata{
-		Labels: labels.GetCSPLabels(crLabels),
-		CommonMetadata: model.CommonMetadata{
-			Name:            cr.GetName(),
-			ResourceVersion: cr.GetResourceVersion(),
-			Provider:        internalLabels[labels.InternalProviderLabel],
-			CreatedAt:       cr.GetCreationTimestamp().Time,
-			UpdatedAt:       cr.GetCreationTimestamp().Time,
-		},
-		Region: internalLabels[labels.InternalRegionLabel],
-		Scope: scope.Scope{
-			Tenant:    internalLabels[labels.InternalTenantLabel],
-			Workspace: internalLabels[labels.InternalWorkspaceLabel],
-		},
-	}
-	if ts := cr.GetDeletionTimestamp(); ts != nil {
-		meta.DeletedAt = &ts.Time
-	}
-
-	domain := &regional.BlockStorageDomain{
-		Metadata: meta,
-		Spec: regional.BlockStorageSpec{
-			SizeGB: cr.Spec.SizeGB,
-			SkuRef: mapCRReferenceObjectToDomain(cr.Spec.SkuRef),
-		},
-	}
-
-	if cr.Spec.SourceImageRef != nil {
-		ref := mapCRReferenceObjectToDomain(*cr.Spec.SourceImageRef)
-		domain.Spec.SourceImageRef = &ref
-	}
-
-	if cr.Status == nil {
-		return domain, nil
-	}
-
-	domain.Status = &regional.BlockStorageStatus{
-		SizeGB:     cr.Status.SizeGB,
-		Conditions: mapCRToStatusConditionDomains(cr.Status.Conditions),
-	}
-
-	if cr.Status.AttachedTo != nil {
-		ref := mapCRReferenceObjectToDomain(*cr.Status.AttachedTo)
-		domain.Status.AttachedTo = &ref
-	}
-
-	if cr.Status.State != nil {
-		state := regional.ResourceStateDomain(*cr.Status.State)
-		domain.Status.State = &state
-	}
-
-	return domain, nil
-}
-
 // mapCRReferenceObjectToDomain converts a generated types.ReferenceObject to a domain ReferenceObject.
 func mapCRReferenceObjectToDomain(ref genv1.ReferenceObject) regional.ReferenceObject {
 	return regional.ReferenceObject{
@@ -369,54 +441,6 @@ func mapCRReferenceObjectToDomain(ref genv1.ReferenceObject) regional.ReferenceO
 		Tenant:    ptr.Deref(ref.Tenant, ""),
 		Workspace: ptr.Deref(ref.Workspace, ""),
 	}
-}
-
-// MapBlockStorageDomainToCR converts a BlockStorageDomain to a Kubernetes BlockStorage CR.
-func MapBlockStorageDomainToCR(domain *regional.BlockStorageDomain) (client.Object, error) {
-
-	cr := &blockstoragev1.BlockStorage{
-		ObjectMeta: v1.ObjectMeta{
-			Name:            domain.Name,
-			Namespace:       ComputeNamespace(domain),
-			ResourceVersion: domain.ResourceVersion,
-		},
-		Spec: genv1.BlockStorageSpec{
-			SizeGB: domain.Spec.SizeGB,
-			SkuRef: mapDomainReferenceObjectToCR(domain.Spec.SkuRef),
-		},
-	}
-	cr.SetGroupVersionKind(blockstoragev1.BlockStorageGVK)
-
-	// Merge CSP labels with internal labels
-	allLabels := labels.OriginalToKeyed(domain.Labels)
-	allLabels[labels.InternalTenantLabel] = domain.Tenant
-	allLabels[labels.InternalWorkspaceLabel] = domain.Workspace
-	if domain.Region != "" {
-		allLabels[labels.InternalRegionLabel] = domain.Region
-	}
-	if domain.Provider != "" {
-		allLabels[labels.InternalProviderLabel] = domain.Provider
-	}
-	cr.SetLabels(allLabels)
-
-	if domain.Spec.SourceImageRef != nil {
-		ref := mapDomainReferenceObjectToCR(*domain.Spec.SourceImageRef)
-		cr.Spec.SourceImageRef = &ref
-	}
-
-	if domain.Status != nil && (domain.Status.State != nil || len(domain.Status.Conditions) > 0) {
-		cr.Status = &genv1.BlockStorageStatus{
-			SizeGB:     domain.Status.SizeGB,
-			Conditions: mapStatusConditionDomainsToCR(domain.Status.Conditions),
-			State:      mapResourceStateDomainToCR(domain.Status.State),
-		}
-		if domain.Status.AttachedTo != nil {
-			ref := mapDomainReferenceObjectToCR(*domain.Status.AttachedTo)
-			cr.Status.AttachedTo = &ref
-		}
-	}
-
-	return cr, nil
 }
 
 // mapDomainReferenceObjectToCR converts a domain ReferenceObject to a generated types ReferenceObject.

@@ -39,6 +39,33 @@ spec:
             type: string
           metadata:
             type: object
+          regionalCommonData:
+            description: RegionalCommonData defines the additional common fields that
+              can be set on regional resources
+            properties:
+              annotations:
+                additionalProperties:
+                  type: string
+                description: |-
+                  Annotations User-defined key/value pairs that are mutable and can be used to add annotations.
+                  The number of annotations is eventually limited by the CSP.
+                type: object
+              extensions:
+                additionalProperties:
+                  type: string
+                description: |-
+                  Extensions User-defined key/value pairs that are mutable and can be used to add extensions.
+                  Extensions are subject to validation by the CSP, and any value that is not accepted will be rejected during admission.
+                type: object
+              labels:
+                description: |-
+                  Labels User-defined key/value pairs that are mutable and can be used to
+                  organize and categorize resources. We store the keys explicitly in the spec, because the values will be stored
+                  directly in the Kubernetes labels.
+                items:
+                  type: string
+                type: array
+            type: object
           spec:
             description: |-
               BlockStorageSpec References the SKU used for this block.

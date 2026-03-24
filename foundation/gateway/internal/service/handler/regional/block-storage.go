@@ -8,13 +8,14 @@ import (
 	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
-
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/regional/storage"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/service/handler"
 	apistorage "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/storage"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/config"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional/consts"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
 )
 
 type Storage struct {
@@ -73,11 +74,13 @@ func (h Storage) GetSku(w http.ResponseWriter, r *http.Request, tenant sdkschema
 ) {
 	handler.HandleGet(w, r, h.Logger.With("provider", "storage").With("resource", "sku"), &regional.Metadata{
 		CommonMetadata: model.CommonMetadata{
-			Name: name,
+			Name:     name,
+			Provider: consts.StorageProvider,
 		},
 		Scope: scope.Scope{
 			Tenant: tenant,
 		},
+		Region: config.Singleton().Region(),
 	}, h.GetSKU, apistorage.SkuToApi)
 }
 
@@ -99,12 +102,14 @@ func (h Storage) DeleteBlockStorage(
 ) {
 	metadata := regional.Metadata{
 		CommonMetadata: model.CommonMetadata{
-			Name: name,
+			Name:     name,
+			Provider: consts.StorageProvider,
 		},
 		Scope: scope.Scope{
 			Tenant:    tenant,
 			Workspace: workspace,
 		},
+		Region: config.Singleton().Region(),
 	}
 	if params.IfUnmodifiedSince != nil {
 		metadata.ResourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
@@ -122,15 +127,17 @@ func (h Storage) GetBlockStorage(
 	handler.HandleGet(w, r, h.Logger.With("provider", "storage").With("resource", "block-storage"),
 		&regional.Metadata{
 			CommonMetadata: model.CommonMetadata{
-				Name: name,
+				Name:     name,
+				Provider: consts.StorageProvider,
 			},
 			Scope: scope.Scope{
 				Tenant:    tenant,
 				Workspace: workspace,
 			},
+			Region: config.Singleton().Region(),
 		},
 		h.GetStorage,
-		apistorage.BlockStorageToAPI,
+		apistorage.DomainToAPIWithVerb(http.MethodGet),
 	)
 }
 
@@ -149,17 +156,19 @@ func (h Storage) CreateOrUpdateBlockStorage(
 			Params: &regional.Metadata{
 				CommonMetadata: model.CommonMetadata{
 					Name:            name,
+					Provider:        consts.StorageProvider,
 					ResourceVersion: resourceVersion,
 				},
 				Scope: scope.Scope{
 					Tenant:    tenant,
 					Workspace: workspace,
 				},
+				Region: config.Singleton().Region(),
 			},
 			Creator:     h.CreateBlockStorage,
 			Updater:     h.UpdateBlockStorage,
 			SDKToDomain: apistorage.BlockStorageFromAPI,
-			DomainToSDK: apistorage.BlockStorageToAPI,
+			DomainToSDK: apistorage.DomainToAPIWithVerb(http.MethodPut),
 		},
 	)
 }
