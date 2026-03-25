@@ -1,6 +1,6 @@
 module github.com/eu-sovereign-cloud/ecp/foundation/plugin/e2e
 
-go 1.25.0
+go 1.26
 
 require (
 	github.com/Arubacloud/arubacloud-resource-operator v0.0.1-alpha5

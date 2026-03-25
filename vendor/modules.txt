@@ -72,7 +72,7 @@ github.com/davecgh/go-spew/spew
 github.com/emicklei/go-restful/v3
 github.com/emicklei/go-restful/v3/log
 # github.com/eu-sovereign-cloud/ecp/foundation/persistence v0.0.1 => ./foundation/persistence
-## explicit; go 1.25.0
+## explicit; go 1.26
 # github.com/eu-sovereign-cloud/go-sdk v0.3.1-0.20260116115910-deedd8930401
 ## explicit; go 1.24
 github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.compute.v1
