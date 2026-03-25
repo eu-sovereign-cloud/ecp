@@ -3,7 +3,7 @@ package kubernetes
 import (
 	"fmt"
 
-	v1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regions/v1"
+	v1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/regions/v1"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes/labels"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"

@@ -13,8 +13,8 @@ import (
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage"
-	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/workspace/v1"
+	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/storage"
+	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/workspace/v1"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/kubeclient"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
@@ -29,7 +29,7 @@ var cfg *rest.Config
 // --- Envtest lifecycle ---
 func TestMain(m *testing.M) {
 	wd, _ := os.Getwd()
-	crdDir := filepath.Clean(filepath.Join(wd, "../../../../../api/generated/crds/workspace"))
+	crdDir := filepath.Clean(filepath.Join(wd, "../../../../../persistence/generated/crds/workspace"))
 	testEnvironment := &envtest.Environment{
 		ErrorIfCRDPathMissing: true,
 		CRDDirectoryPaths:     []string{crdDir},

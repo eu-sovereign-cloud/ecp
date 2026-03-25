@@ -15,8 +15,8 @@ COPY foundation/delegator/go.mod foundation/delegator/go.mod
 COPY foundation/delegator/go.sum foundation/delegator/go.sum
 COPY foundation/gateway/go.mod foundation/gateway/go.mod
 COPY foundation/gateway/go.sum foundation/gateway/go.sum
-COPY foundation/api/go.mod foundation/api/go.mod
-COPY foundation/api/go.sum foundation/api/go.sum
+COPY foundation/persistence/go.mod foundation/persistence/go.mod
+COPY foundation/persistence/go.sum foundation/persistence/go.sum
 
 # Pre-copy plugin module manifests referenced by go.work
 COPY foundation/plugin/aruba/go.mod foundation/plugin/aruba/go.mod

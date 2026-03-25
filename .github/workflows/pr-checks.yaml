@@ -18,8 +18,8 @@ jobs:
         uses: dorny/paths-filter@v3
         with:
           filters: |
-            foundation/api:
-              - 'foundation/api/**'
+            foundation/persistence:
+              - 'foundation/persistence/**'
             foundation/gateway:
               - 'foundation/gateway/**'
             foundation/delegator:
@@ -43,11 +43,11 @@ jobs:
           cache: true
       - name: Generate API artifacts
         run: |
-          make -C foundation/api generate-all
+          make -C foundation/persistence generate-all
       - name: Check for uncommitted changes
         run: |
           if [ -n "$(git status --porcelain)" ]; then
-            echo "::error::make generate-all produced changes. Please run 'make -C foundation/api generate-all' and commit the results."
+            echo "::error::make generate-all produced changes. Please run 'make -C foundation/persistence generate-all' and commit the results."
             git diff
             git status
             exit 1

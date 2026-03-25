@@ -13,7 +13,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 
-	regionsv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regions/v1"
+	regionsv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/regions/v1"
 	regionv1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
 
 	regionController "github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/global/region"

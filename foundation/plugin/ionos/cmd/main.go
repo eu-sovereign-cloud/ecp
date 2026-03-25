@@ -16,8 +16,8 @@ import (
 
 	ionosapis "github.com/ionos-cloud/provider-upjet-ionoscloud/apis/namespaced/compute/v1alpha1"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage"
-	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/workspace/v1"
+	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/storage"
+	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/workspace/v1"
 	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/builder"
 	ionosplugin "github.com/eu-sovereign-cloud/ecp/foundation/plugin/ionos/pkg/plugin"
 )
