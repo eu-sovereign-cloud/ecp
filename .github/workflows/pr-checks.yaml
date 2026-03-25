@@ -94,7 +94,7 @@ jobs:
           submodules: 'recursive'
       - uses: actions/setup-go@v6
         with:
-          go-version: "${{ matrix.module }}/go.mod"
+          go-version-file: "${{ matrix.module }}/go.mod"
           cache: true
           cache-dependency-path: "${{ matrix.module }}/go.sum"
 
@@ -125,7 +125,7 @@ jobs:
           submodules: 'recursive'
       - uses: actions/setup-go@v6
         with:
-          go-version: "${{ matrix.module }}/go.mod"
+          go-version-file: "${{ matrix.module }}/go.mod"
           cache: true
 
       - name: Install govulncheck
