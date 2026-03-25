@@ -31,7 +31,7 @@ jobs:
 
   # JOB 2: Generate API artifacts
   generate-api:
-    name: Generate API artifacts (always)
+    name: Generate API artifacts
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -44,8 +44,41 @@ jobs:
       - name: Generate API artifacts
         run: |
           make -C foundation/api generate-all
+      - name: Check for uncommitted changes
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "::error::make generate-all produced changes. Please run 'make -C foundation/api generate-all' and commit the results."
+            git diff
+            git status
+            exit 1
+          fi
 
-  # JOB 3: Build, Test & Lint
+  # JOB 3: Workspace sync check
+  workspace-sync:
+    name: Workspace Sync Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: 'recursive'
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: 'go.work'
+          cache: true
+      - name: Run go work sync and vendor
+        run: |
+          go work sync
+          go work vendor
+      - name: Check for uncommitted changes
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "::error::go work sync/vendor produced changes. Please run 'go work sync && go work vendor' and commit the results."
+            git diff
+            git status
+            exit 1
+          fi
+
+  # JOB 4: Build, Test & Lint
   checks:
     needs: module-diff
     if: needs.module-diff.outputs.has_changes == 'true'
@@ -61,7 +94,7 @@ jobs:
           submodules: 'recursive'
       - uses: actions/setup-go@v6
         with:
-          go-version: ${{ matrix.go }}
+          go-version: "${{ matrix.module }}/go.mod"
           cache: true
           cache-dependency-path: "${{ matrix.module }}/go.sum"
 
@@ -76,7 +109,7 @@ jobs:
           working-directory: ${{ matrix.module }}
           args: --timeout 10m0s --verbose
 
-  # JOB 4: govulncheck and gosec
+  # JOB 5: govulncheck and gosec
   security:
     needs: module-diff
     if: needs.module-diff.outputs.has_changes == 'true'
@@ -92,7 +125,7 @@ jobs:
           submodules: 'recursive'
       - uses: actions/setup-go@v6
         with:
-          go-version: ${{ matrix.go }}
+          go-version: "${{ matrix.module }}/go.mod"
           cache: true
 
       - name: Install govulncheck
