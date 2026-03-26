@@ -5,28 +5,28 @@ import "errors"
 // ErrKind represents the category of domain error.
 type ErrKind int
 
-	// ErrNotFound - the requested resource does not exist.
-	ErrNotFound = errors.New("not found")
-
-	// ErrGone - the requested resource does not exist.
-	ErrGone = errors.New("gone")
-
-	// ErrConflict - resource creation or modification conflict.
-	ErrConflict = errors.New("conflict")
-
-	// ErrValidation - resource validation failure.
-	ErrValidation = errors.New("validation error")
-
-	// ErrUnavailable - external service operation failure.
-	ErrUnavailable = errors.New("service unavailable")
-
-	ErrAlreadyExists = errors.New("resource already exists")
+const (
+	// KindForbidden indicates insufficient permissions to access the resource.
+	KindForbidden ErrKind = iota
+	// KindNotFound indicates the requested resource does not exist.
+	KindNotFound
+	// KindGone indicates the requested resource no longer exists.
+	KindGone
+	// KindConflict indicates resource creation or modification conflict.
+	KindConflict
+	// KindValidation indicates resource validation failure.
+	KindValidation
+	// KindUnavailable indicates external service operation failure.
+	KindUnavailable
+	// KindAlreadyExists indicates resource already exists.
+	KindAlreadyExists
 )
 
 // Sentinel errors
 var (
 	ErrForbidden     = NewError(KindForbidden, errors.New(KindForbidden.String()))
 	ErrNotFound      = NewError(KindNotFound, errors.New(KindNotFound.String()))
+	ErrGone          = NewError(KindGone, errors.New(KindGone.String()))
 	ErrConflict      = NewError(KindConflict, errors.New(KindConflict.String()))
 	ErrValidation    = NewError(KindValidation, errors.New(KindValidation.String()))
 	ErrUnavailable   = NewError(KindUnavailable, errors.New(KindUnavailable.String()))
@@ -40,6 +40,8 @@ func (k ErrKind) String() string {
 		return "forbidden"
 	case KindNotFound:
 		return "not found"
+	case KindGone:
+		return "gone"
 	case KindConflict:
 		return "conflict"
 	case KindValidation:
