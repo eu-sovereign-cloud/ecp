@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	gomock "go.uber.org/mock/gomock"
+	"go.uber.org/mock/gomock"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 )
@@ -192,13 +192,9 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		}
 
 		//
-		// And a repo that is expected to be called once to update state
+		// And a repo that is expected to be called once to delete the resource
 		mockRepo := NewMockRepo[*regional.BlockStorageDomain](ctrl)
-		mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(
-			func(_ context.Context, res *regional.BlockStorageDomain) (*regional.BlockStorageDomain, error) {
-				require.Equal(t, regional.ResourceStateDeleting, *res.Status.State)
-				return nil, nil
-			}).Times(1)
+		mockRepo.EXPECT().Delete(gomock.Any(), resource).Return(nil).Times(1)
 
 		//
 		// And a plugin that is expected to be called to delete the resource

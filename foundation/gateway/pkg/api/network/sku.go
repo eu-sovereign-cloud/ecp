@@ -6,6 +6,11 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 )
 
+const (
+	BaseURL             = "/providers/seca.network"
+	ProviderStorageName = "seca.network/v1"
+)
+
 // SkuToAPI converts a NetworkSKUDomain to its SDK representation.
 func SkuToAPI(domain *regional.NetworkSKUDomain) *sdkschema.NetworkSku {
 	return &sdkschema.NetworkSku{

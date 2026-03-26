@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	gomock "go.uber.org/mock/gomock"
+	"go.uber.org/mock/gomock"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	k8srt "sigs.k8s.io/controller-runtime"
@@ -60,7 +60,7 @@ func TestBlockStorageController_Reconcile(t *testing.T) {
 			Spec: types.BlockStorageSpec{
 				SizeGB: 10,
 			},
-			Status: types.BlockStorageStatus{
+			Status: &types.BlockStorageStatus{
 				State: &pendingState,
 			},
 		}
@@ -179,7 +179,7 @@ func TestBlockStorageController_Reconcile(t *testing.T) {
 			Spec: types.BlockStorageSpec{
 				SizeGB: 10,
 			},
-			Status: types.BlockStorageStatus{
+			Status: &types.BlockStorageStatus{
 				State: &pendingState,
 			},
 		}

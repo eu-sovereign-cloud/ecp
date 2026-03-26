@@ -2,7 +2,10 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"log/slog"
+	"slices"
+	"strings"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -11,8 +14,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	gateway "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 
 	delegator "github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/port"
@@ -55,29 +60,42 @@ func NewGenericController[D gateway.IdentifiableResource](
 func (r *GenericController[D]) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(r.prototype).
+		WithOptions(controller.Options{
+			// This allows 10 wrokers to process the queue in parallel
+			// TODO: make this configurable
+			MaxConcurrentReconciles: 10,
+		}).
 		Complete(r)
 }
+
+const finalizerName = "secapi.cloud.foundation/cleanup"
 
 // Reconcile implements the reconcile.Reconciler interface.
 func (r *GenericController[D]) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := r.logger.With("resource", req.NamespacedName)
 
+	var obj client.Object
+
 	// 1. Fetch the K8s object
-	// We use DeepCopyObject to create a new instance of the prototype to ensure
-	// we have a clean object to unmarshal into.
-	// K is constrained by client.Object, so the assertion is safe at runtime
-	// as long as the prototype is a pointer to a struct that implements client.Object.
-	obj := r.prototype.DeepCopyObject().(client.Object)
+	obj = r.prototype.DeepCopyObject().(client.Object)
 	if err := r.client.Get(ctx, req.NamespacedName, obj); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	// 2. Convert to Domain object
+	// 2. Handle finalizers
+	if obj.GetDeletionTimestamp().IsZero() && !slices.Contains(obj.GetFinalizers(), finalizerName) {
+		obj.SetFinalizers(append(obj.GetFinalizers(), finalizerName))
+		if err := r.client.Update(ctx, obj); err != nil {
+			return ctrl.Result{}, err
+		}
+
+		return ctrl.Result{RequeueAfter: r.requeueAfter}, nil
+	}
+
+	// 3. Convert to Domain object for normal reconciliation
 	domainResource, err := r.k8sToDomain(obj)
 	if err != nil {
-		// If conversion fails, it's likely a permanent error (e.g. invalid data in CRD
-		// that passed schema validation but failed domain validation).
-		// We log it and update the status, but do not requeue to avoid hot loops.
+		// If conversion fails, it's likely a permanent error
 		logger.Error("failed to convert k8s object to domain resource", "error", err)
 
 		r.updateStatusCondition(ctx, obj, metav1.Condition{
@@ -91,15 +109,37 @@ func (r *GenericController[D]) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{}, nil
 	}
 
-	// 3. Delegate to the specific handler
+	// 4. Delegate to the specific handler
 	requeue, err := r.handler.HandleReconcile(ctx, domainResource)
 	if err != nil {
+		if errors.Is(err, delegator.ErrStillProcessing) {
+			return ctrl.Result{RequeueAfter: r.requeueAfter}, nil
+		}
 		logger.Error("handler failed to reconcile", "error", err)
 		return ctrl.Result{RequeueAfter: r.requeueAfter}, err
 	}
 
+	// 5. Requeue the request if necessary
 	if requeue {
 		return ctrl.Result{RequeueAfter: r.requeueAfter}, nil
+	}
+
+	// 6. Refresh the K8s object
+	obj = r.prototype.DeepCopyObject().(client.Object)
+	if err := r.client.Get(ctx, req.NamespacedName, obj); err != nil {
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	// 7. Check if the resource deletion process is complete
+	if !obj.GetDeletionTimestamp().IsZero() &&
+		getStateFromObject(obj) == regional.ResourceStateDeleting &&
+		slices.Contains(obj.GetFinalizers(), finalizerName) {
+		obj.SetFinalizers(slices.DeleteFunc(obj.GetFinalizers(), func(v string) bool {
+			return strings.EqualFold(v, finalizerName)
+		}))
+		if err := r.client.Update(ctx, obj); err != nil {
+			return ctrl.Result{}, err
+		}
 	}
 
 	return ctrl.Result{}, nil
@@ -162,4 +202,20 @@ func (r *GenericController[D]) updateStatusCondition(ctx context.Context, obj cl
 	if err := r.client.Status().Update(ctx, uObj); err != nil {
 		logger.Error("failed to update status", "error", err)
 	}
+}
+
+func getStateFromObject(obj client.Object) regional.ResourceStateDomain {
+	// Extract status via unstructured
+	uMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
+	if err != nil {
+		return ""
+	}
+	uObj := &unstructured.Unstructured{Object: uMap}
+
+	state, found, err := unstructured.NestedString(uObj.Object, "status", "state")
+	if err != nil || !found {
+		return ""
+	}
+
+	return regional.ResourceStateDomain(state)
 }

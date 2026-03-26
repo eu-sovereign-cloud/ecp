@@ -195,6 +195,31 @@ const (
 	SkuResourceMetadataKindResourceKindWorkspace            SkuResourceMetadataKind = "workspace"
 )
 
+// Defines values for SkuResourceMetadataKind.
+const (
+	SkuResourceMetadataKindResourceKindActivityLog          SkuResourceMetadataKind = "activity-log"
+	SkuResourceMetadataKindResourceKindBlockStorage         SkuResourceMetadataKind = "block-storage"
+	SkuResourceMetadataKindResourceKindImage                SkuResourceMetadataKind = "image"
+	SkuResourceMetadataKindResourceKindInstance             SkuResourceMetadataKind = "instance"
+	SkuResourceMetadataKindResourceKindInstanceSku          SkuResourceMetadataKind = "instance-sku"
+	SkuResourceMetadataKindResourceKindInternetGateway      SkuResourceMetadataKind = "internet-gateway"
+	SkuResourceMetadataKindResourceKindNetwork              SkuResourceMetadataKind = "network"
+	SkuResourceMetadataKindResourceKindNetworkLoadBalancer  SkuResourceMetadataKind = "network-load-balancer"
+	SkuResourceMetadataKindResourceKindNetworkSku           SkuResourceMetadataKind = "network-sku"
+	SkuResourceMetadataKindResourceKindNic                  SkuResourceMetadataKind = "nic"
+	SkuResourceMetadataKindResourceKindObjectStorageAccount SkuResourceMetadataKind = "object-storage-account"
+	SkuResourceMetadataKindResourceKindPublicIP             SkuResourceMetadataKind = "public-ip"
+	SkuResourceMetadataKindResourceKindRegion               SkuResourceMetadataKind = "region"
+	SkuResourceMetadataKindResourceKindRole                 SkuResourceMetadataKind = "role"
+	SkuResourceMetadataKindResourceKindRoleAssignment       SkuResourceMetadataKind = "role-assignment"
+	SkuResourceMetadataKindResourceKindRoutingTable         SkuResourceMetadataKind = "routing-table"
+	SkuResourceMetadataKindResourceKindSecurityGroup        SkuResourceMetadataKind = "security-group"
+	SkuResourceMetadataKindResourceKindSecurityGroupRule    SkuResourceMetadataKind = "security-group-rule"
+	SkuResourceMetadataKindResourceKindStorageSku           SkuResourceMetadataKind = "storage-sku"
+	SkuResourceMetadataKindResourceKindSubnet               SkuResourceMetadataKind = "subnet"
+	SkuResourceMetadataKindResourceKindWorkspace            SkuResourceMetadataKind = "workspace"
+)
+
 // Defines values for TypeMetadataKind.
 const (
 	TypeMetadataKindResourceKindActivityLog          TypeMetadataKind = "activity-log"
@@ -257,7 +282,7 @@ type GlobalResourceMetadata struct {
 	Resource string     `json:"resource"`
 
 	// ResourceVersion Incremented on every modification of the resource. Used for optimistic concurrency control.
-	ResourceVersion int64  `json:"resourceVersion"`
+	ResourceVersion int    `json:"resourceVersion"`
 	Verb            string `json:"verb"`
 }
 
@@ -293,7 +318,7 @@ type GlobalTenantResourceMetadata struct {
 	Resource string     `json:"resource"`
 
 	// ResourceVersion Incremented on every modification of the resource. Used for optimistic concurrency control.
-	ResourceVersion int64 `json:"resourceVersion"`
+	ResourceVersion int `json:"resourceVersion"`
 
 	// Tenant Tenant identifier
 	Tenant string `json:"tenant"`

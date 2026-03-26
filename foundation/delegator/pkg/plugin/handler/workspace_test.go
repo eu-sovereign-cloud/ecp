@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	gomock "go.uber.org/mock/gomock"
+	"go.uber.org/mock/gomock"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 )
@@ -28,7 +28,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		// Given a resource with active state
 		activeState := regional.ResourceStateActive
 		resource := &regional.WorkspaceDomain{
-			Status: regional.WorkspaceStatusDomain{
+			Status: &regional.WorkspaceStatusDomain{
 				StatusDomain: regional.StatusDomain{
 					State: &activeState,
 				},
@@ -62,7 +62,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		// Given a resource with pending state
 		pendingState := regional.ResourceStatePending
 		resource := &regional.WorkspaceDomain{
-			Status: regional.WorkspaceStatusDomain{
+			Status: &regional.WorkspaceStatusDomain{
 				StatusDomain: regional.StatusDomain{
 					State: &pendingState,
 				},
@@ -104,7 +104,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		// Given a resource with creating state
 		creatingState := regional.ResourceStateCreating
 		resource := &regional.WorkspaceDomain{
-			Status: regional.WorkspaceStatusDomain{
+			Status: &regional.WorkspaceStatusDomain{
 				StatusDomain: regional.StatusDomain{
 					State: &creatingState,
 				},
@@ -147,7 +147,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		// Given a resource with deleting state
 		deletingState := regional.ResourceStateDeleting
 		resource := &regional.WorkspaceDomain{
-			Status: regional.WorkspaceStatusDomain{
+			Status: &regional.WorkspaceStatusDomain{
 				StatusDomain: regional.StatusDomain{
 					State: &deletingState,
 				},
@@ -155,13 +155,9 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		}
 
 		//
-		// And a repo that is expected to be called once to update state
+		// And a repo that is expected to be called once to delete the resource
 		mockRepo := NewMockRepo[*regional.WorkspaceDomain](ctrl)
-		mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(
-			func(_ context.Context, res *regional.WorkspaceDomain) (*regional.WorkspaceDomain, error) {
-				require.Equal(t, regional.ResourceStateDeleting, *res.Status.State)
-				return nil, nil
-			}).Times(1)
+		mockRepo.EXPECT().Delete(gomock.Any(), resource).Return(nil).Times(1)
 
 		//
 		// And a plugin that is expected to be called to delete the resource
@@ -190,7 +186,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		// Given a resource with creating state
 		creatingState := regional.ResourceStateCreating
 		resource := &regional.WorkspaceDomain{
-			Status: regional.WorkspaceStatusDomain{
+			Status: &regional.WorkspaceStatusDomain{
 				StatusDomain: regional.StatusDomain{
 					State: &creatingState,
 				},
@@ -235,7 +231,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		// Given a resource with creating state
 		creatingState := regional.ResourceStateCreating
 		resource := &regional.WorkspaceDomain{
-			Status: regional.WorkspaceStatusDomain{
+			Status: &regional.WorkspaceStatusDomain{
 				StatusDomain: regional.StatusDomain{
 					State: &creatingState,
 				},
@@ -273,7 +269,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		// Given a resource with deleting state
 		deletingState := regional.ResourceStateDeleting
 		resource := &regional.WorkspaceDomain{
-			Status: regional.WorkspaceStatusDomain{
+			Status: &regional.WorkspaceStatusDomain{
 				StatusDomain: regional.StatusDomain{
 					State: &deletingState,
 				},
@@ -318,7 +314,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		// Given a resource with error state that was previously creating
 		errorState := regional.ResourceStateError
 		resource := &regional.WorkspaceDomain{
-			Status: regional.WorkspaceStatusDomain{
+			Status: &regional.WorkspaceStatusDomain{
 				StatusDomain: regional.StatusDomain{
 					State: &errorState,
 					Conditions: []regional.StatusConditionDomain{
@@ -365,7 +361,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		// Given a resource with an unhandled state (e.g., updating)
 		updatingState := regional.ResourceStateUpdating
 		resource := &regional.WorkspaceDomain{
-			Status: regional.WorkspaceStatusDomain{
+			Status: &regional.WorkspaceStatusDomain{
 				StatusDomain: regional.StatusDomain{
 					State: &updatingState,
 				},
@@ -399,7 +395,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		// Given a resource in pending state
 		pendingState := regional.ResourceStatePending
 		resource := &regional.WorkspaceDomain{
-			Status: regional.WorkspaceStatusDomain{
+			Status: &regional.WorkspaceStatusDomain{
 				StatusDomain: regional.StatusDomain{
 					State: &pendingState,
 				},
@@ -435,7 +431,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 
 			creatingState := regional.ResourceStateCreating
 			resource := &regional.WorkspaceDomain{
-				Status: regional.WorkspaceStatusDomain{
+				Status: &regional.WorkspaceStatusDomain{
 					StatusDomain: regional.StatusDomain{
 						State: &creatingState,
 					},

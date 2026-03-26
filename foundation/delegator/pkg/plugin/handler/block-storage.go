@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	gateway "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 
@@ -38,19 +39,25 @@ func (h *BlockStoragePluginHandler) HandleReconcile(ctx context.Context, resourc
 	var delegate delegator.DelegatedFunc[*regional.BlockStorageDomain]
 
 	switch {
+	case isBlockStorageAccepted(resource):
+		delegate = BypassDelegated[*regional.BlockStorageDomain]
+
 	case isBlockStoragePending(resource):
 		delegate = BypassDelegated[*regional.BlockStorageDomain]
 
-	case wantBlockStorageCreate(resource):
+	case isBlockStorageCreating(resource):
 		delegate = h.plugin.Create
 
 	case wantBlockStorageDelete(resource):
-		delegate = h.plugin.Delete
-
-	case isBlockStorageActiveAndNeedsUpdate(resource):
 		delegate = BypassDelegated[*regional.BlockStorageDomain]
 
-	case isBlockStorageUpdatingToIncreaseSize(resource):
+	case isBlockStorageDeleting(resource):
+		delegate = h.plugin.Delete
+
+	case wantBlockStorageIncreaseSize(resource):
+		delegate = BypassDelegated[*regional.BlockStorageDomain]
+
+	case isBlockStorageIncreasingSize(resource):
 		delegate = h.plugin.IncreaseSize
 
 	case wantBlockStorageRetryCreate(resource) || wantBlockStorageRetryIncreaseSize(resource):
@@ -61,38 +68,51 @@ func (h *BlockStoragePluginHandler) HandleReconcile(ctx context.Context, resourc
 	}
 
 	if err := delegate(ctx, resource); err != nil {
-		if err := h.setResourceErrorState(ctx, resource, err); err != nil {
-			return false, err // TODO: better errors handling
+		if errors.Is(err, delegator.ErrStillProcessing) {
+			return true, nil
+		}
+
+		if requeue, err := h.setResourceErrorState(ctx, resource, err, false); err != nil {
+			return requeue, err // TODO: better errors handling
 		}
 
 		return true, nil
 	}
 
 	switch {
-	case isBlockStoragePending(resource):
-		return true, h.setResourceState(ctx, resource, regional.ResourceStateCreating)
 
-	case wantBlockStorageCreate(resource):
+	case isBlockStorageAccepted(resource):
+		return h.setResourceState(ctx, resource, regional.ResourceStatePending, false)
+
+	case isBlockStoragePending(resource):
+		return h.setResourceState(ctx, resource, regional.ResourceStateCreating, true)
+
+	case isBlockStorageCreating(resource):
 		resource.Status.SizeGB = resource.Spec.SizeGB
 
-		return false, h.setResourceState(ctx, resource, regional.ResourceStateActive)
+		return h.setResourceState(ctx, resource, regional.ResourceStateActive, false)
 
 	case wantBlockStorageDelete(resource):
-		return false, h.setResourceState(ctx, resource, regional.ResourceStateDeleting)
+		return h.setResourceState(ctx, resource, regional.ResourceStateDeleting, true)
 
-	case isBlockStorageActiveAndNeedsUpdate(resource):
-		return true, h.setResourceState(ctx, resource, regional.ResourceStateUpdating)
+	case isBlockStorageDeleting(resource):
+		// Nothing to do: the delegator controller will remove the finalizers
+		// in order to end the deletion process.
+		return false, nil
 
-	case isBlockStorageUpdatingToIncreaseSize(resource):
+	case wantBlockStorageIncreaseSize(resource):
+		return h.setResourceState(ctx, resource, regional.ResourceStateUpdating, true)
+
+	case isBlockStorageIncreasingSize(resource):
 		resource.Status.SizeGB = resource.Spec.SizeGB
 
-		return false, h.setResourceState(ctx, resource, regional.ResourceStateActive)
+		return h.setResourceState(ctx, resource, regional.ResourceStateActive, false)
 
 	case wantBlockStorageRetryCreate(resource):
-		return true, h.setResourceState(ctx, resource, regional.ResourceStateCreating)
+		return h.setResourceState(ctx, resource, regional.ResourceStateCreating, true)
 
 	case wantBlockStorageRetryIncreaseSize(resource):
-		return true, h.setResourceState(ctx, resource, regional.ResourceStateUpdating)
+		return h.setResourceState(ctx, resource, regional.ResourceStateUpdating, true)
 
 	default:
 		log.Fatal("must never achieve that condition")
@@ -101,9 +121,7 @@ func (h *BlockStoragePluginHandler) HandleReconcile(ctx context.Context, resourc
 	return false, nil
 }
 
-func (h *BlockStoragePluginHandler) setResourceState(ctx context.Context, resource *regional.BlockStorageDomain, state regional.ResourceStateDomain) error {
-	// TODO: Why the BlockStorage Status is a pointer and the Workspace Status is a nasted structure?
-	// ISSUE: https://github.com/eu-sovereign-cloud/ecp/issues/188
+func (h *BlockStoragePluginHandler) setResourceState(ctx context.Context, resource *regional.BlockStorageDomain, state regional.ResourceStateDomain, requeue bool) (bool, error) {
 	if resource.Status == nil {
 		resource.Status = &regional.BlockStorageStatus{}
 	}
@@ -117,15 +135,17 @@ func (h *BlockStoragePluginHandler) setResourceState(ctx context.Context, resour
 	resource.Status.Conditions = append(resource.Status.Conditions, conditionFromState(state))
 
 	if _, err := h.repo.Update(ctx, resource); err != nil {
-		return err // TODO: better error handling.
+		if errors.Is(err, model.ErrNotFound) {
+			return false, nil
+		}
+
+		return requeue, err
 	}
 
-	return nil
+	return requeue, nil
 }
 
-func (h *BlockStoragePluginHandler) setResourceErrorState(ctx context.Context, resource *regional.BlockStorageDomain, err error) error {
-	// TODO: Why the BlockStorage Status is a pointer and the Workspace Status is a nasted structure?
-	// ISSUE: https://github.com/eu-sovereign-cloud/ecp/issues/188
+func (h *BlockStoragePluginHandler) setResourceErrorState(ctx context.Context, resource *regional.BlockStorageDomain, err error, requeue bool) (bool, error) {
 	if resource.Status == nil {
 		resource.Status = &regional.BlockStorageStatus{}
 	}
@@ -140,10 +160,14 @@ func (h *BlockStoragePluginHandler) setResourceErrorState(ctx context.Context, r
 	resource.Status.Conditions = append(resource.Status.Conditions, conditionFromError(err))
 
 	if _, err := h.repo.Update(ctx, resource); err != nil {
-		return err // TODO: better error handling.
+		if errors.Is(err, model.ErrNotFound) {
+			return false, nil
+		}
+
+		return requeue, err
 	}
 
-	return nil
+	return requeue, nil
 }
 
 func blockDecreaseSize(_ context.Context, resource *regional.BlockStorageDomain) error {
@@ -157,38 +181,74 @@ func blockDecreaseSize(_ context.Context, resource *regional.BlockStorageDomain)
 	return nil
 }
 
-func isBlockStoragePending(resource *regional.BlockStorageDomain) bool {
-	return resource.Status == nil || resource.Status.State == nil || *(resource.Status.State) == regional.ResourceStatePending
+func isBlockStorageAccepted(resource *regional.BlockStorageDomain) bool {
+	return resource.Status == nil || resource.Status.State == nil
 }
 
-func wantBlockStorageCreate(resource *regional.BlockStorageDomain) bool {
-	return *(resource.Status.State) == regional.ResourceStateCreating
+func isBlockStoragePending(resource *regional.BlockStorageDomain) bool {
+	return resource.DeletedAt == nil && (resource.Status == nil ||
+		resource.Status.State == nil ||
+		*(resource.Status.State) == regional.ResourceStatePending)
+}
+
+func isBlockStorageCreating(resource *regional.BlockStorageDomain) bool {
+	return resource.DeletedAt == nil &&
+		resource.Status != nil &&
+		resource.Status.State != nil &&
+		*(resource.Status.State) == regional.ResourceStateCreating
+}
+
+func blockStorageIsNotDeleting(resource *regional.BlockStorageDomain) bool {
+	return resource.Status == nil ||
+		resource.Status.State == nil ||
+		*(resource.Status.State) != regional.ResourceStateDeleting
 }
 
 func wantBlockStorageDelete(resource *regional.BlockStorageDomain) bool {
-	return *(resource.Status.State) == regional.ResourceStateDeleting
+	return resource.DeletedAt != nil && blockStorageIsNotDeleting(resource)
 }
 
-func isBlockStorageActiveAndNeedsUpdate(resource *regional.BlockStorageDomain) bool {
-	return *(resource.Status.State) == regional.ResourceStateActive && wantBlockStorageIncreaseSize(resource)
+func isBlockStorageDeleting(resource *regional.BlockStorageDomain) bool {
+	return resource.DeletedAt != nil &&
+		resource.Status != nil &&
+		resource.Status.State != nil &&
+		*(resource.Status.State) == regional.ResourceStateDeleting
 }
 
-func isBlockStorageUpdatingToIncreaseSize(resource *regional.BlockStorageDomain) bool {
-	return *(resource.Status.State) == regional.ResourceStateUpdating && wantBlockStorageIncreaseSize(resource)
-}
-
-func wantBlockStorageIncreaseSize(resource *regional.BlockStorageDomain) bool {
+func detectIncreaseSizeCondition(resource *regional.BlockStorageDomain) bool {
 	return resource.Spec.SizeGB > resource.Status.SizeGB
 }
 
+func wantBlockStorageIncreaseSize(resource *regional.BlockStorageDomain) bool {
+	return resource.DeletedAt == nil &&
+		resource.Status != nil &&
+		resource.Status.State != nil &&
+		*(resource.Status.State) == regional.ResourceStateActive &&
+		detectIncreaseSizeCondition(resource)
+}
+
+func isBlockStorageIncreasingSize(resource *regional.BlockStorageDomain) bool {
+	return resource.DeletedAt == nil &&
+		resource.Status != nil &&
+		resource.Status.State != nil &&
+		*(resource.Status.State) == regional.ResourceStateUpdating &&
+		detectIncreaseSizeCondition(resource)
+}
+
 func wantBlockStorageRetryCreate(resource *regional.BlockStorageDomain) bool {
-	return *(resource.Status.State) == regional.ResourceStateError &&
+	return resource.DeletedAt == nil &&
+		resource.Status != nil &&
+		resource.Status.State != nil &&
+		*(resource.Status.State) == regional.ResourceStateError &&
 		len(resource.Status.Conditions) > 1 &&
 		resource.Status.Conditions[len(resource.Status.Conditions)-2].State == regional.ResourceStateCreating
 }
 
 func wantBlockStorageRetryIncreaseSize(resource *regional.BlockStorageDomain) bool {
-	return *(resource.Status.State) == regional.ResourceStateError &&
+	return resource.DeletedAt == nil &&
+		resource.Status != nil &&
+		resource.Status.State != nil &&
+		*(resource.Status.State) == regional.ResourceStateError &&
 		len(resource.Status.Conditions) > 1 &&
 		resource.Status.Conditions[len(resource.Status.Conditions)-2].State == regional.ResourceStateUpdating &&
 		resource.Spec.SizeGB > resource.Status.SizeGB

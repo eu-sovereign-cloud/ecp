@@ -15,6 +15,7 @@ import (
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage"
 	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/workspace/v1"
+
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/kubeclient"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes/labels"
@@ -241,9 +242,5 @@ func TestWorkspaceController(t *testing.T) {
 		err := deleteController.Do(ctx, &metadata)
 		require.NoError(t, err)
 
-		// Verify deletion
-		_, err = getController.Do(ctx, &metadata)
-		require.Error(t, err)
-		require.ErrorContains(t, err, "not found")
 	})
 }

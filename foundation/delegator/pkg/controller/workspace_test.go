@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	gomock "go.uber.org/mock/gomock"
+	"go.uber.org/mock/gomock"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	k8srt "sigs.k8s.io/controller-runtime"
@@ -56,7 +56,7 @@ func TestWorkspaceController_Reconcile(t *testing.T) {
 				},
 			},
 			Spec: types.WorkspaceSpec{},
-			Status: types.WorkspaceStatus{
+			Status: &types.WorkspaceStatus{
 				State: &pendingState,
 			},
 		}
@@ -176,7 +176,7 @@ func TestWorkspaceController_Reconcile(t *testing.T) {
 				},
 			},
 			Spec: types.WorkspaceSpec{},
-			Status: types.WorkspaceStatus{
+			Status: &types.WorkspaceStatus{
 				State: &pendingState,
 			},
 		}

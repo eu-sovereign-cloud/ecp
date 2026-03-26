@@ -5,19 +5,22 @@ import "errors"
 // ErrKind represents the category of domain error.
 type ErrKind int
 
-const (
-	// KindForbidden indicates insufficient permissions to access the resource.
-	KindForbidden ErrKind = iota
-	// KindNotFound indicates the requested resource does not exist.
-	KindNotFound
-	// KindConflict indicates resource creation or modification conflict.
-	KindConflict
-	// KindValidation indicates resource validation failure.
-	KindValidation
-	// KindUnavailable indicates external service operation failure.
-	KindUnavailable
-	// KindAlreadyExists indicates resource already exists.
-	KindAlreadyExists
+	// ErrNotFound - the requested resource does not exist.
+	ErrNotFound = errors.New("not found")
+
+	// ErrGone - the requested resource does not exist.
+	ErrGone = errors.New("gone")
+
+	// ErrConflict - resource creation or modification conflict.
+	ErrConflict = errors.New("conflict")
+
+	// ErrValidation - resource validation failure.
+	ErrValidation = errors.New("validation error")
+
+	// ErrUnavailable - external service operation failure.
+	ErrUnavailable = errors.New("service unavailable")
+
+	ErrAlreadyExists = errors.New("resource already exists")
 )
 
 // Sentinel errors
