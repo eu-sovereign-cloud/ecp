@@ -10,9 +10,11 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/testutil"
 	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/storage"
 	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/workspace/v1"
 
@@ -55,7 +57,12 @@ func TestWorkspaceController(t *testing.T) {
 	scheme := runtime.NewScheme()
 	require.NoError(t, storage.AddToScheme(scheme))
 
-	client, err := kubeclient.NewFromConfig(cfg)
+	// Use a config copy with higher rate limits to avoid rate limiter exhaustion
+	// during the adapter's status polling loop (10 req/s exceeds default 5 QPS).
+	testCfg := rest.CopyConfig(cfg)
+	testCfg.QPS = 50
+	testCfg.Burst = 100
+	client, err := kubeclient.NewFromConfig(testCfg)
 	require.NoError(t, err)
 
 	// Create valid Kubernetes namespace name (lowercase, alphanumeric and hyphens only)
@@ -110,6 +117,20 @@ func TestWorkspaceController(t *testing.T) {
 
 	ctx := context.Background()
 
+	// Create the tenant namespace before creating workspace resources.
+	// The workspace CR is stored in the tenant namespace (hash of tenant),
+	// while the NamespaceManagingWriterAdapter only creates the workspace's
+	// child resource namespace (hash of tenant/workspace).
+	namespace := kubernetes.ComputeNamespace(&scope.Scope{Tenant: tenant})
+	_, err = kubernetes.CreateNamespace(ctx, client.ClientSet, namespace, map[string]string{
+		labels.InternalTenantLabel: tenant,
+	})
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		_ = kubernetes.DeleteNamespace(context.Background(), client.ClientSet, namespace)
+	})
+
 	t.Run("create_workspace", func(t *testing.T) {
 		// Create a workspace domain object
 		createDomain := &regional.WorkspaceDomain{
@@ -137,6 +158,20 @@ func TestWorkspaceController(t *testing.T) {
 				},
 			},
 		}
+
+		// Simulate a controller that sets status.state after the CR is created.
+		// WriterAdapter.Create polls for status.state to be non-empty; without
+		// this, the poll times out because envtest has no real controller.
+		// Use a separate dynamic client to avoid exhausting the shared rate limiter.
+		statusCfg := rest.CopyConfig(cfg)
+		statusCfg.QPS = 50
+		statusCfg.Burst = 100
+		statusClient, err := dynamic.NewForConfig(statusCfg)
+		require.NoError(t, err)
+
+		statusCtx, statusCancel := context.WithCancel(ctx)
+		defer statusCancel()
+		go testutil.SimulateStatusController(statusCtx, statusClient, workspacev1.WorkspaceGVR, namespace, workspaceName, nil)
 
 		// Create the workspace
 		createdDomain, err := createController.Do(ctx, createDomain)
