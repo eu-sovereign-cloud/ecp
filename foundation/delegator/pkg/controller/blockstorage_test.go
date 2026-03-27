@@ -50,8 +50,9 @@ func TestBlockStorageController_Reconcile(t *testing.T) {
 				APIVersion: blockstoragev1.BlockStorageGVK.GroupVersion().String(),
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      testName,
-				Namespace: testNamespace,
+				Name:       testName,
+				Namespace:  testNamespace,
+				Finalizers: []string{"secapi.cloud.foundation/cleanup"},
 				Labels: map[string]string{
 					labels.InternalTenantLabel:    testTenant,
 					labels.InternalWorkspaceLabel: testWorkspace,
@@ -173,8 +174,9 @@ func TestBlockStorageController_Reconcile(t *testing.T) {
 				APIVersion: blockstoragev1.BlockStorageGVK.GroupVersion().String(),
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      testName,
-				Namespace: testNamespace,
+				Name:       testName,
+				Namespace:  testNamespace,
+				Finalizers: []string{"secapi.cloud.foundation/cleanup"},
 			},
 			Spec: types.BlockStorageSpec{
 				SizeGB: 10,

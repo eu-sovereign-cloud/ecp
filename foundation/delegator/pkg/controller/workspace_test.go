@@ -49,8 +49,9 @@ func TestWorkspaceController_Reconcile(t *testing.T) {
 				APIVersion: workspacev1.WorkspaceGVK.GroupVersion().String(),
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      testName,
-				Namespace: testNamespace,
+				Name:       testName,
+				Namespace:  testNamespace,
+				Finalizers: []string{"secapi.cloud.foundation/cleanup"},
 				Labels: map[string]string{
 					labels.InternalTenantLabel: testTenant,
 				},
@@ -169,8 +170,9 @@ func TestWorkspaceController_Reconcile(t *testing.T) {
 				APIVersion: workspacev1.WorkspaceGVK.GroupVersion().String(),
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      testName,
-				Namespace: testNamespace,
+				Name:       testName,
+				Namespace:  testNamespace,
+				Finalizers: []string{"secapi.cloud.foundation/cleanup"},
 				Labels: map[string]string{
 					labels.InternalTenantLabel: testTenant,
 				},
