@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 )
 
@@ -144,9 +145,15 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		defer ctrl.Finish()
 
 		//
-		// Given a resource with deleting state
+		// Given a resource with deleting state and a deletion timestamp
 		deletingState := regional.ResourceStateDeleting
+		now := time.Now()
 		resource := &regional.WorkspaceDomain{
+			Metadata: regional.Metadata{
+				CommonMetadata: model.CommonMetadata{
+					DeletedAt: &now,
+				},
+			},
 			Status: &regional.WorkspaceStatusDomain{
 				StatusDomain: regional.StatusDomain{
 					State: &deletingState,
@@ -155,9 +162,8 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		}
 
 		//
-		// And a repo that is expected to be called once to delete the resource
+		// And a repo that is not expected to be called
 		mockRepo := NewMockRepo[*regional.WorkspaceDomain](ctrl)
-		mockRepo.EXPECT().Delete(gomock.Any(), resource).Return(nil).Times(1)
 
 		//
 		// And a plugin that is expected to be called to delete the resource
@@ -266,9 +272,15 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		defer ctrl.Finish()
 
 		//
-		// Given a resource with deleting state
+		// Given a resource with deleting state and a deletion timestamp
 		deletingState := regional.ResourceStateDeleting
+		now := time.Now()
 		resource := &regional.WorkspaceDomain{
+			Metadata: regional.Metadata{
+				CommonMetadata: model.CommonMetadata{
+					DeletedAt: &now,
+				},
+			},
 			Status: &regional.WorkspaceStatusDomain{
 				StatusDomain: regional.StatusDomain{
 					State: &deletingState,

@@ -1,7 +1,7 @@
 package storage
 
 import (
-	v1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/skus/v1"
+	v1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/storage/skus/v1"
 	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 

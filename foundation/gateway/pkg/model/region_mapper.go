@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
-	regionsv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regions/v1"
+	regionsv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/regions/v1"
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 )
 

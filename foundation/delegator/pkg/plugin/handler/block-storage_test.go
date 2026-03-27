@@ -6,10 +6,12 @@ import (
 	"os"
 	"os/exec"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 )
 
@@ -183,18 +185,23 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		defer ctrl.Finish()
 
 		//
-		// Given a resource with deleting state
+		// Given a resource with deleting state and a deletion timestamp
 		deletingState := regional.ResourceStateDeleting
+		now := time.Now()
 		resource := &regional.BlockStorageDomain{
+			Metadata: regional.Metadata{
+				CommonMetadata: model.CommonMetadata{
+					DeletedAt: &now,
+				},
+			},
 			Status: &regional.BlockStorageStatus{
 				State: &deletingState,
 			},
 		}
 
 		//
-		// And a repo that is expected to be called once to delete the resource
+		// And a repo that is not expected to be called
 		mockRepo := NewMockRepo[*regional.BlockStorageDomain](ctrl)
-		mockRepo.EXPECT().Delete(gomock.Any(), resource).Return(nil).Times(1)
 
 		//
 		// And a plugin that is expected to be called to delete the resource
@@ -524,9 +531,15 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		defer ctrl.Finish()
 
 		//
-		// Given a resource with deleting state
+		// Given a resource with deleting state and a deletion timestamp
 		deletingState := regional.ResourceStateDeleting
+		now := time.Now()
 		resource := &regional.BlockStorageDomain{
+			Metadata: regional.Metadata{
+				CommonMetadata: model.CommonMetadata{
+					DeletedAt: &now,
+				},
+			},
 			Status: &regional.BlockStorageStatus{
 				State: &deletingState,
 			},

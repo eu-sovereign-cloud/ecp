@@ -15,10 +15,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/api/generated/types"
-	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/workspace/v1"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes/labels"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/generated/types"
+	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/workspace/v1"
 )
 
 func TestWorkspaceController_Reconcile(t *testing.T) {
@@ -49,8 +49,9 @@ func TestWorkspaceController_Reconcile(t *testing.T) {
 				APIVersion: workspacev1.WorkspaceGVK.GroupVersion().String(),
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      testName,
-				Namespace: testNamespace,
+				Name:       testName,
+				Namespace:  testNamespace,
+				Finalizers: []string{"secapi.cloud.foundation/cleanup"},
 				Labels: map[string]string{
 					labels.InternalTenantLabel: testTenant,
 				},
@@ -169,8 +170,9 @@ func TestWorkspaceController_Reconcile(t *testing.T) {
 				APIVersion: workspacev1.WorkspaceGVK.GroupVersion().String(),
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      testName,
-				Namespace: testNamespace,
+				Name:       testName,
+				Namespace:  testNamespace,
+				Finalizers: []string{"secapi.cloud.foundation/cleanup"},
 				Labels: map[string]string{
 					labels.InternalTenantLabel: testTenant,
 				},

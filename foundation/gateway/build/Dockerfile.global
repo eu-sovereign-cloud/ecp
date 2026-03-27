@@ -1,31 +1,16 @@
 # --- Build Stage ---
-FROM golang:1.25-alpine AS build
+FROM golang:1.26.1-alpine AS build
 
 # Install git required for go mod download to fetch private modules
 RUN apk add --no-cache git
 
 WORKDIR /app
 
-# Copy go.work files first for workspace resolution
-COPY go.work go.work
-COPY go.work.sum go.work.sum
-
 # Pre-copy workspace and module manifests so replace directives resolve
-COPY foundation/delegator/go.mod foundation/delegator/go.mod
-COPY foundation/delegator/go.sum foundation/delegator/go.sum
 COPY foundation/gateway/go.mod foundation/gateway/go.mod
 COPY foundation/gateway/go.sum foundation/gateway/go.sum
-COPY foundation/api/go.mod foundation/api/go.mod
-COPY foundation/api/go.sum foundation/api/go.sum
-
-# Pre-copy plugin module manifests referenced by go.work
-COPY foundation/plugin/aruba/go.mod foundation/plugin/aruba/go.mod
-COPY foundation/plugin/dummy/go.mod foundation/plugin/dummy/go.mod
-COPY foundation/plugin/dummy/go.sum foundation/plugin/dummy/go.sum
-COPY foundation/plugin/e2e/go.mod foundation/plugin/e2e/go.mod
-COPY foundation/plugin/e2e/go.sum foundation/plugin/e2e/go.sum
-COPY foundation/plugin/ionos/go.mod foundation/plugin/ionos/go.mod
-COPY foundation/plugin/ionos/go.sum foundation/plugin/ionos/go.sum
+COPY foundation/persistence/go.mod foundation/persistence/go.mod
+COPY foundation/persistence/go.sum foundation/persistence/go.sum
 
 COPY modules/go-sdk/go.mod modules/go-sdk/go.mod
 
@@ -33,10 +18,12 @@ WORKDIR /app/foundation/gateway
 RUN go mod download
 
 # Copy full source after deps to leverage cache
-WORKDIR /app
-COPY . .
+WORKDIR /app/foundation/persistence
+COPY foundation/persistence .
 
 WORKDIR /app/foundation/gateway
+COPY foundation/gateway .
+
 # Run tests (can disable with BUILD_SKIP_TESTS=1)
 ARG BUILD_SKIP_TESTS=""
 
