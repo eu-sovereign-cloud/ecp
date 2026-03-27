@@ -341,20 +341,7 @@ func (a *WriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
 	_, err = ri.Create(ctx, uobj, metav1.CreateOptions{})
 	if err != nil { // TODO: check if the map error function work for that case
 		a.logger.ErrorContext(ctx, "failed to create resource", "name", m.GetName(), "resource", a.gvr.Resource, "error", err)
-
-		var errModel error
-		switch {
-		case kerrs.IsNotFound(err): // occurs when the namespace of the resource does not exist
-			errModel = model.ErrNotFound
-		case kerrs.IsAlreadyExists(err): // occurs when the resource with the same name already exists
-			errModel = model.ErrAlreadyExists
-		case kerrs.IsInvalid(err): // occurs when the resource is semantically invalid
-			errModel = model.ErrValidation
-		default:
-			errModel = model.ErrUnavailable
-		}
-
-		return nil, fmt.Errorf("%w: failed to create %s '%s': %w", errModel, a.gvr.Resource, m.GetName(), err)
+		return nil, kubeToDomainError(err)
 	}
 
 	var ures *unstructured.Unstructured
