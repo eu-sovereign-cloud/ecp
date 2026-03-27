@@ -442,47 +442,55 @@ func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
 
 	// 3 - Setup the K8s Client Interface to the resource and namespace
 	resourceInterface := a.client.Resource(a.gvr).Namespace(ComputeNamespace(m))
-
 	// 4 - Update the Spec if present
-	if labelsFound || annotationsFound || specFound {
-		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-			currObj, getErr := resourceInterface.Get(ctx, m.GetName(), metav1.GetOptions{})
-			if getErr != nil {
-				return getErr
-			}
+	if m.GetVersion() == "" {
 
-			// Skip spec updating when deleting
-			if !currObj.GetDeletionTimestamp().IsZero() {
-				return nil
-			}
+		if labelsFound || annotationsFound || specFound {
+			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				currObj, getErr := resourceInterface.Get(ctx, m.GetName(), metav1.GetOptions{})
+				if getErr != nil {
+					return getErr
+				}
 
-			// Extract the current spec
-			currSpec, currSpecFound, err := unstructured.NestedMap(currObj.Object, "spec")
-			if err != nil {
-				return err // TODO: better error handling
-			}
+				// Skip spec updating when deleting
+				if !currObj.GetDeletionTimestamp().IsZero() {
+					return nil
+				}
 
-			// Set labels
-			currObj.SetLabels(desiredLabels)
-
-			// Set annotations
-			currObj.SetAnnotations(desiredAnnotations)
-
-			// Set the desired spec on the current object
-			if currSpecFound && !cmp.Equal(currSpec, desiredSpec) {
-				if err := unstructured.SetNestedMap(currObj.Object, desiredSpec, "spec"); err != nil {
+				// Extract the current spec
+				currSpec, currSpecFound, err := unstructured.NestedMap(currObj.Object, "spec")
+				if err != nil {
 					return err // TODO: better error handling
 				}
-			}
 
-			// Update the resource spec on K8s
-			if _, err := resourceInterface.Update(ctx, currObj, metav1.UpdateOptions{}); err != nil {
-				return err // TODO: better error handling
-			}
+				// Set labels
+				currObj.SetLabels(desiredLabels)
 
-			// At this point everything is OK
-			return nil
-		})
+				// Set annotations
+				currObj.SetAnnotations(desiredAnnotations)
+
+				// Set the desired spec on the current object
+				if currSpecFound && !cmp.Equal(currSpec, desiredSpec) {
+					if err := unstructured.SetNestedMap(currObj.Object, desiredSpec, "spec"); err != nil {
+						return err // TODO: better error handling
+					}
+				}
+
+				// Update the resource spec on K8s
+				if _, err := resourceInterface.Update(ctx, currObj, metav1.UpdateOptions{}); err != nil {
+					return err // TODO: better error handling
+				}
+
+				// At this point everything is OK
+				return nil
+			})
+			if err != nil {
+				return nil, a.mapUpdateError(err, m.GetName())
+			}
+		}
+	} else {
+		// For versioned updates, we can assume that the whole object is updated, so we can directly call the Update API.
+		_, err = resourceInterface.Update(ctx, uobj, metav1.UpdateOptions{})
 		if err != nil {
 			return nil, a.mapUpdateError(err, m.GetName())
 		}
