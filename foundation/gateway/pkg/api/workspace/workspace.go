@@ -102,7 +102,7 @@ func DomainToAPIIterator(domainWorkspaces []*regional.WorkspaceDomain, nextSkipT
 func mapWorkspaceDomainToAPI(domain regional.WorkspaceDomain, verb string) *schema.Workspace {
 	resVersion := 0
 	// resourceVersion is best-effort numeric
-	if rv, err := strconv.ParseInt(domain.ResourceVersion, 10, 64); err == nil {
+	if rv, err := strconv.Atoi(domain.ResourceVersion); err == nil {
 		resVersion = rv
 	}
 
