@@ -162,37 +162,13 @@ const (
 
 // Defines values for ResourceState.
 const (
-	ResourceStateActive   ResourceState = "active"
-	ResourceStateCreating ResourceState = "creating"
-	ResourceStateDeleting ResourceState = "deleting"
-	ResourceStateError    ResourceState = "error"
-	ResourceStatePending  ResourceState = "pending"
-	ResourceStateUpdating ResourceState = "updating"
-)
-
-// Defines values for SkuResourceMetadataKind.
-const (
-	SkuResourceMetadataKindResourceKindActivityLog          SkuResourceMetadataKind = "activity-log"
-	SkuResourceMetadataKindResourceKindBlockStorage         SkuResourceMetadataKind = "block-storage"
-	SkuResourceMetadataKindResourceKindImage                SkuResourceMetadataKind = "image"
-	SkuResourceMetadataKindResourceKindInstance             SkuResourceMetadataKind = "instance"
-	SkuResourceMetadataKindResourceKindInstanceSku          SkuResourceMetadataKind = "instance-sku"
-	SkuResourceMetadataKindResourceKindInternetGateway      SkuResourceMetadataKind = "internet-gateway"
-	SkuResourceMetadataKindResourceKindNetwork              SkuResourceMetadataKind = "network"
-	SkuResourceMetadataKindResourceKindNetworkLoadBalancer  SkuResourceMetadataKind = "network-load-balancer"
-	SkuResourceMetadataKindResourceKindNetworkSku           SkuResourceMetadataKind = "network-sku"
-	SkuResourceMetadataKindResourceKindNic                  SkuResourceMetadataKind = "nic"
-	SkuResourceMetadataKindResourceKindObjectStorageAccount SkuResourceMetadataKind = "object-storage-account"
-	SkuResourceMetadataKindResourceKindPublicIP             SkuResourceMetadataKind = "public-ip"
-	SkuResourceMetadataKindResourceKindRegion               SkuResourceMetadataKind = "region"
-	SkuResourceMetadataKindResourceKindRole                 SkuResourceMetadataKind = "role"
-	SkuResourceMetadataKindResourceKindRoleAssignment       SkuResourceMetadataKind = "role-assignment"
-	SkuResourceMetadataKindResourceKindRoutingTable         SkuResourceMetadataKind = "routing-table"
-	SkuResourceMetadataKindResourceKindSecurityGroup        SkuResourceMetadataKind = "security-group"
-	SkuResourceMetadataKindResourceKindSecurityGroupRule    SkuResourceMetadataKind = "security-group-rule"
-	SkuResourceMetadataKindResourceKindStorageSku           SkuResourceMetadataKind = "storage-sku"
-	SkuResourceMetadataKindResourceKindSubnet               SkuResourceMetadataKind = "subnet"
-	SkuResourceMetadataKindResourceKindWorkspace            SkuResourceMetadataKind = "workspace"
+	ResourceStateActive    ResourceState = "active"
+	ResourceStateCreating  ResourceState = "creating"
+	ResourceStateDeleting  ResourceState = "deleting"
+	ResourceStateError     ResourceState = "error"
+	ResourceStatePending   ResourceState = "pending"
+	ResourceStateSuspended ResourceState = "suspended"
+	ResourceStateUpdating  ResourceState = "updating"
 )
 
 // Defines values for SkuResourceMetadataKind.
@@ -345,7 +321,7 @@ type ModificationMetadata struct {
 	LastModifiedAt time.Time `json:"lastModifiedAt"`
 
 	// ResourceVersion Incremented on every modification of the resource. Used for optimistic concurrency control.
-	ResourceVersion int64 `json:"resourceVersion"`
+	ResourceVersion int `json:"resourceVersion"`
 }
 
 // NameMetadata Metadata for resource names
@@ -464,7 +440,7 @@ type RegionalNetworkResourceMetadata struct {
 	Resource string `json:"resource"`
 
 	// ResourceVersion Incremented on every modification of the resource. Used for optimistic concurrency control.
-	ResourceVersion int64 `json:"resourceVersion"`
+	ResourceVersion int `json:"resourceVersion"`
 
 	// Tenant Tenant identifier
 	Tenant string `json:"tenant"`
@@ -509,7 +485,7 @@ type RegionalResourceMetadata struct {
 	Resource string `json:"resource"`
 
 	// ResourceVersion Incremented on every modification of the resource. Used for optimistic concurrency control.
-	ResourceVersion int64 `json:"resourceVersion"`
+	ResourceVersion int `json:"resourceVersion"`
 
 	// Tenant Tenant identifier
 	Tenant string `json:"tenant"`
@@ -551,7 +527,7 @@ type RegionalWorkspaceResourceMetadata struct {
 	Resource string `json:"resource"`
 
 	// ResourceVersion Incremented on every modification of the resource. Used for optimistic concurrency control.
-	ResourceVersion int64 `json:"resourceVersion"`
+	ResourceVersion int `json:"resourceVersion"`
 
 	// Tenant Tenant identifier
 	Tenant string `json:"tenant"`
@@ -591,6 +567,7 @@ type ResourceMetadataKind string
 // - active: available for data layer usage
 // - updating: available for data layer usage
 // - deleting: maybe still available for data layer user, can fail any moment
+// - suspended: not available, provider specific behavior (payment issue, user decided to suspend)
 // - error: failed to fulfill the request; would be related to provider issue or customer related input.
 type ResourceState string
 
@@ -644,6 +621,7 @@ type Status struct {
 	// - active: available for data layer usage
 	// - updating: available for data layer usage
 	// - deleting: maybe still available for data layer user, can fail any moment
+	// - suspended: not available, provider specific behavior (payment issue, user decided to suspend)
 	// - error: failed to fulfill the request; would be related to provider issue or customer related input.
 	State *ResourceState `json:"state,omitempty"`
 }
@@ -672,6 +650,7 @@ type StatusCondition struct {
 	// - active: available for data layer usage
 	// - updating: available for data layer usage
 	// - deleting: maybe still available for data layer user, can fail any moment
+	// - suspended: not available, provider specific behavior (payment issue, user decided to suspend)
 	// - error: failed to fulfill the request; would be related to provider issue or customer related input.
 	State ResourceState `json:"state"`
 
