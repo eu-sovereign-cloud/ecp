@@ -1,9 +1,9 @@
 module github.com/eu-sovereign-cloud/ecp/foundation/gateway
 
-go 1.25.0
+go 1.26.1
 
 require (
-	github.com/eu-sovereign-cloud/ecp/foundation/api v0.0.1
+	github.com/eu-sovereign-cloud/ecp/foundation/persistence v0.0.1
 	github.com/eu-sovereign-cloud/go-sdk v0.3.1-0.20260116115910-deedd8930401
 	github.com/gobwas/glob v0.2.3
 	github.com/google/go-cmp v0.7.0
@@ -79,4 +79,4 @@ require (
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
 
-replace github.com/eu-sovereign-cloud/ecp/foundation/api v0.0.1 => ../api
+replace github.com/eu-sovereign-cloud/ecp/foundation/persistence v0.0.1 => ../persistence

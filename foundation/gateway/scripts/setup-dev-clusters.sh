@@ -19,7 +19,7 @@ REGIONAL_KUBECONFIG_PATH="${KUBECONFIG_DIR}/regional-config"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GATEWAY_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 API_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-API_CRDS_DIR="${API_ROOT}/api/generated/crds"
+API_CRDS_DIR="${API_ROOT}/persistence/generated/crds"
 CONFIG_SETUP_DIR="${GATEWAY_ROOT}/config/k8s-dev-setup"
 REGIONAL_CONFIG_DIR="${CONFIG_SETUP_DIR}/regional"
 

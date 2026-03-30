@@ -1,5 +1,5 @@
 # --- Build Stage ---
-FROM golang:1.25-alpine AS build
+FROM golang:1.26.1-alpine AS build
 
 RUN apk add --no-cache git
 
@@ -10,8 +10,8 @@ COPY go.work go.work
 COPY go.work.sum go.work.sum
 
 # Pre-copy module manifests so replace directives resolve before full source copy
-COPY foundation/api/go.mod foundation/api/go.mod
-COPY foundation/api/go.sum foundation/api/go.sum
+COPY foundation/persistence/go.mod foundation/persistence/go.mod
+COPY foundation/persistence/go.sum foundation/persistence/go.sum
 COPY foundation/delegator/go.mod foundation/delegator/go.mod
 COPY foundation/delegator/go.sum foundation/delegator/go.sum
 COPY foundation/gateway/go.mod foundation/gateway/go.mod
