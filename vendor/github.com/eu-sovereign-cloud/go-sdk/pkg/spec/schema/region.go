@@ -13,7 +13,7 @@ type Provider struct {
 // Region Represents a region, which is a geographical location
 // with one or more zones.
 type Region struct {
-	// Metadata Metadata for global resources with name, permission, modification, type, and tenant information.
+	// Metadata Metadata for global resources with name, permission, modification and type information.
 	Metadata *GlobalResourceMetadata `json:"metadata,omitempty"`
 
 	// Spec The specification of a region, including the available zones and providers.

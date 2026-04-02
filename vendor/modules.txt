@@ -75,6 +75,8 @@ github.com/emicklei/go-restful/v3/log
 ## explicit; go 1.26.1
 # github.com/eu-sovereign-cloud/go-sdk v0.3.1-0.20260116115910-deedd8930401
 ## explicit; go 1.24
+# github.com/eu-sovereign-cloud/go-sdk v0.3.51-0.20260330132803-c0ab513a964f
+## explicit; go 1.24
 github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.compute.v1
 github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.network.v1
 github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1
@@ -347,7 +349,9 @@ github.com/munnerz/goautoneg
 ## explicit
 github.com/mxk/go-flowrate/flowrate
 # github.com/oapi-codegen/runtime v1.1.2
-## explicit; go 1.20
+## explicit; go 1.24
+# github.com/oapi-codegen/runtime v1.3.1
+## explicit; go 1.24
 github.com/oapi-codegen/runtime
 github.com/oapi-codegen/runtime/types
 # github.com/onsi/gomega v1.38.3

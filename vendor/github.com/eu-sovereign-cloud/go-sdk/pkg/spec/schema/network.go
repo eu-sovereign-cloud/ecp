@@ -74,7 +74,7 @@ type Network struct {
 // CIDR block would be `0.0.0.0/16` and for a /56 IPv6 CIDR block the CIDR block would
 // be `::/56`. Most CSP will not allow to use a different IPv6 prefix length than /56.
 type NetworkSpec struct {
-	AdditionalCidrs *[]Cidr `json:"additionalCidrs,omitempty"`
+	AdditionalCidrs []Cidr `json:"additionalCidrs,omitempty"`
 
 	// Cidr Combined IPv4 and IPv6 CIDR block for a subnet. Depending on the network
 	// configuration, either the IPv4 or IPv6 range can be omitted. So the following
@@ -95,7 +95,7 @@ type NetworkSpec struct {
 
 // NetworkStatus defines model for NetworkStatus.
 type NetworkStatus struct {
-	AdditionalCidrs *[]Cidr `json:"additionalCidrs,omitempty"`
+	AdditionalCidrs []Cidr `json:"additionalCidrs,omitempty"`
 
 	// Cidr Combined IPv4 and IPv6 CIDR block for a subnet. Depending on the network
 	// configuration, either the IPv4 or IPv6 range can be omitted. So the following
@@ -108,17 +108,8 @@ type NetworkStatus struct {
 	Conditions []StatusCondition `json:"conditions"`
 
 	// RouteTableRef Reference to the route table used by default for all Subnets.
-	RouteTableRef *Reference `json:"routeTableRef,omitempty"`
-
-	// State Current phase of the resource:
-	// - pending: not available, waiting for other resources
-	// - creating: not available, creation started
-	// - active: available for data layer usage
-	// - updating: available for data layer usage
-	// - deleting: maybe still available for data layer user, can fail any moment
-	// - suspended: not available, provider specific behavior (payment issue, user decided to suspend)
-	// - error: failed to fulfill the request; would be related to provider issue or customer related input.
-	State *ResourceState `json:"state,omitempty"`
+	RouteTableRef *Reference    `json:"routeTableRef,omitempty"`
+	State         ResourceState `json:"state,omitempty"`
 }
 
 // Cidr Combined IPv4 and IPv6 CIDR block for a subnet. Depending on the network
@@ -130,8 +121,8 @@ type NetworkStatus struct {
 // * IPv4 and IPv6 (Dual Stack)
 type Cidr struct {
 	// Ipv4 IPv4 CIDR block for the subnet.
-	Ipv4 *string `json:"ipv4,omitempty"`
+	Ipv4 string `json:"ipv4,omitempty"`
 
 	// Ipv6 IPv6 CIDR block for the subnet.
-	Ipv6 *string `json:"ipv6,omitempty"`
+	Ipv6 string `json:"ipv6,omitempty"`
 }

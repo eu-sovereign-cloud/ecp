@@ -54,7 +54,10 @@ type NicSpec struct {
 
 	// PublicIpRefs References to public IP addresses associated with this NIC. The IP may be external
 	// and not directly visible on the server/NIC itself.
-	PublicIpRefs *[]Reference `json:"publicIpRefs,omitempty"`
+	PublicIpRefs []Reference `json:"publicIpRefs,omitempty"`
+
+	// SecurityGroupRefs References to the security groups associated with this NIC.
+	SecurityGroupRefs []Reference `json:"securityGroupRefs,omitempty"`
 
 	// SkuRef Reference to the SKU of the NIC.
 	SkuRef *Reference `json:"skuRef,omitempty"`
@@ -65,22 +68,13 @@ type NicSpec struct {
 
 // NicStatus defines model for NicStatus.
 type NicStatus struct {
-	Addresses  *[]NicIp          `json:"addresses,omitempty"`
+	Addresses  []NicIp           `json:"addresses,omitempty"`
 	Conditions []StatusCondition `json:"conditions"`
 
 	// MacAddress MAC address of the NIC.
-	MacAddress *string `json:"macAddress,omitempty"`
+	MacAddress string `json:"macAddress,omitempty"`
 
 	// PublicIpRefs Array of public IP addresses associated with this NIC.
-	PublicIpRefs *[]Reference `json:"publicIpRefs,omitempty"`
-
-	// State Current phase of the resource:
-	// - pending: not available, waiting for other resources
-	// - creating: not available, creation started
-	// - active: available for data layer usage
-	// - updating: available for data layer usage
-	// - deleting: maybe still available for data layer user, can fail any moment
-	// - suspended: not available, provider specific behavior (payment issue, user decided to suspend)
-	// - error: failed to fulfill the request; would be related to provider issue or customer related input.
-	State *ResourceState `json:"state,omitempty"`
+	PublicIpRefs []Reference   `json:"publicIpRefs,omitempty"`
+	State        ResourceState `json:"state,omitempty"`
 }
