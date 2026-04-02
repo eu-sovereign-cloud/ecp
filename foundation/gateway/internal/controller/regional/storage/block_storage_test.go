@@ -12,9 +12,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	k8sschema "k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/rest"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage"
-	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/block-storages/v1"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/testutil"
+	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/storage"
+	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/storage/block-storages/v1"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
@@ -28,7 +30,12 @@ func TestStorageController_CreateAndGetBlockStorage(t *testing.T) {
 	scheme := runtime.NewScheme()
 	require.NoError(t, storage.AddToScheme(scheme))
 
-	dynClient, err := dynamic.NewForConfig(cfg)
+	// Use a config copy with higher rate limits to avoid rate limiter exhaustion
+	// during the adapter's status polling loop.
+	testCfg := rest.CopyConfig(cfg)
+	testCfg.QPS = 50
+	testCfg.Burst = 100
+	dynClient, err := dynamic.NewForConfig(testCfg)
 	require.NoError(t, err)
 
 	// Create valid Kubernetes namespace name (lowercase, alphanumeric and hyphens only)
@@ -136,6 +143,21 @@ func TestStorageController_CreateAndGetBlockStorage(t *testing.T) {
 				},
 			},
 		}
+
+		// Simulate a controller that sets status.state after the CR is created.
+		// WriterAdapter.Create polls for status.state to be non-empty; without
+		// this, the poll times out because envtest has no real controller.
+		statusCfg := rest.CopyConfig(cfg)
+		statusCfg.QPS = 50
+		statusCfg.Burst = 100
+		statusClient, err := dynamic.NewForConfig(statusCfg)
+		require.NoError(t, err)
+
+		statusCtx, statusCancel := context.WithCancel(ctx)
+		defer statusCancel()
+		go testutil.SimulateStatusController(statusCtx, statusClient, blockstoragev1.BlockStorageGVR, namespace, blockStorageName, map[string]interface{}{
+			"sizeGB": int64(100),
+		})
 
 		// Create the block storage
 		createdDomain, err := createController.Do(ctx, createDomain)

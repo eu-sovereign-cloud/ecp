@@ -83,8 +83,6 @@ func conditionFromState(state regional.ResourceStateDomain) regional.StatusCondi
 		message = "Resource is being updated."
 	case regional.ResourceStateDeleting:
 		message = "Resource is being deleted."
-	case regional.ResourceStateSuspended:
-		message = "Resource is suspended."
 	}
 
 	return regional.StatusConditionDomain{

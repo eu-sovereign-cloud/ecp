@@ -72,11 +72,18 @@ const (
 	ListPublicIpsParamsAcceptAcceptHeaderJsonDeletedTrue ListPublicIpsParamsAccept = "application/json; deleted=true"
 )
 
+// Defines values for ListSecurityGroupRulesParamsAccept.
+const (
+	ListSecurityGroupRulesParamsAcceptAcceptHeaderJson            ListSecurityGroupRulesParamsAccept = "application/json"
+	ListSecurityGroupRulesParamsAcceptAcceptHeaderJsonDeletedOnly ListSecurityGroupRulesParamsAccept = "application/json; deleted=only"
+	ListSecurityGroupRulesParamsAcceptAcceptHeaderJsonDeletedTrue ListSecurityGroupRulesParamsAccept = "application/json; deleted=true"
+)
+
 // Defines values for ListSecurityGroupsParamsAccept.
 const (
-	ListSecurityGroupsParamsAcceptAcceptHeaderJson            ListSecurityGroupsParamsAccept = "application/json"
-	ListSecurityGroupsParamsAcceptAcceptHeaderJsonDeletedOnly ListSecurityGroupsParamsAccept = "application/json; deleted=only"
-	ListSecurityGroupsParamsAcceptAcceptHeaderJsonDeletedTrue ListSecurityGroupsParamsAccept = "application/json; deleted=true"
+	AcceptHeaderJson            ListSecurityGroupsParamsAccept = "application/json"
+	AcceptHeaderJsonDeletedOnly ListSecurityGroupsParamsAccept = "application/json; deleted=only"
+	AcceptHeaderJsonDeletedTrue ListSecurityGroupsParamsAccept = "application/json; deleted=true"
 )
 
 // InternetGatewayIterator Iterator for internet gateways
@@ -128,6 +135,15 @@ type RouteTableIterator struct {
 type SecurityGroupIterator struct {
 	// Items List of security-groups
 	Items []externalRef0.SecurityGroup `json:"items"`
+
+	// Metadata Metadata for response objects.
+	Metadata externalRef0.ResponseMetadata `json:"metadata"`
+}
+
+// SecurityGroupRuleIterator Iterator for security-group-rules
+type SecurityGroupRuleIterator struct {
+	// Items List of security-group-rules
+	Items []externalRef0.SecurityGroupRule `json:"items"`
 
 	// Metadata Metadata for response objects.
 	Metadata externalRef0.ResponseMetadata `json:"metadata"`
@@ -424,6 +440,47 @@ type CreateOrUpdatePublicIpParams struct {
 	IfUnmodifiedSince *externalRef0.IfUnmodifiedSince `json:"if-unmodified-since,omitempty"`
 }
 
+// ListSecurityGroupRulesParams defines parameters for ListSecurityGroupRules.
+type ListSecurityGroupRulesParams struct {
+	// Labels Filter resources by their labels. Multiple filters are combined with comma.
+	// Filter syntax:
+	//   - Equals: key=value
+	//   - Not equals: key!=value
+	//   - Wildcards: \*key\*=\*value\* - substring (contains) match on both key and value. Each `*` can appear at start, end or in the middle to mean "any characters". Example: \*env\*=\*prod\* matches a label key containing "env" whose value contains "prod".
+	//   - Numeric: key>value, key<value, key>=value, key<=value
+	//   - Namespaced key examples: 'monitoring:alert-level=high' or 'billing:team=platform'
+	Labels *externalRef0.LabelSelector `form:"labels,omitempty" json:"labels,omitempty"`
+
+	// Limit Maximum number of resources to return in the response
+	Limit *externalRef0.LimitParam `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// SkipToken Opaque cursor for pagination. Use the skipToken from the previous response to get the next page of results. Note that skipTokens do not guarantee consistency across pages if the underlying data changes between requests
+	SkipToken *externalRef0.SkipTokenParam `form:"skipToken,omitempty" json:"skipToken,omitempty"`
+
+	// Accept Controls whether deleted resources are included:
+	// - `"application/json"`: Returns only non-deleted resources
+	// - `"application/json; deleted=true"`: Returns both deleted and non-deleted resources
+	// - `"application/json; deleted=only"`: Returns only deleted resources
+	Accept *ListSecurityGroupRulesParamsAccept `json:"Accept,omitempty"`
+}
+
+// ListSecurityGroupRulesParamsAccept defines parameters for ListSecurityGroupRules.
+type ListSecurityGroupRulesParamsAccept string
+
+// DeleteSecurityGroupRuleParams defines parameters for DeleteSecurityGroupRule.
+type DeleteSecurityGroupRuleParams struct {
+	// IfUnmodifiedSince Returns resources only if they have not been modified since the specified version.
+	// Uses metadata.resourceVersion for comparison.
+	IfUnmodifiedSince *externalRef0.IfUnmodifiedSince `json:"if-unmodified-since,omitempty"`
+}
+
+// CreateOrUpdateSecurityGroupRuleParams defines parameters for CreateOrUpdateSecurityGroupRule.
+type CreateOrUpdateSecurityGroupRuleParams struct {
+	// IfUnmodifiedSince Returns resources only if they have not been modified since the specified version.
+	// Uses metadata.resourceVersion for comparison.
+	IfUnmodifiedSince *externalRef0.IfUnmodifiedSince `json:"if-unmodified-since,omitempty"`
+}
+
 // ListSecurityGroupsParams defines parameters for ListSecurityGroups.
 type ListSecurityGroupsParams struct {
 	// Labels Filter resources by their labels. Multiple filters are combined with comma.
@@ -482,6 +539,9 @@ type CreateOrUpdateNicJSONRequestBody = externalRef0.Nic
 
 // CreateOrUpdatePublicIpJSONRequestBody defines body for CreateOrUpdatePublicIp for application/json ContentType.
 type CreateOrUpdatePublicIpJSONRequestBody = externalRef0.PublicIp
+
+// CreateOrUpdateSecurityGroupRuleJSONRequestBody defines body for CreateOrUpdateSecurityGroupRule for application/json ContentType.
+type CreateOrUpdateSecurityGroupRuleJSONRequestBody = externalRef0.SecurityGroupRule
 
 // CreateOrUpdateSecurityGroupJSONRequestBody defines body for CreateOrUpdateSecurityGroup for application/json ContentType.
 type CreateOrUpdateSecurityGroupJSONRequestBody = externalRef0.SecurityGroup
@@ -648,6 +708,20 @@ type ClientInterface interface {
 	CreateOrUpdatePublicIpWithBody(ctx context.Context, tenant externalRef0.TenantPathParam, workspace externalRef0.WorkspacePathParam, name externalRef0.ResourcePathParam, params *CreateOrUpdatePublicIpParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	CreateOrUpdatePublicIp(ctx context.Context, tenant externalRef0.TenantPathParam, workspace externalRef0.WorkspacePathParam, name externalRef0.ResourcePathParam, params *CreateOrUpdatePublicIpParams, body CreateOrUpdatePublicIpJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListSecurityGroupRules request
+	ListSecurityGroupRules(ctx context.Context, tenant externalRef0.TenantPathParam, workspace externalRef0.WorkspacePathParam, params *ListSecurityGroupRulesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteSecurityGroupRule request
+	DeleteSecurityGroupRule(ctx context.Context, tenant externalRef0.TenantPathParam, workspace externalRef0.WorkspacePathParam, name externalRef0.ResourcePathParam, params *DeleteSecurityGroupRuleParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetSecurityGroupRule request
+	GetSecurityGroupRule(ctx context.Context, tenant externalRef0.TenantPathParam, workspace externalRef0.WorkspacePathParam, name externalRef0.ResourcePathParam, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateOrUpdateSecurityGroupRuleWithBody request with any body
+	CreateOrUpdateSecurityGroupRuleWithBody(ctx context.Context, tenant externalRef0.TenantPathParam, workspace externalRef0.WorkspacePathParam, name externalRef0.ResourcePathParam, params *CreateOrUpdateSecurityGroupRuleParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateOrUpdateSecurityGroupRule(ctx context.Context, tenant externalRef0.TenantPathParam, workspace externalRef0.WorkspacePathParam, name externalRef0.ResourcePathParam, params *CreateOrUpdateSecurityGroupRuleParams, body CreateOrUpdateSecurityGroupRuleJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListSecurityGroups request
 	ListSecurityGroups(ctx context.Context, tenant externalRef0.TenantPathParam, workspace externalRef0.WorkspacePathParam, params *ListSecurityGroupsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -1038,6 +1112,66 @@ func (c *Client) CreateOrUpdatePublicIpWithBody(ctx context.Context, tenant exte
 
 func (c *Client) CreateOrUpdatePublicIp(ctx context.Context, tenant externalRef0.TenantPathParam, workspace externalRef0.WorkspacePathParam, name externalRef0.ResourcePathParam, params *CreateOrUpdatePublicIpParams, body CreateOrUpdatePublicIpJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCreateOrUpdatePublicIpRequest(c.Server, tenant, workspace, name, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListSecurityGroupRules(ctx context.Context, tenant externalRef0.TenantPathParam, workspace externalRef0.WorkspacePathParam, params *ListSecurityGroupRulesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListSecurityGroupRulesRequest(c.Server, tenant, workspace, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteSecurityGroupRule(ctx context.Context, tenant externalRef0.TenantPathParam, workspace externalRef0.WorkspacePathParam, name externalRef0.ResourcePathParam, params *DeleteSecurityGroupRuleParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteSecurityGroupRuleRequest(c.Server, tenant, workspace, name, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetSecurityGroupRule(ctx context.Context, tenant externalRef0.TenantPathParam, workspace externalRef0.WorkspacePathParam, name externalRef0.ResourcePathParam, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetSecurityGroupRuleRequest(c.Server, tenant, workspace, name)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateOrUpdateSecurityGroupRuleWithBody(ctx context.Context, tenant externalRef0.TenantPathParam, workspace externalRef0.WorkspacePathParam, name externalRef0.ResourcePathParam, params *CreateOrUpdateSecurityGroupRuleParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateOrUpdateSecurityGroupRuleRequestWithBody(c.Server, tenant, workspace, name, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateOrUpdateSecurityGroupRule(ctx context.Context, tenant externalRef0.TenantPathParam, workspace externalRef0.WorkspacePathParam, name externalRef0.ResourcePathParam, params *CreateOrUpdateSecurityGroupRuleParams, body CreateOrUpdateSecurityGroupRuleJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateOrUpdateSecurityGroupRuleRequest(c.Server, tenant, workspace, name, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -3090,6 +3224,303 @@ func NewCreateOrUpdatePublicIpRequestWithBody(server string, tenant externalRef0
 	return req, nil
 }
 
+// NewListSecurityGroupRulesRequest generates requests for ListSecurityGroupRules
+func NewListSecurityGroupRulesRequest(server string, tenant externalRef0.TenantPathParam, workspace externalRef0.WorkspacePathParam, params *ListSecurityGroupRulesParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "tenant", runtime.ParamLocationPath, tenant)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "workspace", runtime.ParamLocationPath, workspace)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/tenants/%s/workspaces/%s/security-group-rules", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Labels != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "labels", runtime.ParamLocationQuery, *params.Labels); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.SkipToken != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "skipToken", runtime.ParamLocationQuery, *params.SkipToken); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.Accept != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithLocation("simple", false, "Accept", runtime.ParamLocationHeader, *params.Accept)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Accept", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewDeleteSecurityGroupRuleRequest generates requests for DeleteSecurityGroupRule
+func NewDeleteSecurityGroupRuleRequest(server string, tenant externalRef0.TenantPathParam, workspace externalRef0.WorkspacePathParam, name externalRef0.ResourcePathParam, params *DeleteSecurityGroupRuleParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "tenant", runtime.ParamLocationPath, tenant)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "workspace", runtime.ParamLocationPath, workspace)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithLocation("simple", false, "name", runtime.ParamLocationPath, name)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/tenants/%s/workspaces/%s/security-group-rules/%s", pathParam0, pathParam1, pathParam2)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfUnmodifiedSince != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithLocation("simple", false, "if-unmodified-since", runtime.ParamLocationHeader, *params.IfUnmodifiedSince)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("if-unmodified-since", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewGetSecurityGroupRuleRequest generates requests for GetSecurityGroupRule
+func NewGetSecurityGroupRuleRequest(server string, tenant externalRef0.TenantPathParam, workspace externalRef0.WorkspacePathParam, name externalRef0.ResourcePathParam) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "tenant", runtime.ParamLocationPath, tenant)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "workspace", runtime.ParamLocationPath, workspace)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithLocation("simple", false, "name", runtime.ParamLocationPath, name)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/tenants/%s/workspaces/%s/security-group-rules/%s", pathParam0, pathParam1, pathParam2)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateOrUpdateSecurityGroupRuleRequest calls the generic CreateOrUpdateSecurityGroupRule builder with application/json body
+func NewCreateOrUpdateSecurityGroupRuleRequest(server string, tenant externalRef0.TenantPathParam, workspace externalRef0.WorkspacePathParam, name externalRef0.ResourcePathParam, params *CreateOrUpdateSecurityGroupRuleParams, body CreateOrUpdateSecurityGroupRuleJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateOrUpdateSecurityGroupRuleRequestWithBody(server, tenant, workspace, name, params, "application/json", bodyReader)
+}
+
+// NewCreateOrUpdateSecurityGroupRuleRequestWithBody generates requests for CreateOrUpdateSecurityGroupRule with any type of body
+func NewCreateOrUpdateSecurityGroupRuleRequestWithBody(server string, tenant externalRef0.TenantPathParam, workspace externalRef0.WorkspacePathParam, name externalRef0.ResourcePathParam, params *CreateOrUpdateSecurityGroupRuleParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "tenant", runtime.ParamLocationPath, tenant)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "workspace", runtime.ParamLocationPath, workspace)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithLocation("simple", false, "name", runtime.ParamLocationPath, name)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/tenants/%s/workspaces/%s/security-group-rules/%s", pathParam0, pathParam1, pathParam2)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfUnmodifiedSince != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithLocation("simple", false, "if-unmodified-since", runtime.ParamLocationHeader, *params.IfUnmodifiedSince)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("if-unmodified-since", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewListSecurityGroupsRequest generates requests for ListSecurityGroups
 func NewListSecurityGroupsRequest(server string, tenant externalRef0.TenantPathParam, workspace externalRef0.WorkspacePathParam, params *ListSecurityGroupsParams) (*http.Request, error) {
 	var err error
@@ -3519,6 +3950,20 @@ type ClientWithResponsesInterface interface {
 	CreateOrUpdatePublicIpWithBodyWithResponse(ctx context.Context, tenant externalRef0.TenantPathParam, workspace externalRef0.WorkspacePathParam, name externalRef0.ResourcePathParam, params *CreateOrUpdatePublicIpParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateOrUpdatePublicIpResponse, error)
 
 	CreateOrUpdatePublicIpWithResponse(ctx context.Context, tenant externalRef0.TenantPathParam, workspace externalRef0.WorkspacePathParam, name externalRef0.ResourcePathParam, params *CreateOrUpdatePublicIpParams, body CreateOrUpdatePublicIpJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateOrUpdatePublicIpResponse, error)
+
+	// ListSecurityGroupRulesWithResponse request
+	ListSecurityGroupRulesWithResponse(ctx context.Context, tenant externalRef0.TenantPathParam, workspace externalRef0.WorkspacePathParam, params *ListSecurityGroupRulesParams, reqEditors ...RequestEditorFn) (*ListSecurityGroupRulesResponse, error)
+
+	// DeleteSecurityGroupRuleWithResponse request
+	DeleteSecurityGroupRuleWithResponse(ctx context.Context, tenant externalRef0.TenantPathParam, workspace externalRef0.WorkspacePathParam, name externalRef0.ResourcePathParam, params *DeleteSecurityGroupRuleParams, reqEditors ...RequestEditorFn) (*DeleteSecurityGroupRuleResponse, error)
+
+	// GetSecurityGroupRuleWithResponse request
+	GetSecurityGroupRuleWithResponse(ctx context.Context, tenant externalRef0.TenantPathParam, workspace externalRef0.WorkspacePathParam, name externalRef0.ResourcePathParam, reqEditors ...RequestEditorFn) (*GetSecurityGroupRuleResponse, error)
+
+	// CreateOrUpdateSecurityGroupRuleWithBodyWithResponse request with any body
+	CreateOrUpdateSecurityGroupRuleWithBodyWithResponse(ctx context.Context, tenant externalRef0.TenantPathParam, workspace externalRef0.WorkspacePathParam, name externalRef0.ResourcePathParam, params *CreateOrUpdateSecurityGroupRuleParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateOrUpdateSecurityGroupRuleResponse, error)
+
+	CreateOrUpdateSecurityGroupRuleWithResponse(ctx context.Context, tenant externalRef0.TenantPathParam, workspace externalRef0.WorkspacePathParam, name externalRef0.ResourcePathParam, params *CreateOrUpdateSecurityGroupRuleParams, body CreateOrUpdateSecurityGroupRuleJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateOrUpdateSecurityGroupRuleResponse, error)
 
 	// ListSecurityGroupsWithResponse request
 	ListSecurityGroupsWithResponse(ctx context.Context, tenant externalRef0.TenantPathParam, workspace externalRef0.WorkspacePathParam, params *ListSecurityGroupsParams, reqEditors ...RequestEditorFn) (*ListSecurityGroupsResponse, error)
@@ -4260,6 +4705,118 @@ func (r CreateOrUpdatePublicIpResponse) StatusCode() int {
 	return 0
 }
 
+type ListSecurityGroupRulesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *SecurityGroupRuleIterator
+	JSON400      *externalRef0.Error400
+	JSON401      *externalRef0.Error401
+	JSON403      *externalRef0.Error403
+	JSON500      *externalRef0.Error500
+}
+
+// Status returns HTTPResponse.Status
+func (r ListSecurityGroupRulesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListSecurityGroupRulesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteSecurityGroupRuleResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON400      *externalRef0.Error400
+	JSON401      *externalRef0.Error401
+	JSON403      *externalRef0.Error403
+	JSON404      *externalRef0.Error404
+	JSON409      *externalRef0.Error409
+	JSON412      *externalRef0.Error412
+	JSON500      *externalRef0.Error500
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteSecurityGroupRuleResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteSecurityGroupRuleResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetSecurityGroupRuleResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *externalRef0.SecurityGroupRule
+	JSON400      *externalRef0.Error400
+	JSON401      *externalRef0.Error401
+	JSON403      *externalRef0.Error403
+	JSON404      *externalRef0.Error404
+	JSON500      *externalRef0.Error500
+}
+
+// Status returns HTTPResponse.Status
+func (r GetSecurityGroupRuleResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetSecurityGroupRuleResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CreateOrUpdateSecurityGroupRuleResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *externalRef0.SecurityGroupRule
+	JSON201      *externalRef0.SecurityGroupRule
+	JSON400      *externalRef0.Error400
+	JSON401      *externalRef0.Error401
+	JSON403      *externalRef0.Error403
+	JSON404      *externalRef0.Error404
+	JSON409      *externalRef0.Error409
+	JSON412      *externalRef0.Error412
+	JSON422      *externalRef0.Error422
+	JSON500      *externalRef0.Error500
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateOrUpdateSecurityGroupRuleResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateOrUpdateSecurityGroupRuleResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type ListSecurityGroupsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -4652,6 +5209,50 @@ func (c *ClientWithResponses) CreateOrUpdatePublicIpWithResponse(ctx context.Con
 		return nil, err
 	}
 	return ParseCreateOrUpdatePublicIpResponse(rsp)
+}
+
+// ListSecurityGroupRulesWithResponse request returning *ListSecurityGroupRulesResponse
+func (c *ClientWithResponses) ListSecurityGroupRulesWithResponse(ctx context.Context, tenant externalRef0.TenantPathParam, workspace externalRef0.WorkspacePathParam, params *ListSecurityGroupRulesParams, reqEditors ...RequestEditorFn) (*ListSecurityGroupRulesResponse, error) {
+	rsp, err := c.ListSecurityGroupRules(ctx, tenant, workspace, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListSecurityGroupRulesResponse(rsp)
+}
+
+// DeleteSecurityGroupRuleWithResponse request returning *DeleteSecurityGroupRuleResponse
+func (c *ClientWithResponses) DeleteSecurityGroupRuleWithResponse(ctx context.Context, tenant externalRef0.TenantPathParam, workspace externalRef0.WorkspacePathParam, name externalRef0.ResourcePathParam, params *DeleteSecurityGroupRuleParams, reqEditors ...RequestEditorFn) (*DeleteSecurityGroupRuleResponse, error) {
+	rsp, err := c.DeleteSecurityGroupRule(ctx, tenant, workspace, name, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteSecurityGroupRuleResponse(rsp)
+}
+
+// GetSecurityGroupRuleWithResponse request returning *GetSecurityGroupRuleResponse
+func (c *ClientWithResponses) GetSecurityGroupRuleWithResponse(ctx context.Context, tenant externalRef0.TenantPathParam, workspace externalRef0.WorkspacePathParam, name externalRef0.ResourcePathParam, reqEditors ...RequestEditorFn) (*GetSecurityGroupRuleResponse, error) {
+	rsp, err := c.GetSecurityGroupRule(ctx, tenant, workspace, name, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetSecurityGroupRuleResponse(rsp)
+}
+
+// CreateOrUpdateSecurityGroupRuleWithBodyWithResponse request with arbitrary body returning *CreateOrUpdateSecurityGroupRuleResponse
+func (c *ClientWithResponses) CreateOrUpdateSecurityGroupRuleWithBodyWithResponse(ctx context.Context, tenant externalRef0.TenantPathParam, workspace externalRef0.WorkspacePathParam, name externalRef0.ResourcePathParam, params *CreateOrUpdateSecurityGroupRuleParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateOrUpdateSecurityGroupRuleResponse, error) {
+	rsp, err := c.CreateOrUpdateSecurityGroupRuleWithBody(ctx, tenant, workspace, name, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateOrUpdateSecurityGroupRuleResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateOrUpdateSecurityGroupRuleWithResponse(ctx context.Context, tenant externalRef0.TenantPathParam, workspace externalRef0.WorkspacePathParam, name externalRef0.ResourcePathParam, params *CreateOrUpdateSecurityGroupRuleParams, body CreateOrUpdateSecurityGroupRuleJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateOrUpdateSecurityGroupRuleResponse, error) {
+	rsp, err := c.CreateOrUpdateSecurityGroupRule(ctx, tenant, workspace, name, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateOrUpdateSecurityGroupRuleResponse(rsp)
 }
 
 // ListSecurityGroupsWithResponse request returning *ListSecurityGroupsResponse
@@ -6445,6 +7046,278 @@ func ParseCreateOrUpdatePublicIpResponse(rsp *http.Response) (*CreateOrUpdatePub
 	return response, nil
 }
 
+// ParseListSecurityGroupRulesResponse parses an HTTP response from a ListSecurityGroupRulesWithResponse call
+func ParseListSecurityGroupRulesResponse(rsp *http.Response) (*ListSecurityGroupRulesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListSecurityGroupRulesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest SecurityGroupRuleIterator
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.Error400
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest externalRef0.Error401
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest externalRef0.Error403
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest externalRef0.Error500
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteSecurityGroupRuleResponse parses an HTTP response from a DeleteSecurityGroupRuleWithResponse call
+func ParseDeleteSecurityGroupRuleResponse(rsp *http.Response) (*DeleteSecurityGroupRuleResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteSecurityGroupRuleResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.Error400
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest externalRef0.Error401
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest externalRef0.Error403
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest externalRef0.Error404
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest externalRef0.Error409
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 412:
+		var dest externalRef0.Error412
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON412 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest externalRef0.Error500
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetSecurityGroupRuleResponse parses an HTTP response from a GetSecurityGroupRuleWithResponse call
+func ParseGetSecurityGroupRuleResponse(rsp *http.Response) (*GetSecurityGroupRuleResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetSecurityGroupRuleResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest externalRef0.SecurityGroupRule
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.Error400
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest externalRef0.Error401
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest externalRef0.Error403
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest externalRef0.Error404
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest externalRef0.Error500
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateOrUpdateSecurityGroupRuleResponse parses an HTTP response from a CreateOrUpdateSecurityGroupRuleWithResponse call
+func ParseCreateOrUpdateSecurityGroupRuleResponse(rsp *http.Response) (*CreateOrUpdateSecurityGroupRuleResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateOrUpdateSecurityGroupRuleResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest externalRef0.SecurityGroupRule
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest externalRef0.SecurityGroupRule
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.Error400
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest externalRef0.Error401
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest externalRef0.Error403
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest externalRef0.Error404
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest externalRef0.Error409
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 412:
+		var dest externalRef0.Error412
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON412 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest externalRef0.Error422
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON422 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest externalRef0.Error500
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListSecurityGroupsResponse parses an HTTP response from a ListSecurityGroupsWithResponse call
 func ParseListSecurityGroupsResponse(rsp *http.Response) (*ListSecurityGroupsResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -6797,6 +7670,18 @@ type ServerInterface interface {
 	// Create or update public ip
 	// (PUT /v1/tenants/{tenant}/workspaces/{workspace}/public-ips/{name})
 	CreateOrUpdatePublicIp(w http.ResponseWriter, r *http.Request, tenant externalRef0.TenantPathParam, workspace externalRef0.WorkspacePathParam, name externalRef0.ResourcePathParam, params CreateOrUpdatePublicIpParams)
+	// List security-group-rules
+	// (GET /v1/tenants/{tenant}/workspaces/{workspace}/security-group-rules)
+	ListSecurityGroupRules(w http.ResponseWriter, r *http.Request, tenant externalRef0.TenantPathParam, workspace externalRef0.WorkspacePathParam, params ListSecurityGroupRulesParams)
+	// Delete security group rule
+	// (DELETE /v1/tenants/{tenant}/workspaces/{workspace}/security-group-rules/{name})
+	DeleteSecurityGroupRule(w http.ResponseWriter, r *http.Request, tenant externalRef0.TenantPathParam, workspace externalRef0.WorkspacePathParam, name externalRef0.ResourcePathParam, params DeleteSecurityGroupRuleParams)
+	// Get security group rule
+	// (GET /v1/tenants/{tenant}/workspaces/{workspace}/security-group-rules/{name})
+	GetSecurityGroupRule(w http.ResponseWriter, r *http.Request, tenant externalRef0.TenantPathParam, workspace externalRef0.WorkspacePathParam, name externalRef0.ResourcePathParam)
+	// Create or update security group rule
+	// (PUT /v1/tenants/{tenant}/workspaces/{workspace}/security-group-rules/{name})
+	CreateOrUpdateSecurityGroupRule(w http.ResponseWriter, r *http.Request, tenant externalRef0.TenantPathParam, workspace externalRef0.WorkspacePathParam, name externalRef0.ResourcePathParam, params CreateOrUpdateSecurityGroupRuleParams)
 	// List security-groups
 	// (GET /v1/tenants/{tenant}/workspaces/{workspace}/security-groups)
 	ListSecurityGroups(w http.ResponseWriter, r *http.Request, tenant externalRef0.TenantPathParam, workspace externalRef0.WorkspacePathParam, params ListSecurityGroupsParams)
@@ -8709,6 +9594,289 @@ func (siw *ServerInterfaceWrapper) CreateOrUpdatePublicIp(w http.ResponseWriter,
 	handler.ServeHTTP(w, r)
 }
 
+// ListSecurityGroupRules operation middleware
+func (siw *ServerInterfaceWrapper) ListSecurityGroupRules(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "tenant" -------------
+	var tenant externalRef0.TenantPathParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tenant", r.PathValue("tenant"), &tenant, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tenant", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "workspace" -------------
+	var workspace externalRef0.WorkspacePathParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "workspace", r.PathValue("workspace"), &workspace, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "workspace", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListSecurityGroupRulesParams
+
+	// ------------- Optional query parameter "labels" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "labels", r.URL.Query(), &params.Labels)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "labels", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "limit", r.URL.Query(), &params.Limit)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "skipToken" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "skipToken", r.URL.Query(), &params.SkipToken)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "skipToken", Err: err})
+		return
+	}
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Accept" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Accept")]; found {
+		var Accept ListSecurityGroupRulesParamsAccept
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Accept", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Accept", valueList[0], &Accept, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Accept", Err: err})
+			return
+		}
+
+		params.Accept = &Accept
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListSecurityGroupRules(w, r, tenant, workspace, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteSecurityGroupRule operation middleware
+func (siw *ServerInterfaceWrapper) DeleteSecurityGroupRule(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "tenant" -------------
+	var tenant externalRef0.TenantPathParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tenant", r.PathValue("tenant"), &tenant, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tenant", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "workspace" -------------
+	var workspace externalRef0.WorkspacePathParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "workspace", r.PathValue("workspace"), &workspace, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "workspace", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "name" -------------
+	var name externalRef0.ResourcePathParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "name", r.PathValue("name"), &name, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "name", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeleteSecurityGroupRuleParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "if-unmodified-since" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("if-unmodified-since")]; found {
+		var IfUnmodifiedSince externalRef0.IfUnmodifiedSince
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "if-unmodified-since", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "if-unmodified-since", valueList[0], &IfUnmodifiedSince, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "if-unmodified-since", Err: err})
+			return
+		}
+
+		params.IfUnmodifiedSince = &IfUnmodifiedSince
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteSecurityGroupRule(w, r, tenant, workspace, name, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetSecurityGroupRule operation middleware
+func (siw *ServerInterfaceWrapper) GetSecurityGroupRule(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "tenant" -------------
+	var tenant externalRef0.TenantPathParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tenant", r.PathValue("tenant"), &tenant, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tenant", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "workspace" -------------
+	var workspace externalRef0.WorkspacePathParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "workspace", r.PathValue("workspace"), &workspace, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "workspace", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "name" -------------
+	var name externalRef0.ResourcePathParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "name", r.PathValue("name"), &name, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "name", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSecurityGroupRule(w, r, tenant, workspace, name)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateOrUpdateSecurityGroupRule operation middleware
+func (siw *ServerInterfaceWrapper) CreateOrUpdateSecurityGroupRule(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "tenant" -------------
+	var tenant externalRef0.TenantPathParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tenant", r.PathValue("tenant"), &tenant, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tenant", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "workspace" -------------
+	var workspace externalRef0.WorkspacePathParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "workspace", r.PathValue("workspace"), &workspace, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "workspace", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "name" -------------
+	var name externalRef0.ResourcePathParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "name", r.PathValue("name"), &name, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "name", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateOrUpdateSecurityGroupRuleParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "if-unmodified-since" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("if-unmodified-since")]; found {
+		var IfUnmodifiedSince externalRef0.IfUnmodifiedSince
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "if-unmodified-since", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "if-unmodified-since", valueList[0], &IfUnmodifiedSince, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "if-unmodified-since", Err: err})
+			return
+		}
+
+		params.IfUnmodifiedSince = &IfUnmodifiedSince
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateOrUpdateSecurityGroupRule(w, r, tenant, workspace, name, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListSecurityGroups operation middleware
 func (siw *ServerInterfaceWrapper) ListSecurityGroups(w http.ResponseWriter, r *http.Request) {
 
@@ -9138,6 +10306,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("DELETE "+options.BaseURL+"/v1/tenants/{tenant}/workspaces/{workspace}/public-ips/{name}", wrapper.DeletePublicIp)
 	m.HandleFunc("GET "+options.BaseURL+"/v1/tenants/{tenant}/workspaces/{workspace}/public-ips/{name}", wrapper.GetPublicIp)
 	m.HandleFunc("PUT "+options.BaseURL+"/v1/tenants/{tenant}/workspaces/{workspace}/public-ips/{name}", wrapper.CreateOrUpdatePublicIp)
+	m.HandleFunc("GET "+options.BaseURL+"/v1/tenants/{tenant}/workspaces/{workspace}/security-group-rules", wrapper.ListSecurityGroupRules)
+	m.HandleFunc("DELETE "+options.BaseURL+"/v1/tenants/{tenant}/workspaces/{workspace}/security-group-rules/{name}", wrapper.DeleteSecurityGroupRule)
+	m.HandleFunc("GET "+options.BaseURL+"/v1/tenants/{tenant}/workspaces/{workspace}/security-group-rules/{name}", wrapper.GetSecurityGroupRule)
+	m.HandleFunc("PUT "+options.BaseURL+"/v1/tenants/{tenant}/workspaces/{workspace}/security-group-rules/{name}", wrapper.CreateOrUpdateSecurityGroupRule)
 	m.HandleFunc("GET "+options.BaseURL+"/v1/tenants/{tenant}/workspaces/{workspace}/security-groups", wrapper.ListSecurityGroups)
 	m.HandleFunc("DELETE "+options.BaseURL+"/v1/tenants/{tenant}/workspaces/{workspace}/security-groups/{name}", wrapper.DeleteSecurityGroup)
 	m.HandleFunc("GET "+options.BaseURL+"/v1/tenants/{tenant}/workspaces/{workspace}/security-groups/{name}", wrapper.GetSecurityGroup)

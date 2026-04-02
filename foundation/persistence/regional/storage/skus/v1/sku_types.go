@@ -1,0 +1,33 @@
+package v1
+
+import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	genv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/generated/types"
+	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/storage"
+)
+
+// +kubebuilder:object:root=true
+// +kubebuilder:resource:path=skus,scope=Namespaced,shortName=sku
+// +k8s:openapi-gen=true
+
+// SKU is the API for getting storage SKUs information.
+type SKU struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec genv1.StorageSkuSpec `json:"spec,omitempty"`
+}
+
+// +kubebuilder:object:root=true
+
+type SKUList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+
+	Items []SKU `json:"items"`
+}
+
+func init() {
+	storage.SchemeBuilder.Register(&SKU{}, &SKUList{})
+}

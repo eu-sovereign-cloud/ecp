@@ -6,10 +6,12 @@ import (
 	"os"
 	"os/exec"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 )
 
@@ -29,7 +31,9 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		resource := &regional.BlockStorageDomain{
 			Spec: regional.BlockStorageSpec{SizeGB: 10},
 			Status: &regional.BlockStorageStatus{
-				State:  &activeState,
+				StatusDomain: regional.StatusDomain{
+					State: activeState,
+				},
 				SizeGB: 10,
 			},
 		}
@@ -62,7 +66,9 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		pendingState := regional.ResourceStatePending
 		resource := &regional.BlockStorageDomain{
 			Status: &regional.BlockStorageStatus{
-				State: &pendingState,
+				StatusDomain: regional.StatusDomain{
+					State: pendingState,
+				},
 			},
 		}
 
@@ -71,7 +77,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		mockRepo := NewMockRepo[*regional.BlockStorageDomain](ctrl)
 		mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(
 			func(_ context.Context, res *regional.BlockStorageDomain) (*regional.BlockStorageDomain, error) {
-				require.Equal(t, regional.ResourceStateCreating, *res.Status.State)
+				require.Equal(t, regional.ResourceStateCreating, res.Status.State)
 				return nil, nil
 			}).Times(1)
 
@@ -103,7 +109,9 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		resource := &regional.BlockStorageDomain{
 			Spec: regional.BlockStorageSpec{SizeGB: 20},
 			Status: &regional.BlockStorageStatus{
-				State:  &activeState,
+				StatusDomain: regional.StatusDomain{
+					State: activeState,
+				},
 				SizeGB: 10,
 			},
 		}
@@ -113,7 +121,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		mockRepo := NewMockRepo[*regional.BlockStorageDomain](ctrl)
 		mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(
 			func(_ context.Context, res *regional.BlockStorageDomain) (*regional.BlockStorageDomain, error) {
-				require.Equal(t, regional.ResourceStateUpdating, *res.Status.State)
+				require.Equal(t, regional.ResourceStateUpdating, res.Status.State)
 				return nil, nil
 			}).Times(1)
 
@@ -145,7 +153,9 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		resource := &regional.BlockStorageDomain{
 			Spec: regional.BlockStorageSpec{SizeGB: 10},
 			Status: &regional.BlockStorageStatus{
-				State: &creatingState,
+				StatusDomain: regional.StatusDomain{
+					State: creatingState,
+				},
 			},
 		}
 
@@ -154,7 +164,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		mockRepo := NewMockRepo[*regional.BlockStorageDomain](ctrl)
 		mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(
 			func(_ context.Context, res *regional.BlockStorageDomain) (*regional.BlockStorageDomain, error) {
-				require.Equal(t, regional.ResourceStateActive, *res.Status.State)
+				require.Equal(t, regional.ResourceStateActive, res.Status.State)
 				require.Equal(t, res.Spec.SizeGB, res.Status.SizeGB)
 				return nil, nil
 			}).Times(1)
@@ -183,18 +193,25 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		defer ctrl.Finish()
 
 		//
-		// Given a resource with deleting state
+		// Given a resource with deleting state and a deletion timestamp
 		deletingState := regional.ResourceStateDeleting
+		now := time.Now()
 		resource := &regional.BlockStorageDomain{
+			Metadata: regional.Metadata{
+				CommonMetadata: model.CommonMetadata{
+					DeletedAt: &now,
+				},
+			},
 			Status: &regional.BlockStorageStatus{
-				State: &deletingState,
+				StatusDomain: regional.StatusDomain{
+					State: deletingState,
+				},
 			},
 		}
 
 		//
-		// And a repo that is expected to be called once to delete the resource
+		// And a repo that is not expected to be called
 		mockRepo := NewMockRepo[*regional.BlockStorageDomain](ctrl)
-		mockRepo.EXPECT().Delete(gomock.Any(), resource).Return(nil).Times(1)
 
 		//
 		// And a plugin that is expected to be called to delete the resource
@@ -225,7 +242,9 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		resource := &regional.BlockStorageDomain{
 			Spec: regional.BlockStorageSpec{SizeGB: 20},
 			Status: &regional.BlockStorageStatus{
-				State:  &updatingState,
+				StatusDomain: regional.StatusDomain{
+					State: updatingState,
+				},
 				SizeGB: 10,
 			},
 		}
@@ -235,7 +254,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		mockRepo := NewMockRepo[*regional.BlockStorageDomain](ctrl)
 		mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(
 			func(_ context.Context, res *regional.BlockStorageDomain) (*regional.BlockStorageDomain, error) {
-				require.Equal(t, regional.ResourceStateActive, *res.Status.State)
+				require.Equal(t, regional.ResourceStateActive, res.Status.State)
 				require.Equal(t, res.Spec.SizeGB, res.Status.SizeGB)
 				return nil, nil
 			}).Times(1)
@@ -268,10 +287,12 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		errorState := regional.ResourceStateError
 		resource := &regional.BlockStorageDomain{
 			Status: &regional.BlockStorageStatus{
-				State: &errorState,
-				Conditions: []regional.StatusConditionDomain{
-					{State: regional.ResourceStateCreating},
-					{State: regional.ResourceStateError},
+				StatusDomain: regional.StatusDomain{
+					State: errorState,
+					Conditions: []regional.StatusConditionDomain{
+						{State: regional.ResourceStateCreating},
+						{State: regional.ResourceStateError},
+					},
 				},
 			},
 		}
@@ -281,7 +302,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		mockRepo := NewMockRepo[*regional.BlockStorageDomain](ctrl)
 		mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(
 			func(_ context.Context, res *regional.BlockStorageDomain) (*regional.BlockStorageDomain, error) {
-				require.Equal(t, regional.ResourceStateCreating, *res.Status.State)
+				require.Equal(t, regional.ResourceStateCreating, res.Status.State)
 				return nil, nil
 			}).Times(1)
 
@@ -313,10 +334,12 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		resource := &regional.BlockStorageDomain{
 			Spec: regional.BlockStorageSpec{SizeGB: 20},
 			Status: &regional.BlockStorageStatus{
-				State: &errorState,
-				Conditions: []regional.StatusConditionDomain{
-					{State: regional.ResourceStateUpdating},
-					{State: regional.ResourceStateError},
+				StatusDomain: regional.StatusDomain{
+					State: errorState,
+					Conditions: []regional.StatusConditionDomain{
+						{State: regional.ResourceStateUpdating},
+						{State: regional.ResourceStateError},
+					},
 				},
 				SizeGB: 10,
 			},
@@ -327,7 +350,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		mockRepo := NewMockRepo[*regional.BlockStorageDomain](ctrl)
 		mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(
 			func(_ context.Context, res *regional.BlockStorageDomain) (*regional.BlockStorageDomain, error) {
-				require.Equal(t, regional.ResourceStateUpdating, *res.Status.State)
+				require.Equal(t, regional.ResourceStateUpdating, res.Status.State)
 				return nil, nil
 			}).Times(1)
 
@@ -358,7 +381,9 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		creatingState := regional.ResourceStateCreating
 		resource := &regional.BlockStorageDomain{
 			Status: &regional.BlockStorageStatus{
-				State: &creatingState,
+				StatusDomain: regional.StatusDomain{
+					State: creatingState,
+				},
 			},
 		}
 
@@ -367,7 +392,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		mockRepo := NewMockRepo[*regional.BlockStorageDomain](ctrl)
 		mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(
 			func(_ context.Context, res *regional.BlockStorageDomain) (*regional.BlockStorageDomain, error) {
-				require.Equal(t, regional.ResourceStateError, *res.Status.State)
+				require.Equal(t, regional.ResourceStateError, res.Status.State)
 				require.Len(t, res.Status.Conditions, 1)
 				require.Equal(t, errPlugin.Error(), res.Status.Conditions[0].Message)
 				return nil, nil
@@ -401,7 +426,9 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		creatingState := regional.ResourceStateCreating
 		resource := &regional.BlockStorageDomain{
 			Status: &regional.BlockStorageStatus{
-				State: &creatingState,
+				StatusDomain: regional.StatusDomain{
+					State: creatingState,
+				},
 			},
 		}
 
@@ -437,7 +464,9 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		pendingState := regional.ResourceStatePending
 		resource := &regional.BlockStorageDomain{
 			Status: &regional.BlockStorageStatus{
-				State: &pendingState,
+				StatusDomain: regional.StatusDomain{
+					State: pendingState,
+				},
 			},
 		}
 
@@ -475,7 +504,9 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 			creatingState := regional.ResourceStateCreating
 			resource := &regional.BlockStorageDomain{
 				Status: &regional.BlockStorageStatus{
-					State: &creatingState,
+					StatusDomain: regional.StatusDomain{
+						State: creatingState,
+					},
 				},
 			}
 
@@ -484,8 +515,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 			mockPlugin := NewMockBlockStorage(ctrl)
 			mockPlugin.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(
 				func(ctx context.Context, res *regional.BlockStorageDomain) error {
-					activeState := regional.ResourceStateActive
-					res.Status.State = &activeState
+					res.Status.State = regional.ResourceStateActive
 					return nil
 				})
 
@@ -524,11 +554,19 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		defer ctrl.Finish()
 
 		//
-		// Given a resource with deleting state
+		// Given a resource with deleting state and a deletion timestamp
 		deletingState := regional.ResourceStateDeleting
+		now := time.Now()
 		resource := &regional.BlockStorageDomain{
+			Metadata: regional.Metadata{
+				CommonMetadata: model.CommonMetadata{
+					DeletedAt: &now,
+				},
+			},
 			Status: &regional.BlockStorageStatus{
-				State: &deletingState,
+				StatusDomain: regional.StatusDomain{
+					State: deletingState,
+				},
 			},
 		}
 
@@ -537,7 +575,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		mockRepo := NewMockRepo[*regional.BlockStorageDomain](ctrl)
 		mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(
 			func(_ context.Context, res *regional.BlockStorageDomain) (*regional.BlockStorageDomain, error) {
-				require.Equal(t, regional.ResourceStateError, *res.Status.State)
+				require.Equal(t, regional.ResourceStateError, res.Status.State)
 				require.Len(t, res.Status.Conditions, 1)
 				require.Equal(t, errPlugin.Error(), res.Status.Conditions[0].Message)
 				return nil, nil
@@ -572,7 +610,9 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		resource := &regional.BlockStorageDomain{
 			Spec: regional.BlockStorageSpec{SizeGB: 20},
 			Status: &regional.BlockStorageStatus{
-				State:  &updatingState,
+				StatusDomain: regional.StatusDomain{
+					State: updatingState,
+				},
 				SizeGB: 10,
 			},
 		}
@@ -582,7 +622,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		mockRepo := NewMockRepo[*regional.BlockStorageDomain](ctrl)
 		mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(
 			func(_ context.Context, res *regional.BlockStorageDomain) (*regional.BlockStorageDomain, error) {
-				require.Equal(t, regional.ResourceStateError, *res.Status.State)
+				require.Equal(t, regional.ResourceStateError, res.Status.State)
 				require.Len(t, res.Status.Conditions, 1)
 				require.Equal(t, errPlugin.Error(), res.Status.Conditions[0].Message)
 				return nil, nil
@@ -616,7 +656,9 @@ func TestBlockStoragePluginHandler_HandleAdmission(t *testing.T) {
 		resource := &regional.BlockStorageDomain{
 			Spec: regional.BlockStorageSpec{SizeGB: 20},
 			Status: &regional.BlockStorageStatus{
-				State:  &activeState,
+				StatusDomain: regional.StatusDomain{
+					State: activeState,
+				},
 				SizeGB: 10,
 			},
 		}
@@ -641,7 +683,9 @@ func TestBlockStoragePluginHandler_HandleAdmission(t *testing.T) {
 		resource := &regional.BlockStorageDomain{
 			Spec: regional.BlockStorageSpec{SizeGB: 5},
 			Status: &regional.BlockStorageStatus{
-				State:  &creatingState,
+				StatusDomain: regional.StatusDomain{
+					State: creatingState,
+				},
 				SizeGB: 10,
 			},
 		}
@@ -666,7 +710,9 @@ func TestBlockStoragePluginHandler_HandleAdmission(t *testing.T) {
 		resource := &regional.BlockStorageDomain{
 			Spec: regional.BlockStorageSpec{SizeGB: 5},
 			Status: &regional.BlockStorageStatus{
-				State:  &activeState,
+				StatusDomain: regional.StatusDomain{
+					State: activeState,
+				},
 				SizeGB: 10,
 			},
 		}

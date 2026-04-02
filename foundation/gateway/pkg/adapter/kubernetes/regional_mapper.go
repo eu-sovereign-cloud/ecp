@@ -9,15 +9,14 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	genv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/generated/types"
-	"github.com/eu-sovereign-cloud/ecp/foundation/api/regional/common"
-	netowrkskuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/network/skus/v1"
-	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/block-storages/v1"
-	storageskuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/skus/v1"
-	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/workspace/v1"
+	genv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/generated/types"
+	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/common"
+	netowrkskuv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/network/skus/v1"
+	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/storage/block-storages/v1"
+	storageskuv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/storage/skus/v1"
+	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/workspace/v1"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes/convert"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes/labels"
@@ -74,16 +73,11 @@ func MapCRToWorkspaceDomain(obj client.Object) (*regional.WorkspaceDomain, error
 		meta.DeletedAt = &ts.Time
 	}
 
-	var resourceState *regional.ResourceStateDomain
 	var status *regional.WorkspaceStatusDomain
 	if cr.Status != nil {
-		if cr.Status.State != nil {
-			rs := mapCRToResourceStateDomain(*cr.Status.State)
-			resourceState = &rs
-		}
 		status = &regional.WorkspaceStatusDomain{
 			StatusDomain: regional.StatusDomain{
-				State:      resourceState,
+				State:      mapCRToResourceStateDomain(cr.Status.State),
 				Conditions: mapCRToStatusConditionDomains(cr.Status.Conditions),
 			},
 			ResourceCount: cr.Status.ResourceCount,
@@ -128,9 +122,13 @@ func MapWorkspaceDomainToCR(domain *regional.WorkspaceDomain) (client.Object, er
 	}
 	cr.SetGroupVersionKind(workspacev1.WorkspaceGVK)
 
-	if domain.Status != nil && (domain.Status.State != nil || len(domain.Status.Conditions) > 0 || domain.Status.ResourceCount != nil) {
+	if domain.Status != nil && (len(domain.Status.Conditions) > 0 || domain.Status.ResourceCount != nil) {
+		state := mapResourceStateDomainToCR(domain.Status.State)
+		if state == nil {
+			return nil, fmt.Errorf("failed to map resource state domain to CR")
+		}
 		cr.Status = &genv1.WorkspaceStatus{
-			State:         mapResourceStateDomainToCR(domain.Status.State),
+			State:         *state,
 			Conditions:    mapStatusConditionDomainsToCR(domain.Status.Conditions),
 			ResourceCount: domain.Status.ResourceCount,
 		}
@@ -234,8 +232,7 @@ func MapCRToBlockStorageDomain(obj client.Object) (*regional.BlockStorageDomain,
 	}
 
 	if cr.Spec.SourceImageRef != nil {
-		ref := mapCRReferenceObjectToDomain(*cr.Spec.SourceImageRef)
-		spec.SourceImageRef = &ref
+		spec.SourceImageRef = new(mapCRReferenceObjectToDomain(*cr.Spec.SourceImageRef))
 	}
 
 	if cr.Status == nil {
@@ -246,18 +243,15 @@ func MapCRToBlockStorageDomain(obj client.Object) (*regional.BlockStorageDomain,
 	}
 
 	status := &regional.BlockStorageStatus{
-		SizeGB:     cr.Status.SizeGB,
-		Conditions: mapCRToStatusConditionDomains(cr.Status.Conditions),
+		SizeGB: cr.Status.SizeGB,
+		StatusDomain: regional.StatusDomain{
+			State:      regional.ResourceStateDomain(cr.Status.State),
+			Conditions: mapCRToStatusConditionDomains(cr.Status.Conditions),
+		},
 	}
 
 	if cr.Status.AttachedTo != nil {
-		ref := mapCRReferenceObjectToDomain(*cr.Status.AttachedTo)
-		status.AttachedTo = &ref
-	}
-
-	if cr.Status.State != nil {
-		state := regional.ResourceStateDomain(*cr.Status.State)
-		status.State = &state
+		status.AttachedTo = new(mapCRReferenceObjectToDomain(*cr.Status.AttachedTo))
 	}
 
 	return &regional.BlockStorageDomain{
@@ -300,15 +294,18 @@ func MapBlockStorageDomainToCR(domain *regional.BlockStorageDomain) (client.Obje
 		cr.Spec.SourceImageRef = &ref
 	}
 
-	if domain.Status != nil && (domain.Status.State != nil || len(domain.Status.Conditions) > 0) {
+	if domain.Status != nil && len(domain.Status.Conditions) > 0 {
+		state := mapResourceStateDomainToCR(domain.Status.State)
+		if state == nil {
+			return nil, fmt.Errorf("failed to convert resource state to CR")
+		}
 		cr.Status = &genv1.BlockStorageStatus{
 			SizeGB:     domain.Status.SizeGB,
 			Conditions: mapStatusConditionDomainsToCR(domain.Status.Conditions),
-			State:      mapResourceStateDomainToCR(domain.Status.State),
+			State:      *state,
 		}
 		if domain.Status.AttachedTo != nil {
-			ref := mapDomainReferenceObjectToCR(*domain.Status.AttachedTo)
-			cr.Status.AttachedTo = &ref
+			cr.Status.AttachedTo = new(mapDomainReferenceObjectToCR(*domain.Status.AttachedTo))
 		}
 	}
 
@@ -339,16 +336,16 @@ func MapCRToNetworkSKUDomain(cr netowrkskuv1.SKU) *regional.NetworkSKUDomain {
 // mapStatusConditionDomainToCR maps a regional.StatusConditionDomain to a types.StatusCondition.
 func mapStatusConditionDomainToCR(domainStatusCondition regional.StatusConditionDomain) genv1.StatusCondition {
 	var state genv1.ResourceState
-	if mappedState := mapResourceStateDomainToCR(&domainStatusCondition.State); mappedState != nil {
+	if mappedState := mapResourceStateDomainToCR(domainStatusCondition.State); mappedState != nil {
 		state = *mappedState
 	}
 
 	return genv1.StatusCondition{
-		Type:             ptr.To(domainStatusCondition.Type),
+		Type:             domainStatusCondition.Type,
 		State:            state,
 		LastTransitionAt: v1.NewTime(domainStatusCondition.LastTransitionAt),
-		Reason:           ptr.To(domainStatusCondition.Reason),
-		Message:          ptr.To(domainStatusCondition.Message),
+		Reason:           domainStatusCondition.Reason,
+		Message:          domainStatusCondition.Message,
 	}
 }
 
@@ -362,12 +359,9 @@ func mapStatusConditionDomainsToCR(domainStatusConditions []regional.StatusCondi
 }
 
 // mapResourceStateDomainToCR maps regional.ResourceStateDomain to types.ResourceState.
-func mapResourceStateDomainToCR(domainResourceState *regional.ResourceStateDomain) *genv1.ResourceState {
-	if domainResourceState == nil {
-		return nil
-	}
+func mapResourceStateDomainToCR(domainResourceState regional.ResourceStateDomain) *genv1.ResourceState {
 	var state genv1.ResourceState
-	switch *domainResourceState {
+	switch domainResourceState {
 	case regional.ResourceStatePending:
 		state = genv1.ResourceStatePending
 	case regional.ResourceStateCreating:
@@ -378,8 +372,6 @@ func mapResourceStateDomainToCR(domainResourceState *regional.ResourceStateDomai
 		state = genv1.ResourceStateUpdating
 	case regional.ResourceStateDeleting:
 		state = genv1.ResourceStateDeleting
-	case regional.ResourceStateSuspended:
-		state = genv1.ResourceStateSuspended
 	case regional.ResourceStateError:
 		state = genv1.ResourceStateError
 	default:
@@ -391,11 +383,11 @@ func mapResourceStateDomainToCR(domainResourceState *regional.ResourceStateDomai
 // mapCRToStatusConditionDomain maps a types.StatusCondition to a regional.StatusConditionDomain.
 func mapCRToStatusConditionDomain(crStatusCondition genv1.StatusCondition) regional.StatusConditionDomain {
 	return regional.StatusConditionDomain{
-		Type:             ptr.Deref(crStatusCondition.Type, ""),
+		Type:             crStatusCondition.Type,
 		State:            mapCRToResourceStateDomain(crStatusCondition.State),
 		LastTransitionAt: crStatusCondition.LastTransitionAt.Time,
-		Reason:           ptr.Deref(crStatusCondition.Reason, ""),
-		Message:          ptr.Deref(crStatusCondition.Message, ""),
+		Reason:           crStatusCondition.Reason,
+		Message:          crStatusCondition.Message,
 	}
 }
 
@@ -422,8 +414,6 @@ func mapCRToResourceStateDomain(crResourceState genv1.ResourceState) regional.Re
 		state = regional.ResourceStateUpdating
 	case genv1.ResourceStateDeleting:
 		state = regional.ResourceStateDeleting
-	case genv1.ResourceStateSuspended:
-		state = regional.ResourceStateSuspended
 	case genv1.ResourceStateError:
 		state = regional.ResourceStateError
 	default:
@@ -435,11 +425,11 @@ func mapCRToResourceStateDomain(crResourceState genv1.ResourceState) regional.Re
 // mapCRReferenceObjectToDomain converts a generated types.ReferenceObject to a domain ReferenceObject.
 func mapCRReferenceObjectToDomain(ref genv1.ReferenceObject) regional.ReferenceObject {
 	return regional.ReferenceObject{
-		Provider:  ptr.Deref(ref.Provider, ""),
-		Region:    ptr.Deref(ref.Region, ""),
+		Provider:  ref.Provider,
+		Region:    ref.Region,
 		Resource:  ref.Resource,
-		Tenant:    ptr.Deref(ref.Tenant, ""),
-		Workspace: ptr.Deref(ref.Workspace, ""),
+		Tenant:    ref.Tenant,
+		Workspace: ref.Workspace,
 	}
 }
 
@@ -453,31 +443,31 @@ func mapDomainReferenceObjectToCR(ref regional.ReferenceObject) genv1.ReferenceO
 
 	// Extract values from Resource path or fall back to domain values
 	if provider, remaining := extractAndStripSegment(resource, "providers/"); provider != "" {
-		result.Provider = ptr.To(provider)
+		result.Provider = provider
 		resource = remaining
 	} else if ref.Provider != "" {
-		result.Provider = ptr.To(ref.Provider)
+		result.Provider = ref.Provider
 	}
 
 	if region, remaining := extractAndStripSegment(resource, "regions/"); region != "" {
-		result.Region = ptr.To(region)
+		result.Region = region
 		resource = remaining
 	} else if ref.Region != "" {
-		result.Region = ptr.To(ref.Region)
+		result.Region = ref.Region
 	}
 
 	if tenant, remaining := extractAndStripSegment(resource, "tenants/"); tenant != "" {
-		result.Tenant = ptr.To(tenant)
+		result.Tenant = tenant
 		resource = remaining
 	} else if ref.Tenant != "" {
-		result.Tenant = ptr.To(ref.Tenant)
+		result.Tenant = ref.Tenant
 	}
 
 	if workspace, remaining := extractAndStripSegment(resource, "workspaces/"); workspace != "" {
-		result.Workspace = ptr.To(workspace)
+		result.Workspace = workspace
 		resource = remaining
 	} else if ref.Workspace != "" {
-		result.Workspace = ptr.To(ref.Workspace)
+		result.Workspace = ref.Workspace
 	}
 
 	result.Resource = resource

@@ -13,9 +13,9 @@ import (
 	k8sschema "k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 
-	generatedv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/generated/types"
-	"github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage"
-	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regional/storage/skus/v1"
+	generatedv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/generated/types"
+	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/storage"
+	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/storage/skus/v1"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
