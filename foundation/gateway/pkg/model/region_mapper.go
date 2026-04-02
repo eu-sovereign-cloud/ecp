@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
-	regionsv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regions/v1"
+	regionsv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/regions/v1"
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 )
 
@@ -28,9 +28,8 @@ func MapRegionDomainToSDK(dom RegionDomain, verb string) schema.Region {
 	if rv, err := strconv.Atoi(dom.ResourceVersion); err == nil {
 		resVersion = rv
 	}
-	refObj := schema.ReferenceObject{Resource: fmt.Sprintf("%s/%s", RegionBaseURL, dom.Name)}
 	ref := schema.Reference{}
-	_ = ref.FromReferenceObject(refObj) // ignore mapping error, not critical internally
+	_ = ref.FromReferenceURN(fmt.Sprintf("%s/%s", RegionBaseURL, dom.Name)) // ignore mapping error, not critical internally
 	sdk := schema.Region{
 		Spec: schema.RegionSpec{
 			AvailableZones: zones,

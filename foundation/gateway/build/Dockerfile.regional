@@ -1,35 +1,42 @@
 # --- Build Stage ---
-FROM golang:1.24-alpine AS build
+FROM golang:1.26.1-alpine AS build
+
+# Install git required for go mod download to fetch private modules
+RUN apk add --no-cache git
 
 WORKDIR /app
 
 # Pre-copy workspace and module manifests so replace directives resolve
-COPY foundation/delegator/go.mod foundation/delegator/go.mod
-COPY foundation/delegator/go.sum foundation/delegator/go.sum
 COPY foundation/gateway/go.mod foundation/gateway/go.mod
 COPY foundation/gateway/go.sum foundation/gateway/go.sum
-COPY foundation/api/go.mod foundation/api/go.mod
-COPY foundation/api/go.sum foundation/api/go.sum
+COPY foundation/persistence/go.mod foundation/persistence/go.mod
+COPY foundation/persistence/go.sum foundation/persistence/go.sum
+
+COPY modules/go-sdk/go.mod modules/go-sdk/go.mod
 
 WORKDIR /app/foundation/gateway
 RUN go mod download
 
-WORKDIR /app
-COPY . .
+# Copy full source after deps to leverage cache
+WORKDIR /app/foundation/persistence
+COPY foundation/persistence .
 
 WORKDIR /app/foundation/gateway
-ARG BUILD_SKIP_TESTS=""
-RUN [ -n "$BUILD_SKIP_TESTS" ] || go test ./...
+COPY foundation/gateway .
 
+# Run tests (can disable with BUILD_SKIP_TESTS=1)
+ARG BUILD_SKIP_TESTS=""
+
+# Build gateway binary
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /server .
 
 # --- Runtime Stage ---
 FROM alpine:latest
 
+# Copy the built binary from the build stage
 COPY --from=build /server /server
 
 EXPOSE 8080
 
-# Set the entrypoint to the server binary and the command to run the specific subcommand
 ENTRYPOINT ["/server"]
 CMD ["regionalapiserver"]

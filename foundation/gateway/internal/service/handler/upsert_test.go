@@ -11,14 +11,16 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/service/handler"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
+
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/service/handler"
 )
 
 // Mock Creator
@@ -68,7 +70,7 @@ type TestOut struct {
 func TestHandleUpsert(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
-	apiToDomain := func(sdk TestIn, params regional.UpsertParams) TestDomain {
+	apiToDomain := func(sdk TestIn, params port.IdentifiableResource) TestDomain {
 		return TestDomain{ID: params.GetName(), Data: sdk.Data}
 	}
 
@@ -79,14 +81,15 @@ func TestHandleUpsert(t *testing.T) {
 	t.Run("success_create", func(t *testing.T) {
 		mockCreator := new(MockCreator[TestDomain])
 		mockUpdater := new(MockUpdater[TestDomain])
-		upsertParams := regional.UpsertParams{
-			Name: "test-resource",
+		upsertParams := &regional.Metadata{
+			CommonMetadata: model.CommonMetadata{
+				Name: "test-resource",
+			},
 			Scope: scope.Scope{
 				Tenant:    "test-tenant",
 				Workspace: "test-workspace",
 			},
 		}
-
 		inObj := TestIn{Data: "test-data"}
 		domainObj := TestDomain{ID: "test-resource", Data: "test-data"}
 		outObj := TestOut{ID: "test-resource", Data: "test-data"}
@@ -120,8 +123,10 @@ func TestHandleUpsert(t *testing.T) {
 		mockCreator := new(MockCreator[TestDomain])
 		mockUpdater := new(MockUpdater[TestDomain])
 
-		upsertParams := regional.UpsertParams{
-			Name: "test-resource",
+		upsertParams := &regional.Metadata{
+			CommonMetadata: model.CommonMetadata{
+				Name: "test-resource",
+			},
 			Scope: scope.Scope{
 				Tenant:    "test-tenant",
 				Workspace: "test-workspace",
@@ -149,8 +154,10 @@ func TestHandleUpsert(t *testing.T) {
 		mockCreator := new(MockCreator[TestDomain])
 		mockUpdater := new(MockUpdater[TestDomain])
 
-		upsertParams := regional.UpsertParams{
-			Name: "test-resource",
+		upsertParams := &regional.Metadata{
+			CommonMetadata: model.CommonMetadata{
+				Name: "test-resource",
+			},
 			Scope: scope.Scope{
 				Tenant:    "test-tenant",
 				Workspace: "test-workspace",
@@ -192,8 +199,10 @@ func TestHandleUpsert(t *testing.T) {
 		mockCreator := new(MockCreator[TestDomain])
 		mockUpdater := new(MockUpdater[TestDomain])
 
-		upsertParams := regional.UpsertParams{
-			Name: "test-resource",
+		upsertParams := &regional.Metadata{
+			CommonMetadata: model.CommonMetadata{
+				Name: "test-resource",
+			},
 			Scope: scope.Scope{
 				Tenant:    "test-tenant",
 				Workspace: "test-workspace",
@@ -229,8 +238,10 @@ func TestHandleUpsert(t *testing.T) {
 		mockCreator := new(MockCreator[TestDomain])
 		mockUpdater := new(MockUpdater[TestDomain])
 
-		upsertParams := regional.UpsertParams{
-			Name: "test-resource",
+		upsertParams := &regional.Metadata{
+			CommonMetadata: model.CommonMetadata{
+				Name: "test-resource",
+			},
 			Scope: scope.Scope{
 				Tenant:    "test-tenant",
 				Workspace: "test-workspace",
@@ -263,8 +274,10 @@ func TestHandleUpsert(t *testing.T) {
 		mockCreator := new(MockCreator[TestDomain])
 		mockUpdater := new(MockUpdater[TestDomain])
 
-		upsertParams := regional.UpsertParams{
-			Name: "test-resource",
+		upsertParams := &regional.Metadata{
+			CommonMetadata: model.CommonMetadata{
+				Name: "test-resource",
+			},
 			Scope: scope.Scope{
 				Tenant:    "test-tenant",
 				Workspace: "test-workspace",
@@ -293,8 +306,10 @@ func TestHandleUpsert(t *testing.T) {
 		mockCreator := new(MockCreator[TestDomain])
 		mockUpdater := new(MockUpdater[TestDomain])
 
-		upsertParams := regional.UpsertParams{
-			Name: "test-resource",
+		upsertParams := &regional.Metadata{
+			CommonMetadata: model.CommonMetadata{
+				Name: "test-resource",
+			},
 			Scope: scope.Scope{
 				Tenant:    "test-tenant",
 				Workspace: "test-workspace",
@@ -330,8 +345,10 @@ func TestHandleUpsert(t *testing.T) {
 		mockCreator := new(MockCreator[TestDomain])
 		mockUpdater := new(MockUpdater[TestDomain])
 
-		upsertParams := regional.UpsertParams{
-			Name: "test-resource",
+		upsertParams := &regional.Metadata{
+			CommonMetadata: model.CommonMetadata{
+				Name: "test-resource",
+			},
 			Scope: scope.Scope{
 				Tenant:    "test-tenant",
 				Workspace: "test-workspace",
@@ -364,14 +381,15 @@ func TestHandleUpsert(t *testing.T) {
 		mockCreator := new(MockCreator[TestDomain])
 		mockUpdater := new(MockUpdater[TestDomain])
 
-		upsertParams := regional.UpsertParams{
-			Name: "test-resource",
+		upsertParams := &regional.Metadata{
+			CommonMetadata: model.CommonMetadata{
+				Name: "test-resource",
+			},
 			Scope: scope.Scope{
 				Tenant:    "test-tenant",
 				Workspace: "test-workspace",
 			},
 		}
-
 		inObj := TestIn{Data: "test-data"}
 		domainObj := TestDomain{ID: "test-resource", Data: "test-data"}
 
@@ -398,8 +416,10 @@ func TestHandleUpsert(t *testing.T) {
 		mockCreator := new(MockCreator[TestDomain])
 		mockUpdater := new(MockUpdater[TestDomain])
 
-		upsertParams := regional.UpsertParams{
-			Name: "test-resource",
+		upsertParams := &regional.Metadata{
+			CommonMetadata: model.CommonMetadata{
+				Name: "test-resource",
+			},
 			Scope: scope.Scope{
 				Tenant:    "test-tenant",
 				Workspace: "test-workspace",
@@ -433,8 +453,10 @@ func TestHandleUpsert(t *testing.T) {
 		mockCreator := new(MockCreator[TestDomain])
 		mockUpdater := new(MockUpdater[TestDomain])
 
-		upsertParams := regional.UpsertParams{
-			Name: "test-resource",
+		upsertParams := &regional.Metadata{
+			CommonMetadata: model.CommonMetadata{
+				Name: "test-resource",
+			},
 			Scope: scope.Scope{
 				Tenant:    "test-tenant",
 				Workspace: "test-workspace",
@@ -468,8 +490,10 @@ func TestHandleUpsert(t *testing.T) {
 		mockCreator := new(MockCreator[TestDomain])
 		mockUpdater := new(MockUpdater[TestDomain])
 
-		upsertParams := regional.UpsertParams{
-			Name: "test-resource",
+		upsertParams := &regional.Metadata{
+			CommonMetadata: model.CommonMetadata{
+				Name: "test-resource",
+			},
 			Scope: scope.Scope{
 				Tenant:    "test-tenant",
 				Workspace: "test-workspace",

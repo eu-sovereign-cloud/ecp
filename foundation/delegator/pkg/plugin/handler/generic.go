@@ -4,39 +4,41 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
-	gateway_port "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
+	gateway "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 
-	delegator_port "github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/port"
+	delegato "github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/port"
 )
 
-// GenericDelegatorResourceHandler provides a generic implementation of the
-// DelegatorResourceHandler interface. It can be used as a base for specific
+// GenericPluginHandler provides a generic implementation of the
+// DelegatorPluginHandler interface. It can be used as a base for specific
 // resource handlers, allowing for composition of rejection conditions and
 // operations.
-type GenericDelegatorResourceHandler[T gateway_port.IdentifiableResource] struct {
-	rejectionConditions []delegator_port.RejectionConditionFunc[T]
+type GenericPluginHandler[T gateway.IdentifiableResource] struct {
+	rejectionConditions []delegato.RejectionConditionFunc[T]
 }
 
-// NewResourceHandler creates a new GenericDelegatorResourceHandler with the
+// NewPluginHandler creates a new GenericPluginHandler with the
 // provided rejection conditions and resource operations.
-func NewResourceHandler[T gateway_port.IdentifiableResource](
-	rejectionConditions []delegator_port.RejectionConditionFunc[T],
-) *GenericDelegatorResourceHandler[T] {
-	return &GenericDelegatorResourceHandler[T]{
+func NewPluginHandler[T gateway.IdentifiableResource](
+	rejectionConditions []delegato.RejectionConditionFunc[T],
+) *GenericPluginHandler[T] {
+	return &GenericPluginHandler[T]{
 		rejectionConditions: rejectionConditions,
 	}
 }
 
 // SetRejectionConditions replaces the existing rejection conditions with a new
 // set.
-func (h *GenericDelegatorResourceHandler[T]) SetRejectionConditions(rejectionConditions ...delegator_port.RejectionConditionFunc[T]) {
+func (h *GenericPluginHandler[T]) SetRejectionConditions(rejectionConditions ...delegato.RejectionConditionFunc[T]) {
 	h.rejectionConditions = rejectionConditions
 }
 
 // AddRejectionConditions appends additional rejection conditions to the
 // existing list.
-func (h *GenericDelegatorResourceHandler[T]) AddRejectionConditions(rejectionConditions ...delegator_port.RejectionConditionFunc[T]) {
+func (h *GenericPluginHandler[T]) AddRejectionConditions(rejectionConditions ...delegato.RejectionConditionFunc[T]) {
 	h.rejectionConditions = append(h.rejectionConditions, rejectionConditions...)
 }
 
@@ -47,7 +49,7 @@ func (h *GenericDelegatorResourceHandler[T]) AddRejectionConditions(rejectionCon
 // Note: This is an generic implementation of the logic of the
 // `HandleStorage.AddmissionHook(...) error` in the proposal, but replacing the
 // `switch-case` chain by a loop throw a rejection condition slice.
-func (h *GenericDelegatorResourceHandler[T]) HandleAdmission(ctx context.Context, resource T) error {
+func (h *GenericPluginHandler[T]) HandleAdmission(ctx context.Context, resource T) error {
 	var errs []error
 
 	for _, condition := range h.rejectionConditions {
@@ -63,6 +65,44 @@ func (h *GenericDelegatorResourceHandler[T]) HandleAdmission(ctx context.Context
 	return nil
 }
 
-func BypassDelegated[T gateway_port.IdentifiableResource](_ context.Context, _ T) error {
+func BypassDelegated[T gateway.IdentifiableResource](_ context.Context, _ T) error {
 	return nil
+}
+
+// conditionFromState creates a new regional.StatusConditionDomain with standard values.
+func conditionFromState(state regional.ResourceStateDomain) regional.StatusConditionDomain {
+	var message string
+	switch state { //nolint:exhaustive // regional.ResourceStateError is treated by a specific function.
+	case regional.ResourceStatePending:
+		message = "Resource is pending initialization."
+	case regional.ResourceStateCreating:
+		message = "Resource is being created."
+	case regional.ResourceStateActive:
+		message = "Resource is active and ready."
+	case regional.ResourceStateUpdating:
+		message = "Resource is being updated."
+	case regional.ResourceStateDeleting:
+		message = "Resource is being deleted."
+	case regional.ResourceStateSuspended:
+		message = "Resource is suspended."
+	}
+
+	return regional.StatusConditionDomain{
+		LastTransitionAt: time.Now(),
+		Type:             string(state),
+		State:            state,
+		Reason:           string(state),
+		Message:          message,
+	}
+}
+
+// conditionFromError creates a new regional.StatusConditionDomain with an error state and message.
+func conditionFromError(err error) regional.StatusConditionDomain {
+	return regional.StatusConditionDomain{
+		LastTransitionAt: time.Now(),
+		Type:             string(regional.ResourceStateError),
+		State:            regional.ResourceStateError,
+		Reason:           "ReconcileError", // A generic reason for reconciliation failures
+		Message:          err.Error(),
+	}
 }

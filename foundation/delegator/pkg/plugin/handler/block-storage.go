@@ -4,166 +4,252 @@ import (
 	"context"
 	"errors"
 	"log"
-	"time"
 
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
-	gateway_port "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
+	gateway "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/plugin"
-	delegator_port "github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/port"
+	delegator "github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/port"
 )
 
-type BlockStorageResourceHandler struct {
-	GenericDelegatorResourceHandler[*regional.BlockStorageDomain]
-	repo   gateway_port.Repo[*regional.BlockStorageDomain]
+type BlockStoragePluginHandler struct {
+	GenericPluginHandler[*regional.BlockStorageDomain]
+	repo   gateway.Repo[*regional.BlockStorageDomain]
 	plugin plugin.BlockStorage
 }
 
-var _ delegator_port.ResourceHandler[*regional.BlockStorageDomain] = (*BlockStorageResourceHandler)(nil)
+var _ delegator.PluginHandler[*regional.BlockStorageDomain] = (*BlockStoragePluginHandler)(nil)
 
-func NewBlockStorageResourceHandler(
-	repo gateway_port.Repo[*regional.BlockStorageDomain],
+func NewBlockStoragePluginHandler(
+	repo gateway.Repo[*regional.BlockStorageDomain],
 	plugin plugin.BlockStorage,
-) *BlockStorageResourceHandler {
-	handler := &BlockStorageResourceHandler{
+) *BlockStoragePluginHandler {
+	handler := &BlockStoragePluginHandler{
 		repo:   repo,
 		plugin: plugin,
 	}
 
-	// Add admission rejection conditions
 	handler.AddRejectionConditions(blockDecreaseSize)
 
 	return handler
 }
 
-func (h *BlockStorageResourceHandler) HandleReconcile(ctx context.Context, resource *regional.BlockStorageDomain) error {
-	// Find delegate operation which should be done.
-	var delegate delegator_port.DelegatedFunc[*regional.BlockStorageDomain]
+func (h *BlockStoragePluginHandler) HandleReconcile(ctx context.Context, resource *regional.BlockStorageDomain) (bool, error) {
+	var delegate delegator.DelegatedFunc[*regional.BlockStorageDomain]
 
 	switch {
-	case isPending(resource):
+	case isBlockStorageAccepted(resource):
 		delegate = BypassDelegated[*regional.BlockStorageDomain]
 
-	case wantCreate(resource):
+	case isBlockStoragePending(resource):
+		delegate = BypassDelegated[*regional.BlockStorageDomain]
+
+	case isBlockStorageCreating(resource):
 		delegate = h.plugin.Create
 
-	case wantDelete(resource):
+	case wantBlockStorageDelete(resource):
+		delegate = BypassDelegated[*regional.BlockStorageDomain]
+
+	case isBlockStorageDeleting(resource):
 		delegate = h.plugin.Delete
 
-	case wantIncreaseSize(resource):
+	case wantBlockStorageIncreaseSize(resource):
+		delegate = BypassDelegated[*regional.BlockStorageDomain]
+
+	case isBlockStorageIncreasingSize(resource):
 		delegate = h.plugin.IncreaseSize
 
-	case wantRetryCreate(resource) || wantRetryIncreaseSize(resource):
+	case wantBlockStorageRetryCreate(resource) || wantBlockStorageRetryIncreaseSize(resource):
 		delegate = BypassDelegated[*regional.BlockStorageDomain]
 
 	default:
-		return nil // Nothing to do.
+		return false, nil // Nothing to do.
 	}
 
-	// Delegate the action to the CSP Plugin.
 	if err := delegate(ctx, resource); err != nil {
-		// Handle errors from the CSP Plugin.
-		state := regional.ResourceStateError
-		resource.Status.State = &state
-
-		resource.Status.Conditions = append(resource.Status.Conditions, regional.StatusCondition{
-			LastTransitionAt: time.Now(),
-			Message:          err.Error(),
-			State:            state,
-		})
-
-		if _, err := h.repo.Update(ctx, resource); err != nil {
-			return err // TODO: better error handling.
+		if errors.Is(err, delegator.ErrStillProcessing) {
+			return true, nil
 		}
 
-		return nil
+		if requeue, err := h.setResourceErrorState(ctx, resource, err, false); err != nil {
+			return requeue, err // TODO: better errors handling
+		}
+
+		return true, nil
 	}
 
 	switch {
-	case isPending(resource):
-		return h.setResourceState(ctx, resource, regional.ResourceStateCreating)
 
-	case wantCreate(resource):
+	case isBlockStorageAccepted(resource):
+		return h.setResourceState(ctx, resource, regional.ResourceStatePending, false)
+
+	case isBlockStoragePending(resource):
+		return h.setResourceState(ctx, resource, regional.ResourceStateCreating, true)
+
+	case isBlockStorageCreating(resource):
 		resource.Status.SizeGB = resource.Spec.SizeGB
 
-		return h.setResourceState(ctx, resource, regional.ResourceStateActive)
+		return h.setResourceState(ctx, resource, regional.ResourceStateActive, false)
 
-	case wantDelete(resource):
-		return h.setResourceState(ctx, resource, regional.ResourceStateDeleting)
+	case wantBlockStorageDelete(resource):
+		return h.setResourceState(ctx, resource, regional.ResourceStateDeleting, true)
 
-	case wantIncreaseSize(resource):
+	case isBlockStorageDeleting(resource):
+		// Nothing to do: the delegator controller will remove the finalizers
+		// in order to end the deletion process.
+		return false, nil
+
+	case wantBlockStorageIncreaseSize(resource):
+		return h.setResourceState(ctx, resource, regional.ResourceStateUpdating, true)
+
+	case isBlockStorageIncreasingSize(resource):
 		resource.Status.SizeGB = resource.Spec.SizeGB
 
-		return h.setResourceState(ctx, resource, regional.ResourceStateActive)
+		return h.setResourceState(ctx, resource, regional.ResourceStateActive, false)
 
-	case wantRetryCreate(resource):
-		return h.setResourceState(ctx, resource, regional.ResourceStateCreating)
+	case wantBlockStorageRetryCreate(resource):
+		return h.setResourceState(ctx, resource, regional.ResourceStateCreating, true)
 
-	case wantRetryIncreaseSize(resource):
-		return h.setResourceState(ctx, resource, regional.ResourceStateUpdating)
+	case wantBlockStorageRetryIncreaseSize(resource):
+		return h.setResourceState(ctx, resource, regional.ResourceStateUpdating, true)
 
 	default:
 		log.Fatal("must never achieve that condition")
 	}
 
-	return nil
+	return false, nil
 }
 
-//
-// Helper Methods
-
-func (h *BlockStorageResourceHandler) setResourceState(ctx context.Context, resource *regional.BlockStorageDomain, state regional.ResourceState) error {
-	resource.Status.State = &state
-
-	resource.Status.Conditions = append(resource.Status.Conditions, regional.StatusCondition{
-		LastTransitionAt: time.Now(),
-		State:            state,
-	})
-
-	if _, err := h.repo.Update(ctx, resource); err != nil {
-		return err // TODO: better error handling.
+func (h *BlockStoragePluginHandler) setResourceState(ctx context.Context, resource *regional.BlockStorageDomain, state regional.ResourceStateDomain, requeue bool) (bool, error) {
+	if resource.Status == nil {
+		resource.Status = &regional.BlockStorageStatus{}
 	}
 
-	return nil
+	resource.Status.State = &state
+
+	if resource.Status.Conditions == nil {
+		resource.Status.Conditions = []regional.StatusConditionDomain{}
+	}
+
+	resource.Status.Conditions = append(resource.Status.Conditions, conditionFromState(state))
+
+	if _, err := h.repo.Update(ctx, resource); err != nil {
+		if errors.Is(err, model.ErrNotFound) {
+			return false, nil
+		}
+
+		return requeue, err
+	}
+
+	return requeue, nil
 }
 
-//
-// Admission Rejection Conditions
+func (h *BlockStoragePluginHandler) setResourceErrorState(ctx context.Context, resource *regional.BlockStorageDomain, err error, requeue bool) (bool, error) {
+	if resource.Status == nil {
+		resource.Status = &regional.BlockStorageStatus{}
+	}
+
+	state := regional.ResourceStateError
+	resource.Status.State = &state
+
+	if resource.Status.Conditions == nil {
+		resource.Status.Conditions = []regional.StatusConditionDomain{}
+	}
+
+	resource.Status.Conditions = append(resource.Status.Conditions, conditionFromError(err))
+
+	if _, err := h.repo.Update(ctx, resource); err != nil {
+		if errors.Is(err, model.ErrNotFound) {
+			return false, nil
+		}
+
+		return requeue, err
+	}
+
+	return requeue, nil
+}
 
 func blockDecreaseSize(_ context.Context, resource *regional.BlockStorageDomain) error {
-	if *(resource.Status.State) != regional.ResourceStateCreating && resource.Spec.SizeGB < resource.Status.SizeGB {
+	if resource.Status != nil &&
+		resource.Status.State != nil &&
+		*(resource.Status.State) != regional.ResourceStateCreating &&
+		resource.Spec.SizeGB < resource.Status.SizeGB {
 		return errors.New("decrease storage size is not allowed")
 	}
 
 	return nil
 }
 
-//
-// Reconciliation Actions Conditions
-
-func isPending(resource *regional.BlockStorageDomain) bool {
-	return *(resource.Status.State) == regional.ResourceStatePending
+func isBlockStorageAccepted(resource *regional.BlockStorageDomain) bool {
+	return resource.Status == nil || resource.Status.State == nil
 }
 
-func wantCreate(resource *regional.BlockStorageDomain) bool {
-	return *(resource.Status.State) == regional.ResourceStateCreating
+func isBlockStoragePending(resource *regional.BlockStorageDomain) bool {
+	return resource.DeletedAt == nil && (resource.Status == nil ||
+		resource.Status.State == nil ||
+		*(resource.Status.State) == regional.ResourceStatePending)
 }
 
-func wantDelete(resource *regional.BlockStorageDomain) bool {
-	return *(resource.Status.State) == regional.ResourceStateDeleting
+func isBlockStorageCreating(resource *regional.BlockStorageDomain) bool {
+	return resource.DeletedAt == nil &&
+		resource.Status != nil &&
+		resource.Status.State != nil &&
+		*(resource.Status.State) == regional.ResourceStateCreating
 }
 
-func wantIncreaseSize(resource *regional.BlockStorageDomain) bool {
-	return *(resource.Status.State) == regional.ResourceStateUpdating && resource.Spec.SizeGB > resource.Status.SizeGB
+func blockStorageIsNotDeleting(resource *regional.BlockStorageDomain) bool {
+	return resource.Status == nil ||
+		resource.Status.State == nil ||
+		*(resource.Status.State) != regional.ResourceStateDeleting
 }
 
-func wantRetryCreate(resource *regional.BlockStorageDomain) bool {
-	return *(resource.Status.State) == regional.ResourceStateError &&
+func wantBlockStorageDelete(resource *regional.BlockStorageDomain) bool {
+	return resource.DeletedAt != nil && blockStorageIsNotDeleting(resource)
+}
+
+func isBlockStorageDeleting(resource *regional.BlockStorageDomain) bool {
+	return resource.DeletedAt != nil &&
+		resource.Status != nil &&
+		resource.Status.State != nil &&
+		*(resource.Status.State) == regional.ResourceStateDeleting
+}
+
+func detectIncreaseSizeCondition(resource *regional.BlockStorageDomain) bool {
+	return resource.Spec.SizeGB > resource.Status.SizeGB
+}
+
+func wantBlockStorageIncreaseSize(resource *regional.BlockStorageDomain) bool {
+	return resource.DeletedAt == nil &&
+		resource.Status != nil &&
+		resource.Status.State != nil &&
+		*(resource.Status.State) == regional.ResourceStateActive &&
+		detectIncreaseSizeCondition(resource)
+}
+
+func isBlockStorageIncreasingSize(resource *regional.BlockStorageDomain) bool {
+	return resource.DeletedAt == nil &&
+		resource.Status != nil &&
+		resource.Status.State != nil &&
+		*(resource.Status.State) == regional.ResourceStateUpdating &&
+		detectIncreaseSizeCondition(resource)
+}
+
+func wantBlockStorageRetryCreate(resource *regional.BlockStorageDomain) bool {
+	return resource.DeletedAt == nil &&
+		resource.Status != nil &&
+		resource.Status.State != nil &&
+		*(resource.Status.State) == regional.ResourceStateError &&
+		len(resource.Status.Conditions) > 1 &&
 		resource.Status.Conditions[len(resource.Status.Conditions)-2].State == regional.ResourceStateCreating
 }
 
-func wantRetryIncreaseSize(resource *regional.BlockStorageDomain) bool {
-	return *(resource.Status.State) == regional.ResourceStateError &&
+func wantBlockStorageRetryIncreaseSize(resource *regional.BlockStorageDomain) bool {
+	return resource.DeletedAt == nil &&
+		resource.Status != nil &&
+		resource.Status.State != nil &&
+		*(resource.Status.State) == regional.ResourceStateError &&
+		len(resource.Status.Conditions) > 1 &&
 		resource.Status.Conditions[len(resource.Status.Conditions)-2].State == regional.ResourceStateUpdating &&
 		resource.Spec.SizeGB > resource.Status.SizeGB
 }

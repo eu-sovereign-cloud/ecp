@@ -5,13 +5,15 @@ import (
 	"path/filepath"
 
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 )
 
 type KubeClient struct {
-	Client dynamic.Interface
+	Client    dynamic.Interface
+	ClientSet kubernetes.Interface
 }
 
 // New loads kubeconfig and creates a KubeClient.
@@ -34,6 +36,11 @@ func NewFromConfig(cfg *rest.Config) (*KubeClient, error) {
 	if err != nil {
 		return nil, err
 	}
+	cs, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		return nil, err
+	}
 	c.Client = client
+	c.ClientSet = cs
 	return c, nil
 }

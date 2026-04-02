@@ -8,13 +8,13 @@ import (
 	"os"
 	"path/filepath"
 
-	region "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 
-	regionsv1 "github.com/eu-sovereign-cloud/ecp/foundation/api/regions/v1"
+	regionsv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/regions/v1"
+	regionv1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
 
 	regionController "github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/global/region"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/httpserver"
@@ -71,7 +71,7 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
 
 	httpServer := httpserver.New(httpserver.Options{
 		Addr: addr,
-		Handler: region.HandlerWithOptions(
+		Handler: regionv1.HandlerWithOptions(
 			&globalhandler.Region{
 				Logger: logger,
 				ListRegionController: &regionController.ListRegion{
@@ -93,7 +93,7 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
 					Logger: logger,
 				},
 			},
-			region.StdHTTPServerOptions{
+			regionv1.StdHTTPServerOptions{
 				BaseURL:          model.RegionBaseURL,
 				BaseRouter:       nil,
 				Middlewares:      nil,

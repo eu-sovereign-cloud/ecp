@@ -39,7 +39,7 @@ type Role struct {
 	Labels Labels `json:"labels,omitempty"`
 
 	// Metadata Metadata for global resources with name, permission, modification, type, and tenant information.
-	Metadata *GlobalResourceMetadata `json:"metadata,omitempty"`
+	Metadata *GlobalTenantResourceMetadata `json:"metadata,omitempty"`
 
 	// Spec Role specification defined as a list of permissions.
 	// Roles are used to define access control policies for
@@ -66,7 +66,7 @@ type RoleAssignment struct {
 	Labels Labels `json:"labels,omitempty"`
 
 	// Metadata Metadata for global resources with name, permission, modification, type, and tenant information.
-	Metadata *GlobalResourceMetadata `json:"metadata,omitempty"`
+	Metadata *GlobalTenantResourceMetadata `json:"metadata,omitempty"`
 
 	// Spec Role assignment for a user account. The role is assigned to the user account in the context of the specified scopes.
 	Spec RoleAssignmentSpec `json:"spec"`

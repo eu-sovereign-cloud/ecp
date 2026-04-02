@@ -9,6 +9,7 @@ import (
 // IdentifiableResource defines the interface for objects that can be identified by name, tenant, and workspace
 type IdentifiableResource interface {
 	GetName() string
+	GetVersion() string
 	Scope
 }
 

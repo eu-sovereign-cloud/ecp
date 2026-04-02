@@ -3,6 +3,7 @@ package regionalhandler
 import (
 	"log/slog"
 	"net/http"
+	"strconv"
 
 	sdkworkspace "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1"
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
@@ -10,8 +11,10 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/regional/workspace"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/service/handler"
 	apiworkspace "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/workspace"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/config"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional/consts"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
 )
 
@@ -36,13 +39,20 @@ func (h Workspace) ListWorkspaces(w http.ResponseWriter, r *http.Request, tenant
 func (h Workspace) DeleteWorkspace(
 	w http.ResponseWriter, r *http.Request, tenant schema.TenantPathParam, name schema.ResourcePathParam, params sdkworkspace.DeleteWorkspaceParams,
 ) {
+	var resourceVersion string
+	if params.IfUnmodifiedSince != nil {
+		resourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
+	}
 	ir := &regional.Metadata{
+		CommonMetadata: model.CommonMetadata{
+			Name:            name,
+			Provider:        consts.WorkspaceProvider,
+			ResourceVersion: resourceVersion,
+		},
 		Scope: scope.Scope{
 			Tenant: tenant,
 		},
-		CommonMetadata: model.CommonMetadata{
-			Name: name,
-		},
+		Region: config.Singleton().Region(),
 	}
 
 	handler.HandleDelete(w, r, h.Logger.With("provider", "workspace").With("resource", "workspace"), ir, h.Delete)
@@ -50,26 +60,43 @@ func (h Workspace) DeleteWorkspace(
 
 func (h Workspace) GetWorkspace(w http.ResponseWriter, r *http.Request, tenant schema.TenantPathParam, name schema.ResourcePathParam) {
 	ir := &regional.Metadata{
+		CommonMetadata: model.CommonMetadata{
+			Name:     name,
+			Provider: consts.WorkspaceProvider,
+		},
 		Scope: scope.Scope{
 			Tenant: tenant,
 		},
-		CommonMetadata: model.CommonMetadata{
-			Name: name,
-		},
+		Region: config.Singleton().Region(),
 	}
 
-	handler.HandleGet(w, r, h.Logger.With("provider", "workspace").With("resource", "workspace"), ir, h.Get, apiworkspace.DomainToAPI)
+	handler.HandleGet(w, r, h.Logger.With("provider", "workspace").With("resource", "workspace"), ir, h.Get, apiworkspace.DomainToAPIWithVerb(http.MethodGet))
 }
 
 func (h Workspace) CreateOrUpdateWorkspace(
 	w http.ResponseWriter, r *http.Request, tenant schema.TenantPathParam, name schema.ResourcePathParam, params sdkworkspace.CreateOrUpdateWorkspaceParams,
 ) {
-	upsertOptions := handler.UpsertOptions[schema.Workspace, *regional.WorkspaceDomain, schema.Workspace]{
-		Params:      apiworkspace.UpsertParamsFromAPI(params, tenant, name),
+	var resourceVersion string
+	if params.IfUnmodifiedSince != nil {
+		resourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
+	}
+
+	upsertOptions := handler.UpsertOptions[schema.Workspace, *regional.WorkspaceDomain, *schema.Workspace]{
+		Params: &regional.Metadata{
+			CommonMetadata: model.CommonMetadata{
+				Name:            name,
+				Provider:        consts.WorkspaceProvider,
+				ResourceVersion: resourceVersion,
+			},
+			Scope: scope.Scope{
+				Tenant: tenant,
+			},
+			Region: config.Singleton().Region(),
+		},
 		Creator:     h.Create,
 		Updater:     h.Update,
 		SDKToDomain: apiworkspace.APIToDomain,
-		DomainToSDK: apiworkspace.DomainToAPI,
+		DomainToSDK: apiworkspace.DomainToAPIWithVerb(http.MethodPut),
 	}
 
 	handler.HandleUpsert(

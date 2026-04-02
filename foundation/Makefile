@@ -17,13 +17,13 @@ generate-all: generate-models generate-crds
 
 .PHONY:  generate-models
 generate-models:
-	@echo "Generating models via api module Makefile"
-	@$(MAKE) -C api generate-models
+	@echo "Generating models via persistence module Makefile"
+	@$(MAKE) -C persistence generate-models
 	@echo "--------------------------------"
 
 generate-crds:
-	@echo "Generating CRDs via api module Makefile"
-	@$(MAKE) -C api generate-crds
+	@echo "Generating CRDs via persistence module Makefile"
+	@$(MAKE) -C persistence generate-crds
 
 # ====================================================================================
 # Development
@@ -59,13 +59,18 @@ build-gateway:
 	@echo "Building gateway binary via gateway Makefile..."
 	@$(MAKE) -C gateway build-gateway
 
+.PHONY: secatest
+secatest:
+	@echo "Running secatest e2e tests via e2e Makefile..."
+	@$(MAKE) -C e2e secatest
+
 
 
 define ECP_MAKE_HELP
 ECP Targets:
 	generate-all		   Generate all code (models and CRDs)
 	generate-models		   Generate models from delegator/go-sdk
-	generate-crds          Generate CRDs (writes to api/generated/crds)
+	generate-crds          Generate CRDs (writes to persistence/generated/crds)
 	run-global-server      Run the global API server locally
 	run-regional-server    Run the regional API server locally
 	create-dev-clusters    Set up one global and one regional cluster for development purposes
@@ -73,6 +78,7 @@ ECP Targets:
 	docker-build-images    Build Docker images for the provider components
 	clean				   Clean up generated files
 	build-gateway          Build the gateway binary
+	secatest               Run secatest e2e tests
 endef
 
 export ECP_MAKE_HELP
@@ -83,13 +89,13 @@ help:
 
 .PHONY: clean-generated
 clean-generated:
-	@echo "Cleaning generated files via api Makefile..."
-	@$(MAKE) -C api clean-generated
+	@echo "Cleaning generated files via persistence Makefile..."
+	@$(MAKE) -C persistence clean-generated
 
 .PHONY: clean-crds
 clean-crds:
-	@echo "Cleaning CRDs via api Makefile..."
-	@$(MAKE) -C api clean-crds
+	@echo "Cleaning CRDs via persistence Makefile..."
+	@$(MAKE) -C persistence clean-crds
 
 .PHONY: clean
 clean: clean-generated clean-crds
