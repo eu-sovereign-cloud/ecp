@@ -17,7 +17,6 @@ type BlockStorageSpec struct {
 // BlockStorageStatus defines the status for a block storage instance.
 type BlockStorageStatus struct {
 	AttachedTo *ReferenceObject
-	Conditions []StatusConditionDomain
 	SizeGB     int
-	State      *ResourceStateDomain
+	StatusDomain
 }

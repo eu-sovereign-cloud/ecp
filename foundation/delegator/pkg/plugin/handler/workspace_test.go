@@ -31,7 +31,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		resource := &regional.WorkspaceDomain{
 			Status: &regional.WorkspaceStatusDomain{
 				StatusDomain: regional.StatusDomain{
-					State: &activeState,
+					State: activeState,
 				},
 			},
 		}
@@ -65,7 +65,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		resource := &regional.WorkspaceDomain{
 			Status: &regional.WorkspaceStatusDomain{
 				StatusDomain: regional.StatusDomain{
-					State: &pendingState,
+					State: pendingState,
 				},
 			},
 		}
@@ -75,7 +75,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		mockRepo := NewMockRepo[*regional.WorkspaceDomain](ctrl)
 		mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(
 			func(_ context.Context, res *regional.WorkspaceDomain) (*regional.WorkspaceDomain, error) {
-				require.Equal(t, regional.ResourceStateCreating, *res.Status.State)
+				require.Equal(t, regional.ResourceStateCreating, res.Status.State)
 				return nil, nil
 			}).Times(1)
 
@@ -107,7 +107,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		resource := &regional.WorkspaceDomain{
 			Status: &regional.WorkspaceStatusDomain{
 				StatusDomain: regional.StatusDomain{
-					State: &creatingState,
+					State: creatingState,
 				},
 			},
 		}
@@ -117,7 +117,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		mockRepo := NewMockRepo[*regional.WorkspaceDomain](ctrl)
 		mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(
 			func(_ context.Context, res *regional.WorkspaceDomain) (*regional.WorkspaceDomain, error) {
-				require.Equal(t, regional.ResourceStateActive, *res.Status.State)
+				require.Equal(t, regional.ResourceStateActive, res.Status.State)
 				return nil, nil
 			}).Times(1)
 
@@ -156,7 +156,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 			},
 			Status: &regional.WorkspaceStatusDomain{
 				StatusDomain: regional.StatusDomain{
-					State: &deletingState,
+					State: deletingState,
 				},
 			},
 		}
@@ -194,7 +194,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		resource := &regional.WorkspaceDomain{
 			Status: &regional.WorkspaceStatusDomain{
 				StatusDomain: regional.StatusDomain{
-					State: &creatingState,
+					State: creatingState,
 				},
 			},
 		}
@@ -204,7 +204,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		mockRepo := NewMockRepo[*regional.WorkspaceDomain](ctrl)
 		mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(
 			func(_ context.Context, res *regional.WorkspaceDomain) (*regional.WorkspaceDomain, error) {
-				require.Equal(t, regional.ResourceStateError, *res.Status.State)
+				require.Equal(t, regional.ResourceStateError, res.Status.State)
 				require.Len(t, res.Status.Conditions, 1)
 				require.Equal(t, errPlugin.Error(), res.Status.Conditions[0].Message)
 				return nil, nil
@@ -239,7 +239,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		resource := &regional.WorkspaceDomain{
 			Status: &regional.WorkspaceStatusDomain{
 				StatusDomain: regional.StatusDomain{
-					State: &creatingState,
+					State: creatingState,
 				},
 			},
 		}
@@ -283,7 +283,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 			},
 			Status: &regional.WorkspaceStatusDomain{
 				StatusDomain: regional.StatusDomain{
-					State: &deletingState,
+					State: deletingState,
 				},
 			},
 		}
@@ -293,7 +293,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		mockRepo := NewMockRepo[*regional.WorkspaceDomain](ctrl)
 		mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(
 			func(_ context.Context, res *regional.WorkspaceDomain) (*regional.WorkspaceDomain, error) {
-				require.Equal(t, regional.ResourceStateError, *res.Status.State)
+				require.Equal(t, regional.ResourceStateError, res.Status.State)
 				require.Len(t, res.Status.Conditions, 1)
 				require.Equal(t, errPlugin.Error(), res.Status.Conditions[0].Message)
 				return nil, nil
@@ -328,7 +328,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		resource := &regional.WorkspaceDomain{
 			Status: &regional.WorkspaceStatusDomain{
 				StatusDomain: regional.StatusDomain{
-					State: &errorState,
+					State: errorState,
 					Conditions: []regional.StatusConditionDomain{
 						{State: regional.ResourceStatePending, LastTransitionAt: time.Now().Add(-2 * time.Minute)},
 						{State: regional.ResourceStateCreating, LastTransitionAt: time.Now().Add(-1 * time.Minute)},
@@ -343,7 +343,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		mockRepo := NewMockRepo[*regional.WorkspaceDomain](ctrl)
 		mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(
 			func(_ context.Context, res *regional.WorkspaceDomain) (*regional.WorkspaceDomain, error) {
-				require.Equal(t, regional.ResourceStateCreating, *res.Status.State)
+				require.Equal(t, regional.ResourceStateCreating, res.Status.State)
 				return nil, nil
 			}).Times(1)
 
@@ -375,7 +375,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		resource := &regional.WorkspaceDomain{
 			Status: &regional.WorkspaceStatusDomain{
 				StatusDomain: regional.StatusDomain{
-					State: &updatingState,
+					State: updatingState,
 				},
 			},
 		}
@@ -409,7 +409,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		resource := &regional.WorkspaceDomain{
 			Status: &regional.WorkspaceStatusDomain{
 				StatusDomain: regional.StatusDomain{
-					State: &pendingState,
+					State: pendingState,
 				},
 			},
 		}
@@ -445,7 +445,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 			resource := &regional.WorkspaceDomain{
 				Status: &regional.WorkspaceStatusDomain{
 					StatusDomain: regional.StatusDomain{
-						State: &creatingState,
+						State: creatingState,
 					},
 				},
 			}
@@ -454,8 +454,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 			mockPlugin.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(
 				func(ctx context.Context, res *regional.WorkspaceDomain) error {
 					// Plugin modifies the state
-					activeState := regional.ResourceStateActive
-					res.Status.State = &activeState
+					res.Status.State = regional.ResourceStateActive
 					return nil
 				})
 

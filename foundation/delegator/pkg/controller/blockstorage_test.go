@@ -62,7 +62,7 @@ func TestBlockStorageController_Reconcile(t *testing.T) {
 				SizeGB: 10,
 			},
 			Status: &types.BlockStorageStatus{
-				State: &pendingState,
+				State: pendingState,
 			},
 		}
 
@@ -182,7 +182,7 @@ func TestBlockStorageController_Reconcile(t *testing.T) {
 				SizeGB: 10,
 			},
 			Status: &types.BlockStorageStatus{
-				State: &pendingState,
+				State: pendingState,
 			},
 		}
 

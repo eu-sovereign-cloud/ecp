@@ -1,8 +1,9 @@
 package status
 
 import (
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
+
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 )
 
 // MapResourceStateDomainToAPI maps ResourceStateDomain to a schema.ResourceState.
@@ -19,8 +20,6 @@ func MapResourceStateDomainToAPI(domain regional.ResourceStateDomain) schema.Res
 		state = schema.ResourceStateUpdating
 	case regional.ResourceStateDeleting:
 		state = schema.ResourceStateDeleting
-	case regional.ResourceStateSuspended:
-		state = schema.ResourceStateSuspended
 	case regional.ResourceStateError:
 		state = schema.ResourceStateError
 	default:
@@ -41,10 +40,10 @@ func MapConditionDomainsToAPI(domains []regional.StatusConditionDomain) []schema
 // mapConditionDomainToAPI maps a StatusConditionDomain to a schema.StatusCondition.
 func mapConditionDomainToAPI(domain regional.StatusConditionDomain) schema.StatusCondition {
 	return schema.StatusCondition{
-		Type:             &domain.Type,
+		Type:             domain.Type,
 		State:            MapResourceStateDomainToAPI(domain.State),
 		LastTransitionAt: domain.LastTransitionAt,
-		Reason:           &domain.Reason,
-		Message:          &domain.Message,
+		Reason:           domain.Reason,
+		Message:          domain.Message,
 	}
 }

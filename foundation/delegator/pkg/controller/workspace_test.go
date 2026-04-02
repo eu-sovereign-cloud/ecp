@@ -58,7 +58,7 @@ func TestWorkspaceController_Reconcile(t *testing.T) {
 			},
 			Spec: types.WorkspaceSpec{},
 			Status: &types.WorkspaceStatus{
-				State: &pendingState,
+				State: pendingState,
 			},
 		}
 
@@ -179,7 +179,7 @@ func TestWorkspaceController_Reconcile(t *testing.T) {
 			},
 			Spec: types.WorkspaceSpec{},
 			Status: &types.WorkspaceStatus{
-				State: &pendingState,
+				State: pendingState,
 			},
 		}
 
