@@ -45,10 +45,10 @@ type BlockStorageSpec struct {
 	SizeGB int `json:"sizeGB"`
 
 	// SkuRef Reference to the SKU of the block storage.
-	SkuRef ReferenceObject `json:"skuRef"`
+	SkuRef Reference `json:"skuRef"`
 
 	// SourceImageRef Reference to the source image used as the base for creating the block storage.
-	SourceImageRef *ReferenceObject `json:"sourceImageRef,omitempty"`
+	SourceImageRef *Reference `json:"sourceImageRef,omitempty"`
 }
 
 // BlockStorageStatus defines model for BlockStorageStatus.
@@ -65,7 +65,7 @@ type BlockStorageStatus struct {
 // VolumeReference Represents a connection between a Block Storage and an a user of the block storage.
 type VolumeReference struct {
 	// DeviceRef Reference to the block storage used to store the volume.
-	DeviceRef ReferenceObject `json:"deviceRef"`
+	DeviceRef Reference `json:"deviceRef"`
 
 	// Type The connection type depends on the type of device and type of block storage.
 	Type VolumeReferenceType `json:"type,omitempty"`
