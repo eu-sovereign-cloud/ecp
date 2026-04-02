@@ -100,20 +100,12 @@ func DomainToAPIIterator(domainWorkspaces []*regional.WorkspaceDomain, nextSkipT
 
 // mapWorkspaceDomainToAPI maps a WorkspaceDomain to schema.Workspace API object.
 func mapWorkspaceDomainToAPI(domain regional.WorkspaceDomain, verb string) *schema.Workspace {
-	resVersion := 0
+	resVersion := int64(0)
 	// resourceVersion is best-effort numeric
-	if rv, err := strconv.Atoi(domain.ResourceVersion); err == nil {
+	if rv, err := strconv.ParseInt(domain.ResourceVersion, 10, 64); err == nil {
 		resVersion = rv
 	}
 
-	ref := schema.Reference{}
-	_ = ref.FromReferenceURN(fmt.Sprintf(regional.ResourceFormat, schema.RegionalResourceMetadataKindResourceKindWorkspace, domain.Name))
-
-	var resourceState *schema.ResourceState
-	if domain.Status != nil && domain.Status.State != nil {
-		rs := status.MapResourceStateDomainToAPI(*domain.Status.State)
-		resourceState = &rs
-	}
 	sdk := &schema.Workspace{
 		Metadata: &schema.RegionalResourceMetadata{
 			ApiVersion:      v1.Version,
@@ -125,7 +117,7 @@ func mapWorkspaceDomainToAPI(domain regional.WorkspaceDomain, verb string) *sche
 			Provider:        domain.Provider,
 			Region:          domain.Region,
 			Resource:        fmt.Sprintf(regional.TenantScopedResourceFormat, domain.Tenant, schema.RegionalResourceMetadataKindResourceKindWorkspace, domain.Name),
-			Ref:             &ref,
+			Ref:             fmt.Sprintf(regional.ResourceFormat, schema.RegionalResourceMetadataKindResourceKindWorkspace, domain.Name),
 			ResourceVersion: resVersion,
 			Verb:            verb,
 		},
@@ -141,7 +133,7 @@ func mapWorkspaceDomainToAPI(domain regional.WorkspaceDomain, verb string) *sche
 	if domain.Status != nil {
 		sdk.Status = &schema.WorkspaceStatus{
 			ResourceCount: domain.Status.ResourceCount,
-			State:         resourceState,
+			State:         status.MapResourceStateDomainToAPI(domain.Status.State),
 			Conditions:    status.MapConditionDomainsToAPI(domain.Status.Conditions),
 		}
 	}

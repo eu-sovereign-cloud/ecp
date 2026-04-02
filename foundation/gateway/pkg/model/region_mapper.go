@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"strconv"
 
-	regionsv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/regions/v1"
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
+
+	regionsv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/regions/v1"
 )
 
 const (
@@ -23,13 +24,11 @@ func MapRegionDomainToSDK(dom RegionDomain, verb string) schema.Region {
 	for _, z := range dom.Zones {
 		zones = append(zones, schema.Zone(z))
 	}
-	resVersion := 0
+	resVersion := int64(0)
 	// resourceVersion is best-effort numeric
-	if rv, err := strconv.Atoi(dom.ResourceVersion); err == nil {
+	if rv, err := strconv.ParseInt(dom.ResourceVersion, 10, 64); err == nil {
 		resVersion = rv
 	}
-	ref := schema.Reference{}
-	_ = ref.FromReferenceURN(fmt.Sprintf("%s/%s", RegionBaseURL, dom.Name)) // ignore mapping error, not critical internally
 	sdk := schema.Region{
 		Spec: schema.RegionSpec{
 			AvailableZones: zones,
@@ -43,7 +42,7 @@ func MapRegionDomainToSDK(dom RegionDomain, verb string) schema.Region {
 			Name:            dom.Name,
 			Provider:        ProviderRegionName,
 			Resource:        dom.Name,
-			Ref:             &ref,
+			Ref:             fmt.Sprintf("%s/%s", RegionBaseURL, dom.Name), // ignore mapping error, not critical internally
 			ResourceVersion: resVersion,
 			Verb:            verb,
 		},

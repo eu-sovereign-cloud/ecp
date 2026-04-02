@@ -80,15 +80,6 @@ type SubnetStatus struct {
 	Conditions []StatusCondition `json:"conditions"`
 
 	// RouteTableRef The route table used by this subnet.
-	RouteTableRef *Reference `json:"routeTableRef,omitempty"`
-
-	// State Current phase of the resource:
-	// - pending: not available, waiting for other resources
-	// - creating: not available, creation started
-	// - active: available for data layer usage
-	// - updating: available for data layer usage
-	// - deleting: maybe still available for data layer user, can fail any moment
-	// - suspended: not available, provider specific behavior (payment issue, user decided to suspend)
-	// - error: failed to fulfill the request; would be related to provider issue or customer related input.
-	State *ResourceState `json:"state,omitempty"`
+	RouteTableRef *Reference    `json:"routeTableRef,omitempty"`
+	State         ResourceState `json:"state,omitempty"`
 }

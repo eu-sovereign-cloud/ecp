@@ -87,8 +87,13 @@ spec:
                     type: string
                   resource:
                     description: |-
-                      Resource Name and type of the resource. Must be in the format `<type>/<name>`.
-                      The type is the resource type, and the name is the resource name.
+                      Resource Resource-specific path identifying the resource within its workspace context.
+                      This is the segment of the full URN after the provider, version, tenant, and
+                      workspace parts. For a flat resource it is `<type>/<name>`, and for hierarchical
+                      (nested) resources it includes the parent path segments:
+                        `networks/<network-name>/route-tables/<rt-name>`
+                      The provider, tenant, and workspace can be specified as separate fields in this
+                      object; they do not need to be repeated here.
                     type: string
                   tenant:
                     description: Tenant Tenant of the resource. If not set, the tenant
@@ -115,8 +120,13 @@ spec:
                     type: string
                   resource:
                     description: |-
-                      Resource Name and type of the resource. Must be in the format `<type>/<name>`.
-                      The type is the resource type, and the name is the resource name.
+                      Resource Resource-specific path identifying the resource within its workspace context.
+                      This is the segment of the full URN after the provider, version, tenant, and
+                      workspace parts. For a flat resource it is `<type>/<name>`, and for hierarchical
+                      (nested) resources it includes the parent path segments:
+                        `networks/<network-name>/route-tables/<rt-name>`
+                      The provider, tenant, and workspace can be specified as separate fields in this
+                      object; they do not need to be repeated here.
                     type: string
                   tenant:
                     description: Tenant Tenant of the resource. If not set, the tenant
@@ -150,8 +160,13 @@ spec:
                     type: string
                   resource:
                     description: |-
-                      Resource Name and type of the resource. Must be in the format `<type>/<name>`.
-                      The type is the resource type, and the name is the resource name.
+                      Resource Resource-specific path identifying the resource within its workspace context.
+                      This is the segment of the full URN after the provider, version, tenant, and
+                      workspace parts. For a flat resource it is `<type>/<name>`, and for hierarchical
+                      (nested) resources it includes the parent path segments:
+                        `networks/<network-name>/route-tables/<rt-name>`
+                      The provider, tenant, and workspace can be specified as separate fields in this
+                      object; they do not need to be repeated here.
                     type: string
                   tenant:
                     description: Tenant Tenant of the resource. If not set, the tenant
@@ -197,7 +212,6 @@ spec:
                         - active: available for data layer usage
                         - updating: available for data layer usage
                         - deleting: maybe still available for data layer user, can fail any moment
-                        - suspended: not available, provider specific behavior (payment issue, user decided to suspend)
                         - error: failed to fulfill the request; would be related to provider issue or customer related input.
                       type: string
                     type:
@@ -215,13 +229,12 @@ spec:
                 type: integer
               state:
                 description: |-
-                  State Current phase of the resource:
+                  ResourceState Current phase of the resource:
                   - pending: not available, waiting for other resources
                   - creating: not available, creation started
                   - active: available for data layer usage
                   - updating: available for data layer usage
                   - deleting: maybe still available for data layer user, can fail any moment
-                  - suspended: not available, provider specific behavior (payment issue, user decided to suspend)
                   - error: failed to fulfill the request; would be related to provider issue or customer related input.
                 type: string
             required:

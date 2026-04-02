@@ -5,7 +5,7 @@ go 1.26.1
 tool sigs.k8s.io/controller-tools/cmd/controller-gen
 
 require (
-	github.com/oapi-codegen/runtime v1.1.2
+	github.com/oapi-codegen/runtime v1.3.1
 	k8s.io/apimachinery v0.35.0
 	sigs.k8s.io/controller-runtime v0.23.1
 )

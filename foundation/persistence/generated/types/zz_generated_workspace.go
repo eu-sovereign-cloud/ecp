@@ -40,15 +40,6 @@ type WorkspaceStatus struct {
 	Conditions []StatusCondition `json:"conditions"`
 
 	// ResourceCount Number of resources currently in the workspace
-	ResourceCount *int `json:"resourceCount,omitempty"`
-
-	// State Current phase of the resource:
-	// - pending: not available, waiting for other resources
-	// - creating: not available, creation started
-	// - active: available for data layer usage
-	// - updating: available for data layer usage
-	// - deleting: maybe still available for data layer user, can fail any moment
-	// - suspended: not available, provider specific behavior (payment issue, user decided to suspend)
-	// - error: failed to fulfill the request; would be related to provider issue or customer related input.
-	State *ResourceState `json:"state,omitempty"`
+	ResourceCount *int          `json:"resourceCount,omitempty"`
+	State         ResourceState `json:"state,omitempty"`
 }

@@ -31,7 +31,7 @@ type PublicIp struct {
 // PublicIpSpec Specification of the public IP.
 type PublicIpSpec struct {
 	// Address The public IP address in case of BYOIP.
-	Address *string `json:"address,omitempty"`
+	Address string `json:"address,omitempty"`
 
 	// Version IP version of the address
 	Version IPVersion `json:"version"`
@@ -40,19 +40,10 @@ type PublicIpSpec struct {
 // PublicIpStatus defines model for PublicIpStatus.
 type PublicIpStatus struct {
 	// AttachedTo Reference to the instance the public IP is attached to.
-	AttachedTo *Reference        `json:"attachedTo,omitempty"`
+	AttachedTo *ReferenceObject  `json:"attachedTo,omitempty"`
 	Conditions []StatusCondition `json:"conditions"`
 
 	// IpAddress The public IP address in case.
-	IpAddress *string `json:"ipAddress,omitempty"`
-
-	// State Current phase of the resource:
-	// - pending: not available, waiting for other resources
-	// - creating: not available, creation started
-	// - active: available for data layer usage
-	// - updating: available for data layer usage
-	// - deleting: maybe still available for data layer user, can fail any moment
-	// - suspended: not available, provider specific behavior (payment issue, user decided to suspend)
-	// - error: failed to fulfill the request; would be related to provider issue or customer related input.
-	State *ResourceState `json:"state,omitempty"`
+	IpAddress string        `json:"ipAddress,omitempty"`
+	State     ResourceState `json:"state,omitempty"`
 }
