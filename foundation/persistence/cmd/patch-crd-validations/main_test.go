@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -192,7 +193,7 @@ func TestPatchFileIdempotent(t *testing.T) {
 	}
 
 	afterSecond, _ := os.ReadFile(crdPath)
-	if string(afterFirst) != string(afterSecond) {
+	if !bytes.Equal(afterFirst, afterSecond) {
 		t.Error("file content changed on second patch")
 	}
 }
