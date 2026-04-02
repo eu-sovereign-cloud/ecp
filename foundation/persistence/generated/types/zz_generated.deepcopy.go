@@ -639,10 +639,6 @@ func (in *InstanceStatus) DeepCopyInto(out *InstanceStatus) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	if in.PowerStateSince != nil {
-		in, out := &in.PowerStateSince, &out.PowerStateSince
-		*out = (*in).DeepCopy()
-	}
 	if in.State != nil {
 		in, out := &in.State, &out.State
 		*out = new(ResourceState)

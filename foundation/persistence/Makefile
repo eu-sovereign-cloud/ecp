@@ -21,7 +21,7 @@ generate-crds:
 	@echo "Running go generate (build tag crdgen)..."
 	@$(GO) generate -tags=crdgen ./...
 	@echo "api: patching generated CRDs with CEL validations"
-	@python3 ./scripts/patch-crd-validations.py --rules ./scripts/crd-validation-rules.yaml --root ./generated/crds
+	@$(GO) run ./cmd/patch-crd-validations --rules ./scripts/crd-validation-rules.yaml --root ./generated/crds
 	@echo "api: generate-crds done"
 
 help:
