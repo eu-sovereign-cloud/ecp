@@ -38,22 +38,13 @@ type ObjectStorageAccountSpec = map[string]string
 // ObjectStorageAccountStatus defines model for ObjectStorageAccountStatus.
 type ObjectStorageAccountStatus struct {
 	// AccessKey Access key for the object storage account
-	AccessKey *string `json:"accessKey,omitempty"`
+	AccessKey string `json:"accessKey,omitempty"`
 
 	// CanonicalUserId Canonical user ID for the object storage account
-	CanonicalUserId *string           `json:"canonicalUserId,omitempty"`
+	CanonicalUserId string            `json:"canonicalUserId,omitempty"`
 	Conditions      []StatusCondition `json:"conditions"`
 
 	// SecretKey Secret key for the object storage account
-	SecretKey *string `json:"secretKey,omitempty"`
-
-	// State Current phase of the resource:
-	// - pending: not available, waiting for other resources
-	// - creating: not available, creation started
-	// - active: available for data layer usage
-	// - updating: available for data layer usage
-	// - deleting: maybe still available for data layer user, can fail any moment
-	// - suspended: not available, provider specific behavior (payment issue, user decided to suspend)
-	// - error: failed to fulfill the request; would be related to provider issue or customer related input.
-	State *ResourceState `json:"state,omitempty"`
+	SecretKey string        `json:"secretKey,omitempty"`
+	State     ResourceState `json:"state,omitempty"`
 }

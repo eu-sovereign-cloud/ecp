@@ -35,7 +35,7 @@ type KubernetesClusterSku struct {
 	// The number of labels is eventually limited by the CSP.
 	Labels Labels `json:"labels,omitempty"`
 
-	// Metadata Metadata for SKU resources.
+	// Metadata Metadata for SKU resources with name, permission, type, tenant and region information.
 	Metadata *SkuResourceMetadata `json:"metadata,omitempty"`
 
 	// Spec Specification of the instance SKU, including its capabilities and extensions.

@@ -13,14 +13,13 @@ const (
 	ResourceStateActive    ResourceStateDomain = "active"
 	ResourceStateUpdating  ResourceStateDomain = "updating"
 	ResourceStateDeleting  ResourceStateDomain = "deleting"
-	ResourceStateSuspended ResourceStateDomain = "suspended"
 	ResourceStateError     ResourceStateDomain = "error"
 )
 
 // StatusDomain represents the common status attributes of a regional resource. Cannot be directly mapped to schema.Status,
 // since <Resource>Status does not embed schema.Status. This is purely for reducing code duplication in regional resource domains.
 type StatusDomain struct {
-	State      *ResourceStateDomain
+	State      ResourceStateDomain
 	Conditions []StatusConditionDomain
 }
 

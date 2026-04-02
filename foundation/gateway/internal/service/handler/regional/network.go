@@ -16,6 +16,26 @@ type Network struct {
 	Logger   *slog.Logger
 }
 
+func (n Network) ListSecurityGroupRules(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, params sdknetwork.ListSecurityGroupRulesParams) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (n Network) DeleteSecurityGroupRule(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdknetwork.DeleteSecurityGroupRuleParams) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (n Network) GetSecurityGroupRule(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (n Network) CreateOrUpdateSecurityGroupRule(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdknetwork.CreateOrUpdateSecurityGroupRuleParams) {
+	// TODO implement me
+	panic("implement me")
+}
+
 var _ sdknetwork.ServerInterface = (*Network)(nil) // Ensure Network implements the sdknetwork.ServerInterface.
 
 func (n Network) ListSkus(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, params sdknetwork.ListSkusParams) {

@@ -31,17 +31,17 @@ type ActivityLogSpec struct {
 	Response *ResponseObject `json:"response,omitempty"`
 
 	// Subject User-JWT executing this query
-	Subject *string `json:"subject,omitempty"`
+	Subject string `json:"subject,omitempty"`
 }
 
 // RequestObject Request object
 type RequestObject struct {
 	Body     *RequestObject_Body `json:"body,omitempty"`
-	Resource *string             `json:"resource,omitempty"`
+	Resource string              `json:"resource,omitempty"`
 
 	// Verb Verb that describes the action to be performed on the resource.
 	// The verb can be one of the following: get, list, put, delete, post, ..
-	Verb *string `json:"verb,omitempty"`
+	Verb string `json:"verb,omitempty"`
 }
 
 // RequestObject_Body defines model for RequestObject.Body.

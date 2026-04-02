@@ -126,7 +126,7 @@ func (h *BlockStoragePluginHandler) setResourceState(ctx context.Context, resour
 		resource.Status = &regional.BlockStorageStatus{}
 	}
 
-	resource.Status.State = &state
+	resource.Status.State = state
 
 	if resource.Status.Conditions == nil {
 		resource.Status.Conditions = []regional.StatusConditionDomain{}
@@ -150,8 +150,7 @@ func (h *BlockStoragePluginHandler) setResourceErrorState(ctx context.Context, r
 		resource.Status = &regional.BlockStorageStatus{}
 	}
 
-	state := regional.ResourceStateError
-	resource.Status.State = &state
+	resource.Status.State = regional.ResourceStateError
 
 	if resource.Status.Conditions == nil {
 		resource.Status.Conditions = []regional.StatusConditionDomain{}
@@ -172,8 +171,7 @@ func (h *BlockStoragePluginHandler) setResourceErrorState(ctx context.Context, r
 
 func blockDecreaseSize(_ context.Context, resource *regional.BlockStorageDomain) error {
 	if resource.Status != nil &&
-		resource.Status.State != nil &&
-		*(resource.Status.State) != regional.ResourceStateCreating &&
+		resource.Status.State != regional.ResourceStateCreating &&
 		resource.Spec.SizeGB < resource.Status.SizeGB {
 		return errors.New("decrease storage size is not allowed")
 	}
@@ -182,26 +180,23 @@ func blockDecreaseSize(_ context.Context, resource *regional.BlockStorageDomain)
 }
 
 func isBlockStorageAccepted(resource *regional.BlockStorageDomain) bool {
-	return resource.Status == nil || resource.Status.State == nil
+	return resource.Status == nil
 }
 
 func isBlockStoragePending(resource *regional.BlockStorageDomain) bool {
 	return resource.DeletedAt == nil && (resource.Status == nil ||
-		resource.Status.State == nil ||
-		*(resource.Status.State) == regional.ResourceStatePending)
+		resource.Status.State == regional.ResourceStatePending)
 }
 
 func isBlockStorageCreating(resource *regional.BlockStorageDomain) bool {
 	return resource.DeletedAt == nil &&
 		resource.Status != nil &&
-		resource.Status.State != nil &&
-		*(resource.Status.State) == regional.ResourceStateCreating
+		resource.Status.State == regional.ResourceStateCreating
 }
 
 func blockStorageIsNotDeleting(resource *regional.BlockStorageDomain) bool {
 	return resource.Status == nil ||
-		resource.Status.State == nil ||
-		*(resource.Status.State) != regional.ResourceStateDeleting
+		resource.Status.State != regional.ResourceStateDeleting
 }
 
 func wantBlockStorageDelete(resource *regional.BlockStorageDomain) bool {
@@ -211,8 +206,7 @@ func wantBlockStorageDelete(resource *regional.BlockStorageDomain) bool {
 func isBlockStorageDeleting(resource *regional.BlockStorageDomain) bool {
 	return resource.DeletedAt != nil &&
 		resource.Status != nil &&
-		resource.Status.State != nil &&
-		*(resource.Status.State) == regional.ResourceStateDeleting
+		resource.Status.State == regional.ResourceStateDeleting
 }
 
 func detectIncreaseSizeCondition(resource *regional.BlockStorageDomain) bool {
@@ -222,24 +216,21 @@ func detectIncreaseSizeCondition(resource *regional.BlockStorageDomain) bool {
 func wantBlockStorageIncreaseSize(resource *regional.BlockStorageDomain) bool {
 	return resource.DeletedAt == nil &&
 		resource.Status != nil &&
-		resource.Status.State != nil &&
-		*(resource.Status.State) == regional.ResourceStateActive &&
+		resource.Status.State == regional.ResourceStateActive &&
 		detectIncreaseSizeCondition(resource)
 }
 
 func isBlockStorageIncreasingSize(resource *regional.BlockStorageDomain) bool {
 	return resource.DeletedAt == nil &&
 		resource.Status != nil &&
-		resource.Status.State != nil &&
-		*(resource.Status.State) == regional.ResourceStateUpdating &&
+		resource.Status.State == regional.ResourceStateUpdating &&
 		detectIncreaseSizeCondition(resource)
 }
 
 func wantBlockStorageRetryCreate(resource *regional.BlockStorageDomain) bool {
 	return resource.DeletedAt == nil &&
 		resource.Status != nil &&
-		resource.Status.State != nil &&
-		*(resource.Status.State) == regional.ResourceStateError &&
+		resource.Status.State == regional.ResourceStateError &&
 		len(resource.Status.Conditions) > 1 &&
 		resource.Status.Conditions[len(resource.Status.Conditions)-2].State == regional.ResourceStateCreating
 }
@@ -247,8 +238,7 @@ func wantBlockStorageRetryCreate(resource *regional.BlockStorageDomain) bool {
 func wantBlockStorageRetryIncreaseSize(resource *regional.BlockStorageDomain) bool {
 	return resource.DeletedAt == nil &&
 		resource.Status != nil &&
-		resource.Status.State != nil &&
-		*(resource.Status.State) == regional.ResourceStateError &&
+		resource.Status.State == regional.ResourceStateError &&
 		len(resource.Status.Conditions) > 1 &&
 		resource.Status.Conditions[len(resource.Status.Conditions)-2].State == regional.ResourceStateUpdating &&
 		resource.Spec.SizeGB > resource.Status.SizeGB

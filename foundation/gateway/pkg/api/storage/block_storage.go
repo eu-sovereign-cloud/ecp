@@ -4,13 +4,12 @@ import (
 	"fmt"
 	"strconv"
 
-	"k8s.io/utils/ptr"
-
-	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/storage/block-storages/v1"
-	v1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/workspace/v1"
 	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
+
+	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/storage/block-storages/v1"
+	v1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/workspace/v1"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/status"
@@ -32,14 +31,11 @@ func DomainToAPIWithVerb(verb string) func(domain *regional.BlockStorageDomain) 
 
 // BlockStorageToAPI converts a BlockStorageDomain to its SDK representation.
 func BlockStorageToAPI(domain *regional.BlockStorageDomain) *sdkschema.BlockStorage {
-	resVersion := 0
+	resVersion := int64(0)
 	// resourceVersion is best-effort numeric
-	if rv, err := strconv.Atoi(domain.ResourceVersion); err == nil {
+	if rv, err := strconv.ParseInt(domain.ResourceVersion, 10, 64); err == nil {
 		resVersion = rv
 	}
-
-	ref := schema.Reference{}
-	_ = ref.FromReferenceURN(fmt.Sprintf(regional.ResourceFormat, sdkschema.RegionalResourceMetadataKindResourceKindBlockStorage, domain.Name))
 
 	bs := &sdkschema.BlockStorage{
 		Metadata: &sdkschema.RegionalWorkspaceResourceMetadata{
@@ -59,7 +55,7 @@ func BlockStorageToAPI(domain *regional.BlockStorageDomain) *sdkschema.BlockStor
 				schema.RegionalResourceMetadataKindResourceKindBlockStorage,
 				domain.Name,
 			),
-			Ref:             &ref,
+			Ref:             fmt.Sprintf(regional.ResourceFormat, sdkschema.RegionalResourceMetadataKindResourceKindBlockStorage, domain.Name),
 			ResourceVersion: resVersion,
 		},
 		Labels:      domain.Labels,
@@ -88,10 +84,8 @@ func BlockStorageToAPI(domain *regional.BlockStorageDomain) *sdkschema.BlockStor
 		if domain.Status.AttachedTo != nil {
 			bs.Status.AttachedTo = referenceObjectPtrToAPI(domain.Status.AttachedTo)
 		}
-		if domain.Status.State != nil {
-			state := sdkschema.ResourceState(*domain.Status.State)
-			bs.Status.State = &state
-		}
+
+		bs.Status.State = sdkschema.ResourceState(domain.Status.State)
 	}
 	if domain.DeletedAt != nil {
 		bs.Metadata.DeletedAt = domain.DeletedAt
@@ -173,8 +167,7 @@ func BlockStorageFromAPI(sdk sdkschema.BlockStorage, params port.IdentifiableRes
 	}
 
 	if sdk.Spec.SourceImageRef != nil {
-		ref := referenceObjectFromAPI(*sdk.Spec.SourceImageRef)
-		domain.Spec.SourceImageRef = &ref
+		domain.Spec.SourceImageRef = new(referenceObjectFromAPI(*sdk.Spec.SourceImageRef))
 	}
 
 	return domain
@@ -183,16 +176,13 @@ func BlockStorageFromAPI(sdk sdkschema.BlockStorage, params port.IdentifiableRes
 // Helper functions for reference object conversion
 
 func referenceObjectToAPI(ref regional.ReferenceObject) sdkschema.Reference {
-	refObj := sdkschema.ReferenceObject{
-		Provider:  toPtrOrNil(ref.Provider),
-		Region:    toPtrOrNil(ref.Region),
+	return sdkschema.Reference{
+		Provider:  ref.Provider,
+		Region:    ref.Region,
 		Resource:  ref.Resource,
-		Tenant:    toPtrOrNil(ref.Tenant),
-		Workspace: toPtrOrNil(ref.Workspace),
+		Tenant:    ref.Tenant,
+		Workspace: ref.Workspace,
 	}
-	var result sdkschema.Reference
-	_ = result.FromReferenceObject(refObj)
-	return result
 }
 
 func toPtrOrNil[T comparable](v T) *T {
@@ -212,23 +202,11 @@ func referenceObjectPtrToAPI(ref *regional.ReferenceObject) *sdkschema.Reference
 }
 
 func referenceObjectFromAPI(ref sdkschema.Reference) regional.ReferenceObject {
-	// Handle the Reference union type - try ReferenceObject first
-	refObj, err := ref.AsReferenceObject()
-	if err == nil {
-		return regional.ReferenceObject{
-			Provider:  ptr.Deref(refObj.Provider, ""),
-			Region:    ptr.Deref(refObj.Region, ""),
-			Resource:  refObj.Resource,
-			Tenant:    ptr.Deref(refObj.Tenant, ""),
-			Workspace: ptr.Deref(refObj.Workspace, ""),
-		}
+	return regional.ReferenceObject{
+		Provider:  ref.Provider,
+		Region:    ref.Region,
+		Resource:  ref.Resource,
+		Tenant:    ref.Tenant,
+		Workspace: ref.Workspace,
 	}
-	// Handle ReferenceURN as a fallback
-	refURN, err := ref.AsReferenceURN()
-	if err == nil {
-		return regional.ReferenceObject{
-			Resource: refURN,
-		}
-	}
-	return regional.ReferenceObject{}
 }
