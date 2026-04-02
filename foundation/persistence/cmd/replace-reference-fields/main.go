@@ -28,7 +28,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	lines := strings.Split(string(data), "\n")
+	result := replaceReferences(string(data))
+	if err := os.WriteFile(path, []byte(result), 0o600); err != nil { //nolint:gosec // path comes from CLI args
+		fmt.Fprintf(os.Stderr, "error writing %s: %v\n", path, err)
+		os.Exit(1)
+	}
+}
+
+// replaceReferences replaces Reference with ReferenceObject only within struct bodies.
+func replaceReferences(input string) string {
+	lines := strings.Split(input, "\n")
 	withinStruct := false
 	braceDepth := 0
 
@@ -60,9 +69,5 @@ func main() {
 		}
 	}
 
-	result := strings.Join(lines, "\n")
-	if err := os.WriteFile(path, []byte(result), 0o600); err != nil { //nolint:gosec // path comes from CLI args
-		fmt.Fprintf(os.Stderr, "error writing %s: %v\n", path, err)
-		os.Exit(1)
-	}
+	return strings.Join(lines, "\n")
 }
