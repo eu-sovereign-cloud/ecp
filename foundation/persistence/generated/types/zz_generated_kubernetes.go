@@ -50,18 +50,18 @@ type KubernetesClusterSpec struct {
 	// PodCidr CIDR range for the pod network. This is used to allocate IP addresses
 	// for pods in the cluster. The CIDR must be a valid IPv4 or IPv6 CIDR.
 	// If not specified, a default provider CIDR will be used.
-	PodCidr *string `json:"podCidr,omitempty"`
+	PodCidr string `json:"podCidr,omitempty"`
 
 	// RestrictKubernetesApi Restrict access to the Kubernetes API to specific IP addresses or ranges.
 	// This is a security feature to limit access to the cluster. If not specified,
 	// the Kubernetes API is accessible from any IP address. Nodes that are
 	// part of the cluster are always allowed to access the Kubernetes API.
-	RestrictKubernetesApi *[]string `json:"restrictKubernetesApi,omitempty"`
+	RestrictKubernetesApi []string `json:"restrictKubernetesApi,omitempty"`
 
 	// ServiceCidr CIDR range for the service network. This is used to allocate IP addresses
 	// for services in the cluster. The CIDR must be a valid IPv4 or IPv6 CIDR.
 	// If not specified, a default provider CIDR will be used.
-	ServiceCidr *string `json:"serviceCidr,omitempty"`
+	ServiceCidr string `json:"serviceCidr,omitempty"`
 
 	// SkuRef Reference to the SKU of the Kubernetes cluster.
 	SkuRef ReferenceObject `json:"skuRef"`
@@ -73,17 +73,8 @@ type KubernetesClusterStatus struct {
 
 	// KubeConfig The kube config file for the cluster. This file is used to configure
 	// access to the cluster using kubectl or other Kubernetes clients.
-	KubeConfig *string `json:"kubeConfig,omitempty"`
-
-	// State Current phase of the resource:
-	// - pending: not available, waiting for other resources
-	// - creating: not available, creation started
-	// - active: available for data layer usage
-	// - updating: available for data layer usage
-	// - deleting: maybe still available for data layer user, can fail any moment
-	// - suspended: not available, provider specific behavior (payment issue, user decided to suspend)
-	// - error: failed to fulfill the request; would be related to provider issue or customer related input.
-	State *ResourceState `json:"state,omitempty"`
+	KubeConfig string        `json:"kubeConfig,omitempty"`
+	State      ResourceState `json:"state,omitempty"`
 }
 
 // KubernetesNodePool defines model for KubernetesNodePool.
@@ -131,7 +122,7 @@ type KubernetesNodePoolSpec struct {
 	// Taints List of taints to apply to the nodes in the node pool. Taints are used
 	// to mark nodes as unsuitable for certain workloads, allowing for more
 	// fine-grained control over scheduling.
-	Taints *[]KubernetesNodeTaint `json:"taints,omitempty"`
+	Taints []KubernetesNodeTaint `json:"taints,omitempty"`
 }
 
 // KubernetesNodePoolStatus defines model for KubernetesNodePoolStatus.
@@ -140,17 +131,8 @@ type KubernetesNodePoolStatus struct {
 
 	// Nodes List of nodes in the Node Pool. Each node is represented by its
 	// reference to a compute instance.
-	Nodes *[]ReferenceObject `json:"nodes,omitempty"`
-
-	// State Current phase of the resource:
-	// - pending: not available, waiting for other resources
-	// - creating: not available, creation started
-	// - active: available for data layer usage
-	// - updating: available for data layer usage
-	// - deleting: maybe still available for data layer user, can fail any moment
-	// - suspended: not available, provider specific behavior (payment issue, user decided to suspend)
-	// - error: failed to fulfill the request; would be related to provider issue or customer related input.
-	State *ResourceState `json:"state,omitempty"`
+	Nodes []ReferenceObject `json:"nodes,omitempty"`
+	State ResourceState     `json:"state,omitempty"`
 }
 
 // KubernetesNodeRootVolume Root volume for the node. The root volume is used to store the operating

@@ -45,16 +45,16 @@ type Instance struct {
 // InstanceSpec Specification of the instance, including its SKU, network configuration, and storage options.
 type InstanceSpec struct {
 	// AdditionalNicRefs Additional NICs attached to this instance
-	AdditionalNicRefs *[]ReferenceObject `json:"additionalNicRefs,omitempty"`
+	AdditionalNicRefs []ReferenceObject `json:"additionalNicRefs,omitempty"`
 
 	// AntiAffinityGroup Anti-affinity group to which this instance belongs.
 	// Instances in the same anti-affinity group are placed on different physical hosts.
 	// The number of maximum instances in an anti-affinity group is provider-specific.
-	AntiAffinityGroup *string `json:"antiAffinityGroup,omitempty"`
+	AntiAffinityGroup string `json:"antiAffinityGroup,omitempty"`
 
 	// BootVolume Reference to the block storage used to store the boot volume of the instance.
-	BootVolume  VolumeReference    `json:"bootVolume"`
-	DataVolumes *[]VolumeReference `json:"dataVolumes,omitempty"`
+	BootVolume  VolumeReference   `json:"bootVolume"`
+	DataVolumes []VolumeReference `json:"dataVolumes,omitempty"`
 
 	// PrimaryNicRef Reference to the primary NIC attached to this instance.
 	PrimaryNicRef *ReferenceObject `json:"primaryNicRef,omitempty"`
@@ -68,11 +68,11 @@ type InstanceSpec struct {
 	// SshKeys Provider-specific references to SSH keys used in cloud-init vendorData.
 	// These references are used to inject SSH public keys during instance initialization
 	// through cloud-init's vendor data configuration.
-	SshKeys *[]string `json:"sshKeys,omitempty"`
+	SshKeys []string `json:"sshKeys,omitempty"`
 
 	// UserData Cloud-init user data for instance initialization
 	// Example cloud-init user configuration with SSH key:
-	UserData *string `json:"userData,omitempty"`
+	UserData string `json:"userData,omitempty"`
 
 	// Zone Reference to a specific zone within a region
 	Zone Zone `json:"zone"`
@@ -86,17 +86,8 @@ type InstanceStatus struct {
 	PowerState InstanceStatusPowerState `json:"powerState"`
 
 	// PowerStateSince Indicates the time when the instance powerState has updated, basecause the instance was started, stoped or restarted. If the instance was never started the field is `null`.
-	PowerStateSince *metav1.Time `json:"powerStateSince,omitempty"`
-
-	// State Current phase of the resource:
-	// - pending: not available, waiting for other resources
-	// - creating: not available, creation started
-	// - active: available for data layer usage
-	// - updating: available for data layer usage
-	// - deleting: maybe still available for data layer user, can fail any moment
-	// - suspended: not available, provider specific behavior (payment issue, user decided to suspend)
-	// - error: failed to fulfill the request; would be related to provider issue or customer related input.
-	State *ResourceState `json:"state,omitempty"`
+	PowerStateSince *metav1.Time  `json:"powerStateSince,omitempty"`
+	State           ResourceState `json:"state,omitempty"`
 }
 
 // InstanceStatusPowerState Current power state of the instance.

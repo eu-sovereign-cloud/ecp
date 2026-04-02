@@ -64,13 +64,13 @@ type ImageSpec struct {
 	BlockStorageRef ReferenceObject `json:"blockStorageRef"`
 
 	// Boot Boot type for the Image
-	Boot *ImageSpecBoot `json:"boot,omitempty"`
+	Boot ImageSpecBoot `json:"boot,omitempty"`
 
 	// CpuArchitecture CPU architecture for the Image
 	CpuArchitecture ImageSpecCpuArchitecture `json:"cpuArchitecture"`
 
 	// Initializer Initializer for the Image
-	Initializer *ImageSpecInitializer `json:"initializer,omitempty"`
+	Initializer ImageSpecInitializer `json:"initializer,omitempty"`
 }
 
 // ImageSpecBoot Boot type for the Image
@@ -87,15 +87,6 @@ type ImageStatus struct {
 	Conditions []StatusCondition `json:"conditions"`
 
 	// SizeMB Size of the Image in MB
-	SizeMB *int `json:"sizeMB,omitempty"`
-
-	// State Current phase of the resource:
-	// - pending: not available, waiting for other resources
-	// - creating: not available, creation started
-	// - active: available for data layer usage
-	// - updating: available for data layer usage
-	// - deleting: maybe still available for data layer user, can fail any moment
-	// - suspended: not available, provider specific behavior (payment issue, user decided to suspend)
-	// - error: failed to fulfill the request; would be related to provider issue or customer related input.
-	State *ResourceState `json:"state,omitempty"`
+	SizeMB *int          `json:"sizeMB,omitempty"`
+	State  ResourceState `json:"state,omitempty"`
 }

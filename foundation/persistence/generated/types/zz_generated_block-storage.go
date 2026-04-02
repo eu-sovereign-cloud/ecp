@@ -58,17 +58,8 @@ type BlockStorageStatus struct {
 	Conditions []StatusCondition `json:"conditions"`
 
 	// SizeGB Size of the block storage in GB.
-	SizeGB int `json:"sizeGB"`
-
-	// State Current phase of the resource:
-	// - pending: not available, waiting for other resources
-	// - creating: not available, creation started
-	// - active: available for data layer usage
-	// - updating: available for data layer usage
-	// - deleting: maybe still available for data layer user, can fail any moment
-	// - suspended: not available, provider specific behavior (payment issue, user decided to suspend)
-	// - error: failed to fulfill the request; would be related to provider issue or customer related input.
-	State *ResourceState `json:"state,omitempty"`
+	SizeGB int           `json:"sizeGB"`
+	State  ResourceState `json:"state,omitempty"`
 }
 
 // VolumeReference Represents a connection between a Block Storage and an a user of the block storage.
@@ -77,7 +68,7 @@ type VolumeReference struct {
 	DeviceRef ReferenceObject `json:"deviceRef"`
 
 	// Type The connection type depends on the type of device and type of block storage.
-	Type *VolumeReferenceType `json:"type,omitempty"`
+	Type VolumeReferenceType `json:"type,omitempty"`
 }
 
 // VolumeReferenceType The connection type depends on the type of device and type of block storage.

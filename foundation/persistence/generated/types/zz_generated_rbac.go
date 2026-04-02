@@ -84,16 +84,16 @@ type RoleAssignmentScope struct {
 	// Regions Optionally, a restriction can be applied to the region
 	// where the role assignment is valid. If not specified,
 	// the role assignment is valid for all regions.
-	Regions *[]string `json:"regions,omitempty"`
+	Regions []string `json:"regions,omitempty"`
 
 	// Tenants Optionally, can be opened to all tenants or restricted to a specific tenant.
 	// If not specified, the role assignment is valid for the current tenant.
-	Tenants *[]string `json:"tenants,omitempty"`
+	Tenants []string `json:"tenants,omitempty"`
 
 	// Workspaces Optionally, a restriction can be applied to the workspace
 	// where the role assignment is valid. If not specified,
 	// the role assignment is valid for all workspaces.
-	Workspaces *[]string `json:"workspaces,omitempty"`
+	Workspaces []string `json:"workspaces,omitempty"`
 }
 
 // RoleAssignmentSpec Role assignment for a user account. The role is assigned to the user account in the context of the specified scopes.

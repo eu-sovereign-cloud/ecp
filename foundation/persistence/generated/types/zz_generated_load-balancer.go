@@ -43,7 +43,7 @@ type LoadBalancerHealthCheck struct {
 
 	// Type Specifies the type of health check. A `connect` health check attempts
 	// to establish a connection to the specified port to determine its health.
-	Type *LoadBalancerHealthCheckType `json:"type,omitempty"`
+	Type LoadBalancerHealthCheckType `json:"type,omitempty"`
 }
 
 // LoadBalancerHealthCheckType Specifies the type of health check. A `connect` health check attempts
@@ -53,7 +53,7 @@ type LoadBalancerHealthCheckType string
 // LoadBalancerTarget The target of the LoadBalancer. It can be a set of instances nics. The port can be different from the frontend port, if omitted it will be the same. If no health check is specified, the LoadBalancer will not check the health of the backend instances.
 type LoadBalancerTarget struct {
 	// Algorithm LoadBalancer algorithm to take a backend instance
-	Algorithm *LoadBalancerTargetAlgorithm `json:"algorithm,omitempty"`
+	Algorithm LoadBalancerTargetAlgorithm `json:"algorithm,omitempty"`
 
 	// HealthCheck Optional port health check. It probes the port with protocol.
 	HealthCheck *LoadBalancerHealthCheck `json:"healthCheck,omitempty"`
@@ -61,14 +61,13 @@ type LoadBalancerTarget struct {
 	// Members Nic reference to the members as part of the LoadBalancerTarget
 	Members []ReferenceObject `json:"members"`
 
-	// Port A valid network port number.
-	// The port number is a 16-bit unsigned integer ranging from 1 to 65535.
-	Port *Port `json:"port,omitempty"`
+	// Port Backend port to which the load balancer will be forwarding the traffic to
+	Port *NetworkLoadBalancerPort `json:"port,omitempty"`
 
 	// ProxyProtocol Specifies the proxy protocol version. The proxy protocol is used to
 	// pass client connection information to the backend instances.
 	// If not specified, the default is `none`.
-	ProxyProtocol *LoadBalancerTargetProxyProtocol `json:"proxyProtocol,omitempty"`
+	ProxyProtocol LoadBalancerTargetProxyProtocol `json:"proxyProtocol,omitempty"`
 }
 
 // LoadBalancerTargetAlgorithm LoadBalancer algorithm to take a backend instance
@@ -112,9 +111,8 @@ type NetworkLoadBalancer struct {
 // can have multiple targets, but the combination of port and protocol must
 // be unique to ensure proper routing.
 type NetworkLoadBalancerFrontend struct {
-	// Port A valid network port number.
-	// The port number is a 16-bit unsigned integer ranging from 1 to 65535.
-	Port Port `json:"port"`
+	// Port Frontend port to which the load balancer will be listening on
+	Port NetworkLoadBalancerPort `json:"port"`
 
 	// Protocol Frontend Protocol to which the load balancer will be listening on
 	Protocol NetworkLoadBalancerFrontendProtocol `json:"protocol"`
@@ -126,12 +124,20 @@ type NetworkLoadBalancerFrontend struct {
 // NetworkLoadBalancerFrontendProtocol Frontend Protocol to which the load balancer will be listening on
 type NetworkLoadBalancerFrontendProtocol string
 
+// NetworkLoadBalancerPort Load Balancer port to receive or forward the traffic
+type NetworkLoadBalancerPort = int
+
 // NetworkLoadBalancerSpec Defines the specification for a Network Load Balancer. A Load Balancer can have multiple
 // frontends, where each frontend may target multiple backend instances. Frontend ports and
 // protocols must be unique to ensure proper routing. The NIC associated with the proxy
 // determines whether the Load Balancer is internal or external.
 type NetworkLoadBalancerSpec struct {
-	Frontends []NetworkLoadBalancerFrontend `json:"frontends"`
+	// BackendPort Backend port to which the load balancer will be forwarding the traffic to
+	BackendPort *NetworkLoadBalancerPort `json:"backendPort,omitempty"`
+
+	// FrontendPort Frontend port to which the load balancer will be listening on
+	FrontendPort *NetworkLoadBalancerPort      `json:"frontendPort,omitempty"`
+	Frontends    []NetworkLoadBalancerFrontend `json:"frontends"`
 
 	// NicRef Reference to the NIC attached to the load balancer.
 	NicRef ReferenceObject `json:"nicRef"`
@@ -145,15 +151,6 @@ type NetworkLoadBalancerStatus struct {
 	Conditions []StatusCondition `json:"conditions"`
 
 	// HealthyMembers List of healthy members
-	HealthyMembers *[]ReferenceObject `json:"healthyMembers,omitempty"`
-
-	// State Current phase of the resource:
-	// - pending: not available, waiting for other resources
-	// - creating: not available, creation started
-	// - active: available for data layer usage
-	// - updating: available for data layer usage
-	// - deleting: maybe still available for data layer user, can fail any moment
-	// - suspended: not available, provider specific behavior (payment issue, user decided to suspend)
-	// - error: failed to fulfill the request; would be related to provider issue or customer related input.
-	State *ResourceState `json:"state,omitempty"`
+	HealthyMembers []ReferenceObject `json:"healthyMembers,omitempty"`
+	State          ResourceState     `json:"state,omitempty"`
 }
