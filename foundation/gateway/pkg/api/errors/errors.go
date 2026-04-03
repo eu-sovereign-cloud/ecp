@@ -6,14 +6,13 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
+
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 )
 
-// Sentinel errors for http handlers
 var (
 	ErrBadRequest         = errors.New("bad request")
-	ErrPreconditionFailed = errors.New("precondition failed")
 )
 
 // DomainToSDKError converts a domain error to an RFC 7807 SDK error.
@@ -84,7 +83,7 @@ func mapKindToHTTP(kind model.ErrKind) (int, string, schema.ErrorType) {
 	case model.KindUnavailable:
 		return http.StatusInternalServerError, model.KindUnavailable.String(), schema.ErrorTypeInternalServerError
 	default:
-		return http.StatusInternalServerError, "Internal Server Error", schema.ErrorTypeInternalServerError
+		return http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), schema.ErrorTypeInternalServerError
 	}
 }
 
@@ -92,11 +91,9 @@ func mapKindToHTTP(kind model.ErrKind) (int, string, schema.ErrorType) {
 func mapErrorToHTTP(err error) (int, string, schema.ErrorType) {
 	switch {
 	case errors.Is(err, ErrBadRequest):
-		return http.StatusBadRequest, "Bad Request", schema.ErrorTypeInvalidRequest
-	case errors.Is(err, ErrPreconditionFailed):
-		return http.StatusPreconditionFailed, "Precondition Failed", schema.ErrorTypePreconditionFailed
+		return http.StatusBadRequest, http.StatusText(http.StatusBadRequest), schema.ErrorTypeInvalidRequest
 	default:
-		return http.StatusInternalServerError, "Internal Server Error", schema.ErrorTypeInternalServerError
+		return http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), schema.ErrorTypeInternalServerError
 	}
 }
 

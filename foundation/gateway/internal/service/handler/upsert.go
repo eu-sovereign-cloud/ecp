@@ -67,7 +67,7 @@ func HandleUpsert[In any, D any, Out any](
 	if err != nil {
 		errMsg := "failed to read request body"
 		logger.ErrorContext(r.Context(), errMsg, slog.Any("error", err))
-		apierr.WriteErrorResponse(w, r, logger, fmt.Errorf("%s: %w", errMsg, err))
+		apierr.WriteErrorResponse(w, r, logger, fmt.Errorf("%w: %s: %w", apierr.ErrBadRequest, errMsg, err))
 		return
 	}
 

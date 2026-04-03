@@ -9,9 +9,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 )
 
@@ -88,7 +86,7 @@ func TestHandleGet_Success(t *testing.T) {
 func TestHandleGet_NotFound(t *testing.T) {
 	res := &testResource{name: "missing", tenant: "tenant1", workspace: "workspace1"}
 	// simulate not found error using k8s errors so errors.IsNotFound matches
-	nfErr := k8serrors.NewNotFound(schema.GroupResource{Group: "test.io", Resource: "things"}, res.GetName())
+	nfErr := model.NewError(model.KindNotFound, nil).WithSource("name", res.GetName())
 	getter := &mockGetter[domainModel]{err: nfErr}
 	//nolint:staticcheck // S1016 suppression: mapping clarifies domain->DTO transformation.
 	mapper := func(d domainModel) outputDTO { return outputDTO{Value: d.Value} }
@@ -113,7 +111,7 @@ func TestHandleGet_NotFound(t *testing.T) {
 	if !contains(bodyStr, "\"status\":404") {
 		t.Errorf("expected status field in JSON response, got: %s", bodyStr)
 	}
-	if !contains(bodyStr, "\"type\":\"http://secapi.eu/errors/resource-not-found\"") {
+	if !contains(bodyStr, "\"type\":\"http://secapi.cloud/errors/resource-not-found\"") {
 		t.Errorf("expected type field in JSON response, got: %s", bodyStr)
 	}
 	if !contains(bodyStr, res.GetName()) {
@@ -159,7 +157,7 @@ func TestHandleGet_InternalError(t *testing.T) {
 	if !contains(bodyStr, "\"status\":500") {
 		t.Errorf("expected status field in JSON response, got: %s", bodyStr)
 	}
-	if !contains(bodyStr, "\"type\":\"http://secapi.eu/errors/internal-server-error\"") {
+	if !contains(bodyStr, "\"type\":\"http://secapi.cloud/errors/internal-server-error\"") {
 		t.Errorf("expected type field in JSON response, got: %s", bodyStr)
 	}
 }

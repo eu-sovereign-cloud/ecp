@@ -147,7 +147,7 @@ func TestHandleUpsert(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, rr.Code)
 		// Now returns structured JSON error
 		assert.Contains(t, rr.Body.String(), "\"status\":400")
-		assert.Contains(t, rr.Body.String(), "Invalid JSON")
+		assert.Contains(t, rr.Body.String(), "invalid JSON")
 		mockCreator.AssertNotCalled(t, "Do")
 		mockUpdater.AssertNotCalled(t, "Do")
 	})
@@ -302,7 +302,7 @@ func TestHandleUpsert(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, rr.Code)
 		// Now returns structured JSON error
 		assert.Contains(t, rr.Body.String(), "\"status\":400")
-		assert.Contains(t, rr.Body.String(), "Failed to read")
+		assert.Contains(t, rr.Body.String(), "failed to read")
 		mockCreator.AssertNotCalled(t, "Do")
 	})
 
