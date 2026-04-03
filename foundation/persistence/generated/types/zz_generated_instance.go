@@ -45,7 +45,7 @@ type Instance struct {
 // InstanceSpec Specification of the instance, including its SKU, network configuration, and storage options.
 type InstanceSpec struct {
 	// AdditionalNicRefs Additional NICs attached to this instance
-	AdditionalNicRefs []ReferenceObject `json:"additionalNicRefs,omitempty"`
+	AdditionalNicRefs []Reference `json:"additionalNicRefs,omitempty"`
 
 	// AntiAffinityGroup Anti-affinity group to which this instance belongs.
 	// Instances in the same anti-affinity group are placed on different physical hosts.
@@ -57,13 +57,13 @@ type InstanceSpec struct {
 	DataVolumes []VolumeReference `json:"dataVolumes,omitempty"`
 
 	// PrimaryNicRef Reference to the primary NIC attached to this instance.
-	PrimaryNicRef *ReferenceObject `json:"primaryNicRef,omitempty"`
+	PrimaryNicRef *Reference `json:"primaryNicRef,omitempty"`
 
 	// SecurityGroupRef Reference to the security group associated with this instance.
-	SecurityGroupRef *ReferenceObject `json:"securityGroupRef,omitempty"`
+	SecurityGroupRef *Reference `json:"securityGroupRef,omitempty"`
 
 	// SkuRef Reference to the SKU of the instance.
-	SkuRef ReferenceObject `json:"skuRef"`
+	SkuRef Reference `json:"skuRef"`
 
 	// SshKeys Provider-specific references to SSH keys used in cloud-init vendorData.
 	// These references are used to inject SSH public keys during instance initialization

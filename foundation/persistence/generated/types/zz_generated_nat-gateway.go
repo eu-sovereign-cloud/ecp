@@ -34,13 +34,13 @@ type InternetNatGatewayInstance struct {
 // report this as an error.
 type InternetNatGatewayInstanceSpec struct {
 	// NicRef Reference to the NIC attached to the internet NAT gateway.
-	NicRef ReferenceObject `json:"nicRef"`
+	NicRef Reference `json:"nicRef"`
 
 	// PublicIpRef Reference to the public IP allocated to this internet NAT gateway.
-	PublicIpRef ReferenceObject `json:"publicIpRef"`
+	PublicIpRef Reference `json:"publicIpRef"`
 
 	// SecurityGroupRef Reference to the security group associated with the NAT gateway.
-	SecurityGroupRef *ReferenceObject `json:"securityGroupRef,omitempty"`
+	SecurityGroupRef *Reference `json:"securityGroupRef,omitempty"`
 
 	// Zone Reference to a specific zone within a region
 	Zone Zone `json:"zone"`

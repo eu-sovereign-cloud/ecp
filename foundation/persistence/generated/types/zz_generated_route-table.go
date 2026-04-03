@@ -17,7 +17,7 @@ type RouteSpec struct {
 	DestinationCidrBlock string `json:"destinationCidrBlock"`
 
 	// TargetRef Reference to the target of the route. The target can be an instance, an gateway or an IP address.
-	TargetRef ReferenceObject `json:"targetRef"`
+	TargetRef Reference `json:"targetRef"`
 }
 
 // RouteStatus defines model for RouteStatus.

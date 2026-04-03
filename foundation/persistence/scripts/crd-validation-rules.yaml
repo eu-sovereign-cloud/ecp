@@ -1,0 +1,11 @@
+rules:
+  - name: blockstorage-sizegb-non-decreasing
+    file: storage/storage.v1.secapi.cloud_block-storages.yaml
+    specPath: sizeGB
+    validations:
+      - rule: "!oldSelf.hasValue() || self >= oldSelf.value()"
+        message: "spec.sizeGB cannot be decreased"
+        optionalOldSelf: true
+      - rule: "self > 0"
+        message: "spec.sizeGB must be greater than 0"
+
