@@ -598,13 +598,13 @@ func (a *WriterAdapter[T]) mapUpdateError(err error, name string) error {
 	switch {
 	case kerrs.IsNotFound(err):
 		errModel = model.ErrNotFound
-	case kerrs.IsGone(err):
-		errModel = model.ErrGone
+	case kerrs.IsGone(err), kerrs.IsResourceExpired(err):
+		errModel = model.ErrPreconditionFailed
 	case kerrs.IsConflict(err):
-		if kerrs.HasStatusCause(err, metav1.CauseTypeFieldManagerConflict) {
-			errModel = model.ErrConflict
-		} else {
+		if isResourceVersionConflict(err) {
 			errModel = model.ErrPreconditionFailed
+		} else {
+			errModel = model.ErrConflict
 		}
 	case kerrs.IsInvalid(err):
 		errModel = model.ErrValidation
@@ -636,9 +636,9 @@ func (a *WriterAdapter[T]) Delete(ctx context.Context, m T) error {
 			return fmt.Errorf("%w: %s '%s': %w", model.ErrValidation, a.gvr.Resource, m.GetName(), err)
 		}
 		if kerrs.IsConflict(err) {
-			conflictErr := model.ErrPreconditionFailed
-			if kerrs.HasStatusCause(err, metav1.CauseTypeFieldManagerConflict) {
-				conflictErr = model.ErrConflict
+			conflictErr := model.ErrConflict
+			if isResourceVersionConflict(err) {
+				conflictErr = model.ErrPreconditionFailed
 			}
 			return fmt.Errorf("%w: %s '%s': %w", conflictErr, a.gvr.Resource, m.GetName(), err)
 		}

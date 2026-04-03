@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	ErrBadRequest         = errors.New("bad request")
+	ErrBadRequest = errors.New("bad request")
 )
 
 // DomainToSDKError converts a domain error to an RFC 7807 SDK error.

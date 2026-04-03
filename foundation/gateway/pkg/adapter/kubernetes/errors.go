@@ -34,6 +34,8 @@ func k8sToDomainErrorKind(err error) model.ErrKind {
 		return model.KindValidation
 	case kerrs.IsForbidden(err):
 		return model.KindForbidden
+	case kerrs.IsResourceExpired(err), kerrs.IsGone(err):
+		return model.KindPreconditionFailed
 	case kerrs.IsUnauthorized(err):
 		return model.KindForbidden
 	case kerrs.IsServiceUnavailable(err), kerrs.IsServerTimeout(err), kerrs.IsTimeout(err):

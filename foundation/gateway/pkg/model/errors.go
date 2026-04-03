@@ -10,11 +10,9 @@ const (
 	KindForbidden ErrKind = iota
 	// KindNotFound indicates the requested resource does not exist.
 	KindNotFound
-	// KindGone indicates the requested resource no longer exists.
-	KindGone
 	// KindConflict indicates resource creation or modification conflict.
 	KindConflict
-	// KindPreconditionFailed indicates resource modification failed due to resourceVersion issues
+	// KindPreconditionFailed indicates resource modification/deletion failed due to resourceVersion issues
 	KindPreconditionFailed
 	// KindValidation indicates resource validation failure.
 	KindValidation
@@ -28,7 +26,6 @@ const (
 var (
 	ErrForbidden          = NewError(KindForbidden, errors.New(KindForbidden.String()))
 	ErrNotFound           = NewError(KindNotFound, errors.New(KindNotFound.String()))
-	ErrGone               = NewError(KindGone, errors.New(KindGone.String()))
 	ErrConflict           = NewError(KindConflict, errors.New(KindConflict.String()))
 	ErrPreconditionFailed = NewError(KindPreconditionFailed, errors.New(KindPreconditionFailed.String()))
 	ErrValidation         = NewError(KindValidation, errors.New(KindValidation.String()))
@@ -43,8 +40,6 @@ func (k ErrKind) String() string {
 		return "forbidden"
 	case KindNotFound:
 		return "not found"
-	case KindGone:
-		return "gone"
 	case KindConflict:
 		return "conflict"
 	case KindPreconditionFailed:
