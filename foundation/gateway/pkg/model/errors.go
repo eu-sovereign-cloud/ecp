@@ -14,6 +14,8 @@ const (
 	KindGone
 	// KindConflict indicates resource creation or modification conflict.
 	KindConflict
+	// KindPreconditionFailed indicates resource modification failed due to resourceVersion issues
+	KindPreconditionFailed
 	// KindValidation indicates resource validation failure.
 	KindValidation
 	// KindUnavailable indicates external service operation failure.
@@ -24,13 +26,14 @@ const (
 
 // Sentinel errors
 var (
-	ErrForbidden     = NewError(KindForbidden, errors.New(KindForbidden.String()))
-	ErrNotFound      = NewError(KindNotFound, errors.New(KindNotFound.String()))
-	ErrGone          = NewError(KindGone, errors.New(KindGone.String()))
-	ErrConflict      = NewError(KindConflict, errors.New(KindConflict.String()))
-	ErrValidation    = NewError(KindValidation, errors.New(KindValidation.String()))
-	ErrUnavailable   = NewError(KindUnavailable, errors.New(KindUnavailable.String()))
-	ErrAlreadyExists = NewError(KindAlreadyExists, errors.New(KindAlreadyExists.String()))
+	ErrForbidden          = NewError(KindForbidden, errors.New(KindForbidden.String()))
+	ErrNotFound           = NewError(KindNotFound, errors.New(KindNotFound.String()))
+	ErrGone               = NewError(KindGone, errors.New(KindGone.String()))
+	ErrConflict           = NewError(KindConflict, errors.New(KindConflict.String()))
+	ErrPreconditionFailed = NewError(KindPreconditionFailed, errors.New(KindPreconditionFailed.String()))
+	ErrValidation         = NewError(KindValidation, errors.New(KindValidation.String()))
+	ErrUnavailable        = NewError(KindUnavailable, errors.New(KindUnavailable.String()))
+	ErrAlreadyExists      = NewError(KindAlreadyExists, errors.New(KindAlreadyExists.String()))
 )
 
 // String returns the string representation of the error kind.
@@ -44,6 +47,8 @@ func (k ErrKind) String() string {
 		return "gone"
 	case KindConflict:
 		return "conflict"
+	case KindPreconditionFailed:
+		return "precondition failed"
 	case KindValidation:
 		return "validation error"
 	case KindUnavailable:
@@ -110,8 +115,7 @@ func NewError(kind ErrKind, cause error, sources ...ErrorSource) *Error {
 // AsError attempts to extract a domain Error from err.
 // Returns nil if err is not a domain Error.
 func AsError(err error) *Error {
-	var domainErr *Error
-	if errors.As(err, &domainErr) {
+	if domainErr, ok := errors.AsType[*Error](err); ok {
 		return domainErr
 	}
 	return nil
@@ -119,8 +123,7 @@ func AsError(err error) *Error {
 
 // Is allows Error to match by kind for errors.Is comparisons.
 func (e *Error) Is(target error) bool {
-	var te *Error
-	if errors.As(target, &te) {
+	if te, ok := errors.AsType[*Error](target); ok {
 		return e.Kind == te.Kind
 	}
 	return false

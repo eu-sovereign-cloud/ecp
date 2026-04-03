@@ -77,6 +77,8 @@ func mapKindToHTTP(kind model.ErrKind) (int, string, schema.ErrorType) {
 		return http.StatusNotFound, model.KindNotFound.String(), schema.ErrorTypeResourceNotFound
 	case model.KindConflict, model.KindAlreadyExists:
 		return http.StatusConflict, model.KindConflict.String(), schema.ErrorTypeResourceConflict
+	case model.KindPreconditionFailed:
+		return http.StatusPreconditionFailed, model.KindPreconditionFailed.String(), schema.ErrorTypePreconditionFailed
 	case model.KindValidation:
 		return http.StatusUnprocessableEntity, model.KindValidation.String(), schema.ErrorTypeValidationError
 	case model.KindUnavailable:

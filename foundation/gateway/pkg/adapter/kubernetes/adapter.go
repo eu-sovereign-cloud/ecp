@@ -601,7 +601,11 @@ func (a *WriterAdapter[T]) mapUpdateError(err error, name string) error {
 	case kerrs.IsGone(err):
 		errModel = model.ErrGone
 	case kerrs.IsConflict(err):
-		errModel = model.ErrConflict
+		if kerrs.HasStatusCause(err, metav1.CauseTypeFieldManagerConflict) {
+			errModel = model.ErrConflict
+		} else {
+			errModel = model.ErrPreconditionFailed
+		}
 	case kerrs.IsInvalid(err):
 		errModel = model.ErrValidation
 	default:
@@ -632,7 +636,11 @@ func (a *WriterAdapter[T]) Delete(ctx context.Context, m T) error {
 			return fmt.Errorf("%w: %s '%s': %w", model.ErrValidation, a.gvr.Resource, m.GetName(), err)
 		}
 		if kerrs.IsConflict(err) {
-			return fmt.Errorf("%w: %s '%s': %w", model.ErrConflict, a.gvr.Resource, m.GetName(), err)
+			conflictErr := model.ErrPreconditionFailed
+			if kerrs.HasStatusCause(err, metav1.CauseTypeFieldManagerConflict) {
+				conflictErr = model.ErrConflict
+			}
+			return fmt.Errorf("%w: %s '%s': %w", conflictErr, a.gvr.Resource, m.GetName(), err)
 		}
 		return fmt.Errorf("%w: failed to delete %s '%s': %w", model.ErrUnavailable, a.gvr.Resource, m.GetName(), err)
 	}
