@@ -406,10 +406,10 @@ func (a *WriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
 	return &res, nil
 }
 
-// Update implements the port.WriterRepo interface. It handles both spec-only updates
-// and updates that include the status, using the appropriate Kubernetes API endpoints.
+// Update implements the port.WriterRepo interface. It updates the resource's
+// metadata (labels, annotations) and spec. Status updates are handled separately
+// by UpdateStatus.
 func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
-	// 1 - Convert from business domain model to K8s unstructured
 	uobj, err := a.toUnstructured(m)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "conversion from T to unstructured failed", "resource", a.gvr.Resource, "error", err)
@@ -417,93 +417,56 @@ func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
 		return nil, fmt.Errorf("%w: failed to convert %s to unstructured: %w", model.ErrValidation, a.gvr.Resource, err)
 	}
 
-	// 2 - Decompose the object by extracting...
+	resourceInterface := a.client.Resource(a.gvr).Namespace(ComputeNamespace(m))
 
-	// 2.1 - Labels
-	desiredLabels := uobj.GetLabels()
-	labelsFound := len(desiredLabels) > 0
-
-	// 2.2 - Annotations
-	desiredAnnotations := uobj.GetAnnotations()
-	annotationsFound := len(desiredAnnotations) > 0
-
-	// 2.3 - The Spec
-	// Determine if a status update is intended by checking for meaningful status data.
-	desiredSpec, specFound, err := unstructured.NestedMap(uobj.Object, "spec")
-	if err != nil {
-		return nil, err // TODO: better error handling
+	if m.GetVersion() == "" {
+		if err := a.updateMetadataAndSpec(ctx, resourceInterface, m.GetName(), uobj); err != nil {
+			return nil, a.mapUpdateError(err, m.GetName())
+		}
+	} else {
+		if _, err = resourceInterface.Update(ctx, uobj, metav1.UpdateOptions{}); err != nil {
+			return nil, a.mapUpdateError(err, m.GetName())
+		}
 	}
 
-	// 2.4 - The status
+	currObj, err := resourceInterface.Get(ctx, m.GetName(), metav1.GetOptions{})
+	if err != nil {
+		return nil, a.mapUpdateError(err, m.GetName())
+	}
+
+	res, err := a.k8sToDomain(currObj)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert from k8s object: %w", err)
+	}
+
+	return &res, nil
+}
+
+// UpdateStatus implements the port.WriterRepo interface. It updates only the
+// resource's status subresource, leaving metadata and spec unchanged.
+func (a *WriterAdapter[T]) UpdateStatus(ctx context.Context, m T) (*T, error) {
+	uobj, err := a.toUnstructured(m)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "conversion from T to unstructured failed", "resource", a.gvr.Resource, "error", err)
+
+		return nil, fmt.Errorf("%w: failed to convert %s to unstructured: %w", model.ErrValidation, a.gvr.Resource, err)
+	}
+
 	desiredStatus, statusFound, err := unstructured.NestedMap(uobj.Object, "status")
 	if err != nil {
 		return nil, err
 	}
 
-	// 3 - Setup the K8s Client Interface to the resource and namespace
+	if !statusFound {
+		return nil, fmt.Errorf("%w: no status data provided for %s '%s'", model.ErrValidation, a.gvr.Resource, m.GetName())
+	}
+
 	resourceInterface := a.client.Resource(a.gvr).Namespace(ComputeNamespace(m))
-	// 4 - Update the Spec if present
-	if m.GetVersion() == "" {
 
-		if labelsFound || annotationsFound || specFound {
-			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-				currObj, getErr := resourceInterface.Get(ctx, m.GetName(), metav1.GetOptions{})
-				if getErr != nil {
-					return getErr
-				}
-
-				// Skip spec updating when deleting
-				if !currObj.GetDeletionTimestamp().IsZero() {
-					return nil
-				}
-
-				// Extract the current spec
-				currSpec, currSpecFound, err := unstructured.NestedMap(currObj.Object, "spec")
-				if err != nil {
-					return err // TODO: better error handling
-				}
-
-				// Set labels
-				currObj.SetLabels(desiredLabels)
-
-				// Set annotations
-				currObj.SetAnnotations(desiredAnnotations)
-
-				// Set the desired spec on the current object
-				if currSpecFound && !cmp.Equal(currSpec, desiredSpec) {
-					if err := unstructured.SetNestedMap(currObj.Object, desiredSpec, "spec"); err != nil {
-						return err // TODO: better error handling
-					}
-				}
-
-				// Update the resource spec on K8s
-				if _, err := resourceInterface.Update(ctx, currObj, metav1.UpdateOptions{}); err != nil {
-					return err // TODO: better error handling
-				}
-
-				// At this point everything is OK
-				return nil
-			})
-			if err != nil {
-				return nil, a.mapUpdateError(err, m.GetName())
-			}
-		}
-	} else {
-		// For versioned updates, we can assume that the whole object is updated, so we can directly call the Update API.
-		_, err = resourceInterface.Update(ctx, uobj, metav1.UpdateOptions{})
-		if err != nil {
-			return nil, a.mapUpdateError(err, m.GetName())
-		}
+	if err := a.updateStatusRetry(ctx, resourceInterface, m, desiredStatus); err != nil {
+		return nil, a.mapUpdateError(err, m.GetName())
 	}
 
-	// 5 - Update the status if present
-	if statusFound {
-		if err := a.updateStatus(ctx, resourceInterface, m, desiredStatus); err != nil {
-			return nil, a.mapUpdateError(err, m.GetName())
-		}
-	}
-
-	// 6 - Load the final object from K8s
 	currObj, err := resourceInterface.Get(ctx, m.GetName(), metav1.GetOptions{})
 	if err != nil {
 		return nil, a.mapUpdateError(err, m.GetName())
@@ -574,7 +537,7 @@ func (a *WriterAdapter[T]) updateMetadataAndSpec(
 	})
 }
 
-func (a *WriterAdapter[T]) updateStatus(
+func (a *WriterAdapter[T]) updateStatusRetry(
 	ctx context.Context,
 	ri dynamic.ResourceInterface,
 	m T,

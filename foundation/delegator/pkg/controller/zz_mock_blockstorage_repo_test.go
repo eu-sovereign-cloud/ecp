@@ -115,6 +115,21 @@ func (mr *MockRepoMockRecorder[T]) Update(ctx, m any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockRepo[T])(nil).Update), ctx, m)
 }
 
+// UpdateStatus mocks base method.
+func (m_2 *MockRepo[T]) UpdateStatus(ctx context.Context, m T) (*T, error) {
+	m_2.ctrl.T.Helper()
+	ret := m_2.ctrl.Call(m_2, "UpdateStatus", ctx, m)
+	ret0, _ := ret[0].(*T)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UpdateStatus indicates an expected call of UpdateStatus.
+func (mr *MockRepoMockRecorder[T]) UpdateStatus(ctx, m any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateStatus", reflect.TypeOf((*MockRepo[T])(nil).UpdateStatus), ctx, m)
+}
+
 // Watch mocks base method.
 func (m_2 *MockRepo[T]) Watch(ctx context.Context, m chan<- T) error {
 	m_2.ctrl.T.Helper()
