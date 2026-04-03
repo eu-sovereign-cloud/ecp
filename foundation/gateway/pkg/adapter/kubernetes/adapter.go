@@ -171,11 +171,11 @@ func ComputeNamespace(obj port.Scope) string {
 // CreateNamespace creates a Kubernetes Namespace.
 func CreateNamespace(ctx context.Context, clientSet kubernetes.Interface, name string, ownerLabels map[string]string) (created bool, err error) {
 	if name == "" {
-		return false, fmt.Errorf("cannot create namespace with empty name")
+		return false, model.NewError(model.KindValidation, fmt.Errorf("cannot create namespace with empty name"))
 	}
 
 	if clientSet == nil {
-		return false, fmt.Errorf("cannot create namespace %q: clientSet is nil", name)
+		return false, model.NewError(model.KindUnavailable, fmt.Errorf("cannot create namespace %q: clientSet is nil", name))
 	}
 
 	ns := &corev1.Namespace{
@@ -190,7 +190,7 @@ func CreateNamespace(ctx context.Context, clientSet kubernetes.Interface, name s
 			return false, nil
 		}
 
-		return false, fmt.Errorf("failed to create namespace %s: %w", name, err)
+		return false, kubeToDomainError(fmt.Errorf("failed to create namespace %s: %w", name, err))
 	}
 
 	return true, nil
@@ -203,7 +203,7 @@ func DeleteNamespace(ctx context.Context, clientSet kubernetes.Interface, name s
 	}
 
 	if clientSet == nil {
-		return fmt.Errorf("cannot delete namespace %q: clientSet is nil", name)
+		return model.NewError(model.KindUnavailable, fmt.Errorf("cannot delete namespace %q: clientSet is nil", name))
 	}
 
 	if err := clientSet.CoreV1().Namespaces().Delete(ctx, name, metav1.DeleteOptions{}); err != nil {
@@ -211,7 +211,7 @@ func DeleteNamespace(ctx context.Context, clientSet kubernetes.Interface, name s
 			return nil
 		}
 
-		return err
+		return kubeToDomainError(fmt.Errorf("failed to delete namespace %s: %w", name, err))
 
 	}
 	return nil
@@ -238,14 +238,9 @@ func (a *ReaderAdapter[T]) List(ctx context.Context, params model.ListParams, li
 
 	ulist, err := ri.List(ctx, lo)
 	if err != nil {
-		modelErr := model.ErrUnavailable
-		if kerrs.IsForbidden(err) {
-			modelErr = model.ErrForbidden
-		}
-
 		a.logger.ErrorContext(ctx, "failed to list resources", "resource", a.gvr.Resource, "error", err)
 
-		return nil, fmt.Errorf("%w: failed to list resources for %s: %w", modelErr, a.gvr.Resource, err)
+		return nil, kubeToDomainError(fmt.Errorf("failed to list resources for %s: %w", a.gvr.Resource, err))
 	}
 
 	// Apply client-side filtering for selectors not handled by the API
@@ -256,7 +251,7 @@ func (a *ReaderAdapter[T]) List(ctx context.Context, params model.ListParams, li
 			if err != nil {
 				a.logger.ErrorContext(ctx, "label filter evaluation failed", "resource", a.gvr.Resource, "item", item.GetName(), "error", err)
 
-				return nil, fmt.Errorf("%w: label filter for %s failed: %w", model.ErrValidation, a.gvr.Resource, err)
+				return nil, model.NewError(model.KindValidation, fmt.Errorf("label filter for %s failed: %w", a.gvr.Resource, err))
 			}
 
 			if k8sHandled { // The filter was fully handled by the K8s API
@@ -280,7 +275,7 @@ func (a *ReaderAdapter[T]) List(ctx context.Context, params model.ListParams, li
 		if err != nil {
 			a.logger.ErrorContext(ctx, "conversion failed", "resource", a.gvr.Resource, "error", err)
 
-			return nil, fmt.Errorf("%w: failed to convert %s: %w", model.ErrValidation, a.gvr.Resource, err)
+			return nil, model.NewError(model.KindValidation, fmt.Errorf("failed to convert %s: %w", a.gvr.Resource, err))
 		}
 
 		*list = append(*list, converted)
@@ -301,25 +296,18 @@ func (a *ReaderAdapter[T]) Load(ctx context.Context, obj *T) error {
 
 	uobj, err := ri.Get(ctx, v.GetName(), metav1.GetOptions{})
 	if err != nil {
-		modelErr := model.ErrUnavailable
-		if kerrs.IsNotFound(err) {
-			// We need to to return a specific error to signad the "Not Found"
-			// condition, but we don't need to log that because it's normal.
-			modelErr = model.ErrNotFound
-		} else {
-			// Otherwise, for other errors, we need to log them.
+		if !kerrs.IsNotFound(err) {
 			a.logger.ErrorContext(ctx, "failed to get resource", "name", v.GetName(), "resource", a.gvr.Resource, "error", err)
 		}
 
-		return fmt.Errorf("%w: failed to retrieve %s '%s': %w", modelErr, a.gvr.Resource, v.GetName(), err)
+		return kubeToDomainError(fmt.Errorf("failed to retrieve %s '%s': %w", a.gvr.Resource, v.GetName(), err))
 	}
 
 	converted, err := a.k8sToDomain(uobj)
 	if err != nil {
-		// We even log the conversion errors.
 		a.logger.ErrorContext(ctx, "conversion failed", "resource", a.gvr.Resource, "error", err)
 
-		return fmt.Errorf("%w: failed to convert %s: %w", model.ErrValidation, a.gvr.Resource, err)
+		return model.NewError(model.KindValidation, fmt.Errorf("failed to convert %s: %w", a.gvr.Resource, err))
 	}
 
 	*obj = converted
@@ -335,13 +323,13 @@ func (a *WriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
 	if err != nil {
 		a.logger.ErrorContext(ctx, "conversion to k8s object failed", "resource", a.gvr.Resource, "error", err)
 
-		return nil, fmt.Errorf("%w: failed to convert %s to k8s object: %w", model.ErrValidation, a.gvr.Resource, err)
+		return nil, model.NewError(model.KindValidation, fmt.Errorf("failed to convert %s to k8s object: %w", a.gvr.Resource, err))
 	}
 
 	_, err = ri.Create(ctx, uobj, metav1.CreateOptions{})
-	if err != nil { // TODO: check if the map error function work for that case
+	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to create resource", "name", m.GetName(), "resource", a.gvr.Resource, "error", err)
-		return nil, kubeToDomainError(err)
+		return nil, kubeToDomainError(fmt.Errorf("failed to create resource %s '%s': %w", a.gvr.Resource, m.GetName(), err))
 	}
 
 	var ures *unstructured.Unstructured
@@ -380,14 +368,14 @@ func (a *WriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to fetch the k8s resource status", "resource", a.gvr.Resource, "error", err)
 
-		return nil, fmt.Errorf("server error: failed to fetch the %s status: %w", a.gvr.Resource, err) // TODO: review the "server error"
+		return nil, model.NewError(model.KindUnavailable, fmt.Errorf("failed to fetch the %s status: %w", a.gvr.Resource, err))
 	}
 
 	res, err := a.k8sToDomain(ures)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "conversion from k8s object failed", "resource", a.gvr.Resource, "error", err)
 
-		return nil, fmt.Errorf("%w: failed to convert %s from k8s object: %w", model.ErrValidation, a.gvr.Resource, err)
+		return nil, model.NewError(model.KindValidation, fmt.Errorf("failed to convert %s from k8s object: %w", a.gvr.Resource, err))
 	}
 
 	return &res, nil
@@ -401,7 +389,7 @@ func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
 	if err != nil {
 		a.logger.ErrorContext(ctx, "conversion from T to unstructured failed", "resource", a.gvr.Resource, "error", err)
 
-		return nil, fmt.Errorf("%w: failed to convert %s to unstructured: %w", model.ErrValidation, a.gvr.Resource, err)
+		return nil, model.NewError(model.KindValidation, fmt.Errorf("failed to convert %s to unstructured: %w", a.gvr.Resource, err))
 	}
 
 	// 2 - Decompose the object by extracting...
@@ -418,13 +406,13 @@ func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
 	// Determine if a status update is intended by checking for meaningful status data.
 	desiredSpec, specFound, err := unstructured.NestedMap(uobj.Object, "spec")
 	if err != nil {
-		return nil, err // TODO: better error handling
+		return nil, model.NewError(model.KindValidation, fmt.Errorf("failed to extract spec from %s: %w", a.gvr.Resource, err))
 	}
 
 	// 2.4 - The status
 	desiredStatus, statusFound, err := unstructured.NestedMap(uobj.Object, "status")
 	if err != nil {
-		return nil, err
+		return nil, model.NewError(model.KindValidation, fmt.Errorf("failed to extract status from %s: %w", a.gvr.Resource, err))
 	}
 
 	// 3 - Setup the K8s Client Interface to the resource and namespace
@@ -472,33 +460,41 @@ func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
 				return nil
 			})
 			if err != nil {
-				return nil, a.mapUpdateError(err, m.GetName())
+				a.logger.ErrorContext(ctx, "failed to update resource", "name", m.GetName(), "resource", a.gvr.Resource, "error", err, slog.Any("m", m))
+
+				return nil, kubeToDomainError(fmt.Errorf("failed to update %s '%s': %w", a.gvr.Resource, m.GetName(), err))
 			}
 		}
 	} else {
 		// For versioned updates, we can assume that the whole object is updated, so we can directly call the Update API.
 		_, err = resourceInterface.Update(ctx, uobj, metav1.UpdateOptions{})
 		if err != nil {
-			return nil, a.mapUpdateError(err, m.GetName())
+			a.logger.ErrorContext(ctx, "failed to update resource", "name", m.GetName(), "resource", a.gvr.Resource, "error", err, slog.Any("m", m))
+
+			return nil, kubeToDomainError(fmt.Errorf("failed to update %s '%s': %w", a.gvr.Resource, m.GetName(), err))
 		}
 	}
 
 	// 5 - Update the status if present
 	if statusFound {
 		if err := a.updateStatus(ctx, resourceInterface, m, desiredStatus); err != nil {
-			return nil, a.mapUpdateError(err, m.GetName())
+			a.logger.ErrorContext(ctx, "failed to update resource status", "name", m.GetName(), "resource", a.gvr.Resource, "error", err, slog.Any("m", m))
+
+			return nil, kubeToDomainError(fmt.Errorf("failed to update status %s '%s': %w", a.gvr.Resource, m.GetName(), err))
 		}
 	}
 
 	// 6 - Load the final object from K8s
 	currObj, err := resourceInterface.Get(ctx, m.GetName(), metav1.GetOptions{})
 	if err != nil {
-		return nil, a.mapUpdateError(err, m.GetName())
+		a.logger.ErrorContext(ctx, "failed to load resource", "name", m.GetName(), "resource", a.gvr.Resource, "error", err, slog.Any("m", m))
+
+		return nil, kubeToDomainError(fmt.Errorf("failed to load %s '%s' after update: %w", a.gvr.Resource, m.GetName(), err))
 	}
 
 	res, err := a.k8sToDomain(currObj)
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert from k8s object: %w", err)
+		return nil, model.NewError(model.KindValidation, fmt.Errorf("failed to convert %s from k8s object: %w", a.gvr.Resource, err))
 	}
 
 	return &res, nil
@@ -592,28 +588,6 @@ func (a *WriterAdapter[T]) updateStatus(
 	})
 }
 
-func (a *WriterAdapter[T]) mapUpdateError(err error, name string) error {
-	a.logger.ErrorContext(context.Background(), "failed to update resource", "name", name, "resource", a.gvr.Resource, "error", err)
-	var errModel error
-	switch {
-	case kerrs.IsNotFound(err):
-		errModel = model.ErrNotFound
-	case kerrs.IsGone(err), kerrs.IsResourceExpired(err):
-		errModel = model.ErrPreconditionFailed
-	case kerrs.IsConflict(err):
-		if isResourceVersionConflict(err) {
-			errModel = model.ErrPreconditionFailed
-		} else {
-			errModel = model.ErrConflict
-		}
-	case kerrs.IsInvalid(err):
-		errModel = model.ErrValidation
-	default:
-		errModel = model.ErrUnavailable
-	}
-	return fmt.Errorf("%w: failed to update %s '%s': %w", errModel, a.gvr.Resource, name, err)
-}
-
 // Delete implements the port.WriterRepo interface.
 func (a *WriterAdapter[T]) Delete(ctx context.Context, m T) error {
 	ri := a.client.Resource(a.gvr).Namespace(ComputeNamespace(m))
@@ -629,20 +603,7 @@ func (a *WriterAdapter[T]) Delete(ctx context.Context, m T) error {
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to delete resource", "name", m.GetName(), "resource", a.gvr.Resource, "error", err, slog.Any("m", m))
 
-		if kerrs.IsNotFound(err) {
-			return fmt.Errorf("%w: %s '%s' not found", model.ErrNotFound, a.gvr.Resource, m.GetName())
-		}
-		if kerrs.IsInvalid(err) {
-			return fmt.Errorf("%w: %s '%s': %w", model.ErrValidation, a.gvr.Resource, m.GetName(), err)
-		}
-		if kerrs.IsConflict(err) {
-			conflictErr := model.ErrConflict
-			if isResourceVersionConflict(err) {
-				conflictErr = model.ErrPreconditionFailed
-			}
-			return fmt.Errorf("%w: %s '%s': %w", conflictErr, a.gvr.Resource, m.GetName(), err)
-		}
-		return fmt.Errorf("%w: failed to delete %s '%s': %w", model.ErrUnavailable, a.gvr.Resource, m.GetName(), err)
+		return kubeToDomainError(fmt.Errorf("failed to delete %s '%s': %w", a.gvr.Resource, m.GetName(), err))
 	}
 
 	return nil
@@ -679,7 +640,7 @@ func (a *WatcherAdapter[T]) Watch(ctx context.Context, m chan<- T) error {
 	_ = ctx
 	_ = m
 	// TODO: implement the watch method of the kubernetes repo adapter.
-	return errors.New("not implemented")
+	return model.NewError(model.KindUnavailable, errors.New("not implemented"))
 }
 
 func (a *WriterAdapter[T]) toUnstructured(m T) (*unstructured.Unstructured, error) {
@@ -709,7 +670,7 @@ type NamespaceManagingWriterAdapter[T port.IdentifiableResource] struct {
 	logger    *slog.Logger
 }
 
-// RepoAdapter implements the port.WatcherRepo interface for a specific resource type.
+// NamespaceManagingRepoAdapter implements the port.WatcherRepo interface for a specific resource type.
 type NamespaceManagingRepoAdapter[T port.IdentifiableResource] struct {
 	*ReaderAdapter[T]
 	*NamespaceManagingWriterAdapter[T]
@@ -734,7 +695,7 @@ func NewNamespaceManagingWriterAdapter[T port.IdentifiableResource](
 	}
 }
 
-// NewRepoAdapter creates a new Kubernetes adapter for the port.WriterRepo port.
+// NewNamespaceManagingRepoAdapter creates a new Kubernetes adapter for the port.WriterRepo port.
 func NewNamespaceManagingRepoAdapter[T port.IdentifiableResource](
 	dynClient dynamic.Interface,
 	clientset kubernetes.Interface,
