@@ -9,9 +9,6 @@
 //   - reads one or more rules from a YAML file
 //   - patches the specified CRD YAML files
 //   - injects x-kubernetes-validations at the requested OpenAPI schema location
-//
-// It uses yaml.Node for parsing (to locate insertion points via line numbers)
-// but inserts validation snippets as text to preserve the original YAML formatting.
 package main
 
 import (
@@ -34,10 +31,10 @@ type RulesFile struct {
 
 // Rule describes a single CEL validation to inject into a CRD.
 type Rule struct {
-	Name        string           `yaml:"name"`
-	File        string           `yaml:"file"`
-	SpecPath    string           `yaml:"specPath"`
-	Validations []map[string]any `yaml:"validations"`
+	Name        string      `yaml:"name"`
+	File        string      `yaml:"file"`
+	SpecPath    string      `yaml:"specPath"`
+	Validations []yaml.Node `yaml:"validations"`
 }
 
 func main() {
@@ -57,6 +54,9 @@ func main() {
 		os.Exit(1)
 	}
 
+	// NOTE: multiple rules targeting the same file will each read, parse, patch,
+	// encode, and write the file separately. If this becomes a performance concern,
+	// group rules by file and apply all rules in a single read-patch-write cycle.
 	totalPatched := 0
 	for _, rule := range rules {
 		filePath := filepath.Join(*rootDir, rule.File)
@@ -126,14 +126,6 @@ func specPathToSchemaPath(specPath string) string {
 	return "properties.spec.properties." + strings.Join(filtered, ".properties.")
 }
 
-// insertionPoint holds information about where to insert validations in the text.
-type insertionPoint struct {
-	// afterLine is the 1-based line number after which to insert (the last line of the target mapping's content).
-	afterLine int
-	// indent is the number of spaces to use for the x-kubernetes-validations key (same as sibling keys).
-	indent int
-}
-
 func patchFile(path string, rule Rule) (bool, error) {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		fmt.Printf("[WARN] rule '%s': file not found: %s\n", rule.Name, path)
@@ -145,38 +137,13 @@ func patchFile(path string, rule Rule) (bool, error) {
 		return false, fmt.Errorf("reading file: %w", err)
 	}
 
-	lines := strings.Split(string(data), "\n")
-	schemaPath := specPathToSchemaPath(rule.SpecPath)
-
 	docs, err := decodeAllDocs(data)
 	if err != nil {
 		return false, fmt.Errorf("decoding YAML: %w", err)
 	}
 
-	points := findAllInsertionPoints(docs, schemaPath)
-	if len(points) == 0 {
-		return false, nil
-	}
-
-	// Insert at each point in reverse line order to preserve line numbers
-	for i := len(points) - 1; i >= 0; i-- {
-		p := points[i]
-		snippet := renderValidationSnippet(p.indent, rule.Validations)
-		lines = insertLines(lines, p.afterLine, snippet)
-	}
-
-	result := strings.Join(lines, "\n")
-	if err := os.WriteFile(path, []byte(result), 0o600); err != nil { //nolint:gosec // path comes from CLI flags
-		return false, fmt.Errorf("writing file: %w", err)
-	}
-
-	return true, nil
-}
-
-// findAllInsertionPoints scans all CRD documents for locations where
-// x-kubernetes-validations should be injected.
-func findAllInsertionPoints(docs []*yaml.Node, schemaPath string) []insertionPoint {
-	var points []insertionPoint
+	schemaPath := specPathToSchemaPath(rule.SpecPath)
+	touched := false
 
 	for _, doc := range docs {
 		if doc.Kind != yaml.DocumentNode || len(doc.Content) == 0 {
@@ -200,191 +167,127 @@ func findAllInsertionPoints(docs []*yaml.Node, schemaPath string) []insertionPoi
 		}
 
 		for _, ver := range versionsNode.Content {
-			if p, ok := findInsertionPointForVersion(ver, schemaPath); ok {
-				points = append(points, p)
+			modified, err := patchVersion(ver, schemaPath, rule.Validations)
+			if err != nil {
+				return false, fmt.Errorf("rule '%s': %w", rule.Name, err)
+			}
+			if modified {
+				touched = true
 			}
 		}
 	}
 
-	return points
+	if !touched {
+		return false, nil
+	}
+
+	var buf bytes.Buffer
+	enc := yaml.NewEncoder(&buf)
+	enc.SetIndent(2)
+	for _, doc := range docs {
+		if err := enc.Encode(doc); err != nil {
+			return false, fmt.Errorf("encoding YAML: %w", err)
+		}
+	}
+	if err := enc.Close(); err != nil {
+		return false, fmt.Errorf("closing encoder: %w", err)
+	}
+
+	if err := os.WriteFile(path, buf.Bytes(), 0o600); err != nil { //nolint:gosec // path comes from CLI flags
+		return false, fmt.Errorf("writing file: %w", err)
+	}
+
+	return true, nil
 }
 
-// findInsertionPointForVersion checks a single CRD version entry for the target
-// schema path and returns the insertion point if validations are needed.
-func findInsertionPointForVersion(ver *yaml.Node, schemaPath string) (insertionPoint, bool) {
+// patchVersion patches a single CRD version entry. Returns true if modified.
+func patchVersion(ver *yaml.Node, schemaPath string, validations []yaml.Node) (bool, error) {
 	if ver.Kind != yaml.MappingNode {
-		return insertionPoint{}, false
+		return false, nil
 	}
 	schemaNode := getMappingValue(ver, "schema")
 	if schemaNode == nil {
-		return insertionPoint{}, false
+		return false, nil
 	}
 	openAPISchema := getMappingValue(schemaNode, "openAPIV3Schema")
 	if openAPISchema == nil {
-		return insertionPoint{}, false
+		return false, nil
 	}
 
-	target := walkToMapping(openAPISchema, schemaPath)
-	if target == nil {
-		return insertionPoint{}, false
+	target, err := walkToMapping(openAPISchema, schemaPath)
+	if err != nil {
+		return false, err
 	}
 
-	// Already has validations — skip
-	if getMappingValue(target, "x-kubernetes-validations") != nil || getSequenceValue(target, "x-kubernetes-validations") != nil {
-		return insertionPoint{}, false
-	}
-
-	return findInsertionPoint(target)
+	return mergeValidations(target, validations), nil
 }
 
-// findInsertionPoint determines where to insert in the text based on the yaml.Node tree.
-// It returns the line after which to insert and the indentation level.
-func findInsertionPoint(target *yaml.Node) (insertionPoint, bool) {
-	if target.Kind != yaml.MappingNode || len(target.Content) < 2 {
-		return insertionPoint{}, false
+// mergeValidations appends validation entries to the x-kubernetes-validations list
+// on the target node, skipping duplicates. Returns true if any were added.
+func mergeValidations(target *yaml.Node, validations []yaml.Node) bool {
+	valList := ensureSequenceKey(target, "x-kubernetes-validations")
+	if valList == nil {
+		return false
 	}
 
-	// The indent for sibling keys is the column of the first key in the mapping.
-	// yaml.Node.Column is 1-based.
-	indent := target.Content[0].Column - 1
-
-	// Find the last line used by this mapping's content.
-	lastLine := lastLineOf(target)
-
-	return insertionPoint{afterLine: lastLine, indent: indent}, true
+	changed := false
+	for i := range validations {
+		v := &validations[i]
+		if containsNode(valList, v) {
+			continue
+		}
+		valList.Content = append(valList.Content, deepCopyNode(v))
+		changed = true
+	}
+	return changed
 }
 
-// lastLineOf finds the deepest (highest line number) line in a node subtree.
-func lastLineOf(n *yaml.Node) int {
-	best := n.Line
-	for _, c := range n.Content {
-		if l := lastLineOf(c); l > best {
-			best = l
-		}
-	}
-	return best
-}
-
-// renderValidationSnippet produces the YAML text lines for x-kubernetes-validations.
-func renderValidationSnippet(indent int, validations []map[string]any) []string {
-	prefix := strings.Repeat(" ", indent)
-	entryPrefix := strings.Repeat(" ", indent)
-
-	var out []string
-	out = append(out, prefix+"x-kubernetes-validations:")
-
-	for _, v := range validations {
-		first := true
-		// Render in a stable order: rule, message, then remaining keys
-		orderedKeys := orderValidationKeys(v)
-		for _, key := range orderedKeys {
-			val := v[key]
-			rendered := renderValue(val)
-			if first {
-				out = append(out, entryPrefix+"- "+key+": "+rendered)
-				first = false
-			} else {
-				out = append(out, entryPrefix+"  "+key+": "+rendered)
-			}
-		}
-	}
-
-	return out
-}
-
-// orderValidationKeys returns keys in a stable order: rule first, message second, rest alphabetically.
-func orderValidationKeys(v map[string]any) []string {
-	var keys []string
-	hasRule := false
-	hasMessage := false
-	for k := range v {
-		switch k {
-		case "rule":
-			hasRule = true
-		case "message":
-			hasMessage = true
-		default:
-			keys = append(keys, k)
-		}
-	}
-	// Sort remaining keys
-	sortStrings(keys)
-
-	var result []string
-	if hasRule {
-		result = append(result, "rule")
-	}
-	if hasMessage {
-		result = append(result, "message")
-	}
-	result = append(result, keys...)
-	return result
-}
-
-func sortStrings(s []string) {
-	for i := 1; i < len(s); i++ {
-		for j := i; j > 0 && s[j] < s[j-1]; j-- {
-			s[j], s[j-1] = s[j-1], s[j]
-		}
-	}
-}
-
-func renderValue(v any) string {
-	switch val := v.(type) {
-	case string:
-		// Quote strings that contain special YAML characters
-		if needsQuoting(val) {
-			return fmt.Sprintf("%q", val)
-		}
-		return val
-	case bool:
-		if val {
-			return "true"
-		}
-		return "false"
-	case int:
-		return fmt.Sprintf("%d", val)
-	case float64:
-		if val == float64(int(val)) {
-			return fmt.Sprintf("%d", int(val))
-		}
-		return fmt.Sprintf("%g", val)
-	default:
-		return fmt.Sprintf("%v", val)
-	}
-}
-
-func needsQuoting(s string) bool {
-	if s == "" {
-		return true
-	}
-	// Quote if contains characters that could confuse YAML parsing
-	for _, c := range s {
-		switch c {
-		case ':', '{', '}', '[', ']', ',', '&', '*', '#', '?', '|', '-', '<', '>', '=', '!', '%', '@', '`', '"', '\'', '\\':
+// containsNode checks if a sequence already contains a node with identical content.
+func containsNode(seq *yaml.Node, candidate *yaml.Node) bool {
+	candidateBytes := marshalNode(candidate)
+	for _, existing := range seq.Content {
+		if bytes.Equal(marshalNode(existing), candidateBytes) {
 			return true
 		}
-	}
-	// Quote YAML special values
-	lower := strings.ToLower(s)
-	switch lower {
-	case "true", "false", "null", "yes", "no", "on", "off":
-		return true
 	}
 	return false
 }
 
-func insertLines(lines []string, afterLine int, newLines []string) []string {
-	// afterLine is 1-based; convert to 0-based index
-	idx := afterLine
-	if idx > len(lines) {
-		idx = len(lines)
+func marshalNode(n *yaml.Node) []byte {
+	b, _ := yaml.Marshal(n)
+	return b
+}
+
+func deepCopyNode(n *yaml.Node) *yaml.Node {
+	b, _ := yaml.Marshal(n)
+	var out yaml.Node
+	_ = yaml.Unmarshal(b, &out)
+	if out.Kind == yaml.DocumentNode && len(out.Content) > 0 {
+		return out.Content[0]
 	}
-	result := make([]string, 0, len(lines)+len(newLines))
-	result = append(result, lines[:idx]...)
-	result = append(result, newLines...)
-	result = append(result, lines[idx:]...)
-	return result
+	return &out
+}
+
+// ensureSequenceKey ensures a key exists in a mapping node and its value is a sequence.
+func ensureSequenceKey(mapping *yaml.Node, key string) *yaml.Node {
+	for i := 0; i < len(mapping.Content)-1; i += 2 {
+		if mapping.Content[i].Value == key {
+			val := mapping.Content[i+1]
+			if val.Kind == yaml.SequenceNode {
+				return val
+			}
+			if val.Tag == "!!null" || (val.Kind == yaml.ScalarNode && val.Value == "") {
+				newSeq := &yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq"}
+				mapping.Content[i+1] = newSeq
+				return newSeq
+			}
+			return nil
+		}
+	}
+	keyNode := &yaml.Node{Kind: yaml.ScalarNode, Value: key, Tag: "!!str"}
+	valNode := &yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq"}
+	mapping.Content = append(mapping.Content, keyNode, valNode)
+	return valNode
 }
 
 func decodeAllDocs(data []byte) ([]*yaml.Node, error) {
@@ -435,21 +338,24 @@ func getSequenceValue(mapping *yaml.Node, key string) *yaml.Node {
 }
 
 // walkToMapping navigates a dot-separated path through a yaml.Node tree.
-// Unlike the Python version, this does NOT create intermediate nodes — it only reads.
-func walkToMapping(root *yaml.Node, schemaPath string) *yaml.Node {
+// Returns an error if a segment in the path does not exist.
+// NOTE: this only supports mapping keys (e.g. "properties.spec.properties.sizeGB").
+// Array element schemas via "items" are not supported. If needed, add handling
+// for an "items" segment similar to the Python version's _walk_schema_path.
+func walkToMapping(root *yaml.Node, schemaPath string) (*yaml.Node, error) {
 	node := root
 	for _, seg := range strings.Split(schemaPath, ".") {
 		if seg == "" {
 			continue
 		}
 		if node.Kind != yaml.MappingNode {
-			return nil
+			return nil, fmt.Errorf("expected mapping at segment %q, got node kind %d", seg, node.Kind)
 		}
 		next := getMappingValue(node, seg)
 		if next == nil {
-			return nil
+			return nil, fmt.Errorf("segment %q not found in schema path %q", seg, schemaPath)
 		}
 		node = next
 	}
-	return node
+	return node, nil
 }

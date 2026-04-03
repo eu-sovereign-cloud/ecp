@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 )
 
 func TestSpecPathToSchemaPath(t *testing.T) {
@@ -119,6 +121,15 @@ spec:
         type: object
 `
 
+func mustParseValidations(t *testing.T, yamlStr string) []yaml.Node {
+	t.Helper()
+	var nodes []yaml.Node
+	if err := yaml.Unmarshal([]byte(yamlStr), &nodes); err != nil {
+		t.Fatalf("failed to parse validations: %v", err)
+	}
+	return nodes
+}
+
 func TestPatchFileInjectsValidations(t *testing.T) {
 	dir := t.TempDir()
 	crdPath := filepath.Join(dir, "test.yaml")
@@ -130,9 +141,10 @@ func TestPatchFileInjectsValidations(t *testing.T) {
 		Name:     "test-rule",
 		File:     "test.yaml",
 		SpecPath: "sizeGB",
-		Validations: []map[string]any{
-			{"rule": "self > 0", "message": "must be positive"},
-		},
+		Validations: mustParseValidations(t, `
+- rule: "self > 0"
+  message: "must be positive"
+`),
 	}
 
 	patched, err := patchFile(crdPath, rule)
@@ -152,10 +164,10 @@ func TestPatchFileInjectsValidations(t *testing.T) {
 	if !strings.Contains(content, "x-kubernetes-validations:") {
 		t.Error("patched file missing x-kubernetes-validations")
 	}
-	if !strings.Contains(content, `rule: "self > 0"`) {
+	if !strings.Contains(content, "self > 0") {
 		t.Error("patched file missing validation rule")
 	}
-	if !strings.Contains(content, "message: must be positive") {
+	if !strings.Contains(content, "must be positive") {
 		t.Error("patched file missing validation message")
 	}
 }
@@ -171,9 +183,10 @@ func TestPatchFileIdempotent(t *testing.T) {
 		Name:     "test-rule",
 		File:     "test.yaml",
 		SpecPath: "sizeGB",
-		Validations: []map[string]any{
-			{"rule": "self > 0", "message": "must be positive"},
-		},
+		Validations: mustParseValidations(t, `
+- rule: "self > 0"
+  message: "must be positive"
+`),
 	}
 
 	// First patch
@@ -198,49 +211,15 @@ func TestPatchFileIdempotent(t *testing.T) {
 	}
 }
 
-func TestPatchFilePreservesFormatting(t *testing.T) {
-	dir := t.TempDir()
-	crdPath := filepath.Join(dir, "test.yaml")
-	if err := os.WriteFile(crdPath, []byte(minimalCRD), 0o600); err != nil {
-		t.Fatal(err)
-	}
-
-	rule := Rule{
-		Name:     "test-rule",
-		File:     "test.yaml",
-		SpecPath: "sizeGB",
-		Validations: []map[string]any{
-			{"rule": "self > 0", "message": "must be positive"},
-		},
-	}
-
-	if _, err := patchFile(crdPath, rule); err != nil {
-		t.Fatal(err)
-	}
-
-	data, _ := os.ReadFile(crdPath)
-	content := string(data)
-
-	// Original lines should be preserved exactly
-	if !strings.Contains(content, "apiVersion: apiextensions.k8s.io/v1") {
-		t.Error("original apiVersion line was modified")
-	}
-	if !strings.Contains(content, "kind: CustomResourceDefinition") {
-		t.Error("original kind line was modified")
-	}
-	if !strings.Contains(content, "                description: Size in GB.") {
-		t.Error("original description indentation was modified")
-	}
-}
-
 func TestPatchFileMissingFile(t *testing.T) {
 	rule := Rule{
 		Name:     "test-rule",
 		File:     "nonexistent.yaml",
 		SpecPath: "sizeGB",
-		Validations: []map[string]any{
-			{"rule": "self > 0", "message": "must be positive"},
-		},
+		Validations: mustParseValidations(t, `
+- rule: "self > 0"
+  message: "must be positive"
+`),
 	}
 
 	patched, err := patchFile("/tmp/nonexistent.yaml", rule)
@@ -252,29 +231,32 @@ func TestPatchFileMissingFile(t *testing.T) {
 	}
 }
 
-func TestRenderValidationSnippet(t *testing.T) {
-	validations := []map[string]any{
-		{"rule": "self > 0", "message": "must be positive"},
-		{"rule": "self < 100", "message": "must be under 100", "optionalOldSelf": true},
+func TestMergeValidations(t *testing.T) {
+	target := &yaml.Node{Kind: yaml.MappingNode}
+
+	validations := mustParseValidations(t, `
+- rule: "self > 0"
+  message: "must be positive"
+- rule: "self < 100"
+  message: "must be under 100"
+`)
+
+	changed := mergeValidations(target, validations)
+	if !changed {
+		t.Error("expected mergeValidations to return true")
 	}
 
-	lines := renderValidationSnippet(16, validations)
+	seq := getSequenceValue(target, "x-kubernetes-validations")
+	if seq == nil {
+		t.Fatal("x-kubernetes-validations sequence not found")
+	}
+	if len(seq.Content) != 2 {
+		t.Errorf("got %d validations, want 2", len(seq.Content))
+	}
 
-	if len(lines) == 0 {
-		t.Fatal("empty snippet")
-	}
-	if !strings.HasPrefix(lines[0], "                x-kubernetes-validations:") {
-		t.Errorf("first line = %q, expected 16-space indent + key", lines[0])
-	}
-
-	joined := strings.Join(lines, "\n")
-	if !strings.Contains(joined, `rule: "self > 0"`) {
-		t.Error("missing first rule")
-	}
-	if !strings.Contains(joined, `rule: "self < 100"`) {
-		t.Error("missing second rule")
-	}
-	if !strings.Contains(joined, "optionalOldSelf: true") {
-		t.Error("missing optionalOldSelf")
+	// Merging again should not change anything
+	changed2 := mergeValidations(target, validations)
+	if changed2 {
+		t.Error("expected mergeValidations to return false on duplicate")
 	}
 }
