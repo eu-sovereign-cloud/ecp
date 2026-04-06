@@ -1,6 +1,7 @@
 package errors
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -112,8 +113,11 @@ func WriteErrorResponse(w http.ResponseWriter, r *http.Request, logger *slog.Log
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(int(sdkError.Status))
 
-	if encodeErr := json.NewEncoder(w).Encode(sdkError); encodeErr != nil {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+
+	if encodeErr := enc.Encode(sdkError); encodeErr != nil {
 		logger.ErrorContext(r.Context(), "failed to encode error response", slog.Any("error", encodeErr))
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 	}
+	_, _ = w.Write(buf.Bytes())
 }
