@@ -237,9 +237,7 @@ func (a *ReaderAdapter[T]) List(ctx context.Context, params model.ListParams, li
 
 	ulist, err := ri.List(ctx, lo)
 	if err != nil {
-
 		a.logger.ErrorContext(ctx, "failed to list resources", "resource", a.gvr.Resource, "error", err)
-
 		return nil, kubeToDomainError(fmt.Errorf("failed to list resources for %s: %w", a.gvr.Resource, err))
 	}
 
@@ -304,7 +302,6 @@ func (a *ReaderAdapter[T]) Load(ctx context.Context, obj *T) error {
 
 	converted, err := a.k8sToDomain(uobj)
 	if err != nil {
-		// We even log the conversion errors.
 		a.logger.ErrorContext(ctx, "conversion failed", "resource", a.gvr.Resource, "error", err)
 		return model.NewError(model.KindValidation, fmt.Errorf("failed to convert %s: %w", a.gvr.Resource, err))
 	}
