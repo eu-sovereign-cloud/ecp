@@ -134,7 +134,7 @@ func (h *BlockStoragePluginHandler) setResourceState(ctx context.Context, resour
 
 	resource.Status.Conditions = append(resource.Status.Conditions, conditionFromState(state))
 
-	if _, err := h.repo.Update(ctx, resource); err != nil {
+	if _, err := h.repo.UpdateStatus(ctx, resource); err != nil {
 		if errors.Is(err, model.ErrNotFound) {
 			return false, nil
 		}
@@ -158,7 +158,7 @@ func (h *BlockStoragePluginHandler) setResourceErrorState(ctx context.Context, r
 
 	resource.Status.Conditions = append(resource.Status.Conditions, conditionFromError(err))
 
-	if _, err := h.repo.Update(ctx, resource); err != nil {
+	if _, err := h.repo.UpdateStatus(ctx, resource); err != nil {
 		if errors.Is(err, model.ErrNotFound) {
 			return false, nil
 		}

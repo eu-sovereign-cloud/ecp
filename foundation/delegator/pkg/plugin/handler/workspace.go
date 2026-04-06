@@ -113,7 +113,7 @@ func (h *WorkspacePluginHandler) setResourceState(ctx context.Context, resource 
 
 	resource.Status.Conditions = append(resource.Status.Conditions, conditionFromState(state))
 
-	if _, err := h.repo.Update(ctx, resource); err != nil {
+	if _, err := h.repo.UpdateStatus(ctx, resource); err != nil {
 		if errors.Is(err, model.ErrNotFound) {
 			return false, nil
 		}
@@ -137,7 +137,7 @@ func (h *WorkspacePluginHandler) setResourceErrorState(ctx context.Context, reso
 
 	resource.Status.Conditions = append(resource.Status.Conditions, conditionFromError(err))
 
-	if _, err := h.repo.Update(ctx, resource); err != nil {
+	if _, err := h.repo.UpdateStatus(ctx, resource); err != nil {
 		if errors.Is(err, model.ErrNotFound) {
 			return false, nil
 		}
