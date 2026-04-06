@@ -72,7 +72,7 @@ func TestWorkspaceController_Reconcile(t *testing.T) {
 		//
 		// And a repo that is expected to be called once
 		mockRepo := NewMockRepo[*regional.WorkspaceDomain](ctrl)
-		mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil, nil).Times(1)
+		mockRepo.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).Return(nil, nil).Times(1)
 
 		//
 		// And a plugin that is not expected to be called
@@ -193,7 +193,7 @@ func TestWorkspaceController_Reconcile(t *testing.T) {
 		//
 		// And a repo which will return an error
 		mockRepo := NewMockRepo[*regional.WorkspaceDomain](ctrl)
-		mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil, errHandler).Times(1)
+		mockRepo.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).Return(nil, errHandler).Times(1)
 
 		//
 		// And a plugin that is not expected to be called
