@@ -468,7 +468,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		cmd.Env = append(os.Environ(), "BE_FATAL=1")
 		err := cmd.Run()
 
-		if e, ok := err.(*exec.ExitError); ok && !e.Success() { //nolint:errorlint // acceptable for tests
+		if e, ok := errors.AsType[*exec.ExitError](err); ok && !e.Success() { //nolint:errorlint // acceptable for tests
 			// Test passed because the subprocess exited with a non-zero status code.
 			return
 		}
