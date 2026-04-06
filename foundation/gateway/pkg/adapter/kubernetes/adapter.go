@@ -401,12 +401,12 @@ func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
 
 	currObj, err := resourceInterface.Get(ctx, m.GetName(), metav1.GetOptions{})
 	if err != nil {
-		return nil, kubeToDomainError(fmt.Errorf("failed to load %s '%s' after update: %w", a.gvr.Resource, m.GetName(), err))
+		return nil, model.NewError(model.KindValidation, fmt.Errorf("failed to extract spec from %s: %w", a.gvr.Resource, err))
 	}
 
 	res, err := a.k8sToDomain(currObj)
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert from k8s object: %w", err)
+		return nil, model.NewError(model.KindValidation, fmt.Errorf("failed to extract status from %s: %w", a.gvr.Resource, err))
 	}
 
 	return &res, nil
