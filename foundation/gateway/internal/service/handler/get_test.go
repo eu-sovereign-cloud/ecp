@@ -9,9 +9,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 )
 
@@ -88,7 +86,7 @@ func TestHandleGet_Success(t *testing.T) {
 func TestHandleGet_NotFound(t *testing.T) {
 	res := &testResource{name: "missing", tenant: "tenant1", workspace: "workspace1"}
 	// simulate not found error using k8s errors so errors.IsNotFound matches
-	nfErr := k8serrors.NewNotFound(schema.GroupResource{Group: "test.io", Resource: "things"}, res.GetName())
+	nfErr := model.NewError(model.KindNotFound, nil).WithSource("name", res.GetName())
 	getter := &mockGetter[domainModel]{err: nfErr}
 	//nolint:staticcheck // S1016 suppression: mapping clarifies domain->DTO transformation.
 	mapper := func(d domainModel) outputDTO { return outputDTO{Value: d.Value} }
@@ -105,11 +103,33 @@ func TestHandleGet_NotFound(t *testing.T) {
 		b, _ := io.ReadAll(resp.Body)
 		t.Fatalf("expected status 404, got %d body=%s", resp.StatusCode, string(b))
 	}
+
+	// Now expects structured JSON error according to RFC 7807
 	body, _ := io.ReadAll(resp.Body)
-	// http.Error appends a newline
-	if expected := res.GetName() + " not found\n"; string(body) != expected {
-		t.Errorf("expected body %q, got %q", expected, string(body))
+	bodyStr := string(body)
+	// Check that response is JSON and contains the expected fields
+	if !contains(bodyStr, "\"status\":404") {
+		t.Errorf("expected status field in JSON response, got: %s", bodyStr)
 	}
+	if !contains(bodyStr, "\"type\":\"http://secapi.cloud/errors/resource-not-found\"") {
+		t.Errorf("expected type field in JSON response, got: %s", bodyStr)
+	}
+	if !contains(bodyStr, res.GetName()) {
+		t.Errorf("expected resource name in error detail, got: %s", bodyStr)
+	}
+}
+
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) && (s[:len(substr)] == substr || s[len(s)-len(substr):] == substr || containsInner(s, substr)))
+}
+
+func containsInner(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }
 
 func TestHandleGet_InternalError(t *testing.T) {
@@ -130,9 +150,15 @@ func TestHandleGet_InternalError(t *testing.T) {
 		b, _ := io.ReadAll(resp.Body)
 		t.Fatalf("expected status 500, got %d body=%s", resp.StatusCode, string(b))
 	}
+
+	// Now expects structured JSON error according to RFC 7807
 	body, _ := io.ReadAll(resp.Body)
-	if string(body) != "Internal Server Error\n" {
-		t.Errorf("unexpected body: %s", string(body))
+	bodyStr := string(body)
+	if !contains(bodyStr, "\"status\":500") {
+		t.Errorf("expected status field in JSON response, got: %s", bodyStr)
+	}
+	if !contains(bodyStr, "\"type\":\"http://secapi.cloud/errors/internal-server-error\"") {
+		t.Errorf("expected type field in JSON response, got: %s", bodyStr)
 	}
 }
 

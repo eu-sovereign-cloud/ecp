@@ -125,7 +125,7 @@ func TestWorkspace(t *testing.T) {
 				},
 			}
 			err := workspaceRepo.Load(ctx, &loadedWs)
-			if err != nil && errors.Is(err, ecpmodel.ErrNotFound) { // Corrected IsNotFound check
+			if domainErr := ecpmodel.AsError(err); domainErr != nil && domainErr.Kind == ecpmodel.KindNotFound {
 				return true, nil
 			}
 			if err != nil {
