@@ -24,7 +24,7 @@ GATEWAY_REGIONAL_PORT ?= 8081
 SECATEST_REGION             ?= region
 SECATEST_TENANT             ?= seca
 SECATEST_AUTH_TOKEN         ?= test
-SECATEST_SCENARIOS_FILTER   ?= Workspace.V1.LifeCycle
+SECATEST_SCENARIOS_FILTER   ?= Workspace.V1.ProviderLifeCycle
 SECATEST_SCENARIOS_USERS    ?= user1@sdemo.secapi.cloud,user2@demo.secapi.cloud
 SECATEST_SCENARIOS_CIDR     ?= 10.1.0.0/16
 SECATEST_SCENARIOS_PUBLIC_IPS ?= 52.93.126.1/26
@@ -73,7 +73,7 @@ secatest-install-plugin:
 #
 # Usage:
 #   make secatest
-#   make secatest SECATEST_SCENARIOS_FILTER=Compute.V1.LifeCycle
+#   make secatest SECATEST_SCENARIOS_FILTER=Compute.V1.ProviderLifeCycle
 #   make secatest SECATEST_AUTH_TOKEN=my-token
 secatest: secatest-install-crd secatest-install-plugin
 	@echo "Starting gateway global server on port $(GATEWAY_GLOBAL_PORT)..."
