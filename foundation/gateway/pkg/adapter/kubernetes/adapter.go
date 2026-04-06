@@ -306,8 +306,7 @@ func (a *ReaderAdapter[T]) Load(ctx context.Context, obj *T) error {
 	if err != nil {
 		// We even log the conversion errors.
 		a.logger.ErrorContext(ctx, "conversion failed", "resource", a.gvr.Resource, "error", err)
-
-		return fmt.Errorf("%w: failed to convert %s: %w", model.ErrValidation, a.gvr.Resource, err)
+		return model.NewError(model.KindValidation, fmt.Errorf("failed to convert %s: %w", a.gvr.Resource, err))
 	}
 
 	*obj = converted
@@ -327,6 +326,7 @@ func (a *WriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
 
 	_, err = ri.Create(ctx, uobj, metav1.CreateOptions{})
 	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to create resource", "name", m.GetName(), "resource", a.gvr.Resource, "error", err)
 		return nil, kubeToDomainError(fmt.Errorf("failed to create resource %s '%s': %w", a.gvr.Resource, m.GetName(), err))
 	}
 
@@ -427,23 +427,27 @@ func (a *WriterAdapter[T]) UpdateStatus(ctx context.Context, m T) (*T, error) {
 	}
 
 	if !statusFound {
+		a.logger.ErrorContext(ctx, "no status field found in the provided object", "resource", a.gvr.Resource, "name", m.GetName())
 		return nil, fmt.Errorf("%w: no status data provided for %s '%s'", model.ErrValidation, a.gvr.Resource, m.GetName())
 	}
 
 	resourceInterface := a.client.Resource(a.gvr).Namespace(ComputeNamespace(m))
 
 	if err := a.updateStatusRetry(ctx, resourceInterface, m, desiredStatus); err != nil {
-		return nil, kubeToDomainError(fmt.Errorf("failed to update with retry %s '%s': %w", a.gvr.Resource, m.GetName(), err))
+		a.logger.ErrorContext(ctx, "failed to update status", "resource", a.gvr.Resource, "error", err)
+		return nil, kubeToDomainError(fmt.Errorf("failed to update status with retry %s '%s': %w", a.gvr.Resource, m.GetName(), err))
 	}
 
 	currObj, err := resourceInterface.Get(ctx, m.GetName(), metav1.GetOptions{})
 	if err != nil {
-		return nil, kubeToDomainError(fmt.Errorf("failed to load %s '%s' after update with retry: %w", a.gvr.Resource, m.GetName(), err))
+		a.logger.ErrorContext(ctx, "failed to extract status from %s: %w", a.gvr.Resource, err)
+		return nil, model.NewError(model.KindValidation, fmt.Errorf("failed to extract spec from %s: %w", a.gvr.Resource, err))
 	}
 
 	res, err := a.k8sToDomain(currObj)
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert from k8s object: %w", err)
+		a.logger.ErrorContext(ctx, "conversion from k8s object failed", "resource", a.gvr.Resource, "error", err)
+		return nil, model.NewError(model.KindValidation, fmt.Errorf("failed to extract status from %s: %w", a.gvr.Resource, err))
 	}
 
 	return &res, nil
