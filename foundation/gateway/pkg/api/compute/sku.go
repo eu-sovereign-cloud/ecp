@@ -10,8 +10,8 @@ const (
 	ProviderStorageName = "seca.compute/v1"
 )
 
-// SkuToAPI converts a NetworkSKUDomain to its SDK representation.
-func SkuToAPI(domain *regional.NetworkSKUDomain) *sdkschema.NetworkSku {
+// DomainToAPI converts a NetworkSKUDomain to its API representation.
+func DomainToAPI(domain *regional.NetworkSKUDomain) *sdkschema.NetworkSku {
 	return &sdkschema.NetworkSku{
 		Metadata: &sdkschema.SkuResourceMetadata{Name: domain.Name},
 		Spec: &sdkschema.NetworkSkuSpec{

@@ -104,8 +104,8 @@ func TestHandleUpsert(t *testing.T) {
 			Params:      upsertParams,
 			Creator:     mockCreator,
 			Updater:     mockUpdater,
-			SDKToDomain: apiToDomain,
-			DomainToSDK: domainToAPI,
+			APIToDomain: apiToDomain,
+			DomainToAPI: domainToAPI,
 		})
 
 		assert.Equal(t, http.StatusOK, rr.Code)
@@ -140,8 +140,8 @@ func TestHandleUpsert(t *testing.T) {
 			Params:      upsertParams,
 			Creator:     mockCreator,
 			Updater:     mockUpdater,
-			SDKToDomain: apiToDomain,
-			DomainToSDK: domainToAPI,
+			APIToDomain: apiToDomain,
+			DomainToAPI: domainToAPI,
 		})
 
 		assert.Equal(t, http.StatusBadRequest, rr.Code)
@@ -183,8 +183,8 @@ func TestHandleUpsert(t *testing.T) {
 			Params:      upsertParams,
 			Creator:     mockCreator,
 			Updater:     mockUpdater,
-			SDKToDomain: apiToDomain,
-			DomainToSDK: domainToAPI,
+			APIToDomain: apiToDomain,
+			DomainToAPI: domainToAPI,
 		})
 
 		assert.Equal(t, http.StatusOK, rr.Code)
@@ -227,8 +227,8 @@ func TestHandleUpsert(t *testing.T) {
 			Params:      upsertParams,
 			Creator:     mockCreator,
 			Updater:     mockUpdater,
-			SDKToDomain: apiToDomain,
-			DomainToSDK: domainToAPI,
+			APIToDomain: apiToDomain,
+			DomainToAPI: domainToAPI,
 		})
 
 		assert.Equal(t, http.StatusInternalServerError, rr.Code)
@@ -263,8 +263,8 @@ func TestHandleUpsert(t *testing.T) {
 			Params:      upsertParams,
 			Creator:     mockCreator,
 			Updater:     mockUpdater,
-			SDKToDomain: apiToDomain,
-			DomainToSDK: domainToAPI,
+			APIToDomain: apiToDomain,
+			DomainToAPI: domainToAPI,
 		})
 
 		assert.Equal(t, http.StatusInternalServerError, rr.Code)
@@ -295,8 +295,8 @@ func TestHandleUpsert(t *testing.T) {
 			Params:      upsertParams,
 			Creator:     mockCreator,
 			Updater:     mockUpdater,
-			SDKToDomain: apiToDomain,
-			DomainToSDK: domainToAPI,
+			APIToDomain: apiToDomain,
+			DomainToAPI: domainToAPI,
 		})
 
 		assert.Equal(t, http.StatusBadRequest, rr.Code)
@@ -338,8 +338,8 @@ func TestHandleUpsert(t *testing.T) {
 			Params:      upsertParams,
 			Creator:     mockCreator,
 			Updater:     mockUpdater,
-			SDKToDomain: apiToDomain,
-			DomainToSDK: failingDomainToAPI,
+			APIToDomain: apiToDomain,
+			DomainToAPI: failingDomainToAPI,
 		})
 		assert.Equal(t, http.StatusInternalServerError, rr.Code)
 		mockCreator.AssertExpectations(t)
@@ -372,8 +372,8 @@ func TestHandleUpsert(t *testing.T) {
 			Params:      upsertParams,
 			Creator:     mockCreator,
 			Updater:     mockUpdater,
-			SDKToDomain: apiToDomain,
-			DomainToSDK: domainToAPI,
+			APIToDomain: apiToDomain,
+			DomainToAPI: domainToAPI,
 		})
 
 		assert.Equal(t, http.StatusNotFound, rr.Code)
@@ -407,8 +407,8 @@ func TestHandleUpsert(t *testing.T) {
 			Params:      upsertParams,
 			Creator:     mockCreator,
 			Updater:     mockUpdater,
-			SDKToDomain: apiToDomain,
-			DomainToSDK: domainToAPI,
+			APIToDomain: apiToDomain,
+			DomainToAPI: domainToAPI,
 		})
 
 		assert.Equal(t, http.StatusUnprocessableEntity, rr.Code)
@@ -444,8 +444,8 @@ func TestHandleUpsert(t *testing.T) {
 			Params:      upsertParams,
 			Creator:     mockCreator,
 			Updater:     mockUpdater,
-			SDKToDomain: apiToDomain,
-			DomainToSDK: domainToAPI,
+			APIToDomain: apiToDomain,
+			DomainToAPI: domainToAPI,
 		})
 
 		assert.Equal(t, http.StatusNotFound, rr.Code)
@@ -481,8 +481,8 @@ func TestHandleUpsert(t *testing.T) {
 			Params:      upsertParams,
 			Creator:     mockCreator,
 			Updater:     mockUpdater,
-			SDKToDomain: apiToDomain,
-			DomainToSDK: domainToAPI,
+			APIToDomain: apiToDomain,
+			DomainToAPI: domainToAPI,
 		})
 
 		// ErrConflict now correctly maps to 409 Conflict per RFC 7807 spec
@@ -519,8 +519,8 @@ func TestHandleUpsert(t *testing.T) {
 			Params:      upsertParams,
 			Creator:     mockCreator,
 			Updater:     mockUpdater,
-			SDKToDomain: apiToDomain,
-			DomainToSDK: domainToAPI,
+			APIToDomain: apiToDomain,
+			DomainToAPI: domainToAPI,
 		})
 
 		assert.Equal(t, http.StatusUnprocessableEntity, rr.Code)

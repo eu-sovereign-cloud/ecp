@@ -17,8 +17,8 @@ type Getter[T any] interface {
 	Do(ctx context.Context, resource port.IdentifiableResource) (T, error)
 }
 
-// DomainToSDK defines the interface for mapping domain objects to SDK objects
-type DomainToSDK[D any, Out any] func(domain D) Out
+// DomainToAPI defines the interface for mapping domain objects to API objects
+type DomainToAPI[D any, Out any] func(domain D) Out
 
 // HandleGet is a generic helper for GET endpoints that:
 // 1. Calls the controller to fetch the domain object
@@ -32,7 +32,7 @@ func HandleGet[D any, Out any](
 	logger *slog.Logger,
 	ir port.IdentifiableResource,
 	getter Getter[D],
-	mapper DomainToSDK[D, Out],
+	mapper DomainToAPI[D, Out],
 ) {
 	logger = logger.With("name", ir.GetName(), "tenant", ir.GetTenant(), "workspace", ir.GetWorkspace())
 

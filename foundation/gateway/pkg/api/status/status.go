@@ -6,8 +6,8 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 )
 
-// MapResourceStateDomainToAPI maps ResourceStateDomain to a schema.ResourceState.
-func MapResourceStateDomainToAPI(domain regional.ResourceStateDomain) schema.ResourceState {
+// ResourceStateDomainToAPI maps ResourceStateDomain to a schema.ResourceState.
+func ResourceStateDomainToAPI(domain regional.ResourceStateDomain) schema.ResourceState {
 	var state schema.ResourceState
 	switch domain {
 	case regional.ResourceStatePending:
@@ -28,20 +28,20 @@ func MapResourceStateDomainToAPI(domain regional.ResourceStateDomain) schema.Res
 	return state
 }
 
-// MapConditionDomainsToAPI maps StatusDomain.Conditions to a slice of schema.StatusCondition.
-func MapConditionDomainsToAPI(domains []regional.StatusConditionDomain) []schema.StatusCondition {
+// ConditionDomainsToAPI maps StatusDomain.Conditions to a slice of schema.StatusCondition.
+func ConditionDomainsToAPI(domains []regional.StatusConditionDomain) []schema.StatusCondition {
 	conditions := make([]schema.StatusCondition, len(domains))
 	for i, cond := range domains {
-		conditions[i] = mapConditionDomainToAPI(cond)
+		conditions[i] = conditionDomainToAPI(cond)
 	}
 	return conditions
 }
 
-// mapConditionDomainToAPI maps a StatusConditionDomain to a schema.StatusCondition.
-func mapConditionDomainToAPI(domain regional.StatusConditionDomain) schema.StatusCondition {
+// conditionDomainToAPI maps a StatusConditionDomain to a schema.StatusCondition.
+func conditionDomainToAPI(domain regional.StatusConditionDomain) schema.StatusCondition {
 	return schema.StatusCondition{
 		Type:             domain.Type,
-		State:            MapResourceStateDomainToAPI(domain.State),
+		State:            ResourceStateDomainToAPI(domain.State),
 		LastTransitionAt: domain.LastTransitionAt,
 		Reason:           domain.Reason,
 		Message:          domain.Message,

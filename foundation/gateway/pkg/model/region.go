@@ -1,5 +1,10 @@
 package model
 
+const (
+	RegionBaseURL      = "/providers/seca.region"
+	ProviderRegionName = "seca.region/v1"
+)
+
 type (
 	ZoneDomain   string
 	RegionDomain struct {
