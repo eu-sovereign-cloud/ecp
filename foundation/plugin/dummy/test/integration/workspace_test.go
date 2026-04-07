@@ -33,7 +33,7 @@ func TestWorkspace(t *testing.T) {
 					Tenant: "test-tenant",
 				},
 			},
-			Spec: regionalmodel.WorkspaceSpec{},
+			Spec: regionalmodel.WorkspaceSpecDomain{},
 		}
 
 		//
@@ -80,7 +80,7 @@ func TestWorkspace(t *testing.T) {
 					Tenant: "test-tenant",
 				},
 			},
-			Spec: regionalmodel.WorkspaceSpec{},
+			Spec: regionalmodel.WorkspaceSpecDomain{},
 		}
 		_, err := workspaceRepo.Create(t.Context(), wsDomain)
 		require.NoError(t, err)

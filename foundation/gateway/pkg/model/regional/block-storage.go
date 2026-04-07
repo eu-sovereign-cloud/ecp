@@ -3,20 +3,20 @@ package regional
 // BlockStorageDomain represents the domain model for a block storage instance.
 type BlockStorageDomain struct {
 	Metadata
-	Spec   BlockStorageSpec
-	Status *BlockStorageStatus
+	Spec   BlockStorageSpecDomain
+	Status *BlockStorageStatusDomain
 }
 
-// BlockStorageSpec defines the specification for a block storage instance.
-type BlockStorageSpec struct {
+// BlockStorageSpecDomain defines the specification for a block storage instance.
+type BlockStorageSpecDomain struct {
 	SizeGB         int
-	SkuRef         ReferenceObject
-	SourceImageRef *ReferenceObject
+	SkuRef         ReferenceObjectDomain
+	SourceImageRef *ReferenceObjectDomain
 }
 
-// BlockStorageStatus defines the status for a block storage instance.
-type BlockStorageStatus struct {
-	AttachedTo *ReferenceObject
+// BlockStorageStatusDomain defines the status for a block storage instance.
+type BlockStorageStatusDomain struct {
+	AttachedTo *ReferenceObjectDomain
 	SizeGB     int
 	StatusDomain
 }

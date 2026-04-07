@@ -1,15 +1,15 @@
 package model
 
 type (
-	Zone         string
+	ZoneDomain   string
 	RegionDomain struct {
 		Metadata
-		Providers []Provider
-		Zones     []Zone
+		Providers []ProviderDomain
+		Zones     []ZoneDomain
 	}
 )
 
-type Provider struct {
+type ProviderDomain struct {
 	Name    string
 	URL     string
 	Version string

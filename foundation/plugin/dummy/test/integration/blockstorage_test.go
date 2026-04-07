@@ -34,7 +34,7 @@ func TestBlockStorage(t *testing.T) {
 					Workspace: "test-workspace",
 				},
 			},
-			Spec: regionalmodel.BlockStorageSpec{
+			Spec: regionalmodel.BlockStorageSpecDomain{
 				SizeGB: 1,
 				SkuRef: regionalmodel.ReferenceObject{
 					Resource: "sku-1",
@@ -88,7 +88,7 @@ func TestBlockStorage(t *testing.T) {
 					Workspace: "test-workspace",
 				},
 			},
-			Spec: regionalmodel.BlockStorageSpec{
+			Spec: regionalmodel.BlockStorageSpecDomain{
 				SizeGB: 1,
 				SkuRef: regionalmodel.ReferenceObject{
 					Resource: "sku-1",
@@ -167,7 +167,7 @@ func TestBlockStorage(t *testing.T) {
 					Workspace: "test-workspace",
 				},
 			},
-			Spec: regionalmodel.BlockStorageSpec{
+			Spec: regionalmodel.BlockStorageSpecDomain{
 				SizeGB: 1,
 				SkuRef: regionalmodel.ReferenceObject{
 					Resource: "sku-1",

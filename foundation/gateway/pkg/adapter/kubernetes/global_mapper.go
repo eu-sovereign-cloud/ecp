@@ -70,18 +70,18 @@ func validateRegionSpec(cr v1.Region) error {
 	return nil
 }
 
-func mapProviders(cr v1.Region) []model.Provider {
-	providers := make([]model.Provider, 0, len(cr.Spec.Providers))
+func mapProviders(cr v1.Region) []model.ProviderDomain {
+	providers := make([]model.ProviderDomain, 0, len(cr.Spec.Providers))
 	for _, p := range cr.Spec.Providers {
-		providers = append(providers, model.Provider{Name: p.Name, URL: p.Url, Version: p.Version})
+		providers = append(providers, model.ProviderDomain{Name: p.Name, URL: p.Url, Version: p.Version})
 	}
 	return providers
 }
 
-func mapZones(cr v1.Region) []model.Zone {
-	zones := make([]model.Zone, 0, len(cr.Spec.AvailableZones))
+func mapZones(cr v1.Region) []model.ZoneDomain {
+	zones := make([]model.ZoneDomain, 0, len(cr.Spec.AvailableZones))
 	for _, z := range cr.Spec.AvailableZones {
-		zones = append(zones, model.Zone(z))
+		zones = append(zones, model.ZoneDomain(z))
 	}
 	return zones
 }

@@ -160,7 +160,7 @@ func BlockStorageFromAPI(sdk sdkschema.BlockStorage, params port.IdentifiableRes
 			Annotations: sdk.Annotations,
 			Extensions:  sdk.Extensions,
 		},
-		Spec: regional.BlockStorageSpec{
+		Spec: regional.BlockStorageSpecDomain{
 			SizeGB: sdk.Spec.SizeGB,
 			SkuRef: referenceObjectFromAPI(sdk.Spec.SkuRef),
 		},
@@ -175,7 +175,7 @@ func BlockStorageFromAPI(sdk sdkschema.BlockStorage, params port.IdentifiableRes
 
 // Helper functions for reference object conversion
 
-func referenceObjectToAPI(ref regional.ReferenceObject) sdkschema.Reference {
+func referenceObjectToAPI(ref regional.ReferenceObjectDomain) sdkschema.Reference {
 	return sdkschema.Reference{
 		Provider:  ref.Provider,
 		Region:    ref.Region,
@@ -193,7 +193,7 @@ func toPtrOrNil[T comparable](v T) *T {
 	return &v
 }
 
-func referenceObjectPtrToAPI(ref *regional.ReferenceObject) *sdkschema.Reference {
+func referenceObjectPtrToAPI(ref *regional.ReferenceObjectDomain) *sdkschema.Reference {
 	if ref == nil {
 		return nil
 	}
@@ -201,8 +201,8 @@ func referenceObjectPtrToAPI(ref *regional.ReferenceObject) *sdkschema.Reference
 	return &r
 }
 
-func referenceObjectFromAPI(ref sdkschema.Reference) regional.ReferenceObject {
-	return regional.ReferenceObject{
+func referenceObjectFromAPI(ref sdkschema.Reference) regional.ReferenceObjectDomain {
+	return regional.ReferenceObjectDomain{
 		Provider:  ref.Provider,
 		Region:    ref.Region,
 		Resource:  ref.Resource,

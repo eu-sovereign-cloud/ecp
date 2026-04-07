@@ -54,9 +54,9 @@ func TestRegionController_GetRegion(t *testing.T) {
 		require.NotNil(t, region)
 		require.NotNil(t, region.Metadata)
 		require.Equal(t, regionName, region.Name)
-		expectedZones := make([]model.Zone, len(availableZones))
+		expectedZones := make([]model.ZoneDomain, len(availableZones))
 		for i, z := range availableZones {
-			expectedZones[i] = model.Zone(z)
+			expectedZones[i] = model.ZoneDomain(z)
 		}
 		require.ElementsMatch(t, expectedZones, region.Zones)
 		require.Len(t, region.Providers, 2)
@@ -115,7 +115,7 @@ func TestRegionController_GetRegion(t *testing.T) {
 		require.Equal(t, minimalRegionName, region.Name)
 		// Verify default values set by newRegionCR helper
 		require.Len(t, region.Zones, 1)
-		require.Equal(t, model.Zone("az-1"), region.Zones[0])
+		require.Equal(t, model.ZoneDomain("az-1"), region.Zones[0])
 		require.Len(t, region.Providers, 1)
 		require.Equal(t, "default", region.Providers[0].Name)
 	})
@@ -148,9 +148,9 @@ func TestRegionController_GetRegion(t *testing.T) {
 		require.NotNil(t, region)
 		require.Equal(t, multiAZRegionName, region.Name)
 		require.Len(t, region.Zones, 4)
-		expectedZones := make([]model.Zone, len(multiAZ))
+		expectedZones := make([]model.ZoneDomain, len(multiAZ))
 		for i, z := range multiAZ {
-			expectedZones[i] = model.Zone(z)
+			expectedZones[i] = model.ZoneDomain(z)
 		}
 		require.ElementsMatch(t, expectedZones, region.Zones)
 	})

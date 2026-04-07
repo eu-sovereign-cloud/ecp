@@ -145,9 +145,9 @@ package handler
 // 			mockConv := NewMockConverter[*regional.BlockStorageDomain, *v1alpha1.BlockStorage](ctrl)
 
 // 			bd := &regional.BlockStorageDomain{
-// 				Spec: regional.BlockStorageSpec{
+// 				Spec: regional.BlockStorageSpecDomain{
 // 					SizeGB: 100,
-// 					SkuRef: regional.ReferenceObject{
+// 					SkuRef: regional.ReferenceObjectDomain{
 // 						Tenant: "sku-id",
 // 					},
 // 				},
@@ -328,9 +328,9 @@ package handler
 // 			mockConv := NewMockConverter[*regional.BlockStorageDomain, *v1alpha1.BlockStorage](ctrl)
 
 // 			bd := &regional.BlockStorageDomain{
-// 				Spec: regional.BlockStorageSpec{
+// 				Spec: regional.BlockStorageSpecDomain{
 // 					SizeGB: 100,
-// 					SkuRef: regional.ReferenceObject{
+// 					SkuRef: regional.ReferenceObjectDomain{
 // 						Tenant: "sku-id",
 // 					},
 // 				},
@@ -417,9 +417,9 @@ package handler
 // 			mockConv := NewMockConverter[*regional.BlockStorageDomain, *v1alpha1.BlockStorage](ctrl)
 
 // 			bd := &regional.BlockStorageDomain{
-// 				Spec: regional.BlockStorageSpec{
+// 				Spec: regional.BlockStorageSpecDomain{
 // 					SizeGB: 200, // New size for increase
-// 					SkuRef: regional.ReferenceObject{
+// 					SkuRef: regional.ReferenceObjectDomain{
 // 						Tenant: "sku-id",
 // 					},
 // 				},

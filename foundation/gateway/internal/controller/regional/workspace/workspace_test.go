@@ -145,7 +145,7 @@ func TestWorkspaceController(t *testing.T) {
 					labels.InternalTenantLabel: tenant,
 				},
 			},
-			Spec: regional.WorkspaceSpec{
+			Spec: regional.WorkspaceSpecDomain{
 				"test-string": "test-value",
 				"test-number": int64(42),
 				"test-bool":   true,
@@ -247,7 +247,7 @@ func TestWorkspaceController(t *testing.T) {
 					Tenant: tenant,
 				},
 			},
-			Spec: regional.WorkspaceSpec{
+			Spec: regional.WorkspaceSpecDomain{
 				"test-string": "updated-value",
 				"test-number": int64(84),
 			},

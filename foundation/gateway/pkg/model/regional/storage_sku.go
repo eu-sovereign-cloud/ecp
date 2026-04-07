@@ -3,11 +3,11 @@ package regional
 // StorageSKUDomain represents the domain model for a storage SKU.
 type StorageSKUDomain struct {
 	Metadata
-	Spec StorageSKUSpec
+	Spec StorageSKUSpecDomain
 }
 
-// StorageSKUSpec defines the specification for a storage SKU.
-type StorageSKUSpec struct {
+// StorageSKUSpecDomain defines the specification for a storage SKU.
+type StorageSKUSpecDomain struct {
 	Iops          int64
 	MinVolumeSize int64
 	Type          string
