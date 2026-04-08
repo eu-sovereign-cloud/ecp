@@ -39,10 +39,9 @@ func TestBlockStorageConverter_FromSECAToAruba(t *testing.T) {
 					},
 				},
 				Status: &regional.BlockStorageStatus{
-					State: func() *regional.ResourceStateDomain {
-						s := regional.ResourceStateActive
-						return &s
-					}(),
+					StatusDomain: regional.StatusDomain{
+						State: regional.ResourceStateActive,
+					},
 				},
 			},
 			assert: func(t *testing.T, bs *v1alpha1.BlockStorage) {

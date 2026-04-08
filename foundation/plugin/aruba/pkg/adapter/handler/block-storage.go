@@ -20,7 +20,7 @@ import (
 	mutator_bypass "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/generic/mutator"
 	resolver_bypass "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/generic/resolver"
 	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/converter"
-	repository "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/repository"
+	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/repository"
 )
 
 // Ensure BlockStorageHandler implements the BlockStorage interface
@@ -177,7 +177,7 @@ func (h *BlockStorageHandler) resolveSecaBlockStorageDependencies(ctx context.Co
 		return nil, delegator.ErrStillProcessing // TODO: better error handling
 	}
 
-	if ws.Status == nil || ws.Status.State == nil || *ws.Status.State != regional.ResourceStateActive {
+	if ws.Status == nil || ws.Status.State != regional.ResourceStateActive {
 		return nil, delegator.ErrStillProcessing // TODO: better error handling
 	}
 
