@@ -387,7 +387,7 @@ func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
 	resourceInterface := a.client.Resource(a.gvr).Namespace(ComputeNamespace(m))
 
 	if m.GetVersion() == "" {
-		if err := a.updateMetadataAndSpec(ctx, resourceInterface, m.GetName(), uobj); err != nil {
+		if err := a.updateMetadataAndSpecRetry(ctx, resourceInterface, m.GetName(), uobj); err != nil {
 			return nil, kubeToDomainError(fmt.Errorf("failed to update metadata and spec %s '%s': %w", a.gvr.Resource, m.GetName(), err))
 		}
 	} else {
@@ -450,7 +450,7 @@ func (a *WriterAdapter[T]) UpdateStatus(ctx context.Context, m T) (*T, error) {
 	return &res, nil
 }
 
-func (a *WriterAdapter[T]) updateMetadataAndSpec(
+func (a *WriterAdapter[T]) updateMetadataAndSpecRetry(
 	ctx context.Context,
 	ri dynamic.ResourceInterface,
 	name string,
