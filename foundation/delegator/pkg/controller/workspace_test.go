@@ -97,7 +97,8 @@ func TestWorkspaceController_Reconcile(t *testing.T) {
 		//
 		// When we try to reconcile the resource
 		req := k8srt.Request{NamespacedName: client.ObjectKey{Name: testName, Namespace: testNamespace}}
-		res, err := (*GenericController[*regional.WorkspaceDomain])(reconciler).Reconcile(t.Context(), req)
+		gc := (GenericController[*regional.WorkspaceDomain])(reconciler)
+		res, err := gc.Reconcile(t.Context(), req)
 
 		//
 		// Then it should succeed
@@ -146,7 +147,8 @@ func TestWorkspaceController_Reconcile(t *testing.T) {
 		//
 		// When we try to reconcile a missing resource
 		req := k8srt.Request{NamespacedName: client.ObjectKey{Name: "missing", Namespace: testNamespace}}
-		res, err := (*GenericController[*regional.WorkspaceDomain])(reconciler).Reconcile(t.Context(), req)
+		gc := (GenericController[*regional.WorkspaceDomain])(reconciler)
+		res, err := gc.Reconcile(t.Context(), req)
 
 		//
 		// Then it should return no error and no result
@@ -218,7 +220,8 @@ func TestWorkspaceController_Reconcile(t *testing.T) {
 		//
 		// When we try to reconcile the resource
 		req := k8srt.Request{NamespacedName: client.ObjectKey{Name: testName, Namespace: testNamespace}}
-		res, err := (*GenericController[*regional.WorkspaceDomain])(reconciler).Reconcile(t.Context(), req)
+		gc := (GenericController[*regional.WorkspaceDomain])(reconciler)
+		res, err := gc.Reconcile(t.Context(), req)
 
 		//
 		// Then it should return the handler error

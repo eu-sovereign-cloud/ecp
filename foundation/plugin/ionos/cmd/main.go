@@ -60,16 +60,16 @@ func main() {
 	wsPlugin := ionosplugin.NewWorkspace(mgr.GetClient(), logger.With("plugin", "workspace"))
 
 	// 4. Create a plugin set
-	pluginSet := builder.NewPluginSet(
-		builder.WithBlockStorage(bsPlugin),
-		builder.WithWorkspace(wsPlugin),
-	)
+	pluginSet := builder.PluginSet{
+		BlockStorage: bsPlugin,
+		Workspace:    wsPlugin,
+	}
 
 	// 5. Create the controller set
 	controllerSet, err := builder.NewControllerSet(
-		builder.WithConfig(mgr.GetConfig()),
-		builder.WithClient(mgr.GetClient()),
-		builder.WithPlugins(pluginSet),
+		mgr.GetConfig(),
+		mgr.GetClient(),
+		pluginSet,
 		builder.WithLogger(logger.With("component", "controller-set")),
 		builder.WithRequeueAfter(1*time.Second),
 	)
