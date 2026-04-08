@@ -19,7 +19,6 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/retry"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation/filter"
@@ -239,7 +238,6 @@ func (a *ReaderAdapter[T]) List(ctx context.Context, params model.ListParams, li
 	ulist, err := ri.List(ctx, lo)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to list resources", "resource", a.gvr.Resource, "error", err)
-
 		return nil, kubeToDomainError(fmt.Errorf("failed to list resources for %s: %w", a.gvr.Resource, err))
 	}
 
@@ -299,14 +297,12 @@ func (a *ReaderAdapter[T]) Load(ctx context.Context, obj *T) error {
 		if !kerrs.IsNotFound(err) {
 			a.logger.ErrorContext(ctx, "failed to get resource", "name", v.GetName(), "resource", a.gvr.Resource, "error", err)
 		}
-
 		return kubeToDomainError(fmt.Errorf("failed to retrieve %s '%s': %w", a.gvr.Resource, v.GetName(), err))
 	}
 
 	converted, err := a.k8sToDomain(uobj)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "conversion failed", "resource", a.gvr.Resource, "error", err)
-
 		return model.NewError(model.KindValidation, fmt.Errorf("failed to convert %s: %w", a.gvr.Resource, err))
 	}
 
@@ -322,7 +318,6 @@ func (a *WriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
 	uobj, err := a.toUnstructured(m)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "conversion to k8s object failed", "resource", a.gvr.Resource, "error", err)
-
 		return nil, model.NewError(model.KindValidation, fmt.Errorf("failed to convert %s to k8s object: %w", a.gvr.Resource, err))
 	}
 
@@ -367,140 +362,95 @@ func (a *WriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
 	})
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to fetch the k8s resource status", "resource", a.gvr.Resource, "error", err)
-
 		return nil, model.NewError(model.KindUnavailable, fmt.Errorf("failed to fetch the %s status: %w", a.gvr.Resource, err))
 	}
 
 	res, err := a.k8sToDomain(ures)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "conversion from k8s object failed", "resource", a.gvr.Resource, "error", err)
-
 		return nil, model.NewError(model.KindValidation, fmt.Errorf("failed to convert %s from k8s object: %w", a.gvr.Resource, err))
 	}
 
 	return &res, nil
 }
 
-// Update implements the port.WriterRepo interface. It handles both spec-only updates
-// and updates that include the status, using the appropriate Kubernetes API endpoints.
+// Update implements the port.WriterRepo interface. It updates the resource's
+// metadata (labels, annotations) and spec. Status updates are handled separately
+// by UpdateStatus.
 func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
-	// 1 - Convert from business domain model to K8s unstructured
 	uobj, err := a.toUnstructured(m)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "conversion from T to unstructured failed", "resource", a.gvr.Resource, "error", err)
-
 		return nil, model.NewError(model.KindValidation, fmt.Errorf("failed to convert %s to unstructured: %w", a.gvr.Resource, err))
 	}
 
-	// 2 - Decompose the object by extracting...
-
-	// 2.1 - Labels
-	desiredLabels := uobj.GetLabels()
-	labelsFound := len(desiredLabels) > 0
-
-	// 2.2 - Annotations
-	desiredAnnotations := uobj.GetAnnotations()
-	annotationsFound := len(desiredAnnotations) > 0
-
-	// 2.3 - The Spec
-	// Determine if a status update is intended by checking for meaningful status data.
-	desiredSpec, specFound, err := unstructured.NestedMap(uobj.Object, "spec")
-	if err != nil {
-		return nil, model.NewError(model.KindValidation, fmt.Errorf("failed to extract spec from %s: %w", a.gvr.Resource, err))
-	}
-
-	// 2.4 - The status
-	desiredStatus, statusFound, err := unstructured.NestedMap(uobj.Object, "status")
-	if err != nil {
-		return nil, model.NewError(model.KindValidation, fmt.Errorf("failed to extract status from %s: %w", a.gvr.Resource, err))
-	}
-
-	// 3 - Setup the K8s Client Interface to the resource and namespace
 	resourceInterface := a.client.Resource(a.gvr).Namespace(ComputeNamespace(m))
-	// 4 - Update the Spec if present
+
 	if m.GetVersion() == "" {
-
-		if labelsFound || annotationsFound || specFound {
-			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-				currObj, getErr := resourceInterface.Get(ctx, m.GetName(), metav1.GetOptions{})
-				if getErr != nil {
-					return getErr
-				}
-
-				// Skip spec updating when deleting
-				if !currObj.GetDeletionTimestamp().IsZero() {
-					return nil
-				}
-
-				// Extract the current spec
-				currSpec, currSpecFound, err := unstructured.NestedMap(currObj.Object, "spec")
-				if err != nil {
-					return err // TODO: better error handling
-				}
-
-				// Set labels
-				currObj.SetLabels(desiredLabels)
-
-				// Set annotations
-				currObj.SetAnnotations(desiredAnnotations)
-
-				// Set the desired spec on the current object
-				if currSpecFound && !cmp.Equal(currSpec, desiredSpec) {
-					if err := unstructured.SetNestedMap(currObj.Object, desiredSpec, "spec"); err != nil {
-						return err // TODO: better error handling
-					}
-				}
-
-				// Update the resource spec on K8s
-				if _, err := resourceInterface.Update(ctx, currObj, metav1.UpdateOptions{}); err != nil {
-					return err // TODO: better error handling
-				}
-
-				// At this point everything is OK
-				return nil
-			})
-			if err != nil {
-				a.logger.ErrorContext(ctx, "failed to update resource", "name", m.GetName(), "resource", a.gvr.Resource, "error", err, slog.Any("m", m))
-
-				return nil, kubeToDomainError(fmt.Errorf("failed to update %s '%s': %w", a.gvr.Resource, m.GetName(), err))
-			}
+		if err := a.updateMetadataAndSpecRetry(ctx, resourceInterface, m.GetName(), uobj); err != nil {
+			return nil, kubeToDomainError(fmt.Errorf("failed to update metadata and spec %s '%s': %w", a.gvr.Resource, m.GetName(), err))
 		}
 	} else {
-		// For versioned updates, we can assume that the whole object is updated, so we can directly call the Update API.
-		_, err = resourceInterface.Update(ctx, uobj, metav1.UpdateOptions{})
-		if err != nil {
-			a.logger.ErrorContext(ctx, "failed to update resource", "name", m.GetName(), "resource", a.gvr.Resource, "error", err, slog.Any("m", m))
-
-			return nil, kubeToDomainError(fmt.Errorf("failed to update %s '%s': %w", a.gvr.Resource, m.GetName(), err))
+		if _, err = resourceInterface.Update(ctx, uobj, metav1.UpdateOptions{}); err != nil {
+			return nil, kubeToDomainError(fmt.Errorf("failed to update metadata and spec with version %s %s '%s': %w", m.GetVersion(), a.gvr.Resource, m.GetName(), err))
 		}
 	}
 
-	// 5 - Update the status if present
-	if statusFound {
-		if err := a.updateStatus(ctx, resourceInterface, m, desiredStatus); err != nil {
-			a.logger.ErrorContext(ctx, "failed to update resource status", "name", m.GetName(), "resource", a.gvr.Resource, "error", err, slog.Any("m", m))
-
-			return nil, kubeToDomainError(fmt.Errorf("failed to update status %s '%s': %w", a.gvr.Resource, m.GetName(), err))
-		}
-	}
-
-	// 6 - Load the final object from K8s
 	currObj, err := resourceInterface.Get(ctx, m.GetName(), metav1.GetOptions{})
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to load resource", "name", m.GetName(), "resource", a.gvr.Resource, "error", err, slog.Any("m", m))
-
-		return nil, kubeToDomainError(fmt.Errorf("failed to load %s '%s' after update: %w", a.gvr.Resource, m.GetName(), err))
+		return nil, kubeToDomainError(fmt.Errorf("failed to get %s '%s' after update: %w", a.gvr.Resource, m.GetName(), err))
 	}
 
 	res, err := a.k8sToDomain(currObj)
 	if err != nil {
-		return nil, model.NewError(model.KindValidation, fmt.Errorf("failed to convert %s from k8s object: %w", a.gvr.Resource, err))
+		return nil, model.NewError(model.KindValidation, fmt.Errorf("failed to convert %s '%s' from k8s object: %w", a.gvr.Resource, m.GetName(), err))
 	}
 
 	return &res, nil
 }
 
-func (a *WriterAdapter[T]) updateMetadataAndSpec(
+// UpdateStatus implements the port.WriterRepo interface. It updates only the
+// resource's status subresource, leaving metadata and spec unchanged.
+func (a *WriterAdapter[T]) UpdateStatus(ctx context.Context, m T) (*T, error) {
+	uobj, err := a.toUnstructured(m)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "conversion from T to unstructured failed", "resource", a.gvr.Resource, "error", err)
+		return nil, model.NewError(model.KindValidation, fmt.Errorf("failed to convert %s to unstructured: %w", a.gvr.Resource, err))
+	}
+
+	desiredStatus, statusFound, err := unstructured.NestedMap(uobj.Object, "status")
+	if err != nil {
+		return nil, model.NewError(model.KindValidation, fmt.Errorf("failed to extract status from unstructured %s: %w", a.gvr.Resource, err))
+	}
+
+	if !statusFound {
+		a.logger.ErrorContext(ctx, "no status field found in the provided object", "resource", a.gvr.Resource, "name", m.GetName())
+		return nil, model.NewError(model.KindValidation, fmt.Errorf("no status data provided for %s '%s'", a.gvr.Resource, m.GetName()))
+	}
+
+	resourceInterface := a.client.Resource(a.gvr).Namespace(ComputeNamespace(m))
+
+	if err := a.updateStatusRetry(ctx, resourceInterface, m, desiredStatus); err != nil {
+		a.logger.ErrorContext(ctx, "failed to update status", "resource", a.gvr.Resource, "error", err)
+		return nil, kubeToDomainError(fmt.Errorf("failed to update status with retry %s '%s': %w", a.gvr.Resource, m.GetName(), err))
+	}
+
+	currObj, err := resourceInterface.Get(ctx, m.GetName(), metav1.GetOptions{})
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to get resource after status update", "resource", a.gvr.Resource, "error", err)
+		return nil, kubeToDomainError(fmt.Errorf("failed to get %s '%s' after status update: %w", a.gvr.Resource, m.GetName(), err))
+	}
+
+	res, err := a.k8sToDomain(currObj)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "conversion from k8s object failed", "resource", a.gvr.Resource, "error", err)
+		return nil, model.NewError(model.KindValidation, fmt.Errorf("failed to convert %s '%s' from k8s object after status update: %w", a.gvr.Resource, m.GetName(), err))
+	}
+
+	return &res, nil
+}
+
+func (a *WriterAdapter[T]) updateMetadataAndSpecRetry(
 	ctx context.Context,
 	ri dynamic.ResourceInterface,
 	name string,
@@ -557,7 +507,7 @@ func (a *WriterAdapter[T]) updateMetadataAndSpec(
 	})
 }
 
-func (a *WriterAdapter[T]) updateStatus(
+func (a *WriterAdapter[T]) updateStatusRetry(
 	ctx context.Context,
 	ri dynamic.ResourceInterface,
 	m T,
@@ -595,14 +545,13 @@ func (a *WriterAdapter[T]) Delete(ctx context.Context, m T) error {
 	deleteOptions := metav1.DeleteOptions{}
 	if m.GetVersion() != "" {
 		deleteOptions.Preconditions = &metav1.Preconditions{
-			ResourceVersion: ptr.To(m.GetVersion()),
+			ResourceVersion: new(m.GetVersion()),
 		}
 	}
 
 	err := ri.Delete(ctx, m.GetName(), deleteOptions)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to delete resource", "name", m.GetName(), "resource", a.gvr.Resource, "error", err, slog.Any("m", m))
-
 		return kubeToDomainError(fmt.Errorf("failed to delete %s '%s': %w", a.gvr.Resource, m.GetName(), err))
 	}
 
@@ -618,7 +567,7 @@ func (a *NamespaceManagingWriterAdapter[T]) Delete(ctx context.Context, m T) err
 	// which will really manage its namespace is the Workspace.
 	//
 	// The Workspace should be placed into the Tenant namespace, and it should
-	// not own that namespace because it will contains all the Workspaces and
+	// not own that namespace because it will contain all the Workspaces and
 	// other elements owned by the Tenant.
 	//
 	// So, in fact, the Workspaces will create and manage namespaces for its
@@ -628,11 +577,7 @@ func (a *NamespaceManagingWriterAdapter[T]) Delete(ctx context.Context, m T) err
 	// names here.
 
 	// Delete the resource which manages the namespace
-	if err := a.WriterAdapter.Delete(ctx, m); err != nil {
-		return err
-	}
-
-	return nil
+	return a.WriterAdapter.Delete(ctx, m)
 }
 
 // Watch implements the port.WatcherRepo interface.
@@ -765,7 +710,7 @@ func (a *NamespaceManagingWriterAdapter[T]) Create(ctx context.Context, m T) (*T
 	// which will really manage its namespace is the Workspace.
 	//
 	// The Workspace should be placed into the Tenant namespace, and it should
-	// not own that namespace because it will contains all the Workspaces and
+	// not own that namespace because it will contain all the Workspaces and
 	// other elements owned by the Tenant.
 	//
 	// So, in fact, the Workspaces will create and manage namespaces for its

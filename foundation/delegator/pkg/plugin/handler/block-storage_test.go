@@ -75,7 +75,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		//
 		// And a repo that is expected to be called once to update state
 		mockRepo := NewMockRepo[*regional.BlockStorageDomain](ctrl)
-		mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(
+		mockRepo.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).DoAndReturn(
 			func(_ context.Context, res *regional.BlockStorageDomain) (*regional.BlockStorageDomain, error) {
 				require.Equal(t, regional.ResourceStateCreating, res.Status.State)
 				return nil, nil
@@ -119,7 +119,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		//
 		// And a repo that is expected to be called once to update state to updating
 		mockRepo := NewMockRepo[*regional.BlockStorageDomain](ctrl)
-		mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(
+		mockRepo.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).DoAndReturn(
 			func(_ context.Context, res *regional.BlockStorageDomain) (*regional.BlockStorageDomain, error) {
 				require.Equal(t, regional.ResourceStateUpdating, res.Status.State)
 				return nil, nil
@@ -162,7 +162,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		//
 		// And a repo that is expected to be called once to update state
 		mockRepo := NewMockRepo[*regional.BlockStorageDomain](ctrl)
-		mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(
+		mockRepo.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).DoAndReturn(
 			func(_ context.Context, res *regional.BlockStorageDomain) (*regional.BlockStorageDomain, error) {
 				require.Equal(t, regional.ResourceStateActive, res.Status.State)
 				require.Equal(t, res.Spec.SizeGB, res.Status.SizeGB)
@@ -252,7 +252,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		//
 		// And a repo that is expected to be called once to update state
 		mockRepo := NewMockRepo[*regional.BlockStorageDomain](ctrl)
-		mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(
+		mockRepo.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).DoAndReturn(
 			func(_ context.Context, res *regional.BlockStorageDomain) (*regional.BlockStorageDomain, error) {
 				require.Equal(t, regional.ResourceStateActive, res.Status.State)
 				require.Equal(t, res.Spec.SizeGB, res.Status.SizeGB)
@@ -300,7 +300,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		//
 		// And a repo that is expected to be called once to update state to creating
 		mockRepo := NewMockRepo[*regional.BlockStorageDomain](ctrl)
-		mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(
+		mockRepo.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).DoAndReturn(
 			func(_ context.Context, res *regional.BlockStorageDomain) (*regional.BlockStorageDomain, error) {
 				require.Equal(t, regional.ResourceStateCreating, res.Status.State)
 				return nil, nil
@@ -348,7 +348,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		//
 		// And a repo that is expected to be called once to update state to updating
 		mockRepo := NewMockRepo[*regional.BlockStorageDomain](ctrl)
-		mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(
+		mockRepo.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).DoAndReturn(
 			func(_ context.Context, res *regional.BlockStorageDomain) (*regional.BlockStorageDomain, error) {
 				require.Equal(t, regional.ResourceStateUpdating, res.Status.State)
 				return nil, nil
@@ -390,7 +390,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		//
 		// And a repo that is expected to be called once to update state to error
 		mockRepo := NewMockRepo[*regional.BlockStorageDomain](ctrl)
-		mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(
+		mockRepo.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).DoAndReturn(
 			func(_ context.Context, res *regional.BlockStorageDomain) (*regional.BlockStorageDomain, error) {
 				require.Equal(t, regional.ResourceStateError, res.Status.State)
 				require.Len(t, res.Status.Conditions, 1)
@@ -440,7 +440,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		//
 		// And a repo that returns an error on update
 		mockRepo := NewMockRepo[*regional.BlockStorageDomain](ctrl)
-		mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil, errRepo)
+		mockRepo.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).Return(nil, errRepo)
 
 		//
 		// And a block storage plugin handler
@@ -473,7 +473,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		//
 		// And a repo that returns an error on update
 		mockRepo := NewMockRepo[*regional.BlockStorageDomain](ctrl)
-		mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil, errRepo).Times(1)
+		mockRepo.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).Return(nil, errRepo).Times(1)
 
 		//
 		// And a plugin that is not expected to be called
@@ -573,7 +573,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		//
 		// And a repo that is expected to be called once to update state to error
 		mockRepo := NewMockRepo[*regional.BlockStorageDomain](ctrl)
-		mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(
+		mockRepo.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).DoAndReturn(
 			func(_ context.Context, res *regional.BlockStorageDomain) (*regional.BlockStorageDomain, error) {
 				require.Equal(t, regional.ResourceStateError, res.Status.State)
 				require.Len(t, res.Status.Conditions, 1)
@@ -620,7 +620,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		//
 		// And a repo that is expected to be called once to update state to error
 		mockRepo := NewMockRepo[*regional.BlockStorageDomain](ctrl)
-		mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(
+		mockRepo.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).DoAndReturn(
 			func(_ context.Context, res *regional.BlockStorageDomain) (*regional.BlockStorageDomain, error) {
 				require.Equal(t, regional.ResourceStateError, res.Status.State)
 				require.Len(t, res.Status.Conditions, 1)
