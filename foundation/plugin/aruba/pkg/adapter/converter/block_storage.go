@@ -84,10 +84,10 @@ func (c *BlockStorageConverter) FromArubaToSECA(from *v1alpha1.BlockStorage) (*r
 				Name: from.Name,
 			},
 		},
-		Spec: regional.BlockStorageSpec{
+		Spec: regional.BlockStorageSpecDomain{
 			SizeGB: int(from.Spec.SizeGb),
-			SkuRef: regional.ReferenceObject{},
-			SourceImageRef: &regional.ReferenceObject{
+			SkuRef: regional.ReferenceObjectDomain{},
+			SourceImageRef: &regional.ReferenceObjectDomain{
 				Tenant:    from.Spec.Tenant,
 				Region:    from.Spec.Location.Value,
 				Workspace: from.Spec.ProjectReference.Name,

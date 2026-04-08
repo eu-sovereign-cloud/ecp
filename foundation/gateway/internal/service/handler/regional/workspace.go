@@ -95,8 +95,8 @@ func (h Workspace) CreateOrUpdateWorkspace(
 		},
 		Creator:     h.Create,
 		Updater:     h.Update,
-		SDKToDomain: apiworkspace.APIToDomain,
-		DomainToSDK: apiworkspace.DomainToAPIWithVerb(http.MethodPut),
+		APIToDomain: apiworkspace.APIToDomain,
+		DomainToAPI: apiworkspace.DomainToAPIWithVerb(http.MethodPut),
 	}
 
 	handler.HandleUpsert(

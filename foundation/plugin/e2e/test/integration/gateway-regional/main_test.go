@@ -240,7 +240,7 @@ func createTestWorkspace(ctx context.Context, workspaceRepo port.Repo[*regionalm
 				Tenant: testTenant,
 			},
 		},
-		Spec: regionalmodel.WorkspaceSpec{},
+		Spec: regionalmodel.WorkspaceSpecDomain{},
 	}
 
 	_, err := workspaceRepo.Create(ctx, wsDomain)
@@ -257,7 +257,7 @@ func cleanupTestWorkspace(ctx context.Context, workspaceRepo port.Repo[*regional
 				Tenant: testTenant,
 			},
 		},
-		Spec: regionalmodel.WorkspaceSpec{},
+		Spec: regionalmodel.WorkspaceSpecDomain{},
 	}
 
 	err := workspaceRepo.Delete(ctx, wsDomain)

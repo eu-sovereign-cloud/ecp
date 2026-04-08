@@ -25,7 +25,7 @@ var _ regionv1.ServerInterface = (*Region)(nil)
 // ListRegions handles requests to list all available regions.
 func (h *Region) ListRegions(w http.ResponseWriter, r *http.Request, params regionv1.ListRegionsParams) {
 	handler.HandleList(w, r, h.Logger.With("provider", "region").With("resource", "region"),
-		regionapi.ListParamsFromSDK(params),
+		regionapi.ListParamsFromAPI(params),
 		h.ListRegionController,
 		regionapi.DomainToAPIIterator,
 	)
@@ -35,5 +35,5 @@ func (h *Region) ListRegions(w http.ResponseWriter, r *http.Request, params regi
 func (h *Region) GetRegion(w http.ResponseWriter, r *http.Request, name schema.ResourcePathParam) {
 	handler.HandleGet(w, r, h.Logger.With("provider", "region").With("resource", "region"), &model.Metadata{
 		CommonMetadata: model.CommonMetadata{Name: name},
-	}, h.GetRegionController, regionapi.DomainToSDK)
+	}, h.GetRegionController, regionapi.DomainToAPI)
 }

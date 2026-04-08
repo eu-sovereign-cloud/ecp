@@ -27,16 +27,16 @@ type Updater[T any] interface {
 	Do(ctx context.Context, resource T) (T, error)
 }
 
-// SDKToDomain defines the function type for mapping SDK objects to domain objects
-type SDKToDomain[In any, D any] func(sdk In, params port.IdentifiableResource) D
+// APIToDomain defines the function type for mapping API objects to domain objects
+type APIToDomain[In any, D any] func(sdk In, params port.IdentifiableResource) D
 
 // UpsertOptions contains the configuration for HandleUpsert
 type UpsertOptions[In any, D any, Out any] struct {
 	Params      port.IdentifiableResource
 	Creator     Creator[D]
 	Updater     Updater[D]
-	SDKToDomain SDKToDomain[In, D]
-	DomainToSDK DomainToSDK[D, Out]
+	APIToDomain APIToDomain[In, D]
+	DomainToAPI DomainToAPI[D, Out]
 }
 
 // HandleUpsert is a generic helper for PUT endpoints that:
@@ -79,7 +79,7 @@ func HandleUpsert[In any, D any, Out any](
 		return
 	}
 
-	domainObj := options.SDKToDomain(apiObj, options.Params)
+	domainObj := options.APIToDomain(apiObj, options.Params)
 
 	// Determine whether to create or update based on IfUnmodifiedSince header
 	shouldUpdate := options.Params.GetVersion() != ""
@@ -108,7 +108,7 @@ func HandleUpsert[In any, D any, Out any](
 		}
 	}
 
-	sdkObj := options.DomainToSDK(result)
+	sdkObj := options.DomainToAPI(result)
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	if err := enc.Encode(sdkObj); err != nil {

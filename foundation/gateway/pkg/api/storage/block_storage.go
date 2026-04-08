@@ -21,16 +21,16 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 )
 
-func DomainToAPIWithVerb(verb string) func(domain *regional.BlockStorageDomain) *sdkschema.BlockStorage {
+func BlockStorageDomainToAPIWithVerb(verb string) func(domain *regional.BlockStorageDomain) *sdkschema.BlockStorage {
 	return func(domain *regional.BlockStorageDomain) *sdkschema.BlockStorage {
-		sdk := BlockStorageToAPI(domain)
+		sdk := blockStorageDomainToAPI(domain)
 		sdk.Metadata.Verb = verb
 		return sdk
 	}
 }
 
-// BlockStorageToAPI converts a BlockStorageDomain to its SDK representation.
-func BlockStorageToAPI(domain *regional.BlockStorageDomain) *sdkschema.BlockStorage {
+// blockStorageDomainToAPI converts a BlockStorageDomain to its SDK representation.
+func blockStorageDomainToAPI(domain *regional.BlockStorageDomain) *sdkschema.BlockStorage {
 	resVersion := int64(0)
 	// resourceVersion is best-effort numeric
 	if rv, err := strconv.ParseInt(domain.ResourceVersion, 10, 64); err == nil {
@@ -79,7 +79,7 @@ func BlockStorageToAPI(domain *regional.BlockStorageDomain) *sdkschema.BlockStor
 	if domain.Status != nil {
 		bs.Status = &sdkschema.BlockStorageStatus{
 			SizeGB:     domain.Status.SizeGB,
-			Conditions: status.MapConditionDomainsToAPI(domain.Status.Conditions),
+			Conditions: status.ConditionDomainsToAPI(domain.Status.Conditions),
 		}
 		if domain.Status.AttachedTo != nil {
 			bs.Status.AttachedTo = referenceObjectPtrToAPI(domain.Status.AttachedTo)
@@ -122,7 +122,7 @@ func BlockStorageListParamsFromAPI(params sdkstorage.ListBlockStoragesParams, te
 func BlockStorageDomainToAPIIterator(domains []*regional.BlockStorageDomain, nextSkipToken *string) *sdkstorage.BlockStorageIterator {
 	items := make([]sdkschema.BlockStorage, len(domains))
 	for i := range domains {
-		mapped := BlockStorageToAPI(domains[i])
+		mapped := blockStorageDomainToAPI(domains[i])
 		items[i] = *mapped
 	}
 
@@ -142,8 +142,8 @@ func BlockStorageDomainToAPIIterator(domains []*regional.BlockStorageDomain, nex
 	return iterator
 }
 
-// BlockStorageFromAPI converts an SDK BlockStorage to a BlockStorageDomain.
-func BlockStorageFromAPI(sdk sdkschema.BlockStorage, params port.IdentifiableResource) *regional.BlockStorageDomain {
+// APIToBlockStorageDomain converts an SDK BlockStorage to a BlockStorageDomain.
+func APIToBlockStorageDomain(sdk sdkschema.BlockStorage, params port.IdentifiableResource) *regional.BlockStorageDomain {
 	domain := &regional.BlockStorageDomain{
 		Metadata: regional.Metadata{
 			CommonMetadata: model.CommonMetadata{
@@ -160,7 +160,7 @@ func BlockStorageFromAPI(sdk sdkschema.BlockStorage, params port.IdentifiableRes
 			Annotations: sdk.Annotations,
 			Extensions:  sdk.Extensions,
 		},
-		Spec: regional.BlockStorageSpec{
+		Spec: regional.BlockStorageSpecDomain{
 			SizeGB: sdk.Spec.SizeGB,
 			SkuRef: referenceObjectFromAPI(sdk.Spec.SkuRef),
 		},
@@ -175,7 +175,7 @@ func BlockStorageFromAPI(sdk sdkschema.BlockStorage, params port.IdentifiableRes
 
 // Helper functions for reference object conversion
 
-func referenceObjectToAPI(ref regional.ReferenceObject) sdkschema.Reference {
+func referenceObjectToAPI(ref regional.ReferenceObjectDomain) sdkschema.Reference {
 	return sdkschema.Reference{
 		Provider:  ref.Provider,
 		Region:    ref.Region,
@@ -193,7 +193,7 @@ func toPtrOrNil[T comparable](v T) *T {
 	return &v
 }
 
-func referenceObjectPtrToAPI(ref *regional.ReferenceObject) *sdkschema.Reference {
+func referenceObjectPtrToAPI(ref *regional.ReferenceObjectDomain) *sdkschema.Reference {
 	if ref == nil {
 		return nil
 	}
@@ -201,8 +201,8 @@ func referenceObjectPtrToAPI(ref *regional.ReferenceObject) *sdkschema.Reference
 	return &r
 }
 
-func referenceObjectFromAPI(ref sdkschema.Reference) regional.ReferenceObject {
-	return regional.ReferenceObject{
+func referenceObjectFromAPI(ref sdkschema.Reference) regional.ReferenceObjectDomain {
+	return regional.ReferenceObjectDomain{
 		Provider:  ref.Provider,
 		Region:    ref.Region,
 		Resource:  ref.Resource,

@@ -46,14 +46,8 @@ func ListParamsFromAPI(params sdkworkspace.ListWorkspacesParams, tenant string) 
 
 func DomainToAPIWithVerb(verb string) func(domain *regional.WorkspaceDomain) *schema.Workspace {
 	return func(domain *regional.WorkspaceDomain) *schema.Workspace {
-		sdk := DomainToAPI(domain)
-		sdk.Metadata.Verb = verb
-		return sdk
+		return domainToAPI(*domain, verb)
 	}
-}
-
-func DomainToAPI(domain *regional.WorkspaceDomain) *schema.Workspace {
-	return mapWorkspaceDomainToAPI(*domain, http.MethodGet)
 }
 
 func APIToDomain(api schema.Workspace, params port.IdentifiableResource) *regional.WorkspaceDomain {
@@ -79,7 +73,7 @@ func APIToDomain(api schema.Workspace, params port.IdentifiableResource) *region
 func DomainToAPIIterator(domainWorkspaces []*regional.WorkspaceDomain, nextSkipToken *string) *sdkworkspace.WorkspaceIterator {
 	sdkWorkspaces := make([]schema.Workspace, len(domainWorkspaces))
 	for i, dom := range domainWorkspaces {
-		sdkWorkspaces[i] = *(mapWorkspaceDomainToAPI(*dom, http.MethodGet))
+		sdkWorkspaces[i] = *(domainToAPI(*dom, http.MethodGet))
 	}
 
 	iterator := &sdkworkspace.WorkspaceIterator{
@@ -98,8 +92,8 @@ func DomainToAPIIterator(domainWorkspaces []*regional.WorkspaceDomain, nextSkipT
 	return iterator
 }
 
-// mapWorkspaceDomainToAPI maps a WorkspaceDomain to schema.Workspace API object.
-func mapWorkspaceDomainToAPI(domain regional.WorkspaceDomain, verb string) *schema.Workspace {
+// domainToAPI maps a WorkspaceDomain to schema.Workspace API object.
+func domainToAPI(domain regional.WorkspaceDomain, verb string) *schema.Workspace {
 	resVersion := int64(0)
 	// resourceVersion is best-effort numeric
 	if rv, err := strconv.ParseInt(domain.ResourceVersion, 10, 64); err == nil {
@@ -133,8 +127,8 @@ func mapWorkspaceDomainToAPI(domain regional.WorkspaceDomain, verb string) *sche
 	if domain.Status != nil {
 		sdk.Status = &schema.WorkspaceStatus{
 			ResourceCount: domain.Status.ResourceCount,
-			State:         status.MapResourceStateDomainToAPI(domain.Status.State),
-			Conditions:    status.MapConditionDomainsToAPI(domain.Status.Conditions),
+			State:         status.ResourceStateDomainToAPI(domain.Status.State),
+			Conditions:    status.ConditionDomainsToAPI(domain.Status.Conditions),
 		}
 	}
 	if domain.DeletedAt != nil {

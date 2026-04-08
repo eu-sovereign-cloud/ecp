@@ -63,7 +63,7 @@ func (h Storage) ListSkus(w http.ResponseWriter, r *http.Request,
 	tenant sdkschema.TenantPathParam, params sdkstorage.ListSkusParams,
 ) {
 	handler.HandleList(w, r, h.Logger.With("provider", "storage").With("resource", "sku"),
-		apistorage.ListParamsFromAPI(params, tenant),
+		apistorage.SKUListParamsFromAPI(params, tenant),
 		h.ListSKUs,
 		apistorage.SKUDomainToAPIIterator,
 	)
@@ -81,7 +81,7 @@ func (h Storage) GetSku(w http.ResponseWriter, r *http.Request, tenant sdkschema
 			Tenant: tenant,
 		},
 		Region: config.Singleton().Region(),
-	}, h.GetSKU, apistorage.SkuToApi)
+	}, h.GetSKU, apistorage.SKUDomainToAPI)
 }
 
 func (h Storage) ListBlockStorages(
@@ -137,7 +137,7 @@ func (h Storage) GetBlockStorage(
 			Region: config.Singleton().Region(),
 		},
 		h.GetStorage,
-		apistorage.DomainToAPIWithVerb(http.MethodGet),
+		apistorage.BlockStorageDomainToAPIWithVerb(http.MethodGet),
 	)
 }
 
@@ -167,8 +167,8 @@ func (h Storage) CreateOrUpdateBlockStorage(
 			},
 			Creator:     h.CreateBlockStorage,
 			Updater:     h.UpdateBlockStorage,
-			SDKToDomain: apistorage.BlockStorageFromAPI,
-			DomainToSDK: apistorage.DomainToAPIWithVerb(http.MethodPut),
+			APIToDomain: apistorage.APIToBlockStorageDomain,
+			DomainToAPI: apistorage.BlockStorageDomainToAPIWithVerb(http.MethodPut),
 		},
 	)
 }

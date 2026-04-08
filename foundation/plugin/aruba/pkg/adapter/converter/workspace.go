@@ -67,7 +67,7 @@ func (c *WorkspaceProjectConverter) FromArubaToSECA(
 	from *v1alpha1.Project,
 ) (*regional.WorkspaceDomain, error) {
 
-	spec := regional.WorkspaceSpec{
+	spec := regional.WorkspaceSpecDomain{
 		"description": from.Spec.Description,
 		"tenant":      from.Spec.Tenant,
 		"tags":        from.Spec.Tags,

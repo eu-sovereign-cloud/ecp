@@ -31,14 +31,14 @@ func TestBlockStorageConverter_FromSECAToAruba(t *testing.T) {
 						Name: "my-block-storage",
 					},
 				},
-				Spec: regional.BlockStorageSpec{
+				Spec: regional.BlockStorageSpecDomain{
 					SizeGB: 100,
-					SourceImageRef: &regional.ReferenceObject{
+					SourceImageRef: &regional.ReferenceObjectDomain{
 						Region: "eu-de",
 						Tenant: "tenant-123",
 					},
 				},
-				Status: &regional.BlockStorageStatus{
+				Status: &regional.BlockStorageStatusDomain{
 					StatusDomain: regional.StatusDomain{
 						State: regional.ResourceStateActive,
 					},

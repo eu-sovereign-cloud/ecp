@@ -123,7 +123,7 @@ func (h *BlockStoragePluginHandler) HandleReconcile(ctx context.Context, resourc
 
 func (h *BlockStoragePluginHandler) setResourceState(ctx context.Context, resource *regional.BlockStorageDomain, state regional.ResourceStateDomain, requeue bool) (bool, error) {
 	if resource.Status == nil {
-		resource.Status = &regional.BlockStorageStatus{}
+		resource.Status = &regional.BlockStorageStatusDomain{}
 	}
 
 	resource.Status.State = state
@@ -147,7 +147,7 @@ func (h *BlockStoragePluginHandler) setResourceState(ctx context.Context, resour
 
 func (h *BlockStoragePluginHandler) setResourceErrorState(ctx context.Context, resource *regional.BlockStorageDomain, err error, requeue bool) (bool, error) {
 	if resource.Status == nil {
-		resource.Status = &regional.BlockStorageStatus{}
+		resource.Status = &regional.BlockStorageStatusDomain{}
 	}
 
 	resource.Status.State = regional.ResourceStateError

@@ -3,11 +3,11 @@ package regional
 type WorkspaceDomain struct {
 	Metadata
 
-	Spec   WorkspaceSpec
+	Spec   WorkspaceSpecDomain
 	Status *WorkspaceStatusDomain
 }
 
-type WorkspaceSpec = map[string]interface{}
+type WorkspaceSpecDomain = map[string]interface{}
 
 type WorkspaceStatusDomain struct {
 	StatusDomain

@@ -29,8 +29,8 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		// Given a resource with active state and matching spec/status
 		activeState := regional.ResourceStateActive
 		resource := &regional.BlockStorageDomain{
-			Spec: regional.BlockStorageSpec{SizeGB: 10},
-			Status: &regional.BlockStorageStatus{
+			Spec: regional.BlockStorageSpecDomain{SizeGB: 10},
+			Status: &regional.BlockStorageStatusDomain{
 				StatusDomain: regional.StatusDomain{
 					State: activeState,
 				},
@@ -65,7 +65,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		// Given a resource with pending state
 		pendingState := regional.ResourceStatePending
 		resource := &regional.BlockStorageDomain{
-			Status: &regional.BlockStorageStatus{
+			Status: &regional.BlockStorageStatusDomain{
 				StatusDomain: regional.StatusDomain{
 					State: pendingState,
 				},
@@ -107,8 +107,8 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		// Given an active resource with a spec size greater than its status size
 		activeState := regional.ResourceStateActive
 		resource := &regional.BlockStorageDomain{
-			Spec: regional.BlockStorageSpec{SizeGB: 20},
-			Status: &regional.BlockStorageStatus{
+			Spec: regional.BlockStorageSpecDomain{SizeGB: 20},
+			Status: &regional.BlockStorageStatusDomain{
 				StatusDomain: regional.StatusDomain{
 					State: activeState,
 				},
@@ -151,8 +151,8 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		// Given a resource with creating state
 		creatingState := regional.ResourceStateCreating
 		resource := &regional.BlockStorageDomain{
-			Spec: regional.BlockStorageSpec{SizeGB: 10},
-			Status: &regional.BlockStorageStatus{
+			Spec: regional.BlockStorageSpecDomain{SizeGB: 10},
+			Status: &regional.BlockStorageStatusDomain{
 				StatusDomain: regional.StatusDomain{
 					State: creatingState,
 				},
@@ -202,7 +202,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 					DeletedAt: &now,
 				},
 			},
-			Status: &regional.BlockStorageStatus{
+			Status: &regional.BlockStorageStatusDomain{
 				StatusDomain: regional.StatusDomain{
 					State: deletingState,
 				},
@@ -240,8 +240,8 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		// Given a resource with updating state and increased size
 		updatingState := regional.ResourceStateUpdating
 		resource := &regional.BlockStorageDomain{
-			Spec: regional.BlockStorageSpec{SizeGB: 20},
-			Status: &regional.BlockStorageStatus{
+			Spec: regional.BlockStorageSpecDomain{SizeGB: 20},
+			Status: &regional.BlockStorageStatusDomain{
 				StatusDomain: regional.StatusDomain{
 					State: updatingState,
 				},
@@ -286,7 +286,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		// Given a resource with error state that was previously creating
 		errorState := regional.ResourceStateError
 		resource := &regional.BlockStorageDomain{
-			Status: &regional.BlockStorageStatus{
+			Status: &regional.BlockStorageStatusDomain{
 				StatusDomain: regional.StatusDomain{
 					State: errorState,
 					Conditions: []regional.StatusConditionDomain{
@@ -332,8 +332,8 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		// Given a resource with error state that was previously updating
 		errorState := regional.ResourceStateError
 		resource := &regional.BlockStorageDomain{
-			Spec: regional.BlockStorageSpec{SizeGB: 20},
-			Status: &regional.BlockStorageStatus{
+			Spec: regional.BlockStorageSpecDomain{SizeGB: 20},
+			Status: &regional.BlockStorageStatusDomain{
 				StatusDomain: regional.StatusDomain{
 					State: errorState,
 					Conditions: []regional.StatusConditionDomain{
@@ -380,7 +380,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		// Given a resource with creating state
 		creatingState := regional.ResourceStateCreating
 		resource := &regional.BlockStorageDomain{
-			Status: &regional.BlockStorageStatus{
+			Status: &regional.BlockStorageStatusDomain{
 				StatusDomain: regional.StatusDomain{
 					State: creatingState,
 				},
@@ -425,7 +425,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		// Given a resource with creating state
 		creatingState := regional.ResourceStateCreating
 		resource := &regional.BlockStorageDomain{
-			Status: &regional.BlockStorageStatus{
+			Status: &regional.BlockStorageStatusDomain{
 				StatusDomain: regional.StatusDomain{
 					State: creatingState,
 				},
@@ -463,7 +463,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		// Given a resource in pending state
 		pendingState := regional.ResourceStatePending
 		resource := &regional.BlockStorageDomain{
-			Status: &regional.BlockStorageStatus{
+			Status: &regional.BlockStorageStatusDomain{
 				StatusDomain: regional.StatusDomain{
 					State: pendingState,
 				},
@@ -503,7 +503,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 			// And a resource with creating state
 			creatingState := regional.ResourceStateCreating
 			resource := &regional.BlockStorageDomain{
-				Status: &regional.BlockStorageStatus{
+				Status: &regional.BlockStorageStatusDomain{
 					StatusDomain: regional.StatusDomain{
 						State: creatingState,
 					},
@@ -563,7 +563,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 					DeletedAt: &now,
 				},
 			},
-			Status: &regional.BlockStorageStatus{
+			Status: &regional.BlockStorageStatusDomain{
 				StatusDomain: regional.StatusDomain{
 					State: deletingState,
 				},
@@ -608,8 +608,8 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		// Given a resource with updating state and increased size
 		updatingState := regional.ResourceStateUpdating
 		resource := &regional.BlockStorageDomain{
-			Spec: regional.BlockStorageSpec{SizeGB: 20},
-			Status: &regional.BlockStorageStatus{
+			Spec: regional.BlockStorageSpecDomain{SizeGB: 20},
+			Status: &regional.BlockStorageStatusDomain{
 				StatusDomain: regional.StatusDomain{
 					State: updatingState,
 				},
@@ -654,8 +654,8 @@ func TestBlockStoragePluginHandler_HandleAdmission(t *testing.T) {
 		// Given a resource with a size not being decreased
 		activeState := regional.ResourceStateActive
 		resource := &regional.BlockStorageDomain{
-			Spec: regional.BlockStorageSpec{SizeGB: 20},
-			Status: &regional.BlockStorageStatus{
+			Spec: regional.BlockStorageSpecDomain{SizeGB: 20},
+			Status: &regional.BlockStorageStatusDomain{
 				StatusDomain: regional.StatusDomain{
 					State: activeState,
 				},
@@ -681,8 +681,8 @@ func TestBlockStoragePluginHandler_HandleAdmission(t *testing.T) {
 		// Given a resource with a size being decreased but in creating state
 		creatingState := regional.ResourceStateCreating
 		resource := &regional.BlockStorageDomain{
-			Spec: regional.BlockStorageSpec{SizeGB: 5},
-			Status: &regional.BlockStorageStatus{
+			Spec: regional.BlockStorageSpecDomain{SizeGB: 5},
+			Status: &regional.BlockStorageStatusDomain{
 				StatusDomain: regional.StatusDomain{
 					State: creatingState,
 				},
@@ -708,8 +708,8 @@ func TestBlockStoragePluginHandler_HandleAdmission(t *testing.T) {
 		// Given a resource with a size being decreased
 		activeState := regional.ResourceStateActive
 		resource := &regional.BlockStorageDomain{
-			Spec: regional.BlockStorageSpec{SizeGB: 5},
-			Status: &regional.BlockStorageStatus{
+			Spec: regional.BlockStorageSpecDomain{SizeGB: 5},
+			Status: &regional.BlockStorageStatusDomain{
 				StatusDomain: regional.StatusDomain{
 					State: activeState,
 				},

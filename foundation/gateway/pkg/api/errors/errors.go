@@ -16,9 +16,9 @@ var (
 	ErrBadRequest = errors.New("bad request")
 )
 
-// DomainToSDKError converts a domain error to an RFC 7807 SDK error.
+// DomainToAPIError converts a domain error to an RFC 7807 SDK error.
 // This is the adapter's responsibility - mapping domain to protocol.
-func DomainToSDKError(err error, requestPath string) schema.Error {
+func DomainToAPIError(err error, requestPath string) schema.Error {
 	// Check for domain Error with rich context
 	if domainErr := model.AsError(err); domainErr != nil {
 		return convertDomainError(domainErr, requestPath)
@@ -100,7 +100,7 @@ func mapErrorToHTTP(err error) (int, string, schema.ErrorType) {
 
 // WriteErrorResponse writes a structured error response according to RFC 7807.
 func WriteErrorResponse(w http.ResponseWriter, r *http.Request, logger *slog.Logger, err error) {
-	sdkError := DomainToSDKError(err, r.URL.Path)
+	sdkError := DomainToAPIError(err, r.URL.Path)
 
 	logger.ErrorContext(r.Context(), "request error",
 		slog.Int("status", int(sdkError.Status)),

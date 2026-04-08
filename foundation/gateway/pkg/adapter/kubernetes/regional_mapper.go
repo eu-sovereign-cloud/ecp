@@ -177,7 +177,7 @@ func MapCRToStorageSKUDomain(obj client.Object) (*regional.StorageSKUDomain, err
 
 	return &regional.StorageSKUDomain{
 		Metadata: meta,
-		Spec: regional.StorageSKUSpec{
+		Spec: regional.StorageSKUSpecDomain{
 			Iops:          int64(cr.Spec.Iops),
 			MinVolumeSize: int64(cr.Spec.MinVolumeSize),
 			Type:          string(cr.Spec.Type),
@@ -200,7 +200,7 @@ func MapCRToBlockStorageDomain(obj client.Object) (*regional.BlockStorageDomain,
 		return nil, fmt.Errorf("unsupported object type %T", obj)
 	}
 
-	spec := regional.BlockStorageSpec{
+	spec := regional.BlockStorageSpecDomain{
 		SizeGB: cr.Spec.SizeGB,
 		SkuRef: mapCRReferenceObjectToDomain(cr.Spec.SkuRef),
 	}
@@ -242,7 +242,7 @@ func MapCRToBlockStorageDomain(obj client.Object) (*regional.BlockStorageDomain,
 		}, nil
 	}
 
-	status := &regional.BlockStorageStatus{
+	status := &regional.BlockStorageStatusDomain{
 		SizeGB: cr.Status.SizeGB,
 		StatusDomain: regional.StatusDomain{
 			State:      regional.ResourceStateDomain(cr.Status.State),
@@ -323,7 +323,7 @@ func MapCRToNetworkSKUDomain(cr netowrkskuv1.SKU) *regional.NetworkSKUDomain {
 				Name: cr.GetName(),
 			},
 		},
-		Spec: regional.NetworkSKUSpec{
+		Spec: regional.NetworkSKUSpecDomain{
 			Bandwidth: cr.Spec.Bandwidth,
 			Packets:   cr.Spec.Packets,
 		},
@@ -423,8 +423,8 @@ func mapCRToResourceStateDomain(crResourceState genv1.ResourceState) regional.Re
 }
 
 // mapCRReferenceObjectToDomain converts a generated types.ReferenceObject to a domain ReferenceObject.
-func mapCRReferenceObjectToDomain(ref genv1.ReferenceObject) regional.ReferenceObject {
-	return regional.ReferenceObject{
+func mapCRReferenceObjectToDomain(ref genv1.ReferenceObject) regional.ReferenceObjectDomain {
+	return regional.ReferenceObjectDomain{
 		Provider:  ref.Provider,
 		Region:    ref.Region,
 		Resource:  ref.Resource,
@@ -437,7 +437,7 @@ func mapCRReferenceObjectToDomain(ref genv1.ReferenceObject) regional.ReferenceO
 // It parses the Resource path to extract embedded segments (providers, regions, tenants, workspaces)
 // and sets the corresponding fields. Extracted segments are stripped from the Resource path.
 // If a segment is not in the path, it falls back to the domain value.
-func mapDomainReferenceObjectToCR(ref regional.ReferenceObject) genv1.ReferenceObject {
+func mapDomainReferenceObjectToCR(ref regional.ReferenceObjectDomain) genv1.ReferenceObject {
 	resource := ref.Resource
 	result := genv1.ReferenceObject{}
 

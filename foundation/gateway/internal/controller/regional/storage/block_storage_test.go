@@ -136,9 +136,9 @@ func TestStorageController_CreateAndGetBlockStorage(t *testing.T) {
 					TenantLabelKey: tenant,
 				},
 			},
-			Spec: regional.BlockStorageSpec{
+			Spec: regional.BlockStorageSpecDomain{
 				SizeGB: 100,
-				SkuRef: regional.ReferenceObject{
+				SkuRef: regional.ReferenceObjectDomain{
 					Resource: "standard-ssd",
 				},
 			},

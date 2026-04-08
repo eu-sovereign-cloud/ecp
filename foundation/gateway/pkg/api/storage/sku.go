@@ -12,8 +12,8 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
 )
 
-// SkuToApi converts a StorageSKUDomain to its SDK representation.
-func SkuToApi(domain *regional.StorageSKUDomain) *sdkschema.StorageSku {
+// SKUDomainToAPI converts a StorageSKUDomain to its SDK representation.
+func SKUDomainToAPI(domain *regional.StorageSKUDomain) *sdkschema.StorageSku {
 	return &sdkschema.StorageSku{
 		Metadata: &sdkschema.SkuResourceMetadata{
 			Name: domain.Name, // no namespace?
@@ -26,7 +26,7 @@ func SkuToApi(domain *regional.StorageSKUDomain) *sdkschema.StorageSku {
 	}
 }
 
-func ListParamsFromAPI(params sdkstorage.ListSkusParams, tenant string) model.ListParams {
+func SKUListParamsFromAPI(params sdkstorage.ListSkusParams, tenant string) model.ListParams {
 	limit := validation.GetLimit(params.Limit)
 
 	var skipToken string
@@ -52,7 +52,7 @@ func ListParamsFromAPI(params sdkstorage.ListSkusParams, tenant string) model.Li
 func SKUDomainToAPIIterator(domainSKUs []*regional.StorageSKUDomain, nextSkipToken *string) *sdkstorage.SkuIterator {
 	sdkSKUs := make([]sdkschema.StorageSku, len(domainSKUs))
 	for i := range domainSKUs {
-		mapped := SkuToApi(domainSKUs[i])
+		mapped := SKUDomainToAPI(domainSKUs[i])
 		sdkSKUs[i] = *mapped
 	}
 
