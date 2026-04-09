@@ -84,7 +84,7 @@ secatest:
 	@echo "Starting gateway global server on port $(GATEWAY_GLOBAL_PORT)..."
 	@cd ../gateway && go run . global --port=$(GATEWAY_GLOBAL_PORT) & GATEWAY_GLOBAL_PID=$$!; \
 	echo "Starting gateway regional server on port $(GATEWAY_REGIONAL_PORT)..."; \
-	cd ../gateway && go run . regional --regionalPort=$(GATEWAY_REGIONAL_PORT) & GATEWAY_REGIONAL_PIDI think =$$!; \
+	cd ../gateway && go run . regional --regionalPort=$(GATEWAY_REGIONAL_PORT) & GATEWAY_REGIONAL_PID=$$!; \
 	echo "Starting port-forward for global cluster on port $(GLOBAL_CLUSTER_PORT)..."; \
 	kubectl --kubeconfig $(GLOBAL_KUBECONFIG) port-forward deployment/$(GLOBAL_DEPLOYMENT) $(GLOBAL_CLUSTER_PORT):8080 & GLOBAL_PF_PID=$$!; \
 	echo "Starting port-forward for regional cluster on port $(REGIONAL_CLUSTER_PORT)..."; \
