@@ -1,6 +1,10 @@
 package builder
 
-import "github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/plugin"
+import (
+	"errors"
+
+	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/plugin"
+)
 
 // PluginSet is a collection of plugins that a specific provider will implement.
 type PluginSet struct {
@@ -8,28 +12,13 @@ type PluginSet struct {
 	Workspace    plugin.Workspace
 }
 
-// PluginSetOption is a function that configures the PluginSet.
-type PluginSetOption func(*PluginSet)
-
-// NewPluginSet creates a new PluginSet with the provided options.
-func NewPluginSet(opts ...PluginSetOption) *PluginSet {
-	ps := &PluginSet{}
-	for _, opt := range opts {
-		opt(ps)
+// Validate checks that all required plugins are set.
+func (ps PluginSet) Validate() error {
+	if ps.BlockStorage == nil {
+		return errors.New("block storage plugin is required")
 	}
-	return ps
-}
-
-// WithBlockStorage sets the BlockStorage plugin for the PluginSet.
-func WithBlockStorage(p plugin.BlockStorage) PluginSetOption {
-	return func(ps *PluginSet) {
-		ps.BlockStorage = p
+	if ps.Workspace == nil {
+		return errors.New("workspace plugin is required")
 	}
-}
-
-// WithWorkspace sets the Workspace plugin for the PluginSet.
-func WithWorkspace(p plugin.Workspace) PluginSetOption {
-	return func(ps *PluginSet) {
-		ps.Workspace = p
-	}
+	return nil
 }

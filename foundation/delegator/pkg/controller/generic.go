@@ -45,8 +45,8 @@ func NewGenericController[D gateway.IdentifiableResource](
 	prototype client.Object,
 	requeueAfter time.Duration,
 	logger *slog.Logger,
-) *GenericController[D] {
-	return &GenericController[D]{
+) GenericController[D] {
+	return GenericController[D]{
 		client:       client,
 		k8sToDomain:  k8sToDomain,
 		handler:      handler,
