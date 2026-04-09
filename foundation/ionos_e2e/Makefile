@@ -33,7 +33,12 @@ SECATEST_RETRY_BASE_INTERVAL ?= 30
 SECATEST_RETRY_MAX_ATTEMPTS  ?= 30
 SECATEST_RESULTS_PATH        ?= ./results
 
+# In-cluster gateway service names (must match gateway/config/k8s-dev-setup/*.yaml)
+GATEWAY_GLOBAL_SVC  ?= global-api-service
+GATEWAY_REGIONAL_SVC ?= regional-server-svc
+
 .PHONY: secatest-scaffolding secatest secatest-install-crd secatest-install-plugin secatest-port-forward-global secatest-port-forward-regional
+.PHONY: secatest-cluster-scaffolding secatest-cluster secatest-cluster-all secatest-clean-cluster-scaffolding
 
 # Setup the development environment from scratch
 # Usage:
@@ -75,11 +80,11 @@ secatest-install-plugin:
 #   make secatest
 #   make secatest SECATEST_SCENARIOS_FILTER=Compute.V1.ProviderLifeCycle
 #   make secatest SECATEST_AUTH_TOKEN=my-token
-secatest: secatest-install-crd secatest-install-plugin
+secatest:
 	@echo "Starting gateway global server on port $(GATEWAY_GLOBAL_PORT)..."
 	@cd ../gateway && go run . global --port=$(GATEWAY_GLOBAL_PORT) & GATEWAY_GLOBAL_PID=$$!; \
 	echo "Starting gateway regional server on port $(GATEWAY_REGIONAL_PORT)..."; \
-	cd ../gateway && go run . regional --regionalPort=$(GATEWAY_REGIONAL_PORT) & GATEWAY_REGIONAL_PID=$$!; \
+	cd ../gateway && go run . regional --regionalPort=$(GATEWAY_REGIONAL_PORT) & GATEWAY_REGIONAL_PIDI think =$$!; \
 	echo "Starting port-forward for global cluster on port $(GLOBAL_CLUSTER_PORT)..."; \
 	kubectl --kubeconfig $(GLOBAL_KUBECONFIG) port-forward deployment/$(GLOBAL_DEPLOYMENT) $(GLOBAL_CLUSTER_PORT):8080 & GLOBAL_PF_PID=$$!; \
 	echo "Starting port-forward for regional cluster on port $(REGIONAL_CLUSTER_PORT)..."; \
@@ -97,6 +102,70 @@ secatest: secatest-install-crd secatest-install-plugin
 	done; \
 	secatest run \
 		--provider.region.v1=http://localhost:$(GLOBAL_CLUSTER_PORT)/providers/seca.region \
+		--provider.authorization.v1=https://demo.secapi.cloud/providers/seca.authorization \
+		--client.tenant=$(SECATEST_TENANT) \
+		--client.auth.token="$(SECATEST_AUTH_TOKEN)" \
+		--client.region=$(SECATEST_REGION) \
+		--scenarios.filter=$(SECATEST_SCENARIOS_FILTER) \
+		--scenarios.users=$(SECATEST_SCENARIOS_USERS) \
+		--scenarios.cidr=$(SECATEST_SCENARIOS_CIDR) \
+		--scenarios.public.ips=$(SECATEST_SCENARIOS_PUBLIC_IPS) \
+		--retry.base.delay=$(SECATEST_RETRY_BASE_DELAY) \
+		--retry.base.interval=$(SECATEST_RETRY_BASE_INTERVAL) \
+		--retry.max.attempts=$(SECATEST_RETRY_MAX_ATTEMPTS) \
+		--report.results.path=$(SECATEST_RESULTS_PATH)
+
+# ====================================================================================
+# In-cluster mode — gateways run inside KIND, no local go run
+# ====================================================================================
+
+# Setup the in-cluster environment from scratch: build images, create clusters,
+# deploy gateways, install plugin and CRD.
+# Usage:
+#   make secatest-cluster-scaffolding
+secatest-cluster-scaffolding:
+	$(MAKE) -C ../gateway docker-build-images
+	$(MAKE) -C ../gateway create-dev-clusters
+	$(MAKE) -C ../plugin/ionos/deploy install-all
+	$(MAKE) secatest-install-plugin
+
+# Tear down the in-cluster environment
+secatest-clean-cluster-scaffolding:
+	$(MAKE) -C ../gateway clean-dev-clusters
+
+# Full in-cluster flow: scaffold + test in one command.
+# Usage:
+#   make secatest-cluster-all
+secatest-cluster-all: secatest-cluster-scaffolding secatest-cluster
+
+# Run secatest against in-cluster gateways.
+#
+# Port-forwards to the gateway services deployed by create-dev-clusters,
+# waits for readiness, runs secatest, then cleans up.
+#
+# Usage:
+#   make secatest-cluster
+#   make secatest-cluster SECATEST_SCENARIOS_FILTER=Compute.V1.ProviderLifeCycle
+secatest-cluster:
+	@echo "Registering Region CR with port-forwarded URLs..."
+	@printf '{"apiVersion":"v1.secapi.cloud/v1","kind":"Region","metadata":{"name":"$(SECATEST_REGION)"},"spec":{"availableZones":["$(SECATEST_REGION)-a","$(SECATEST_REGION)-b"],"providers":[{"name":"seca.workspace","url":"http://localhost:$(GATEWAY_REGIONAL_PORT)/providers/seca.workspace","version":"v1"},{"name":"seca.storage","url":"http://localhost:$(GATEWAY_REGIONAL_PORT)/providers/seca.storage","version":"v1"},{"name":"seca.compute","url":"http://localhost:$(GATEWAY_REGIONAL_PORT)/providers/seca.compute","version":"v1"},{"name":"seca.network","url":"http://localhost:$(GATEWAY_REGIONAL_PORT)/providers/seca.network","version":"v1"}]}}\n' | kubectl --kubeconfig $(GLOBAL_KUBECONFIG) apply -f -
+	@echo "Starting port-forward for in-cluster global gateway on port $(GATEWAY_GLOBAL_PORT)..."
+	@kubectl --kubeconfig $(GLOBAL_KUBECONFIG) port-forward deployment/$(GLOBAL_DEPLOYMENT) $(GATEWAY_GLOBAL_PORT):8080 & GLOBAL_GW_PID=$$!; \
+	echo "Starting port-forward for in-cluster regional gateway on port $(GATEWAY_REGIONAL_PORT)..."; \
+	kubectl --kubeconfig $(REGIONAL_KUBECONFIG) port-forward svc/$(GATEWAY_REGIONAL_SVC) $(GATEWAY_REGIONAL_PORT):80 & REGIONAL_GW_PID=$$!; \
+	trap "echo 'Stopping all background processes...'; kill $$GLOBAL_GW_PID $$REGIONAL_GW_PID 2>/dev/null || true" EXIT; \
+	echo "Waiting for all endpoints to be ready..."; \
+	for i in $$(seq 1 30); do \
+		if curl -s -o /dev/null http://localhost:$(GATEWAY_GLOBAL_PORT) 2>/dev/null && \
+		   curl -s -o /dev/null http://localhost:$(GATEWAY_REGIONAL_PORT) 2>/dev/null; then \
+			echo "All endpoints ready."; \
+			break; \
+		fi; \
+		if [ $$i -eq 30 ]; then echo "Error: endpoints did not become ready in time"; exit 1; fi; \
+		sleep 1; \
+	done; \
+	secatest run \
+		--provider.region.v1=http://localhost:$(GATEWAY_GLOBAL_PORT)/providers/seca.region \
 		--provider.authorization.v1=https://demo.secapi.cloud/providers/seca.authorization \
 		--client.tenant=$(SECATEST_TENANT) \
 		--client.auth.token="$(SECATEST_AUTH_TOKEN)" \
