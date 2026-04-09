@@ -53,7 +53,7 @@ secatest-install-plugin:
 		REGIONAL_KUBECONFIG=$(REGIONAL_KUBECONFIG)
 
 # ====================================================================================
-# Run secatest — discovers NodePort endpoints, registers Region CR, runs tests
+# Run secatest — discovers NodePort endpoints and runs tests
 # ====================================================================================
 
 # Full flow: scaffold + test in one command.
@@ -63,9 +63,8 @@ secatest-all: secatest-scaffolding secatest
 
 # Run secatest against in-cluster gateways via NodePort.
 #
-# Discovers the KIND node IPs and NodePorts for both gateways,
-# registers the Region CR with the correct URLs, then runs secatest.
-# No port-forwarding needed.
+# Discovers the KIND node IPs and NodePorts for the global gateway,
+# waits for readiness, then runs secatest. No port-forwarding needed.
 #
 # Usage:
 #   make secatest

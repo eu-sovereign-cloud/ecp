@@ -25,11 +25,18 @@ fi
 # Ensure namespace exists
 kubectl ${KUBECTL_ARGS} create namespace "${SECRET_NAMESPACE}" --dry-run=client -o yaml | kubectl ${KUBECTL_ARGS} apply -f - >/dev/null
 
-# Create/update secret idempotently with the expected key 'credentials'
-CREDENTIALS_JSON="{\"token\":\"${IONOS_TOKEN}\"}"
-
-kubectl ${KUBECTL_ARGS} -n "${SECRET_NAMESPACE}" create secret generic "${SECRET_NAME}" \
-  --from-literal=credentials="${CREDENTIALS_JSON}" \
-  --dry-run=client -o yaml | kubectl ${KUBECTL_ARGS} apply -f -
+# Create/update secret idempotently.
+# The secret manifest is built via stdin to avoid leaking the token in process
+# arguments (visible via ps, CI logs, /proc/*/cmdline, etc.).
+kubectl ${KUBECTL_ARGS} apply -f - <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ${SECRET_NAME}
+  namespace: ${SECRET_NAMESPACE}
+type: Opaque
+stringData:
+  credentials: '{"token":"${IONOS_TOKEN}"}'
+EOF
 
 echo "Created/updated secret ${SECRET_NAME} in namespace ${SECRET_NAMESPACE}."
