@@ -22,7 +22,7 @@ install-all: install-crossplane create-token-secret install-provider
 
 # Create a token-based Secret for the provider
 create-token-secret:
-	IONOS_TOKEN=${IONOS_TOKEN} bash ./create-token-secret.sh
+	@IONOS_TOKEN=${IONOS_TOKEN} bash ./create-token-secret.sh
 
 # Create example secret + ProviderConfig (template)
 create-secret:
@@ -44,7 +44,7 @@ install-on-regional:
 	@if [[ -z "$$KUBECONFIG" ]]; then echo "Error: KUBECONFIG must be set"; exit 1; fi
 	@if [[ -z "$$IONOS_TOKEN" ]]; then echo "Error: IONOS_TOKEN must be set"; exit 1; fi
 	KUBECONFIG=$$KUBECONFIG bash ./install-crossplane.sh
-	KUBECONFIG=$$KUBECONFIG IONOS_TOKEN=$$IONOS_TOKEN bash ./create-token-secret.sh
+	@KUBECONFIG=$$KUBECONFIG IONOS_TOKEN=$$IONOS_TOKEN bash ./create-token-secret.sh
 	KUBECONFIG=$$KUBECONFIG PROVIDER_PKG=$${PROVIDER_PKG} PROVIDER_NAME=$${PROVIDER_NAME} bash ./install-provider.sh
 	KUBECONFIG=$$KUBECONFIG kubectl apply -f providerconfig-example.yaml
 
