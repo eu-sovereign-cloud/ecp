@@ -5,7 +5,6 @@ SHELL := /bin/bash
 # ====================================================================================
 GLOBAL_KUBECONFIG       ?= ~/.kube/multi-cluster-demo/global-config
 REGIONAL_KUBECONFIG     ?= ~/.kube/multi-cluster-demo/regional-config
-GLOBAL_CLUSTER_NAME     ?= global
 REGIONAL_CLUSTER_NAME   ?= regional
 
 # Plugin image (must match what the plugin deploy Makefile builds)
@@ -71,9 +70,9 @@ secatest-all: secatest-scaffolding secatest
 #   make secatest SECATEST_SCENARIOS_FILTER=Compute.V1.ProviderLifeCycle
 #   make secatest SECATEST_AUTH_TOKEN=my-token
 secatest:
-	@GLOBAL_IP=$$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $(GLOBAL_CLUSTER_NAME)-control-plane) || { echo "Error: cannot find global cluster node"; exit 1; }; \
+	@GLOBAL_IP=$$(kubectl --kubeconfig $(GLOBAL_KUBECONFIG) get node -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}') || { echo "Error: cannot find global cluster node"; exit 1; }; \
 	GLOBAL_NP=$$(kubectl --kubeconfig $(GLOBAL_KUBECONFIG) get svc global-api-service -o jsonpath='{.spec.ports[0].nodePort}') || { echo "Error: cannot find global NodePort"; exit 1; }; \
-	REGIONAL_IP=$$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $(REGIONAL_CLUSTER_NAME)-control-plane) || { echo "Error: cannot find regional cluster node"; exit 1; }; \
+	REGIONAL_IP=$$(kubectl --kubeconfig $(REGIONAL_KUBECONFIG) get node -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}') || { echo "Error: cannot find regional cluster node"; exit 1; }; \
 	REGIONAL_NP=$$(kubectl --kubeconfig $(REGIONAL_KUBECONFIG) get svc regional-server-svc -o jsonpath='{.spec.ports[0].nodePort}') || { echo "Error: cannot find regional NodePort"; exit 1; }; \
 	GLOBAL_URL="http://$${GLOBAL_IP}:$${GLOBAL_NP}"; \
 	REGIONAL_URL="http://$${REGIONAL_IP}:$${REGIONAL_NP}"; \
