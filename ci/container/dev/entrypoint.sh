@@ -65,7 +65,7 @@ setup_env() {
   cat > "${profile_dir}/dev-env.sh" <<EOF
 export GOPATH=/workspace/.cache/go
 export GOCACHE=/workspace/.cache/go-build
-export PATH="/usr/local/go/bin:/usr/local/bin:\${PATH}"
+export PATH="/workspace/ci/tools/bin:/usr/local/go/bin:/usr/local/bin:\${PATH}"
 export HOST_WORKSPACE="${HOST_WORKSPACE:-/workspace}"
 export HOST_SOCKET="${HOST_SOCKET:-/var/run/docker.sock}"
 cd /workspace 2>/dev/null || true

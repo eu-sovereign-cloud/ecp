@@ -6,6 +6,8 @@
 
 _REPO_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 
+include $(_REPO_ROOT)/ci/tools/tools.mk
+
 ###############################################################################
 # Container backend detection (delegated to ci/scripts)
 # The command is always `docker`, but the backend may be podman (via
@@ -95,30 +97,26 @@ dev-build: _tools-ensure-image
 # Ensure images exist; auto-build if missing
 ###############################################################################
 
-_BUILDER_IMAGE_EXISTS := $(shell $(_REPO_ROOT)/ci/scripts/container-image-exists.sh $(BUILDER_IMAGE))
-_TOOLS_IMAGE_EXISTS   := $(shell $(_REPO_ROOT)/ci/scripts/container-image-exists.sh $(TOOLS_IMAGE))
-_DEV_IMAGE_EXISTS     := $(shell $(_REPO_ROOT)/ci/scripts/container-image-exists.sh $(DEV_IMAGE))
-
 .PHONY: _builder-ensure-image
 _builder-ensure-image:
-ifeq ($(_BUILDER_IMAGE_EXISTS),)
-	@echo "Builder image '$(BUILDER_IMAGE)' not found. Building..."
-	@$(MAKE) builder-build
-endif
+	@if [ -z "$$($(_REPO_ROOT)/ci/scripts/container-image-exists.sh $(BUILDER_IMAGE))" ]; then \
+	  echo "Builder image '$(BUILDER_IMAGE)' not found. Building..."; \
+	  $(MAKE) builder-build; \
+	fi
 
 .PHONY: _tools-ensure-image
 _tools-ensure-image: _builder-ensure-image
-ifeq ($(_TOOLS_IMAGE_EXISTS),)
-	@echo "Tools image '$(TOOLS_IMAGE)' not found. Building..."
-	@$(MAKE) tools-build
-endif
+	@if [ -z "$$($(_REPO_ROOT)/ci/scripts/container-image-exists.sh $(TOOLS_IMAGE))" ]; then \
+	  echo "Tools image '$(TOOLS_IMAGE)' not found. Building..."; \
+	  $(MAKE) tools-build; \
+	fi
 
 .PHONY: _dev-ensure-image
 _dev-ensure-image: _tools-ensure-image
-ifeq ($(_DEV_IMAGE_EXISTS),)
-	@echo "Dev image '$(DEV_IMAGE)' not found. Building..."
-	@$(MAKE) dev-build
-endif
+	@if [ -z "$$($(_REPO_ROOT)/ci/scripts/container-image-exists.sh $(DEV_IMAGE))" ]; then \
+	  echo "Dev image '$(DEV_IMAGE)' not found. Building..."; \
+	  $(MAKE) dev-build; \
+	fi
 
 ###############################################################################
 # %-ctzd: run any make target inside the tools container

@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Dev: SSH server, editor language servers
 ARG TOOLS_IMAGE
 FROM ${TOOLS_IMAGE}
