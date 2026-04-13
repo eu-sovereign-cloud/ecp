@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1
+# check=skip=InvalidDefaultArgInFrom
 # Dev: SSH server, editor language servers
 ARG TOOLS_IMAGE
 FROM ${TOOLS_IMAGE}
