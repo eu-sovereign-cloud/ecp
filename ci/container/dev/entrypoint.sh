@@ -47,6 +47,7 @@ ListenAddress 0.0.0.0
 HostKey ${SSHD_DIR}/ssh_host_ed25519_key
 HostKey ${SSHD_DIR}/ssh_host_rsa_key
 AuthorizedKeysFile ${auth_keys_file}
+StrictModes no
 PasswordAuthentication no
 PubkeyAuthentication yes
 PubkeyAcceptedAlgorithms +ssh-rsa
@@ -87,6 +88,10 @@ if [ "$(id -u)" -eq 0 ]; then
   else
     usermod -u "${HOST_UID}" -g "${HOST_GID}" "${DEV_USER}" 2>/dev/null || true
   fi
+
+  # Unlock the account so sshd allows pubkey login.
+  # useradd sets password to '!' (locked); OpenSSH 10+ rejects locked accounts.
+  passwd -d "${DEV_USER}" >/dev/null 2>&1
 
   echo "${DEV_USER} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/"${DEV_USER}"
 
