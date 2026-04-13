@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1
+# check=skip=InvalidDefaultArgInFrom
 # Builder: codegen, lint, test, build
 ARG BUILDER_BASE_IMAGE
 FROM ${BUILDER_BASE_IMAGE}

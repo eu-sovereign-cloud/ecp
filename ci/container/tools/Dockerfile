@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1
+# check=skip=InvalidDefaultArgInFrom
 # Tools: interactive shell with completion, coloring, vim
 ARG BUILDER_IMAGE
 FROM ${BUILDER_IMAGE}
