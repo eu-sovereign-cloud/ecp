@@ -93,6 +93,17 @@ if [ "$(id -u)" -eq 0 ]; then
   # useradd sets password to '!' (locked); OpenSSH 10+ rejects locked accounts.
   passwd -d "${DEV_USER}" >/dev/null 2>&1
 
+  # Grant access to the Docker socket for DinD via socket mount.
+  # The socket's GID on the host may differ from any group inside the container,
+  # so we detect it at runtime and add the dev user to the matching group.
+  if [ -S /var/run/docker.sock ]; then
+    SOCK_GID=$(stat -c '%g' /var/run/docker.sock)
+    if ! getent group "${SOCK_GID}" >/dev/null 2>&1; then
+      groupadd -g "${SOCK_GID}" docker-host
+    fi
+    usermod -aG "$(getent group "${SOCK_GID}" | cut -d: -f1)" "${DEV_USER}"
+  fi
+
   echo "${DEV_USER} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/"${DEV_USER}"
 
   setup_ssh_keys "${DEV_HOME}/.ssh"
