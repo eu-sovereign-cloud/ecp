@@ -19,6 +19,7 @@ else
 	  --name $(DEV_CONTAINER_NAME) \
 	  $(_CTZD_DEV_USER_FLAGS) \
 	  $(_CTZD_SECURITY_OPTS) \
+	  $(_CTZD_CGROUP_FLAGS) \
 	  -p $(DEV_SSH_PORT):2222 \
 	  -v $(_REPO_ROOT):$(CONTAINER_WORKSPACE)$(_CTZD_VOLUME_OPTS) \
 	  -v $(HOME)/.ssh:/tmp/host-ssh$(_CTZD_VOLUME_OPTS_RO) \
@@ -28,6 +29,7 @@ else
 	  -e HOME=$(CONTAINER_WORKSPACE)/.cache/container-home \
 	  -e HOST_WORKSPACE=$(_REPO_ROOT) \
 	  -e HOST_SOCKET=$(_CTZD_SOCKET) \
+	  -e KIND_EXPERIMENTAL_PROVIDER=docker \
 	  $(DEV_IMAGE)
 	@echo ""
 	@echo "Dev container '$(DEV_CONTAINER_NAME)' started."

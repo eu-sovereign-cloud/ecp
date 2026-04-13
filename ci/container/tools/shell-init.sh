@@ -19,3 +19,16 @@ alias grep="grep --color=auto"
 if [ -f /etc/bash_completion ]; then
   . /etc/bash_completion
 fi
+
+# kubectl completion and 'k' alias
+if command -v kubectl &>/dev/null; then
+  source <(kubectl completion bash)
+  alias k=kubectl
+  complete -o default -F __start_kubectl k
+fi
+
+# KIND cgroup delegation check: warn at login if cpuset is not delegated.
+# Non-fatal (|| true) so a missing cpuset doesn't prevent shell startup.
+if command -v kind &>/dev/null && [ -x /workspace/ci/scripts/kind-cgroup-preflight.sh ]; then
+  /workspace/ci/scripts/kind-cgroup-preflight.sh || true
+fi
