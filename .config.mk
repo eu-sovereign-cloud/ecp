@@ -22,7 +22,7 @@ BUILDER_BASE_IMAGE?=${BUILDER_BASE_REGISTRY}/${BUILDER_BASE_REGISTRY_PATH}:${GO_
 RUNNER_BASE_REGISTRY?=gcr.io
 RUNNER_BASE_REGISTRY_PATH?=distroless/static
 RUNNER_BASE_FLAVOR?=-debian13
-RUNNER_BASE_IMAGE?=${BUILDER_BASE_REGISTRY}/${BUILDER_BASE_REGISTRY_PATH}${BUILDER_BASE_FLAVOR}
+RUNNER_BASE_IMAGE?=${RUNNER_BASE_REGISTRY}/${RUNNER_BASE_REGISTRY_PATH}${RUNNER_BASE_FLAVOR}
 
 ###############################################################################
 # Local container registry
@@ -76,3 +76,13 @@ CONTAINER_WORKSPACE?=/workspace
 ###############################################################################
 
 DOCKER_CLI_VERSION?=27.5.1
+
+###############################################################################
+# Go development tools (installed to ci/tools/bin/ via tools-install)
+###############################################################################
+
+CONTROLLER_GEN_VERSION ?= v0.20.0
+MOCKGEN_VERSION        ?= v0.6.0
+GOLANGCI_LINT_VERSION  ?= v2.1.6
+GOFUMPT_VERSION        ?= v0.8.0
+GOVULNCHECK_VERSION    ?= v1.1.4

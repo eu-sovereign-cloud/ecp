@@ -9,6 +9,7 @@
 # Local binaries and tools
 kind
 bin/
+ci/tools/bin/
 
 # IDE-specific files
 /.kind/

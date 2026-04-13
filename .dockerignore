@@ -1,0 +1,5 @@
+.git
+.cache
+.work
+ci/tools/bin/
+modules/go-sdk
