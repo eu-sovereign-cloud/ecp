@@ -22,19 +22,20 @@ setup_ssh_keys() {
     ssh-keygen -t rsa -b 4096 -f "${SSHD_DIR}/ssh_host_rsa_key" -N ""
   fi
 
-  # Copy authorized_keys from mounted host ~/.ssh
+  # Collect authorized keys from mounted host ~/.ssh
   local auth_keys="${auth_keys_dir}/authorized_keys"
+  : > "${auth_keys}"
+
   if [ -f /tmp/host-ssh/authorized_keys ]; then
-    cp /tmp/host-ssh/authorized_keys "${auth_keys}"
-  elif [ -f /tmp/host-ssh/id_ed25519.pub ]; then
-    cp /tmp/host-ssh/id_ed25519.pub "${auth_keys}"
-  elif [ -f /tmp/host-ssh/id_rsa.pub ]; then
-    cp /tmp/host-ssh/id_rsa.pub "${auth_keys}"
+    cat /tmp/host-ssh/authorized_keys >> "${auth_keys}"
+  else
+    # No authorized_keys file — gather all public keys
+    for pub in /tmp/host-ssh/*.pub; do
+      [ -f "${pub}" ] && cat "${pub}" >> "${auth_keys}"
+    done
   fi
 
-  if [ -f "${auth_keys}" ]; then
-    chmod 600 "${auth_keys}"
-  fi
+  chmod 600 "${auth_keys}"
 }
 
 write_sshd_config() {
@@ -48,6 +49,7 @@ HostKey ${SSHD_DIR}/ssh_host_rsa_key
 AuthorizedKeysFile ${auth_keys_file}
 PasswordAuthentication no
 PubkeyAuthentication yes
+PubkeyAcceptedAlgorithms +ssh-rsa
 UsePAM no
 # Force HOME to our well-known cache dir regardless of what passwd says.
 # This keeps all shell state out of the repo root and in the gitignored .cache/.
