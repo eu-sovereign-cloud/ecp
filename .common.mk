@@ -61,11 +61,29 @@ _CTZD_SECURITY_OPTS := $(shell $(_REPO_ROOT)/ci/scripts/container-security-opts.
 # HOST_WORKSPACE is set by ctzdev-start so nested make calls use the real path.
 _CTZD_HOST_ROOT := $(if $(HOST_WORKSPACE),$(HOST_WORKSPACE),$(_REPO_ROOT))
 
+# Podman rootless mounts a restricted cgroupfs view inside the container even
+# with --cgroupns=host. KIND checks the host cgroup delegation by reading
+# /sys/fs/cgroup/user.slice/user-UID.slice/user@UID.service/cgroup.controllers.
+# Bind-mounting the user.slice directory makes that path readable inside the
+# container so KIND's rootless preflight check passes.
+# Prerequisite: host must have systemd cgroup delegation enabled (default on
+# Fedora 33+). If the check still fails, run on the host:
+#   sudo mkdir -p /etc/systemd/system/user@.service.d/
+#   printf '[Service]\nDelegate=yes\n' | sudo tee /etc/systemd/system/user@.service.d/delegate.conf
+#   sudo systemctl daemon-reload && loginctl enable-linger $(whoami)
+ifeq ($(_CTZD_BACKEND),podman)
+  _CTZD_CGROUP_FLAGS := --cgroupns=host -v /sys/fs/cgroup/user.slice:/sys/fs/cgroup/user.slice:ro
+else
+  _CTZD_CGROUP_FLAGS :=
+endif
+
 _CTZD_RUN_FLAGS := \
   --rm \
   -it \
+  --net=host \
   $(_CTZD_USER_FLAGS) \
   $(_CTZD_SECURITY_OPTS) \
+  $(_CTZD_CGROUP_FLAGS) \
   -v $(_CTZD_HOST_ROOT):$(CONTAINER_WORKSPACE)$(_CTZD_VOLUME_OPTS) \
   -v $(_CTZD_SOCKET):/var/run/docker.sock \
   -w $(CONTAINER_WORKSPACE) \
@@ -73,15 +91,19 @@ _CTZD_RUN_FLAGS := \
   -e HOST_WORKSPACE=$(_CTZD_HOST_ROOT) \
   -e HOST_SOCKET=$(_CTZD_SOCKET) \
   -e GOPATH=$(CONTAINER_WORKSPACE)/.cache/go \
-  -e GOCACHE=$(CONTAINER_WORKSPACE)/.cache/go-build
+  -e GOCACHE=$(CONTAINER_WORKSPACE)/.cache/go-build \
+  -e KIND_EXPERIMENTAL_PROVIDER=docker
 
 ###############################################################################
 # Image build targets (3-layer chain: builder -> tools -> dev)
+# _DOCKER_BUILD_FLAGS is injected by *-rebuild targets to pass --no-cache
 ###############################################################################
+
+_DOCKER_BUILD_FLAGS ?=
 
 .PHONY: builder-build
 builder-build:
-	docker build \
+	docker build $(_DOCKER_BUILD_FLAGS) \
 	  --build-arg BUILDER_BASE_IMAGE=$(BUILDER_BASE_IMAGE) \
 	  -t $(BUILDER_IMAGE) \
 	  -f $(_REPO_ROOT)/$(BUILDER_DOCKERFILE) \
@@ -89,20 +111,45 @@ builder-build:
 
 .PHONY: tools-build
 tools-build: _builder-ensure-image
-	docker build \
+	docker build $(_DOCKER_BUILD_FLAGS) \
 	  --build-arg BUILDER_IMAGE=$(BUILDER_IMAGE) \
 	  --build-arg DOCKER_CLI_VERSION=$(DOCKER_CLI_VERSION) \
+	  --build-arg KIND_VERSION=$(KIND_VERSION) \
+	  --build-arg KUBECTL_VERSION=$(KUBECTL_VERSION) \
 	  -t $(TOOLS_IMAGE) \
 	  -f $(_REPO_ROOT)/$(TOOLS_DOCKERFILE) \
 	  $(_REPO_ROOT)
 
 .PHONY: dev-build
 dev-build: _tools-ensure-image
-	docker build \
+	docker build $(_DOCKER_BUILD_FLAGS) \
 	  --build-arg TOOLS_IMAGE=$(TOOLS_IMAGE) \
 	  -t $(DEV_IMAGE) \
 	  -f $(_REPO_ROOT)/$(DEV_DOCKERFILE) \
 	  $(_REPO_ROOT)
+
+.PHONY: images-build
+images-build: builder-build tools-build dev-build
+
+###############################################################################
+# Force-rebuild targets (bypass Docker layer cache)
+###############################################################################
+
+.PHONY: builder-rebuild
+builder-rebuild:
+	$(MAKE) builder-build _DOCKER_BUILD_FLAGS=--no-cache
+
+.PHONY: tools-rebuild
+tools-rebuild:
+	$(MAKE) tools-build _DOCKER_BUILD_FLAGS=--no-cache
+
+.PHONY: dev-rebuild
+dev-rebuild:
+	$(MAKE) dev-build _DOCKER_BUILD_FLAGS=--no-cache
+
+.PHONY: images-rebuild
+images-rebuild:
+	$(MAKE) images-build _DOCKER_BUILD_FLAGS=--no-cache
 
 ###############################################################################
 # Ensure images exist; auto-build if missing
@@ -128,6 +175,28 @@ _dev-ensure-image: _tools-ensure-image
 	  echo "Dev image '$(DEV_IMAGE)' not found. Building..."; \
 	  $(MAKE) dev-build; \
 	fi
+
+###############################################################################
+# Image clean targets: remove individual or all container images.
+# Named *-image-clean to avoid clashing with tools-clean in ci/tools/tools.mk
+# (which removes the Go dev tools binary directory, a different concern).
+# Reverse order (dev -> tools -> builder) avoids dependent-image errors.
+###############################################################################
+
+.PHONY: builder-image-clean
+builder-image-clean:
+	docker rmi $(BUILDER_IMAGE) 2>/dev/null || true
+
+.PHONY: tools-image-clean
+tools-image-clean:
+	docker rmi $(TOOLS_IMAGE) 2>/dev/null || true
+
+.PHONY: dev-image-clean
+dev-image-clean:
+	docker rmi $(DEV_IMAGE) 2>/dev/null || true
+
+.PHONY: images-clean
+images-clean: dev-image-clean tools-image-clean builder-image-clean
 
 ###############################################################################
 # %-ctzd: run any make target inside the tools container

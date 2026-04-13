@@ -85,6 +85,8 @@ check_command "kind"
 check_command "kubectl"
 check_command "docker"
 
+"${SCRIPT_DIR}/../../../ci/scripts/kind-cgroup-preflight.sh"
+
 # 2. Create clusters with kind
 echo "--- Step 1: Creating 'global' and 'regional' clusters with kind ---"
 create_kind_cluster "${GLOBAL_CLUSTER_NAME}"

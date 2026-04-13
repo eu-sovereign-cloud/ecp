@@ -25,6 +25,7 @@ fi
 
 # The kustomize binary is optional, deploy.sh will use 'kubectl -k' as a fallback.
 
+"${SCRIPT_DIR}/../../../../ci/scripts/kind-cgroup-preflight.sh"
 
 echo "Creating KIND cluster '${CLUSTER_NAME}'..."
 kind create cluster --name "${CLUSTER_NAME}"

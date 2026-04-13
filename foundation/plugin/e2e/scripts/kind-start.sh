@@ -18,6 +18,8 @@ then
     exit 1
 fi
 
+"${SCRIPT_DIR}/../../../../ci/scripts/kind-cgroup-preflight.sh"
+
 echo "Creating KIND cluster '${CLUSTER_NAME}'..."
 kind create cluster --name "${CLUSTER_NAME}"
 
