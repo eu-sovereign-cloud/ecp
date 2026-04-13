@@ -9,6 +9,17 @@ _REPO_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 include $(_REPO_ROOT)/ci/tools/tools.mk
 
 ###############################################################################
+# Enable BuildKit when the buildx component is available.
+# The legacy builder stats every file during the context walk before applying
+# .dockerignore, so it fails on permission-restricted paths (e.g. .ssh).
+# BuildKit applies .dockerignore first and is required for # syntax directives.
+###############################################################################
+
+ifneq ($(shell docker buildx version 2>/dev/null),)
+  export DOCKER_BUILDKIT := 1
+endif
+
+###############################################################################
 # Container backend detection (delegated to ci/scripts)
 # The command is always `docker`, but the backend may be podman (via
 # podman-docker). The backend determines the correct flags for user mapping
