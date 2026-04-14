@@ -4,14 +4,42 @@
 # management; without it, 'kind create cluster' fails with:
 #   "running kind with rootless provider requires setting systemd property Delegate=yes"
 #
+# This check only applies to Podman rootless on cgroupv2. Docker manages cgroups
+# through its daemon and KIND uses a different code path that does not inspect
+# user-session delegation — on Docker hosts the check is skipped entirely.
+#
 # Usage: kind-cgroup-preflight.sh
-#   Exits 0 if the check passes (or if not on a cgroupv2 system).
-#   Exits 1 with a clear error and remediation steps if cpuset is missing.
+#   Exits 0 if the check passes, is skipped (non-cgroupv2 or non-Podman), or
+#   prints a remediation message and exits 1 if cpuset is missing.
 
 set -euo pipefail
 
 # Not a cgroupv2 (unified) system — nothing to check.
 if [ ! -f /sys/fs/cgroup/cgroup.controllers ]; then
+  exit 0
+fi
+
+# Determine the container backend. Prefer the value propagated from the host
+# Makefile via the HOST_SOCKET env var (already present in every container),
+# then fall back to running the detection script directly.
+_detect_backend() {
+  # Static Docker CLI talking to a Podman daemon (DinD via socket mount)
+  if [ -n "${HOST_SOCKET:-}" ] && echo "${HOST_SOCKET}" | grep -qi podman; then
+    echo podman
+    return
+  fi
+  # docker --version reports as podman on podman-docker installations
+  if docker --version 2>/dev/null | grep -qi podman; then
+    echo podman
+    return
+  fi
+  echo docker
+}
+
+_backend=$(_detect_backend)
+
+# cpuset delegation is only a concern for Podman rootless.
+if [ "${_backend}" != "podman" ]; then
   exit 0
 fi
 

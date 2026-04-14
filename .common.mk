@@ -77,11 +77,22 @@ else
   _CTZD_CGROUP_FLAGS :=
 endif
 
+# On Docker the socket is root:docker (0660); the container user has no docker
+# group membership. Pass --group-add with the socket's runtime GID so nested
+# docker/kind commands work. On Podman the socket is user-owned via userns, so
+# no extra group is needed.
+ifeq ($(_CTZD_BACKEND),docker)
+  _CTZD_DOCKER_GROUP := --group-add=$(shell stat -c '%g' $(_CTZD_SOCKET) 2>/dev/null)
+else
+  _CTZD_DOCKER_GROUP :=
+endif
+
 _CTZD_RUN_FLAGS := \
   --rm \
   -it \
   --net=host \
   $(_CTZD_USER_FLAGS) \
+  $(_CTZD_DOCKER_GROUP) \
   $(_CTZD_SECURITY_OPTS) \
   $(_CTZD_CGROUP_FLAGS) \
   -v $(_CTZD_HOST_ROOT):$(CONTAINER_WORKSPACE)$(_CTZD_VOLUME_OPTS) \
