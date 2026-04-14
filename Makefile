@@ -5,6 +5,13 @@ include .common.mk
 sh:
 	/bin/bash
 
+# Generic variable printer — used by ci/scripts/devcontainer-init.sh to
+# resolve computed image names without re-parsing .config.mk in shell.
+# Usage: make -s print-TOOLS_IMAGE
+.PHONY: print-%
+print-%:
+	@echo $($*)
+
 ###############################################################################
 # Persistent dev container
 ###############################################################################
