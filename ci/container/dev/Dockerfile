@@ -20,6 +20,4 @@ RUN mkdir -p /run/sshd
 COPY ci/container/dev/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-EXPOSE 2222
-
 ENTRYPOINT ["/entrypoint.sh"]

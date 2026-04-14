@@ -42,7 +42,7 @@ write_sshd_config() {
   local auth_keys_file="$1"
   local home_dir="$2"
   cat > "${SSHD_DIR}/sshd_config" <<EOF
-Port 2222
+Port ${DEV_SSH_PORT:-2222}
 ListenAddress 0.0.0.0
 HostKey ${SSHD_DIR}/ssh_host_ed25519_key
 HostKey ${SSHD_DIR}/ssh_host_rsa_key
