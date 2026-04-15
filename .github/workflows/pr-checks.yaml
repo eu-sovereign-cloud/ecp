@@ -94,22 +94,12 @@ jobs:
       has_changes: ${{ steps.filter.outputs.changes != '[]' }}
     steps:
       - uses: actions/checkout@v6
+      - name: Generate paths-filter config from go.work
+        run: make -s print-paths-filter > .paths-filter.yml
       - id: filter
         uses: dorny/paths-filter@v3
         with:
-          filters: |
-            foundation/persistence:
-              - 'foundation/persistence/**'
-            foundation/gateway:
-              - 'foundation/gateway/**'
-            foundation/delegator:
-              - 'foundation/delegator/**'
-            foundation/plugin/aruba:
-              - 'foundation/plugin/aruba/**'
-            foundation/plugin/dummy:
-              - 'foundation/plugin/dummy/**'
-            foundation/plugin/ionos:
-              - 'foundation/plugin/ionos/**'
+          filters: .paths-filter.yml
 
   # ===========================================================================
   # JOB: Generate API artifacts
