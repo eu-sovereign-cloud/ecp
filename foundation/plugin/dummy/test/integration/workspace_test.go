@@ -4,7 +4,6 @@ package integration
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/google/uuid"

@@ -8,12 +8,12 @@ import (
 type ResourceStateDomain string
 
 const (
-	ResourceStatePending   ResourceStateDomain = "pending"
-	ResourceStateCreating  ResourceStateDomain = "creating"
-	ResourceStateActive    ResourceStateDomain = "active"
-	ResourceStateUpdating  ResourceStateDomain = "updating"
-	ResourceStateDeleting  ResourceStateDomain = "deleting"
-	ResourceStateError     ResourceStateDomain = "error"
+	ResourceStatePending  ResourceStateDomain = "pending"
+	ResourceStateCreating ResourceStateDomain = "creating"
+	ResourceStateActive   ResourceStateDomain = "active"
+	ResourceStateUpdating ResourceStateDomain = "updating"
+	ResourceStateDeleting ResourceStateDomain = "deleting"
+	ResourceStateError    ResourceStateDomain = "error"
 )
 
 // StatusDomain represents the common status attributes of a regional resource. Cannot be directly mapped to schema.Status,

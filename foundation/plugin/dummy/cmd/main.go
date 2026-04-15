@@ -12,9 +12,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/builder"
 	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/storage"
 	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/workspace/v1"
-	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/builder"
 
 	dummyplugin "github.com/eu-sovereign-cloud/ecp/foundation/plugin/dummy/pkg/plugin"
 
