@@ -29,10 +29,38 @@ foundation/
 
 ## Prerequisites
 
-- Go 1.24+
-- Docker
+- Docker (or Podman)
 - `kubectl`
 - KIND (for local development)
+
+> Go is **not** required on the host. All compilation runs inside the `builder`
+> container image, which is pulled automatically on first use (see below).
+
+## Builder image
+
+The `builder` image contains the Go toolchain and all codegen/lint tools.
+It is published to `ghcr.io/eu-sovereign-cloud/ecp-builder` by CI and pulled
+automatically when you run any Makefile target that needs it:
+
+```bash
+make tools-build    # pulls the pinned builder, then builds the tools image
+make dev-build      # same — no manual pull needed
+```
+
+The pinned digest is stored in `.builder-digest` (committed to git) and
+updated by an automated CI pull-request whenever the builder inputs change.
+
+**To modify the builder itself** (i.e., editing `ci/container/builder/`):
+
+```bash
+make builder-build BUILDER_SOURCE=local   # rebuild from local Dockerfile
+make tools-build   BUILDER_SOURCE=local   # use the local build downstream
+```
+
+> **First-time setup for the registry** (maintainers only, one-time):
+> After the first `builder-publish.yaml` CI run succeeds, go to
+> `https://github.com/orgs/eu-sovereign-cloud/packages/container/ecp-builder/settings`
+> and set the package visibility to **Public** so anonymous pulls work.
 
 ## Getting Started
 

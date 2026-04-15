@@ -1,0 +1,63 @@
+name: Build and push builder image
+description: >
+  Multi-arch (linux/amd64 + linux/arm64) build of
+  ci/container/builder/Dockerfile, pushed to the given tags with optional
+  registry buildcache wiring. Exposes the pushed manifest-list digest as an
+  output so callers can pin it.
+
+  Preconditions the caller must set up before invoking this action:
+    - actions/checkout
+    - docker/login-action against ghcr.io (packages:write token)
+    - docker/setup-buildx-action
+
+inputs:
+  tags:
+    description: Newline-separated list of tags to push.
+    required: true
+  labels:
+    description: Newline-separated list of labels to apply to the image.
+    required: false
+    default: ""
+  cache-from:
+    description: cache-from spec passed to build-push-action (multi-line allowed).
+    required: false
+    default: ""
+  cache-to:
+    description: cache-to spec passed to build-push-action (multi-line allowed).
+    required: false
+    default: ""
+
+outputs:
+  digest:
+    description: Manifest-list digest of the pushed image.
+    value: ${{ steps.build.outputs.digest }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up QEMU (for linux/arm64 cross-build)
+      uses: docker/setup-qemu-action@v3
+
+    - name: Resolve builder base image from .config.mk
+      id: vars
+      shell: bash
+      run: |
+        echo "builder_base_image=$(make -s print-BUILDER_BASE_IMAGE)" >> "$GITHUB_OUTPUT"
+
+    - name: Build and push
+      id: build
+      uses: docker/build-push-action@v6
+      with:
+        context: .
+        file: ci/container/builder/Dockerfile
+        build-args: |
+          BUILDER_BASE_IMAGE=${{ steps.vars.outputs.builder_base_image }}
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ inputs.tags }}
+        labels: ${{ inputs.labels }}
+        cache-from: ${{ inputs.cache-from }}
+        cache-to: ${{ inputs.cache-to }}
+        # Disable SBOM attestation provenance manifests to keep the image
+        # index clean (avoids unknown/unknown platform entries in manifest lists).
+        provenance: false

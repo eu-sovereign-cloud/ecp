@@ -1,0 +1,167 @@
+name: Builder PR image
+
+# Per-PR builder image lifecycle.
+#
+# On PR open / sync / reopen:
+#   - Detect whether any builder input changed vs base (main).
+#   - If NOT changed and :main exists → alias :main as :pr-<N> via
+#     `buildx imagetools create --annotation`. The annotation makes the new
+#     manifest list's digest differ from :main, so deleting :pr-<N> later
+#     will NOT affect :main. No data transfer.
+#   - If changed or :main missing → full multi-arch rebuild, push as :pr-<N>
+#     with registry-based BuildKit cache.
+#
+# On PR close (merged or not):
+#   - Delete :pr-<N> (and :pr-<N>-buildcache, if any) from GHCR via REST API.
+#
+# Consumers (CI pre-check jobs, future): use
+#   ghcr.io/eu-sovereign-cloud/ecp-builder:pr-${{ github.event.pull_request.number }}
+# whenever this workflow has succeeded; it always resolves to the right image
+# for the PR HEAD — either a fresh rebuild or an aliased :main snapshot.
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, closed]
+
+env:
+  IMAGE_REPO: ghcr.io/eu-sovereign-cloud/ecp-builder
+  PR_TAG: pr-${{ github.event.pull_request.number }}
+
+permissions:
+  contents: read
+  packages: write   # push AND delete package versions
+
+jobs:
+  # =========================================================================
+  # Publish: alias or rebuild the per-PR image
+  # =========================================================================
+  publish:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+
+    concurrency:
+      # Cancel in-flight publishes for the same PR when a new commit arrives.
+      group: builder-pr-publish-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history so paths-filter can diff PR HEAD against the base.
+          fetch-depth: 0
+
+      - name: Detect builder input changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          base: ${{ github.event.pull_request.base.ref }}
+          filters: |
+            builder:
+              - 'ci/container/builder/**'
+              - 'ci/tools/**'
+              - 'ci/scripts/**'
+              - '.config.mk'
+              - 'Makefile'
+              - '.github/workflows/builder-publish.yaml'
+              - '.github/workflows/builder-pr.yaml'
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Decide mode: 'alias' if inputs unchanged AND :main already exists,
+      # otherwise 'rebuild'. First-PR-before-first-main-publish falls back
+      # to rebuild automatically.
+      - name: Decide mode
+        id: decide
+        run: |
+          if [ "${{ steps.filter.outputs.builder }}" = "true" ]; then
+            echo "mode=rebuild" >> "$GITHUB_OUTPUT"
+            echo "Reason: builder inputs changed in this PR."
+          elif docker buildx imagetools inspect "${IMAGE_REPO}:main" >/dev/null 2>&1; then
+            echo "mode=alias" >> "$GITHUB_OUTPUT"
+            echo "Reason: builder inputs unchanged; aliasing :main as :${PR_TAG}."
+          else
+            echo "mode=rebuild" >> "$GITHUB_OUTPUT"
+            echo "Reason: :main not found in GHCR yet; falling back to rebuild."
+          fi
+
+      # -----------------------------------------------------------------
+      # ALIAS PATH
+      # -----------------------------------------------------------------
+      - name: Alias :main as :${{ env.PR_TAG }}
+        if: steps.decide.outputs.mode == 'alias'
+        run: |
+          # The --annotation flag forces the new manifest list to have
+          # different bytes (and therefore a different digest) than :main,
+          # so GHCR stores it as a distinct version that can be safely
+          # deleted on PR close without affecting :main.
+          docker buildx imagetools create \
+            --annotation "index:ecp.pr-number=${{ github.event.pull_request.number }}" \
+            --annotation "index:ecp.aliased-from=main" \
+            -t "${IMAGE_REPO}:${PR_TAG}" \
+            "${IMAGE_REPO}:main"
+          echo "Aliased :main → :${PR_TAG}"
+
+      # -----------------------------------------------------------------
+      # REBUILD PATH
+      # -----------------------------------------------------------------
+      - name: Build and push :${{ env.PR_TAG }}
+        if: steps.decide.outputs.mode == 'rebuild'
+        uses: ./.github/actions/builder-build-push
+        with:
+          tags: ${{ env.IMAGE_REPO }}:${{ env.PR_TAG }}
+          labels: |
+            ecp.pr-number=${{ github.event.pull_request.number }}
+          # Seed from main's registry cache first, then the PR's own cache
+          # (for fast re-runs on the same PR).
+          cache-from: |
+            type=registry,ref=${{ env.IMAGE_REPO }}:buildcache
+            type=registry,ref=${{ env.IMAGE_REPO }}:${{ env.PR_TAG }}-buildcache
+          cache-to: |
+            type=registry,ref=${{ env.IMAGE_REPO }}:${{ env.PR_TAG }}-buildcache,mode=max
+
+  # =========================================================================
+  # Cleanup: delete :pr-<N> (and its buildcache) when the PR closes
+  # =========================================================================
+  cleanup:
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+
+    concurrency:
+      group: builder-pr-cleanup-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
+
+    steps:
+      - name: Delete per-PR tags from GHCR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER: eu-sovereign-cloud
+          PACKAGE: ecp-builder
+          PR_NUM: ${{ github.event.pull_request.number }}
+        run: |
+          set -e
+          for tag in "pr-${PR_NUM}" "pr-${PR_NUM}-buildcache"; do
+            echo "=== Looking up versions tagged '${tag}' ==="
+            ids=$(gh api --paginate \
+              "/orgs/${OWNER}/packages/container/${PACKAGE}/versions" \
+              --jq ".[] | select(.metadata.container.tags // [] | index(\"${tag}\")) | .id" \
+              || true)
+            if [ -z "${ids}" ]; then
+              echo "No version carries tag '${tag}'; nothing to delete."
+              continue
+            fi
+            for id in ${ids}; do
+              echo "Deleting version id=${id} (tag=${tag})"
+              gh api --method DELETE \
+                "/orgs/${OWNER}/packages/container/${PACKAGE}/versions/${id}"
+            done
+          done
