@@ -75,7 +75,7 @@ func main() {
 	}
 
 	// 4. Load the appropriate plugin set based on the environment variable
-	var pluginSet *builder.PluginSet
+	var pluginSet builder.PluginSet
 
 	switch pluginType {
 	case "default", "aruba":
@@ -95,9 +95,9 @@ func main() {
 
 	// 7. Create the controller set
 	controllerSet, err := builder.NewControllerSet(
-		builder.WithConfig(mgr.GetConfig()),
-		builder.WithClient(mgr.GetClient()),
-		builder.WithPlugins(pluginSet),
+		mgr.GetConfig(),
+		mgr.GetClient(),
+		pluginSet,
 		builder.WithLogger(logger.With("component", "controller-set")),
 		builder.WithRequeueAfter(1*time.Second), // TODO: parameter for that
 	)
@@ -130,7 +130,7 @@ func main() {
 	}
 }
 
-func loadArubaPluginSet(ctx context.Context, dyn dynamic.Interface, mgr ctrl.Manager, logger *slog.Logger) (*builder.PluginSet, error) {
+func loadArubaPluginSet(ctx context.Context, dyn dynamic.Interface, mgr ctrl.Manager, logger *slog.Logger) (builder.PluginSet, error) {
 	logger.Info("Loading 'aruba' plugin set")
 
 	// Instantiate seca-specific repositories
@@ -150,21 +150,21 @@ func loadArubaPluginSet(ctx context.Context, dyn dynamic.Interface, mgr ctrl.Man
 	bsPlugin := aruba.NewBlockStorageHandler(secaWsRepo, secaSkuRepo, br, wr, bc, wc)
 
 	// Create and return the plugin set
-	return builder.NewPluginSet(
-		builder.WithBlockStorage(bsPlugin),
-		builder.WithWorkspace(wsPlugin),
-	), nil
+	return builder.PluginSet{
+		BlockStorage: bsPlugin,
+		Workspace:    wsPlugin,
+	}, nil
 }
 
-func loadDummyPluginSet(logger *slog.Logger) (*builder.PluginSet, error) {
+func loadDummyPluginSet(logger *slog.Logger) (builder.PluginSet, error) {
 	logger.Info("Loading 'dummy' plugin set")
 	bsPlugin := dummyplugin.NewBlockStorage(logger.With("plugin", "blockstorage"))
 	wsPlugin := dummyplugin.NewWorkspace(logger.With("plugin", "workspace"))
 
-	return builder.NewPluginSet(
-		builder.WithBlockStorage(bsPlugin),
-		builder.WithWorkspace(wsPlugin),
-	), nil
+	return builder.PluginSet{
+		BlockStorage: bsPlugin,
+		Workspace:    wsPlugin,
+	}, nil
 }
 
 func getDynamicClient(mgr manager.Manager) (*dynamic.DynamicClient, error) {
