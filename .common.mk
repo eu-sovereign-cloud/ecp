@@ -275,7 +275,7 @@ images-clean: dev-image-clean tools-image-clean builder-image-clean
 	docker run \
 	  $(_CTZD_RUN_FLAGS) \
 	  $(TOOLS_IMAGE) \
-	  make $*
+	  make $* $(if $(RUN),RUN='$(RUN)')
 
 ###############################################################################
 # Persistent dev container helpers

@@ -167,38 +167,52 @@ jobs:
           fi
 
   # ===========================================================================
-  # JOB: Build, Test & Lint (per changed module)
+  # JOB: Tests (per changed module, inside builder container)
   # ===========================================================================
-  checks:
-    needs: module-diff
+  test:
+    needs: [module-diff, builder-publish-pr]
     if: github.event.action != 'closed' && needs.module-diff.outputs.has_changes == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         module: ${{ fromJson(needs.module-diff.outputs.modules) }}
-    name: Check (${{ matrix.module }})
+    name: Test (${{ matrix.module }})
+    container:
+      image: ghcr.io/eu-sovereign-cloud/ecp-builder:pr-${{ github.event.pull_request.number }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v6
         with:
           submodules: 'recursive'
-      - uses: actions/setup-go@v6
-        with:
-          go-version-file: "${{ matrix.module }}/go.mod"
-          cache: true
-          cache-dependency-path: "${{ matrix.module }}/go.sum"
-          check-latest: 'true'
+      - name: Run tests
+        run: make ${{ matrix.module }}-test
 
-      - name: Run Tests
-        run: go test -race -v ./${{ matrix.module }}/...
-
-      - name: GolangCI-Lint
-        uses: golangci/golangci-lint-action@v8
+  # ===========================================================================
+  # JOB: Lint via golangci-lint (per changed module, inside builder container)
+  # ===========================================================================
+  lint:
+    needs: [module-diff, builder-publish-pr]
+    if: github.event.action != 'closed' && needs.module-diff.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ${{ fromJson(needs.module-diff.outputs.modules) }}
+    name: Lint (${{ matrix.module }})
+    container:
+      image: ghcr.io/eu-sovereign-cloud/ecp-builder:pr-${{ github.event.pull_request.number }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
         with:
-          version: latest
-          only-new-issues: true
-          working-directory: ${{ matrix.module }}
-          args: --timeout 10m0s --verbose
+          submodules: 'recursive'
+      - name: Run golangci-lint
+        run: make ${{ matrix.module }}-lint
 
   # ===========================================================================
   # JOB: Vulnerability check via govulncheck (per changed module)
@@ -230,11 +244,10 @@ jobs:
         run: make ${{ matrix.module }}-govulncheck
 
   # ===========================================================================
-  # JOB: Security scanning via gosec (per changed module)
-  # TODO: migrate to %-gosec Makefile target + builder container (follow-on).
+  # JOB: Security scanning via gosec (per changed module, inside builder container)
   # ===========================================================================
   gosec:
-    needs: module-diff
+    needs: [module-diff, builder-publish-pr]
     if: github.event.action != 'closed' && needs.module-diff.outputs.has_changes == 'true'
     runs-on: ubuntu-latest
     strategy:
@@ -242,20 +255,17 @@ jobs:
       matrix:
         module: ${{ fromJson(needs.module-diff.outputs.modules) }}
     name: Gosec (${{ matrix.module }})
+    container:
+      image: ghcr.io/eu-sovereign-cloud/ecp-builder:pr-${{ github.event.pull_request.number }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v6
         with:
           submodules: 'recursive'
-      - uses: actions/setup-go@v6
-        with:
-          go-version-file: "${{ matrix.module }}/go.mod"
-          cache: true
-          check-latest: 'true'
-
-      - name: Run Gosec
-        uses: securego/gosec@master
-        with:
-          args: '-no-fail -fmt sarif -out results.sarif ./${{ matrix.module }}/...'
+      - name: Run gosec
+        run: make ${{ matrix.module }}-gosec
 
   # ===========================================================================
   # JOB: Validate PR title (conventional commits)
