@@ -130,32 +130,24 @@ jobs:
           fi
 
   # ===========================================================================
-  # JOB: Workspace sync check
+  # JOB: Workspace verify (inside builder container)
   # ===========================================================================
-  workspace-sync:
-    name: Workspace Sync Check
+  workspace-verify:
+    needs: builder-publish-pr
+    name: Workspace Verify
     if: github.event.action != 'closed'
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/eu-sovereign-cloud/ecp-builder:pr-${{ github.event.pull_request.number }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v6
         with:
           submodules: 'recursive'
-      - uses: actions/setup-go@v6
-        with:
-          go-version-file: 'go.work'
-          cache: true
-      - name: Run go work sync and vendor
-        run: |
-          go work sync
-          go work vendor
-      - name: Check for uncommitted changes
-        run: |
-          if [ -n "$(git status --porcelain)" ]; then
-            echo "::error::go work sync/vendor produced changes. Please run 'go work sync && go work vendor' and commit the results."
-            git diff
-            git status
-            exit 1
-          fi
+      - name: Run workspace-verify
+        run: make workspace-verify
 
   # ===========================================================================
   # JOB: Tests (per changed module, inside builder container)

@@ -130,6 +130,128 @@ generate-api:
 	$(MAKE) -C $(_REPO_ROOT)/foundation/persistence generate-all
 
 ###############################################################################
+# Per-module: go mod tidy
+#
+# Usage:
+#   make foundation/gateway-tidy          # single module
+#   make tidy                             # all GO_MODULES
+#   make foundation/gateway-tidy-ctzd     # inside tools container
+#
+# CAVEAT: `go mod tidy` intentionally ignores go.work, so it runs the module
+# in single-module mode. If a module imports packages from another workspace
+# member and relies on go.work's `replace (...)` block to resolve them (as
+# foundation/delegator does against foundation/gateway and foundation/persistence),
+# tidy will fail trying to fetch the v0.0.1 pseudo-version from the proxy.
+#
+# Use this target only on modules whose imports resolve in isolation, or
+# after adding the same `replace` line to the module's own go.mod.
+#
+# For the workspace-level "clean up after dep edits" operation, use
+# `make workspace-sync` — it runs `go work sync`, which is the workspace
+# equivalent of `go mod tidy`. Vendoring is disabled repo-wide.
+###############################################################################
+
+.PHONY: %-tidy
+%-tidy:
+	@echo "==> mod tidy: $*"
+	cd $(_REPO_ROOT)/$* && go mod tidy
+
+.PHONY: tidy
+tidy: $(addsuffix -tidy,$(GO_MODULES))
+
+###############################################################################
+# Per-module: go get <pkg[@version]>
+#
+# PKG is required; include @version to pin (or @latest to upgrade).
+#   make foundation/gateway-get PKG=github.com/foo/bar@v1.2.3
+#   make foundation/gateway-get-ctzd PKG=github.com/foo/bar@v1.2.3
+#
+# The umbrella `get` target runs the same PKG in every GO_MODULE — useful for
+# bumping a shared dependency across the workspace in one shot:
+#   make get PKG=k8s.io/apimachinery@v0.35.0
+#
+# `go mod tidy` is always run after `go get` to keep go.sum consistent.
+###############################################################################
+
+PKG ?=
+
+.PHONY: %-get
+%-get:
+	@[ -n "$(PKG)" ] || { echo "error: set PKG=<module[@version]>"; exit 2; }
+	@echo "==> go get $(PKG): $*"
+	cd $(_REPO_ROOT)/$* && go get $(PKG) && go mod tidy
+
+.PHONY: get
+get: $(addsuffix -get,$(GO_MODULES))
+
+###############################################################################
+# Workspace-level: sync and CI verify
+#
+#   make workspace-sync      # go work sync
+#   make workspace-verify    # workspace-sync, then fail if git tree is dirty
+#
+# Both compose with -ctzd:
+#   make workspace-sync-ctzd
+#   make workspace-verify-ctzd
+#
+# `workspace-verify` is what CI runs — the same sync operation plus a
+# git-cleanliness gate, so the local fix and the CI check share one code path.
+###############################################################################
+
+.PHONY: workspace-sync
+workspace-sync:
+	@echo "==> go work sync"
+	cd $(_REPO_ROOT) && go work sync
+
+.PHONY: workspace-verify
+workspace-verify: workspace-sync
+	@if [ -n "$$(cd $(_REPO_ROOT) && git status --porcelain)" ]; then \
+	  echo "::error::workspace-sync produced changes. Please run 'make workspace-sync' and commit the results."; \
+	  cd $(_REPO_ROOT) && git diff; \
+	  cd $(_REPO_ROOT) && git status; \
+	  exit 1; \
+	fi
+
+###############################################################################
+# Workspace membership: add / remove a module from go.work
+#
+# RELPATH is the path relative to the repo root.
+#   make workspace-use-add  RELPATH=foundation/plugin/newthing
+#   make workspace-use-drop RELPATH=foundation/plugin/oldthing
+#
+# These targets only manipulate the `use (...)` block. The `replace (...)` block
+# in go.work pins foundation modules to their local paths at v0.0.1, which is
+# load-bearing for %-govulncheck and %-gosec (both use GOWORK=off). After adding
+# a new foundation module, also run:
+#
+#   go work edit -replace <modpath>=./$(RELPATH)
+#
+# and commit the result. This is intentionally left manual — the module path and
+# replace convention vary per module. Run `make workspace-sync` when done.
+###############################################################################
+
+RELPATH ?=
+
+.PHONY: workspace-use-add
+workspace-use-add:
+	@[ -n "$(RELPATH)" ] || { echo "error: set RELPATH=<path/to/module>"; exit 2; }
+	@[ -f "$(_REPO_ROOT)/$(RELPATH)/go.mod" ] || { echo "error: $(RELPATH)/go.mod not found"; exit 2; }
+	@echo "==> go work use ./$(RELPATH)"
+	cd $(_REPO_ROOT) && go work use ./$(RELPATH)
+	@echo "Reminder: if this module needs a local replace for GOWORK=off scans,"
+	@echo "  run: go work edit -replace <modpath>=./$(RELPATH)"
+	@echo "Then: make workspace-sync"
+
+.PHONY: workspace-use-drop
+workspace-use-drop:
+	@[ -n "$(RELPATH)" ] || { echo "error: set RELPATH=<path/to/module>"; exit 2; }
+	@echo "==> go work edit -dropuse ./$(RELPATH)"
+	cd $(_REPO_ROOT) && go work edit -dropuse ./$(RELPATH)
+	@echo "Reminder: also drop the matching replace (if any):"
+	@echo "  go work edit -dropreplace <modpath>"
+	@echo "Then: make workspace-sync"
+
+###############################################################################
 # Persistent dev container
 ###############################################################################
 

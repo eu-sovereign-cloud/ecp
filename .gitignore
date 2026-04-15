@@ -1,3 +1,9 @@
+# Go vendoring is intentionally disabled repo-wide. Ignore vendor directories
+# at any depth so accidentally running `go mod vendor` / `go work vendor` in a
+# module subdir does not pollute the working tree.
+vendor/
+/vendor/
+
 # Go build outputs
 *.exe
 *.test
