@@ -9,6 +9,32 @@ _REPO_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 include $(_REPO_ROOT)/ci/tools/tools.mk
 
 ###############################################################################
+# Builder image resolution
+# BUILDER_IMAGE is resolved here (after _REPO_ROOT is known) based on the
+# BUILDER_SOURCE selector set in .config.mk.
+#
+#   remote (default): use the pinned digest from .builder-digest.
+#   local:            use a locally-built image tagged :local.
+#
+# When .builder-digest is absent or empty (pre-first-publish), falls back to
+# :local so the repo is immediately usable without a remote pull.
+###############################################################################
+
+_BUILDER_PUBLIC_IMAGE := $(BUILDER_PUBLIC_REGISTRY)/$(BUILDER_PUBLIC_REPO)
+_BUILDER_DIGEST_FILE  := $(_REPO_ROOT)/.builder-digest
+_BUILDER_DIGEST       := $(strip $(shell [ -r $(_BUILDER_DIGEST_FILE) ] && cat $(_BUILDER_DIGEST_FILE)))
+
+ifeq ($(BUILDER_SOURCE),local)
+  BUILDER_IMAGE ?= $(_BUILDER_PUBLIC_IMAGE):local
+else ifneq ($(_BUILDER_DIGEST),)
+  BUILDER_IMAGE ?= $(_BUILDER_PUBLIC_IMAGE)@$(_BUILDER_DIGEST)
+else
+  # .builder-digest missing or empty — fall back to local until first CI publish.
+  BUILDER_IMAGE ?= $(_BUILDER_PUBLIC_IMAGE):local
+  _BUILDER_FALLBACK_LOCAL := 1
+endif
+
+###############################################################################
 # Enable BuildKit when the buildx component is available.
 # The legacy builder stats every file during the context walk before applying
 # .dockerignore, so it fails on permission-restricted paths (e.g. .ssh).
@@ -114,6 +140,11 @@ _DOCKER_BUILD_FLAGS ?=
 
 .PHONY: builder-build
 builder-build:
+ifneq ($(BUILDER_SOURCE),local)
+	$(error builder-build requires BUILDER_SOURCE=local. The builder image is normally \
+	published by CI and pulled automatically. Only rebuild it when modifying \
+	ci/container/builder/. Run: make builder-build BUILDER_SOURCE=local)
+endif
 	docker build $(_DOCKER_BUILD_FLAGS) \
 	  --build-arg BUILDER_BASE_IMAGE=$(BUILDER_BASE_IMAGE) \
 	  -t $(BUILDER_IMAGE) \
@@ -139,8 +170,11 @@ dev-build: _tools-ensure-image
 	  -f $(_REPO_ROOT)/$(DEV_DOCKERFILE) \
 	  $(_REPO_ROOT)
 
+# images-build always implies BUILDER_SOURCE=local: it is explicitly a "build
+# the entire stack from local sources" target.
 .PHONY: images-build
-images-build: builder-build tools-build dev-build
+images-build:
+	$(MAKE) builder-build tools-build dev-build BUILDER_SOURCE=local
 
 ###############################################################################
 # Force-rebuild targets (bypass Docker layer cache)
@@ -148,7 +182,7 @@ images-build: builder-build tools-build dev-build
 
 .PHONY: builder-rebuild
 builder-rebuild:
-	$(MAKE) builder-build _DOCKER_BUILD_FLAGS=--no-cache
+	$(MAKE) builder-build BUILDER_SOURCE=local _DOCKER_BUILD_FLAGS=--no-cache
 
 .PHONY: tools-rebuild
 tools-rebuild:
@@ -160,7 +194,7 @@ dev-rebuild:
 
 .PHONY: images-rebuild
 images-rebuild:
-	$(MAKE) images-build _DOCKER_BUILD_FLAGS=--no-cache
+	$(MAKE) builder-build tools-build dev-build BUILDER_SOURCE=local _DOCKER_BUILD_FLAGS=--no-cache
 
 ###############################################################################
 # Ensure images exist; auto-build if missing
@@ -168,9 +202,15 @@ images-rebuild:
 
 .PHONY: _builder-ensure-image
 _builder-ensure-image:
-	@if [ -z "$$($(_REPO_ROOT)/ci/scripts/container-image-exists.sh $(BUILDER_IMAGE))" ]; then \
-	  echo "Builder image '$(BUILDER_IMAGE)' not found. Building..."; \
-	  $(MAKE) builder-build; \
+	@if [ -n "$$($(_REPO_ROOT)/ci/scripts/container-image-exists.sh $(BUILDER_IMAGE))" ]; then \
+	  exit 0; \
+	fi; \
+	if [ "$(BUILDER_SOURCE)" = "local" ] || [ -n "$(_BUILDER_FALLBACK_LOCAL)" ]; then \
+	  echo "Builder image '$(BUILDER_IMAGE)' not found locally. Building..."; \
+	  $(MAKE) builder-build BUILDER_SOURCE=local; \
+	else \
+	  echo "Builder image '$(BUILDER_IMAGE)' not present locally. Pulling from ghcr.io..."; \
+	  docker pull $(BUILDER_IMAGE); \
 	fi
 
 .PHONY: _tools-ensure-image

@@ -32,14 +32,23 @@ LOCAL_REGISTRY?=localhost
 
 ###############################################################################
 # Builder container (codegen, lint, test, build)
-# FROM builder base
+# Published to ghcr.io by CI (.github/workflows/builder-publish.yaml).
+# Developers and CI pull the image by digest — no local build step needed.
+#
+# To modify and test the builder itself locally:
+#   make builder-build BUILDER_SOURCE=local
+#   make tools-build   BUILDER_SOURCE=local
 ###############################################################################
 
-BUILDER_REGISTRY?=${LOCAL_REGISTRY}
-BUILDER_REGISTRY_PATH?=ecp/builder
-BUILDER_FLAVOR?=${BUILDER_BASE_FLAVOR}-go-v${GO_VERSION}
-BUILDER_IMAGE?=${BUILDER_REGISTRY}/${BUILDER_REGISTRY_PATH}:${VERSION}${BUILDER_FLAVOR}
-BUILDER_DOCKERFILE?=ci/container/builder/Dockerfile
+# Public registry coordinates (CI pushes here; everyone else only pulls).
+BUILDER_PUBLIC_REGISTRY ?= ghcr.io
+BUILDER_PUBLIC_REPO     ?= eu-sovereign-cloud/ecp-builder
+
+# Source selector: 'remote' (default) pulls the pinned digest from ghcr.io.
+# 'local' builds from ci/container/builder/Dockerfile and tags it :local.
+BUILDER_SOURCE ?= remote
+
+BUILDER_DOCKERFILE ?= ci/container/builder/Dockerfile
 
 ###############################################################################
 # Tools container (interactive shell: completion, coloring, vim)
