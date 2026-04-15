@@ -6,6 +6,7 @@ FROM ${BUILDER_BASE_IMAGE}
 RUN apt-get update && apt-get install -y --no-install-recommends \
     make \
     git \
+    python3 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /workspace

@@ -110,6 +110,26 @@ lint: $(addsuffix -lint,$(GO_MODULES))
 gosec: $(addsuffix -gosec,$(GO_MODULES))
 
 ###############################################################################
+# Generate API artifacts (CRDs + typed models)
+#
+# Usage:
+#   make generate-api          # run directly on host
+#   make generate-api-ctzd     # run inside the tools container
+#
+# Delegates to foundation/persistence/Makefile, which is the only module with
+# generated artifacts today. Kept as a top-level alias so CI and developers
+# share one entry point — and so the %-ctzd wrapper composes for free.
+#
+# Requires python3 on PATH (used by
+# foundation/persistence/scripts/replace-reference-fields.py). The builder
+# image installs it; host developers need it in their own PATH.
+###############################################################################
+
+.PHONY: generate-api
+generate-api:
+	$(MAKE) -C $(_REPO_ROOT)/foundation/persistence generate-all
+
+###############################################################################
 # Persistent dev container
 ###############################################################################
 
