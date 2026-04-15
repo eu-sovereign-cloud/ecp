@@ -25,6 +25,19 @@ GO_MODULES_EXCLUDE := \
 
 GO_MODULES := $(filter-out $(GO_MODULES_EXCLUDE),$(_GO_WORK_MODULES))
 
+# Emit a dorny/paths-filter filter set derived from GO_MODULES. Used by
+# .github/workflows/pr-checks.yaml so the CI matrix follows the workspace
+# automatically — add a module to go.work and the PR filter picks it up.
+#
+# Output format (one entry per module):
+#   foundation/persistence:
+#     - foundation/persistence/**
+.PHONY: print-paths-filter
+print-paths-filter:
+	@for m in $(GO_MODULES); do \
+	  printf '%s:\n  - %s/**\n' "$$m" "$$m"; \
+	done
+
 ###############################################################################
 # Builder image resolution
 # BUILDER_IMAGE is resolved here (after _REPO_ROOT is known) based on the
