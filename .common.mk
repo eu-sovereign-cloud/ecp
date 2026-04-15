@@ -9,6 +9,23 @@ _REPO_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 include $(_REPO_ROOT)/ci/tools/tools.mk
 
 ###############################################################################
+# Go modules in scope for repo-wide checks (test, lint, govulncheck, ...)
+#
+# Derived automatically from the `use (...)` block in go.work so there is a
+# single source of truth. Modules that are in the workspace but not subject
+# to product CI (tool modules, reference plugins, e2e harness) are listed in
+# GO_MODULES_EXCLUDE.
+###############################################################################
+
+_GO_WORK_MODULES := $(shell awk '/^use \(/,/^\)/{ if ($$1 ~ /^\.\//) print substr($$1, 3) }' $(_REPO_ROOT)/go.work)
+
+GO_MODULES_EXCLUDE := \
+  ci/tools/go \
+  foundation/plugin/e2e
+
+GO_MODULES := $(filter-out $(GO_MODULES_EXCLUDE),$(_GO_WORK_MODULES))
+
+###############################################################################
 # Builder image resolution
 # BUILDER_IMAGE is resolved here (after _REPO_ROOT is known) based on the
 # BUILDER_SOURCE selector set in .config.mk.
