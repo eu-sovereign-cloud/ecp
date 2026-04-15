@@ -21,6 +21,7 @@ _PKG_MOCKGEN        := go.uber.org/mock/mockgen
 _PKG_GOLANGCI_LINT  := github.com/golangci/golangci-lint/v2/cmd/golangci-lint
 _PKG_GOFUMPT        := mvdan.cc/gofumpt
 _PKG_GOVULNCHECK    := golang.org/x/vuln/cmd/govulncheck
+_PKG_GOSEC          := github.com/securego/gosec/v2/cmd/gosec
 
 _TOOL_ENSURE := GOBIN=$(TOOLS_BIN) $(_REPO_ROOT)/ci/scripts/tool-ensure-go.sh
 
@@ -32,6 +33,7 @@ tools-install: | $(TOOLS_BIN)
 	@$(_TOOL_ENSURE) golangci-lint  $(_PKG_GOLANGCI_LINT)  $(GOLANGCI_LINT_VERSION)
 	@$(_TOOL_ENSURE) gofumpt        $(_PKG_GOFUMPT)        $(GOFUMPT_VERSION)
 	@$(_TOOL_ENSURE) govulncheck    $(_PKG_GOVULNCHECK)    $(GOVULNCHECK_VERSION)
+	@$(_TOOL_ENSURE) gosec          $(_PKG_GOSEC)          $(GOSEC_VERSION)
 	@echo "==> Done"
 
 .PHONY: tools-tidy
@@ -42,7 +44,8 @@ tools-tidy:
 	  $(_PKG_MOCKGEN)@$(MOCKGEN_VERSION) \
 	  $(_PKG_GOLANGCI_LINT)@$(GOLANGCI_LINT_VERSION) \
 	  $(_PKG_GOFUMPT)@$(GOFUMPT_VERSION) \
-	  $(_PKG_GOVULNCHECK)@$(GOVULNCHECK_VERSION)
+	  $(_PKG_GOVULNCHECK)@$(GOVULNCHECK_VERSION) \
+	  $(_PKG_GOSEC)@$(GOSEC_VERSION)
 	cd $(_REPO_ROOT)/ci/tools/go && go mod tidy
 	@echo "==> Done"
 

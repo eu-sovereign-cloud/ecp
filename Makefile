@@ -38,6 +38,78 @@ print-%:
 govulncheck: $(addsuffix -govulncheck,$(GO_MODULES))
 
 ###############################################################################
+# Per-module tests
+#
+# Usage:
+#   make foundation/persistence-test                     # all tests, one module
+#   make test                                            # all modules
+#   make test RUN=TestCreateFoo                          # filter by name
+#   make test RUN='TestFoo|TestBar'                      # regex (quote to protect from shell)
+#   make foundation/persistence-test-ctzd RUN=TestFoo    # via tools container
+#
+# RUN is optional. When set it is forwarded verbatim to `go test -run <regex>`,
+# which matches the test's fully qualified name (Go's own filter semantics —
+# see `go help testflag`). The umbrella `test` target propagates RUN to every
+# module because all per-module rules run in the same make invocation.
+#
+# Workspace mode is left enabled (no GOWORK=off): tests depend on the replace
+# directives declared in go.work. `cd $(_REPO_ROOT)/$*` scopes the run to the
+# module's own package tree.
+###############################################################################
+
+RUN ?=
+
+.PHONY: %-test
+%-test:
+	@echo "==> test: $*$(if $(RUN), (filter: $(RUN)))"
+	cd $(_REPO_ROOT)/$* && go test -race -v $(if $(RUN),-run '$(RUN)') ./...
+
+.PHONY: test
+test: $(addsuffix -test,$(GO_MODULES))
+
+###############################################################################
+# Per-module lint (golangci-lint)
+#
+# Usage:
+#   make foundation/persistence-lint
+#   make lint
+#   make foundation/persistence-lint-ctzd
+#
+# Uses the pinned golangci-lint from ci/tools/bin/ (via tools-install).
+# Workspace mode is kept so cross-module replaces resolve correctly.
+###############################################################################
+
+.PHONY: %-lint
+%-lint: tools-install
+	@echo "==> lint: $*"
+	cd $(_REPO_ROOT)/$* && golangci-lint run --timeout 10m0s ./...
+
+.PHONY: lint
+lint: $(addsuffix -lint,$(GO_MODULES))
+
+###############################################################################
+# Per-module gosec
+#
+# Usage:
+#   make foundation/persistence-gosec
+#   make gosec
+#   make foundation/persistence-gosec-ctzd
+#
+# GOWORK=off mirrors %-govulncheck: keeps the scan scoped to the module's own
+# go.mod so findings are attributable to that module. The pinned gosec binary
+# (GOSEC_VERSION in .config.mk) lives in ci/tools/bin/, installed by the
+# tools-install prerequisite.
+###############################################################################
+
+.PHONY: %-gosec
+%-gosec: tools-install
+	@echo "==> gosec: $*"
+	cd $(_REPO_ROOT)/$* && GOWORK=off gosec ./...
+
+.PHONY: gosec
+gosec: $(addsuffix -gosec,$(GO_MODULES))
+
+###############################################################################
 # Persistent dev container
 ###############################################################################
 
