@@ -32,7 +32,7 @@ print-%:
 .PHONY: %-vuln
 %-vuln: tools-install
 	@echo "==> vuln: $*"
-	cd $(_REPO_ROOT)/$* && GOWORK=off govulncheck ./...
+	cd $(_REPO_ROOT)/$* && govulncheck ./...
 
 .PHONY: vuln
 vuln: $(addsuffix -vuln,$(GO_MODULES))
