@@ -4,3 +4,4 @@
 .ssh
 ci/tools/bin/
 modules/go-sdk
+vendor
