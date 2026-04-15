@@ -42,7 +42,7 @@ func (b *BlockStorage) IncreaseSize(ctx context.Context, resource *regional.Bloc
 func blockStorageDelay() int {
 	const base int = 30
 
-	var variation int = rand.IntN(60)
+	variation := rand.IntN(60) //nolint:gosec // math/rand/v2 is fine here: delay jitter is not security-sensitive
 
 	delay := base + variation
 

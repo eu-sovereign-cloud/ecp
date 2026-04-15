@@ -16,6 +16,7 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
 	repo "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 
+	adaptconverter "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/converter"
 	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/generic/delegated"
 	mutator_bypass "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/generic/mutator"
 	resolver_bypass "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/generic/resolver"
@@ -149,7 +150,11 @@ func (h *BlockStorageHandler) checkBsIncreaseSizeCondition(resource *ArubaBlockS
 }
 
 func (h *BlockStorageHandler) blockStorageMutateSizeFunc(mutable *ArubaBlockStorageBundle, params *SecaBlockStorageBundle) error {
-	mutable.BlockStorage.Spec.SizeGb = int32(params.BlockStorage.Spec.SizeGB)
+	sizeGb, err := adaptconverter.SecaToArubaSize(params.BlockStorage.Spec.SizeGB)
+	if err != nil {
+		return err
+	}
+	mutable.BlockStorage.Spec.SizeGb = sizeGb
 
 	return nil
 }

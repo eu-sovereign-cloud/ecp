@@ -5,7 +5,6 @@ import (
 	"strconv"
 
 	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
-	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
 	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/storage/block-storages/v1"
@@ -52,7 +51,7 @@ func blockStorageDomainToAPI(domain *regional.BlockStorageDomain) *sdkschema.Blo
 				regional.WorkspaceScopedResourceFormat,
 				domain.Tenant,
 				domain.Workspace,
-				schema.RegionalResourceMetadataKindResourceKindBlockStorage,
+				sdkschema.RegionalResourceMetadataKindResourceKindBlockStorage,
 				domain.Name,
 			),
 			Ref:             fmt.Sprintf(regional.ResourceFormat, sdkschema.RegionalResourceMetadataKindResourceKindBlockStorage, domain.Name),
@@ -183,14 +182,6 @@ func referenceObjectToAPI(ref regional.ReferenceObjectDomain) sdkschema.Referenc
 		Tenant:    ref.Tenant,
 		Workspace: ref.Workspace,
 	}
-}
-
-func toPtrOrNil[T comparable](v T) *T {
-	var zero T
-	if v == zero {
-		return nil
-	}
-	return &v
 }
 
 func referenceObjectPtrToAPI(ref *regional.ReferenceObjectDomain) *sdkschema.Reference {
