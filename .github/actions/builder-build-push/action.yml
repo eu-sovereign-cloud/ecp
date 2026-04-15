@@ -1,9 +1,12 @@
 name: Build and push builder image
 description: >
-  Multi-arch (linux/amd64 + linux/arm64) build of
-  ci/container/builder/Dockerfile, pushed to the given tags with optional
-  registry buildcache wiring. Exposes the pushed manifest-list digest as an
-  output so callers can pin it.
+  linux/amd64 build of ci/container/builder/Dockerfile, pushed to the given
+  tags with optional registry buildcache wiring. Exposes the pushed
+  manifest-list digest as an output so callers can pin it.
+
+  arm64 is intentionally excluded: QEMU-emulated Go compilation is 5-10× slower
+  on amd64 runners and no current consumer requires an arm64 image. Developers
+  on arm64 machines should build locally with BUILDER_SOURCE=local.
 
   Preconditions the caller must set up before invoking this action:
     - actions/checkout
@@ -35,9 +38,6 @@ outputs:
 runs:
   using: composite
   steps:
-    - name: Set up QEMU (for linux/arm64 cross-build)
-      uses: docker/setup-qemu-action@v3
-
     - name: Resolve builder base image from .config.mk
       id: vars
       shell: bash
@@ -52,7 +52,7 @@ runs:
         file: ci/container/builder/Dockerfile
         build-args: |
           BUILDER_BASE_IMAGE=${{ steps.vars.outputs.builder_base_image }}
-        platforms: linux/amd64,linux/arm64
+        platforms: linux/amd64
         push: true
         tags: ${{ inputs.tags }}
         labels: ${{ inputs.labels }}

@@ -1,13 +1,93 @@
 name: Workspace CI
 
+# This workflow is the single entry point for all pull-request checks.
+#
+# It covers two lifecycles:
+#
+#   action ∈ {opened, synchronize, reopened}  → build + test + lint + vuln jobs
+#   action == closed                           → delete the per-PR builder image
+#
+# Per-PR builder image lifecycle (merged from the former builder-pr.yaml):
+#   - Detect whether any builder input changed vs main.
+#   - If NOT changed and :main exists → alias :main as :pr-<N> via
+#     `buildx imagetools create --annotation` (unique digest, safe to delete).
+#   - If changed or :main missing → full multi-arch rebuild, pushed as :pr-<N>.
+#   - On close → delete :pr-<N> (and :pr-<N>-buildcache) from GHCR.
+#
+# Downstream jobs that run inside the builder container reference:
+#   ghcr.io/eu-sovereign-cloud/ecp-builder:pr-${{ github.event.pull_request.number }}
+# They must declare `needs: builder-publish-pr` to ensure the tag is ready.
+
 on:
   pull_request:
-    branches: [ "main" ]
+    branches: [main]
+    types: [opened, synchronize, reopened, closed]
+
+env:
+  BUILDER_IMAGE_REPO: ghcr.io/eu-sovereign-cloud/ecp-builder
+
+permissions:
+  contents: read
+  packages: write   # push AND delete builder image versions
 
 jobs:
-  # JOB 1: Detect which modules changed
+  # ===========================================================================
+  # Builder image — publish alias or rebuild for this PR
+  # ===========================================================================
+  builder-publish-pr:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+
+    concurrency:
+      # Cancel in-flight publishes for the same PR when a new commit arrives.
+      group: builder-pr-publish-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          # Full history so paths-filter can diff PR HEAD against the base.
+          fetch-depth: 0
+
+      - name: Publish per-PR builder image
+        uses: ./.github/actions/builder-pr-publish
+        with:
+          image-repo: ${{ env.BUILDER_IMAGE_REPO }}
+          pr-number: ${{ github.event.pull_request.number }}
+          base-ref: ${{ github.event.pull_request.base.ref }}
+          registry-username: ${{ github.actor }}
+          registry-password: ${{ secrets.GITHUB_TOKEN }}
+
+  # ===========================================================================
+  # Builder image — cleanup when the PR closes
+  # ===========================================================================
+  builder-cleanup:
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+
+    concurrency:
+      group: builder-pr-cleanup-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Delete per-PR tags from GHCR
+        uses: ./.github/actions/ghcr-delete-pr-tags
+        with:
+          owner: eu-sovereign-cloud
+          package: ecp-builder
+          pr-number: ${{ github.event.pull_request.number }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  # ===========================================================================
+  # JOB: Detect which modules changed
+  # ===========================================================================
   module-diff:
     name: Detect Changed Modules
+    if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     outputs:
       modules: ${{ steps.filter.outputs.changes }}
@@ -26,12 +106,17 @@ jobs:
               - 'foundation/delegator/**'
             foundation/plugin/aruba:
               - 'foundation/plugin/aruba/**'
+            foundation/plugin/dummy:
+              - 'foundation/plugin/dummy/**'
             foundation/plugin/ionos:
               - 'foundation/plugin/ionos/**'
 
-  # JOB 2: Generate API artifacts
+  # ===========================================================================
+  # JOB: Generate API artifacts
+  # ===========================================================================
   generate-api:
     name: Generate API artifacts
+    if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -53,9 +138,12 @@ jobs:
             exit 1
           fi
 
-  # JOB 3: Workspace sync check
+  # ===========================================================================
+  # JOB: Workspace sync check
+  # ===========================================================================
   workspace-sync:
     name: Workspace Sync Check
+    if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -78,10 +166,12 @@ jobs:
             exit 1
           fi
 
-  # JOB 4: Build, Test & Lint
+  # ===========================================================================
+  # JOB: Build, Test & Lint (per changed module)
+  # ===========================================================================
   checks:
     needs: module-diff
-    if: needs.module-diff.outputs.has_changes == 'true'
+    if: github.event.action != 'closed' && needs.module-diff.outputs.has_changes == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -110,16 +200,48 @@ jobs:
           working-directory: ${{ matrix.module }}
           args: --timeout 10m0s --verbose
 
-  # JOB 5: govulncheck and gosec
-  security:
-    needs: module-diff
-    if: needs.module-diff.outputs.has_changes == 'true'
+  # ===========================================================================
+  # JOB: Vulnerability check via govulncheck (per changed module)
+  #
+  # Runs inside the per-PR builder image so the govulncheck version matches the
+  # pinned GOVULNCHECK_VERSION in .config.mk — no @latest drift, no setup-go.
+  # The Makefile target (%-govulncheck in Makefile) sets GOWORK=off to force
+  # single-module mode.
+  # ===========================================================================
+  govulncheck:
+    needs: [module-diff, builder-publish-pr]
+    if: github.event.action != 'closed' && needs.module-diff.outputs.has_changes == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         module: ${{ fromJson(needs.module-diff.outputs.modules) }}
-    name: Security (${{ matrix.module }})
+    name: Vuln (${{ matrix.module }})
+    container:
+      image: ghcr.io/eu-sovereign-cloud/ecp-builder:pr-${{ github.event.pull_request.number }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: 'recursive'
+      - name: Run govulncheck
+        run: make ${{ matrix.module }}-govulncheck
+
+  # ===========================================================================
+  # JOB: Security scanning via gosec (per changed module)
+  # TODO: migrate to %-gosec Makefile target + builder container (follow-on).
+  # ===========================================================================
+  gosec:
+    needs: module-diff
+    if: github.event.action != 'closed' && needs.module-diff.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ${{ fromJson(needs.module-diff.outputs.modules) }}
+    name: Gosec (${{ matrix.module }})
     steps:
       - uses: actions/checkout@v6
         with:
@@ -130,22 +252,18 @@ jobs:
           cache: true
           check-latest: 'true'
 
-      - name: Install govulncheck
-        run: go install golang.org/x/vuln/cmd/govulncheck@latest
-
-      - name: Run govulncheck
-        working-directory: ${{ matrix.module }}
-        run: govulncheck ./...
-
       - name: Run Gosec
         uses: securego/gosec@master
         with:
           args: '-no-fail -fmt sarif -out results.sarif ./${{ matrix.module }}/...'
 
+  # ===========================================================================
+  # JOB: Validate PR title (conventional commits)
+  # ===========================================================================
   pr-title:
     name: Validate PR Title
+    if: always() && github.event.action != 'closed'
     runs-on: ubuntu-latest
-    if: always()
     steps:
       - uses: amannn/action-semantic-pull-request@v6
         env:

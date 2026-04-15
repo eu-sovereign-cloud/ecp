@@ -13,6 +13,31 @@ print-%:
 	@echo $($*)
 
 ###############################################################################
+# Per-module vulnerability check
+#
+# Usage:
+#   make foundation/persistence-govulncheck          # single module
+#   make govulncheck                                 # all GO_MODULES (parallelisable: -jN)
+#   make foundation/persistence-govulncheck-ctzd     # via tools container
+#
+# GOWORK=off forces single-module mode so the scan stays scoped to the
+# module's own go.mod. Without it, Go walks up to the repo-root go.work and
+# enters workspace mode, potentially scanning unrelated packages.
+#
+# ci/tools/bin/govulncheck is pre-installed (pinned to GOVULNCHECK_VERSION) in
+# both the builder and tools images. On a developer machine running targets
+# directly, the tools-install prerequisite ensures the binary is present.
+###############################################################################
+
+.PHONY: %-govulncheck
+%-govulncheck: tools-install
+	@echo "==> govulncheck: $*"
+	cd $(_REPO_ROOT)/$* && GOWORK=off govulncheck ./...
+
+.PHONY: govulncheck
+govulncheck: $(addsuffix -govulncheck,$(GO_MODULES))
+
+###############################################################################
 # Persistent dev container
 ###############################################################################
 

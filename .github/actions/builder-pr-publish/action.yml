@@ -1,0 +1,122 @@
+name: Publish per-PR builder image
+description: >
+  Alias :main or do a full multi-arch rebuild of the builder image for a pull
+  request, then push as :pr-<N>.
+
+  Logic:
+    - Detect whether any builder input changed vs the PR base branch.
+    - If NOT changed and :main exists → alias via `buildx imagetools create
+      --annotation` (unique digest, safe to delete independently of :main).
+    - If changed or :main missing → full multi-arch rebuild via the
+      builder-build-push action, with registry cache seeded from :buildcache
+      and the PR's own prior cache.
+
+  Preconditions the caller must set up before invoking this action:
+    - actions/checkout with fetch-depth: 0
+
+inputs:
+  image-repo:
+    description: Full registry/repository path, e.g. ghcr.io/org/ecp-builder.
+    required: true
+  pr-number:
+    description: Pull request number (github.event.pull_request.number).
+    required: true
+  base-ref:
+    description: PR base branch ref (github.event.pull_request.base.ref).
+    required: true
+  registry-username:
+    description: Username for ghcr.io login.
+    required: true
+  registry-password:
+    description: Token/password for ghcr.io login (packages:write scope required).
+    required: true
+
+outputs:
+  mode:
+    description: The chosen publish mode — 'alias' or 'rebuild'.
+    value: ${{ steps.decide.outputs.mode }}
+
+runs:
+  using: composite
+  steps:
+    - name: Detect builder input changes
+      id: filter
+      uses: dorny/paths-filter@v3
+      with:
+        base: ${{ inputs.base-ref }}
+        filters: |
+          builder:
+            - 'ci/container/builder/**'
+            - 'ci/tools/**'
+            - 'ci/scripts/**'
+            - '.config.mk'
+            - '.common.mk'
+            - 'Makefile'
+            - '.github/workflows/builder-publish.yaml'
+            - '.github/workflows/pr-checks.yaml'
+            - '.github/actions/builder-build-push/**'
+            - '.github/actions/builder-pr-publish/**'
+
+    - name: Log in to GHCR
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ inputs.registry-username }}
+        password: ${{ inputs.registry-password }}
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    # Decide mode: 'alias' if inputs unchanged AND :main already exists,
+    # otherwise 'rebuild'. First-PR-before-first-main-publish falls back
+    # to rebuild automatically.
+    - name: Decide mode
+      id: decide
+      shell: bash
+      run: |
+        if [ "${{ steps.filter.outputs.builder }}" = "true" ]; then
+          echo "mode=rebuild" >> "$GITHUB_OUTPUT"
+          echo "Reason: builder inputs changed in this PR."
+        elif docker buildx imagetools inspect "${{ inputs.image-repo }}:main" >/dev/null 2>&1; then
+          echo "mode=alias" >> "$GITHUB_OUTPUT"
+          echo "Reason: builder inputs unchanged; aliasing :main as :pr-${{ inputs.pr-number }}."
+        else
+          echo "mode=rebuild" >> "$GITHUB_OUTPUT"
+          echo "Reason: :main not found in GHCR yet; falling back to rebuild."
+        fi
+
+    # -----------------------------------------------------------------
+    # ALIAS PATH
+    # The --annotation flag forces the new manifest list to have
+    # different bytes (and therefore a different digest) than :main,
+    # so GHCR stores it as a distinct version that can be safely
+    # deleted on PR close without affecting :main.
+    # -----------------------------------------------------------------
+    - name: Alias :main as :pr-${{ inputs.pr-number }}
+      if: steps.decide.outputs.mode == 'alias'
+      shell: bash
+      run: |
+        docker buildx imagetools create \
+          --annotation "index:ecp.pr-number=${{ inputs.pr-number }}" \
+          --annotation "index:ecp.aliased-from=main" \
+          -t "${{ inputs.image-repo }}:pr-${{ inputs.pr-number }}" \
+          "${{ inputs.image-repo }}:main"
+        echo "Aliased :main → :pr-${{ inputs.pr-number }}"
+
+    # -----------------------------------------------------------------
+    # REBUILD PATH
+    # -----------------------------------------------------------------
+    - name: Build and push :pr-${{ inputs.pr-number }}
+      if: steps.decide.outputs.mode == 'rebuild'
+      uses: ./.github/actions/builder-build-push
+      with:
+        tags: ${{ inputs.image-repo }}:pr-${{ inputs.pr-number }}
+        labels: |
+          ecp.pr-number=${{ inputs.pr-number }}
+        # Seed from main's registry cache first, then the PR's own cache
+        # (for fast re-runs on the same PR).
+        cache-from: |
+          type=registry,ref=${{ inputs.image-repo }}:buildcache
+          type=registry,ref=${{ inputs.image-repo }}:pr-${{ inputs.pr-number }}-buildcache
+        cache-to: |
+          type=registry,ref=${{ inputs.image-repo }}:pr-${{ inputs.pr-number }}-buildcache,mode=max

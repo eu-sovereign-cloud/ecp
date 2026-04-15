@@ -1,0 +1,48 @@
+name: Delete per-PR GHCR package versions
+description: >
+  Delete all GHCR package versions that carry the pr-<N> or pr-<N>-buildcache
+  tags for a given pull request. Tolerates the case where no version carries
+  the tag (e.g., the PR was closed before builder-publish-pr ever ran, or only
+  the alias path ran and left no buildcache sibling).
+
+inputs:
+  owner:
+    description: GitHub organisation or user that owns the package.
+    required: true
+  package:
+    description: GHCR container package name (without the registry prefix).
+    required: true
+  pr-number:
+    description: Pull request number whose tags should be deleted.
+    required: true
+  token:
+    description: GitHub token with packages:write scope (delete requires write).
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Delete pr-${{ inputs.pr-number }} and pr-${{ inputs.pr-number }}-buildcache
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+      run: |
+        set -e
+        for tag in \
+          "pr-${{ inputs.pr-number }}" \
+          "pr-${{ inputs.pr-number }}-buildcache"; do
+          echo "=== Looking up versions tagged '${tag}' ==="
+          ids=$(gh api --paginate \
+            "/orgs/${{ inputs.owner }}/packages/container/${{ inputs.package }}/versions" \
+            --jq ".[] | select(.metadata.container.tags // [] | index(\"${tag}\")) | .id" \
+            || true)
+          if [ -z "${ids}" ]; then
+            echo "No version carries tag '${tag}'; nothing to delete."
+            continue
+          fi
+          for id in ${ids}; do
+            echo "Deleting version id=${id} (tag=${tag})"
+            gh api --method DELETE \
+              "/orgs/${{ inputs.owner }}/packages/container/${{ inputs.package }}/versions/${id}"
+          done
+        done
