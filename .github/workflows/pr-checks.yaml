@@ -198,6 +198,35 @@ jobs:
         run: make ${{ matrix.module }}-lint
 
   # ===========================================================================
+  # JOB: Format check via golangci-lint fmt (per changed module)
+  #
+  # Runs `make <module>-gofmt-check` which invokes `golangci-lint fmt --diff`
+  # and fails if any diff is produced. Mirrors the lint/vuln/gosec jobs: one
+  # job per changed module, runs inside the per-PR builder image so the
+  # golangci-lint version matches GOLANGCI_LINT_VERSION in .config.mk.
+  # ===========================================================================
+  gofmt:
+    needs: [module-diff, builder-publish-pr]
+    if: github.event.action != 'closed' && needs.module-diff.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ${{ fromJson(needs.module-diff.outputs.modules) }}
+    name: Gofmt (${{ matrix.module }})
+    container:
+      image: ghcr.io/eu-sovereign-cloud/ecp-builder:pr-${{ github.event.pull_request.number }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: 'recursive'
+      - name: Run gofmt check
+        run: make ${{ matrix.module }}-gofmt-check
+
+  # ===========================================================================
   # JOB: Vulnerability check via govulncheck (per changed module)
   #
   # Runs inside the per-PR builder image so the govulncheck version matches the

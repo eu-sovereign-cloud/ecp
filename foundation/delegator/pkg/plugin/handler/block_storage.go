@@ -35,6 +35,7 @@ func NewBlockStoragePluginHandler(
 	return handler
 }
 
+//nolint:gocyclo // keep locality of behavior: the two switches describe the full reconciliation state machine in one place
 func (h *BlockStoragePluginHandler) HandleReconcile(ctx context.Context, resource *regional.BlockStorageDomain) (bool, error) {
 	var delegate delegator.DelegatedFunc[*regional.BlockStorageDomain]
 

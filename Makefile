@@ -88,6 +88,49 @@ test: $(addsuffix -test,$(GO_MODULES))
 lint: $(addsuffix -lint,$(GO_MODULES))
 
 ###############################################################################
+# Per-module gofmt (golangci-lint fmt)
+#
+# Usage:
+#   make foundation/gateway-gofmt              # auto-fix one module
+#   make gofmt                                 # auto-fix all modules
+#   make foundation/gateway-gofmt-check        # check one module (fails on diff)
+#   make gofmt-check                           # check all modules (CI gate)
+#   make foundation/gateway-gofmt-ctzd         # via tools container
+#   make foundation/gateway-gofmt-check-ctzd   # via tools container
+#
+# Uses `golangci-lint fmt`, which applies the formatters configured in
+# .golangci.yml (gofmt simplify + goimports). This keeps `make gofmt` and
+# `make lint` in lock-step: whatever lint reports as a formatter violation,
+# gofmt fixes — no divergence between the two.
+#
+# %-gofmt        writes fixes in place (developer convenience).
+# %-gofmt-check  runs in --diff mode and exits non-zero if any diff is
+#                produced. This is what CI calls so the workspace is never
+#                mutated on the runner.
+###############################################################################
+
+.PHONY: %-gofmt
+%-gofmt: tools-install
+	@echo "==> gofmt: $*"
+	cd $(_REPO_ROOT)/$* && golangci-lint fmt ./...
+
+.PHONY: gofmt
+gofmt: $(addsuffix -gofmt,$(GO_MODULES))
+
+.PHONY: %-gofmt-check
+%-gofmt-check: tools-install
+	@echo "==> gofmt-check: $*"
+	@diff=$$(cd $(_REPO_ROOT)/$* && golangci-lint fmt --diff ./... 2>&1); \
+	if [ -n "$$diff" ]; then \
+	  printf '%s\n' "$$diff"; \
+	  echo "FAIL: $* has unformatted files (run: make $*-gofmt)"; \
+	  exit 1; \
+	fi
+
+.PHONY: gofmt-check
+gofmt-check: $(addsuffix -gofmt-check,$(GO_MODULES))
+
+###############################################################################
 # Per-module gosec
 #
 # Usage:
