@@ -34,7 +34,7 @@ func (w *Workspace) Delete(ctx context.Context, resource *regional.WorkspaceDoma
 func workspaceDelay() int {
 	const base int = 15
 
-	variation := rand.IntN(30) //nolint:gosec // math/rand/v2 is fine here: delay jitter is not security-sensitive
+	variation := rand.IntN(30) //#nosec G404 -- math/rand/v2 is fine here: delay jitter is not security-sensitive
 
 	delay := base + variation
 	time.Sleep(time.Duration(delay) * time.Second)

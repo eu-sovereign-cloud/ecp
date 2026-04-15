@@ -138,16 +138,15 @@ gofmt-check: $(addsuffix -gofmt-check,$(GO_MODULES))
 #   make gosec
 #   make foundation/persistence-gosec-ctzd
 #
-# GOWORK=off mirrors %-vuln: keeps the scan scoped to the module's own
-# go.mod so findings are attributable to that module. The pinned gosec binary
-# (GOSEC_VERSION in .config.mk) lives in ci/tools/bin/, installed by the
-# tools-install prerequisite.
+# Runs with the Go workspace active (go.work) so that cross-module imports
+# resolve correctly. The pinned gosec binary (GOSEC_VERSION in .config.mk)
+# lives in ci/tools/bin/, installed by the tools-install prerequisite.
 ###############################################################################
 
 .PHONY: %-gosec
 %-gosec: tools-install
 	@echo "==> gosec: $*"
-	cd $(_REPO_ROOT)/$* && GOWORK=off gosec ./...
+	cd $(_REPO_ROOT)/$* && gosec ./...
 
 .PHONY: gosec
 gosec: $(addsuffix -gosec,$(GO_MODULES))
