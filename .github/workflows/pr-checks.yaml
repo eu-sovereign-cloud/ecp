@@ -102,27 +102,28 @@ jobs:
           filters: .paths-filter.yml
 
   # ===========================================================================
-  # JOB: Generate API artifacts
+  # JOB: Generate API artifacts (inside builder container)
   # ===========================================================================
   generate-api:
+    needs: builder-publish-pr
     name: Generate API artifacts
     if: github.event.action != 'closed'
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/eu-sovereign-cloud/ecp-builder:pr-${{ github.event.pull_request.number }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v6
         with:
           submodules: 'recursive'
-      - uses: actions/setup-go@v6
-        with:
-          go-version-file: 'go.work'
-          cache: true
-      - name: Generate API artifacts
-        run: |
-          make -C foundation/persistence generate-all
+      - name: Run generate-api
+        run: make generate-api
       - name: Check for uncommitted changes
         run: |
           if [ -n "$(git status --porcelain)" ]; then
-            echo "::error::make generate-all produced changes. Please run 'make -C foundation/persistence generate-all' and commit the results."
+            echo "::error::make generate-api produced changes. Please run 'make generate-api' and commit the results."
             git diff
             git status
             exit 1
