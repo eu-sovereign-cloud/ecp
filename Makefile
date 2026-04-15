@@ -13,12 +13,12 @@ print-%:
 	@echo $($*)
 
 ###############################################################################
-# Per-module vulnerability check
+# Per-module vulnerability check (govulncheck)
 #
 # Usage:
-#   make foundation/persistence-govulncheck          # single module
-#   make govulncheck                                 # all GO_MODULES (parallelisable: -jN)
-#   make foundation/persistence-govulncheck-ctzd     # via tools container
+#   make foundation/persistence-vuln          # single module
+#   make vuln                                 # all GO_MODULES (parallelisable: -jN)
+#   make foundation/persistence-vuln-ctzd     # via tools container
 #
 # GOWORK=off forces single-module mode so the scan stays scoped to the
 # module's own go.mod. Without it, Go walks up to the repo-root go.work and
@@ -29,13 +29,13 @@ print-%:
 # directly, the tools-install prerequisite ensures the binary is present.
 ###############################################################################
 
-.PHONY: %-govulncheck
-%-govulncheck: tools-install
-	@echo "==> govulncheck: $*"
+.PHONY: %-vuln
+%-vuln: tools-install
+	@echo "==> vuln: $*"
 	cd $(_REPO_ROOT)/$* && GOWORK=off govulncheck ./...
 
-.PHONY: govulncheck
-govulncheck: $(addsuffix -govulncheck,$(GO_MODULES))
+.PHONY: vuln
+vuln: $(addsuffix -vuln,$(GO_MODULES))
 
 ###############################################################################
 # Per-module tests
@@ -95,7 +95,7 @@ lint: $(addsuffix -lint,$(GO_MODULES))
 #   make gosec
 #   make foundation/persistence-gosec-ctzd
 #
-# GOWORK=off mirrors %-govulncheck: keeps the scan scoped to the module's own
+# GOWORK=off mirrors %-vuln: keeps the scan scoped to the module's own
 # go.mod so findings are attributable to that module. The pinned gosec binary
 # (GOSEC_VERSION in .config.mk) lives in ci/tools/bin/, installed by the
 # tools-install prerequisite.
@@ -221,7 +221,7 @@ workspace-verify: workspace-sync
 #
 # These targets only manipulate the `use (...)` block. The `replace (...)` block
 # in go.work pins foundation modules to their local paths at v0.0.1, which is
-# load-bearing for %-govulncheck and %-gosec (both use GOWORK=off). After adding
+# load-bearing for %-vuln and %-gosec (both use GOWORK=off). After adding
 # a new foundation module, also run:
 #
 #   go work edit -replace <modpath>=./$(RELPATH)

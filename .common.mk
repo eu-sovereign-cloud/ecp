@@ -9,7 +9,7 @@ _REPO_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 include $(_REPO_ROOT)/ci/tools/tools.mk
 
 ###############################################################################
-# Go modules in scope for repo-wide checks (test, lint, govulncheck, ...)
+# Go modules in scope for repo-wide checks (test, lint, vuln, ...)
 #
 # Derived automatically from the `use (...)` block in go.work so there is a
 # single source of truth. Modules that are in the workspace but not subject

@@ -202,10 +202,10 @@ jobs:
   #
   # Runs inside the per-PR builder image so the govulncheck version matches the
   # pinned GOVULNCHECK_VERSION in .config.mk — no @latest drift, no setup-go.
-  # The Makefile target (%-govulncheck in Makefile) sets GOWORK=off to force
+  # The Makefile target (%-vuln in Makefile) sets GOWORK=off to force
   # single-module mode.
   # ===========================================================================
-  govulncheck:
+  vuln:
     needs: [module-diff, builder-publish-pr]
     if: github.event.action != 'closed' && needs.module-diff.outputs.has_changes == 'true'
     runs-on: ubuntu-latest
@@ -223,8 +223,8 @@ jobs:
       - uses: actions/checkout@v6
         with:
           submodules: 'recursive'
-      - name: Run govulncheck
-        run: make ${{ matrix.module }}-govulncheck
+      - name: Run vuln
+        run: make ${{ matrix.module }}-vuln
 
   # ===========================================================================
   # JOB: Security scanning via gosec (per changed module, inside builder container)
