@@ -267,6 +267,47 @@ workspace-verify: workspace-sync
 	fi
 
 ###############################################################################
+# Verify the current branch is rebased onto its PR target
+#
+#   make branch-rebase-verify                 # discovers base via `gh pr view`
+#   BASE_REF=main make branch-rebase-verify   # explicit (what CI uses)
+#   make branch-rebase-verify-ctzd            # via tools container (has gh)
+#
+# Fails if origin/<base> has commits not in HEAD — the branch must be rebased.
+# CI sets BASE_REF from the pull_request event so no gh auth is needed there.
+# Locally, falls back to `gh pr view` to discover the base branch for HEAD.
+#
+# Intentionally standalone: dev loops (lint, test) should not require network
+# access. The CI workflow wires this in as an explicit Stage 1 gate.
+###############################################################################
+
+.PHONY: branch-rebase-verify
+branch-rebase-verify:
+	@base_ref="$${BASE_REF:-}"; \
+	if [ -z "$$base_ref" ]; then \
+	  if ! command -v gh >/dev/null 2>&1; then \
+	    echo "::error::gh CLI not found; install it or run with BASE_REF=<branch>"; \
+	    exit 2; \
+	  fi; \
+	  base_ref=$$(gh pr view --json baseRefName -q .baseRefName 2>/dev/null) || { \
+	    echo "::error::could not resolve PR base branch via gh (no open PR for HEAD?); set BASE_REF=<branch>"; \
+	    exit 2; \
+	  }; \
+	fi; \
+	echo "==> branch-rebase-verify: base=origin/$$base_ref"; \
+	git -C $(_REPO_ROOT) fetch --quiet origin "$$base_ref"; \
+	base_tip=$$(git -C $(_REPO_ROOT) rev-parse "origin/$$base_ref"); \
+	merge_base=$$(git -C $(_REPO_ROOT) merge-base HEAD "origin/$$base_ref"); \
+	if [ "$$merge_base" != "$$base_tip" ]; then \
+	  echo "::error::branch is not rebased onto origin/$$base_ref"; \
+	  echo "  origin/$$base_ref tip : $$base_tip"; \
+	  echo "  merge-base with HEAD  : $$merge_base"; \
+	  echo "  fix: git fetch origin $$base_ref && git rebase origin/$$base_ref"; \
+	  exit 1; \
+	fi; \
+	echo "OK: HEAD is rebased onto origin/$$base_ref"
+
+###############################################################################
 # Workspace membership: add / remove a module from go.work
 #
 # RELPATH is the path relative to the repo root.

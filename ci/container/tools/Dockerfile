@@ -34,6 +34,14 @@ RUN curl -fsSL -o /usr/local/bin/kubectl \
     "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" \
     && chmod +x /usr/local/bin/kubectl
 
+# GitHub CLI for `make branch-rebase-verify` and interactive PR workflows
+ARG GH_CLI_VERSION
+RUN curl -fsSL -o /tmp/gh.tgz \
+    "https://github.com/cli/cli/releases/download/v${GH_CLI_VERSION}/gh_${GH_CLI_VERSION}_linux_amd64.tar.gz" \
+    && tar -xzf /tmp/gh.tgz -C /tmp \
+    && mv "/tmp/gh_${GH_CLI_VERSION}_linux_amd64/bin/gh" /usr/local/bin/gh \
+    && rm -rf /tmp/gh.tgz "/tmp/gh_${GH_CLI_VERSION}_linux_amd64"
+
 # Enable prompt coloring, aliases, and completion for all interactive shells
 # /etc/profile.d/ is sourced by login shells (SSH sessions)
 # /etc/bash.bashrc is sourced by non-login interactive shells (docker exec)

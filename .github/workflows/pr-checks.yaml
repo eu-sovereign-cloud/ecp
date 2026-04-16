@@ -78,6 +78,23 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # ===========================================================================
+  # Stage 1: Verify PR branch is rebased onto its target
+  # ===========================================================================
+  branch-rebase:
+    name: Verify Branch Is Rebased
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - name: Run branch-rebase-verify
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: make branch-rebase-verify
+
+  # ===========================================================================
   # Stage 1: Detect which modules changed
   # ===========================================================================
   module-diff:
@@ -102,8 +119,8 @@ jobs:
   # Stage 2: Builder image — publish alias or rebuild for this PR
   # ===========================================================================
   builder-publish-pr:
-    name: Publish PR Builder Image
-    needs: [pr-title, module-diff]
+    name: Provide PR Builder Image
+    needs: [pr-title, module-diff, branch-rebase]
     if: github.event.action != 'closed' && needs.module-diff.outputs.has_changes == 'true'
     runs-on: ubuntu-latest
 
