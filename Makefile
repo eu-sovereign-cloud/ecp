@@ -176,12 +176,7 @@ generate-api:
 # Mirrors the workspace-verify pattern so both targets stay consistent.
 .PHONY: generate-api-verify
 generate-api-verify: generate-api
-	@if [ -n "$$(cd $(_REPO_ROOT) && git status --porcelain)" ]; then \
-	  echo "::error::generate-api produced changes. Please run 'make generate-api' and commit the results."; \
-	  cd $(_REPO_ROOT) && git diff; \
-	  cd $(_REPO_ROOT) && git status; \
-	  exit 1; \
-	fi
+	@$(_REPO_ROOT)/ci/scripts/git-tree-clean-verify.sh $(_REPO_ROOT) generate-api "make generate-api"
 
 ###############################################################################
 # Per-module: go mod tidy
@@ -259,12 +254,7 @@ workspace-sync:
 
 .PHONY: workspace-verify
 workspace-verify: workspace-sync
-	@if [ -n "$$(cd $(_REPO_ROOT) && git status --porcelain)" ]; then \
-	  echo "::error::workspace-sync produced changes. Please run 'make workspace-sync' and commit the results."; \
-	  cd $(_REPO_ROOT) && git diff; \
-	  cd $(_REPO_ROOT) && git status; \
-	  exit 1; \
-	fi
+	@$(_REPO_ROOT)/ci/scripts/git-tree-clean-verify.sh $(_REPO_ROOT) workspace-sync "make workspace-sync"
 
 ###############################################################################
 # GitHub CLI token provisioning
@@ -289,17 +279,7 @@ export GH_TOKEN
 
 .PHONY: gh-token-ensure
 gh-token-ensure:
-	@if [ -n "$$GH_TOKEN" ] && GH_TOKEN="$$GH_TOKEN" gh api /user >/dev/null 2>&1; then \
-	  echo "==> gh-token: valid"; \
-	else \
-	  echo "==> gh-token: no valid token — starting authentication"; \
-	  gh auth login; \
-	  token=$$(gh auth token) || { echo "::error::gh auth token failed"; exit 1; }; \
-	  mkdir -p $(_REPO_ROOT)/.cache; \
-	  printf '%s' "$$token" > $(_GH_TOKEN_FILE); \
-	  export GH_TOKEN="$$token"; \
-	  echo "==> gh-token: saved to .cache/gh-token"; \
-	fi
+	@$(_REPO_ROOT)/ci/scripts/gh-token-ensure.sh $(_GH_TOKEN_FILE) > /dev/null
 
 ###############################################################################
 # Verify the current branch is rebased onto its PR target
@@ -318,30 +298,7 @@ gh-token-ensure:
 
 .PHONY: branch-rebase-verify
 branch-rebase-verify:
-	@base_ref="$${BASE_REF:-}"; \
-	if [ -z "$$base_ref" ]; then \
-	  if ! command -v gh >/dev/null 2>&1; then \
-	    echo "::error::gh CLI not found; install it or run with BASE_REF=<branch>"; \
-	    exit 2; \
-	  fi; \
-	  base_ref=$$(gh pr view --json baseRefName -q .baseRefName 2>/dev/null) || \
-	  base_ref=$$(gh repo view --json defaultBranchRef -q .defaultBranchRef.name 2>/dev/null) || { \
-	    echo "::error::could not resolve target branch via gh; set BASE_REF=<branch>"; \
-	    exit 2; \
-	  }; \
-	fi; \
-	echo "==> branch-rebase-verify: base=origin/$$base_ref"; \
-	git -C $(_REPO_ROOT) fetch --quiet origin "$$base_ref"; \
-	base_tip=$$(git -C $(_REPO_ROOT) rev-parse "origin/$$base_ref"); \
-	merge_base=$$(git -C $(_REPO_ROOT) merge-base HEAD "origin/$$base_ref"); \
-	if [ "$$merge_base" != "$$base_tip" ]; then \
-	  echo "::error::branch is not rebased onto origin/$$base_ref"; \
-	  echo "  origin/$$base_ref tip : $$base_tip"; \
-	  echo "  merge-base with HEAD  : $$merge_base"; \
-	  echo "  fix: git fetch origin $$base_ref && git rebase origin/$$base_ref"; \
-	  exit 1; \
-	fi; \
-	echo "OK: HEAD is rebased onto origin/$$base_ref"
+	@$(_REPO_ROOT)/ci/scripts/branch-rebase-verify.sh $(_REPO_ROOT)
 
 ###############################################################################
 # Pre-merge: run the full CI check suite locally
