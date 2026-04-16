@@ -30,6 +30,27 @@ name: Workspace CI
 # you lint locally is what CI lints. The classic trade-off is that
 # semantic merges with main aren't caught; branch protection's
 # "require branches up to date before merging" covers that case.
+#
+# Job execution order (fail-cheap / fail-fast):
+#
+#   Stage 1 — cheap gates, no deps (parallel)
+#     pr-title      Validate PR Title
+#     module-diff   Detect Changed Modules
+#
+#   Stage 2 — build builder image (gated by stage 1)
+#     builder-publish-pr   Publish PR Builder Image
+#       needs: [pr-title, module-diff]
+#       skipped when no modules changed → nothing else runs
+#
+#   Stage 3 — workspace / API sync checks (gated by stage 2, parallel)
+#     workspace-verify   Ensure Workspace Is In Sync
+#     generate-api       Ensure Generated API Artifacts Are In Sync
+#
+#   Stage 4 — quality jobs per changed module (gated by stages 2+3)
+#     test / lint / gofmt / vuln / gosec
+#
+#   Cleanup — only on action == 'closed', independent of all above
+#     builder-cleanup   Cleanup PR Builder Image
 
 on:
   pull_request:
@@ -45,10 +66,45 @@ permissions:
 
 jobs:
   # ===========================================================================
-  # Builder image — publish alias or rebuild for this PR
+  # Stage 1: Validate PR Title (conventional commits)
+  # ===========================================================================
+  pr-title:
+    name: Validate PR Title
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: amannn/action-semantic-pull-request@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ===========================================================================
+  # Stage 1: Detect which modules changed
+  # ===========================================================================
+  module-diff:
+    name: Detect Changed Modules
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    outputs:
+      modules: ${{ steps.filter.outputs.changes }}
+      has_changes: ${{ steps.filter.outputs.changes != '[]' }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Generate paths-filter config from go.work
+        run: make -s print-paths-filter > .paths-filter.yml
+      - id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: .paths-filter.yml
+
+  # ===========================================================================
+  # Stage 2: Builder image — publish alias or rebuild for this PR
   # ===========================================================================
   builder-publish-pr:
-    if: github.event.action != 'closed'
+    name: Publish PR Builder Image
+    needs: [pr-title, module-diff]
+    if: github.event.action != 'closed' && needs.module-diff.outputs.has_changes == 'true'
     runs-on: ubuntu-latest
 
     concurrency:
@@ -74,84 +130,11 @@ jobs:
           registry-password: ${{ secrets.GITHUB_TOKEN }}
 
   # ===========================================================================
-  # Builder image — cleanup when the PR closes
-  # ===========================================================================
-  builder-cleanup:
-    if: github.event.action == 'closed'
-    runs-on: ubuntu-latest
-
-    concurrency:
-      group: builder-pr-cleanup-${{ github.event.pull_request.number }}
-      cancel-in-progress: false
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Delete per-PR tags from GHCR
-        uses: ./.github/actions/ghcr-delete-pr-tags
-        with:
-          owner: eu-sovereign-cloud
-          package: ecp-builder
-          pr-number: ${{ github.event.pull_request.number }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-  # ===========================================================================
-  # JOB: Detect which modules changed
-  # ===========================================================================
-  module-diff:
-    name: Detect Changed Modules
-    if: github.event.action != 'closed'
-    runs-on: ubuntu-latest
-    outputs:
-      modules: ${{ steps.filter.outputs.changes }}
-      has_changes: ${{ steps.filter.outputs.changes != '[]' }}
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-      - name: Generate paths-filter config from go.work
-        run: make -s print-paths-filter > .paths-filter.yml
-      - id: filter
-        uses: dorny/paths-filter@v3
-        with:
-          filters: .paths-filter.yml
-
-  # ===========================================================================
-  # JOB: Generate API artifacts (inside builder container)
-  # ===========================================================================
-  generate-api:
-    needs: builder-publish-pr
-    name: Generate API artifacts
-    if: github.event.action != 'closed'
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/eu-sovereign-cloud/ecp-builder:pr-${{ github.event.pull_request.number }}
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          submodules: 'recursive'
-      - name: Run generate-api
-        run: make generate-api
-      - name: Check for uncommitted changes
-        run: |
-          if [ -n "$(git status --porcelain)" ]; then
-            echo "::error::make generate-api produced changes. Please run 'make generate-api' and commit the results."
-            git diff
-            git status
-            exit 1
-          fi
-
-  # ===========================================================================
-  # JOB: Workspace verify (inside builder container)
+  # Stage 3: Ensure workspace is in sync (inside builder container)
   # ===========================================================================
   workspace-verify:
     needs: builder-publish-pr
-    name: Workspace Verify
+    name: Ensure Workspace Is In Sync
     if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     container:
@@ -168,10 +151,31 @@ jobs:
         run: make workspace-verify
 
   # ===========================================================================
-  # JOB: Tests (per changed module, inside builder container)
+  # Stage 3: Ensure generated API artifacts are in sync (inside builder container)
+  # ===========================================================================
+  generate-api:
+    needs: builder-publish-pr
+    name: Ensure Generated API Artifacts Are In Sync
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/eu-sovereign-cloud/ecp-builder:pr-${{ github.event.pull_request.number }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          submodules: 'recursive'
+      - name: Run generate-api-verify
+        run: make generate-api-verify
+
+  # ===========================================================================
+  # Stage 4: Tests (per changed module, inside builder container)
   # ===========================================================================
   test:
-    needs: [module-diff, builder-publish-pr]
+    needs: [module-diff, builder-publish-pr, workspace-verify, generate-api]
     if: github.event.action != 'closed' && needs.module-diff.outputs.has_changes == 'true'
     runs-on: ubuntu-latest
     strategy:
@@ -193,10 +197,10 @@ jobs:
         run: make ${{ matrix.module }}-test
 
   # ===========================================================================
-  # JOB: Lint via golangci-lint (per changed module, inside builder container)
+  # Stage 4: Lint via golangci-lint (per changed module, inside builder container)
   # ===========================================================================
   lint:
-    needs: [module-diff, builder-publish-pr]
+    needs: [module-diff, builder-publish-pr, workspace-verify, generate-api]
     if: github.event.action != 'closed' && needs.module-diff.outputs.has_changes == 'true'
     runs-on: ubuntu-latest
     strategy:
@@ -218,7 +222,7 @@ jobs:
         run: make ${{ matrix.module }}-lint
 
   # ===========================================================================
-  # JOB: Format check via golangci-lint fmt (per changed module)
+  # Stage 4: Format check via golangci-lint fmt (per changed module)
   #
   # Runs `make <module>-gofmt-check` which invokes `golangci-lint fmt --diff`
   # and fails if any diff is produced. Mirrors the lint/vuln/gosec jobs: one
@@ -226,7 +230,7 @@ jobs:
   # golangci-lint version matches GOLANGCI_LINT_VERSION in .config.mk.
   # ===========================================================================
   gofmt:
-    needs: [module-diff, builder-publish-pr]
+    needs: [module-diff, builder-publish-pr, workspace-verify, generate-api]
     if: github.event.action != 'closed' && needs.module-diff.outputs.has_changes == 'true'
     runs-on: ubuntu-latest
     strategy:
@@ -248,7 +252,7 @@ jobs:
         run: make ${{ matrix.module }}-gofmt-check
 
   # ===========================================================================
-  # JOB: Vulnerability check via govulncheck (per changed module)
+  # Stage 4: Vulnerability check via govulncheck (per changed module)
   #
   # Runs inside the per-PR builder image so the govulncheck version matches the
   # pinned GOVULNCHECK_VERSION in .config.mk — no @latest drift, no setup-go.
@@ -256,7 +260,7 @@ jobs:
   # single-module mode.
   # ===========================================================================
   vuln:
-    needs: [module-diff, builder-publish-pr]
+    needs: [module-diff, builder-publish-pr, workspace-verify, generate-api]
     if: github.event.action != 'closed' && needs.module-diff.outputs.has_changes == 'true'
     runs-on: ubuntu-latest
     strategy:
@@ -278,10 +282,10 @@ jobs:
         run: make ${{ matrix.module }}-vuln
 
   # ===========================================================================
-  # JOB: Security scanning via gosec (per changed module, inside builder container)
+  # Stage 4: Security scanning via gosec (per changed module, inside builder container)
   # ===========================================================================
   gosec:
-    needs: [module-diff, builder-publish-pr]
+    needs: [module-diff, builder-publish-pr, workspace-verify, generate-api]
     if: github.event.action != 'closed' && needs.module-diff.outputs.has_changes == 'true'
     runs-on: ubuntu-latest
     strategy:
@@ -303,13 +307,25 @@ jobs:
         run: make ${{ matrix.module }}-gosec
 
   # ===========================================================================
-  # JOB: Validate PR title (conventional commits)
+  # Builder image — cleanup when the PR closes
   # ===========================================================================
-  pr-title:
-    name: Validate PR Title
-    if: always() && github.event.action != 'closed'
+  builder-cleanup:
+    name: Cleanup PR Builder Image
+    if: github.event.action == 'closed'
     runs-on: ubuntu-latest
+
+    concurrency:
+      group: builder-pr-cleanup-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
+
     steps:
-      - uses: amannn/action-semantic-pull-request@v6
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Delete per-PR tags from GHCR
+        uses: ./.github/actions/ghcr-delete-pr-tags
+        with:
+          owner: eu-sovereign-cloud
+          package: ecp-builder
+          pr-number: ${{ github.event.pull_request.number }}
+          token: ${{ secrets.GITHUB_TOKEN }}
