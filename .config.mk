@@ -93,6 +93,9 @@ DOCKER_CLI_VERSION?=27.5.1
 KIND_VERSION?=v0.29.0
 KUBECTL_VERSION?=v1.33.0
 
+# GitHub CLI (used by branch-rebase-verify for local PR base discovery)
+GH_CLI_VERSION?=2.62.0
+
 ###############################################################################
 # Go development tools (installed to ci/tools/bin/ via tools-install)
 ###############################################################################

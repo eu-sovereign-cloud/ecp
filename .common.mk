@@ -188,6 +188,7 @@ tools-build: _builder-ensure-image
 	  --build-arg DOCKER_CLI_VERSION=$(DOCKER_CLI_VERSION) \
 	  --build-arg KIND_VERSION=$(KIND_VERSION) \
 	  --build-arg KUBECTL_VERSION=$(KUBECTL_VERSION) \
+	  --build-arg GH_CLI_VERSION=$(GH_CLI_VERSION) \
 	  -t $(TOOLS_IMAGE) \
 	  -f $(_REPO_ROOT)/$(TOOLS_DOCKERFILE) \
 	  $(_REPO_ROOT)
