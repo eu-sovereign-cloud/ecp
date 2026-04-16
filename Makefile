@@ -172,7 +172,7 @@ generate-api:
 .PHONY: generate-api-verify
 generate-api-verify: generate-api
 	@$(_REPO_ROOT)/ci/scripts/verify-run.sh generate-api-verify "Generated API artifacts are in sync" -- \
-	  $(_REPO_ROOT)/ci/scripts/git-tree-clean-verify.sh $(_REPO_ROOT) generate-api "make generate-api"
+	  $(_REPO_ROOT)/ci/scripts/git-tree-clean-verify.sh $(_REPO_ROOT) generate-api "make generate-api" foundation/persistence/
 
 ###############################################################################
 # Per-module: go mod tidy
@@ -251,7 +251,7 @@ workspace-sync:
 .PHONY: workspace-verify
 workspace-verify: workspace-sync
 	@$(_REPO_ROOT)/ci/scripts/verify-run.sh workspace-verify "Go workspace is in sync" -- \
-	  $(_REPO_ROOT)/ci/scripts/git-tree-clean-verify.sh $(_REPO_ROOT) workspace-sync "make workspace-sync"
+	  $(_REPO_ROOT)/ci/scripts/git-tree-clean-verify.sh $(_REPO_ROOT) workspace-sync "make workspace-sync" go.work go.work.sum
 
 ###############################################################################
 # GitHub CLI token provisioning
@@ -305,9 +305,22 @@ branch-rebase-verify:
 #   make pre-merge-ctzd           # inside tools container
 #
 # Mirrors the CI pipeline stages but runs all modules (no change filtering).
-# Prerequisites are ordered to match CI: rebase gate → sync checks → quality.
+# Prerequisites are ordered to match CI: rebase gate → all verification jobs.
 # If any stage fails make stops — same fail-fast behaviour as CI.
 ###############################################################################
+
+###############################################################################
+# Pre-commit: quick local check before committing
+#
+#   make pre-commit                # on host
+#   make pre-commit-ctzd           # inside tools container
+#
+# Same as pre-merge but skips the branch-rebase and workspace-sync checks,
+# which are only meaningful right before pushing / merging.
+###############################################################################
+
+.PHONY: pre-commit
+pre-commit: generate-api-verify test lint gofmt-check vuln gosec
 
 .PHONY: pre-merge
 pre-merge: gh-token-ensure branch-rebase-verify workspace-verify generate-api-verify test lint gofmt-check vuln gosec
