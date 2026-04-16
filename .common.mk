@@ -159,9 +159,7 @@ _CTZD_RUN_FLAGS := \
   -e HOST_SOCKET=$(_CTZD_SOCKET) \
   -e GOPATH=$(CONTAINER_WORKSPACE)/.cache/go \
   -e GOCACHE=$(CONTAINER_WORKSPACE)/.cache/go-build \
-  -e KIND_EXPERIMENTAL_PROVIDER=docker \
-  $(if $(GH_TOKEN),-e GH_TOKEN=$(GH_TOKEN)) \
-  $(if $(BASE_REF),-e BASE_REF=$(BASE_REF))
+  -e KIND_EXPERIMENTAL_PROVIDER=docker
 
 ###############################################################################
 # Image build targets (3-layer chain: builder -> tools -> dev)
@@ -290,6 +288,8 @@ images-clean: dev-image-clean tools-image-clean builder-image-clean
 %-ctzd: _tools-ensure-image
 	docker run \
 	  $(_CTZD_RUN_FLAGS) \
+	  $(if $(GH_TOKEN),-e GH_TOKEN=$(GH_TOKEN)) \
+	  $(if $(BASE_REF),-e BASE_REF=$(BASE_REF)) \
 	  $(TOOLS_IMAGE) \
 	  make $* \
 	    $(if $(RUN),RUN='$(RUN)') \
