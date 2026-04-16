@@ -171,6 +171,18 @@ gosec: $(addsuffix -gosec,$(GO_MODULES))
 generate-api:
 	$(MAKE) -C $(_REPO_ROOT)/foundation/persistence generate-all
 
+# generate-api-verify — same as generate-api but fails if the tree is dirty
+# afterwards. This is what CI runs; developers use `generate-api` directly.
+# Mirrors the workspace-verify pattern so both targets stay consistent.
+.PHONY: generate-api-verify
+generate-api-verify: generate-api
+	@if [ -n "$$(cd $(_REPO_ROOT) && git status --porcelain)" ]; then \
+	  echo "::error::generate-api produced changes. Please run 'make generate-api' and commit the results."; \
+	  cd $(_REPO_ROOT) && git diff; \
+	  cd $(_REPO_ROOT) && git status; \
+	  exit 1; \
+	fi
+
 ###############################################################################
 # Per-module: go mod tidy
 #
