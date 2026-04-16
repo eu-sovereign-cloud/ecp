@@ -13,6 +13,15 @@ print-%:
 	@echo $($*)
 
 ###############################################################################
+# Git submodules
+###############################################################################
+
+.PHONY: submodules
+submodules:
+	@git submodule sync
+	@git submodule update --init --recursive
+
+###############################################################################
 # Per-module vulnerability check (govulncheck)
 #
 # Usage:
