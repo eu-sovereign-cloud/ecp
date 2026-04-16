@@ -53,7 +53,7 @@ runs:
             - '.common.mk'
             - 'Makefile'
             - '.github/workflows/builder-publish.yaml'
-            - '.github/workflows/pr-checks.yaml'
+            - '.github/workflows/pre-merge.yaml'
             - '.github/actions/builder-build-push/**'
             - '.github/actions/builder-pr-publish/**'
 

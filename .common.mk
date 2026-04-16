@@ -26,7 +26,7 @@ GO_MODULES_EXCLUDE := \
 GO_MODULES := $(filter-out $(GO_MODULES_EXCLUDE),$(_GO_WORK_MODULES))
 
 # Emit a dorny/paths-filter filter set derived from GO_MODULES. Used by
-# .github/workflows/pr-checks.yaml so the CI matrix follows the workspace
+# .github/workflows/pre-merge.yaml so the CI matrix follows the workspace
 # automatically — add a module to go.work and the PR filter picks it up.
 #
 # Output format (one entry per module):
@@ -295,6 +295,9 @@ images-clean: dev-image-clean tools-image-clean builder-image-clean
 	    $(if $(RUN),RUN='$(RUN)') \
 	    $(if $(PKG),PKG='$(PKG)') \
 	    $(if $(RELPATH),RELPATH='$(RELPATH)')
+
+# %-container is an alias for %-ctzd.
+%-container: ; @$(MAKE) $*-ctzd
 
 ###############################################################################
 # Persistent dev container helpers

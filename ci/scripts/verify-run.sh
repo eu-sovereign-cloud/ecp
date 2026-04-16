@@ -53,11 +53,8 @@ _result="Result: ${RESULT}"
 {
   echo ""
   printf "${BC}%s${RST}\n" "${_border}"
-  printf "${BC}#%*s#${RST}\n" $((WIDTH - 2)) ""
   printf "${BC}# ${TC}%-${INNER}s${BC} #${RST}\n" "${_title}"
-  printf "${BC}#%*s#${RST}\n" $((WIDTH - 2)) ""
   printf "${BC}# ${TC}%-${INNER}s${BC} #${RST}\n" "${_result}"
-  printf "${BC}#%*s#${RST}\n" $((WIDTH - 2)) ""
   printf "${BC}%s${RST}\n" "${_border}"
   echo ""
 } >&${FD}

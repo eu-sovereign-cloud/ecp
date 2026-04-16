@@ -123,7 +123,7 @@ Deleting a Tenant cascades to all its Workspaces; deleting a Workspace cascades 
 
 ## CI
 
-Pull request checks are defined in [`.github/workflows/pr-checks.yaml`](.github/workflows/pr-checks.yaml) and include module-aware testing, linting (`golangci-lint`), and security scanning (`govulncheck`, `gosec`).
+Pull request checks are defined in [`.github/workflows/pre-merge.yaml`](.github/workflows/pre-merge.yaml) and include module-aware testing, linting (`golangci-lint`), and security scanning (`govulncheck`, `gosec`).
 
 ---
 

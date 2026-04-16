@@ -1,4 +1,4 @@
-name: Workspace CI
+name: Pre-Merge
 
 # This workflow is the single entry point for all pull-request checks.
 #
@@ -34,20 +34,19 @@ name: Workspace CI
 # Job execution order (fail-cheap / fail-fast):
 #
 #   Stage 1 — cheap gates, no deps (parallel)
-#     pr-title      Validate PR Title
-#     module-diff   Detect Changed Modules
+#     pr-title        Validate PR Title
+#     module-diff     Detect Changed Modules
+#     branch-rebase   Verify Branch Is Rebased
 #
 #   Stage 2 — build builder image (gated by stage 1)
-#     builder-publish-pr   Publish PR Builder Image
-#       needs: [pr-title, module-diff]
+#     builder-publish-pr   Provide PR Builder Image
+#       needs: [pr-title, module-diff, branch-rebase]
 #       skipped when no modules changed → nothing else runs
 #
-#   Stage 3 — workspace / API sync checks (gated by stage 2, parallel)
+#   Stage 3 — all verification jobs (gated by stage 2, parallel)
 #     workspace-verify   Ensure Workspace Is In Sync
 #     generate-api       Ensure Generated API Artifacts Are In Sync
-#
-#   Stage 4 — quality jobs per changed module (gated by stages 2+3)
-#     test / lint / gofmt / vuln / gosec
+#     test / lint / gofmt / vuln / gosec  (per changed module)
 #
 #   Cleanup — only on action == 'closed', independent of all above
 #     builder-cleanup   Cleanup PR Builder Image
@@ -189,10 +188,10 @@ jobs:
         run: make generate-api-verify
 
   # ===========================================================================
-  # Stage 4: Tests (per changed module, inside builder container)
+  # Stage 3: Tests (per changed module, inside builder container)
   # ===========================================================================
   test:
-    needs: [module-diff, builder-publish-pr, workspace-verify, generate-api]
+    needs: [module-diff, builder-publish-pr]
     if: github.event.action != 'closed' && needs.module-diff.outputs.has_changes == 'true'
     runs-on: ubuntu-latest
     strategy:
@@ -214,10 +213,10 @@ jobs:
         run: make ${{ matrix.module }}-test
 
   # ===========================================================================
-  # Stage 4: Lint via golangci-lint (per changed module, inside builder container)
+  # Stage 3: Lint via golangci-lint (per changed module, inside builder container)
   # ===========================================================================
   lint:
-    needs: [module-diff, builder-publish-pr, workspace-verify, generate-api]
+    needs: [module-diff, builder-publish-pr]
     if: github.event.action != 'closed' && needs.module-diff.outputs.has_changes == 'true'
     runs-on: ubuntu-latest
     strategy:
@@ -239,7 +238,7 @@ jobs:
         run: make ${{ matrix.module }}-lint
 
   # ===========================================================================
-  # Stage 4: Format check via golangci-lint fmt (per changed module)
+  # Stage 3: Format check via golangci-lint fmt (per changed module)
   #
   # Runs `make <module>-gofmt-check` which invokes `golangci-lint fmt --diff`
   # and fails if any diff is produced. Mirrors the lint/vuln/gosec jobs: one
@@ -247,7 +246,7 @@ jobs:
   # golangci-lint version matches GOLANGCI_LINT_VERSION in .config.mk.
   # ===========================================================================
   gofmt:
-    needs: [module-diff, builder-publish-pr, workspace-verify, generate-api]
+    needs: [module-diff, builder-publish-pr]
     if: github.event.action != 'closed' && needs.module-diff.outputs.has_changes == 'true'
     runs-on: ubuntu-latest
     strategy:
@@ -269,7 +268,7 @@ jobs:
         run: make ${{ matrix.module }}-gofmt-check
 
   # ===========================================================================
-  # Stage 4: Vulnerability check via govulncheck (per changed module)
+  # Stage 3: Vulnerability check via govulncheck (per changed module)
   #
   # Runs inside the per-PR builder image so the govulncheck version matches the
   # pinned GOVULNCHECK_VERSION in .config.mk — no @latest drift, no setup-go.
@@ -277,7 +276,7 @@ jobs:
   # single-module mode.
   # ===========================================================================
   vuln:
-    needs: [module-diff, builder-publish-pr, workspace-verify, generate-api]
+    needs: [module-diff, builder-publish-pr]
     if: github.event.action != 'closed' && needs.module-diff.outputs.has_changes == 'true'
     runs-on: ubuntu-latest
     strategy:
@@ -299,10 +298,10 @@ jobs:
         run: make ${{ matrix.module }}-vuln
 
   # ===========================================================================
-  # Stage 4: Security scanning via gosec (per changed module, inside builder container)
+  # Stage 3: Security scanning via gosec (per changed module, inside builder container)
   # ===========================================================================
   gosec:
-    needs: [module-diff, builder-publish-pr, workspace-verify, generate-api]
+    needs: [module-diff, builder-publish-pr]
     if: github.event.action != 'closed' && needs.module-diff.outputs.has_changes == 'true'
     runs-on: ubuntu-latest
     strategy:
