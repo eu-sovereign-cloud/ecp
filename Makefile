@@ -267,6 +267,41 @@ workspace-verify: workspace-sync
 	fi
 
 ###############################################################################
+# GitHub CLI token provisioning
+#
+#   make gh-token-ensure                # validate or re-authenticate
+#   make gh-token-ensure-ctzd           # inside tools container (has gh)
+#
+# Stores the token in .cache/gh-token so it is available to both the host
+# and tools container (the .cache/ directory is volume-mounted by -ctzd).
+# GH_TOKEN is auto-loaded from this file when not set in the environment.
+#
+# The recipe validates the cached token with `gh api /user`. If the token is
+# missing or expired it triggers `gh auth login` (interactive) then persists
+# the fresh token.
+###############################################################################
+
+_GH_TOKEN_FILE := $(_REPO_ROOT)/.cache/gh-token
+
+# Auto-load GH_TOKEN from cached file when not already set in the environment.
+GH_TOKEN ?= $(shell cat $(_GH_TOKEN_FILE) 2>/dev/null)
+export GH_TOKEN
+
+.PHONY: gh-token-ensure
+gh-token-ensure:
+	@if [ -n "$$GH_TOKEN" ] && GH_TOKEN="$$GH_TOKEN" gh api /user >/dev/null 2>&1; then \
+	  echo "==> gh-token: valid"; \
+	else \
+	  echo "==> gh-token: no valid token — starting authentication"; \
+	  gh auth login; \
+	  token=$$(gh auth token) || { echo "::error::gh auth token failed"; exit 1; }; \
+	  mkdir -p $(_REPO_ROOT)/.cache; \
+	  printf '%s' "$$token" > $(_GH_TOKEN_FILE); \
+	  export GH_TOKEN="$$token"; \
+	  echo "==> gh-token: saved to .cache/gh-token"; \
+	fi
+
+###############################################################################
 # Verify the current branch is rebased onto its PR target
 #
 #   make branch-rebase-verify                 # discovers base via `gh pr view`
@@ -289,8 +324,9 @@ branch-rebase-verify:
 	    echo "::error::gh CLI not found; install it or run with BASE_REF=<branch>"; \
 	    exit 2; \
 	  fi; \
-	  base_ref=$$(gh pr view --json baseRefName -q .baseRefName 2>/dev/null) || { \
-	    echo "::error::could not resolve PR base branch via gh (no open PR for HEAD?); set BASE_REF=<branch>"; \
+	  base_ref=$$(gh pr view --json baseRefName -q .baseRefName 2>/dev/null) || \
+	  base_ref=$$(gh repo view --json defaultBranchRef -q .defaultBranchRef.name 2>/dev/null) || { \
+	    echo "::error::could not resolve target branch via gh; set BASE_REF=<branch>"; \
 	    exit 2; \
 	  }; \
 	fi; \
@@ -306,6 +342,20 @@ branch-rebase-verify:
 	  exit 1; \
 	fi; \
 	echo "OK: HEAD is rebased onto origin/$$base_ref"
+
+###############################################################################
+# Pre-merge: run the full CI check suite locally
+#
+#   make pre-merge                # on host
+#   make pre-merge-ctzd           # inside tools container
+#
+# Mirrors the CI pipeline stages but runs all modules (no change filtering).
+# Prerequisites are ordered to match CI: rebase gate → sync checks → quality.
+# If any stage fails make stops — same fail-fast behaviour as CI.
+###############################################################################
+
+.PHONY: pre-merge
+pre-merge: gh-token-ensure branch-rebase-verify workspace-verify generate-api-verify test lint gofmt-check vuln gosec
 
 ###############################################################################
 # Workspace membership: add / remove a module from go.work

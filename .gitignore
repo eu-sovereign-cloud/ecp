@@ -25,6 +25,7 @@ ci/tools/bin/
 /.vscode/
 /.idea/
 /.claude/
+/.ssh/
 
 .DS_Store
 scripts/common-template/dist/
