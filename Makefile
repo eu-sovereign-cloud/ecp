@@ -31,8 +31,8 @@ print-%:
 
 .PHONY: %-vuln
 %-vuln: tools-install
-	@echo "==> vuln: $*"
-	cd $(_REPO_ROOT)/$* && govulncheck ./...
+	@$(_REPO_ROOT)/ci/scripts/verify-run.sh "$*-vuln" "Vulnerability scan" -- \
+	  sh -c "cd $(_REPO_ROOT)/$* && govulncheck ./..."
 
 .PHONY: vuln
 vuln: $(addsuffix -vuln,$(GO_MODULES))
@@ -61,8 +61,8 @@ RUN ?=
 
 .PHONY: %-test
 %-test:
-	@echo "==> test: $*$(if $(RUN), (filter: $(RUN)))"
-	cd $(_REPO_ROOT)/$* && go test -race -v $(if $(RUN),-run '$(RUN)') ./...
+	@$(_REPO_ROOT)/ci/scripts/verify-run.sh "$*-test" "Unit tests" -- \
+	  sh -c "cd $(_REPO_ROOT)/$* && go test -race -v $(if $(RUN),-run '$(RUN)') ./..."
 
 .PHONY: test
 test: $(addsuffix -test,$(GO_MODULES))
@@ -81,8 +81,8 @@ test: $(addsuffix -test,$(GO_MODULES))
 
 .PHONY: %-lint
 %-lint: tools-install
-	@echo "==> lint: $*"
-	cd $(_REPO_ROOT)/$* && golangci-lint run --timeout 10m0s ./...
+	@$(_REPO_ROOT)/ci/scripts/verify-run.sh "$*-lint" "Lint" -- \
+	  sh -c "cd $(_REPO_ROOT)/$* && golangci-lint run --timeout 10m0s ./..."
 
 .PHONY: lint
 lint: $(addsuffix -lint,$(GO_MODULES))
@@ -119,13 +119,8 @@ gofmt: $(addsuffix -gofmt,$(GO_MODULES))
 
 .PHONY: %-gofmt-check
 %-gofmt-check: tools-install
-	@echo "==> gofmt-check: $*"
-	@diff=$$(cd $(_REPO_ROOT)/$* && golangci-lint fmt --diff ./... 2>&1); \
-	if [ -n "$$diff" ]; then \
-	  printf '%s\n' "$$diff"; \
-	  echo "FAIL: $* has unformatted files (run: make $*-gofmt)"; \
-	  exit 1; \
-	fi
+	@$(_REPO_ROOT)/ci/scripts/verify-run.sh "$*-gofmt-check" "Format check" -- \
+	  $(_REPO_ROOT)/ci/scripts/gofmt-check.sh $(_REPO_ROOT)/$* $*
 
 .PHONY: gofmt-check
 gofmt-check: $(addsuffix -gofmt-check,$(GO_MODULES))
@@ -145,8 +140,8 @@ gofmt-check: $(addsuffix -gofmt-check,$(GO_MODULES))
 
 .PHONY: %-gosec
 %-gosec: tools-install
-	@echo "==> gosec: $*"
-	cd $(_REPO_ROOT)/$* && gosec ./...
+	@$(_REPO_ROOT)/ci/scripts/verify-run.sh "$*-gosec" "Security scan" -- \
+	  sh -c "cd $(_REPO_ROOT)/$* && gosec ./..."
 
 .PHONY: gosec
 gosec: $(addsuffix -gosec,$(GO_MODULES))
@@ -176,7 +171,8 @@ generate-api:
 # Mirrors the workspace-verify pattern so both targets stay consistent.
 .PHONY: generate-api-verify
 generate-api-verify: generate-api
-	@$(_REPO_ROOT)/ci/scripts/git-tree-clean-verify.sh $(_REPO_ROOT) generate-api "make generate-api"
+	@$(_REPO_ROOT)/ci/scripts/verify-run.sh generate-api-verify "Generated API artifacts are in sync" -- \
+	  $(_REPO_ROOT)/ci/scripts/git-tree-clean-verify.sh $(_REPO_ROOT) generate-api "make generate-api"
 
 ###############################################################################
 # Per-module: go mod tidy
@@ -254,7 +250,8 @@ workspace-sync:
 
 .PHONY: workspace-verify
 workspace-verify: workspace-sync
-	@$(_REPO_ROOT)/ci/scripts/git-tree-clean-verify.sh $(_REPO_ROOT) workspace-sync "make workspace-sync"
+	@$(_REPO_ROOT)/ci/scripts/verify-run.sh workspace-verify "Go workspace is in sync" -- \
+	  $(_REPO_ROOT)/ci/scripts/git-tree-clean-verify.sh $(_REPO_ROOT) workspace-sync "make workspace-sync"
 
 ###############################################################################
 # GitHub CLI token provisioning
@@ -298,7 +295,8 @@ gh-token-ensure:
 
 .PHONY: branch-rebase-verify
 branch-rebase-verify:
-	@$(_REPO_ROOT)/ci/scripts/branch-rebase-verify.sh $(_REPO_ROOT)
+	@$(_REPO_ROOT)/ci/scripts/verify-run.sh branch-rebase-verify "Branch is rebased onto target" -- \
+	  $(_REPO_ROOT)/ci/scripts/branch-rebase-verify.sh $(_REPO_ROOT)
 
 ###############################################################################
 # Pre-merge: run the full CI check suite locally

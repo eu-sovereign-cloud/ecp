@@ -16,9 +16,11 @@ repo_root="${1:?Usage: git-tree-clean-verify.sh <repo-root> <action> <remediatio
 action="${2:?Usage: git-tree-clean-verify.sh <repo-root> <action> <remediation>}"
 remediation="${3:?Usage: git-tree-clean-verify.sh <repo-root> <action> <remediation>}"
 
-if [ -n "$(cd "${repo_root}" && git status --porcelain)" ]; then
-  echo "::error::${action} produced changes. Please run '${remediation}' and commit the results."
-  cd "${repo_root}" && git diff
-  cd "${repo_root}" && git status
+dirty=$(cd "${repo_root}" && git status --porcelain)
+if [ -n "${dirty}" ]; then
+  echo "::error::${action} produced uncommitted changes in:"
+  echo "${dirty}" | awk '{print "  " $2}'
+  echo ""
+  echo "  Run '${remediation}' and commit the results."
   exit 1
 fi
