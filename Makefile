@@ -390,6 +390,9 @@ else
 	  -e HOST_SOCKET=$(_CTZD_SOCKET) \
 	  -e DEV_SSH_PORT=$(DEV_SSH_PORT) \
 	  -e KIND_EXPERIMENTAL_PROVIDER=docker \
+	  -e GOPATH=$(CONTAINER_WORKSPACE)/.cache/go \
+	  -e GOCACHE=$(CONTAINER_WORKSPACE)/.cache/go-build \
+	  $(if $(GH_TOKEN),-e GH_TOKEN=$(GH_TOKEN)) \
 	  $(DEV_IMAGE)
 	@echo ""
 	@echo "Dev container '$(DEV_CONTAINER_NAME)' started."

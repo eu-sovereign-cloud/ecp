@@ -25,6 +25,15 @@ fi
 
 echo "==> gh-token: no valid token — starting authentication" >&2
 
+if ! command -v gh >/dev/null 2>&1; then
+  echo "::error::gh CLI not found on PATH." >&2
+  echo "  If running inside a container, rebuild the image:" >&2
+  echo "    make tools-build   (then reopen the container)" >&2
+  echo "  If running on the host, install gh:" >&2
+  echo "    https://github.com/cli/cli#installation" >&2
+  exit 1
+fi
+
 gh auth login
 
 token=$(gh auth token) || {

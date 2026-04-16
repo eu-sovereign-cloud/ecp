@@ -36,4 +36,5 @@ scripts/common-template/dist/
 
 # Devcontainer generated files (host-specific, written by devcontainer-init.sh)
 /.devcontainer/.env
+/.devcontainer/.image-id
 /.devcontainer/compose.override.yml

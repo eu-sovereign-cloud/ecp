@@ -27,6 +27,10 @@ HOST_SOCKET="$("${_SCRIPT_DIR}/container-socket-path.sh" "${BACKEND}")"
 # Resolve TOOLS_IMAGE from the Makefile so we stay in sync with .config.mk.
 TOOLS_IMAGE="$(make -C "${_REPO_ROOT}" -s print-TOOLS_IMAGE)"
 
+# Ensure the tools image exists locally — mirrors what _tools-ensure-image does
+# for -ctzd targets so the devcontainer always starts from a current image.
+make -C "${_REPO_ROOT}" _tools-ensure-image
+
 # On Docker, the socket is root:docker (0660).  Pass the socket's GID as
 # --group-add so the container user can run docker commands.  On Podman the
 # socket is user-owned via userns mapping — no extra group needed.
@@ -78,6 +82,32 @@ services:
     group_add:
       - "${DOCKER_SOCK_GID}"
 YAML
+fi
+
+# ---------------------------------------------------------------------------
+# Detect stale devcontainer
+# ---------------------------------------------------------------------------
+# Docker Compose does not recreate containers when an image is rebuilt under
+# the same tag. We track the image digest between runs and remove any stale
+# container so compose creates a fresh one from the updated image.
+
+_IMAGE_ID=$(docker image inspect --format '{{.Id}}' "${TOOLS_IMAGE}" 2>/dev/null || true)
+_ID_FILE="${_DC_DIR}/.image-id"
+_PREV_ID=$(cat "${_ID_FILE}" 2>/dev/null || true)
+
+[ -n "${_IMAGE_ID}" ] && printf '%s' "${_IMAGE_ID}" > "${_ID_FILE}"
+
+if [ -n "${_PREV_ID}" ] && [ -n "${_IMAGE_ID}" ] && [ "${_PREV_ID}" != "${_IMAGE_ID}" ]; then
+  echo "devcontainer-init: tools image was rebuilt — removing stale container..."
+  # Find running containers that were created with TOOLS_IMAGE but now have a
+  # stale image digest. Only check running containers to keep the scan fast.
+  while IFS= read -r cid; do
+    [ -z "${cid}" ] && continue
+    _cfg=$(docker inspect --format '{{.Config.Image}}' "${cid}" 2>/dev/null || true)
+    if [ "${_cfg}" = "${TOOLS_IMAGE}" ]; then
+      docker rm -f "${cid}" 2>/dev/null || true
+    fi
+  done < <(docker ps -q 2>/dev/null)
 fi
 
 echo "devcontainer-init: backend=${BACKEND}  socket=${HOST_SOCKET}  image=${TOOLS_IMAGE}"
