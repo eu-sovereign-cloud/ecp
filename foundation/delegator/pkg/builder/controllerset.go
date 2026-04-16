@@ -75,9 +75,12 @@ func NewControllerSet(config *rest.Config, k8sClient client.Client, plugins Plug
 	}
 
 	// 5. Create the controllers
+	bs := newBlockStorageController(k8sClient, dynamicClient, plugins.BlockStorage, o)
+	ws := newWorkspaceController(k8sClient, dynamicClient, clientset, plugins.Workspace, o)
+
 	return &ControllerSet{
-		blockStorage: new(newBlockStorageController(k8sClient, dynamicClient, plugins.BlockStorage, o)),
-		workspace:    new(newWorkspaceController(k8sClient, dynamicClient, clientset, plugins.Workspace, o)),
+		blockStorage: &bs,
+		workspace:    &ws,
 	}, nil
 }
 
