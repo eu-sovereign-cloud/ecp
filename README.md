@@ -67,13 +67,13 @@ make tools-build   BUILDER_SOURCE=local   # use the local build downstream
 ### Generate code and CRDs
 
 ```bash
-make -C foundation generate-all
+make generate-api
 ```
 
 ### Set up local development clusters
 
 ```bash
-make -C foundation create-dev-clusters
+make -C foundation/gateway create-dev-clusters
 ```
 
 ### Run the API servers
