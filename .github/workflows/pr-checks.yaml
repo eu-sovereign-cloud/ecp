@@ -17,6 +17,19 @@ name: Workspace CI
 # Downstream jobs that run inside the builder container reference:
 #   ghcr.io/eu-sovereign-cloud/ecp-builder:pr-${{ github.event.pull_request.number }}
 # They must declare `needs: builder-publish-pr` to ensure the tag is ready.
+#
+# NOTE on checkout ref: every `actions/checkout` in this workflow pins to
+# `github.event.pull_request.head.sha` instead of using the default. The
+# default on `pull_request` events is `refs/pull/<N>/merge` — a synthetic
+# commit merging the PR head onto the current base, which means validation
+# runs against "PR + everything new on main since branching." That causes
+# surprise failures when main regresses: an unrelated PR merged to main
+# turns every other open PR's CI red even though none of them touched the
+# broken file. Pinning to head.sha makes CI see exactly the tree the
+# contributor sees locally — the same commit they just pushed — so what
+# you lint locally is what CI lints. The classic trade-off is that
+# semantic merges with main aren't caught; branch protection's
+# "require branches up to date before merging" covers that case.
 
 on:
   pull_request:
@@ -47,6 +60,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           # Full history so paths-filter can diff PR HEAD against the base.
           fetch-depth: 0
 
@@ -94,6 +108,8 @@ jobs:
       has_changes: ${{ steps.filter.outputs.changes != '[]' }}
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
       - name: Generate paths-filter config from go.work
         run: make -s print-paths-filter > .paths-filter.yml
       - id: filter
@@ -117,6 +133,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           submodules: 'recursive'
       - name: Run generate-api
         run: make generate-api
@@ -145,6 +162,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           submodules: 'recursive'
       - name: Run workspace-verify
         run: make workspace-verify
@@ -169,6 +187,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           submodules: 'recursive'
       - name: Run tests
         run: make ${{ matrix.module }}-test
@@ -193,6 +212,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           submodules: 'recursive'
       - name: Run golangci-lint
         run: make ${{ matrix.module }}-lint
@@ -222,6 +242,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           submodules: 'recursive'
       - name: Run gofmt check
         run: make ${{ matrix.module }}-gofmt-check
@@ -251,6 +272,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           submodules: 'recursive'
       - name: Run vuln
         run: make ${{ matrix.module }}-vuln
@@ -275,6 +297,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           submodules: 'recursive'
       - name: Run gosec
         run: make ${{ matrix.module }}-gosec
