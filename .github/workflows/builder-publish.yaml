@@ -101,4 +101,3 @@ jobs:
           base: main
           add-paths: .builder-digest
           delete-branch: true
-          sign-commits: false
