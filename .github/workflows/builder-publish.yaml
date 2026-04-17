@@ -8,9 +8,18 @@ name: Publish builder image
 # Developers pull automatically on the first `make tools-build` / `make dev-build`.
 # To build and test the builder locally: make builder-build BUILDER_SOURCE=local
 #
-# One-time setup (after the first successful run):
-#   Go to https://github.com/orgs/eu-sovereign-cloud/packages/container/ecp-builder/settings
-#   and set package visibility to Public so anonymous pulls work.
+# One-time setup (required before the first successful run):
+#   1. Package visibility: go to
+#      https://github.com/orgs/eu-sovereign-cloud/packages/container/ecp-builder/settings
+#      and set visibility to Public so anonymous pulls work.
+#   2. PR permission: in Settings → Actions → General → Workflow permissions,
+#      enable "Allow GitHub Actions to create and approve pull requests".
+#      Without this the digest-bump PR step fails with
+#      "GitHub Actions is not permitted to create or approve pull requests".
+#      Note: PRs opened by the default GITHUB_TOKEN do not retrigger
+#      on: pull_request workflows, so pre-merge.yaml will not run on the
+#      bump PR — this is intentional (the publish job already validated
+#      the image build).
 
 on:
   push:

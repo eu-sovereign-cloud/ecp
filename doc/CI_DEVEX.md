@@ -278,6 +278,10 @@ Triggered on push to `main` when builder-related files change (`ci/container/bui
 
 Runs are serialized (`cancel-in-progress: false`) so the second run benefits from the first's registry cache.
 
+**One-time repo setup required:**
+- **Package visibility:** after the first push, set the GHCR package to Public at `https://github.com/orgs/eu-sovereign-cloud/packages/container/ecp-builder/settings`.
+- **PR permission:** in **Settings → Actions → General → Workflow permissions**, enable *"Allow GitHub Actions to create and approve pull requests"*. Without this the digest-bump step fails with `"GitHub Actions is not permitted to create or approve pull requests"`. Because the bump PR is opened by the default `GITHUB_TOKEN`, `pre-merge.yaml` will not be triggered on it — this is intentional since the publish job already validated the image build.
+
 ### Adding a New Go Module to CI
 
 1. Create the module directory with a `go.mod` file.
