@@ -10,7 +10,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Go language server (gopls) for neovim, VSCode, GoLand
-RUN go install golang.org/x/tools/gopls@latest \
+ARG GOPLS_VERSION
+RUN go install golang.org/x/tools/gopls@${GOPLS_VERSION} \
     && mv "$(go env GOPATH)/bin/gopls" /usr/local/bin/gopls \
     && rm -rf "$(go env GOPATH)"
 

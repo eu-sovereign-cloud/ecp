@@ -16,6 +16,6 @@ fi
 DOCKER_BUILD_CONTEXT="${SCRIPT_DIR}/../../../.."
 DOCKERFILE_PATH="${SCRIPT_DIR}/../build/Dockerfile"
 
-docker build -t "${IMAGE_NAME}" -f "${DOCKERFILE_PATH}" "${DOCKER_BUILD_CONTEXT}"
+docker build --build-arg DLV_VERSION="${DLV_VERSION}" -t "${IMAGE_NAME}" -f "${DOCKERFILE_PATH}" "${DOCKER_BUILD_CONTEXT}"
 
 echo "Image built: ${IMAGE_NAME}"

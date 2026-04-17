@@ -1,5 +1,7 @@
 # Makefile for e2e Plugin
 
+include ../../../.config.mk
+
 # =====================================================================================
 # Variables
 # =====================================================================================
@@ -40,7 +42,7 @@ define build_rule
 .PHONY: build-$(1)
 build-$(1): ## Build the docker image for $(1)
 	@echo "Building image for $(1)..."
-	@./scripts/build.sh $(1)
+	@DLV_VERSION=$(DLV_VERSION) ./scripts/build.sh $(1)
 endef
 $(foreach comp,$(COMPONENTS),$(eval $(call build_rule,$(comp))))
 
