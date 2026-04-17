@@ -16,7 +16,7 @@ DOCKER_BUILD_CONTEXT="${SCRIPT_DIR}/../../../.."
 DOCKERFILE_PATH="${SCRIPT_DIR}/../build/${COMPONENT}/Dockerfile"
 
 # Build with the full name
-docker build -t "${FULL_IMAGE_NAME}" -f "${DOCKERFILE_PATH}" "${DOCKER_BUILD_CONTEXT}"
+docker build --build-arg DLV_VERSION="${DLV_VERSION}" -t "${FULL_IMAGE_NAME}" -f "${DOCKERFILE_PATH}" "${DOCKER_BUILD_CONTEXT}"
 echo "Image built: ${FULL_IMAGE_NAME}"
 
 # Re-tag for local/KIND use if the names are different

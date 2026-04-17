@@ -197,6 +197,7 @@ tools-build: _builder-ensure-image
 dev-build: _tools-ensure-image
 	docker build $(_DOCKER_BUILD_FLAGS) \
 	  --build-arg TOOLS_IMAGE=$(TOOLS_IMAGE) \
+	  --build-arg GOPLS_VERSION=$(GOPLS_VERSION) \
 	  -t $(DEV_IMAGE) \
 	  -f $(_REPO_ROOT)/$(DEV_DOCKERFILE) \
 	  $(_REPO_ROOT)

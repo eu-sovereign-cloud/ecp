@@ -175,7 +175,7 @@ Minimal distroless base (`gcr.io/distroless/static-debian13`) for production dep
 
 | File | Purpose |
 |------|---------|
-| `.config.mk` | Version pins (Go, tools, KIND, kubectl, gh CLI) and container registry coordinates |
+| `.config.mk` | Version pins (Go, tools, gopls, dlv, KIND, kubectl, gh CLI) and container registry coordinates |
 | `.common.mk` | Container backend detection, image build/ensure targets, `-ctzd` wrapper, persistent dev container targets |
 | `ci/tools/tools.mk` | `tools-install` target: installs Go dev tools to `ci/tools/bin/` |
 
