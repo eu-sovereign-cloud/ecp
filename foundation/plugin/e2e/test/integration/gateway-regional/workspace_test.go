@@ -77,7 +77,7 @@ func TestWorkspaceAPI(t *testing.T) {
 					Tenant: testTenant,
 				},
 			},
-			Spec: regionalmodel.WorkspaceSpec{},
+			Spec: regionalmodel.WorkspaceSpecDomain{},
 		}
 
 		err = workspaceRepo.Delete(t.Context(), wsDomain)

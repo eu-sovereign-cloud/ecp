@@ -1,10 +1,12 @@
 # Build the manager binary
-FROM golang:1.26.1-bookworm as builder
+FROM golang:1.26.2-bookworm as builder
+
+ARG DLV_VERSION
 
 WORKDIR /workspace
 
 # Install dlv for debugging
-RUN go install github.com/go-delve/delve/cmd/dlv@latest
+RUN go install github.com/go-delve/delve/cmd/dlv@${DLV_VERSION}
 
 # Copy all the sources
 COPY . .

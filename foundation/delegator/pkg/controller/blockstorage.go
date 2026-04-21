@@ -27,8 +27,8 @@ func NewBlockStorageController(
 	plugin plugin.BlockStorage,
 	requeueAfter time.Duration,
 	logger *slog.Logger,
-) *BlockStorageController {
-	return (*BlockStorageController)(NewGenericController[*regional.BlockStorageDomain](
+) BlockStorageController {
+	return (BlockStorageController)(NewGenericController[*regional.BlockStorageDomain](
 		client,
 		kubernetes.MapCRToBlockStorageDomain,
 		handler.NewBlockStoragePluginHandler(repo, plugin),

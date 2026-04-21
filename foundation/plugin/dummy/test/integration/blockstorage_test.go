@@ -35,7 +35,7 @@ func TestBlockStorage(t *testing.T) {
 					Workspace: "test-workspace",
 				},
 			},
-			Spec: regionalmodel.BlockStorageSpec{
+			Spec: regionalmodel.BlockStorageSpecDomain{
 				SizeGB: 1,
 				SkuRef: regionalmodel.ReferenceObject{
 					Resource: "sku-1",
@@ -89,7 +89,7 @@ func TestBlockStorage(t *testing.T) {
 					Workspace: "test-workspace",
 				},
 			},
-			Spec: regionalmodel.BlockStorageSpec{
+			Spec: regionalmodel.BlockStorageSpecDomain{
 				SizeGB: 1,
 				SkuRef: regionalmodel.ReferenceObject{
 					Resource: "sku-1",
@@ -140,13 +140,13 @@ func TestBlockStorage(t *testing.T) {
 					},
 				},
 			}
-			err := blockStorageRepo.Load(ctx, &loadedBs)
-			if err != nil && errors.Is(err, ecpmodel.ErrNotFound) { // Corrected IsNotFound check
-				return true, nil
-			}
-			if err != nil {
+			if err := blockStorageRepo.Load(ctx, &loadedBs); err != nil {
+				if errors.Is(err, ecpmodel.ErrForbidden) {
+					return true, nil
+				}
 				return false, err
 			}
+
 			return false, nil
 		})
 		require.NoError(t, err, "block storage resource should be deleted")
@@ -168,7 +168,7 @@ func TestBlockStorage(t *testing.T) {
 					Workspace: "test-workspace",
 				},
 			},
-			Spec: regionalmodel.BlockStorageSpec{
+			Spec: regionalmodel.BlockStorageSpecDomain{
 				SizeGB: 1,
 				SkuRef: regionalmodel.ReferenceObject{
 					Resource: "sku-1",

@@ -45,7 +45,6 @@ ensure_dir "${REGIONAL_CONFIG_DIR}"
 
 # Region Details
 REGION_NAME="region"
-REGION_PROVIDER="seca.compute"
 
 # --- Helper Functions ---
 check_command() {
@@ -85,6 +84,8 @@ EOF
 check_command "kind"
 check_command "kubectl"
 check_command "docker"
+
+"${SCRIPT_DIR}/../../../ci/scripts/kind-cgroup-preflight.sh"
 
 # 2. Create clusters with kind
 echo "--- Step 1: Creating 'global' and 'regional' clusters with kind ---"
@@ -176,8 +177,17 @@ spec:
     - "${REGION_NAME}-a"
     - "${REGION_NAME}-b"
   providers:
-    - name: "${REGION_PROVIDER}"
-      url: "${REGIONAL_API_ENDPOINT}"
+    - name: "seca.workspace"
+      url: "${REGIONAL_API_ENDPOINT}/providers/seca.workspace"
+      version: "v1"
+    - name: "seca.storage"
+      url: "${REGIONAL_API_ENDPOINT}/providers/seca.storage"
+      version: "v1"
+    - name: "seca.compute"
+      url: "${REGIONAL_API_ENDPOINT}/providers/seca.compute"
+      version: "v1"
+    - name: "seca.network"
+      url: "${REGIONAL_API_ENDPOINT}/providers/seca.network"
       version: "v1"
 EOF
 

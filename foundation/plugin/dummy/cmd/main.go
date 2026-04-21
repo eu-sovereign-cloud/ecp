@@ -12,9 +12,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/builder"
 	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/storage"
 	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/workspace/v1"
-	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/builder"
 
 	dummyplugin "github.com/eu-sovereign-cloud/ecp/foundation/plugin/dummy/pkg/plugin"
 
@@ -55,16 +55,16 @@ func main() {
 	wsPlugin := dummyplugin.NewWorkspace(logger.With("plugin", "workspace"))
 
 	// 4. Create a plugin set
-	pluginSet := builder.NewPluginSet(
-		builder.WithBlockStorage(bsPlugin),
-		builder.WithWorkspace(wsPlugin),
-	)
+	pluginSet := builder.PluginSet{
+		BlockStorage: bsPlugin,
+		Workspace:    wsPlugin,
+	}
 
 	// 5. Create the controller set
 	controllerSet, err := builder.NewControllerSet(
-		builder.WithConfig(mgr.GetConfig()),
-		builder.WithClient(mgr.GetClient()),
-		builder.WithPlugins(pluginSet),
+		mgr.GetConfig(),
+		mgr.GetClient(),
+		pluginSet,
 		builder.WithLogger(logger.With("component", "controller-set")),
 		builder.WithRequeueAfter(1*time.Second), // TODO: parameter for that
 	)

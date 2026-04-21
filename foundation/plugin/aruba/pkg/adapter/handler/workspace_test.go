@@ -140,7 +140,7 @@ func TestWorkspace_create(t *testing.T) {
 			mockConv := NewMockConverter[*regional.WorkspaceDomain, *v1alpha1.Project](ctrl)
 
 			wd := &regional.WorkspaceDomain{
-				Spec: regional.WorkspaceSpec{
+				Spec: regional.WorkspaceSpecDomain{
 					"description": "Test Workspace Description",
 					"tags":        []string{"tag1", "tag2"},
 					"default":     true,
@@ -314,7 +314,7 @@ func TestWorkspace_delete(t *testing.T) {
 			mockConv := NewMockConverter[*regional.WorkspaceDomain, *v1alpha1.Project](ctrl)
 
 			wd := &regional.WorkspaceDomain{
-				Spec: regional.WorkspaceSpec{
+				Spec: regional.WorkspaceSpecDomain{
 					"description": "Test Workspace Description",
 					"tags":        []string{"tag1", "tag2"},
 					"default":     true,

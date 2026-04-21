@@ -27,8 +27,8 @@ func NewWorkspaceController(
 	plugin plugin.Workspace,
 	requeueAfter time.Duration,
 	logger *slog.Logger,
-) *WorkspaceController {
-	return (*WorkspaceController)(NewGenericController[*regional.WorkspaceDomain](
+) WorkspaceController {
+	return (WorkspaceController)(NewGenericController[*regional.WorkspaceDomain](
 		client,
 		kubernetes.MapCRToWorkspaceDomain,
 		handler.NewWorkspacePluginHandler(repo, plugin),

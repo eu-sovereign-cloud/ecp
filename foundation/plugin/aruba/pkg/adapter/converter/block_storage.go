@@ -31,7 +31,7 @@ func (c *BlockStorageConverter) FromSECAToAruba(from *regional.BlockStorageDomai
 	workspace := from.GetWorkspace()
 	namespace := kubernetesadapter.ComputeNamespace(from) // TODO: ask to change repository for  ComputeNamespace from kubernetes adapter to scope
 	namespaceWorkspace := kubernetesadapter.ComputeNamespace(&scope.Scope{Tenant: tenant})
-	sizeGb, err := secaToArubaSize(from.Spec.SizeGB)
+	sizeGb, err := SecaToArubaSize(from.Spec.SizeGB)
 	if err != nil {
 		return nil, err // TODO: better error handling
 	}
@@ -84,10 +84,10 @@ func (c *BlockStorageConverter) FromArubaToSECA(from *v1alpha1.BlockStorage) (*r
 				Name: from.Name,
 			},
 		},
-		Spec: regional.BlockStorageSpec{
+		Spec: regional.BlockStorageSpecDomain{
 			SizeGB: int(from.Spec.SizeGb),
-			SkuRef: regional.ReferenceObject{},
-			SourceImageRef: &regional.ReferenceObject{
+			SkuRef: regional.ReferenceObjectDomain{},
+			SourceImageRef: &regional.ReferenceObjectDomain{
 				Tenant:    from.Spec.Tenant,
 				Region:    from.Spec.Location.Value,
 				Workspace: from.Spec.ProjectReference.Name,
@@ -96,7 +96,7 @@ func (c *BlockStorageConverter) FromArubaToSECA(from *v1alpha1.BlockStorage) (*r
 	}, nil
 }
 
-func secaToArubaSize(in int) (int32, error) {
+func SecaToArubaSize(in int) (int32, error) {
 	if in > math.MaxInt32 || in < math.MinInt32 {
 		return 0, errors.New("storage size out of range")
 	}

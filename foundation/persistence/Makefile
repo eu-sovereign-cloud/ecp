@@ -1,11 +1,6 @@
 # Makefile for persistence module: generation helpers
 # This Makefile provides generate-models, generate-crds and generate-all targets.
 
-# Use the repo tools module by default (relative to foundation/persistence, tools is at ../tools/go.mod)
-TOOLS_GOMOD := -modfile=../tools/go.mod
-GO := go
-GO_TOOL := $(GO) run $(TOOLS_GOMOD)
-
 .PHONY: generate-all generate-models generate-crds help
 
 generate-all: generate-models generate-crds
@@ -13,13 +8,14 @@ generate-all: generate-models generate-crds
 
 generate-models:
 	@echo "persistence: generate-models"
-	@GO_TOOL="$(GO_TOOL)" ./scripts/generate-model.sh
+	@./scripts/generate-model.sh
 	@echo "persistence: generate-models done"
 
 generate-crds:
 	@echo "persistence: generate-crds"
 	@echo "Running go generate (build tag crdgen)..."
-	@$(GO) generate -tags=crdgen ./...
+	@go generate -tags=crdgen ./...
+	@echo "persistence: generate-crds done"
 
 help:
 	@echo "Targets: generate-models, generate-crds, generate-all"

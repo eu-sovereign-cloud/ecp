@@ -9,6 +9,7 @@ import (
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	kcache "k8s.io/client-go/tools/cache"
+	ctrl "sigs.k8s.io/controller-runtime"
 	crcache "sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -161,7 +162,9 @@ func (r *GenericRepository[T, L]) Watch(
 
 		// 3. Now that no handlers are trying to send, it's safe to remove the
 		//    handler and close the channel.
-		r.informer.RemoveEventHandler(handler) //nolint:errcheck // TODO: better error handling
+		if err := r.informer.RemoveEventHandler(handler); err != nil {
+			ctrl.Log.Error(err, "failed to remove event handler")
+		}
 		close(out)
 	}()
 

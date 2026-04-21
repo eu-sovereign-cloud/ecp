@@ -93,7 +93,7 @@ func TestBlockStorageAPI(t *testing.T) {
 					Workspace: testWorkspace,
 				},
 			},
-			Spec: regionalmodel.BlockStorageSpec{},
+			Spec: regionalmodel.BlockStorageSpecDomain{},
 		}
 
 		err = blockStorageRepo.Delete(t.Context(), bsDomain)
@@ -225,7 +225,7 @@ func TestBlockStorageAPI(t *testing.T) {
 					Workspace: testWorkspace,
 				},
 			},
-			Spec: regionalmodel.BlockStorageSpec{},
+			Spec: regionalmodel.BlockStorageSpecDomain{},
 		}
 
 		err = blockStorageRepo.Delete(t.Context(), bsDomain)

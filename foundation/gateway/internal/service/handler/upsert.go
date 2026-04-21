@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -26,16 +27,16 @@ type Updater[T any] interface {
 	Do(ctx context.Context, resource T) (T, error)
 }
 
-// SDKToDomain defines the function type for mapping SDK objects to domain objects
-type SDKToDomain[In any, D any] func(sdk In, params port.IdentifiableResource) D
+// APIToDomain defines the function type for mapping API objects to domain objects
+type APIToDomain[In any, D any] func(sdk In, params port.IdentifiableResource) D
 
 // UpsertOptions contains the configuration for HandleUpsert
 type UpsertOptions[In any, D any, Out any] struct {
 	Params      port.IdentifiableResource
 	Creator     Creator[D]
 	Updater     Updater[D]
-	SDKToDomain SDKToDomain[In, D]
-	DomainToSDK DomainToSDK[D, Out]
+	APIToDomain APIToDomain[In, D]
+	DomainToAPI DomainToAPI[D, Out]
 }
 
 // HandleUpsert is a generic helper for PUT endpoints that:
@@ -64,19 +65,21 @@ func HandleUpsert[In any, D any, Out any](
 	// Read and decode the request body
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		logger.ErrorContext(r.Context(), "failed to read request body", slog.Any("error", err))
-		http.Error(w, "failed to read request body", http.StatusBadRequest)
+		errMsg := "failed to read request body"
+		logger.ErrorContext(r.Context(), errMsg, slog.Any("error", err))
+		apierr.WriteErrorResponse(w, r, logger, fmt.Errorf("%w: %s: %w", apierr.ErrBadRequest, errMsg, err))
 		return
 	}
 
 	var apiObj In
 	if err := json.Unmarshal(body, &apiObj); err != nil {
-		logger.ErrorContext(r.Context(), "failed to decode request body", slog.Any("error", err))
-		http.Error(w, "invalid JSON in request body", http.StatusBadRequest)
+		errMsg := "invalid JSON in request body"
+		logger.ErrorContext(r.Context(), errMsg, slog.Any("error", err))
+		apierr.WriteErrorResponse(w, r, logger, fmt.Errorf("%w: invalid JSON in request body: %w", apierr.ErrBadRequest, err))
 		return
 	}
 
-	domainObj := options.SDKToDomain(apiObj, options.Params)
+	domainObj := options.APIToDomain(apiObj, options.Params)
 
 	// Determine whether to create or update based on IfUnmodifiedSince header
 	shouldUpdate := options.Params.GetVersion() != ""
@@ -87,8 +90,7 @@ func HandleUpsert[In any, D any, Out any](
 		if err != nil {
 			if !errors.Is(err, model.ErrAlreadyExists) {
 				logger.ErrorContext(r.Context(), "failed to create resource", slog.Any("error", err))
-				status, message := apierr.ModelToHTTPError(err)
-				http.Error(w, message, status)
+				apierr.WriteErrorResponse(w, r, logger, err)
 				return
 			}
 			// Resource already exists, fall through to update
@@ -101,18 +103,17 @@ func HandleUpsert[In any, D any, Out any](
 		result, err = options.Updater.Do(r.Context(), domainObj)
 		if err != nil {
 			logger.ErrorContext(r.Context(), "failed to update resource", slog.Any("error", err))
-			status, message := apierr.ModelToHTTPError(err)
-			http.Error(w, message, status)
+			apierr.WriteErrorResponse(w, r, logger, err)
 			return
 		}
 	}
 
-	sdkObj := options.DomainToSDK(result)
+	sdkObj := options.DomainToAPI(result)
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	if err := enc.Encode(sdkObj); err != nil {
 		logger.ErrorContext(r.Context(), "failed to encode response", slog.Any("error", err))
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		apierr.WriteErrorResponse(w, r, logger, err)
 		return
 	}
 

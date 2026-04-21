@@ -72,7 +72,7 @@ func TestWorkspaceController_Reconcile(t *testing.T) {
 		//
 		// And a repo that is expected to be called once
 		mockRepo := NewMockRepo[*regional.WorkspaceDomain](ctrl)
-		mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil, nil).Times(1)
+		mockRepo.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).Return(nil, nil).Times(1)
 
 		//
 		// And a plugin that is not expected to be called
@@ -97,7 +97,8 @@ func TestWorkspaceController_Reconcile(t *testing.T) {
 		//
 		// When we try to reconcile the resource
 		req := k8srt.Request{NamespacedName: client.ObjectKey{Name: testName, Namespace: testNamespace}}
-		res, err := (*GenericController[*regional.WorkspaceDomain])(reconciler).Reconcile(t.Context(), req)
+		gc := (GenericController[*regional.WorkspaceDomain])(reconciler)
+		res, err := gc.Reconcile(t.Context(), req)
 
 		//
 		// Then it should succeed
@@ -146,7 +147,8 @@ func TestWorkspaceController_Reconcile(t *testing.T) {
 		//
 		// When we try to reconcile a missing resource
 		req := k8srt.Request{NamespacedName: client.ObjectKey{Name: "missing", Namespace: testNamespace}}
-		res, err := (*GenericController[*regional.WorkspaceDomain])(reconciler).Reconcile(t.Context(), req)
+		gc := (GenericController[*regional.WorkspaceDomain])(reconciler)
+		res, err := gc.Reconcile(t.Context(), req)
 
 		//
 		// Then it should return no error and no result
@@ -193,7 +195,7 @@ func TestWorkspaceController_Reconcile(t *testing.T) {
 		//
 		// And a repo which will return an error
 		mockRepo := NewMockRepo[*regional.WorkspaceDomain](ctrl)
-		mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil, errHandler).Times(1)
+		mockRepo.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).Return(nil, errHandler).Times(1)
 
 		//
 		// And a plugin that is not expected to be called
@@ -218,7 +220,8 @@ func TestWorkspaceController_Reconcile(t *testing.T) {
 		//
 		// When we try to reconcile the resource
 		req := k8srt.Request{NamespacedName: client.ObjectKey{Name: testName, Namespace: testNamespace}}
-		res, err := (*GenericController[*regional.WorkspaceDomain])(reconciler).Reconcile(t.Context(), req)
+		gc := (GenericController[*regional.WorkspaceDomain])(reconciler)
+		res, err := gc.Reconcile(t.Context(), req)
 
 		//
 		// Then it should return the handler error

@@ -2,104 +2,90 @@
 
 A Kubernetes-native distributed control plane for managing cloud resources across multiple cloud service providers (CSPs).
 
-## Overview
+ECP exposes a unified, declarative REST API for provisioning and managing cloud resources. All state is persisted as Kubernetes Custom Resources, enabling compatibility with existing Kubernetes tooling and GitOps workflows. See [doc/ARCHITECTURE.md](doc/ARCHITECTURE.md) for the full design.
 
-ECP provides a unified, declarative REST API for provisioning and managing cloud resources. All resources are persisted as Kubernetes Custom Resources (CRs), enabling compatibility with existing Kubernetes tooling and GitOps workflows.
-
-The system has three main layers:
-
-1. **Gateway** — REST API servers (global and regional) that expose resource endpoints. Generated from the same OpenAPI specs as the client SDK ([go-sdk](https://github.com/eu-sovereign-cloud/go-sdk)), ensuring no encoding gap between client and server.
-2. **Delegator** — Kubernetes controllers that watch CRs, validate state transitions, and delegate provisioning to CSP plugins.
-3. **Plugins** — CSP-specific adapters that perform the actual resource provisioning (e.g., IONOS, Aruba).
-
-See [doc/README.md](doc/README.md) for full architecture documentation.
-
-## Repository Structure
+## Repository Layout
 
 ```
 foundation/
-├── api/          # CRD definitions and generated API types
-├── gateway/      # Global and regional REST API servers
-├── delegator/    # Kubernetes controllers
+├── persistence/      # CRD definitions and generated API types
+├── gateway/          # Global and regional REST API servers
+├── delegator/        # Kubernetes controllers
 └── plugin/
-    ├── dummy/    # Reference plugin implementation
-    ├── ionos/    # IONOS CSP plugin
-    └── aruba/    # Aruba CSP plugin
+    ├── dummy/        # Reference plugin implementation
+    ├── ionos/        # IONOS CSP plugin (Crossplane-based)
+    ├── aruba/        # Aruba CSP plugin
+    └── e2e/          # End-to-end test harness
+ci/
+├── container/        # Dockerfile layers: builder, tools, dev, runner
+├── scripts/          # CI and dev automation scripts
+└── tools/            # Pinned Go dev tool dependencies
+modules/
+└── go-sdk/           # Git submodule: shared OpenAPI specs and client SDK
+doc/                  # Documentation
 ```
 
-## Prerequisites
+## Go Workspace
 
-- Go 1.24+
-- Docker
-- `kubectl`
-- KIND (for local development)
+This is a Go monorepo managed with `go.work`. The workspace contains 8 modules:
 
-## Getting Started
+| Module | Description |
+|--------|-------------|
+| `foundation/persistence` | CRD definitions, generated API types, K8s repository interfaces |
+| `foundation/gateway` | Global and regional REST API servers |
+| `foundation/delegator` | Kubernetes controllers and plugin interface |
+| `foundation/plugin/dummy` | Reference plugin (no real backend) |
+| `foundation/plugin/ionos` | IONOS CSP adapter via Crossplane |
+| `foundation/plugin/aruba` | Aruba CSP adapter |
+| `foundation/plugin/e2e` | End-to-end test harness |
+| `ci/tools/go` | Pinned versions of Go development tools |
 
-### Generate code and CRDs
+## Quick Start
 
-```bash
-make -C foundation generate-all
-```
+**Prerequisites:** Docker (or Podman), `kubectl`, KIND.
 
-### Set up local development clusters
-
-```bash
-make -C foundation create-dev-clusters
-```
-
-### Run the API servers
+> Go is **not** required on the host. All compilation runs inside the `builder` container image, which is pulled automatically on first use.
 
 ```bash
-# Global API server
+# Generate CRDs and typed Go models from OpenAPI specs
+make generate-api
+
+# Create local KIND clusters (global + regional)
+make -C foundation/gateway create-dev-clusters
+
+# Run the API servers (in separate terminals)
 make -C foundation/gateway run-global-server
-
-# Regional API server (in a separate terminal)
 make -C foundation/gateway run-regional-server
+
+# Run all tests
+make test
+
+# Lint all modules
+make lint
+
+# Full local validation gate (mirrors CI)
+make pre-commit
 ```
 
-### Run tests
+For containerized development, persistent dev containers, and the full Makefile reference, see [doc/CI_DEVEX.md](doc/CI_DEVEX.md).
 
-```bash
-go test -race ./...
+## Documentation
 
-# Integration tests (dummy plugin, requires KIND)
-make -C foundation/plugin/dummy test-integration
-```
+| Document | Description |
+|----------|-------------|
+| [doc/ARCHITECTURE.md](doc/ARCHITECTURE.md) | System architecture, hexagonal design, resource model |
+| [doc/CI_DEVEX.md](doc/CI_DEVEX.md) | Developer environment setup, Makefile targets, CI pipeline |
+| [doc/CODEGEN.md](doc/CODEGEN.md) | Code generation pipeline (OpenAPI types, CRDs, controller-gen) |
+| [doc/PLUGINS.md](doc/PLUGINS.md) | Plugin system: available plugins, interface, writing a new CSP plugin |
+| [doc/CONTRIBUTING.md](doc/CONTRIBUTING.md) | Contribution guidelines, PR conventions, branch model |
 
-### Lint
+## Current Version
 
-```bash
-golangci-lint run --config .golangci.yml
-```
-
-## Resource Model
-
-**Global resources:**
-- `Region` — available regions (read-only)
-
-**Regional resources:**
-- `Workspace` — logical grouping within a tenant; creation triggers a dedicated namespace
-- `BlockStorage` — block storage volumes
-- `Network` — network resources
-- `StorageSKU` / `NetworkSKU` — available SKU options (read-only)
-
-Deleting a Tenant cascades to all its Workspaces; deleting a Workspace cascades to all resources within it.
-
-## API Endpoints
-
-| Server   | Default port | Example endpoints                          |
-|----------|--------------|--------------------------------------------|
-| Global   | 8080         | `GET /regions`, `GET /regions/{id}`        |
-| Regional | 8080         | `GET/POST /workspaces`, `GET/POST /block-storages`, `GET /skus` |
-
-## CI
-
-Pull request checks are defined in [`.github/workflows/pr-checks.yaml`](.github/workflows/pr-checks.yaml) and include module-aware testing, linting (`golangci-lint`), and security scanning (`govulncheck`, `gosec`).
+`v0.1.0-alpha1-preview` — API surface and CRD schemas are subject to breaking changes before v1.0.
 
 ---
 
-## 💰 Funding
+## Funding
 
 This open-source project is sponsored by **Aruba & IONOS SE** and has received public funding from the European Union NextGenerationEU within the IPCEI-CIS program.
 

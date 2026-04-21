@@ -2,10 +2,10 @@ package regional
 
 type NetworkSKUDomain struct {
 	Metadata
-	Spec NetworkSKUSpec
+	Spec NetworkSKUSpecDomain
 }
 
-type NetworkSKUSpec struct {
+type NetworkSKUSpecDomain struct {
 	Bandwidth int
 	Packets   int
 }

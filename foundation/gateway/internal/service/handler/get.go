@@ -4,14 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"net/http"
 
-	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
-	"k8s.io/apimachinery/pkg/api/errors"
-
+	apierr "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/errors"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
+	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 )
 
 // Getter defines the interface for controller Get operations
@@ -19,8 +17,8 @@ type Getter[T any] interface {
 	Do(ctx context.Context, resource port.IdentifiableResource) (T, error)
 }
 
-// DomainToSDK defines the interface for mapping domain objects to SDK objects
-type DomainToSDK[D any, Out any] func(domain D) Out
+// DomainToAPI defines the interface for mapping domain objects to API objects
+type DomainToAPI[D any, Out any] func(domain D) Out
 
 // HandleGet is a generic helper for GET endpoints that:
 // 1. Calls the controller to fetch the domain object
@@ -34,22 +32,13 @@ func HandleGet[D any, Out any](
 	logger *slog.Logger,
 	ir port.IdentifiableResource,
 	getter Getter[D],
-	mapper DomainToSDK[D, Out],
+	mapper DomainToAPI[D, Out],
 ) {
 	logger = logger.With("name", ir.GetName(), "tenant", ir.GetTenant(), "workspace", ir.GetWorkspace())
 
 	domainObj, err := getter.Do(r.Context(), ir)
 	if err != nil {
-		if errors.IsNotFound(err) {
-			logger.InfoContext(r.Context(), "not found")
-			http.Error(w, fmt.Sprintf("%s not found", ir.GetName()), http.StatusNotFound)
-			return
-		}
-
-		// For all other errors (e.g., connection issues, CRD not registered),
-		// log the error and return a 500 Internal Server Error.
-		logger.ErrorContext(r.Context(), "failed to get", slog.Any("error", err))
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		apierr.WriteErrorResponse(w, r, logger, err)
 		return
 	}
 
@@ -57,8 +46,8 @@ func HandleGet[D any, Out any](
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	if err := enc.Encode(sdkObj); err != nil {
-		logger.ErrorContext(r.Context(), "failed to encode", slog.Any("error", err))
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		logger.ErrorContext(r.Context(), "failed to encode response", slog.Any("error", err))
+		apierr.WriteErrorResponse(w, r, logger, err)
 		return
 	}
 

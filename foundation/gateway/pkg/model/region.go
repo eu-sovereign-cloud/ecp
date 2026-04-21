@@ -1,15 +1,20 @@
 package model
 
+const (
+	RegionBaseURL      = "/providers/seca.region"
+	ProviderRegionName = "seca.region/v1"
+)
+
 type (
-	Zone         string
+	ZoneDomain   string
 	RegionDomain struct {
 		Metadata
-		Providers []Provider
-		Zones     []Zone
+		Providers []ProviderDomain
+		Zones     []ZoneDomain
 	}
 )
 
-type Provider struct {
+type ProviderDomain struct {
 	Name    string
 	URL     string
 	Version string

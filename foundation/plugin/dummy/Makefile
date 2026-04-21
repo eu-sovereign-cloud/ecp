@@ -1,5 +1,7 @@
 # Makefile for Dummy Delegator Plugin
 
+include ../../../.config.mk
+
 # =====================================================================================
 # Variables
 # =====================================================================================
@@ -33,7 +35,7 @@ help: ## Display this help message
 .PHONY: build
 build: ## Build the dummy delegator docker image
 	@echo "Building image..."
-	@REGISTRY=$(REGISTRY) IMG=$(IMG) VERSION=$(VERSION) ./scripts/build.sh
+	@REGISTRY=$(REGISTRY) IMG=$(IMG) VERSION=$(VERSION) DLV_VERSION=$(DLV_VERSION) ./scripts/build.sh
 
 
 # =====================================================================================

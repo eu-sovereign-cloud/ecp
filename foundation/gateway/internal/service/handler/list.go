@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	apierr "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/errors"
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
@@ -17,8 +18,8 @@ type Lister[T any] interface {
 	Do(ctx context.Context, params model.ListParams) ([]T, *string, error)
 }
 
-// DomainToSDKList defines the interface for mapping a list of domain objects to an SDK object.
-type DomainToSDKList[D any, Out any] func(domain []D, nextSkipToken *string) Out
+// DomainToAPIList defines the interface for mapping a list of domain objects to an API object.
+type DomainToAPIList[D any, Out any] func(domain []D, nextSkipToken *string) Out
 
 // HandleList is a generic helper for LIST endpoints that:
 // 1. Calls the controller to fetch the list of domain objects.
@@ -31,12 +32,12 @@ func HandleList[D any, Out any](
 	logger *slog.Logger,
 	params model.ListParams,
 	lister Lister[D],
-	mapper DomainToSDKList[D, Out],
+	mapper DomainToAPIList[D, Out],
 ) {
 	domainObjs, nextSkipToken, err := lister.Do(r.Context(), params)
 	if err != nil {
-		logger.ErrorContext(r.Context(), "failed to list", slog.Any("error", err))
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		logger.ErrorContext(r.Context(), "failed to list resources", slog.Any("error", err))
+		apierr.WriteErrorResponse(w, r, logger, err)
 		return
 	}
 
@@ -44,8 +45,8 @@ func HandleList[D any, Out any](
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	if err := enc.Encode(sdkObj); err != nil {
-		logger.ErrorContext(r.Context(), "failed to encode", slog.Any("error", err))
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		logger.ErrorContext(r.Context(), "failed to encode response", slog.Any("error", err))
+		apierr.WriteErrorResponse(w, r, logger, err)
 		return
 	}
 

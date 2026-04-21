@@ -4,7 +4,6 @@ package integration
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/google/uuid"
@@ -33,7 +32,7 @@ func TestWorkspace(t *testing.T) {
 					Tenant: "test-tenant",
 				},
 			},
-			Spec: regionalmodel.WorkspaceSpec{},
+			Spec: regionalmodel.WorkspaceSpecDomain{},
 		}
 
 		//
@@ -80,7 +79,7 @@ func TestWorkspace(t *testing.T) {
 					Tenant: "test-tenant",
 				},
 			},
-			Spec: regionalmodel.WorkspaceSpec{},
+			Spec: regionalmodel.WorkspaceSpecDomain{},
 		}
 		_, err := workspaceRepo.Create(t.Context(), wsDomain)
 		require.NoError(t, err)
@@ -125,7 +124,7 @@ func TestWorkspace(t *testing.T) {
 				},
 			}
 			err := workspaceRepo.Load(ctx, &loadedWs)
-			if err != nil && errors.Is(err, ecpmodel.ErrNotFound) { // Corrected IsNotFound check
+			if domainErr := ecpmodel.AsError(err); domainErr != nil && domainErr.Kind == ecpmodel.KindNotFound {
 				return true, nil
 			}
 			if err != nil {
