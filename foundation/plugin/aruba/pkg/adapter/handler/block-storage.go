@@ -80,7 +80,7 @@ func NewBlockStorageHandler(
 		mutator_bypass.BypassMutateFunc[*ArubaBlockStorageBundle, *SecaBlockStorageBundle],
 		handler.propagateCreate,
 		func(p *ArubaBlockStorageBundle) bool {
-			return p.BlockStorage.Status.Phase == v1alpha1.ResourcePhaseCreated
+			return p.BlockStorage.Status.Phase == v1alpha1.ResourcePhaseActive
 		},
 		handler.waitUntilManagedError,
 	)
@@ -138,7 +138,7 @@ func (h *BlockStorageHandler) checkBsIncreaseSizeCondition(resource *ArubaBlockS
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	size := resource.BlockStorage.Spec.SizeGb
+	size := resource.BlockStorage.Spec.SizeGB
 
 	err := h.bsRepository.Load(ctx, resource.BlockStorage)
 
@@ -146,7 +146,7 @@ func (h *BlockStorageHandler) checkBsIncreaseSizeCondition(resource *ArubaBlockS
 		return false
 	}
 
-	return resource.BlockStorage.Spec.SizeGb == size && resource.BlockStorage.Status.Phase == v1alpha1.ResourcePhaseCreated
+	return resource.BlockStorage.Spec.SizeGB == size && resource.BlockStorage.Status.Phase == v1alpha1.ResourcePhaseActive
 }
 
 func (h *BlockStorageHandler) blockStorageMutateSizeFunc(mutable *ArubaBlockStorageBundle, params *SecaBlockStorageBundle) error {
@@ -154,7 +154,7 @@ func (h *BlockStorageHandler) blockStorageMutateSizeFunc(mutable *ArubaBlockStor
 	if err != nil {
 		return err
 	}
-	mutable.BlockStorage.Spec.SizeGb = sizeGb
+	mutable.BlockStorage.Spec.SizeGB = sizeGb
 
 	return nil
 }
@@ -229,7 +229,7 @@ func (h *BlockStorageHandler) resolveArubaBlockStorageDependencies(ctx context.C
 		return nil, err // Other errors should be returned for handling
 	}
 
-	if resource.Project.Status.Phase != v1alpha1.ResourcePhaseCreated {
+	if resource.Project.Status.Phase != v1alpha1.ResourcePhaseActive {
 		return nil, delegator.ErrStillProcessing // Project is not ready, wait for it to be active
 	}
 

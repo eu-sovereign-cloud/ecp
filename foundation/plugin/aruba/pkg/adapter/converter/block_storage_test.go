@@ -58,16 +58,16 @@ func TestBlockStorageConverter_FromSECAToAruba(t *testing.T) {
 					t.Errorf("expected tenant 'tenant-123', got %s", bs.Spec.Tenant)
 				}
 
-				if bs.Spec.SizeGb != 100 {
-					t.Errorf("expected size 100, got %d", bs.Spec.SizeGb)
+				if bs.Spec.SizeGB != 100 {
+					t.Errorf("expected size 100, got %d", bs.Spec.SizeGB)
 				}
 
 				if bs.Spec.ProjectReference.Name != "test-workspace" {
 					t.Errorf("expected workspace 'test-workspace', got %s", bs.Spec.ProjectReference.Name)
 				}
 
-				if bs.Spec.Location.Value != "eu-de" {
-					t.Errorf("expected location 'eu-de', got %s", bs.Spec.Location.Value)
+				if bs.Spec.Region != "eu-de" {
+					t.Errorf("expected location 'eu-de', got %s", bs.Spec.Region)
 				}
 			},
 		},
@@ -103,17 +103,15 @@ func TestBlockStorageConverter_FromArubaToSECA(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: v1alpha1.BlockStorageSpec{
-					SizeGb:        50,
+					SizeGB:        50,
 					Tenant:        "tenant-456",
-					DataCenter:    "IT-BG1",
+					Zone:          "IT-BG1",
 					BillingPeriod: "Monthly",
 					ProjectReference: v1alpha1.ResourceReference{
 						Name:      "project-789",
 						Namespace: "default",
 					},
-					Location: v1alpha1.Location{
-						Value: "eu-fr",
-					},
+					Region: "eu-fr",
 				},
 			},
 			assert: func(t *testing.T, bs *regional.BlockStorageDomain) {

@@ -69,10 +69,6 @@ func TestWorkspaceProjectConverter_FromSECAToAruba(t *testing.T) {
 						project.Spec.Tags,
 					)
 				}
-
-				if !project.Spec.Default {
-					t.Errorf("expected default=true, got false")
-				}
 			},
 		},
 	}
@@ -103,7 +99,6 @@ func TestWorkspaceProjectConverter_FromArubaToSECA(t *testing.T) {
 					Tenant:      "tenant-123",
 					Description: "My test project",
 					Tags:        []string{"tag1", "tag2"},
-					Default:     true,
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "workspace-abc",
@@ -138,10 +133,6 @@ func TestWorkspaceProjectConverter_FromArubaToSECA(t *testing.T) {
 						"expected tags ['tag1', 'tag2'], got %v",
 						workspace.Spec["tags"],
 					)
-				}
-
-				if def, ok := workspace.Spec["default"].(bool); !ok || !def {
-					t.Errorf("expected default=true, got %v", workspace.Spec["default"])
 				}
 			},
 		},

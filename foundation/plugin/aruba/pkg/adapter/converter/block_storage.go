@@ -31,7 +31,7 @@ func (c *BlockStorageConverter) FromSECAToAruba(from *regional.BlockStorageDomai
 	workspace := from.GetWorkspace()
 	namespace := kubernetesadapter.ComputeNamespace(from) // TODO: ask to change repository for  ComputeNamespace from kubernetes adapter to scope
 	namespaceWorkspace := kubernetesadapter.ComputeNamespace(&scope.Scope{Tenant: tenant})
-	sizeGb, err := SecaToArubaSize(from.Spec.SizeGB)
+	sizeGB, err := SecaToArubaSize(from.Spec.SizeGB)
 	if err != nil {
 		return nil, err // TODO: better error handling
 	}
@@ -48,17 +48,15 @@ func (c *BlockStorageConverter) FromSECAToAruba(from *regional.BlockStorageDomai
 			},
 		},
 		Spec: v1alpha1.BlockStorageSpec{
-			SizeGb: sizeGb,
+			SizeGB: sizeGB,
 			Tenant: tenant,
-			Location: v1alpha1.Location{
-				Value: getRegionFromSpecOrDefault(from),
-			},
+			Region: getRegionFromSpecOrDefault(from),
 			ProjectReference: v1alpha1.ResourceReference{
 				Name:      workspace,
 				Namespace: namespaceWorkspace,
 			},
 			// TODO: must be fixed
-			DataCenter:    defaultDatacenter,
+			Zone:          defaultDatacenter,
 			BillingPeriod: defaultBillingPeriod,
 		},
 	}, nil
@@ -85,11 +83,11 @@ func (c *BlockStorageConverter) FromArubaToSECA(from *v1alpha1.BlockStorage) (*r
 			},
 		},
 		Spec: regional.BlockStorageSpecDomain{
-			SizeGB: int(from.Spec.SizeGb),
+			SizeGB: int(from.Spec.SizeGB),
 			SkuRef: regional.ReferenceObjectDomain{},
 			SourceImageRef: &regional.ReferenceObjectDomain{
 				Tenant:    from.Spec.Tenant,
-				Region:    from.Spec.Location.Value,
+				Region:    from.Spec.Region,
 				Workspace: from.Spec.ProjectReference.Name,
 			},
 		},

@@ -58,7 +58,7 @@ func TestWorkspace(t *testing.T) {
 			if err := workspaceRepo.Load(ctx, &loadedWs); err != nil {
 				return false, err
 			}
-			if loadedWs.Status != nil && loadedWs.Status.State != nil && *loadedWs.Status.State == regionalmodel.ResourceStateActive {
+			if loadedWs.Status != nil && loadedWs.Status.State == regionalmodel.ResourceStateActive {
 				return true, nil
 			}
 			return false, nil
@@ -67,7 +67,7 @@ func TestWorkspace(t *testing.T) {
 		require.NotNil(t, loadedWs)
 		require.NotNil(t, loadedWs.Status)
 		require.NotNil(t, loadedWs.Status.State)
-		require.Equal(t, regionalmodel.ResourceStateActive, *loadedWs.Status.State)
+		require.Equal(t, regionalmodel.ResourceStateActive, loadedWs.Status.State)
 		//
 		// And we can cleanup the workspace
 		err = workspaceRepo.Delete(t.Context(), wsDomain)
@@ -109,7 +109,7 @@ func TestWorkspace(t *testing.T) {
 			if err := workspaceRepo.Load(ctx, &loadedWs); err != nil {
 				return false, err
 			}
-			if loadedWs.Status != nil && loadedWs.Status.State != nil && *loadedWs.Status.State == regionalmodel.ResourceStateActive {
+			if loadedWs.Status != nil && loadedWs.Status.State == regionalmodel.ResourceStateActive {
 				return true, nil
 			}
 			return false, nil
@@ -118,7 +118,7 @@ func TestWorkspace(t *testing.T) {
 		require.NotNil(t, loadedWs)
 		require.NotNil(t, loadedWs.Status)
 		require.NotNil(t, loadedWs.Status.State)
-		require.Equal(t, regionalmodel.ResourceStateActive, *loadedWs.Status.State)
+		require.Equal(t, regionalmodel.ResourceStateActive, loadedWs.Status.State)
 		//
 		// When we delete the workspace resource
 		err = workspaceRepo.Delete(t.Context(), wsDomain)
