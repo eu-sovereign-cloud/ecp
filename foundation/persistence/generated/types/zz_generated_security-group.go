@@ -37,7 +37,7 @@ type SecurityGroup struct {
 type SecurityGroupSpec struct {
 	// RuleRefs References to shared SecurityGroupRule resources.
 	// These rules are applied in addition to the inline rules.
-	RuleRefs []ReferenceObject `json:"ruleRefs,omitempty"`
+	RuleRefs []Reference `json:"ruleRefs,omitempty"`
 
 	// Rules Network access rules defining communication between security groups and external networks.
 	//

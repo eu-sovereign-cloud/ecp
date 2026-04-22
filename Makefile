@@ -166,9 +166,6 @@ gosec: $(addsuffix -gosec,$(GO_MODULES))
 # generated artifacts today. Kept as a top-level alias so CI and developers
 # share one entry point — and so the %-ctzd wrapper composes for free.
 #
-# Requires python3 on PATH (used by
-# foundation/persistence/scripts/replace-reference-fields.py). The builder
-# image installs it; host developers need it in their own PATH.
 ###############################################################################
 
 .PHONY: generate-api

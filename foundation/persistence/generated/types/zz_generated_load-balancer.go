@@ -59,7 +59,7 @@ type LoadBalancerTarget struct {
 	HealthCheck *LoadBalancerHealthCheck `json:"healthCheck,omitempty"`
 
 	// Members Nic reference to the members as part of the LoadBalancerTarget
-	Members []ReferenceObject `json:"members"`
+	Members []Reference `json:"members"`
 
 	// Port Backend port to which the load balancer will be forwarding the traffic to
 	Port *NetworkLoadBalancerPort `json:"port,omitempty"`
@@ -140,10 +140,10 @@ type NetworkLoadBalancerSpec struct {
 	Frontends    []NetworkLoadBalancerFrontend `json:"frontends"`
 
 	// NicRef Reference to the NIC attached to the load balancer.
-	NicRef ReferenceObject `json:"nicRef"`
+	NicRef Reference `json:"nicRef"`
 
 	// SecurityGroupRef Reference to the security group associated with this instance.
-	SecurityGroupRef *ReferenceObject `json:"securityGroupRef,omitempty"`
+	SecurityGroupRef *Reference `json:"securityGroupRef,omitempty"`
 }
 
 // NetworkLoadBalancerStatus defines model for NetworkLoadBalancerStatus.
@@ -151,6 +151,6 @@ type NetworkLoadBalancerStatus struct {
 	Conditions []StatusCondition `json:"conditions"`
 
 	// HealthyMembers List of healthy members
-	HealthyMembers []ReferenceObject `json:"healthyMembers,omitempty"`
-	State          ResourceState     `json:"state,omitempty"`
+	HealthyMembers []Reference   `json:"healthyMembers,omitempty"`
+	State          ResourceState `json:"state,omitempty"`
 }

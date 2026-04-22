@@ -60,9 +60,6 @@ process_file () {
   # Map type fix
   sed -i 's/map\[string\]interface{}/map[string]string/g' "${out_file}"
 
-  # Replace Reference field types with ReferenceObject only inside struct declarations
-  python3 "$SCRIPT_DIR/replace-reference-fields.py" "${out_file}"
-
   # Fix union fields without JSON tags for controller-gen:
   # match lines that start with "union" (allow leading space) and contain no backtick, then append the tag
   sed -E -i '/^[[:space:]]*union[[:space:]]+[^`]*$/ s/$/ `json:"-"`/' "${out_file}"
