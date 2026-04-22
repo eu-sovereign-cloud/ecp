@@ -15,12 +15,12 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/workspace/v1"
 	kubernetesadapter "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
 	ecpmodel "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	regionalmodel "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
+	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/workspace/v1"
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 )
 
@@ -59,7 +59,7 @@ func TestWorkspaceAPI(t *testing.T) {
 				return false, nil // Keep retrying if not found
 			}
 
-			if createdWorkspace.Status != nil && createdWorkspace.Status.State != nil && regional.ResourceStateDomain(*createdWorkspace.Status.State) == regional.ResourceStateActive {
+			if createdWorkspace.Status != nil && regional.ResourceStateDomain(createdWorkspace.Status.State) == regional.ResourceStateActive {
 				return true, nil
 			}
 			return false, nil
@@ -105,7 +105,7 @@ func TestWorkspaceAPI(t *testing.T) {
 			if err := k8sClient.Get(ctx, key, &createdWorkspace); err != nil {
 				return false, nil
 			}
-			if createdWorkspace.Status != nil && createdWorkspace.Status.State != nil && regional.ResourceStateDomain(*createdWorkspace.Status.State) == regional.ResourceStateActive {
+			if createdWorkspace.Status != nil && regional.ResourceStateDomain(createdWorkspace.Status.State) == regional.ResourceStateActive {
 				return true, nil
 			}
 			return false, nil

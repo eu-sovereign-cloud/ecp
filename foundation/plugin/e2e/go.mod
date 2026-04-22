@@ -3,7 +3,7 @@ module github.com/eu-sovereign-cloud/ecp/foundation/plugin/e2e
 go 1.26.2
 
 require (
-	github.com/Arubacloud/arubacloud-resource-operator v0.0.1-alpha5
+	github.com/Arubacloud/arubacloud-resource-operator v1.0.0
 	github.com/eu-sovereign-cloud/go-sdk v0.3.51-0.20260330132803-c0ab513a964f
 	github.com/google/uuid v1.6.0
 	github.com/stretchr/testify v1.11.1

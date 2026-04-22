@@ -37,7 +37,7 @@ func TestBlockStorage(t *testing.T) {
 			},
 			Spec: regionalmodel.BlockStorageSpecDomain{
 				SizeGB: 1,
-				SkuRef: regionalmodel.ReferenceObject{
+				SkuRef: regionalmodel.ReferenceObjectDomain{
 					Region:   "ITBG-Bergamo",
 					Resource: "sku-1",
 				},
@@ -69,7 +69,7 @@ func TestBlockStorage(t *testing.T) {
 			if err := blockStorageRepo.Load(ctx, &loadedBs); err != nil {
 				return false, err
 			}
-			if loadedBs.Status != nil && loadedBs.Status.State != nil && *loadedBs.Status.State == regionalmodel.ResourceStateActive {
+			if loadedBs.Status != nil && loadedBs.Status.State == regionalmodel.ResourceStateActive {
 				return true, nil
 			}
 			return false, nil
@@ -78,7 +78,7 @@ func TestBlockStorage(t *testing.T) {
 		require.NotNil(t, loadedBs)
 		require.NotNil(t, loadedBs.Status)
 		require.NotNil(t, loadedBs.Status.State)
-		require.Equal(t, regionalmodel.ResourceStateActive, *loadedBs.Status.State)
+		require.Equal(t, regionalmodel.ResourceStateActive, loadedBs.Status.State)
 
 		//
 		// And we can cleanup the block storage
@@ -104,7 +104,7 @@ func TestBlockStorage(t *testing.T) {
 			},
 			Spec: regionalmodel.BlockStorageSpecDomain{
 				SizeGB: 1,
-				SkuRef: regionalmodel.ReferenceObject{
+				SkuRef: regionalmodel.ReferenceObjectDomain{
 					Region:   "ITBG-Bergamo",
 					Resource: "sku-1",
 				},
@@ -130,7 +130,7 @@ func TestBlockStorage(t *testing.T) {
 			if err := blockStorageRepo.Load(ctx, &loadedBs); err != nil {
 				return false, err
 			}
-			if loadedBs.Status != nil && loadedBs.Status.State != nil && *loadedBs.Status.State == regionalmodel.ResourceStateActive {
+			if loadedBs.Status != nil && loadedBs.Status.State == regionalmodel.ResourceStateActive {
 				return true, nil
 			}
 			return false, nil
@@ -139,7 +139,7 @@ func TestBlockStorage(t *testing.T) {
 		require.NotNil(t, loadedBs)
 		require.NotNil(t, loadedBs.Status)
 		require.NotNil(t, loadedBs.Status.State)
-		require.Equal(t, regionalmodel.ResourceStateActive, *loadedBs.Status.State)
+		require.Equal(t, regionalmodel.ResourceStateActive, loadedBs.Status.State)
 
 		//
 		// When we delete the block storage resource
@@ -190,7 +190,7 @@ func TestBlockStorage(t *testing.T) {
 			},
 			Spec: regionalmodel.BlockStorageSpecDomain{
 				SizeGB: 1,
-				SkuRef: regionalmodel.ReferenceObject{
+				SkuRef: regionalmodel.ReferenceObjectDomain{
 					Region:   "ITBG-Bergamo",
 					Resource: "sku-1",
 				},
@@ -217,7 +217,7 @@ func TestBlockStorage(t *testing.T) {
 				return false, err
 			}
 
-			if loadedBs.Status != nil && loadedBs.Status.State != nil && *loadedBs.Status.State == regionalmodel.ResourceStateActive && loadedBs.Status.SizeGB == 1 {
+			if loadedBs.Status != nil && loadedBs.Status.State == regionalmodel.ResourceStateActive && loadedBs.Status.SizeGB == 1 {
 				return true, nil
 			}
 
@@ -228,7 +228,7 @@ func TestBlockStorage(t *testing.T) {
 		require.NotNil(t, loadedBs)
 		require.NotNil(t, loadedBs.Status)
 		require.NotNil(t, loadedBs.Status.State)
-		require.Equal(t, regionalmodel.ResourceStateActive, *loadedBs.Status.State)
+		require.Equal(t, regionalmodel.ResourceStateActive, loadedBs.Status.State)
 		require.Equal(t, 1, loadedBs.Status.SizeGB)
 
 		//
@@ -271,7 +271,7 @@ func TestBlockStorage(t *testing.T) {
 				return false, err
 			}
 
-			if currentBs.Status != nil && *currentBs.Status.State == regionalmodel.ResourceStateActive && currentBs.Status.SizeGB == 2 {
+			if currentBs.Status != nil && currentBs.Status.State == regionalmodel.ResourceStateActive && currentBs.Status.SizeGB == 2 {
 				return true, nil
 			}
 			return false, nil
@@ -281,7 +281,7 @@ func TestBlockStorage(t *testing.T) {
 		require.NotNil(t, currentBs)
 		require.NotNil(t, currentBs.Status)
 		require.NotNil(t, currentBs.Status.State)
-		require.Equal(t, regionalmodel.ResourceStateActive, *currentBs.Status.State)
+		require.Equal(t, regionalmodel.ResourceStateActive, currentBs.Status.State)
 		require.Equal(t, 2, currentBs.Status.SizeGB)
 
 		//
