@@ -111,8 +111,8 @@ type SecurityGroupRuleSpec struct {
 	// SourceRef Reference to a CIDR block, IP address, gateway, instance or security group that is allowed to communicate
 	// with the security group. If a security group is specified, all instances in that group are allowed.
 	// If no sourceRef is specified, all traffic is allowed.
-	SourceRef []ReferenceObject `json:"sourceRef,omitempty"`
-	Version   IPVersion         `json:"version,omitempty"`
+	SourceRef []Reference `json:"sourceRef,omitempty"`
+	Version   IPVersion   `json:"version,omitempty"`
 }
 
 // SecurityGroupRuleSpecDirection Direction of the traffic flow:

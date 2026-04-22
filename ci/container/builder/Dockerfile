@@ -6,7 +6,6 @@ FROM ${BUILDER_BASE_IMAGE}
 RUN apt-get update && apt-get install -y --no-install-recommends \
     make \
     git \
-    python3 \
     && rm -rf /var/lib/apt/lists/*
 
 # Go's -buildvcs=true (default for main packages since 1.18) shells out to git

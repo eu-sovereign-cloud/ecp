@@ -64,7 +64,7 @@ type KubernetesClusterSpec struct {
 	ServiceCidr string `json:"serviceCidr,omitempty"`
 
 	// SkuRef Reference to the SKU of the Kubernetes cluster.
-	SkuRef ReferenceObject `json:"skuRef"`
+	SkuRef Reference `json:"skuRef"`
 }
 
 // KubernetesClusterStatus defines model for KubernetesClusterStatus.
@@ -131,8 +131,8 @@ type KubernetesNodePoolStatus struct {
 
 	// Nodes List of nodes in the Node Pool. Each node is represented by its
 	// reference to a compute instance.
-	Nodes []ReferenceObject `json:"nodes,omitempty"`
-	State ResourceState     `json:"state,omitempty"`
+	Nodes []Reference   `json:"nodes,omitempty"`
+	State ResourceState `json:"state,omitempty"`
 }
 
 // KubernetesNodeRootVolume Root volume for the node. The root volume is used to store the operating
@@ -144,7 +144,7 @@ type KubernetesNodeRootVolume struct {
 	SizeGB int `json:"sizeGB"`
 
 	// SkuRef Reference to the SKU of the block storage created to store the root volume.
-	SkuRef ReferenceObject `json:"skuRef"`
+	SkuRef Reference `json:"skuRef"`
 }
 
 // KubernetesNodeTaint Represents a taint applied to the nodes in the node pool. Taints are used
@@ -181,13 +181,13 @@ type KubernetesNodeTemplate struct {
 	RootVolume KubernetesNodeRootVolume `json:"rootVolume"`
 
 	// SecurityGroupRef Reference to the security group associated with the node instances.
-	SecurityGroupRef *ReferenceObject `json:"securityGroupRef,omitempty"`
+	SecurityGroupRef *Reference `json:"securityGroupRef,omitempty"`
 
 	// SkuRef Reference to the SKU of the node instances.
-	SkuRef ReferenceObject `json:"skuRef"`
+	SkuRef Reference `json:"skuRef"`
 
 	// SubnetRef Reference to the NIC attached to the node instances.
-	SubnetRef ReferenceObject `json:"subnetRef"`
+	SubnetRef Reference `json:"subnetRef"`
 
 	// Zone Reference to a specific zone within a region
 	Zone Zone `json:"zone"`
