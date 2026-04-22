@@ -75,15 +75,15 @@ func FuzzWorkspaceSpecRoundTrip(f *testing.F) {
 	f.Add(`{"k":"v"}`, "ws", "", "t", strings.Repeat("r", 64))
 
 	// --- Provider slash/underscore edge cases ---
-	f.Add(`{"k":"v"}`, "ws", "///", "t", "")                        // only slashes
-	f.Add(`{"k":"v"}`, "ws", "___", "t", "")                        // only underscores
-	f.Add(`{"k":"v"}`, "ws", "a/b/c/d/e", "t", "")                  // multiple slashes
-	f.Add(`{"k":"v"}`, "ws", "/leading", "t", "")                   // leading slash
-	f.Add(`{"k":"v"}`, "ws", "trailing/", "t", "")                  // trailing slash
-	f.Add(`{"k":"v"}`, "ws", "a/_b", "t", "")                       // mixed slash and underscore
-	f.Add(`{"k":"v"}`, "ws", "ionos/München", "t", "")              // non-ASCII
-	f.Add(`{"k":"v"}`, "ws", "provider/日本語", "t", "")               // CJK
-	f.Add(`{"k":"v"}`, "ws", strings.Repeat("a/", 30)+"b", "t", "") // many slashes
+	f.Add(`{"k":"v"}`, "ws", "///", "t", "")                         // only slashes
+	f.Add(`{"k":"v"}`, "ws", "___", "t", "")                         // only underscores
+	f.Add(`{"k":"v"}`, "ws", "a/b/c/d/e", "t", "")                   // multiple slashes
+	f.Add(`{"k":"v"}`, "ws", "/leading", "t", "")                    // leading slash
+	f.Add(`{"k":"v"}`, "ws", "trailing/", "t", "")                   // trailing slash
+	f.Add(`{"k":"v"}`, "ws", "a/_b", "t", "")                        // mixed slash and underscore
+	f.Add(`{"k":"v"}`, "ws", "ionos/München", "t", "")               // non-ASCII
+	f.Add(`{"k":"v"}`, "ws", "provider/\u65e5\u672c\u8a9e", "t", "") // CJK (nihongo)
+	f.Add(`{"k":"v"}`, "ws", strings.Repeat("a/", 30)+"b", "t", "")  // many slashes
 
 	// --- Deeply nested JSON spec values ---
 	f.Add(`{"k":{"a":{"b":{"c":{"d":{"e":{"f":"deep"}}}}}}}`, "ws", "", "t", "")
@@ -188,7 +188,7 @@ func FuzzBlockStorageSpecRoundTrip(f *testing.F) {
 	f.Add(1, "block-storages/"+strings.Repeat("x", 253), "", "", "", "", strings.Repeat("n", 254), "", "t", "", "")
 	// provider/region slash/underscore edge cases
 	f.Add(1, "block-storages/bs", "///", "de/fra", "t", "ws", "bs", "a/_b", "t", "ws", "de")
-	f.Add(1, "block-storages/bs", "ionos/München", "eu/中央", "t", "ws", "bs", "provider/日本語", "t", "ws", "de")
+	f.Add(1, "block-storages/bs", "ionos/München", "eu/\u4e2d\u592e", "t", "ws", "bs", "provider/\u65e5\u672c\u8a9e", "t", "ws", "de")
 
 	f.Fuzz(func(t *testing.T,
 		sizeGB int,
