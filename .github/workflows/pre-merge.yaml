@@ -110,7 +110,11 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          fetch-tags: true
           submodules: 'recursive'
+      - name: Fetch tags in go-sdk submodule
+        run: git -C modules/go-sdk fetch --tags --no-recurse-submodules
       - name: Run go-sdk-verify
         run: make go-sdk-verify
 
@@ -156,6 +160,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           # Full history so paths-filter can diff PR HEAD against the base.
           fetch-depth: 0
+          fetch-tags: true
 
       - name: Publish per-PR builder image
         uses: ./.github/actions/builder-pr-publish
