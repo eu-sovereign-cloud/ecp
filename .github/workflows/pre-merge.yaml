@@ -37,10 +37,11 @@ name: Pre-Merge
 #     pr-title        Validate PR Title
 #     module-diff     Detect Changed Modules
 #     branch-rebase   Verify Branch Is Rebased
+#     go-sdk-verify   Ensure go-sdk Versions Are In Sync
 #
 #   Stage 2 — build builder image (gated by stage 1)
 #     builder-publish-pr   Provide PR Builder Image
-#       needs: [pr-title, module-diff, branch-rebase]
+#       needs: [pr-title, module-diff, branch-rebase, go-sdk-verify]
 #       skipped when no modules changed → nothing else runs
 #
 #   Stage 3 — all verification jobs (gated by stage 2, parallel)
@@ -139,7 +140,7 @@ jobs:
   # ===========================================================================
   builder-publish-pr:
     name: Provide PR Builder Image
-    needs: [pr-title, module-diff, branch-rebase]
+    needs: [pr-title, module-diff, branch-rebase, go-sdk-verify]
     if: github.event.action != 'closed' && needs.module-diff.outputs.has_changes == 'true'
     runs-on: ubuntu-latest
 
