@@ -7,7 +7,7 @@ import (
 
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
 	"github.com/stretchr/testify/require"
-	gomock "go.uber.org/mock/gomock"
+	"go.uber.org/mock/gomock"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kcache "k8s.io/client-go/tools/cache"
@@ -129,7 +129,7 @@ func TestBlockStorage_Update(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: v1alpha1.BlockStorageSpec{
-			SizeGb: 10,
+			SizeGB: 10,
 		},
 	}
 	fakeClient := newFakeStorageClientWithObject(storage)
@@ -137,7 +137,7 @@ func TestBlockStorage_Update(t *testing.T) {
 	repo := repository.NewGenericRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList](ctx, fakeClient, nil)
 
 	// Update the BlockStorage object
-	storage.Spec.SizeGb = 20
+	storage.Spec.SizeGB = 20
 	err := repo.Update(ctx, storage)
 	require.NoError(t, err, "expected Update to succeed")
 
@@ -145,7 +145,7 @@ func TestBlockStorage_Update(t *testing.T) {
 	updated := &v1alpha1.BlockStorage{}
 	err = fakeClient.Get(ctx, client.ObjectKey{Name: "existing-storage", Namespace: "default"}, updated)
 	require.NoError(t, err, "expected to find updated BlockStorage")
-	require.Equal(t, int32(20), updated.Spec.SizeGb)
+	require.Equal(t, int32(20), updated.Spec.SizeGB)
 }
 func TestBlockStorage_Delete(t *testing.T) {
 	ctx := context.Background()
@@ -202,7 +202,7 @@ func TestBlockStorage_Watch(t *testing.T) {
 
 			// Simulate an update to the BlockStorage object
 			updatedStorage := storage.DeepCopy()
-			updatedStorage.Spec.SizeGb = 50
+			updatedStorage.Spec.SizeGB = 50
 			require.NoError(t, fakeClient.Update(ctx, updatedStorage), "expected Update to succeed")
 
 			go func() {
@@ -221,7 +221,7 @@ func TestBlockStorage_Watch(t *testing.T) {
 	// Verify that the update is received on the watch channel
 	select {
 	case updated := <-out:
-		require.Equal(t, int32(50), updated.Spec.SizeGb, "expected updated SizeGb to be 50")
+		require.Equal(t, int32(50), updated.Spec.SizeGB, "expected updated SizeGB to be 50")
 	case <-ctx.Done():
 		t.Fatal("did not receive update on watch channel")
 	}
@@ -262,7 +262,7 @@ func TestBlockStorage_WaitUntil(t *testing.T) {
 			go func() {
 				// Simulate an update to the BlockStorage
 				updatedStorage := storage.DeepCopy()
-				updatedStorage.Spec.SizeGb = 100
+				updatedStorage.Spec.SizeGB = 100
 				errUpdate = fakeClient.Update(ctx, updatedStorage)
 				handler.OnUpdate(storage, updatedStorage)
 				wg.Done()
@@ -274,13 +274,13 @@ func TestBlockStorage_WaitUntil(t *testing.T) {
 	repo := repository.NewGenericRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList](ctx, fakeClient, cache)
 
 	out, err := repo.WaitUntil(ctx, storage, func(s *v1alpha1.BlockStorage) bool {
-		return s.Spec.SizeGb == 100
+		return s.Spec.SizeGB == 100
 	})
 
 	require.NoError(t, err, "expected WaitUntil to succeed")
 
 	// Verify that the update is received
 	wg.Wait()
-	require.Equal(t, int32(100), out.Spec.SizeGb, "expected to receive updated BlockStorage with SizeGb 100")
+	require.Equal(t, int32(100), out.Spec.SizeGB, "expected to receive updated BlockStorage with SizeGB 100")
 	require.NoError(t, errUpdate, "expected Update to succeed")
 }

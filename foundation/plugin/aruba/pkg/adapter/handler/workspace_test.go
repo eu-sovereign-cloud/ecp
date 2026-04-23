@@ -39,7 +39,6 @@ func TestWorkspace_create(t *testing.T) {
 					Spec: v1alpha1.ProjectSpec{
 						Description: "Test Workspace Description",
 						Tags:        []string{"tag1", "tag2"},
-						Default:     true,
 					},
 				}
 
@@ -63,7 +62,6 @@ func TestWorkspace_create(t *testing.T) {
 					Spec: v1alpha1.ProjectSpec{
 						Description: "Test Workspace Description",
 						Tags:        []string{"tag1", "tag2"},
-						Default:     true,
 					},
 					Status: v1alpha1.ResourceStatus{
 						Phase: v1alpha1.ResourcePhaseCreating,
@@ -100,10 +98,9 @@ func TestWorkspace_create(t *testing.T) {
 					Spec: v1alpha1.ProjectSpec{
 						Description: "Test Workspace Description",
 						Tags:        []string{"tag1", "tag2"},
-						Default:     true,
 					},
 					Status: v1alpha1.ResourceStatus{
-						Phase: v1alpha1.ResourcePhaseCreated,
+						Phase: v1alpha1.ResourcePhaseActive,
 					},
 				}
 
@@ -190,7 +187,6 @@ func TestWorkspace_delete(t *testing.T) {
 					Spec: v1alpha1.ProjectSpec{
 						Description: "Test Workspace Description",
 						Tags:        []string{"tag1", "tag2"},
-						Default:     true,
 					},
 				}
 
@@ -219,7 +215,6 @@ func TestWorkspace_delete(t *testing.T) {
 					Spec: v1alpha1.ProjectSpec{
 						Description: "Test Workspace Description",
 						Tags:        []string{"tag1", "tag2"},
-						Default:     true,
 					},
 					Status: v1alpha1.ResourceStatus{
 						Phase: v1alpha1.ResourcePhaseDeleting,
@@ -261,7 +256,6 @@ func TestWorkspace_delete(t *testing.T) {
 					Spec: v1alpha1.ProjectSpec{
 						Description: "Test Workspace Description",
 						Tags:        []string{"tag1", "tag2"},
-						Default:     true,
 					},
 					Status: v1alpha1.ResourceStatus{
 						Phase: v1alpha1.ResourcePhaseDeleted,

@@ -8,13 +8,13 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/plugin"
+	delegator "github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/port"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 
-	delegator "github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/port"
 	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/generic/delegated"
 	mutator_bypass "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/generic/mutator"
 	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/converter"
-	repository "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/repository"
+	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/repository"
 )
 
 // Ensure WorkspaceHandler implements the Workspace interface
@@ -43,7 +43,7 @@ func NewWorkspaceHandler(repo repository.Repository[*v1alpha1.Project, *v1alpha1
 		mutator_bypass.BypassMutateFunc[*v1alpha1.Project, *regional.WorkspaceDomain],
 		repo.Create,
 		func(p *v1alpha1.Project) bool {
-			return p.Status.Phase == v1alpha1.ResourcePhaseCreated
+			return p.Status.Phase == v1alpha1.ResourcePhaseActive
 		},
 		handler.waitUntilManagedError,
 	)
