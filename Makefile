@@ -37,9 +37,10 @@ submodules:
 #   make go-sdk-update-ctzd VERSION=...  # via tools container
 #
 # go-sdk-update is intentionally an all-or-nothing operation: it checks out the
-# submodule at VERSION, then runs `go get ...@VERSION` + `go mod tidy` in
-# foundation/gateway. If either step fails the working tree is left mid-bump
-# for the developer to inspect — there is no partial-rollback magic.
+# submodule at VERSION, then updates each matching go.mod with `go mod edit
+# -require=...@VERSION` and runs `go mod download` for the bumped module. If
+# either step fails the working tree is left mid-bump for the developer to
+# inspect — there is no partial-rollback magic.
 #
 # go-sdk-verify is wired into pre-commit and pre-merge so a single-place edit
 # (bump submodule but forget go.mod, or vice versa) is caught before merge.
