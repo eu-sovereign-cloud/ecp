@@ -4,7 +4,7 @@ go 1.26.2
 
 require (
 	github.com/eu-sovereign-cloud/ecp/foundation/persistence v0.0.1
-	github.com/eu-sovereign-cloud/go-sdk v0.3.51-0.20260330132803-c0ab513a964f
+	github.com/eu-sovereign-cloud/go-sdk v0.4.0
 	github.com/gobwas/glob v0.2.3
 	github.com/google/go-cmp v0.7.0
 	github.com/spf13/cobra v1.10.2

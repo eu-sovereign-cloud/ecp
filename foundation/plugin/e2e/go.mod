@@ -4,7 +4,7 @@ go 1.26.2
 
 require (
 	github.com/Arubacloud/arubacloud-resource-operator v0.0.1-alpha5
-	github.com/eu-sovereign-cloud/go-sdk v0.3.51-0.20260330132803-c0ab513a964f
+	github.com/eu-sovereign-cloud/go-sdk v0.4.0
 	github.com/google/uuid v1.6.0
 	github.com/stretchr/testify v1.11.1
 	k8s.io/api v0.35.0
@@ -50,7 +50,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f // indirect
-	github.com/oapi-codegen/runtime v1.3.1 // indirect
+	github.com/oapi-codegen/runtime v1.4.0 // indirect
 	github.com/onsi/gomega v1.38.3 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_golang v1.23.2 // indirect

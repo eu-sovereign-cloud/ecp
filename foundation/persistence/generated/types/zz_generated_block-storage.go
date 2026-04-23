@@ -42,7 +42,7 @@ type BlockStorage struct {
 // If a reference to the source image is used as the base for creating this block storage.
 type BlockStorageSpec struct {
 	// SizeGB Size of the block storage in GB.
-	SizeGB int `json:"sizeGB"`
+	SizeGB int `json:"sizeGB" x-cel-message-0:"spec.sizeGB cannot be decreased" x-cel-message-1:"spec.sizeGB must be greater than 0" x-cel-rule-0:"!oldSelf.hasValue() || self >= oldSelf.value()" x-cel-rule-1:"self > 0"`
 
 	// SkuRef Reference to the SKU of the block storage.
 	SkuRef Reference `json:"skuRef"`
