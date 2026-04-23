@@ -61,7 +61,7 @@ env:
 
 permissions:
   contents: read
-  packages: write   # push AND delete builder image versions
+  packages: write # push AND delete builder image versions
 
 jobs:
   # ===========================================================================
@@ -72,7 +72,7 @@ jobs:
     if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     steps:
-      - uses: amannn/action-semantic-pull-request@v6
+      - uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50 # ratchet:amannn/action-semantic-pull-request@v6
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -84,7 +84,7 @@ jobs:
     if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
@@ -92,6 +92,26 @@ jobs:
         env:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: make branch-rebase-verify
+
+  # ===========================================================================
+  # Stage 1: Verify go-sdk submodule and go.mod versions are in sync
+  #
+  # The go-sdk lives both as a git submodule (used by CRD generation) and as a
+  # Go module dependency. They must point at the
+  # same upstream tag, otherwise generated CRDs and compiled types drift.
+  # This catches PRs that bump only one of the two places.
+  # ===========================================================================
+  go-sdk-verify:
+    name: Ensure go-sdk Versions Are In Sync
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          submodules: 'recursive'
+      - name: Run go-sdk-verify
+        run: make go-sdk-verify
 
   # ===========================================================================
   # Stage 1: Detect which modules changed
@@ -104,13 +124,13 @@ jobs:
       modules: ${{ steps.filter.outputs.changes }}
       has_changes: ${{ steps.filter.outputs.changes != '[]' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: Generate paths-filter config from go.work
         run: make -s print-paths-filter > .paths-filter.yml
       - id: filter
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # ratchet:dorny/paths-filter@v4
         with:
           filters: .paths-filter.yml
 
@@ -130,7 +150,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           # Full history so paths-filter can diff PR HEAD against the base.
@@ -159,7 +179,7 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           submodules: 'recursive'
@@ -180,7 +200,7 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           submodules: 'recursive'
@@ -205,7 +225,7 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           submodules: 'recursive'
@@ -230,7 +250,7 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           submodules: 'recursive'
@@ -260,7 +280,7 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           submodules: 'recursive'
@@ -290,7 +310,7 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           submodules: 'recursive'
@@ -315,7 +335,7 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           submodules: 'recursive'
@@ -336,7 +356,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6
 
       - name: Delete per-PR tags from GHCR
         uses: ./.github/actions/ghcr-delete-pr-tags
