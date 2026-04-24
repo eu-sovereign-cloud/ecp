@@ -9,6 +9,8 @@ WORKDIR /app
 COPY go.work go.work
 COPY go.work.sum go.work.sum
 
+COPY ci/tools/go/ ci/tools/go/
+
 # Pre-copy module manifests so replace directives resolve before full source copy
 COPY foundation/persistence/go.mod foundation/persistence/go.mod
 COPY foundation/persistence/go.sum foundation/persistence/go.sum
