@@ -11,6 +11,7 @@ import (
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=workspaces,scope=Namespaced,shortName=workspace
 // +k8s:openapi-gen=true
+// +ecp:conditioned
 
 // Workspace is the API for getting the workspaces of a service.
 type Workspace struct {

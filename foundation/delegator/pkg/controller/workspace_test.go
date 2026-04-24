@@ -92,6 +92,7 @@ func TestWorkspaceController_Reconcile(t *testing.T) {
 			mockPlugin,
 			0,
 			logger,
+			1,
 		)
 
 		//
@@ -142,6 +143,7 @@ func TestWorkspaceController_Reconcile(t *testing.T) {
 			mockPlugin,
 			0,
 			logger,
+			1,
 		)
 
 		//
@@ -215,6 +217,7 @@ func TestWorkspaceController_Reconcile(t *testing.T) {
 			mockPlugin,
 			5*time.Minute,
 			logger,
+			1,
 		)
 
 		//
