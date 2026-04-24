@@ -36,3 +36,24 @@ type StatusConditionDomain struct {
 	// Type of condition (provider-specific).
 	Type string
 }
+
+func (s *StatusDomain) PushCondition(condition StatusConditionDomain) {
+	if s == nil {
+		return
+	}
+
+	if s.Conditions == nil {
+		s.Conditions = []StatusConditionDomain{}
+	}
+
+	s.Conditions = append(s.Conditions, condition)
+	s.State = condition.State
+}
+
+func (s *StatusDomain) PopCondition() {
+	if s == nil || len(s.Conditions) == 0 {
+		return
+	}
+
+	s.Conditions = s.Conditions[1:]
+}
