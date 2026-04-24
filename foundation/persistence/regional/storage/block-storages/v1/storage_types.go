@@ -12,6 +12,7 @@ import (
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=block-storages,scope=Namespaced,shortName=block-storage
 // +k8s:openapi-gen=true
+// +ecp:conditioned
 
 // BlockStorage is the API for getting storage block-storage instances information.
 type BlockStorage struct {

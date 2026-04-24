@@ -27,13 +27,18 @@ func NewWorkspaceController(
 	plugin plugin.Workspace,
 	requeueAfter time.Duration,
 	logger *slog.Logger,
+	maxConditions int,
 ) WorkspaceController {
+	h := handler.NewWorkspacePluginHandler(repo, plugin)
+	h.MaxConditions = maxConditions
+
 	return (WorkspaceController)(NewGenericController[*regional.WorkspaceDomain](
 		client,
 		kubernetes.MapCRToWorkspaceDomain,
-		handler.NewWorkspacePluginHandler(repo, plugin),
+		h,
 		&workspacev1.Workspace{},
 		requeueAfter,
 		logger,
+		maxConditions,
 	))
 }
