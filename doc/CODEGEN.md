@@ -22,14 +22,11 @@ Generated files must never be edited by hand. CI enforces this with `make genera
 4. Injects `+kubebuilder:object:generate=true` and `+kubebuilder:object:root=true` annotations.
 5. Replaces `time.Time` with `metav1.Time` and adjusts imports.
 6. Normalizes map types (`map[string]interface{}` → `map[string]string`).
-7. Runs `foundation/persistence/scripts/replace-reference-fields.py` to fix reference field types within struct declarations (requires Python 3 on PATH).
-8. Fixes union fields without JSON tags for controller-gen compatibility.
-9. Runs `gofmt` on the output.
-10. Runs `controller-gen object` to generate `DeepCopy` methods alongside the types.
+7. Fixes union fields without JSON tags for controller-gen compatibility.
+8. Runs `gofmt` on the output.
+9. Runs `controller-gen object` to generate `DeepCopy` methods alongside the types.
 
 **Outputs:** `foundation/persistence/generated/types/`
-
-> Python 3 must be available on the host when running `make generate-api` directly. The builder image provides it; host developers need it in their own `PATH`.
 
 ## CRD Generation
 

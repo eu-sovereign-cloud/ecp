@@ -56,7 +56,7 @@ func TestWorkspace(t *testing.T) {
 			if err := workspaceRepo.Load(ctx, &loadedWs); err != nil {
 				return false, err
 			}
-			if loadedWs.Status.State != nil && *loadedWs.Status.State == regionalmodel.ResourceStateActive {
+			if loadedWs.Status.State == regionalmodel.ResourceStateActive {
 				return true, nil
 			}
 			return false, nil
@@ -98,7 +98,7 @@ func TestWorkspace(t *testing.T) {
 			if err := workspaceRepo.Load(ctx, &loadedWs); err != nil {
 				return false, err
 			}
-			if loadedWs.Status.State != nil && *loadedWs.Status.State == regionalmodel.ResourceStateActive {
+			if loadedWs.Status.State == regionalmodel.ResourceStateActive {
 				return true, nil
 			}
 			return false, nil

@@ -38,10 +38,6 @@ func (c *WorkspaceProjectConverter) FromSECAToAruba(from *regional.WorkspaceDoma
 		}
 	}
 
-	if v, ok := from.Spec["default"].(bool); ok {
-		spec.Default = v
-	}
-
 	spec.Tenant = from.Tenant
 
 	return &v1alpha1.Project{
@@ -71,7 +67,6 @@ func (c *WorkspaceProjectConverter) FromArubaToSECA(
 		"description": from.Spec.Description,
 		"tenant":      from.Spec.Tenant,
 		"tags":        from.Spec.Tags,
-		"default":     from.Spec.Default,
 	}
 
 	tenant := from.Labels["seca.workspace/tenant"]
