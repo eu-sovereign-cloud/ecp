@@ -67,6 +67,10 @@ const markerPrefix = "// +kubebuilder:validation:XValidation:"
 // fields that have x-cel-* struct tags, and writes the file back. Returns the
 // number of markers injected.
 func processFile(path string) (int, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return 0, err
+	}
 	data, err := os.ReadFile(path) //gosec:disable G304 // path is constructed from os.ReadDir output, not raw user input
 	if err != nil {
 		return 0, err
@@ -77,7 +81,7 @@ func processFile(path string) (int, error) {
 	injected := 0
 
 	for i, line := range lines {
-		// Skip lines that are already markers (for idempotency).
+		// Preserve blank lines that immediately precede an existing marker (idempotency: don't re-process them).
 		if strings.TrimSpace(line) == "" && i+1 < len(lines) && strings.Contains(strings.TrimSpace(lines[i+1]), markerPrefix) {
 			out = append(out, line)
 			continue
@@ -115,7 +119,7 @@ func processFile(path string) (int, error) {
 		return 0, nil
 	}
 
-	return injected, os.WriteFile(path, []byte(strings.Join(out, "\n")), 0o600) //nolint:gosec
+	return injected, os.WriteFile(path, []byte(strings.Join(out, "\n")), info.Mode()) //gosec:disable G306
 }
 
 // tagRe matches a single struct tag key:"value" pair, handling escaped quotes
