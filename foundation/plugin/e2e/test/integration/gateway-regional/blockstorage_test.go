@@ -16,13 +16,14 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
+
 	kubernetesadapter "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
 	ecpmodel "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	regionalmodel "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
 	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/storage/block-storages/v1"
-	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 )
 
 // newBlockStorageBody is a helper to construct the body for creating/updating block storage.
@@ -38,10 +39,10 @@ func newBlockStorageBody(t *testing.T, sizeGB int) schema.BlockStorage {
 }
 
 func TestBlockStorageAPI(t *testing.T) {
-	//t.Parallel()
+	// t.Parallel()
 
 	t.Run("should create a block storage resource via the gateway API", func(t *testing.T) {
-		//t.Parallel()
+		// t.Parallel()
 
 		//
 		// Given a unique block storage resource definition
@@ -98,7 +99,7 @@ func TestBlockStorageAPI(t *testing.T) {
 	})
 
 	t.Run("should delete a block storage resource via the gateway API", func(t *testing.T) {
-		//t.Parallel()
+		// t.Parallel()
 
 		//
 		// Given a unique block storage resource that has been created
@@ -155,7 +156,7 @@ func TestBlockStorageAPI(t *testing.T) {
 	})
 
 	t.Run("should increase the size of a block storage resource via the gateway API", func(t *testing.T) {
-		//t.Parallel()
+		// t.Parallel()
 
 		//
 		// Given a unique block storage resource that is active with a size of 1GB

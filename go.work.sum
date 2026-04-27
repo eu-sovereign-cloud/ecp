@@ -139,6 +139,8 @@ github.com/envoyproxy/go-control-plane/ratelimit v0.1.0 h1:/G9QYbddjL25KvtKTv3an
 github.com/envoyproxy/go-control-plane/ratelimit v0.1.0/go.mod h1:Wk+tMFAFbCXaJPzVVHnPgRKdUdwW/KdbRt94AzgRee4=
 github.com/envoyproxy/protoc-gen-validate v1.2.1 h1:DEo3O99U8j4hBFwbJfrz9VtgcDfUKS7KJ7spH3d86P8=
 github.com/envoyproxy/protoc-gen-validate v1.2.1/go.mod h1:d/C80l/jxXLdfEIhX1W2TmLfsJ31lvEjwamM4DxlWXU=
+github.com/eu-sovereign-cloud/go-sdk v0.3.0 h1:nR2l8JxdUu4RAL09mRsVAq/PZ7oR+5b+AlZBm/cNPQ8=
+github.com/eu-sovereign-cloud/go-sdk v0.3.0/go.mod h1:Rmhw98zOA5tNaDf4yyfnGwmTGGwLEGRf8B0f64GL2ZM=
 github.com/eu-sovereign-cloud/go-sdk v0.3.44/go.mod h1:0yCm+45kfQpOiv0r4FKf3h0w1yBGUqgGC2HCfmscUdQ=
 github.com/eu-sovereign-cloud/go-sdk v0.4.0/go.mod h1:UGAJJgDhG8JcTUXwIgtLfHisUbIEckJDn8pblcOET9s=
 github.com/fatih/structs v1.1.0 h1:Q7juDM0QtcnhCpeyLGQKyg4TOIghuNXrkL32pHAUMxo=

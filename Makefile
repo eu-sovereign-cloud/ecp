@@ -22,6 +22,67 @@ submodules:
 	@git submodule update --init --recursive
 
 ###############################################################################
+# go-sdk: atomic bump and version-sync verification
+#
+# The go-sdk source is consumed two ways:
+#   1. As a git submodule at modules/go-sdk, used by CRD generation.
+#   2. As a Go module dependency declared in foundation/gateway/go.mod.
+# Both must point at the same upstream tag — otherwise the generated CRDs and
+# the compiled types drift apart, and code reviewers can no longer trust that
+# the schemas in the repo match what the binary actually understands.
+#
+# Usage:
+#   make go-sdk-update VERSION=v0.5.0    # update both submodule and every go.mod
+#   make go-sdk-verify                 # CI gate: fail if they disagree
+#   make go-sdk-update-ctzd VERSION=...  # via tools container
+#
+# go-sdk-update is intentionally an all-or-nothing operation: it checks out the
+# submodule at VERSION, then updates each matching go.mod with `go mod edit
+# -require=...@VERSION` and runs `go mod download` for the bumped module. If
+# either step fails the working tree is left mid-bump for the developer to
+# inspect — there is no partial-rollback magic.
+#
+# go-sdk-verify is wired into pre-commit and pre-merge so a single-place edit
+# (bump submodule but forget go.mod, or vice versa) is caught before merge.
+###############################################################################
+
+VERSION ?=
+
+.PHONY: go-sdk-update
+go-sdk-update:
+	@[ -n "$(VERSION)" ] || { echo "error: set VERSION=<tag> (e.g. v0.5.0)"; exit 2; }
+	@echo "==> bumping go-sdk to $(VERSION)"
+	git -C $(_REPO_ROOT)/modules/go-sdk fetch --tags
+	git -C $(_REPO_ROOT)/modules/go-sdk checkout $(VERSION)
+	@# Walk every go.mod that requires go-sdk and update it. Matches the
+	@# generic find-walk that go-sdk-verify does, so both sides stay in lock-step
+	@# as modules are added or removed.
+	@#
+	@# We use `go mod edit` + `go mod download` instead of `go get` because
+	@# `go get` builds the full module graph and tries to fetch
+	@# foundation/persistence@v0.0.1 from the proxy — that pseudo-version only
+	@# resolves via the workspace-level replace, which `go get` ignores. The
+	@# edit+download combo pins the require and populates go.sum for just the
+	@# bumped package, which is all we need.
+	@for gomod in $$(grep -l "eu-sovereign-cloud/go-sdk" \
+	    $$(find $(_REPO_ROOT) -name go.mod -not -path "*/modules/go-sdk/*")); do \
+	  dir=$$(dirname $$gomod); \
+	  echo "==> $$dir"; \
+	  (cd $$dir && \
+	    go mod edit -require=github.com/eu-sovereign-cloud/go-sdk@$(VERSION) && \
+	    go mod download github.com/eu-sovereign-cloud/go-sdk) || exit 1; \
+	done
+	@echo "==> go work vendor"
+	cd $(_REPO_ROOT) && go work vendor
+	@echo ""
+	@echo "go-sdk bumped to $(VERSION) — review with 'git status' and commit"
+
+.PHONY: go-sdk-verify
+go-sdk-verify:
+	@$(_REPO_ROOT)/ci/scripts/verify-run.sh go-sdk-verify "go-sdk submodule and go.mod in sync" -- \
+	  $(_REPO_ROOT)/ci/scripts/go-sdk-version-check.sh $(_REPO_ROOT)
+
+###############################################################################
 # Per-module vulnerability check (govulncheck)
 #
 # Usage:
@@ -326,10 +387,10 @@ branch-rebase-verify:
 ###############################################################################
 
 .PHONY: pre-commit
-pre-commit: generate-api-verify test lint gofmt-check vuln gosec
+pre-commit: go-sdk-verify generate-api-verify test lint gofmt-check vuln gosec
 
 .PHONY: pre-merge
-pre-merge: gh-token-ensure branch-rebase-verify workspace-verify generate-api-verify test lint gofmt-check vuln gosec
+pre-merge: gh-token-ensure branch-rebase-verify workspace-verify go-sdk-verify generate-api-verify test lint gofmt-check vuln gosec
 
 ###############################################################################
 # Workspace membership: add / remove a module from go.work
