@@ -67,13 +67,14 @@ const markerPrefix = "// +kubebuilder:validation:XValidation:"
 // fields that have x-cel-* struct tags, and writes the file back. Returns the
 // number of markers injected.
 func processFile(path string) (int, error) {
-	data, err := os.ReadFile(path) //nolint:gosec // path from CLI arg
+	//nolint:gosec // path from CLI arg
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return 0, err
 	}
 
 	lines := strings.Split(string(data), "\n")
-	var out []string
+	out := make([]string, 0, len(lines))
 	injected := 0
 
 	for i, line := range lines {
@@ -115,7 +116,7 @@ func processFile(path string) (int, error) {
 		return 0, nil
 	}
 
-	return injected, os.WriteFile(path, []byte(strings.Join(out, "\n")), 0o644) //nolint:gosec
+	return injected, os.WriteFile(path, []byte(strings.Join(out, "\n")), 0o600) //nolint:gosec
 }
 
 // tagRe matches a single struct tag key:"value" pair, handling escaped quotes
@@ -163,7 +164,7 @@ func extractCELRules(line string) []celRule {
 	}
 
 	// Collect and sort by index.
-	var rules []celRule
+	rules := make([]celRule, 0, len(ruleMap))
 	for _, r := range ruleMap {
 		if r.rule == "" {
 			continue // skip incomplete entries

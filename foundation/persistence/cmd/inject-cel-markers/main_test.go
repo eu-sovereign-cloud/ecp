@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -180,7 +181,7 @@ func TestProcessFileIdempotent(t *testing.T) {
 	}
 	second, _ := os.ReadFile(path)
 
-	if string(first) != string(second) {
+	if !bytes.Equal(first, second) {
 		t.Error("file changed on second run — not idempotent")
 	}
 	// On second run, markers already exist so they get removed and re-added.
