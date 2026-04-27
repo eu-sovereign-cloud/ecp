@@ -76,6 +76,10 @@ for f in "${SCHEMA_DIR}"/*.go; do
   process_file "$f"
 done
 
+echo "Injecting CEL validation markers..."
+(cd "$SCRIPT_DIR/.." && go run ./cmd/inject-cel-markers "./${OUTPUT_ROOT}")
+echo -e "${GREEN}✅ CEL markers injected.${RESET}"
+
 echo "Running controller-gen for DeepCopy..."
 # Run the module-pinned controller-gen (declared via `tool` in go.mod) so it uses this repo's vetted dependency set.
 (cd "$SCRIPT_DIR/.." && go tool sigs.k8s.io/controller-tools/cmd/controller-gen object paths="./${OUTPUT_ROOT}")
