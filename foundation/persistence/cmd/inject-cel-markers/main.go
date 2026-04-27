@@ -67,8 +67,7 @@ const markerPrefix = "// +kubebuilder:validation:XValidation:"
 // fields that have x-cel-* struct tags, and writes the file back. Returns the
 // number of markers injected.
 func processFile(path string) (int, error) {
-	//nolint:gosec // path from CLI arg
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // path is constructed from os.ReadDir output, not raw user input
 	if err != nil {
 		return 0, err
 	}
