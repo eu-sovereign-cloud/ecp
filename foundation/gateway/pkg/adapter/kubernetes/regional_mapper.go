@@ -441,32 +441,44 @@ func mapDomainReferenceObjectToCR(ref regional.ReferenceObjectDomain) genv1.Refe
 	resource := ref.Resource
 	result := genv1.ReferenceObject{}
 
-	// Extract values from Resource path or fall back to domain values
-	if provider, remaining := extractAndStripSegment(resource, "providers/"); provider != "" {
-		result.Provider = provider
-		resource = remaining
-	} else if ref.Provider != "" {
+	// Populate each field from the Resource path only when the explicit domain field
+	// is not already set. This makes the function idempotent: on the first call the
+	// embedded path segments are extracted; on subsequent calls (after a round-trip
+	// through the CR) the explicit fields are already populated and path extraction
+	// is skipped, leaving the Resource unchanged.
+	if ref.Provider == "" {
+		if provider, remaining := extractAndStripSegment(resource, "providers/"); provider != "" {
+			result.Provider = provider
+			resource = remaining
+		}
+	} else {
 		result.Provider = ref.Provider
 	}
 
-	if region, remaining := extractAndStripSegment(resource, "regions/"); region != "" {
-		result.Region = region
-		resource = remaining
-	} else if ref.Region != "" {
+	if ref.Region == "" {
+		if region, remaining := extractAndStripSegment(resource, "regions/"); region != "" {
+			result.Region = region
+			resource = remaining
+		}
+	} else {
 		result.Region = ref.Region
 	}
 
-	if tenant, remaining := extractAndStripSegment(resource, "tenants/"); tenant != "" {
-		result.Tenant = tenant
-		resource = remaining
-	} else if ref.Tenant != "" {
+	if ref.Tenant == "" {
+		if tenant, remaining := extractAndStripSegment(resource, "tenants/"); tenant != "" {
+			result.Tenant = tenant
+			resource = remaining
+		}
+	} else {
 		result.Tenant = ref.Tenant
 	}
 
-	if workspace, remaining := extractAndStripSegment(resource, "workspaces/"); workspace != "" {
-		result.Workspace = workspace
-		resource = remaining
-	} else if ref.Workspace != "" {
+	if ref.Workspace == "" {
+		if workspace, remaining := extractAndStripSegment(resource, "workspaces/"); workspace != "" {
+			result.Workspace = workspace
+			resource = remaining
+		}
+	} else {
 		result.Workspace = ref.Workspace
 	}
 
