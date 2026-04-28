@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"flag"
 	"fmt"
 	"go/ast"
 	"go/format"
@@ -14,6 +13,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/spf13/cobra"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -21,20 +21,6 @@ const (
 	marker             = "+ecp:conditioned"
 	statusTypesPkgPath = "github.com/eu-sovereign-cloud/ecp/foundation/persistence/generated/types"
 )
-
-type pathList []string
-
-func (p *pathList) String() string { return strings.Join(*p, ",") }
-
-func (p *pathList) Set(v string) error {
-	for _, item := range strings.Split(v, ",") {
-		item = strings.TrimSpace(item)
-		if item != "" {
-			*p = append(*p, item)
-		}
-	}
-	return nil
-}
 
 type targetType struct {
 	Name          string
@@ -112,24 +98,45 @@ func (x *{{.Name}}) LenStatusConditions() int {
 {{end}}`
 
 func main() {
-	var paths pathList
-	flag.Var(&paths, "paths", "package path pattern(s) to process; may be repeated or comma-separated (e.g. ./v1/...)")
-	headerFile := flag.String("header-file", "", "path to a boilerplate header file to prepend to generated files")
-	outFilename := flag.String("output-filename", "zz_generated.conditions.go", "name of the generated file written into each target package")
-	flag.Parse()
+	var (
+		paths       []string
+		headerFile  string
+		outFilename string
+	)
 
-	if len(paths) == 0 {
-		log.Fatal("conditioned-gen: at least one -paths value is required")
+	cmd := &cobra.Command{
+		Use:   "conditioned-gen",
+		Short: "Generate Conditioned interface methods for +ecp:conditioned-marked types",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return run(paths, headerFile, outFilename)
+		},
 	}
 
-	header, err := readHeader(*headerFile)
+	cmd.Flags().StringSliceVar(&paths, "paths", nil,
+		"package path pattern(s) to process; may be repeated or comma-separated (e.g. ./v1/...)")
+	cmd.Flags().StringVar(&headerFile, "header-file", "",
+		"path to a boilerplate header file to prepend to generated files")
+	cmd.Flags().StringVar(&outFilename, "output-filename", "zz_generated.conditions.go",
+		"name of the generated file written into each target package")
+
+	if err := cmd.Execute(); err != nil {
+		os.Exit(1)
+	}
+}
+
+func run(paths []string, headerFile, outFilename string) error {
+	if len(paths) == 0 {
+		return fmt.Errorf("at least one --paths value is required")
+	}
+
+	header, err := readHeader(headerFile)
 	if err != nil {
-		log.Fatalf("conditioned-gen: read header: %v", err)
+		return fmt.Errorf("read header: %w", err)
 	}
 
 	tmpl, err := template.New("conditions").Parse(fileTemplate)
 	if err != nil {
-		log.Fatalf("conditioned-gen: parse template: %v", err)
+		return fmt.Errorf("parse template: %w", err)
 	}
 
 	cfg := &packages.Config{
@@ -143,26 +150,27 @@ func main() {
 	}
 	pkgs, err := packages.Load(cfg, paths...)
 	if err != nil {
-		log.Fatalf("conditioned-gen: load packages: %v", err)
+		return fmt.Errorf("load packages: %w", err)
 	}
 
 	var hadErr bool
 	for _, pkg := range pkgs {
-		if err := processPackage(pkg, tmpl, header, *outFilename); err != nil {
+		if err := processPackage(pkg, tmpl, header, outFilename); err != nil {
 			hadErr = true
 			log.Printf("conditioned-gen: %s: %v", pkg.PkgPath, err)
 		}
 	}
 	if hadErr {
-		os.Exit(1)
+		return fmt.Errorf("one or more packages failed")
 	}
+	return nil
 }
 
 func readHeader(path string) (string, error) {
 	if path == "" {
 		return "", nil
 	}
-	b, err := os.ReadFile(path)
+	b, err := os.ReadFile(path) //nolint:gosec
 	if err != nil {
 		return "", err
 	}
@@ -224,7 +232,7 @@ func processPackage(pkg *packages.Package, tmpl *template.Template, header, outF
 		return err
 	}
 	outPath := filepath.Join(pkgDir, outFilename)
-	if err := os.WriteFile(outPath, formatted, 0o644); err != nil {
+	if err := os.WriteFile(outPath, formatted, 0o644); err != nil { //nolint:gosec
 		return fmt.Errorf("write %s: %w", outPath, err)
 	}
 	return nil
