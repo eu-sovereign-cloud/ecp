@@ -33,7 +33,7 @@ type GenericController[D gateway.IdentifiableResource] struct {
 	client              client.Client
 	k8sToDomain         kubernetes.K8sToDomain[D]
 	handler             delegator.PluginHandler[D]
-	prototype           client.Object
+	prototype           common.ConditionedObject
 	requeueAfter        time.Duration
 	logger              *slog.Logger
 	maxStatusConditions int
@@ -44,7 +44,7 @@ func NewGenericController[D gateway.IdentifiableResource](
 	client client.Client,
 	k8sToDomain kubernetes.K8sToDomain[D],
 	handler delegator.PluginHandler[D],
-	prototype client.Object,
+	prototype common.ConditionedObject,
 	requeueAfter time.Duration,
 	logger *slog.Logger,
 	maxStatusConditions int,
@@ -110,7 +110,7 @@ func (r *GenericController[D]) Reconcile(ctx context.Context, req ctrl.Request) 
 			LastTransitionAt: metav1.Now(),
 		})
 
-		if obj.LenStatusConditions() > r.maxStatusConditions {
+		for r.maxStatusConditions > 0 && obj.LenStatusConditions() > r.maxStatusConditions {
 			obj.PopStatusCondition()
 		}
 

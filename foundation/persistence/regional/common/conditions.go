@@ -15,7 +15,8 @@ type Conditioned interface {
 	// Status or Conditions slice is nil.
 	PushStatusCondition(types.StatusCondition)
 	// GetStatusConditions returns a pointer to the Status.Conditions slice, or
-	// nil if the receiver, its Status, or the slice itself is nil.
+	// nil if the receiver or its Status is nil. The returned pointer may
+	// reference a nil Conditions slice.
 	GetStatusConditions() *[]types.StatusCondition
 	// PopStatusCondition removes the oldest (head) entry from Status.Conditions.
 	// It is a no-op when the slice is empty or the receiver has no status.
