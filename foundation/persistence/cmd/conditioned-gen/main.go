@@ -170,7 +170,7 @@ func readHeader(path string) (string, error) {
 	if path == "" {
 		return "", nil
 	}
-	b, err := os.ReadFile(path) //nolint:gosec
+	b, err := os.ReadFile(path) // #nosec G304 -- path comes from --header-file CLI flag; caller controls the value //nolint:gosec
 	if err != nil {
 		return "", err
 	}
@@ -232,8 +232,9 @@ func processPackage(pkg *packages.Package, tmpl *template.Template, header, outF
 		return err
 	}
 	outPath := filepath.Join(pkgDir, outFilename)
-	if err := os.WriteFile(outPath, formatted, 0o644); err != nil { //nolint:gosec
-		return fmt.Errorf("write %s: %w", outPath, err)
+	writeErr := os.WriteFile(outPath, formatted, 0o644) // #nosec G306 -- 0644 is correct for generated source files //nolint:gosec
+	if writeErr != nil {
+		return fmt.Errorf("write %s: %w", outPath, writeErr)
 	}
 	return nil
 }
