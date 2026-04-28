@@ -18,7 +18,9 @@ import (
 // operations.
 type GenericPluginHandler[T gateway.IdentifiableResource] struct {
 	rejectionConditions []delegato.RejectionConditionFunc[T]
-	MaxConditions       int
+	// MaxConditions caps the number of StatusConditions kept in the resource status.
+	// 0 or negative means no limit.
+	MaxConditions int
 }
 
 // NewPluginHandler creates a new GenericPluginHandler with the

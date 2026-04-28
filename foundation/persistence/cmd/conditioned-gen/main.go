@@ -48,7 +48,8 @@ import (
 var _ common.Conditioned = (*{{.Name}})(nil)
 
 // GetStatusConditions returns a pointer to the Status.Conditions slice, or nil
-// if the receiver, its Status, or the slice itself is nil.
+// if the receiver or its Status is nil. The returned pointer may reference a
+// nil Conditions slice.
 func (x *{{.Name}}) GetStatusConditions() *[]genv1.StatusCondition {
 	if x == nil || x.Status == nil {
 		return nil

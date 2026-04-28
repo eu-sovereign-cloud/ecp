@@ -128,7 +128,7 @@ func (h *BlockStoragePluginHandler) setResourceState(ctx context.Context, resour
 	}
 
 	resource.Status.PushCondition(conditionFromState(state))
-	if len(resource.Status.Conditions) > h.MaxConditions {
+	for h.MaxConditions > 0 && len(resource.Status.Conditions) > h.MaxConditions {
 		resource.Status.PopCondition()
 	}
 
@@ -149,7 +149,7 @@ func (h *BlockStoragePluginHandler) setResourceErrorState(ctx context.Context, r
 	}
 
 	resource.Status.PushCondition(conditionFromError(err))
-	if len(resource.Status.Conditions) > h.MaxConditions {
+	for h.MaxConditions > 0 && len(resource.Status.Conditions) > h.MaxConditions {
 		resource.Status.PopCondition()
 	}
 

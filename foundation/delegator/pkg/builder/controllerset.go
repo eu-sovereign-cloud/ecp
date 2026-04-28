@@ -18,7 +18,7 @@ import (
 
 const (
 	DefaultRequeueTime   = 5 * time.Minute
-	DefaultMaxConditions = 5
+	DefaultMaxConditions = 5 // use 0 or a negative value to impose no limit
 )
 
 // ControllerSet is a collection of controllers for each of the plugins in the
@@ -145,12 +145,11 @@ func WithRequeueAfter(requeueAfter time.Duration) Option {
 	}
 }
 
-// WithMaxConditions configures how many StatusConditions will be stored in the resource status at most. If maxConditions is 0, nothing will be changed.
+// WithMaxConditions sets the maximum number of StatusConditions retained in the
+// resource status. A value of 0 or negative means no limit (all conditions are
+// kept). Pass this option explicitly to override DefaultMaxConditions.
 func WithMaxConditions(maxConditions int) Option {
 	return func(o *Options) {
-		if maxConditions == 0 {
-			return
-		}
 		o.MaxConditions = maxConditions
 	}
 }
