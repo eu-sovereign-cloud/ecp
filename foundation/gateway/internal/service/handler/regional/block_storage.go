@@ -137,7 +137,7 @@ func (h Storage) GetBlockStorage(
 			Region: config.Singleton().Region(),
 		},
 		h.GetStorage,
-		apistorage.BlockStorageDomainToAPIWithVerb(http.MethodGet),
+		apistorage.DomainToAPIWithVerb(http.MethodGet),
 	)
 }
 
@@ -167,8 +167,8 @@ func (h Storage) CreateOrUpdateBlockStorage(
 			},
 			Creator:     h.CreateBlockStorage,
 			Updater:     h.UpdateBlockStorage,
-			APIToDomain: apistorage.APIToBlockStorageDomain,
-			DomainToAPI: apistorage.BlockStorageDomainToAPIWithVerb(http.MethodPut),
+			APIToDomain: apistorage.BlockStorageFromAPI,
+			DomainToAPI: apistorage.DomainToAPIWithVerb(http.MethodPut),
 		},
 	)
 }

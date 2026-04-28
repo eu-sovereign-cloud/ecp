@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
+	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
 	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/storage/block-storages/v1"
@@ -20,16 +21,16 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 )
 
-func BlockStorageDomainToAPIWithVerb(verb string) func(domain *regional.BlockStorageDomain) *sdkschema.BlockStorage {
+func DomainToAPIWithVerb(verb string) func(domain *regional.BlockStorageDomain) *sdkschema.BlockStorage {
 	return func(domain *regional.BlockStorageDomain) *sdkschema.BlockStorage {
-		sdk := blockStorageDomainToAPI(domain)
+		sdk := BlockStorageToAPI(domain)
 		sdk.Metadata.Verb = verb
 		return sdk
 	}
 }
 
-// blockStorageDomainToAPI converts a BlockStorageDomain to its SDK representation.
-func blockStorageDomainToAPI(domain *regional.BlockStorageDomain) *sdkschema.BlockStorage {
+// BlockStorageToAPI converts a BlockStorageDomain to its SDK representation.
+func BlockStorageToAPI(domain *regional.BlockStorageDomain) *sdkschema.BlockStorage {
 	resVersion := int64(0)
 	// resourceVersion is best-effort numeric
 	if rv, err := strconv.ParseInt(domain.ResourceVersion, 10, 64); err == nil {
@@ -47,14 +48,14 @@ func blockStorageDomainToAPI(domain *regional.BlockStorageDomain) *sdkschema.Blo
 			Workspace:      domain.Workspace,
 			Provider:       domain.Provider,
 			Region:         domain.Region,
-			Resource: fmt.Sprintf(
-				regional.WorkspaceScopedResourceFormat,
+			Resource:       fmt.Sprintf(regional.ResourceFormat, sdkschema.RegionalResourceMetadataKindResourceKindBlockStorage, domain.Name),
+			Ref: fmt.Sprintf(
+				domain.Provider+"/"+regional.WorkspaceScopedResourceFormat,
 				domain.Tenant,
 				domain.Workspace,
-				sdkschema.RegionalResourceMetadataKindResourceKindBlockStorage,
+				schema.RegionalResourceMetadataKindResourceKindBlockStorage,
 				domain.Name,
 			),
-			Ref:             fmt.Sprintf(regional.ResourceFormat, sdkschema.RegionalResourceMetadataKindResourceKindBlockStorage, domain.Name),
 			ResourceVersion: resVersion,
 		},
 		Labels:      domain.Labels,
@@ -121,7 +122,7 @@ func BlockStorageListParamsFromAPI(params sdkstorage.ListBlockStoragesParams, te
 func BlockStorageDomainToAPIIterator(domains []*regional.BlockStorageDomain, nextSkipToken *string) *sdkstorage.BlockStorageIterator {
 	items := make([]sdkschema.BlockStorage, len(domains))
 	for i := range domains {
-		mapped := blockStorageDomainToAPI(domains[i])
+		mapped := BlockStorageToAPI(domains[i])
 		items[i] = *mapped
 	}
 
@@ -141,8 +142,8 @@ func BlockStorageDomainToAPIIterator(domains []*regional.BlockStorageDomain, nex
 	return iterator
 }
 
-// APIToBlockStorageDomain converts an SDK BlockStorage to a BlockStorageDomain.
-func APIToBlockStorageDomain(sdk sdkschema.BlockStorage, params port.IdentifiableResource) *regional.BlockStorageDomain {
+// BlockStorageFromAPI converts an SDK BlockStorage to a BlockStorageDomain.
+func BlockStorageFromAPI(sdk sdkschema.BlockStorage, params port.IdentifiableResource) *regional.BlockStorageDomain {
 	domain := &regional.BlockStorageDomain{
 		Metadata: regional.Metadata{
 			CommonMetadata: model.CommonMetadata{
@@ -188,8 +189,7 @@ func referenceObjectPtrToAPI(ref *regional.ReferenceObjectDomain) *sdkschema.Ref
 	if ref == nil {
 		return nil
 	}
-	r := referenceObjectToAPI(*ref)
-	return &r
+	return new(referenceObjectToAPI(*ref))
 }
 
 func referenceObjectFromAPI(ref sdkschema.Reference) regional.ReferenceObjectDomain {
