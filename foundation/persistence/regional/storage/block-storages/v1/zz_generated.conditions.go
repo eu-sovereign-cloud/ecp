@@ -19,17 +19,17 @@
 package v1
 
 import (
-	genv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/generated/types"
+	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/generated/types"
 	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/common"
 )
 
 // Compile-time assertion that *BlockStorage satisfies common.Conditioned.
 var _ common.Conditioned = (*BlockStorage)(nil)
 
-// GetStatusConditions returns a pointer to the Status.Conditions slice, or nil
+// GetConditions returns a pointer to the Status.Conditions slice, or nil
 // if the receiver or its Status is nil. The returned pointer may reference a
 // nil Conditions slice.
-func (x *BlockStorage) GetStatusConditions() *[]genv1.StatusCondition {
+func (x *BlockStorage) GetConditions() *[]types.StatusCondition {
 	if x == nil || x.Status == nil {
 		return nil
 	}
@@ -37,28 +37,42 @@ func (x *BlockStorage) GetStatusConditions() *[]genv1.StatusCondition {
 	return &x.Status.Conditions
 }
 
-// PushStatusCondition appends condition to Status.Conditions and mirrors its
+// PushCondition appends condition to Status.Conditions and mirrors its
 // State onto Status.State, allocating Status or Conditions if needed.
-func (x *BlockStorage) PushStatusCondition(condition genv1.StatusCondition) {
+// If condition equals the most recent entry, only its LastTransitionAt
+// is updated; no new entry is appended.
+func (x *BlockStorage) PushCondition(condition types.StatusCondition) {
 	if x == nil {
 		return
 	}
 
 	if x.Status == nil {
-		x.Status = &genv1.BlockStorageStatus{}
+		x.Status = &types.BlockStorageStatus{}
 	}
 
 	if x.Status.Conditions == nil {
-		x.Status.Conditions = []genv1.StatusCondition{}
+		x.Status.Conditions = []types.StatusCondition{}
+	}
+
+	prevCondition := x.PeekConditions()
+	if prevCondition == nil {
+		x.Status.Conditions = append(x.Status.Conditions, condition)
+		x.Status.State = condition.State
+		return
+	}
+
+	if common.EqualConditions(*prevCondition, condition) {
+		prevCondition.LastTransitionAt = condition.LastTransitionAt
+		return
 	}
 
 	x.Status.Conditions = append(x.Status.Conditions, condition)
 	x.Status.State = condition.State
 }
 
-// PopStatusCondition removes the oldest (head) entry from Status.Conditions.
+// PopCondition removes the oldest (head) entry from Status.Conditions.
 // It is a no-op when the slice is empty or the receiver has no status.
-func (x *BlockStorage) PopStatusCondition() {
+func (x *BlockStorage) PopCondition() {
 	if x == nil || x.Status == nil || len(x.Status.Conditions) == 0 {
 		return
 	}
@@ -66,9 +80,20 @@ func (x *BlockStorage) PopStatusCondition() {
 	x.Status.Conditions = x.Status.Conditions[1:]
 }
 
-// LenStatusConditions returns the length of Status.Conditions slice,
+// PeekConditions returns a pointer to the most recent (tail) entry in the Status.Conditions.
+// If there is no Status or no Conditions in the Status, the function will always
+// return nil.
+func (x *BlockStorage) PeekConditions() *types.StatusCondition {
+	if x == nil || x.Status == nil || len(x.Status.Conditions) == 0 {
+		return nil
+	}
+
+	return &x.Status.Conditions[len(x.Status.Conditions)-1]
+}
+
+// LenConditions returns the length of Status.Conditions slice,
 // or zero if the receiver, its Status, or the slice itself is nil.
-func (x *BlockStorage) LenStatusConditions() int {
+func (x *BlockStorage) LenConditions() int {
 	if x == nil || x.Status == nil {
 		return 0
 	}

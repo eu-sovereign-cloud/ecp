@@ -10,20 +10,25 @@ import (
 //
 // +kubebuilder:object:generate=false
 type Conditioned interface {
-	// PushStatusCondition appends condition to Status.Conditions and mirrors its
+	// PushCondition appends condition to Status.Conditions and mirrors its
 	// State onto Status.State. The status value is allocated if the receiver's
-	// Status or Conditions slice is nil.
-	PushStatusCondition(types.StatusCondition)
-	// GetStatusConditions returns a pointer to the Status.Conditions slice, or
+	// Status or Conditions slice is nil. If condition equals the most recent
+	// entry, only its LastTransitionAt is updated; no new entry is appended.
+	PushCondition(types.StatusCondition)
+	// GetConditions returns a pointer to the Status.Conditions slice, or
 	// nil if the receiver or its Status is nil. The returned pointer may
 	// reference a nil Conditions slice.
-	GetStatusConditions() *[]types.StatusCondition
-	// PopStatusCondition removes the oldest (head) entry from Status.Conditions.
+	GetConditions() *[]types.StatusCondition
+	// PeekConditions returns a pointer to the most recent StatusCondition in the Status.
+	// If there is no Status or no Conditions in the Status, the function will always
+	// return nil.
+	PeekConditions() *types.StatusCondition
+	// PopCondition removes the oldest (head) entry from Status.Conditions.
 	// It is a no-op when the slice is empty or the receiver has no status.
-	PopStatusCondition()
-	// LenStatusConditions returns the length of Status.Conditions slice,
+	PopCondition()
+	// LenConditions returns the length of Status.Conditions slice,
 	// or zero if the receiver, its Status, or the slice itself is nil.
-	LenStatusConditions() int
+	LenConditions() int
 }
 
 // ConditionedObject is a Kubernetes client.Object that also exposes the
@@ -34,4 +39,26 @@ type Conditioned interface {
 type ConditionedObject interface {
 	Conditioned
 	client.Object
+}
+
+// EqualConditions compares two StatusConditions. StatusCondition.LastTransitionAt is
+// not used to compare the two objects.
+func EqualConditions(a, b types.StatusCondition) bool {
+	if a.State != b.State {
+		return false
+	}
+
+	if a.Type != b.Type {
+		return false
+	}
+
+	if a.Reason != b.Reason {
+		return false
+	}
+
+	if a.Message != b.Message {
+		return false
+	}
+
+	return true
 }
