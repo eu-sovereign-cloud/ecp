@@ -196,7 +196,7 @@ func (g *generator) collectTargets(pkg *packages.Package) ([]targetType, error) 
 
 func (g *generator) collectDeclTargets(pkg *packages.Package, cmap ast.CommentMap, gen *ast.GenDecl) ([]targetType, error) {
 	genComments := cmap[gen]
-	var targets []targetType
+	var targets []targetType // nolint:prealloc
 	for _, spec := range gen.Specs {
 		ts, ok := spec.(*ast.TypeSpec)
 		if !ok {
@@ -236,7 +236,7 @@ func (g *generator) renderToFile(pkg *packages.Package, targets []targetType) er
 	outPath := filepath.Join(pkgDir, g.outFilename)
 	writeErr := os.WriteFile(outPath, formatted, 0o644) // #nosec G306 -- 0644 is correct for generated source files //nolint:gosec
 	if writeErr != nil {
-		return fmt.Errorf("write %s: %w", outPath, err)
+		return fmt.Errorf("write %s: %w", outPath, writeErr)
 	}
 	return nil
 }
