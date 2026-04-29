@@ -5,7 +5,6 @@ import (
 	"strconv"
 
 	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
-	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
 	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/storage/block-storages/v1"
@@ -53,7 +52,7 @@ func blockStorageDomainToAPI(domain *regional.BlockStorageDomain) *sdkschema.Blo
 				domain.Provider+"/"+regional.WorkspaceScopedResourceFormat,
 				domain.Tenant,
 				domain.Workspace,
-				schema.RegionalResourceMetadataKindResourceKindBlockStorage,
+				sdkschema.RegionalResourceMetadataKindResourceKindBlockStorage,
 				domain.Name,
 			),
 			ResourceVersion: resVersion,

@@ -459,11 +459,12 @@ func embedScopeInResource(resource, tenant, workspace string) string {
 	}
 
 	var scopePath string
-	if tenant != "" && workspace != "" {
+	switch {
+	case tenant != "" && workspace != "":
 		scopePath = fmt.Sprintf("tenants/%s/workspaces/%s", tenant, workspace)
-	} else if tenant != "" {
+	case tenant != "":
 		scopePath = fmt.Sprintf("tenants/%s", tenant)
-	} else if workspace != "" {
+	case workspace != "":
 		scopePath = fmt.Sprintf("workspaces/%s", workspace)
 	}
 
