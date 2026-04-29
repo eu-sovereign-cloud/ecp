@@ -218,6 +218,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		//
 		// And a workspace plugin handler
 		handler := NewWorkspacePluginHandler(mockRepo, mockPlugin)
+		handler.MaxConditions = 1
 
 		//
 		// When we reconcile the resource
@@ -307,6 +308,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		//
 		// And a workspace plugin handler
 		handler := NewWorkspacePluginHandler(mockRepo, mockPlugin)
+		handler.MaxConditions = 1
 
 		//
 		// When we reconcile the resource
