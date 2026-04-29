@@ -9,7 +9,6 @@ import (
 	ionosv1alpha1 "github.com/ionos-cloud/provider-upjet-ionoscloud/apis/namespaced/compute/v1alpha1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	delegator "github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/port"
@@ -30,12 +29,32 @@ func NewBlockStorage(client client.Client, logger *slog.Logger) *BlockStorage {
 func (b *BlockStorage) Create(ctx context.Context, resource *regional.BlockStorageDomain) error {
 	b.logger.Info("ionos block storage plugin: Create called", "resource_name", resource.GetName())
 
-	// Map ECP BlockStorage to Crossplane Volume
 	namespace := k8s.ComputeNamespace(&scope.Scope{Tenant: resource.GetTenant()})
 	b.logger.Info("block storage skuRef",
 		"region", resource.Spec.SkuRef.Region,
 		"tenant", resource.Spec.SkuRef.Tenant, "ws", resource.Spec.SkuRef.Workspace,
 		"provider", resource.Spec.SkuRef.Provider, "resource", resource.Spec.SkuRef.Resource)
+
+	// Check whether the Volume already exists.
+	existing := &ionosv1alpha1.Volume{}
+	err := b.client.Get(ctx, client.ObjectKey{Namespace: namespace, Name: resource.GetName()}, existing)
+	if err == nil {
+		ready, err := checkReady(&existing.Status, "volume")
+		if err != nil {
+			b.logger.Error("volume in error state", "volume_name", resource.GetName(), "error", err)
+			return err
+		}
+		if ready {
+			b.logger.Info("volume is ready", "volume_name", resource.GetName())
+			return nil
+		}
+		b.logger.Info("volume not yet ready, waiting", "volume_name", resource.GetName())
+		return delegator.ErrStillProcessing
+	}
+	if !apierrors.IsNotFound(err) {
+		b.logger.Error("failed to check volume existence", "name", resource.GetName(), "namespace", namespace, "error", err)
+		return err
+	}
 
 	volume := &ionosv1alpha1.Volume{
 		ObjectMeta: metav1.ObjectMeta{
@@ -48,15 +67,15 @@ func (b *BlockStorage) Create(ctx context.Context, resource *regional.BlockStora
 					Name:      resource.GetWorkspace(),
 					Namespace: namespace,
 				},
-				Name: ptr.To(resource.Name),
-				Size: ptr.To(float64(resource.Spec.SizeGB)),
+				Name: new(resource.Name),
+				Size: new(float64(resource.Spec.SizeGB)),
 				// todo access sku ref to retrieve block storage type
-				DiskType:         ptr.To("SSD"),
-				AvailabilityZone: ptr.To("AUTO"),
+				DiskType:         new("SSD"),
+				AvailabilityZone: new("AUTO"),
 				// todo access image ref to retrieve image
-				ImageName: ptr.To("ubuntu:22.04"),
+				ImageName: new("ubuntu:22.04"),
 				// todo access attached server to retrieve ssh key
-				ImagePassword: ptr.To("dummyPw123"),
+				ImagePassword: new("dummyPw123"),
 			},
 			ManagedResourceSpec: v2.ManagedResourceSpec{
 				ProviderConfigReference: &v1.ProviderConfigReference{
@@ -69,14 +88,13 @@ func (b *BlockStorage) Create(ctx context.Context, resource *regional.BlockStora
 		},
 	}
 
-	err := b.client.Create(ctx, volume)
-	if err != nil {
+	if err := b.client.Create(ctx, volume); err != nil {
 		b.logger.Error("failed to create volume", "error", err)
 		return err
 	}
 
-	b.logger.Info("volume created successfully", "volume_name", volume.Name)
-	return nil
+	b.logger.Info("volume created, waiting for it to be ready", "volume_name", volume.Name)
+	return delegator.ErrStillProcessing
 }
 
 func (b *BlockStorage) Delete(ctx context.Context, resource *regional.BlockStorageDomain) error {
@@ -116,7 +134,7 @@ func (b *BlockStorage) Delete(ctx context.Context, resource *regional.BlockStora
 func (b *BlockStorage) IncreaseSize(ctx context.Context, resource *regional.BlockStorageDomain) error {
 	b.logger.Info("ionos block storage plugin: IncreaseSize called", "resource_name", resource.GetName(), "new_size_gb", resource.Spec.SizeGB)
 	namespace := k8s.ComputeNamespace(&scope.Scope{Tenant: resource.GetTenant()})
-	// Fetch existing volume
+
 	volume := &ionosv1alpha1.Volume{}
 	err := b.client.Get(ctx, client.ObjectKey{Name: resource.GetName(), Namespace: namespace}, volume)
 	if err != nil {
@@ -124,8 +142,7 @@ func (b *BlockStorage) IncreaseSize(ctx context.Context, resource *regional.Bloc
 		return err
 	}
 
-	// Update size
-	volume.Spec.ForProvider.Size = ptr.To(float64(resource.Spec.SizeGB))
+	volume.Spec.ForProvider.Size = new(float64(resource.Spec.SizeGB))
 
 	err = b.client.Update(ctx, volume)
 	if err != nil {

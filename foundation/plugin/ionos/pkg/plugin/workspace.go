@@ -5,7 +5,6 @@ import (
 	"log/slog"
 
 	ionosv1alpha1 "github.com/ionos-cloud/provider-upjet-ionoscloud/apis/namespaced/compute/v1alpha1"
-	"k8s.io/utils/ptr"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
 
@@ -40,34 +39,26 @@ func (w *Workspace) Create(ctx context.Context, resource *regional.WorkspaceDoma
 	// Workspaces are tenant-scoped in ECP; compute namespace from tenant only.
 	ownedNamespace := kubernetes.ComputeNamespace(&scope.Scope{Tenant: resource.GetTenant()})
 
-	// 1) Check whether the Ionos Datacenter already exists. If it does, treat Create as idempotent.
-	datacenterExists := &ionosv1alpha1.Datacenter{}
-	err := w.client.Get(ctx, client.ObjectKey{Namespace: ownedNamespace, Name: resource.GetName()}, datacenterExists)
+	// Check whether the Ionos Datacenter already exists.
+	existing := &ionosv1alpha1.Datacenter{}
+	err := w.client.Get(ctx, client.ObjectKey{Namespace: ownedNamespace, Name: resource.GetName()}, existing)
 	if err == nil {
-		w.logger.Info("ionos datacenter already exists", "namespace", ownedNamespace, "datacenter", resource.GetName())
-		return nil
+		ready, err := checkReady(&existing.Status, "datacenter")
+		if err != nil {
+			w.logger.Error("datacenter in error state", "namespace", ownedNamespace, "datacenter", resource.GetName(), "error", err)
+			return err
+		}
+		if ready {
+			w.logger.Info("ionos datacenter is ready", "namespace", ownedNamespace, "datacenter", resource.GetName())
+			return nil
+		}
+		w.logger.Info("ionos datacenter not yet ready, waiting", "namespace", ownedNamespace, "datacenter", resource.GetName())
+		return delegator.ErrStillProcessing
 	}
 	if !apierrors.IsNotFound(err) {
 		w.logger.Error("failed to check datacenter existence", "namespace", ownedNamespace, "datacenter", resource.GetName(), "error", err)
 		return err
 	}
-	// 2) Ensure the namespace exists (best-effort; if already exists it's fine)
-	// ns := &corev1.Namespace{
-	// 	ObjectMeta: metav1.ObjectMeta{
-	// 		Name: ownedNamespace,
-	// 		Labels: map[string]string{
-	// 			labels.InternalTenantLabel:    resource.GetTenant(),
-	// 			labels.InternalWorkspaceLabel: resource.GetName(),
-	// 		},
-	// 	},
-	// }
-	// if err := w.client.Create(ctx, ns); err != nil {
-	// 	if !apierrors.IsAlreadyExists(err) {
-	// 		w.logger.Error("failed to create namespace for owner workspace", "workspace", resource.GetName(), "tenant", resource.GetTenant(), "error", err)
-	// 		return err
-	// 	}
-	// }
-	// w.logger.Info("namespace ensured", "namespace", ownedNamespace)
 
 	datacenter := &ionosv1alpha1.Datacenter{
 		TypeMeta: metav1.TypeMeta{
@@ -77,21 +68,8 @@ func (w *Workspace) Create(ctx context.Context, resource *regional.WorkspaceDoma
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      resource.GetName(),
 			Namespace: ownedNamespace,
-			// can't reference the workspace CR as owner because it's in a different namespace, and cross-namespace owner references are not allowed in Kubernetes
-			// OwnerReferences: []metav1.OwnerReference{
-			// 	{
-			// 		APIVersion: workspacev1.GroupVersion.String(),
-			// 		Kind:       workspacev1.Kind,
-			// 		Name:       ws.GetName(),
-			// 		UID:        ws.GetUID(),
-			// 		Controller: ptr.To(true),
-			// 		// Ensure the Workspace cannot be deleted until the Datacenter is gone.
-			// 		BlockOwnerDeletion: ptr.To(true),
-			// 	},
-			// },
 		},
 		Spec: ionosv1alpha1.DatacenterSpec{
-
 			ManagedResourceSpec: v2.ManagedResourceSpec{
 				ProviderConfigReference: &v1.ProviderConfigReference{
 					// todo move back to namespaced provider config once we can create users/tenants
@@ -101,9 +79,9 @@ func (w *Workspace) Create(ctx context.Context, resource *regional.WorkspaceDoma
 				},
 			},
 			ForProvider: ionosv1alpha1.DatacenterParameters{
-				Name:        ptr.To(resource.GetName()),
-				Description: ptr.To("Workspace: " + resource.GetName()),
-				Location:    ptr.To("es/vit"), // Default location, should be configurable from region
+				Name:        new(resource.GetName()),
+				Description: new("Workspace: " + resource.GetName()),
+				Location:    new("es/vit"), // Default location, should be configurable from region
 			},
 		},
 	}
@@ -114,8 +92,8 @@ func (w *Workspace) Create(ctx context.Context, resource *regional.WorkspaceDoma
 		return err
 	}
 
-	w.logger.Info("datacenter created successfully", "datacenter_name", datacenter.Name)
-	return nil
+	w.logger.Info("datacenter created, waiting for it to be ready", "datacenter_name", datacenter.Name)
+	return delegator.ErrStillProcessing
 }
 
 func (w *Workspace) Delete(ctx context.Context, resource *regional.WorkspaceDomain) error {
@@ -134,12 +112,6 @@ func (w *Workspace) Delete(ctx context.Context, resource *regional.WorkspaceDoma
 
 	if apierrors.IsNotFound(err) {
 		w.logger.Info("datacenter already removed", "namespace", ownedNamespace, "datacenter_name", resource.GetName())
-		// err = w.client.Delete(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: ownedNamespace}})
-		// if err != nil && !apierrors.IsNotFound(err) {
-		// 	w.logger.Error("failed to delete namespace owned by workspace", "workspace", resource.GetName(), "tenant", resource.GetTenant(), "error", err)
-		// 	return err
-		// }
-		// w.logger.Info("namespace owned by workspace already removed", "workspace", resource.GetName(), "namespace", ownedNamespace)
 		return nil
 	}
 
