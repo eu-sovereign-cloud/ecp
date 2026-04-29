@@ -102,7 +102,7 @@ func (r *GenericController[D]) Reconcile(ctx context.Context, req ctrl.Request) 
 		// If conversion fails, it's likely a permanent error
 		logger.Error("failed to convert k8s object to domain resource", "error", err)
 
-		obj.PushStatusCondition(genv1.StatusCondition{
+		obj.PushCondition(genv1.StatusCondition{
 			State:            genv1.ResourceStateError,
 			Type:             "ConversionFailed",
 			Reason:           "DomainConversionFailed",
@@ -110,8 +110,8 @@ func (r *GenericController[D]) Reconcile(ctx context.Context, req ctrl.Request) 
 			LastTransitionAt: metav1.Now(),
 		})
 
-		for r.maxStatusConditions > 0 && obj.LenStatusConditions() > r.maxStatusConditions {
-			obj.PopStatusCondition()
+		for r.maxStatusConditions > 0 && obj.LenConditions() > r.maxStatusConditions {
+			obj.PopCondition()
 		}
 
 		if err = r.client.Status().Update(ctx, obj); err != nil {
