@@ -423,14 +423,55 @@ func mapCRToResourceStateDomain(crResourceState genv1.ResourceState) regional.Re
 }
 
 // mapCRReferenceObjectToDomain converts a generated types.ReferenceObject to a domain ReferenceObject.
+// Tenant and Workspace are embedded into the Resource path so the domain always
+// carries a fully-qualified resource string (e.g. "seca.storage/v1/tenants/t/skus/s").
 func mapCRReferenceObjectToDomain(ref genv1.ReferenceObject) regional.ReferenceObjectDomain {
-	return regional.ReferenceObjectDomain{
-		Provider:  ref.Provider,
-		Region:    ref.Region,
-		Resource:  ref.Resource,
-		Tenant:    ref.Tenant,
-		Workspace: ref.Workspace,
+	resource := ref.Resource
+	if ref.Tenant != "" || ref.Workspace != "" {
+		resource = embedScopeInResource(resource, ref.Tenant, ref.Workspace)
 	}
+	return regional.ReferenceObjectDomain{
+		Provider: ref.Provider,
+		Region:   ref.Region,
+		Resource: resource,
+	}
+}
+
+// embedScopeInResource inserts tenants/{tenant} and workspaces/{workspace} segments
+// into the resource path, just before the resource type/name suffix.
+// e.g. "seca.storage/v1/skus/fast-local" with tenant "seca" becomes
+// "seca.storage/v1/tenants/seca/skus/fast-local".
+func embedScopeInResource(resource, tenant, workspace string) string {
+	// Find the resource type/name (last two path segments)
+	lastSlash := strings.LastIndex(resource, "/")
+	if lastSlash < 0 {
+		return resource
+	}
+	secondLastSlash := strings.LastIndex(resource[:lastSlash], "/")
+
+	var prefix, suffix string
+	if secondLastSlash >= 0 {
+		prefix = resource[:secondLastSlash]
+		suffix = resource[secondLastSlash+1:]
+	} else {
+		prefix = ""
+		suffix = resource
+	}
+
+	var scopePath string
+	switch {
+	case tenant != "" && workspace != "":
+		scopePath = fmt.Sprintf("tenants/%s/workspaces/%s", tenant, workspace)
+	case tenant != "":
+		scopePath = fmt.Sprintf("tenants/%s", tenant)
+	case workspace != "":
+		scopePath = fmt.Sprintf("workspaces/%s", workspace)
+	}
+
+	if prefix != "" {
+		return prefix + "/" + scopePath + "/" + suffix
+	}
+	return scopePath + "/" + suffix
 }
 
 // mapDomainReferenceObjectToCR converts a domain ReferenceObject to a generated types ReferenceObject.

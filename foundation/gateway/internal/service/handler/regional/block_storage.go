@@ -167,7 +167,7 @@ func (h Storage) CreateOrUpdateBlockStorage(
 			},
 			Creator:     h.CreateBlockStorage,
 			Updater:     h.UpdateBlockStorage,
-			APIToDomain: apistorage.APIToBlockStorageDomain,
+			APIToDomain: apistorage.BlockStorageFromAPI,
 			DomainToAPI: apistorage.BlockStorageDomainToAPIWithVerb(http.MethodPut),
 		},
 	)
