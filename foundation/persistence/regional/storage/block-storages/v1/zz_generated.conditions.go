@@ -26,15 +26,14 @@ import (
 // Compile-time assertion that *BlockStorage satisfies common.Conditioned.
 var _ common.Conditioned = (*BlockStorage)(nil)
 
-// GetConditions returns a pointer to the Status.Conditions slice, or nil
-// if the receiver or its Status is nil. The returned pointer may reference a
-// nil Conditions slice.
-func (x *BlockStorage) GetConditions() *[]types.StatusCondition {
+// GetConditions returns the Status.Conditions slice, or nil
+// if the receiver, its Status or the slice is nil.
+func (x *BlockStorage) GetConditions() []types.StatusCondition {
 	if x == nil || x.Status == nil {
 		return nil
 	}
 
-	return &x.Status.Conditions
+	return x.Status.Conditions
 }
 
 // PushCondition appends condition to Status.Conditions and mirrors its
