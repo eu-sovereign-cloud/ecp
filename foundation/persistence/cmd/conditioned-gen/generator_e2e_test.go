@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"log"
 	"os"
@@ -61,7 +62,7 @@ func TestRun_ValidPackage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read golden (run with -update to create it): %v", err)
 	}
-	if string(got) != string(want) {
+	if !bytes.Equal(got, want) {
 		t.Errorf("generated output differs from golden\ngot:\n%s\nwant:\n%s", got, want)
 	}
 }
