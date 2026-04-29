@@ -16,9 +16,8 @@ type Conditioned interface {
 	// entry, only its LastTransitionAt is updated; no new entry is appended.
 	PushCondition(types.StatusCondition)
 	// GetConditions returns a pointer to the Status.Conditions slice, or
-	// nil if the receiver or its Status is nil. The returned pointer may
-	// reference a nil Conditions slice.
-	GetConditions() *[]types.StatusCondition
+	// nil if the receiver, its Status or the slice is nil.
+	GetConditions() []types.StatusCondition
 	// PeekConditions returns a pointer to the most recent StatusCondition in the Status.
 	// If there is no Status or no Conditions in the Status, the function will always
 	// return nil.
