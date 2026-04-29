@@ -234,7 +234,8 @@ func (g *generator) renderToFile(pkg *packages.Package, targets []targetType) er
 		return err
 	}
 	outPath := filepath.Join(pkgDir, g.outFilename)
-	if err := os.WriteFile(outPath, formatted, 0o644); err != nil { // #nosec G306 -- 0644 is correct for generated source files //nolint:gosec
+	writeErr := os.WriteFile(outPath, formatted, 0o644) // #nosec G306 -- 0644 is correct for generated source files //nolint:gosec
+	if writeErr != nil {
 		return fmt.Errorf("write %s: %w", outPath, err)
 	}
 	return nil
