@@ -22,7 +22,7 @@ type Conditioned interface {
 	// If there is no Status or no Conditions in the Status, the function will always
 	// return nil.
 	PeekConditions() *types.StatusCondition
-	// PopCondition removes the oldest (head) entry from Status.Conditions.
+	// PopCondition removes the oldest (tail) entry from Status.Conditions.
 	// It is a no-op when the slice is empty or the receiver has no status.
 	PopCondition()
 	// LenConditions returns the length of Status.Conditions slice,
