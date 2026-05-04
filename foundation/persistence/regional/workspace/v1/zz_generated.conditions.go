@@ -62,9 +62,12 @@ func (x *Workspace) PushCondition(condition types.StatusCondition) {
 
 	if common.EqualConditions(*prevCondition, condition) {
 		prevCondition.LastTransitionAt = condition.LastTransitionAt
+		prevCondition.Occurrences++
 		return
 	}
 
+	// ensure that the condition.Occurrences field is initialized to 1 if the condition has not occurred previously
+	condition.Occurrences = 1
 	x.Status.Conditions = append(x.Status.Conditions, condition)
 	x.Status.State = condition.State
 }
