@@ -346,6 +346,7 @@ func mapStatusConditionDomainToCR(domainStatusCondition regional.StatusCondition
 		LastTransitionAt: v1.NewTime(domainStatusCondition.LastTransitionAt),
 		Reason:           domainStatusCondition.Reason,
 		Message:          domainStatusCondition.Message,
+		Occurrences:      domainStatusCondition.Occurrences,
 	}
 }
 
@@ -388,6 +389,7 @@ func mapCRToStatusConditionDomain(crStatusCondition genv1.StatusCondition) regio
 		LastTransitionAt: crStatusCondition.LastTransitionAt.Time,
 		Reason:           crStatusCondition.Reason,
 		Message:          crStatusCondition.Message,
+		Occurrences:      crStatusCondition.Occurrences,
 	}
 }
 

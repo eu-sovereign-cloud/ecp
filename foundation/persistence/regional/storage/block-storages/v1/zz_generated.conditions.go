@@ -55,7 +55,9 @@ func (x *BlockStorage) PushCondition(condition types.StatusCondition) {
 
 	prevCondition := x.PeekConditions()
 	if prevCondition == nil {
-		x.Status.Conditions = append(x.Status.Conditions, condition)
+		// ensure that the condition.Occurrences field is initialized to 1 if the condition has not occurred previously
+		condition.Occurrences = 1
+		x.Status.Conditions = append([]types.StatusCondition{condition}, x.Status.Conditions...)
 		x.Status.State = condition.State
 		return
 	}
@@ -68,21 +70,21 @@ func (x *BlockStorage) PushCondition(condition types.StatusCondition) {
 
 	// ensure that the condition.Occurrences field is initialized to 1 if the condition has not occurred previously
 	condition.Occurrences = 1
-	x.Status.Conditions = append(x.Status.Conditions, condition)
+	x.Status.Conditions = append([]types.StatusCondition{condition}, x.Status.Conditions...)
 	x.Status.State = condition.State
 }
 
-// PopCondition removes the oldest (head) entry from Status.Conditions.
+// PopCondition removes the oldest (tail) entry from Status.Conditions.
 // It is a no-op when the slice is empty or the receiver has no status.
 func (x *BlockStorage) PopCondition() {
 	if x == nil || x.Status == nil || len(x.Status.Conditions) == 0 {
 		return
 	}
 
-	x.Status.Conditions = x.Status.Conditions[1:]
+	x.Status.Conditions = x.Status.Conditions[:len(x.Status.Conditions)-1]
 }
 
-// PeekConditions returns a pointer to the most recent (tail) entry in the Status.Conditions.
+// PeekConditions returns a pointer to the most recent (head) entry in the Status.Conditions.
 // If there is no Status or no Conditions in the Status, the function will always
 // return nil.
 func (x *BlockStorage) PeekConditions() *types.StatusCondition {
@@ -90,7 +92,7 @@ func (x *BlockStorage) PeekConditions() *types.StatusCondition {
 		return nil
 	}
 
-	return &x.Status.Conditions[len(x.Status.Conditions)-1]
+	return &x.Status.Conditions[0]
 }
 
 // LenConditions returns the length of Status.Conditions slice,
