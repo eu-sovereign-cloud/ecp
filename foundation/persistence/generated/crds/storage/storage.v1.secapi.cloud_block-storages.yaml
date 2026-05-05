@@ -74,6 +74,12 @@ spec:
               sizeGB:
                 description: SizeGB Size of the block storage in GB.
                 type: integer
+                x-kubernetes-validations:
+                - message: spec.sizeGB cannot be decreased
+                  optionalOldSelf: true
+                  rule: '!oldSelf.hasValue() || self >= oldSelf.value()'
+                - message: spec.sizeGB must be greater than 0
+                  rule: self > 0
               skuRef:
                 description: SkuRef Reference to the SKU of the block storage.
                 properties:
