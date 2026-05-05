@@ -7,7 +7,7 @@ import (
 
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
 	"github.com/stretchr/testify/require"
-	gomock "go.uber.org/mock/gomock"
+	"go.uber.org/mock/gomock"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kcache "k8s.io/client-go/tools/cache"

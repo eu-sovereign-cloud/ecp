@@ -15,20 +15,21 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
+
 	kubernetesadapter "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
 	ecpmodel "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	regionalmodel "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
 	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/workspace/v1"
-	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 )
 
 func TestWorkspaceAPI(t *testing.T) {
-	//t.Parallel()
+	// t.Parallel()
 
 	t.Run("should create a workspace resource via the gateway API", func(t *testing.T) {
-		//t.Parallel()
+		// t.Parallel()
 
 		//
 		// Given a unique workspace name and an empty request body
@@ -85,7 +86,7 @@ func TestWorkspaceAPI(t *testing.T) {
 	})
 
 	t.Run("should delete a workspace resource via the gateway API", func(t *testing.T) {
-		//t.Parallel()
+		// t.Parallel()
 
 		//
 		// Given a unique workspace that has been created
