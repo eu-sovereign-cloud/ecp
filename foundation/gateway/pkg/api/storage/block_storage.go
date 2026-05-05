@@ -141,8 +141,8 @@ func BlockStorageDomainToAPIIterator(domains []*regional.BlockStorageDomain, nex
 	return iterator
 }
 
-// BlockStorageFromAPI converts an SDK BlockStorage to a BlockStorageDomain.
-func BlockStorageFromAPI(sdk sdkschema.BlockStorage, params port.IdentifiableResource) *regional.BlockStorageDomain {
+// APIToBlockStorageDomain converts an SDK BlockStorage to a BlockStorageDomain.
+func APIToBlockStorageDomain(sdk sdkschema.BlockStorage, params port.IdentifiableResource) *regional.BlockStorageDomain {
 	domain := &regional.BlockStorageDomain{
 		Metadata: regional.Metadata{
 			CommonMetadata: model.CommonMetadata{
