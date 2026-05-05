@@ -21,6 +21,8 @@ package v1
 import (
 	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/generated/types"
 	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/common"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // Compile-time assertion that *Workspace satisfies common.Conditioned.
@@ -51,6 +53,10 @@ func (x *Workspace) PushCondition(condition types.StatusCondition) {
 
 	if x.Status.Conditions == nil {
 		x.Status.Conditions = []types.StatusCondition{}
+	}
+
+	if condition.LastTransitionAt.IsZero() {
+		condition.LastTransitionAt = metav1.Now()
 	}
 
 	prevCondition := x.PeekConditions()

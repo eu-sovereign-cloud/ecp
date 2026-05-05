@@ -16,6 +16,13 @@ const (
 	ResourceStateError    ResourceStateDomain = "error"
 )
 
+var DefaultPendingCondition = StatusConditionDomain{
+	State:   ResourceStatePending,
+	Message: "resource is pending",
+	Reason:  "Pending",
+	Type:    "Pending",
+}
+
 // StatusDomain represents the common status attributes of a regional resource. Cannot be directly mapped to schema.Status,
 // since <Resource>Status does not embed schema.Status. This is purely for reducing code duplication in regional resource domains.
 type StatusDomain struct {
@@ -50,6 +57,10 @@ func (s *StatusDomain) PushCondition(condition StatusConditionDomain) {
 
 	if s.Conditions == nil {
 		s.Conditions = []StatusConditionDomain{}
+	}
+
+	if condition.LastTransitionAt.IsZero() {
+		condition.LastTransitionAt = time.Now()
 	}
 
 	prevCondition := s.PeekConditions()
