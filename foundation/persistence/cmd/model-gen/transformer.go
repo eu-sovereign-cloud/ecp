@@ -51,7 +51,7 @@ func transformFile(srcPath, outPath string) error {
 	// f. Inject kubebuilder annotations after the "package types" line
 	out := injectKubebuilderHeader(buf.Bytes())
 
-	return os.WriteFile(outPath, out, 0o644) //nolint:gosec
+	return os.WriteFile(outPath, out, 0o644) // #nosec G306 -- 0644 is correct for generated source files //nolint:gosec
 }
 
 func mutateGenDecl(genDecl *ast.GenDecl) {

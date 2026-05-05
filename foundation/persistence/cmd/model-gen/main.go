@@ -38,7 +38,8 @@ func run(schemaDir, outputDir string) error {
 		return fmt.Errorf("read schema dir: %w", err)
 	}
 
-	if err := os.MkdirAll(outputDir, 0o755); err != nil { //nolint:gosec
+	err = os.MkdirAll(outputDir, 0755) // #nosec G301 -- 0755 is correct for generated directories //nolint:gosec
+	if err != nil {
 		return fmt.Errorf("create output dir: %w", err)
 	}
 

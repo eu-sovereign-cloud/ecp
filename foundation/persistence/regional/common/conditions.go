@@ -40,7 +40,7 @@ type ConditionedObject interface {
 	client.Object
 }
 
-// EqualConditions compares two StatusConditions. StatusCondition.LastTransitionAt or StatusCondition.Occurences are
+// EqualConditions compares two StatusConditions. StatusCondition.LastTransitionAt or StatusCondition.Occurrences are
 // not used to compare the two objects.
 func EqualConditions(a, b types.StatusCondition) bool {
 	if a.State != b.State {
