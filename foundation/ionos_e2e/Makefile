@@ -16,7 +16,7 @@ PLUGIN_IMAGE ?= ionos-plugin:dev
 SECATEST_REGION              ?= region
 SECATEST_TENANT              ?= seca
 SECATEST_AUTH_TOKEN          ?= test
-SECATEST_SCENARIOS_FILTER    ?= Workspace.V1.ProviderLifeCycle
+SECATEST_SCENARIOS_FILTER    ?= Storage.V1.BlockStorageLifeCycle
 SECATEST_SCENARIOS_USERS     ?= user1@sdemo.secapi.cloud,user2@demo.secapi.cloud
 SECATEST_SCENARIOS_CIDR      ?= 10.1.0.0/16
 SECATEST_SCENARIOS_PUBLIC_IPS ?= 52.93.126.1/26
@@ -67,7 +67,7 @@ secatest-all: secatest-scaffolding secatest
 #
 # Usage:
 #   make secatest
-#   make secatest SECATEST_SCENARIOS_FILTER=Compute.V1.ProviderLifeCycle
+#   make secatest SECATEST_SCENARIOS_FILTER=Storage.V1.BlockStorageLifeCycle
 #   make secatest SECATEST_AUTH_TOKEN=my-token
 secatest:
 	@GLOBAL_IP=$$(kubectl --kubeconfig $(GLOBAL_KUBECONFIG) get node -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}') || { echo "Error: cannot find global cluster node"; exit 1; }; \

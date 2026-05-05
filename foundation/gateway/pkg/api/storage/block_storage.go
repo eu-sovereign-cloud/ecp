@@ -47,14 +47,14 @@ func blockStorageDomainToAPI(domain *regional.BlockStorageDomain) *sdkschema.Blo
 			Workspace:      domain.Workspace,
 			Provider:       domain.Provider,
 			Region:         domain.Region,
-			Resource: fmt.Sprintf(
-				regional.WorkspaceScopedResourceFormat,
+			Resource:       fmt.Sprintf(regional.ResourceFormat, sdkschema.RegionalResourceMetadataKindResourceKindBlockStorage, domain.Name),
+			Ref: fmt.Sprintf(
+				domain.Provider+"/"+regional.WorkspaceScopedResourceFormat,
 				domain.Tenant,
 				domain.Workspace,
 				sdkschema.RegionalResourceMetadataKindResourceKindBlockStorage,
 				domain.Name,
 			),
-			Ref:             fmt.Sprintf(regional.ResourceFormat, sdkschema.RegionalResourceMetadataKindResourceKindBlockStorage, domain.Name),
 			ResourceVersion: resVersion,
 		},
 		Labels:      domain.Labels,
@@ -188,8 +188,7 @@ func referenceObjectPtrToAPI(ref *regional.ReferenceObjectDomain) *sdkschema.Ref
 	if ref == nil {
 		return nil
 	}
-	r := referenceObjectToAPI(*ref)
-	return &r
+	return new(referenceObjectToAPI(*ref))
 }
 
 func referenceObjectFromAPI(ref sdkschema.Reference) regional.ReferenceObjectDomain {
