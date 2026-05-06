@@ -8,7 +8,11 @@ generate-all: generate-models generate-crds
 
 generate-models:
 	@echo "persistence: generate-models"
-	@./scripts/generate-model.sh
+	@go run ./cmd/model-gen --schema-dir=../../modules/go-sdk/pkg/spec/schema --output-dir=generated/types
+	@echo "Injecting CEL validation markers..."
+	@go run ./cmd/inject-cel-markers "./generated/types"
+	@echo "Running controller-gen for DeepCopy..."
+	@go tool sigs.k8s.io/controller-tools/cmd/controller-gen object paths="./generated/types"
 	@echo "persistence: generate-models done"
 
 generate-crds:

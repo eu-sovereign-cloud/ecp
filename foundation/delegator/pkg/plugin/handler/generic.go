@@ -18,6 +18,9 @@ import (
 // operations.
 type GenericPluginHandler[T gateway.IdentifiableResource] struct {
 	rejectionConditions []delegato.RejectionConditionFunc[T]
+	// MaxConditions caps the number of StatusConditions kept in the resource status.
+	// 0 or negative means no limit.
+	MaxConditions int
 }
 
 // NewPluginHandler creates a new GenericPluginHandler with the
@@ -87,7 +90,7 @@ func conditionFromState(state regional.ResourceStateDomain) regional.StatusCondi
 
 	return regional.StatusConditionDomain{
 		LastTransitionAt: time.Now(),
-		Type:             string(state),
+		Type:             "Reconcile",
 		State:            state,
 		Reason:           string(state),
 		Message:          message,
@@ -98,7 +101,7 @@ func conditionFromState(state regional.ResourceStateDomain) regional.StatusCondi
 func conditionFromError(err error) regional.StatusConditionDomain {
 	return regional.StatusConditionDomain{
 		LastTransitionAt: time.Now(),
-		Type:             string(regional.ResourceStateError),
+		Type:             "ReconcileError",
 		State:            regional.ResourceStateError,
 		Reason:           "ReconcileError", // A generic reason for reconciliation failures
 		Message:          err.Error(),

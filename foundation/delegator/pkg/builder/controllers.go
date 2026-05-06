@@ -26,7 +26,7 @@ func newBlockStorageController(
 		kubernetesadapter.MapCRToBlockStorageDomain,
 	)
 
-	return controller.NewBlockStorageController(client, repo, plugin, opts.RequeueAfter, opts.Logger)
+	return controller.NewBlockStorageController(client, repo, plugin, opts.RequeueAfter, opts.Logger, opts.MaxConditions)
 }
 
 func newWorkspaceController(
@@ -45,5 +45,5 @@ func newWorkspaceController(
 		kubernetesadapter.MapCRToWorkspaceDomain,
 	)
 
-	return controller.NewWorkspaceController(client, repo, plugin, opts.RequeueAfter, opts.Logger)
+	return controller.NewWorkspaceController(client, repo, plugin, opts.RequeueAfter, opts.Logger, opts.MaxConditions)
 }

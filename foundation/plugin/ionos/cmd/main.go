@@ -72,6 +72,7 @@ func main() {
 		pluginSet,
 		builder.WithLogger(logger.With("component", "controller-set")),
 		builder.WithRequeueAfter(1*time.Second),
+		builder.WithMaxConditions(5),
 	)
 	if err != nil {
 		logger.Error("unable to create controller set", "error", err)

@@ -204,6 +204,8 @@ spec:
                       description: Message A human-readable message indicating details
                         about the transition.
                       type: string
+                    occurrences:
+                      type: integer
                     reason:
                       description: |-
                         Reason The reason for the condition's last transition in CamelCase.
@@ -227,6 +229,7 @@ spec:
                       type: string
                   required:
                   - lastTransitionAt
+                  - occurrences
                   - state
                   type: object
                 type: array

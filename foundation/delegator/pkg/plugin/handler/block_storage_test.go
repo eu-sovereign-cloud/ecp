@@ -406,6 +406,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		//
 		// And a block storage plugin handler
 		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin)
+		handler.MaxConditions = 1
 
 		//
 		// When we reconcile the resource
@@ -589,6 +590,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		//
 		// And a block storage plugin handler
 		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin)
+		handler.MaxConditions = 1
 
 		//
 		// When we reconcile the resource
@@ -636,6 +638,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		//
 		// And a block storage plugin handler
 		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin)
+		handler.MaxConditions = 1
 
 		//
 		// When we reconcile the resource
