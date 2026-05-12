@@ -17,7 +17,8 @@ import (
 )
 
 const (
-	DefaultRequeueTime = 5 * time.Minute
+	DefaultRequeueTime   = 5 * time.Minute
+	DefaultMaxConditions = 5 // use 0 or a negative value to impose no limit
 )
 
 // ControllerSet is a collection of controllers for each of the plugins in the
@@ -29,8 +30,9 @@ type ControllerSet struct {
 
 // Options contains optional configuration for the ControllerSet.
 type Options struct {
-	Logger       *slog.Logger
-	RequeueAfter time.Duration
+	Logger        *slog.Logger
+	RequeueAfter  time.Duration
+	MaxConditions int
 }
 
 // Option is a function that configures the Options.
@@ -52,8 +54,9 @@ func NewControllerSet(config *rest.Config, k8sClient client.Client, plugins Plug
 
 	// 2. Initialize options with defaults
 	o := Options{
-		RequeueAfter: DefaultRequeueTime,
-		Logger:       slog.Default(),
+		RequeueAfter:  DefaultRequeueTime,
+		Logger:        slog.Default(),
+		MaxConditions: DefaultMaxConditions,
 	}
 
 	// 3. Apply all the options to override the defaults
@@ -139,5 +142,14 @@ func WithRequeueAfter(requeueAfter time.Duration) Option {
 			return
 		}
 		o.RequeueAfter = requeueAfter
+	}
+}
+
+// WithMaxConditions sets the maximum number of StatusConditions retained in the
+// resource status. A value of 0 or negative means no limit (all conditions are
+// kept). Pass this option explicitly to override DefaultMaxConditions.
+func WithMaxConditions(maxConditions int) Option {
+	return func(o *Options) {
+		o.MaxConditions = maxConditions
 	}
 }

@@ -1,6 +1,8 @@
 package status
 
 import (
+	"fmt"
+
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
@@ -44,6 +46,6 @@ func conditionDomainToAPI(domain regional.StatusConditionDomain) schema.StatusCo
 		State:            ResourceStateDomainToAPI(domain.State),
 		LastTransitionAt: domain.LastTransitionAt,
 		Reason:           domain.Reason,
-		Message:          domain.Message,
+		Message:          fmt.Sprintf("%s (x%d)", domain.Message, domain.Occurrences),
 	}
 }

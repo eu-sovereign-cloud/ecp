@@ -27,13 +27,18 @@ func NewBlockStorageController(
 	plugin plugin.BlockStorage,
 	requeueAfter time.Duration,
 	logger *slog.Logger,
+	maxConditions int,
 ) BlockStorageController {
+	h := handler.NewBlockStoragePluginHandler(repo, plugin)
+	h.MaxConditions = maxConditions
+
 	return (BlockStorageController)(NewGenericController[*regional.BlockStorageDomain](
 		client,
 		kubernetes.MapCRToBlockStorageDomain,
-		handler.NewBlockStoragePluginHandler(repo, plugin),
+		h,
 		&blockstoragev1.BlockStorage{},
 		requeueAfter,
 		logger,
+		maxConditions,
 	))
 }

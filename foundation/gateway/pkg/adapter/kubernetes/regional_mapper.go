@@ -73,7 +73,7 @@ func MapCRToWorkspaceDomain(obj client.Object) (*regional.WorkspaceDomain, error
 		meta.DeletedAt = &ts.Time
 	}
 
-	var status *regional.WorkspaceStatusDomain
+	var status = &regional.WorkspaceStatusDomain{}
 	if cr.Status != nil {
 		status = &regional.WorkspaceStatusDomain{
 			StatusDomain: regional.StatusDomain{
@@ -82,6 +82,8 @@ func MapCRToWorkspaceDomain(obj client.Object) (*regional.WorkspaceDomain, error
 			},
 			ResourceCount: cr.Status.ResourceCount,
 		}
+	} else {
+		status.PushCondition(regional.DefaultPendingCondition)
 	}
 
 	return &regional.WorkspaceDomain{
@@ -235,23 +237,21 @@ func MapCRToBlockStorageDomain(obj client.Object) (*regional.BlockStorageDomain,
 		spec.SourceImageRef = new(mapCRReferenceObjectToDomain(*cr.Spec.SourceImageRef))
 	}
 
-	if cr.Status == nil {
-		return &regional.BlockStorageDomain{
-			Metadata: meta,
-			Spec:     spec,
-		}, nil
-	}
+	var status = &regional.BlockStorageStatusDomain{}
+	if cr.Status != nil {
+		status = &regional.BlockStorageStatusDomain{
+			SizeGB: cr.Status.SizeGB,
+			StatusDomain: regional.StatusDomain{
+				State:      regional.ResourceStateDomain(cr.Status.State),
+				Conditions: mapCRToStatusConditionDomains(cr.Status.Conditions),
+			},
+		}
 
-	status := &regional.BlockStorageStatusDomain{
-		SizeGB: cr.Status.SizeGB,
-		StatusDomain: regional.StatusDomain{
-			State:      regional.ResourceStateDomain(cr.Status.State),
-			Conditions: mapCRToStatusConditionDomains(cr.Status.Conditions),
-		},
-	}
-
-	if cr.Status.AttachedTo != nil {
-		status.AttachedTo = new(mapCRReferenceObjectToDomain(*cr.Status.AttachedTo))
+		if cr.Status.AttachedTo != nil {
+			status.AttachedTo = new(mapCRReferenceObjectToDomain(*cr.Status.AttachedTo))
+		}
+	} else {
+		status.PushCondition(regional.DefaultPendingCondition)
 	}
 
 	return &regional.BlockStorageDomain{
@@ -346,6 +346,7 @@ func mapStatusConditionDomainToCR(domainStatusCondition regional.StatusCondition
 		LastTransitionAt: v1.NewTime(domainStatusCondition.LastTransitionAt),
 		Reason:           domainStatusCondition.Reason,
 		Message:          domainStatusCondition.Message,
+		Occurrences:      domainStatusCondition.Occurrences,
 	}
 }
 
@@ -388,6 +389,7 @@ func mapCRToStatusConditionDomain(crStatusCondition genv1.StatusCondition) regio
 		LastTransitionAt: crStatusCondition.LastTransitionAt.Time,
 		Reason:           crStatusCondition.Reason,
 		Message:          crStatusCondition.Message,
+		Occurrences:      crStatusCondition.Occurrences,
 	}
 }
 
