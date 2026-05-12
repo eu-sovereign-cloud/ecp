@@ -39,7 +39,7 @@ func (b *BlockStorage) Create(ctx context.Context, resource *regional.BlockStora
 	existing := &ionosv1alpha1.Volume{}
 	err := b.client.Get(ctx, client.ObjectKey{Namespace: namespace, Name: resource.GetName()}, existing)
 	if err == nil {
-		ready, err := checkReady(&existing.Status, "volume")
+		ready, err := checkReady(&existing.Status, ionosv1alpha1.Volume_Kind)
 		if err != nil {
 			b.logger.Error("volume in error state", "volume_name", resource.GetName(), "error", err)
 			return err

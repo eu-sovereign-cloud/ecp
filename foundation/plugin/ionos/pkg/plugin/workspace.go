@@ -43,7 +43,7 @@ func (w *Workspace) Create(ctx context.Context, resource *regional.WorkspaceDoma
 	existing := &ionosv1alpha1.Datacenter{}
 	err := w.client.Get(ctx, client.ObjectKey{Namespace: ownedNamespace, Name: resource.GetName()}, existing)
 	if err == nil {
-		ready, err := checkReady(&existing.Status, "datacenter")
+		ready, err := checkReady(&existing.Status, ionosv1alpha1.Datacenter_Kind)
 		if err != nil {
 			w.logger.Error("datacenter in error state", "namespace", ownedNamespace, "datacenter", resource.GetName(), "error", err)
 			return err
