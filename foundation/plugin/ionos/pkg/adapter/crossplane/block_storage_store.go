@@ -63,7 +63,6 @@ func (a *BlockStorageStore) IncreaseSize(ctx context.Context, domain *regional.B
 }
 
 func newVolume(domain *regional.BlockStorageDomain) *ionosv1alpha1.Volume {
-	password := randomPassword()
 
 	namespace := k8s.ComputeNamespace(&scope.Scope{Tenant: domain.GetTenant()})
 	return &ionosv1alpha1.Volume{
@@ -83,7 +82,7 @@ func newVolume(domain *regional.BlockStorageDomain) *ionosv1alpha1.Volume {
 				DiskType:         new("SSD"),
 				AvailabilityZone: new("AUTO"),
 				ImageName:        new("ubuntu:22.04"),
-				ImagePassword:    new(password),
+				ImagePassword:    new(randomPassword()),
 			},
 			ManagedResourceSpec: v2.ManagedResourceSpec{
 				ProviderConfigReference: &v1.ProviderConfigReference{
