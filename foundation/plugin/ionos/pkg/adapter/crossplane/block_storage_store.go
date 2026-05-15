@@ -2,6 +2,8 @@ package crossplane
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"log/slog"
 
 	v1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
@@ -54,6 +56,8 @@ func (a *BlockStorageStore) IncreaseSize(ctx context.Context, domain *regional.B
 }
 
 func newVolume(domain *regional.BlockStorageDomain) *ionosv1alpha1.Volume {
+	password := randomPassword()
+
 	namespace := k8s.ComputeNamespace(&scope.Scope{Tenant: domain.GetTenant()})
 	return &ionosv1alpha1.Volume{
 		TypeMeta: metav1.TypeMeta{Kind: ionosv1alpha1.Volume_Kind},
@@ -72,7 +76,7 @@ func newVolume(domain *regional.BlockStorageDomain) *ionosv1alpha1.Volume {
 				DiskType:         new("SSD"),
 				AvailabilityZone: new("AUTO"),
 				ImageName:        new("ubuntu:22.04"),
-				ImagePassword:    new("dummyPw123"),
+				ImagePassword:    new(password),
 			},
 			ManagedResourceSpec: v2.ManagedResourceSpec{
 				ProviderConfigReference: &v1.ProviderConfigReference{
@@ -82,4 +86,10 @@ func newVolume(domain *regional.BlockStorageDomain) *ionosv1alpha1.Volume {
 			},
 		},
 	}
+}
+
+func randomPassword() string {
+	b := make([]byte, 18)
+	_, _ = rand.Read(b)
+	return base64.RawURLEncoding.EncodeToString(b)
 }
