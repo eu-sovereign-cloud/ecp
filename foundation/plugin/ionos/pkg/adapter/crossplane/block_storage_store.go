@@ -3,7 +3,6 @@ package crossplane
 import (
 	"context"
 	"crypto/rand"
-	"encoding/base64"
 	"log/slog"
 
 	v1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
@@ -29,6 +28,14 @@ func NewBlockStorageStore(c client.Client, logger *slog.Logger) *BlockStorageSto
 }
 
 func (a *BlockStorageStore) Create(ctx context.Context, domain *regional.BlockStorageDomain) error {
+	namespace := k8s.ComputeNamespace(&scope.Scope{Tenant: domain.GetTenant()})
+	datacenter := &ionosv1alpha1.Datacenter{
+		TypeMeta:   metav1.TypeMeta{Kind: ionosv1alpha1.Datacenter_Kind},
+		ObjectMeta: metav1.ObjectMeta{Name: domain.GetWorkspace(), Namespace: namespace},
+	}
+	if err := a.checkExisting(ctx, datacenter); err != nil {
+		return err
+	}
 	return a.createCR(ctx, newVolume(domain))
 }
 
@@ -88,8 +95,13 @@ func newVolume(domain *regional.BlockStorageDomain) *ionosv1alpha1.Volume {
 	}
 }
 
+const passwordCharset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
 func randomPassword() string {
-	b := make([]byte, 18)
+	b := make([]byte, 24)
 	_, _ = rand.Read(b)
-	return base64.RawURLEncoding.EncodeToString(b)
+	for i := range b {
+		b[i] = passwordCharset[int(b[i])%len(passwordCharset)]
+	}
+	return string(b)
 }

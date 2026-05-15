@@ -57,6 +57,17 @@ func (c *base) deleteCR(ctx context.Context, obj xpconditions.ObjectWithConditio
 		c.logger.Error("failed to delete "+kind, "name", obj.GetName(), "error", err)
 		return err
 	}
+	if err := c.client.Get(ctx, client.ObjectKeyFromObject(obj), obj); err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
+		c.logger.Error("failed to check "+kind+" deletion state", "name", obj.GetName(), "error", err)
+		return err
+	}
+	if err := reconcileError(obj); err != nil {
+		c.logger.Error(kind+" deletion failed", "name", obj.GetName(), "error", err)
+		return err
+	}
 	c.logger.Info("waiting for "+kind+" deletion", "name", obj.GetName())
 	return delegator.ErrStillProcessing
 }
@@ -71,7 +82,9 @@ func (c *base) checkExisting(ctx context.Context, obj xpconditions.ObjectWithCon
 		c.logger.Error(kind+" in error state", "name", obj.GetName(), "error", err)
 		return err
 	}
-	if obj.GetCondition(v1.TypeReady).Status == corev1.ConditionTrue {
+	readyCond := obj.GetCondition(v1.TypeReady)
+	generationSeen := readyCond.ObservedGeneration == 0 || readyCond.ObservedGeneration == obj.GetGeneration()
+	if readyCond.Status == corev1.ConditionTrue && generationSeen {
 		c.logger.Info(kind+" is ready", "name", obj.GetName())
 		return nil
 	}
