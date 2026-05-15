@@ -45,13 +45,12 @@ func (a *BlockStorageStore) IncreaseSize(ctx context.Context, domain *regional.B
 		a.logger.Error("failed to get volume", "name", domain.GetName(), "error", err)
 		return err
 	}
-	vol.Spec.ForProvider.Size = new(float64(domain.Spec.SizeGB))
-	if err := a.client.Update(ctx, vol); err != nil {
-		a.logger.Error("failed to update volume size", "name", domain.GetName(), "error", err)
-		return err
+	desiredSize := float64(domain.Spec.SizeGB)
+	if vol.Spec.ForProvider.Size != nil && *vol.Spec.ForProvider.Size == desiredSize {
+		return a.checkExisting(ctx, vol)
 	}
-	a.logger.Info("volume size updated", "name", vol.Name)
-	return nil
+	vol.Spec.ForProvider.Size = new(desiredSize)
+	return a.updateCR(ctx, vol)
 }
 
 func newVolume(domain *regional.BlockStorageDomain) *ionosv1alpha1.Volume {

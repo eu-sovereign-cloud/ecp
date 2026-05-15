@@ -38,6 +38,16 @@ func (c *base) createCR(ctx context.Context, obj xpconditions.ObjectWithConditio
 	return delegator.ErrStillProcessing
 }
 
+func (c *base) updateCR(ctx context.Context, obj xpconditions.ObjectWithConditions) error {
+	kind := obj.GetObjectKind().GroupVersionKind().Kind
+	if err := c.client.Update(ctx, obj); err != nil {
+		c.logger.Error("failed to update "+kind, "name", obj.GetName(), "error", err)
+		return err
+	}
+	c.logger.Info(kind+" updated, waiting for ready", "name", obj.GetName())
+	return delegator.ErrStillProcessing
+}
+
 func (c *base) deleteCR(ctx context.Context, obj xpconditions.ObjectWithConditions) error {
 	kind := obj.GetObjectKind().GroupVersionKind().Kind
 	if err := c.client.Delete(ctx, obj); err != nil {
