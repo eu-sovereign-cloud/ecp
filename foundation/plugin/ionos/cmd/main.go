@@ -19,12 +19,14 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/builder"
 	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/storage"
 	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/workspace/v1"
-	ionosplugin "github.com/eu-sovereign-cloud/ecp/foundation/plugin/ionos/pkg/plugin"
+
+	blockstoragectrl "github.com/eu-sovereign-cloud/ecp/foundation/plugin/ionos/internal/controller/block_storage"
+	workspacectrl "github.com/eu-sovereign-cloud/ecp/foundation/plugin/ionos/internal/controller/workspace"
+	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/ionos/internal/service"
+	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/ionos/pkg/adapter/crossplane"
 )
 
-var (
-	scheme = runtime.NewScheme()
-)
+var scheme = runtime.NewScheme()
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
@@ -34,14 +36,10 @@ func init() {
 }
 
 func main() {
-	// 1. Setup logger
-	opts := zap.Options{
-		Development: true,
-	}
+	opts := zap.Options{Development: true}
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
-	// 2. Create manager
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme: scheme,
 		Metrics: metricsserver.Options{
@@ -55,17 +53,24 @@ func main() {
 		os.Exit(1)
 	}
 
-	// 3. Instantiate IonOS plugins
-	bsPlugin := ionosplugin.NewBlockStorage(mgr.GetClient(), logger.With("plugin", "blockstorage"))
-	wsPlugin := ionosplugin.NewWorkspace(mgr.GetClient(), logger.With("plugin", "workspace"))
+	wsAdapter := crossplane.NewWorkspaceStore(mgr.GetClient(), logger.With("adapter", "workspace"))
+	bsAdapter := crossplane.NewBlockStorageStore(mgr.GetClient(), logger.With("adapter", "block-storage"))
 
-	// 4. Create a plugin set
-	pluginSet := builder.PluginSet{
-		BlockStorage: bsPlugin,
-		Workspace:    wsPlugin,
+	wsPlugin := &service.Workspace{
+		Creator: &workspacectrl.CreateWorkspace{Store: wsAdapter},
+		Deleter: &workspacectrl.DeleteWorkspace{Store: wsAdapter},
+	}
+	bsPlugin := &service.BlockStorage{
+		Creator:       &blockstoragectrl.CreateBlockStorage{Store: bsAdapter},
+		Deleter:       &blockstoragectrl.DeleteBlockStorage{Store: bsAdapter},
+		SizeIncreaser: &blockstoragectrl.IncreaseSizeBlockStorage{Store: bsAdapter},
 	}
 
-	// 5. Create the controller set
+	pluginSet := builder.PluginSet{
+		Workspace:    wsPlugin,
+		BlockStorage: bsPlugin,
+	}
+
 	controllerSet, err := builder.NewControllerSet(
 		mgr.GetConfig(),
 		mgr.GetClient(),
@@ -79,7 +84,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// 6. Setup controllers with manager
 	if err := controllerSet.SetupWithManager(mgr); err != nil {
 		logger.Error("unable to setup controllers with manager", "error", err)
 		os.Exit(1)
@@ -94,7 +98,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// 7. Start manager
 	logger.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		logger.Error("problem running manager", "error", err)
