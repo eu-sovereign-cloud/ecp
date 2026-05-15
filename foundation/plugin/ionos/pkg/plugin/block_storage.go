@@ -18,45 +18,17 @@ import (
 )
 
 type BlockStorage struct {
-	client client.Client
-	logger *slog.Logger
+	base
 }
 
-func NewBlockStorage(client client.Client, logger *slog.Logger) *BlockStorage {
-	return &BlockStorage{client: client, logger: logger}
+func NewBlockStorage(c client.Client, logger *slog.Logger) *BlockStorage {
+	return &BlockStorage{base{client: c, logger: logger}}
 }
 
-func (b *BlockStorage) Create(ctx context.Context, resource *regional.BlockStorageDomain) error {
-	b.logger.Info("ionos block storage plugin: Create called", "resource_name", resource.GetName())
-
+func newVolume(resource *regional.BlockStorageDomain) *ionosv1alpha1.Volume {
 	namespace := k8s.ComputeNamespace(&scope.Scope{Tenant: resource.GetTenant()})
-	b.logger.Info("block storage skuRef",
-		"region", resource.Spec.SkuRef.Region,
-		"tenant", resource.Spec.SkuRef.Tenant, "ws", resource.Spec.SkuRef.Workspace,
-		"provider", resource.Spec.SkuRef.Provider, "resource", resource.Spec.SkuRef.Resource)
-
-	// Check whether the Volume already exists.
-	existing := &ionosv1alpha1.Volume{}
-	err := b.client.Get(ctx, client.ObjectKey{Namespace: namespace, Name: resource.GetName()}, existing)
-	if err == nil {
-		ready, err := checkReady(&existing.Status, ionosv1alpha1.Volume_Kind)
-		if err != nil {
-			b.logger.Error("volume in error state", "volume_name", resource.GetName(), "error", err)
-			return err
-		}
-		if ready {
-			b.logger.Info("volume is ready", "volume_name", resource.GetName())
-			return nil
-		}
-		b.logger.Info("volume not yet ready, waiting", "volume_name", resource.GetName())
-		return delegator.ErrStillProcessing
-	}
-	if !apierrors.IsNotFound(err) {
-		b.logger.Error("failed to check volume existence", "name", resource.GetName(), "namespace", namespace, "error", err)
-		return err
-	}
-
-	volume := &ionosv1alpha1.Volume{
+	return &ionosv1alpha1.Volume{
+		TypeMeta: metav1.TypeMeta{Kind: ionosv1alpha1.Volume_Kind},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      resource.GetName(),
 			Namespace: namespace,
@@ -87,10 +59,24 @@ func (b *BlockStorage) Create(ctx context.Context, resource *regional.BlockStora
 			},
 		},
 	}
+}
+
+func (b *BlockStorage) Create(ctx context.Context, resource *regional.BlockStorageDomain) error {
+	b.logger.Info("ionos block storage plugin: Create called", "resource_name", resource.GetName())
+
+	b.logger.Info("block storage skuRef",
+		"region", resource.Spec.SkuRef.Region,
+		"tenant", resource.Spec.SkuRef.Tenant, "ws", resource.Spec.SkuRef.Workspace,
+		"provider", resource.Spec.SkuRef.Provider, "resource", resource.Spec.SkuRef.Resource)
+
+	volume := newVolume(resource)
 
 	if err := b.client.Create(ctx, volume); err != nil {
-		b.logger.Error("failed to create volume", "error", err)
-		return err
+		if !apierrors.IsAlreadyExists(err) {
+			b.logger.Error("failed to create volume", "error", err)
+			return err
+		}
+		return b.checkExisting(ctx, volume)
 	}
 
 	b.logger.Info("volume created, waiting for it to be ready", "volume_name", volume.Name)
@@ -108,23 +94,13 @@ func (b *BlockStorage) Delete(ctx context.Context, resource *regional.BlockStora
 		},
 	}
 
-	if err := b.client.Get(ctx, client.ObjectKeyFromObject(volume), volume); err != nil {
+	if err := b.client.Delete(ctx, volume); err != nil {
 		if apierrors.IsNotFound(err) {
 			b.logger.Info("volume already gone", "volume_name", volume.Name)
 			return nil
 		}
-		b.logger.Error("failed to get volume before delete", "error", err)
+		b.logger.Error("failed to delete volume", "error", err)
 		return err
-	}
-
-	if volume.GetDeletionTimestamp().IsZero() {
-		b.logger.Info("deleting volume", "volume_name", volume.Name)
-		if err := b.client.Delete(ctx, volume); err != nil {
-			if !apierrors.IsNotFound(err) {
-				b.logger.Error("failed to delete volume", "error", err)
-				return err
-			}
-		}
 	}
 
 	b.logger.Info("waiting for volume deletion", "volume_name", volume.Name)
