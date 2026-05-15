@@ -82,6 +82,12 @@ func (c *base) checkExisting(ctx context.Context, obj xpconditions.ObjectWithCon
 		c.logger.Error(kind+" in error state", "name", obj.GetName(), "error", err)
 		return err
 	}
+
+	if obj.GetDeletionTimestamp() != nil {
+		c.logger.Info(kind+" is being deleted", "name", obj.GetName())
+		return delegator.ErrStillProcessing
+	}
+
 	readyCond := obj.GetCondition(v1.TypeReady)
 	generationSeen := readyCond.ObservedGeneration == 0 || readyCond.ObservedGeneration == obj.GetGeneration()
 	if readyCond.Status == corev1.ConditionTrue && generationSeen {
