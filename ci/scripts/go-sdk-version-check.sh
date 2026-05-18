@@ -43,8 +43,9 @@ sub_ver=$(describe_head) || {
   }
 }
 
-# Walk every go.mod in the repo (except the submodule's own one) and check
-# that any require for ${mod_pkg} matches the submodule's tag.
+# Walk every tracked go.mod in the repo and check that any require for
+# ${mod_pkg} matches the submodule's tag. Using git ls-files means .gitignore'd
+# paths (e.g. .cache/go/pkg/mod/...) and submodule contents are excluded for free.
 mismatch=0
 while IFS= read -r -d '' gomod; do
   ver=$(awk -v pkg="${mod_pkg}" '
@@ -56,7 +57,7 @@ while IFS= read -r -d '' gomod; do
     echo "::error::${rel} pins ${mod_pkg} at ${ver}, but ${sub_path} is at ${sub_ver}"
     mismatch=1
   fi
-done < <(find "${repo_root}" -path "${repo_root}/${sub_path}" -prune -o -name go.mod -print0)
+done < <(git -C "${repo_root}" ls-files -z -- '**/go.mod' 'go.mod')
 
 if [ "${mismatch}" -ne 0 ]; then
   echo ""
