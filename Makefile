@@ -54,9 +54,10 @@ go-sdk-update:
 	@echo "==> bumping go-sdk to $(VERSION)"
 	git -C $(_REPO_ROOT)/modules/go-sdk fetch --tags
 	git -C $(_REPO_ROOT)/modules/go-sdk checkout $(VERSION)
-	@# Walk every go.mod that requires go-sdk and update it. Matches the
-	@# generic find-walk that go-sdk-verify does, so both sides stay in lock-step
-	@# as modules are added or removed.
+	@# Walk every tracked go.mod that requires go-sdk and update it. Matches the
+	@# git ls-files enumeration in go-sdk-version-check.sh, so both sides stay in
+	@# lock-step as modules are added or removed. Using git ls-files means
+	@# .gitignore'd paths (e.g. .cache/go/pkg/mod/...) are excluded for free.
 	@#
 	@# We use `go mod edit` + `go mod download` instead of `go get` because
 	@# `go get` builds the full module graph and tries to fetch
@@ -65,7 +66,7 @@ go-sdk-update:
 	@# edit+download combo pins the require and populates go.sum for just the
 	@# bumped package, which is all we need.
 	@for gomod in $$(grep -l "eu-sovereign-cloud/go-sdk" \
-	    $$(find $(_REPO_ROOT) -name go.mod -not -path "*/modules/go-sdk/*")); do \
+	    $$(git -C $(_REPO_ROOT) ls-files -- '**/go.mod' 'go.mod' | sed "s|^|$(_REPO_ROOT)/|")); do \
 	  dir=$$(dirname $$gomod); \
 	  echo "==> $$dir"; \
 	  (cd $$dir && \
@@ -81,6 +82,7 @@ go-sdk-update:
 go-sdk-verify:
 	@$(_REPO_ROOT)/ci/scripts/verify-run.sh go-sdk-verify "go-sdk submodule and go.mod in sync" -- \
 	  $(_REPO_ROOT)/ci/scripts/go-sdk-version-check.sh $(_REPO_ROOT)
+
 
 ###############################################################################
 # Per-module vulnerability check (govulncheck)
