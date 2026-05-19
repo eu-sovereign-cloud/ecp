@@ -40,7 +40,7 @@ package {{.PackageName}}
 
 import (
 	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/generated/types"
-	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/common"
+	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/common"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -337,6 +337,7 @@ func resolveStatusNamedType(structT *types.Struct, pkgPath string) (*types.Named
 	if ptr, ok := statusT.(*types.Pointer); ok {
 		statusT = ptr.Elem()
 	}
+	statusT = types.Unalias(statusT)
 	namedStatus, ok := statusT.(*types.Named)
 	if !ok {
 		return nil, fmt.Errorf("status field type is not a named type")

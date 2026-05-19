@@ -77,7 +77,8 @@ type Network struct {
 // CIDR block would be `0.0.0.0/16` and for a /56 IPv6 CIDR block the CIDR block would
 // be `::/56`. Most CSP will not allow to use a different IPv6 prefix length than /56.
 type NetworkSpec struct {
-	AdditionalCidrs []Cidr `json:"additionalCidrs,omitempty"`
+	// +kubebuilder:validation:MaxItems=32
+	AdditionalCidrs []Cidr `json:"additionalCidrs,omitempty" x-kubebuilder-validation-max-items:"32"`
 
 	// Cidr Combined IPv4 and IPv6 CIDR block for a subnet. Depending on the network
 	// configuration, either the IPv4 or IPv6 range can be omitted. So the following
@@ -92,13 +93,16 @@ type NetworkSpec struct {
 	RouteTableRef Reference `json:"routeTableRef"`
 
 	// SkuRef Reference to the SKU used by default for all NIC in this Network.
-	// Can be overridden by the NIC.
-	SkuRef Reference `json:"skuRef"`
+	// Can be overridden by the NIC. The SKU is immutable after the network is created.
+	// To change the SKU, the network must be deleted and recreated with the new SKU reference.
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="spec.skuRef is immutable"
+	SkuRef Reference `json:"skuRef" x-cel-message-0:"spec.skuRef is immutable" x-cel-rule-0:"self == oldSelf"`
 }
 
 // NetworkStatus defines model for NetworkStatus.
 type NetworkStatus struct {
-	AdditionalCidrs []Cidr `json:"additionalCidrs,omitempty"`
+	// +kubebuilder:validation:MaxItems=32
+	AdditionalCidrs []Cidr `json:"additionalCidrs,omitempty" x-kubebuilder-validation-max-items:"32"`
 
 	// Cidr Combined IPv4 and IPv6 CIDR block for a subnet. Depending on the network
 	// configuration, either the IPv4 or IPv6 range can be omitted. So the following
@@ -108,7 +112,8 @@ type NetworkStatus struct {
 	// * IPv6 only
 	// * IPv4 and IPv6 (Dual Stack)
 	Cidr       Cidr              `json:"cidr"`
-	Conditions []StatusCondition `json:"conditions"`
+	// +kubebuilder:validation:MaxItems=32
+	Conditions []StatusCondition `json:"conditions" x-kubebuilder-validation-max-items:"32"`
 
 	// RouteTableRef Reference to the route table used by default for all Subnets.
 	RouteTableRef *Reference    `json:"routeTableRef,omitempty"`
@@ -124,8 +129,14 @@ type NetworkStatus struct {
 // * IPv4 and IPv6 (Dual Stack)
 type Cidr struct {
 	// Ipv4 IPv4 CIDR block for the subnet.
-	Ipv4 string `json:"ipv4,omitempty"`
+	// +kubebuilder:validation:MaxLength=18
+	// +kubebuilder:validation:MinLength=9
+	// +kubebuilder:validation:XValidation:rule="self.size() == 0 || (isCIDR(self) && cidr(self).ip().family() == 4)",message="cidr.ipv4 must be a valid IPv4 CIDR block"
+	Ipv4 string `json:"ipv4,omitempty" x-cel-message-0:"cidr.ipv4 must be a valid IPv4 CIDR block" x-cel-rule-0:"self.size() == 0 || (isCIDR(self) && cidr(self).ip().family() == 4)" x-kubebuilder-validation-max-length:"18" x-kubebuilder-validation-min-length:"9"`
 
 	// Ipv6 IPv6 CIDR block for the subnet.
-	Ipv6 string `json:"ipv6,omitempty"`
+	// +kubebuilder:validation:MaxLength=43
+	// +kubebuilder:validation:MinLength=4
+	// +kubebuilder:validation:XValidation:rule="self.size() == 0 || (isCIDR(self) && cidr(self).ip().family() == 6)",message="cidr.ipv6 must be a valid IPv6 CIDR block"
+	Ipv6 string `json:"ipv6,omitempty" x-cel-message-0:"cidr.ipv6 must be a valid IPv6 CIDR block" x-cel-rule-0:"self.size() == 0 || (isCIDR(self) && cidr(self).ip().family() == 6)" x-kubebuilder-validation-max-length:"43" x-kubebuilder-validation-min-length:"4"`
 }

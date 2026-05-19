@@ -1,0 +1,416 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.20.0
+  name: nics.network.v1.secapi.cloud
+spec:
+  group: network.v1.secapi.cloud
+  names:
+    kind: Nic
+    listKind: NicList
+    plural: nics
+    shortNames:
+    - nic
+    singular: nic
+  scope: Namespaced
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        description: Nic is the API for managing network interface cards.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          commonData:
+            description: CommonData defines the additional common fields that can
+              be set on resources
+            properties:
+              annotations:
+                additionalProperties:
+                  type: string
+                description: |-
+                  Annotations User-defined key/value pairs that are mutable and can be used to add annotations.
+                  The number of annotations is eventually limited by the CSP.
+                type: object
+              extensions:
+                additionalProperties:
+                  type: string
+                description: |-
+                  Extensions User-defined key/value pairs that are mutable and can be used to add extensions.
+                  Extensions are subject to validation by the CSP, and any value that is not accepted will be rejected during admission.
+                type: object
+              labels:
+                description: |-
+                  Labels User-defined key/value pairs that are mutable and can be used to
+                  organize and categorize resources. We store the keys explicitly in the spec, because the values will be stored
+                  directly in the Kubernetes labels.
+                items:
+                  type: string
+                type: array
+            type: object
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: |-
+              NicSpec Specification of the Network Interface Card
+
+              The referenced SKU overwrites the default. In case of different network SKU references
+              the highest possible network SKU reference is used. The network SKU reference
+              might be restricted by the instance size.
+            properties:
+              addresses:
+                description: |-
+                  Addresses List of IP addresses for the NIC. A specific IP address needs to be in the
+                  CIDR range of the subnet and not used by any other NIC in the subnet. Multiple
+                  IP addresses can be assigned to a NIC. The number of IP addresses might be
+                  limited by the CSP or the subnet size.
+                items:
+                  description: |-
+                    NicIp IP address for the NIC. The IP is either IPv4 or IPv6. The IP
+                    can be `0.0.0.0` or `::` to indicate that the IP needs to be assigned
+                    automatically. The IP can also be a specific IP address.
+                    If not provided, the mutate admission controller will populate this value using the default values for ipv4 and ipv6.
+                  maxLength: 39
+                  minLength: 1
+                  type: string
+                maxItems: 32
+                minItems: 1
+                type: array
+                x-kubernetes-validations:
+                - message: all IP addresses must be valid IPv4 or IPv6 addresses
+                  rule: self.all(x, isIP(x))
+              publicIpRefs:
+                description: |-
+                  PublicIpRefs References to public IP addresses associated with this NIC. The IP may be external
+                  and not directly visible on the server/NIC itself.
+                items:
+                  description: |-
+                    Reference A reference to a resource using an object. The object contains the
+                    same information as the ReferenceURN, but is represented as a structured object.
+                    The advantage of this representation is that it can be used to reference
+                    resources in different workspaces or regions without the need to specify
+                    the full URN.
+                  properties:
+                    provider:
+                      description: Provider Provider of the resource. If not set,
+                        the provider is inferred from the context.
+                      maxLength: 64
+                      type: string
+                    region:
+                      description: Region Region of the resource. If not set, the
+                        region is inferred from the context.
+                      maxLength: 64
+                      type: string
+                    resource:
+                      description: |-
+                        Resource Resource-specific path identifying the resource within its workspace context.
+                        This is the segment of the full URN after the provider, version, tenant, and
+                        workspace parts. For a flat resource it is `<type>/<name>`, and for hierarchical
+                        (nested) resources it includes the parent path segments:
+                          `networks/<network-name>/route-tables/<rt-name>`
+                        The provider, tenant, and workspace can be specified as separate fields in this
+                        object; they do not need to be repeated here.
+                      maxLength: 256
+                      minLength: 1
+                      type: string
+                    tenant:
+                      description: Tenant Tenant of the resource. If not set, the
+                        tenant is inferred from the context.
+                      maxLength: 64
+                      type: string
+                    workspace:
+                      description: Workspace Workspace of the resource. If not set,
+                        the workspace is inferred from the context.
+                      maxLength: 64
+                      type: string
+                  required:
+                  - resource
+                  type: object
+                maxItems: 16
+                type: array
+              securityGroupRefs:
+                description: SecurityGroupRefs References to the security groups associated
+                  with this NIC.
+                items:
+                  description: |-
+                    Reference A reference to a resource using an object. The object contains the
+                    same information as the ReferenceURN, but is represented as a structured object.
+                    The advantage of this representation is that it can be used to reference
+                    resources in different workspaces or regions without the need to specify
+                    the full URN.
+                  properties:
+                    provider:
+                      description: Provider Provider of the resource. If not set,
+                        the provider is inferred from the context.
+                      maxLength: 64
+                      type: string
+                    region:
+                      description: Region Region of the resource. If not set, the
+                        region is inferred from the context.
+                      maxLength: 64
+                      type: string
+                    resource:
+                      description: |-
+                        Resource Resource-specific path identifying the resource within its workspace context.
+                        This is the segment of the full URN after the provider, version, tenant, and
+                        workspace parts. For a flat resource it is `<type>/<name>`, and for hierarchical
+                        (nested) resources it includes the parent path segments:
+                          `networks/<network-name>/route-tables/<rt-name>`
+                        The provider, tenant, and workspace can be specified as separate fields in this
+                        object; they do not need to be repeated here.
+                      maxLength: 256
+                      minLength: 1
+                      type: string
+                    tenant:
+                      description: Tenant Tenant of the resource. If not set, the
+                        tenant is inferred from the context.
+                      maxLength: 64
+                      type: string
+                    workspace:
+                      description: Workspace Workspace of the resource. If not set,
+                        the workspace is inferred from the context.
+                      maxLength: 64
+                      type: string
+                  required:
+                  - resource
+                  type: object
+                maxItems: 16
+                type: array
+              skuRef:
+                description: |-
+                  SkuRef Reference to the SKU of the NIC. The SKU is immutable after the NIC is created.
+                  To change the SKU, the NIC must be deleted and recreated with the new SKU reference.
+                properties:
+                  provider:
+                    description: Provider Provider of the resource. If not set, the
+                      provider is inferred from the context.
+                    maxLength: 64
+                    type: string
+                  region:
+                    description: Region Region of the resource. If not set, the region
+                      is inferred from the context.
+                    maxLength: 64
+                    type: string
+                  resource:
+                    description: |-
+                      Resource Resource-specific path identifying the resource within its workspace context.
+                      This is the segment of the full URN after the provider, version, tenant, and
+                      workspace parts. For a flat resource it is `<type>/<name>`, and for hierarchical
+                      (nested) resources it includes the parent path segments:
+                        `networks/<network-name>/route-tables/<rt-name>`
+                      The provider, tenant, and workspace can be specified as separate fields in this
+                      object; they do not need to be repeated here.
+                    maxLength: 256
+                    minLength: 1
+                    type: string
+                  tenant:
+                    description: Tenant Tenant of the resource. If not set, the tenant
+                      is inferred from the context.
+                    maxLength: 64
+                    type: string
+                  workspace:
+                    description: Workspace Workspace of the resource. If not set,
+                      the workspace is inferred from the context.
+                    maxLength: 64
+                    type: string
+                required:
+                - resource
+                type: object
+                x-kubernetes-validations:
+                - message: spec.skuRef is immutable
+                  optionalOldSelf: true
+                  rule: '!oldSelf.hasValue() || self == oldSelf.value()'
+              subnetRef:
+                description: SubnetRef Reference to the subnet used by the NIC connections.
+                properties:
+                  provider:
+                    description: Provider Provider of the resource. If not set, the
+                      provider is inferred from the context.
+                    maxLength: 64
+                    type: string
+                  region:
+                    description: Region Region of the resource. If not set, the region
+                      is inferred from the context.
+                    maxLength: 64
+                    type: string
+                  resource:
+                    description: |-
+                      Resource Resource-specific path identifying the resource within its workspace context.
+                      This is the segment of the full URN after the provider, version, tenant, and
+                      workspace parts. For a flat resource it is `<type>/<name>`, and for hierarchical
+                      (nested) resources it includes the parent path segments:
+                        `networks/<network-name>/route-tables/<rt-name>`
+                      The provider, tenant, and workspace can be specified as separate fields in this
+                      object; they do not need to be repeated here.
+                    maxLength: 256
+                    minLength: 1
+                    type: string
+                  tenant:
+                    description: Tenant Tenant of the resource. If not set, the tenant
+                      is inferred from the context.
+                    maxLength: 64
+                    type: string
+                  workspace:
+                    description: Workspace Workspace of the resource. If not set,
+                      the workspace is inferred from the context.
+                    maxLength: 64
+                    type: string
+                required:
+                - resource
+                type: object
+            required:
+            - addresses
+            - subnetRef
+            type: object
+          status:
+            description: NicStatus defines model for NicStatus.
+            properties:
+              addresses:
+                items:
+                  description: |-
+                    NicIp IP address for the NIC. The IP is either IPv4 or IPv6. The IP
+                    can be `0.0.0.0` or `::` to indicate that the IP needs to be assigned
+                    automatically. The IP can also be a specific IP address.
+                    If not provided, the mutate admission controller will populate this value using the default values for ipv4 and ipv6.
+                  maxLength: 39
+                  minLength: 1
+                  type: string
+                maxItems: 32
+                type: array
+              conditions:
+                items:
+                  description: |-
+                    StatusCondition StatusCondition describes the state of a resource at a certain point.
+                    Conditions are provider-specific and can represent different states depending on the
+                    resource type and provider implementation.
+                  properties:
+                    lastTransitionAt:
+                      description: |-
+                        LastTransitionAt LastTransitionAt is the last time the condition transitioned from one
+                        status to another. This should be when the underlying condition changed.
+                        If that is not known, then using the time when the API field changed is
+                        acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: Message A human-readable message indicating details
+                        about the transition.
+                      maxLength: 32768
+                      type: string
+                    occurrences:
+                      type: integer
+                    reason:
+                      description: |-
+                        Reason The reason for the condition's last transition in CamelCase.
+                        The specific set of reason values is provider-specific and should be
+                        documented by the provider.
+                      maxLength: 1024
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    state:
+                      description: |-
+                        State Current phase of the resource:
+                        - pending: not available, waiting for other resources
+                        - creating: not available, creation started
+                        - active: available for data layer usage
+                        - updating: available for data layer usage
+                        - deleting: maybe still available for data layer user, can fail any moment
+                        - error: failed to fulfill the request; would be related to provider issue or customer related input.
+                      type: string
+                    type:
+                      description: |-
+                        Type Type of condition. The condition type is provider-specific and should
+                        reflect the specific states relevant to your resource.
+                      type: string
+                  required:
+                  - lastTransitionAt
+                  - occurrences
+                  - state
+                  type: object
+                maxItems: 32
+                type: array
+              macAddress:
+                description: MacAddress MAC address of the NIC.
+                maxLength: 17
+                type: string
+              publicIpRefs:
+                description: PublicIpRefs Array of public IP addresses associated
+                  with this NIC.
+                items:
+                  description: |-
+                    Reference A reference to a resource using an object. The object contains the
+                    same information as the ReferenceURN, but is represented as a structured object.
+                    The advantage of this representation is that it can be used to reference
+                    resources in different workspaces or regions without the need to specify
+                    the full URN.
+                  properties:
+                    provider:
+                      description: Provider Provider of the resource. If not set,
+                        the provider is inferred from the context.
+                      maxLength: 64
+                      type: string
+                    region:
+                      description: Region Region of the resource. If not set, the
+                        region is inferred from the context.
+                      maxLength: 64
+                      type: string
+                    resource:
+                      description: |-
+                        Resource Resource-specific path identifying the resource within its workspace context.
+                        This is the segment of the full URN after the provider, version, tenant, and
+                        workspace parts. For a flat resource it is `<type>/<name>`, and for hierarchical
+                        (nested) resources it includes the parent path segments:
+                          `networks/<network-name>/route-tables/<rt-name>`
+                        The provider, tenant, and workspace can be specified as separate fields in this
+                        object; they do not need to be repeated here.
+                      maxLength: 256
+                      minLength: 1
+                      type: string
+                    tenant:
+                      description: Tenant Tenant of the resource. If not set, the
+                        tenant is inferred from the context.
+                      maxLength: 64
+                      type: string
+                    workspace:
+                      description: Workspace Workspace of the resource. If not set,
+                        the workspace is inferred from the context.
+                      maxLength: 64
+                      type: string
+                  required:
+                  - resource
+                  type: object
+                maxItems: 16
+                type: array
+              state:
+                description: |-
+                  ResourceState Current phase of the resource:
+                  - pending: not available, waiting for other resources
+                  - creating: not available, creation started
+                  - active: available for data layer usage
+                  - updating: available for data layer usage
+                  - deleting: maybe still available for data layer user, can fail any moment
+                  - error: failed to fulfill the request; would be related to provider issue or customer related input.
+                type: string
+            required:
+            - conditions
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

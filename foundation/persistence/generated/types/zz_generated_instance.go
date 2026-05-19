@@ -42,16 +42,19 @@ type Instance struct {
 // InstanceSpec Specification of the instance, including its SKU, network configuration, and storage options.
 type InstanceSpec struct {
 	// AdditionalNicRefs Additional NICs attached to this instance
-	AdditionalNicRefs []Reference `json:"additionalNicRefs,omitempty"`
+	// +kubebuilder:validation:MaxItems=16
+	AdditionalNicRefs []Reference `json:"additionalNicRefs,omitempty" x-kubebuilder-validation-max-items:"16"`
 
 	// AntiAffinityGroup Anti-affinity group to which this instance belongs.
 	// Instances in the same anti-affinity group are placed on different physical hosts.
 	// The number of maximum instances in an anti-affinity group is provider-specific.
-	AntiAffinityGroup string `json:"antiAffinityGroup,omitempty"`
+	// +kubebuilder:validation:MaxLength=64
+	AntiAffinityGroup string `json:"antiAffinityGroup,omitempty" x-kubebuilder-validation-max-length:"64"`
 
 	// BootVolume Reference to the block storage used to store the boot volume of the instance.
 	BootVolume  VolumeReference   `json:"bootVolume"`
-	DataVolumes []VolumeReference `json:"dataVolumes,omitempty"`
+	// +kubebuilder:validation:MaxItems=64
+	DataVolumes []VolumeReference `json:"dataVolumes,omitempty" x-kubebuilder-validation-max-items:"64"`
 
 	// PrimaryNicRef Reference to the primary NIC attached to this instance.
 	PrimaryNicRef *Reference `json:"primaryNicRef,omitempty"`
@@ -59,28 +62,40 @@ type InstanceSpec struct {
 	// SecurityGroupRef Reference to the security group associated with this instance.
 	SecurityGroupRef *Reference `json:"securityGroupRef,omitempty"`
 
-	// SkuRef Reference to the SKU of the instance.
-	SkuRef Reference `json:"skuRef"`
+	// SkuRef Reference to the SKU of the instance. The SKU is immutable after the instance is created.
+	// To change the SKU, the instance must be deleted and recreated with the new SKU reference.
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="spec.skuRef is immutable"
+	SkuRef Reference `json:"skuRef" x-cel-message-0:"spec.skuRef is immutable" x-cel-rule-0:"self == oldSelf"`
 
 	// SshKeys Provider-specific references to SSH keys used in cloud-init vendorData.
 	// These references are used to inject SSH public keys during instance initialization
 	// through cloud-init's vendor data configuration.
-	SshKeys []string `json:"sshKeys,omitempty"`
+	// +kubebuilder:validation:MaxItems=32
+	// +kubebuilder:validation:items:MaxLength=4096
+	// +kubebuilder:validation:items:MinLength=1
+	SshKeys []string `json:"sshKeys,omitempty" x-kubebuilder-validation-items-max-length:"4096" x-kubebuilder-validation-items-min-length:"1" x-kubebuilder-validation-max-items:"32"`
 
 	// UserData Cloud-init user data for instance initialization
 	// Example cloud-init user configuration with SSH key:
-	UserData string `json:"userData,omitempty"`
+	// +kubebuilder:validation:MaxLength=65536
+	UserData string `json:"userData,omitempty" x-kubebuilder-validation-max-length:"65536"`
 
-	// Zone Reference to a specific zone within a region
-	Zone Zone `json:"zone"`
+	// Zone The zone in which the instance is deployed. The zone is immutable after the instance is created.
+	// To change the zone, the instance must be deleted and recreated with the new zone.
+	// +kubebuilder:validation:MaxLength=32
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="spec.zone is immutable"
+	Zone Zone `json:"zone" x-cel-message-0:"spec.zone is immutable" x-cel-rule-0:"self == oldSelf" x-kubebuilder-validation-max-length:"32" x-kubebuilder-validation-min-length:"1"`
 }
 
 // InstanceStatus defines model for InstanceStatus.
 type InstanceStatus struct {
-	Conditions []StatusCondition `json:"conditions"`
+	// +kubebuilder:validation:MaxItems=32
+	Conditions []StatusCondition `json:"conditions" x-kubebuilder-validation-max-items:"32"`
 
 	// PowerState Current power state of the instance.
-	PowerState InstanceStatusPowerState `json:"powerState"`
+	// +kubebuilder:validation:Enum=on;off
+	PowerState InstanceStatusPowerState `json:"powerState" x-kubebuilder-validation-enum:"on;off"`
 
 	// PowerStateSince Indicates the time when the instance powerState has updated, basecause the instance was started, stoped or restarted. If the instance was never started the field is `null`.
 	PowerStateSince *metav1.Time  `json:"powerStateSince,omitempty"`

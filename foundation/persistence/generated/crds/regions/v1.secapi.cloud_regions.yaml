@@ -46,7 +46,11 @@ spec:
                 description: AvailableZones The list of zones available in the region.
                 items:
                   description: Zone Reference to a specific zone within a region
+                  maxLength: 32
+                  minLength: 1
                   type: string
+                maxItems: 32
+                minItems: 1
                 type: array
               providers:
                 description: Providers The list of providers available in the region.
@@ -54,16 +58,24 @@ spec:
                   description: Provider A provider of cloud services
                   properties:
                     name:
+                      maxLength: 64
+                      minLength: 1
                       type: string
                     url:
+                      maxLength: 4000
+                      minLength: 1
                       type: string
                     version:
+                      maxLength: 16
+                      minLength: 1
                       type: string
                   required:
                   - name
                   - url
                   - version
                   type: object
+                maxItems: 64
+                minItems: 1
                 type: array
             required:
             - availableZones

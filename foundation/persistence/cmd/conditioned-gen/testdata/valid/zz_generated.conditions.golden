@@ -5,8 +5,8 @@
 package valid
 
 import (
+	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/common"
 	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/generated/types"
-	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/common"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )

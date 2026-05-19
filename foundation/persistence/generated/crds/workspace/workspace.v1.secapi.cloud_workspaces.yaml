@@ -28,19 +28,9 @@ spec:
               may reject unrecognized values.
               More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
             type: string
-          kind:
-            description: |-
-              Kind is a string value representing the REST resource this object represents.
-              Servers may infer this from the endpoint the client submits requests to.
-              Cannot be updated.
-              In CamelCase.
-              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
-            type: string
-          metadata:
-            type: object
-          regionalCommonData:
-            description: RegionalCommonData defines the additional common fields that
-              can be set on regional resources
+          commonData:
+            description: CommonData defines the additional common fields that can
+              be set on resources
             properties:
               annotations:
                 additionalProperties:
@@ -64,6 +54,16 @@ spec:
                 items:
                   type: string
                 type: array
+            type: object
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
             type: object
           spec:
             additionalProperties:
@@ -92,6 +92,7 @@ spec:
                     message:
                       description: Message A human-readable message indicating details
                         about the transition.
+                      maxLength: 32768
                       type: string
                     occurrences:
                       type: integer
@@ -100,6 +101,8 @@ spec:
                         Reason The reason for the condition's last transition in CamelCase.
                         The specific set of reason values is provider-specific and should be
                         documented by the provider.
+                      maxLength: 1024
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
                       type: string
                     state:
                       description: |-
@@ -121,9 +124,11 @@ spec:
                   - occurrences
                   - state
                   type: object
+                maxItems: 32
                 type: array
               resourceCount:
                 description: ResourceCount Number of resources currently in the workspace
+                minimum: 0
                 type: integer
               state:
                 description: |-

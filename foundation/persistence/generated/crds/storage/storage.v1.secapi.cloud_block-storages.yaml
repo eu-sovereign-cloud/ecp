@@ -29,19 +29,9 @@ spec:
               may reject unrecognized values.
               More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
             type: string
-          kind:
-            description: |-
-              Kind is a string value representing the REST resource this object represents.
-              Servers may infer this from the endpoint the client submits requests to.
-              Cannot be updated.
-              In CamelCase.
-              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
-            type: string
-          metadata:
-            type: object
-          regionalCommonData:
-            description: RegionalCommonData defines the additional common fields that
-              can be set on regional resources
+          commonData:
+            description: CommonData defines the additional common fields that can
+              be set on resources
             properties:
               annotations:
                 additionalProperties:
@@ -66,6 +56,16 @@ spec:
                   type: string
                 type: array
             type: object
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
           spec:
             description: |-
               BlockStorageSpec References the SKU used for this block.
@@ -73,23 +73,26 @@ spec:
             properties:
               sizeGB:
                 description: SizeGB Size of the block storage in GB.
+                maximum: 1000000
+                minimum: 1
                 type: integer
                 x-kubernetes-validations:
                 - message: spec.sizeGB cannot be decreased
-                  optionalOldSelf: true
-                  rule: '!oldSelf.hasValue() || self >= oldSelf.value()'
-                - message: spec.sizeGB must be greater than 0
-                  rule: self > 0
+                  rule: self >= oldSelf
               skuRef:
-                description: SkuRef Reference to the SKU of the block storage.
+                description: |-
+                  SkuRef Reference to the SKU of the block storage. The SKU is immutable after creation.
+                  If you want to change the SKU, you need to create a new block storage and migrate the data.
                 properties:
                   provider:
                     description: Provider Provider of the resource. If not set, the
                       provider is inferred from the context.
+                    maxLength: 64
                     type: string
                   region:
                     description: Region Region of the resource. If not set, the region
                       is inferred from the context.
+                    maxLength: 64
                     type: string
                   resource:
                     description: |-
@@ -100,18 +103,25 @@ spec:
                         `networks/<network-name>/route-tables/<rt-name>`
                       The provider, tenant, and workspace can be specified as separate fields in this
                       object; they do not need to be repeated here.
+                    maxLength: 256
+                    minLength: 1
                     type: string
                   tenant:
                     description: Tenant Tenant of the resource. If not set, the tenant
                       is inferred from the context.
+                    maxLength: 64
                     type: string
                   workspace:
                     description: Workspace Workspace of the resource. If not set,
                       the workspace is inferred from the context.
+                    maxLength: 64
                     type: string
                 required:
                 - resource
                 type: object
+                x-kubernetes-validations:
+                - message: spec.skuRef is immutable
+                  rule: self == oldSelf
               sourceImageRef:
                 description: SourceImageRef Reference to the source image used as
                   the base for creating the block storage.
@@ -119,10 +129,12 @@ spec:
                   provider:
                     description: Provider Provider of the resource. If not set, the
                       provider is inferred from the context.
+                    maxLength: 64
                     type: string
                   region:
                     description: Region Region of the resource. If not set, the region
                       is inferred from the context.
+                    maxLength: 64
                     type: string
                   resource:
                     description: |-
@@ -133,14 +145,18 @@ spec:
                         `networks/<network-name>/route-tables/<rt-name>`
                       The provider, tenant, and workspace can be specified as separate fields in this
                       object; they do not need to be repeated here.
+                    maxLength: 256
+                    minLength: 1
                     type: string
                   tenant:
                     description: Tenant Tenant of the resource. If not set, the tenant
                       is inferred from the context.
+                    maxLength: 64
                     type: string
                   workspace:
                     description: Workspace Workspace of the resource. If not set,
                       the workspace is inferred from the context.
+                    maxLength: 64
                     type: string
                 required:
                 - resource
@@ -159,10 +175,12 @@ spec:
                   provider:
                     description: Provider Provider of the resource. If not set, the
                       provider is inferred from the context.
+                    maxLength: 64
                     type: string
                   region:
                     description: Region Region of the resource. If not set, the region
                       is inferred from the context.
+                    maxLength: 64
                     type: string
                   resource:
                     description: |-
@@ -173,14 +191,18 @@ spec:
                         `networks/<network-name>/route-tables/<rt-name>`
                       The provider, tenant, and workspace can be specified as separate fields in this
                       object; they do not need to be repeated here.
+                    maxLength: 256
+                    minLength: 1
                     type: string
                   tenant:
                     description: Tenant Tenant of the resource. If not set, the tenant
                       is inferred from the context.
+                    maxLength: 64
                     type: string
                   workspace:
                     description: Workspace Workspace of the resource. If not set,
                       the workspace is inferred from the context.
+                    maxLength: 64
                     type: string
                 required:
                 - resource
@@ -203,6 +225,7 @@ spec:
                     message:
                       description: Message A human-readable message indicating details
                         about the transition.
+                      maxLength: 32768
                       type: string
                     occurrences:
                       type: integer
@@ -211,6 +234,8 @@ spec:
                         Reason The reason for the condition's last transition in CamelCase.
                         The specific set of reason values is provider-specific and should be
                         documented by the provider.
+                      maxLength: 1024
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
                       type: string
                     state:
                       description: |-
@@ -232,9 +257,12 @@ spec:
                   - occurrences
                   - state
                   type: object
+                maxItems: 32
                 type: array
               sizeGB:
                 description: SizeGB Size of the block storage in GB.
+                maximum: 1000000
+                minimum: 1
                 type: integer
               state:
                 description: |-
