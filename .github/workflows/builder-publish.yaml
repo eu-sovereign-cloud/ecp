@@ -27,15 +27,6 @@ name: Publish builder image
 on:
   push:
     branches: [main]
-    paths:
-      - 'ci/container/builder/**'
-      - 'ci/tools/**'
-      - 'ci/scripts/**'
-      - '.config.mk'
-      - '.common.mk'
-      - 'Makefile'
-      - '.github/workflows/builder-publish.yaml'
-      - '.github/actions/builder-build-push/**'
   workflow_dispatch:
 
 permissions:
@@ -50,7 +41,24 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  detect:
+    name: Detect builder input changes
+    runs-on: ubuntu-latest
+    outputs:
+      builder: ${{ steps.filter.outputs.builder }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Generate paths-filter config
+        run: make -s print-paths-filter > .paths-filter.yml
+      - id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          base: ${{ github.event.before }}
+          filters: .paths-filter.yml
+
   publish:
+    needs: [detect]
+    if: needs.detect.outputs.builder == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
 
     steps:
@@ -91,8 +99,8 @@ jobs:
 
       # Open a PR that bumps .builder-digest on main. The next step merges it
       # automatically in this same run. The merge commit only touches
-      # .builder-digest, which is NOT in the paths: filter above, so it does
-      # NOT re-trigger this workflow (no infinite loop).
+      # .builder-digest, which is not a builder input, so the detect job
+      # reports builder=false and publish is skipped — no infinite loop.
       - name: Open PR to bump .builder-digest
         id: cpr
         uses: peter-evans/create-pull-request@v8

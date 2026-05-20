@@ -304,7 +304,7 @@ Cleanup — on PR close
 
 ### `builder-publish.yaml` — Builder image publishing
 
-Triggered on push to `main` when builder-related files change (`ci/container/builder/**`, `ci/tools/**`, `ci/scripts/**`, `.config.mk`, `.common.mk`, `Makefile`, `builder-build-push` action). Also available as `workflow_dispatch`.
+Triggers on every push to `main` (and `workflow_dispatch`). A `detect` job runs `make -s print-paths-filter` and uses `dorny/paths-filter` against `github.event.before` to check whether builder inputs changed; the `publish` job is skipped when they have not. The path set is owned by `ci/scripts/paths-filter-gen.sh` — the single source of truth shared with `pre-merge.yaml` and `builder-pr-publish`.
 
 1. Builds and pushes the builder image to `ghcr.io/eu-sovereign-cloud/ecp-builder` with tags `:main` and `:sha-<12-char-sha>`.
 2. Uses registry-based BuildKit cache for fast incremental rebuilds.
