@@ -16,10 +16,13 @@ name: Publish builder image
 #      enable "Allow GitHub Actions to create and approve pull requests".
 #      Without this the digest-bump PR step fails with
 #      "GitHub Actions is not permitted to create or approve pull requests".
-#      Note: PRs opened by the default GITHUB_TOKEN do not retrigger
-#      on: pull_request workflows, so pre-merge.yaml will not run on the
-#      bump PR — this is intentional (the publish job already validated
-#      the image build).
+#
+# Digest-bump PR lifecycle:
+#   - PRs opened by the default GITHUB_TOKEN do not retrigger on: pull_request
+#     workflows, so pre-merge.yaml does not run on the bump PR — this is
+#     intentional (the publish job already validated the image build).
+#   - The bump PR is merged automatically (squash) by the same workflow run
+#     immediately after it is created or updated. No human action is required.
 
 on:
   push:
@@ -50,21 +53,21 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Compute short SHA for image tag
         id: sha
         run: echo "short_sha=$(git rev-parse --short=12 HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Build and push
         id: build
@@ -84,12 +87,13 @@ jobs:
           printf '%s\n' '${{ steps.build.outputs.digest }}' > .builder-digest
           echo "Digest: $(cat .builder-digest)"
 
-      # Open a PR that bumps .builder-digest on main. Merging the PR is the
-      # moment developers adopt the new builder. The merge commit only touches
+      # Open a PR that bumps .builder-digest on main. The next step merges it
+      # automatically in this same run. The merge commit only touches
       # .builder-digest, which is NOT in the paths: filter above, so it does
       # NOT re-trigger this workflow (no infinite loop).
       - name: Open PR to bump .builder-digest
-        uses: peter-evans/create-pull-request@v6
+        id: cpr
+        uses: peter-evans/create-pull-request@v8
         with:
           commit-message: "chore(builder): bump image digest to sha-${{ steps.sha.outputs.short_sha }}"
           title: "chore(builder): bump builder image digest"
@@ -110,3 +114,16 @@ jobs:
           base: main
           add-paths: .builder-digest
           delete-branch: true
+
+      # Auto-merge the digest-bump PR. main has no required reviews, so the
+      # default GITHUB_TOKEN can merge directly — no approval step needed
+      # (and a self-approval by github-actions[bot] would be rejected anyway).
+      # Skipped when the digest was unchanged (operation == 'none').
+      - name: Auto-merge the digest-bump PR
+        if: steps.cpr.outputs.pull-request-operation == 'created' || steps.cpr.outputs.pull-request-operation == 'updated'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr merge "${{ steps.cpr.outputs.pull-request-number }}" \
+            --repo "${{ github.repository }}" \
+            --squash --delete-branch

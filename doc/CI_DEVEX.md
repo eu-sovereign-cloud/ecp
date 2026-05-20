@@ -274,7 +274,7 @@ Triggered on push to `main` when builder-related files change (`ci/container/bui
 
 1. Builds and pushes the builder image to `ghcr.io/eu-sovereign-cloud/ecp-builder` with tags `:main` and `:sha-<12-char-sha>`.
 2. Uses registry-based BuildKit cache for fast incremental rebuilds.
-3. Opens an automated PR to bump `.builder-digest` on `main`. Merging the PR is the moment developers and CI adopt the new builder.
+3. Opens an automated PR to bump `.builder-digest` on `main` and immediately **merges it** (squash) in the same workflow run. No human action is needed — the merge commit on `main` is the moment developers and CI adopt the new builder.
 
 Runs are serialized (`cancel-in-progress: false`) so the second run benefits from the first's registry cache.
 
