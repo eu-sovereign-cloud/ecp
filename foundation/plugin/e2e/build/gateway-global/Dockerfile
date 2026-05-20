@@ -1,5 +1,6 @@
 # Build the manager binary
-FROM golang:1.26.2-bookworm AS builder
+FROM golang:1.26.3
+-bookworm AS builder
 
 ARG DLV_VERSION
 
