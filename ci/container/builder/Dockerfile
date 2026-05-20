@@ -18,6 +18,11 @@ RUN git config --system --add safe.directory '*'
 
 WORKDIR /workspace
 
+# Marker so git hooks (.githooks/) can detect they are running inside an ECP
+# build container rather than on the host. Inherited by the tools and dev
+# images via FROM, so all three images carry it.
+ENV ECP_CONTAINER=1
+
 # Layer 1: tool definitions (change rarely — good cache hit rate)
 COPY .config.mk .common.mk Makefile ./
 COPY ci/tools/ ci/tools/

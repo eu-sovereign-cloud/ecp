@@ -34,6 +34,9 @@ Running directly on the host requires Go 1.26.3+ and the dev tools installed loc
 # Install pinned dev tools to ci/tools/bin/ (golangci-lint, controller-gen, etc.)
 make tools-install
 
+# Activate git hooks (pre-commit and pre-push gates)
+make hooks-install
+
 # Generate CRD YAML and typed Go models from OpenAPI specs
 make generate-api
 
@@ -63,6 +66,32 @@ make pre-commit
 
 # Full CI mirror including rebase and workspace sync checks
 make pre-merge
+```
+
+### Git Hooks
+
+The repo ships pre-commit and pre-push hooks in `.githooks/`. Each hook dispatches to the corresponding Makefile gate:
+
+| Hook | Gate | Skips |
+|------|------|-------|
+| `pre-commit` | `make pre-commit` | `make hooks-skip-pre-commit` |
+| `pre-push` | `make pre-merge` | `make hooks-skip-pre-merge` |
+
+**Host/bare-metal:** the hook dispatches via `-ctzd` (the gate runs inside the tools container). Activate with `make hooks-install` once per clone.
+
+**ECP containers:** the dev container entrypoint sets `core.hooksPath` automatically on every start, covering both the SSH dev container (`make ctzdev-start`) and the VS Code/Codium devcontainer. The `ECP_CONTAINER=1` env var baked into the builder image (inherited by tools and dev) tells the hook to run `make <target>` directly instead.
+
+```bash
+# One-time per-clone activation on the host
+make hooks-install
+
+# Persistently disable a hook
+make hooks-skip-pre-commit      # re-enable: make hooks-unskip-pre-commit
+make hooks-skip-pre-merge       # re-enable: make hooks-unskip-pre-merge
+
+# Skip a single commit or push without disabling the hook
+git commit --no-verify
+git push --no-verify
 ```
 
 ### Containerized Development (Ephemeral)
@@ -208,6 +237,11 @@ Minimal distroless base (`gcr.io/distroless/static-debian13`) for production dep
 | | `workspace-use-drop RELPATH=<path>` | Remove module from `go.work` |
 | **Utilities** | `tools-install` | Install pinned Go dev tools to `ci/tools/bin/` |
 | | `submodules` | Sync and update git submodules |
+| | `hooks-install` | Activate git hooks (`core.hooksPath = .githooks`) — one-time per clone |
+| | `hooks-skip-pre-commit` | Disable pre-commit hook persistently (`hooks.skipPreCommit = true`) |
+| | `hooks-unskip-pre-commit` | Re-enable pre-commit hook |
+| | `hooks-skip-pre-merge` | Disable pre-push hook persistently (`hooks.skipPreMerge = true`) |
+| | `hooks-unskip-pre-merge` | Re-enable pre-push hook |
 | | `gh-token-ensure` | Validate or refresh the cached GitHub CLI token |
 | | `print-<VAR>` | Print any computed Make variable (e.g., `make -s print-TOOLS_IMAGE`) |
 | | `sh` | Open a bash shell |
@@ -306,6 +340,7 @@ CI picks up the new module automatically: `print-paths-filter` regenerates the `
 | `container-volume-opts.sh` | Emit SELinux volume label suffix (`:Z` or empty) |
 | `devcontainer-init.sh` | Generate `.devcontainer/.env` and `compose.override.yml` for the VS Code devcontainer |
 | `gh-token-ensure.sh` | Validate or re-authenticate the cached GitHub CLI token |
+| `git-hook-run.sh` | Shared dispatcher for `.githooks/` — checks skip config, detects container context, runs `make <target>[-ctzd]` |
 | `git-tree-clean-verify.sh` | Fail if the git working tree is dirty (used by verify targets) |
 | `gofmt-check.sh` | Run `golangci-lint fmt --diff` and fail on any diff |
 | `kind-cgroup-preflight.sh` | Check KIND cgroup delegation prerequisites for rootless Podman |

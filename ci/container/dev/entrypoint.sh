@@ -75,7 +75,19 @@ cd /workspace 2>/dev/null || true
 EOF
 }
 
+setup_git_hooks() {
+  # Activate the repo's git hooks for this clone. core.hooksPath is per-clone
+  # local config git never carries on clone, so it must be set explicitly.
+  # /workspace/.git is bind-mounted from the host, so this also activates the
+  # hooks for the developer's host clone — intentional.
+  if git -C /workspace rev-parse --git-dir >/dev/null 2>&1; then
+    git -C /workspace config core.hooksPath .githooks
+  fi
+}
+
 mkdir -p "${SSHD_DIR}" "${DEV_HOME}"
+
+setup_git_hooks
 
 if [ "$(id -u)" -eq 0 ]; then
   # ── Docker mode: running as real root ──────────────────────────────
