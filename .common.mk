@@ -295,7 +295,8 @@ images-clean: dev-image-clean tools-image-clean builder-image-clean
 	  make $* \
 	    $(if $(RUN),RUN='$(RUN)') \
 	    $(if $(PKG),PKG='$(PKG)') \
-	    $(if $(RELPATH),RELPATH='$(RELPATH)')
+	    $(if $(RELPATH),RELPATH='$(RELPATH)') \
+	    $(if $(CMD),CMD='$(CMD)')
 
 # %-container is an alias for %-ctzd.
 %-container: ; @$(MAKE) $*-ctzd

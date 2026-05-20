@@ -1,9 +1,14 @@
 include .config.mk
 include .common.mk
 
+# CMD is optional: if set, run that command instead of opening an interactive shell.
+#   make sh                    # interactive bash
+#   make sh CMD="go work sync && git diff go.work"
+#   make sh-ctzd CMD="go work sync && git diff go.work"
+CMD ?=
 .PHONY: sh
 sh:
-	/bin/bash
+	@if [ -n "$(CMD)" ]; then bash -c '$(CMD)'; else /bin/bash; fi
 
 # Generic variable printer — used by ci/scripts/devcontainer-init.sh to
 # resolve computed image names without re-parsing .config.mk in shell.
@@ -241,7 +246,7 @@ generate-api:
 .PHONY: generate-api-verify
 generate-api-verify: generate-api
 	@$(_REPO_ROOT)/ci/scripts/verify-run.sh generate-api-verify "Generated API artifacts are in sync" -- \
-	  $(_REPO_ROOT)/ci/scripts/git-tree-clean-verify.sh $(_REPO_ROOT) generate-api "make generate-api" foundation/persistence/
+	  $(_REPO_ROOT)/ci/scripts/git-tree-clean-verify.sh --against-index $(_REPO_ROOT) generate-api "make generate-api" foundation/persistence/
 
 ###############################################################################
 # Per-module: go mod tidy
@@ -277,26 +282,35 @@ tidy: $(addsuffix -tidy,$(GO_MODULES))
 # Per-module: go get <pkg[@version]>
 #
 # PKG is required; include @version to pin (or @latest to upgrade).
-#   make foundation/gateway-get PKG=github.com/foo/bar@v1.2.3
-#   make foundation/gateway-get-ctzd PKG=github.com/foo/bar@v1.2.3
+#   make foundation/gateway-go-get PKG=github.com/foo/bar@v1.2.3
+#   make foundation/gateway-go-get-ctzd PKG=github.com/foo/bar@v1.2.3
 #
-# The umbrella `get` target runs the same PKG in every GO_MODULE — useful for
+# The umbrella `go-get` target runs the same PKG in every GO_MODULE — useful for
 # bumping a shared dependency across the workspace in one shot:
-#   make get PKG=k8s.io/apimachinery@v0.35.0
+#   make go-get PKG=k8s.io/apimachinery@v0.35.0
 #
-# `go mod tidy` is always run after `go get` to keep go.sum consistent.
+# NOTE: We deliberately use `go mod edit -require=…@VERSION` + `go mod download`
+# instead of `go get` + `go mod tidy`. Using `go get` or `go mod tidy` rebuilds
+# the full module graph and tries to fetch sibling workspace modules (e.g.
+# foundation/persistence@v0.0.1) from the module proxy — pseudo-versions that
+# only resolve via the workspace `replace` directives, which the proxy never
+# has. The edit+download approach updates go.mod and go.sum for the target
+# package without touching the rest of the module graph.
+# The umbrella `go-get` target finishes with `go work sync` to reconcile go.work.sum.
 ###############################################################################
 
 PKG ?=
 
-.PHONY: %-get
-%-get:
+.PHONY: %-go-get
+%-go-get:
 	@[ -n "$(PKG)" ] || { echo "error: set PKG=<module[@version]>"; exit 2; }
 	@echo "==> go get $(PKG): $*"
-	cd $(_REPO_ROOT)/$* && go get $(PKG) && go mod tidy
+	cd $(_REPO_ROOT)/$* && go mod edit -require=$(PKG) && go mod download $(PKG)
 
-.PHONY: get
-get: $(addsuffix -get,$(GO_MODULES))
+.PHONY: go-get
+go-get: $(addsuffix -go-get,$(GO_MODULES))
+	@echo "==> go work sync"
+	cd $(_REPO_ROOT) && go work sync
 
 ###############################################################################
 # Workspace-level: sync and CI verify
@@ -320,7 +334,7 @@ workspace-sync:
 .PHONY: workspace-verify
 workspace-verify: workspace-sync
 	@$(_REPO_ROOT)/ci/scripts/verify-run.sh workspace-verify "Go workspace is in sync" -- \
-	  $(_REPO_ROOT)/ci/scripts/git-tree-clean-verify.sh $(_REPO_ROOT) workspace-sync "make workspace-sync" go.work go.work.sum
+	  $(_REPO_ROOT)/ci/scripts/git-tree-clean-verify.sh --against-head $(_REPO_ROOT) workspace-sync "make workspace-sync" go.work go.work.sum
 
 ###############################################################################
 # GitHub CLI token provisioning
