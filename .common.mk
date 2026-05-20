@@ -242,7 +242,22 @@ _builder-ensure-image:
 	  $(MAKE) builder-build BUILDER_SOURCE=local; \
 	else \
 	  echo "Builder image '$(BUILDER_IMAGE)' not present locally. Pulling from ghcr.io..."; \
-	  docker pull $(BUILDER_IMAGE); \
+	  if ! docker pull $(BUILDER_IMAGE); then \
+	    echo ""; \
+	    echo "ERROR: failed to pull the builder image from ghcr.io."; \
+	    echo ""; \
+	    echo "  If this branch changed builder inputs (.config.mk, Makefile,"; \
+	    echo "  ci/container/builder/, ci/tools/, ci/scripts/), the pinned"; \
+	    echo "  .builder-digest no longer matches your tree. Build it locally:"; \
+	    echo ""; \
+	    echo "      make $(MAKECMDGOALS) BUILDER_SOURCE=local"; \
+	    echo ""; \
+	    echo "  Otherwise the registry may require authentication:"; \
+	    echo ""; \
+	    echo "      docker login ghcr.io"; \
+	    echo ""; \
+	    exit 1; \
+	  fi; \
 	fi
 
 .PHONY: _tools-ensure-image
