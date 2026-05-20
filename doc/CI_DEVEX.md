@@ -154,13 +154,13 @@ The 3 images form a layered chain. Each layer adds tooling on top of the previou
 | Published by | CI (`builder-publish.yaml`) to `ghcr.io/eu-sovereign-cloud/ecp-builder` |
 | Pinned at | `.builder-digest` (committed to git) |
 
-The builder image is the foundation for all CI jobs. It is rebuilt by CI whenever `ci/container/builder/`, `ci/tools/`, `ci/scripts/`, `.config.mk`, or `Makefile` change.
+The builder image is the foundation for all CI jobs. It is rebuilt by CI whenever `ci/container/builder/`, `ci/tools/`, `ci/scripts/`, `.config.mk`, `.common.mk`, `Makefile`, or `builder-build-push` action files change.
 
-To modify the builder locally:
+When a branch modifies any of those inputs, the Makefile automatically detects the stale `.builder-digest` and builds/uses a local image — no `BUILDER_SOURCE=local` is required. `%-ctzd` targets and `ctzdev-start` just work. To force a rebuild from scratch:
 
 ```bash
-make builder-build BUILDER_SOURCE=local   # build from ci/container/builder/Dockerfile
-make tools-build   BUILDER_SOURCE=local   # propagate the local builder downstream
+make builder-rebuild BUILDER_SOURCE=local   # --no-cache rebuild of the builder
+make tools-build                            # propagate downstream (auto on next -ctzd)
 ```
 
 ### Tools Image (`ci/container/tools/`)
@@ -300,11 +300,11 @@ Cleanup — on PR close
 
 **Checkout strategy:** all jobs pin checkout to `github.event.pull_request.head.sha` (not the synthetic merge commit). This means CI validates exactly the tree the contributor sees locally, avoiding surprise failures caused by regressions on `main`.
 
-**Module filtering:** Stage 3 jobs only run for modules that have changed files. `module-diff` generates a `paths-filter` config from `go.work` at runtime (`make -s print-paths-filter`), so the filter stays in sync with the workspace automatically — adding a new module to `go.work` is all that's needed.
+**Module filtering:** Stage 3 jobs only run for modules that have changed files. `module-diff` generates a `paths-filter` config from `go.work` at runtime (`make -s print-paths-filter` → `ci/scripts/paths-filter-gen.sh`), so the filter stays in sync with the workspace automatically — adding a new module to `go.work` is all that's needed. When builder inputs change, `module-matrix.sh` expands the matrix to every module so all checks run against the rebuilt toolchain.
 
 ### `builder-publish.yaml` — Builder image publishing
 
-Triggered on push to `main` when builder-related files change (`ci/container/builder/**`, `ci/tools/**`, `ci/scripts/**`, `.config.mk`, `Makefile`). Also available as `workflow_dispatch`.
+Triggered on push to `main` when builder-related files change (`ci/container/builder/**`, `ci/tools/**`, `ci/scripts/**`, `.config.mk`, `.common.mk`, `Makefile`, `builder-build-push` action). Also available as `workflow_dispatch`.
 
 1. Builds and pushes the builder image to `ghcr.io/eu-sovereign-cloud/ecp-builder` with tags `:main` and `:sha-<12-char-sha>`.
 2. Uses registry-based BuildKit cache for fast incremental rebuilds.
@@ -342,7 +342,11 @@ CI picks up the new module automatically: `print-paths-filter` regenerates the `
 | `gh-token-ensure.sh` | Validate or re-authenticate the cached GitHub CLI token |
 | `git-hook-run.sh` | Shared dispatcher for `.githooks/` — checks skip config, detects container context, runs `make <target>[-ctzd]` |
 | `git-tree-clean-verify.sh` | Fail if the git working tree is dirty (used by verify targets) |
+| `go-modules.sh` | Print CI-relevant Go modules from `go.work` (single source of truth for `GO_MODULES` and `paths-filter-gen.sh`) |
 | `gofmt-check.sh` | Run `golangci-lint fmt --diff` and fail on any diff |
+| `image-inputs-changed.sh` | Detect whether a container image's build inputs differ from the `.builder-digest` commit (local stale-image detection) |
 | `kind-cgroup-preflight.sh` | Check KIND cgroup delegation prerequisites for rootless Podman |
+| `module-matrix.sh` | Resolve the pre-merge CI module check-matrix: full set when builder inputs changed, otherwise the changed-module set |
+| `paths-filter-gen.sh` | Emit the `dorny/paths-filter` YAML config: a `builder` block plus one block per CI-relevant Go module |
 | `tool-ensure-go.sh` | Ensure a Go tool binary is present (used by `tools-install`) |
 | `verify-run.sh` | Wrap a command with a pass/fail header for consistent CI output |

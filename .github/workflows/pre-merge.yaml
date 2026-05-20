@@ -126,8 +126,8 @@ jobs:
     if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     outputs:
-      modules: ${{ steps.filter.outputs.changes }}
-      has_changes: ${{ steps.filter.outputs.changes != '[]' }}
+      modules: ${{ steps.resolve.outputs.modules }}
+      has_changes: ${{ steps.resolve.outputs.modules != '[]' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6
         with:
@@ -138,6 +138,12 @@ jobs:
         uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # ratchet:dorny/paths-filter@v4
         with:
           filters: .paths-filter.yml
+      - id: resolve
+        name: Resolve module matrix
+        run: |
+          echo "modules=$(ci/scripts/module-matrix.sh \
+            '${{ steps.filter.outputs.builder }}' \
+            '${{ steps.filter.outputs.changes }}')" >> "$GITHUB_OUTPUT"
 
   # ===========================================================================
   # Stage 2: Builder image — publish alias or rebuild for this PR

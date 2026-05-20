@@ -32,8 +32,10 @@ on:
       - 'ci/tools/**'
       - 'ci/scripts/**'
       - '.config.mk'
+      - '.common.mk'
       - 'Makefile'
       - '.github/workflows/builder-publish.yaml'
+      - '.github/actions/builder-build-push/**'
   workflow_dispatch:
 
 permissions:

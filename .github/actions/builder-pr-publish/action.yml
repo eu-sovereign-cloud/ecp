@@ -39,23 +39,16 @@ outputs:
 runs:
   using: composite
   steps:
+    - name: Generate paths-filter config
+      shell: bash
+      run: make -s print-paths-filter > .paths-filter.yml
+
     - name: Detect builder input changes
       id: filter
       uses: dorny/paths-filter@v3
       with:
         base: ${{ inputs.base-ref }}
-        filters: |
-          builder:
-            - 'ci/container/builder/**'
-            - 'ci/tools/**'
-            - 'ci/scripts/**'
-            - '.config.mk'
-            - '.common.mk'
-            - 'Makefile'
-            - '.github/workflows/builder-publish.yaml'
-            - '.github/workflows/pre-merge.yaml'
-            - '.github/actions/builder-build-push/**'
-            - '.github/actions/builder-pr-publish/**'
+        filters: .paths-filter.yml
 
     - name: Log in to GHCR
       uses: docker/login-action@v3
