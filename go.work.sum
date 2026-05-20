@@ -142,7 +142,8 @@ github.com/envoyproxy/protoc-gen-validate v1.2.1/go.mod h1:d/C80l/jxXLdfEIhX1W2T
 github.com/eu-sovereign-cloud/go-sdk v0.3.0 h1:nR2l8JxdUu4RAL09mRsVAq/PZ7oR+5b+AlZBm/cNPQ8=
 github.com/eu-sovereign-cloud/go-sdk v0.3.0/go.mod h1:Rmhw98zOA5tNaDf4yyfnGwmTGGwLEGRf8B0f64GL2ZM=
 github.com/eu-sovereign-cloud/go-sdk v0.3.44/go.mod h1:0yCm+45kfQpOiv0r4FKf3h0w1yBGUqgGC2HCfmscUdQ=
-github.com/eu-sovereign-cloud/go-sdk v0.4.0/go.mod h1:UGAJJgDhG8JcTUXwIgtLfHisUbIEckJDn8pblcOET9s=
+github.com/eu-sovereign-cloud/go-sdk v0.4.1 h1:FpKGkr+E+Go8VfYinS/Ms3LJLDPmVXVM5WIjslB6rBs=
+github.com/eu-sovereign-cloud/go-sdk v0.4.1/go.mod h1:UGAJJgDhG8JcTUXwIgtLfHisUbIEckJDn8pblcOET9s=
 github.com/fatih/structs v1.1.0 h1:Q7juDM0QtcnhCpeyLGQKyg4TOIghuNXrkL32pHAUMxo=
 github.com/fatih/structs v1.1.0/go.mod h1:9NiDSp5zOcgEDl+j00MP/WkGVPOlPRLejGD8Ga6PJ7M=
 github.com/flosch/pongo2/v4 v4.0.2 h1:gv+5Pe3vaSVmiJvh/BZa82b7/00YUGm0PIyVVLop0Hw=
@@ -500,7 +501,6 @@ github.com/nats-io/nuid v1.0.1/go.mod h1:19wcPz3Ph3q0Jbyiqsd0kePYG7A95tJPxeL+1OS
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e h1:fD57ERR4JtEqsWbfPhv4DMiApHyliiK5xCTNVSPiaAs=
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e/go.mod h1:zD1mROLANZcx1PVRCS0qkT7pwLkGfwJo4zjcN/Tysno=
 github.com/nxadm/tail v1.4.4/go.mod h1:kenIhsEOeOJmVchQTgglprH7qJGnHDVpk1VPCcaMI8A=
-github.com/oapi-codegen/runtime v1.4.0/go.mod h1:5sw5fxCDmnOzKNYmkVNF8d34kyUeejJEY8HNT2WaPec=
 github.com/oklog/run v1.1.0 h1:GEenZ1cK0+q0+wsJew9qUg/DyD8k3JzYsZAi5gYi2mA=
 github.com/oklog/run v1.1.0/go.mod h1:sVPdnTZT1zYwAJeCMu2Th4T21pA3FPOQRfWjQlk7DVU=
 github.com/onsi/ginkgo v1.6.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
