@@ -1,15 +1,18 @@
 name: Publish per-PR builder image
 description: >
-  Alias :main or do a full multi-arch rebuild of the builder image for a pull
-  request, then push as :pr-<N>.
+  Alias :main or do a full rebuild of the builder image (linux/amd64) for a
+  pull request, then push as :pr-<N>.
 
   Logic:
     - Detect whether any builder input changed vs the PR base branch.
+      The path set is generated via `make -s print-paths-filter`
+      (ci/scripts/paths-filter-gen.sh) — single source of truth shared with
+      builder-publish.yaml and pre-merge.yaml.
     - If NOT changed and :main exists → alias via `buildx imagetools create
       --annotation` (unique digest, safe to delete independently of :main).
-    - If changed or :main missing → full multi-arch rebuild via the
-      builder-build-push action, with registry cache seeded from :buildcache
-      and the PR's own prior cache.
+    - If changed or :main missing → full rebuild via the builder-build-push
+      action, with registry cache seeded from :buildcache and the PR's own
+      prior cache.
 
   Preconditions the caller must set up before invoking this action:
     - actions/checkout with fetch-depth: 0

@@ -8,10 +8,10 @@ name: Pre-Merge
 #   action == closed                           → delete the per-PR builder image
 #
 # Per-PR builder image lifecycle (merged from the former builder-pr.yaml):
-#   - Detect whether any builder input changed vs main.
+#   - Detect whether any builder input changed vs the PR base branch.
 #   - If NOT changed and :main exists → alias :main as :pr-<N> via
 #     `buildx imagetools create --annotation` (unique digest, safe to delete).
-#   - If changed or :main missing → full multi-arch rebuild, pushed as :pr-<N>.
+#   - If changed or :main missing → full rebuild (linux/amd64), pushed as :pr-<N>.
 #   - On close → delete :pr-<N> (and :pr-<N>-buildcache) from GHCR.
 #
 # Downstream jobs that run inside the builder container reference:
@@ -42,7 +42,7 @@ name: Pre-Merge
 #   Stage 2 — build builder image (gated by stage 1)
 #     builder-publish-pr   Provide PR Builder Image
 #       needs: [pr-title, module-diff, branch-rebase, go-sdk-verify]
-#       skipped when no modules changed → nothing else runs
+#       skipped when no modules or builder inputs changed → nothing else runs
 #
 #   Stage 3 — all verification jobs (gated by stage 2, parallel)
 #     workspace-verify   Ensure Workspace Is In Sync
@@ -119,7 +119,7 @@ jobs:
         run: make go-sdk-verify
 
   # ===========================================================================
-  # Stage 1: Detect which modules changed
+  # Stage 1: Detect changed modules and resolve the check matrix
   # ===========================================================================
   module-diff:
     name: Detect Changed Modules
@@ -132,7 +132,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-      - name: Generate paths-filter config from go.work
+      - name: Generate paths-filter config (builder paths + go.work modules)
         run: make -s print-paths-filter > .paths-filter.yml
       - id: filter
         uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # ratchet:dorny/paths-filter@v4
