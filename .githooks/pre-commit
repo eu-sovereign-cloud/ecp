@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# pre-commit hook — runs the 'pre-commit' validation gate before a commit.
+#
+# Disable:  make hooks-skip-pre-commit   (re-enable: make hooks-unskip-pre-commit)
+# Skip once:  git commit --no-verify
+set -euo pipefail
+exec "$(git rev-parse --show-toplevel)/ci/scripts/git-hook-run.sh" pre-commit hooks.skipPreCommit

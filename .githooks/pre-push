@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# pre-push hook — runs the 'pre-merge' validation gate before a push.
+#
+# Disable:  make hooks-skip-pre-merge   (re-enable: make hooks-unskip-pre-merge)
+# Skip once:  git push --no-verify
+set -euo pipefail
+exec "$(git rev-parse --show-toplevel)/ci/scripts/git-hook-run.sh" pre-merge hooks.skipPreMerge

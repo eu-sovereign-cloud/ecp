@@ -27,6 +27,35 @@ submodules:
 	@git submodule update --init --recursive
 
 ###############################################################################
+# Git hooks
+###############################################################################
+
+.PHONY: hooks-install
+hooks-install:
+	@git -C $(_REPO_ROOT) config core.hooksPath .githooks
+	@echo "==> Git hooks installed (core.hooksPath = .githooks)"
+
+.PHONY: hooks-skip-pre-commit
+hooks-skip-pre-commit:
+	@git -C $(_REPO_ROOT) config hooks.skipPreCommit true
+	@echo "==> pre-commit hook disabled (hooks.skipPreCommit = true)"
+
+.PHONY: hooks-unskip-pre-commit
+hooks-unskip-pre-commit:
+	@git -C $(_REPO_ROOT) config --unset hooks.skipPreCommit || true
+	@echo "==> pre-commit hook enabled"
+
+.PHONY: hooks-skip-pre-merge
+hooks-skip-pre-merge:
+	@git -C $(_REPO_ROOT) config hooks.skipPreMerge true
+	@echo "==> pre-push hook disabled (hooks.skipPreMerge = true)"
+
+.PHONY: hooks-unskip-pre-merge
+hooks-unskip-pre-merge:
+	@git -C $(_REPO_ROOT) config --unset hooks.skipPreMerge || true
+	@echo "==> pre-push hook enabled"
+
+###############################################################################
 # go-sdk: atomic bump and version-sync verification
 #
 # The go-sdk source is consumed two ways:
