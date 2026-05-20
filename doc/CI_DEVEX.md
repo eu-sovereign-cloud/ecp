@@ -192,7 +192,7 @@ Minimal distroless base (`gcr.io/distroless/static-debian13`) for production dep
 | **Code Generation** | `generate-api` | Generate CRDs + typed models from OpenAPI spec |
 | | `generate-api-verify` | Same, but fails if git tree is dirty afterward (CI gate) |
 | **Dependency Mgmt** | `tidy`, `<module>-tidy` | `go mod tidy` per module |
-| | `get`, `<module>-get PKG=<pkg>` | `go get <pkg>` per module + tidy |
+| | `go-get`, `<module>-go-get PKG=<pkg>` | `go get <pkg>` per module + tidy |
 | | `workspace-sync` | `go work sync` |
 | | `workspace-verify` | `workspace-sync` + git-cleanliness gate (CI gate) |
 | **CI Gates** | `pre-commit` | `generate-api-verify test lint gofmt-check vuln gosec` |
