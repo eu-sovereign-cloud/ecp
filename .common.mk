@@ -11,32 +11,17 @@ include $(_REPO_ROOT)/ci/tools/tools.mk
 ###############################################################################
 # Go modules in scope for repo-wide checks (test, lint, vuln, ...)
 #
-# Derived automatically from the `use (...)` block in go.work so there is a
-# single source of truth. Modules that are in the workspace but not subject
-# to product CI (tool modules, reference plugins, e2e harness) are listed in
-# GO_MODULES_EXCLUDE.
+# Derived from go.work by ci/scripts/go-modules.sh (single source of truth,
+# shared with CI workflows).
 ###############################################################################
 
-_GO_WORK_MODULES := $(shell awk '/^use \(/,/^\)/{ if ($$1 ~ /^\.\//) print substr($$1, 3) }' $(_REPO_ROOT)/go.work)
+GO_MODULES := $(shell $(_REPO_ROOT)/ci/scripts/go-modules.sh)
 
-GO_MODULES_EXCLUDE := \
-  ci/tools/go \
-  foundation/plugin/e2e
-
-GO_MODULES := $(filter-out $(GO_MODULES_EXCLUDE),$(_GO_WORK_MODULES))
-
-# Emit a dorny/paths-filter filter set derived from GO_MODULES. Used by
-# .github/workflows/pre-merge.yaml so the CI matrix follows the workspace
-# automatically — add a module to go.work and the PR filter picks it up.
-#
-# Output format (one entry per module):
-#   foundation/persistence:
-#     - foundation/persistence/**
+# Emit the dorny/paths-filter config consumed by CI: a `builder` block plus
+# one block per module. Used by pre-merge.yaml and builder-pr-publish.
 .PHONY: print-paths-filter
 print-paths-filter:
-	@for m in $(GO_MODULES); do \
-	  printf '%s:\n  - %s/**\n' "$$m" "$$m"; \
-	done
+	@$(_REPO_ROOT)/ci/scripts/paths-filter-gen.sh
 
 ###############################################################################
 # Builder image resolution
@@ -54,8 +39,17 @@ _BUILDER_PUBLIC_IMAGE := $(BUILDER_PUBLIC_REGISTRY)/$(BUILDER_PUBLIC_REPO)
 _BUILDER_DIGEST_FILE  := $(_REPO_ROOT)/.builder-digest
 _BUILDER_DIGEST       := $(strip $(shell [ -r $(_BUILDER_DIGEST_FILE) ] && cat $(_BUILDER_DIGEST_FILE)))
 
+# "changed" when builder inputs in this tree differ from the .builder-digest
+# commit — the pinned remote digest is then stale (build locally, not pull).
+# 2>/dev/null: silent when parsed inside the builder image build (no .git).
+_BUILDER_INPUTS_CHANGED := $(strip $(shell $(_REPO_ROOT)/ci/scripts/image-inputs-changed.sh builder 2>/dev/null))
+
 ifeq ($(BUILDER_SOURCE),local)
   BUILDER_IMAGE ?= $(_BUILDER_PUBLIC_IMAGE):local
+else ifneq ($(_BUILDER_INPUTS_CHANGED),)
+  # Builder inputs modified in this tree — pinned .builder-digest is stale.
+  BUILDER_IMAGE ?= $(_BUILDER_PUBLIC_IMAGE):local
+  _BUILDER_FALLBACK_LOCAL := 1
 else ifneq ($(_BUILDER_DIGEST),)
   BUILDER_IMAGE ?= $(_BUILDER_PUBLIC_IMAGE)@$(_BUILDER_DIGEST)
 else
@@ -234,7 +228,8 @@ images-rebuild:
 
 .PHONY: _builder-ensure-image
 _builder-ensure-image:
-	@if [ -n "$$($(_REPO_ROOT)/ci/scripts/container-image-exists.sh $(BUILDER_IMAGE))" ]; then \
+	@if [ -n "$$($(_REPO_ROOT)/ci/scripts/container-image-exists.sh $(BUILDER_IMAGE))" ] \
+	   && [ -z "$(_BUILDER_INPUTS_CHANGED)" ]; then \
 	  exit 0; \
 	fi; \
 	if [ "$(BUILDER_SOURCE)" = "local" ] || [ -n "$(_BUILDER_FALLBACK_LOCAL)" ]; then \
@@ -262,15 +257,17 @@ _builder-ensure-image:
 
 .PHONY: _tools-ensure-image
 _tools-ensure-image: _builder-ensure-image
-	@if [ -z "$$($(_REPO_ROOT)/ci/scripts/container-image-exists.sh $(TOOLS_IMAGE))" ]; then \
-	  echo "Tools image '$(TOOLS_IMAGE)' not found. Building..."; \
+	@if [ -z "$$($(_REPO_ROOT)/ci/scripts/container-image-exists.sh $(TOOLS_IMAGE))" ] \
+	   || [ -n "$$($(_REPO_ROOT)/ci/scripts/image-inputs-changed.sh tools 2>/dev/null)" ]; then \
+	  echo "Tools image '$(TOOLS_IMAGE)' missing or out of date. Building..."; \
 	  $(MAKE) tools-build; \
 	fi
 
 .PHONY: _dev-ensure-image
 _dev-ensure-image: _tools-ensure-image
-	@if [ -z "$$($(_REPO_ROOT)/ci/scripts/container-image-exists.sh $(DEV_IMAGE))" ]; then \
-	  echo "Dev image '$(DEV_IMAGE)' not found. Building..."; \
+	@if [ -z "$$($(_REPO_ROOT)/ci/scripts/container-image-exists.sh $(DEV_IMAGE))" ] \
+	   || [ -n "$$($(_REPO_ROOT)/ci/scripts/image-inputs-changed.sh dev 2>/dev/null)" ]; then \
+	  echo "Dev image '$(DEV_IMAGE)' missing or out of date. Building..."; \
 	  $(MAKE) dev-build; \
 	fi
 
