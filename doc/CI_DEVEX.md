@@ -154,13 +154,13 @@ The 3 images form a layered chain. Each layer adds tooling on top of the previou
 | Published by | CI (`builder-publish.yaml`) to `ghcr.io/eu-sovereign-cloud/ecp-builder` |
 | Pinned at | `.builder-digest` (committed to git) |
 
-The builder image is the foundation for all CI jobs. It is rebuilt by CI whenever `ci/container/builder/`, `ci/tools/`, `ci/scripts/`, `.config.mk`, `.common.mk`, `Makefile`, or `builder-build-push` action files change.
+The builder image is the foundation for all CI jobs. It is rebuilt by CI whenever `ci/container/builder/`, `ci/tools/`, `ci/scripts/`, `.config.mk`, `.common.mk`, `Makefile`, or `builder-build-push` / `builder-pr-publish` action files change, or when `builder-publish.yaml` or `pre-merge.yaml` themselves change. The full path set is owned by `ci/scripts/paths-filter-gen.sh`.
 
 When a branch modifies any of those inputs, the Makefile automatically detects the stale `.builder-digest` and builds/uses a local image — no `BUILDER_SOURCE=local` is required. `%-ctzd` targets and `ctzdev-start` just work. To force a rebuild from scratch:
 
 ```bash
-make builder-rebuild BUILDER_SOURCE=local   # --no-cache rebuild of the builder
-make tools-build                            # propagate downstream (auto on next -ctzd)
+make builder-rebuild   # --no-cache rebuild of the builder
+make tools-build       # propagate downstream (auto on next -ctzd)
 ```
 
 ### Tools Image (`ci/container/tools/`)
@@ -194,6 +194,7 @@ Minimal distroless base (`gcr.io/distroless/static-debian13`) for production dep
 | `make tools-build` | Build tools image (pulls builder from registry) |
 | `make dev-build` | Build dev image |
 | `make images-build` | Build all 3 images from local sources |
+| `make builder-rebuild` | Force-rebuild builder image (no Docker cache) |
 | `make tools-rebuild` | Force-rebuild tools image (no Docker cache) |
 | `make images-rebuild` | Force-rebuild all 3 images |
 | `make images-clean` | Remove all 3 local images |
@@ -224,11 +225,11 @@ Minimal distroless base (`gcr.io/distroless/static-debian13`) for production dep
 | | `go-get`, `<module>-go-get PKG=<pkg>` | `go get <pkg>` per module + tidy |
 | | `workspace-sync` | `go work sync` |
 | | `workspace-verify` | `workspace-sync` + git-cleanliness gate (CI gate) |
-| **CI Gates** | `pre-commit` | `generate-api-verify test lint gofmt-check vuln gosec` |
+| **CI Gates** | `pre-commit` | `go-sdk-verify generate-api-verify test lint gofmt-check vuln gosec` |
 | | `pre-merge` | Same, plus `gh-token-ensure branch-rebase-verify workspace-verify` |
 | | `branch-rebase-verify` | Verify current branch is rebased onto its PR target |
 | **Container Images** | `tools-build`, `dev-build`, `images-build` | Build image(s) |
-| | `tools-rebuild`, `images-rebuild` | Force-rebuild (bypass cache) |
+| | `builder-rebuild`, `tools-rebuild`, `images-rebuild` | Force-rebuild (bypass cache) |
 | | `images-clean` | Remove local images |
 | **Dev Container** | `ctzdev-start` | Start persistent dev container (SSH on port 2222) |
 | | `ctzdev-stop` | Stop and remove dev container |

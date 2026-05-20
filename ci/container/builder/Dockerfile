@@ -23,7 +23,9 @@ WORKDIR /workspace
 # images via FROM, so all three images carry it.
 ENV ECP_CONTAINER=1
 
-# Layer 1: tool definitions (change rarely — good cache hit rate)
+# Layer 1: tool definitions and supporting scripts.
+# ci/scripts/ must be present: .common.mk calls go-modules.sh and
+# image-inputs-changed.sh at Make-parse time (make tools-install fails without it).
 COPY .config.mk .common.mk Makefile ./
 COPY ci/tools/ ci/tools/
 COPY ci/scripts/ ci/scripts/

@@ -18,7 +18,8 @@ include $(_REPO_ROOT)/ci/tools/tools.mk
 GO_MODULES := $(shell $(_REPO_ROOT)/ci/scripts/go-modules.sh)
 
 # Emit the dorny/paths-filter config consumed by CI: a `builder` block plus
-# one block per module. Used by pre-merge.yaml and builder-pr-publish.
+# one block per module. Used by builder-publish.yaml, pre-merge.yaml, and
+# builder-pr-publish.
 .PHONY: print-paths-filter
 print-paths-filter:
 	@$(_REPO_ROOT)/ci/scripts/paths-filter-gen.sh
@@ -26,13 +27,16 @@ print-paths-filter:
 ###############################################################################
 # Builder image resolution
 # BUILDER_IMAGE is resolved here (after _REPO_ROOT is known) based on the
-# BUILDER_SOURCE selector set in .config.mk.
+# BUILDER_SOURCE selector set in .config.mk and the state of the working tree.
 #
-#   remote (default): use the pinned digest from .builder-digest.
-#   local:            use a locally-built image tagged :local.
-#
-# When .builder-digest is absent or empty (pre-first-publish), falls back to
-# :local so the repo is immediately usable without a remote pull.
+#   local:           use a locally-built image tagged :local.
+#   remote (default, clean tree): use the pinned digest from .builder-digest.
+#   remote (builder inputs changed): builder inputs differ from the
+#                    .builder-digest commit → pinned digest is stale → fall
+#                    back to :local automatically (no manual BUILDER_SOURCE=local
+#                    needed). Detection is delegated to image-inputs-changed.sh.
+#   remote (no digest): .builder-digest absent or empty → :local fallback so
+#                    the repo is immediately usable before the first CI publish.
 ###############################################################################
 
 _BUILDER_PUBLIC_IMAGE := $(BUILDER_PUBLIC_REGISTRY)/$(BUILDER_PUBLIC_REPO)
@@ -85,8 +89,9 @@ _CTZD_BACKEND := $(shell $(_REPO_ROOT)/ci/scripts/container-runtime-detect.sh)
 _CTZD_USER_FLAGS   := $(shell $(_REPO_ROOT)/ci/scripts/container-user-flags.sh $(_CTZD_BACKEND))
 _CTZD_SELINUX_OPT  := $(shell $(_REPO_ROOT)/ci/scripts/container-volume-opts.sh $(_CTZD_BACKEND))
 
-# Compose volume option suffixes: ":Z" or "" for plain mounts,
-# ":ro,Z" or ":ro" for read-only mounts.
+# Compose volume option suffixes: ":z" or "" for plain mounts,
+# ":ro,z" or ":ro" for read-only mounts.
+# (lowercase z = shared SELinux label; see container-volume-opts.sh)
 ifneq ($(_CTZD_SELINUX_OPT),)
   _CTZD_VOLUME_OPTS    := :$(_CTZD_SELINUX_OPT)
   _CTZD_VOLUME_OPTS_RO := :ro,$(_CTZD_SELINUX_OPT)
@@ -241,8 +246,8 @@ _builder-ensure-image:
 	    echo ""; \
 	    echo "ERROR: failed to pull the builder image from ghcr.io."; \
 	    echo ""; \
-	    echo "  If this branch changed builder inputs (.config.mk, Makefile,"; \
-	    echo "  ci/container/builder/, ci/tools/, ci/scripts/), the pinned"; \
+	    echo "  If this branch changed builder inputs (.config.mk, .common.mk,"; \
+	    echo "  Makefile, ci/container/builder/, ci/tools/, ci/scripts/), the pinned"; \
 	    echo "  .builder-digest no longer matches your tree. Build it locally:"; \
 	    echo ""; \
 	    echo "      make $(MAKECMDGOALS) BUILDER_SOURCE=local"; \

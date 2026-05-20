@@ -1,8 +1,10 @@
 name: Publish builder image
 
-# Builds and pushes the multi-arch builder image to ghcr.io whenever any of
-# its inputs change on main. After pushing, opens an automated PR that bumps
-# .builder-digest so developers and CI pin the new digest deterministically.
+# Builds and pushes the builder image (linux/amd64) to ghcr.io on every push
+# to main. A `detect` job checks whether builder inputs actually changed (via
+# dorny/paths-filter); the `publish` job is skipped when they have not.
+# After pushing, opens an automated PR that bumps .builder-digest so
+# developers and CI pin the new digest deterministically.
 #
 # Publishing is CI-only: developers never push to ghcr.io.
 # Developers pull automatically on the first `make tools-build` / `make dev-build`.
@@ -21,6 +23,9 @@ name: Publish builder image
 #   - PRs opened by the default GITHUB_TOKEN do not retrigger on: pull_request
 #     workflows, so pre-merge.yaml does not run on the bump PR — this is
 #     intentional (the publish job already validated the image build).
+#   - The bump commit only touches .builder-digest, which is not a builder
+#     input, so the `detect` job reports builder=false on the next push and
+#     `publish` is skipped — no infinite loop.
 #   - The bump PR is merged automatically (squash) by the same workflow run
 #     immediately after it is created or updated. No human action is required.
 
@@ -91,7 +96,7 @@ jobs:
           cache-from: type=registry,ref=ghcr.io/eu-sovereign-cloud/ecp-builder:buildcache
           cache-to: type=registry,ref=ghcr.io/eu-sovereign-cloud/ecp-builder:buildcache,mode=max
 
-      # Write the multi-arch manifest digest so the Makefile can pin it.
+      # Write the image manifest digest so the Makefile can pin it.
       - name: Write digest lock file
         run: |
           printf '%s\n' '${{ steps.build.outputs.digest }}' > .builder-digest
@@ -108,7 +113,7 @@ jobs:
           commit-message: "chore(builder): bump image digest to sha-${{ steps.sha.outputs.short_sha }}"
           title: "chore(builder): bump builder image digest"
           body: |
-            Automated bump after `builder-publish.yaml` pushed a new multi-arch
+            Automated bump after `builder-publish.yaml` pushed a new
             image to `ghcr.io/eu-sovereign-cloud/ecp-builder`.
 
             | Field | Value |
@@ -116,7 +121,7 @@ jobs:
             | Trigger commit | ${{ github.sha }} |
             | Short SHA tag  | `sha-${{ steps.sha.outputs.short_sha }}` |
             | Manifest digest | `${{ steps.build.outputs.digest }}` |
-            | Platforms | `linux/amd64`, `linux/arm64` |
+            | Platforms | `linux/amd64` |
 
             After merging, developers and CI will automatically pull this
             digest on the next `make tools-build` / `make dev-build`.

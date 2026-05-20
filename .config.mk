@@ -33,19 +33,20 @@ LOCAL_REGISTRY?=localhost
 ###############################################################################
 # Builder container (codegen, lint, test, build)
 # Published to ghcr.io by CI (.github/workflows/builder-publish.yaml).
-# Developers and CI pull the image by digest — no local build step needed.
+# Developers pull the image by digest automatically — no manual build step.
 #
-# To modify and test the builder itself locally:
-#   make builder-build BUILDER_SOURCE=local
-#   make tools-build   BUILDER_SOURCE=local
+# When a branch modifies builder inputs, the Makefile detects the stale
+# .builder-digest and falls back to a local build transparently.
+# To force a no-cache rebuild from scratch: make builder-rebuild
 ###############################################################################
 
 # Public registry coordinates (CI pushes here; everyone else only pulls).
 BUILDER_PUBLIC_REGISTRY ?= ghcr.io
 BUILDER_PUBLIC_REPO     ?= eu-sovereign-cloud/ecp-builder
 
-# Source selector: 'remote' (default) pulls the pinned digest from ghcr.io.
-# 'local' builds from ci/container/builder/Dockerfile and tags it :local.
+# Source selector: 'remote' (default) pulls the pinned digest from ghcr.io;
+# auto-falls-back to :local when builder inputs differ from the digest commit.
+# 'local' always builds from ci/container/builder/Dockerfile and tags it :local.
 BUILDER_SOURCE ?= remote
 
 BUILDER_DOCKERFILE ?= ci/container/builder/Dockerfile
