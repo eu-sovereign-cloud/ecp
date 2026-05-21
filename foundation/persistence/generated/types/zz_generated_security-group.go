@@ -36,19 +36,23 @@ type SecurityGroup struct {
 type SecurityGroupSpec struct {
 	// RuleRefs References to shared SecurityGroupRule resources.
 	// These rules are applied in addition to the inline rules.
-	RuleRefs []Reference `json:"ruleRefs,omitempty"`
+	// +kubebuilder:validation:MaxItems=500
+	RuleRefs []Reference `json:"ruleRefs,omitempty" x-kubebuilder-validation-max-items:"500"`
 
 	// Rules Network access rules defining communication between security groups and external networks.
 	//
 	// Rule Evaluation:
 	// - Default behavior is to deny all traffic not explicitly allowed
 	// - Rules provide granular control over allowed traffic types, sources, and destinations
-	Rules []SecurityGroupRuleSpec `json:"rules,omitempty"`
+	// +kubebuilder:validation:MaxItems=500
+	Rules []SecurityGroupRuleSpec `json:"rules,omitempty" x-kubebuilder-validation-max-items:"500"`
 }
 
 // SecurityGroupStatus defines model for SecurityGroupStatus.
 type SecurityGroupStatus struct {
-	Conditions []StatusCondition         `json:"conditions"`
-	Rules      []SecurityGroupRuleStatus `json:"rules,omitempty"`
+	// +kubebuilder:validation:MaxItems=32
+	Conditions []StatusCondition         `json:"conditions" x-kubebuilder-validation-max-items:"32"`
+	// +kubebuilder:validation:MaxItems=500
+	Rules      []SecurityGroupRuleStatus `json:"rules,omitempty" x-kubebuilder-validation-max-items:"500"`
 	State      ResourceState             `json:"state,omitempty"`
 }

@@ -1,9 +1,9 @@
 package regional
 
-// ReferenceObjectDomain is a domain type representing a reference to another resource.
+// ReferenceDomain is a domain type representing a reference to another resource.
 // It uses a structured object format that can reference resources across
 // workspaces or regions
-type ReferenceObjectDomain struct {
+type ReferenceDomain struct {
 	// Provider of the resource. If empty, inferred from context.
 	Provider string
 	// Region of the resource. If empty, inferred from context.

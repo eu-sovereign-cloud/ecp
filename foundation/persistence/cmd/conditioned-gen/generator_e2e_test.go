@@ -143,6 +143,40 @@ func TestRun_NonStruct(t *testing.T) {
 	}
 }
 
+func TestRun_AliasStatus(t *testing.T) {
+	const pkgDir = "testdata/alias-status"
+	outName := testOutFile(t, pkgDir)
+
+	g, err := newGenerator("", outName)
+	if err != nil {
+		t.Fatalf("newGenerator: %v", err)
+	}
+	if err := g.run([]string{"./testdata/alias-status"}); err != nil {
+		t.Fatalf("run: %v", err)
+	}
+
+	got, err := os.ReadFile(filepath.Join(pkgDir, outName))
+	if err != nil {
+		t.Fatalf("read generated file: %v", err)
+	}
+
+	const goldenPath = "testdata/alias-status/zz_generated.conditions.golden"
+	if *update {
+		if err := os.WriteFile(goldenPath, got, 0o644); err != nil {
+			t.Fatalf("write golden: %v", err)
+		}
+		return
+	}
+
+	want, err := os.ReadFile(goldenPath)
+	if err != nil {
+		t.Fatalf("read golden (run with -update to create it): %v", err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Errorf("generated output differs from golden\ngot:\n%s\nwant:\n%s", got, want)
+	}
+}
+
 func TestRun_WithHeader(t *testing.T) {
 	const pkgDir = "testdata/valid"
 	outName := testOutFile(t, pkgDir)

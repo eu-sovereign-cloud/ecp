@@ -32,17 +32,25 @@ const (
 // LoadBalancerHealthCheck Optional port health check. It probes the port with protocol.
 type LoadBalancerHealthCheck struct {
 	// Interval health check interval in seconds. It means after how many seconds it will take a new check
-	Interval int `json:"interval"`
+	// +kubebuilder:validation:Maximum=86400
+	// +kubebuilder:validation:Minimum=1
+	Interval int `json:"interval" x-kubebuilder-validation-maximum:"86400" x-kubebuilder-validation-minimum:"1"`
 
 	// Retry health check retry number after considered unhealthy a backend instance
-	Retry int `json:"retry"`
+	// +kubebuilder:validation:Maximum=10
+	// +kubebuilder:validation:Minimum=0
+	Retry int `json:"retry" x-kubebuilder-validation-maximum:"10" x-kubebuilder-validation-minimum:"0"`
 
 	// Timeout health check in seconds. It means after how many seconds the attempt will be considered unhealthy
-	Timeout int `json:"timeout"`
+	// +kubebuilder:validation:Maximum=600
+	// +kubebuilder:validation:Minimum=1
+	Timeout int `json:"timeout" x-kubebuilder-validation-maximum:"600" x-kubebuilder-validation-minimum:"1"`
 
 	// Type Specifies the type of health check. A `connect` health check attempts
 	// to establish a connection to the specified port to determine its health.
-	Type LoadBalancerHealthCheckType `json:"type,omitempty"`
+	// +kubebuilder:default="connect"
+	// +kubebuilder:validation:Enum=connect
+	Type LoadBalancerHealthCheckType `json:"type,omitempty" x-kubebuilder-default:"connect" x-kubebuilder-validation-enum:"connect"`
 }
 
 // LoadBalancerHealthCheckType Specifies the type of health check. A `connect` health check attempts
@@ -52,13 +60,17 @@ type LoadBalancerHealthCheckType string
 // LoadBalancerTarget The target of the LoadBalancer. It can be a set of instances nics. The port can be different from the frontend port, if omitted it will be the same. If no health check is specified, the LoadBalancer will not check the health of the backend instances.
 type LoadBalancerTarget struct {
 	// Algorithm LoadBalancer algorithm to take a backend instance
-	Algorithm LoadBalancerTargetAlgorithm `json:"algorithm,omitempty"`
+	// +kubebuilder:default="round-robin"
+	// +kubebuilder:validation:Enum=round-robin
+	Algorithm LoadBalancerTargetAlgorithm `json:"algorithm,omitempty" x-kubebuilder-default:"round-robin" x-kubebuilder-validation-enum:"round-robin"`
 
 	// HealthCheck Optional port health check. It probes the port with protocol.
 	HealthCheck *LoadBalancerHealthCheck `json:"healthCheck,omitempty"`
 
 	// Members Nic reference to the members as part of the LoadBalancerTarget
-	Members []Reference `json:"members"`
+	// +kubebuilder:validation:MaxItems=1000
+	// +kubebuilder:validation:MinItems=1
+	Members []Reference `json:"members" x-kubebuilder-validation-max-items:"1000" x-kubebuilder-validation-min-items:"1"`
 
 	// Port Backend port to which the load balancer will be forwarding the traffic to
 	Port *NetworkLoadBalancerPort `json:"port,omitempty"`
@@ -66,7 +78,9 @@ type LoadBalancerTarget struct {
 	// ProxyProtocol Specifies the proxy protocol version. The proxy protocol is used to
 	// pass client connection information to the backend instances.
 	// If not specified, the default is `none`.
-	ProxyProtocol LoadBalancerTargetProxyProtocol `json:"proxyProtocol,omitempty"`
+	// +kubebuilder:default="none"
+	// +kubebuilder:validation:Enum=none;v2
+	ProxyProtocol LoadBalancerTargetProxyProtocol `json:"proxyProtocol,omitempty" x-kubebuilder-default:"none" x-kubebuilder-validation-enum:"none;v2"`
 }
 
 // LoadBalancerTargetAlgorithm LoadBalancer algorithm to take a backend instance
@@ -114,7 +128,8 @@ type NetworkLoadBalancerFrontend struct {
 	Port NetworkLoadBalancerPort `json:"port"`
 
 	// Protocol Frontend Protocol to which the load balancer will be listening on
-	Protocol NetworkLoadBalancerFrontendProtocol `json:"protocol"`
+	// +kubebuilder:validation:Enum=tcp;udp;both
+	Protocol NetworkLoadBalancerFrontendProtocol `json:"protocol" x-kubebuilder-validation-enum:"tcp;udp;both"`
 
 	// Target The target of the LoadBalancer. It can be a set of instances nics. The port can be different from the frontend port, if omitted it will be the same. If no health check is specified, the LoadBalancer will not check the health of the backend instances.
 	Target LoadBalancerTarget `json:"target"`
@@ -136,7 +151,9 @@ type NetworkLoadBalancerSpec struct {
 
 	// FrontendPort Frontend port to which the load balancer will be listening on
 	FrontendPort *NetworkLoadBalancerPort      `json:"frontendPort,omitempty"`
-	Frontends    []NetworkLoadBalancerFrontend `json:"frontends"`
+	// +kubebuilder:validation:MaxItems=50
+	// +kubebuilder:validation:MinItems=1
+	Frontends    []NetworkLoadBalancerFrontend `json:"frontends" x-kubebuilder-validation-max-items:"50" x-kubebuilder-validation-min-items:"1"`
 
 	// NicRef Reference to the NIC attached to the load balancer.
 	NicRef Reference `json:"nicRef"`
@@ -147,9 +164,11 @@ type NetworkLoadBalancerSpec struct {
 
 // NetworkLoadBalancerStatus defines model for NetworkLoadBalancerStatus.
 type NetworkLoadBalancerStatus struct {
-	Conditions []StatusCondition `json:"conditions"`
+	// +kubebuilder:validation:MaxItems=32
+	Conditions []StatusCondition `json:"conditions" x-kubebuilder-validation-max-items:"32"`
 
 	// HealthyMembers List of healthy members
-	HealthyMembers []Reference   `json:"healthyMembers,omitempty"`
+	// +kubebuilder:validation:MaxItems=1000
+	HealthyMembers []Reference   `json:"healthyMembers,omitempty" x-kubebuilder-validation-max-items:"1000"`
 	State          ResourceState `json:"state,omitempty"`
 }

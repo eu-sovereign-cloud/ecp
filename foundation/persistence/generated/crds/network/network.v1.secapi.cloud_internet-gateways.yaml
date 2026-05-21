@@ -1,0 +1,153 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.20.0
+  name: internet-gateways.network.v1.secapi.cloud
+spec:
+  group: network.v1.secapi.cloud
+  names:
+    kind: InternetGateway
+    listKind: InternetGatewayList
+    plural: internet-gateways
+    shortNames:
+    - internet-gateway
+    singular: internetgateway
+  scope: Namespaced
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        description: InternetGateway is the API for managing internet gateways.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          commonData:
+            description: CommonData defines the additional common fields that can
+              be set on resources
+            properties:
+              annotations:
+                additionalProperties:
+                  type: string
+                description: |-
+                  Annotations User-defined key/value pairs that are mutable and can be used to add annotations.
+                  The number of annotations is eventually limited by the CSP.
+                type: object
+              extensions:
+                additionalProperties:
+                  type: string
+                description: |-
+                  Extensions User-defined key/value pairs that are mutable and can be used to add extensions.
+                  Extensions are subject to validation by the CSP, and any value that is not accepted will be rejected during admission.
+                type: object
+              labels:
+                description: |-
+                  Labels User-defined key/value pairs that are mutable and can be used to
+                  organize and categorize resources. We store the keys explicitly in the spec, because the values will be stored
+                  directly in the Kubernetes labels.
+                items:
+                  type: string
+                type: array
+            type: object
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: |-
+              InternetGatewaySpec The internet gateway will use the reserved IP addres.
+              the subnet CIDR block to provide internet access to the subnet.
+            properties:
+              egressOnly:
+                default: false
+                description: |-
+                  EgressOnly If set to true, the internet gateway will only allow outgoing traffic
+                  and will not allow incoming traffic. This is useful for public subnets
+                  that should not be accessible from the internet.
+                type: boolean
+            type: object
+          status:
+            description: InternetGatewayStatus Current status of the resource
+            properties:
+              conditions:
+                items:
+                  description: |-
+                    StatusCondition StatusCondition describes the state of a resource at a certain point.
+                    Conditions are provider-specific and can represent different states depending on the
+                    resource type and provider implementation.
+                  properties:
+                    lastTransitionAt:
+                      description: |-
+                        LastTransitionAt LastTransitionAt is the last time the condition transitioned from one
+                        status to another. This should be when the underlying condition changed.
+                        If that is not known, then using the time when the API field changed is
+                        acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: Message A human-readable message indicating details
+                        about the transition.
+                      maxLength: 32768
+                      type: string
+                    occurrences:
+                      type: integer
+                    reason:
+                      description: |-
+                        Reason The reason for the condition's last transition in CamelCase.
+                        The specific set of reason values is provider-specific and should be
+                        documented by the provider.
+                      maxLength: 1024
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    state:
+                      description: |-
+                        State Current phase of the resource:
+                        - pending: not available, waiting for other resources
+                        - creating: not available, creation started
+                        - active: available for data layer usage
+                        - updating: available for data layer usage
+                        - deleting: maybe still available for data layer user, can fail any moment
+                        - error: failed to fulfill the request; would be related to provider issue or customer related input.
+                      type: string
+                    type:
+                      description: |-
+                        Type Type of condition. The condition type is provider-specific and should
+                        reflect the specific states relevant to your resource.
+                      type: string
+                  required:
+                  - lastTransitionAt
+                  - occurrences
+                  - state
+                  type: object
+                maxItems: 32
+                type: array
+              state:
+                description: |-
+                  ResourceState Current phase of the resource:
+                  - pending: not available, waiting for other resources
+                  - creating: not available, creation started
+                  - active: available for data layer usage
+                  - updating: available for data layer usage
+                  - deleting: maybe still available for data layer user, can fail any moment
+                  - error: failed to fulfill the request; would be related to provider issue or customer related input.
+                type: string
+            required:
+            - conditions
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

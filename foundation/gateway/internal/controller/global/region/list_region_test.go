@@ -19,8 +19,8 @@ import (
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
+	regionsv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/global/regions/v1"
 	generatedv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/generated/types"
-	regionsv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/regions/v1"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"

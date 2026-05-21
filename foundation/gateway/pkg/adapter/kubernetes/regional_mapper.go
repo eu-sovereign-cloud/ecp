@@ -11,12 +11,12 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/common"
+	netowrkskuv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/network/skus/v1"
+	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage/block-storages/v1"
+	storageskuv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage/skus/v1"
+	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/workspace/v1"
 	genv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/generated/types"
-	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/common"
-	netowrkskuv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/network/skus/v1"
-	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/storage/block-storages/v1"
-	storageskuv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/storage/skus/v1"
-	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/workspace/v1"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes/convert"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes/labels"
@@ -65,9 +65,9 @@ func MapCRToWorkspaceDomain(obj client.Object) (*regional.WorkspaceDomain, error
 			Tenant: internalLabels[labels.InternalTenantLabel],
 		},
 		Region:      internalLabels[labels.InternalRegionLabel],
-		Labels:      labels.KeyedToOriginal(keyedLabels, cr.RegionalCommonData.Labels),
-		Annotations: cr.RegionalCommonData.Annotations,
-		Extensions:  cr.RegionalCommonData.Extensions,
+		Labels:      labels.KeyedToOriginal(keyedLabels, cr.CommonData.Labels),
+		Annotations: cr.CommonData.Annotations,
+		Extensions:  cr.CommonData.Extensions,
 	}
 	if ts := cr.GetDeletionTimestamp(); ts != nil {
 		meta.DeletedAt = &ts.Time
@@ -115,7 +115,7 @@ func MapWorkspaceDomainToCR(domain *regional.WorkspaceDomain) (client.Object, er
 			Labels:          crLabels,
 			ResourceVersion: domain.ResourceVersion,
 		},
-		RegionalCommonData: common.RegionalCommonData{
+		CommonData: common.CommonData{
 			Annotations: domain.Annotations,
 			Extensions:  domain.Extensions,
 			Labels:      slices.Collect(maps.Keys(domain.Labels)),
@@ -204,7 +204,7 @@ func MapCRToBlockStorageDomain(obj client.Object) (*regional.BlockStorageDomain,
 
 	spec := regional.BlockStorageSpecDomain{
 		SizeGB: cr.Spec.SizeGB,
-		SkuRef: mapCRReferenceObjectToDomain(cr.Spec.SkuRef),
+		SkuRef: mapCRReferenceToDomain(cr.Spec.SkuRef),
 	}
 
 	crLabels := cr.GetLabels()
@@ -225,16 +225,16 @@ func MapCRToBlockStorageDomain(obj client.Object) (*regional.BlockStorageDomain,
 			Workspace: internalLabels[labels.InternalWorkspaceLabel],
 		},
 		Region:      internalLabels[labels.InternalRegionLabel],
-		Labels:      labels.KeyedToOriginal(keyedLabels, cr.RegionalCommonData.Labels),
-		Annotations: cr.RegionalCommonData.Annotations,
-		Extensions:  cr.RegionalCommonData.Extensions,
+		Labels:      labels.KeyedToOriginal(keyedLabels, cr.CommonData.Labels),
+		Annotations: cr.CommonData.Annotations,
+		Extensions:  cr.CommonData.Extensions,
 	}
 	if ts := cr.GetDeletionTimestamp(); ts != nil {
 		meta.DeletedAt = &ts.Time
 	}
 
 	if cr.Spec.SourceImageRef != nil {
-		spec.SourceImageRef = new(mapCRReferenceObjectToDomain(*cr.Spec.SourceImageRef))
+		spec.SourceImageRef = new(mapCRReferenceToDomain(*cr.Spec.SourceImageRef))
 	}
 
 	var status = &regional.BlockStorageStatusDomain{}
@@ -248,7 +248,7 @@ func MapCRToBlockStorageDomain(obj client.Object) (*regional.BlockStorageDomain,
 		}
 
 		if cr.Status.AttachedTo != nil {
-			status.AttachedTo = new(mapCRReferenceObjectToDomain(*cr.Status.AttachedTo))
+			status.AttachedTo = new(mapCRReferenceToDomain(*cr.Status.AttachedTo))
 		}
 	} else {
 		status.PushCondition(regional.DefaultPendingCondition)
@@ -277,20 +277,20 @@ func MapBlockStorageDomainToCR(domain *regional.BlockStorageDomain) (client.Obje
 			Labels:          crLabels,
 			ResourceVersion: domain.ResourceVersion,
 		},
-		RegionalCommonData: common.RegionalCommonData{
+		CommonData: common.CommonData{
 			Annotations: domain.Annotations,
 			Extensions:  domain.Extensions,
 			Labels:      slices.Collect(maps.Keys(domain.Labels)),
 		},
 		Spec: genv1.BlockStorageSpec{
 			SizeGB: domain.Spec.SizeGB,
-			SkuRef: mapDomainReferenceObjectToCR(domain.Spec.SkuRef),
+			SkuRef: mapDomainReferenceToCR(domain.Spec.SkuRef),
 		},
 	}
 	cr.SetGroupVersionKind(blockstoragev1.BlockStorageGVK)
 
 	if domain.Spec.SourceImageRef != nil {
-		ref := mapDomainReferenceObjectToCR(*domain.Spec.SourceImageRef)
+		ref := mapDomainReferenceToCR(*domain.Spec.SourceImageRef)
 		cr.Spec.SourceImageRef = &ref
 	}
 
@@ -305,7 +305,7 @@ func MapBlockStorageDomainToCR(domain *regional.BlockStorageDomain) (client.Obje
 			State:      *state,
 		}
 		if domain.Status.AttachedTo != nil {
-			cr.Status.AttachedTo = new(mapDomainReferenceObjectToCR(*domain.Status.AttachedTo))
+			cr.Status.AttachedTo = new(mapDomainReferenceToCR(*domain.Status.AttachedTo))
 		}
 	}
 
@@ -424,15 +424,15 @@ func mapCRToResourceStateDomain(crResourceState genv1.ResourceState) regional.Re
 	return state
 }
 
-// mapCRReferenceObjectToDomain converts a generated types.ReferenceObject to a domain ReferenceObject.
+// mapCRReferenceToDomain converts a generated types.Reference to a domain Reference.
 // Tenant and Workspace are embedded into the Resource path so the domain always
 // carries a fully-qualified resource string (e.g. "seca.storage/v1/tenants/t/skus/s").
-func mapCRReferenceObjectToDomain(ref genv1.ReferenceObject) regional.ReferenceObjectDomain {
+func mapCRReferenceToDomain(ref genv1.Reference) regional.ReferenceDomain {
 	resource := ref.Resource
 	if ref.Tenant != "" || ref.Workspace != "" {
 		resource = embedScopeInResource(resource, ref.Tenant, ref.Workspace)
 	}
-	return regional.ReferenceObjectDomain{
+	return regional.ReferenceDomain{
 		Provider: ref.Provider,
 		Region:   ref.Region,
 		Resource: resource,
@@ -476,13 +476,13 @@ func embedScopeInResource(resource, tenant, workspace string) string {
 	return scopePath + "/" + suffix
 }
 
-// mapDomainReferenceObjectToCR converts a domain ReferenceObject to a generated types ReferenceObject.
+// mapDomainReferenceToCR converts a domain Reference to a generated types Reference.
 // It parses the Resource path to extract embedded segments (providers, regions, tenants, workspaces)
 // and sets the corresponding fields. Extracted segments are stripped from the Resource path.
 // If a segment is not in the path, it falls back to the domain value.
-func mapDomainReferenceObjectToCR(ref regional.ReferenceObjectDomain) genv1.ReferenceObject {
+func mapDomainReferenceToCR(ref regional.ReferenceDomain) genv1.Reference {
 	resource := ref.Resource
-	result := genv1.ReferenceObject{}
+	result := genv1.Reference{}
 
 	// Populate each field from the Resource path only when the explicit domain field
 	// is not already set. This makes the function idempotent: on the first call the

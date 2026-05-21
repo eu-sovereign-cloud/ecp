@@ -8,7 +8,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes/labels"
-	v1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/regions/v1"
+	v1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/global/regions/v1"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 )

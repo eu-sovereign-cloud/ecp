@@ -54,7 +54,8 @@ type KubernetesClusterSkuSpec struct {
 	//   stable version of kubernetes.
 	// - `preview`: Automatic updates are enabled for the
 	//   preview version of kubernetes.
-	AutomaticUpdatePolicy KubernetesClusterSkuSpecAutomaticUpdatePolicy `json:"automaticUpdatePolicy"`
+	// +kubebuilder:validation:Enum=none;stable;preview
+	AutomaticUpdatePolicy KubernetesClusterSkuSpecAutomaticUpdatePolicy `json:"automaticUpdatePolicy" x-kubebuilder-validation-enum:"none;stable;preview"`
 
 	// EndOfLifeAt The date and time when the version will be end of life.
 	// After this date, the version will not be supported. Depending
@@ -72,11 +73,14 @@ type KubernetesClusterSkuSpec struct {
 	// - `shared`: A shared kubernetes cluster.
 	//   This cluster uses shared resources for the control plane.
 	//   It is recommended for cost sensitive workloads.
-	Type KubernetesClusterSkuSpecType `json:"type"`
+	// +kubebuilder:validation:Enum=dedicated;shared
+	Type KubernetesClusterSkuSpecType `json:"type" x-kubebuilder-validation-enum:"dedicated;shared"`
 
 	// Version The kubernetes major, minor and patch version.
 	// The version is a string in the format of `<major>.<minor>.<patch>` or `<major>.<minor>`.
-	Version string `json:"version"`
+	// +kubebuilder:validation:MaxLength=16
+	// +kubebuilder:validation:MinLength=1
+	Version string `json:"version" x-kubebuilder-validation-max-length:"16" x-kubebuilder-validation-min-length:"1"`
 }
 
 // KubernetesClusterSkuSpecAutomaticUpdatePolicy The automatic updates policy for the kubernetes cluster.

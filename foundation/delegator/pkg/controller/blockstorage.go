@@ -9,7 +9,7 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	gateway "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
-	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/storage/block-storages/v1"
+	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage/block-storages/v1"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/plugin"
 	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/plugin/handler"
