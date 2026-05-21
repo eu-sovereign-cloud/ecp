@@ -18,8 +18,7 @@ ECP uses a **container-first** development model:
 | Docker or Podman | Container runtime | Auto-detected; both are fully supported |
 | `kubectl` | Kubernetes CLI | Required for cluster operations |
 | KIND | Local Kubernetes clusters | Required for integration tests |
-| Go 1.26.3
-+ | Build/test on host | Required only for bare-metal workflow |
+| Go 1.26.3+ | Build/test on host | Required only for bare-metal workflow |
 
 > **Podman users:** The Makefile handles SELinux volume labels (`:Z`), cgroupv2 delegation, rootless userns mapping, and KIND preflight automatically. See `.common.mk` for details.
 
@@ -29,8 +28,7 @@ The builder image is published to `ghcr.io/eu-sovereign-cloud/ecp-builder` and p
 
 ### Bare-Metal Development
 
-Running directly on the host requires Go 1.26.3
-+ and the dev tools installed locally.
+Running directly on the host requires Go 1.26.3+ and the dev tools installed locally.
 
 ```bash
 # Install pinned dev tools to ci/tools/bin/ (golangci-lint, controller-gen, etc.)
@@ -122,8 +120,7 @@ The 3 images form a layered chain. Each layer adds tooling on top of the previou
 
 | Attribute | Value |
 |-----------|-------|
-| Base | `golang:1.26.3
--trixie` |
+| Base | `golang:1.26.3-trixie` |
 | Contains | Go toolchain, all codegen/lint/security tools (pinned versions) |
 | Published by | CI (`builder-publish.yaml`) to `ghcr.io/eu-sovereign-cloud/ecp-builder` |
 | Pinned at | `.builder-digest` (committed to git) |
@@ -143,8 +140,7 @@ make tools-build   BUILDER_SOURCE=local   # propagate the local builder downstre
 |-----------|-------|
 | Base | `builder` |
 | Adds | Docker CLI (static binary), KIND, kubectl, GitHub CLI, bash completion, coloring |
-| Tag | `localhost/ecp/tools:<version>-trixie-go-v1.26.3
-` |
+| Tag | `localhost/ecp/tools:<version>-trixie-go-v1.26.3` |
 | Built by | `make tools-build` (auto-triggered by `-ctzd` targets if missing) |
 
 This image is what the `-ctzd` targets and the devcontainer use.
@@ -155,8 +151,7 @@ This image is what the `-ctzd` targets and the devcontainer use.
 |-----------|-------|
 | Base | `tools` |
 | Adds | OpenSSH server, neovim, gopls, sudo |
-| Tag | `localhost/ecp/dev:<version>-trixie-go-v1.26.3
-` |
+| Tag | `localhost/ecp/dev:<version>-trixie-go-v1.26.3` |
 | Built by | `make dev-build` (auto-triggered by `ctzdev-start` if missing) |
 
 ### Runner Image (`ci/container/runner/`)

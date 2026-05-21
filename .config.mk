@@ -12,7 +12,6 @@ VERSION?=v0.1.0-alpha1-preview
 # Go & toolchain version
 GO_VERSION?=1.26.3
 
-
 # Builder base image
 BUILDER_BASE_REGISTRY?=docker.io
 BUILDER_BASE_REGISTRY_PATH?=library/golang
