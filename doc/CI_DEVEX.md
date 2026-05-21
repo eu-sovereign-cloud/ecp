@@ -24,6 +24,37 @@ ECP uses a **container-first** development model:
 
 The builder image is published to `ghcr.io/eu-sovereign-cloud/ecp-builder` and pulled automatically on first use. Its pinned digest is stored in `.builder-digest` and updated by an automated CI PR whenever the builder inputs change.
 
+### Registry authentication
+
+The toolchain pulls from `docker.io` (builder base image) and `ghcr.io` (published builder image). Authenticating to both avoids rate-limit failures on first build.
+
+**`docker.io`** — Docker Hub enforces anonymous-pull rate limits. The builder
+base image (`golang:1.26.3-trixie`) is fetched from Docker Hub on a local
+builder build (`make builder-rebuild`):
+
+```bash
+docker login docker.io
+```
+
+**`ghcr.io`** — Generate a GitHub **classic** Personal Access Token (PAT) at
+*GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)*
+with the **`read:packages`** scope (the minimum required to pull container
+images; developers only pull — CI pushes). Then log in:
+
+```bash
+# Interactive (paste PAT as password)
+docker login ghcr.io -u <github-username>
+
+# Non-interactive
+echo "<PAT>" | docker login ghcr.io -u <github-username> --password-stdin
+```
+
+> **Note:** The `ghcr.io/eu-sovereign-cloud/ecp-builder` image is public, so
+> anonymous pulls normally succeed. The PAT login is only needed when anonymous
+> pulls fail or hit the GHCR rate limit.
+
+> **Podman users:** substitute `podman login` for `docker login` (same arguments).
+
 ## Development Workflows
 
 ### Bare-Metal Development
