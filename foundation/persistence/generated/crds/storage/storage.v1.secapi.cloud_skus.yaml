@@ -46,10 +46,13 @@ spec:
                 description: |-
                   Iops The number of IOPS (Input/Output Operations Per Second) guaranteed for
                   the storage SKU.
+                maximum: 45000
+                minimum: 1
                 type: integer
               minVolumeSize:
                 description: MinVolumeSize Minimum volume size for guaranteed performance,
                   in GB.
+                minimum: 1
                 type: integer
               type:
                 description: |-
@@ -89,6 +92,10 @@ spec:
                     attached to multiple instances simultaneously.
                     Example use-cases include file storage or replicated databases
                     using asynchronous replication.
+                enum:
+                - local-ephemeral
+                - local-durable
+                - remote-durable
                 type: string
             required:
             - iops

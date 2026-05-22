@@ -32,10 +32,14 @@ type InstanceSku struct {
 type InstanceSkuSpec struct {
 	// Ram The amount of RAM (Random Access Memory) allocated to the instance SKU in gigabytes.
 	// This value represents the total memory available to the instance.
-	Ram int `json:"ram"`
+	// +kubebuilder:validation:Maximum=65536
+	// +kubebuilder:validation:Minimum=1
+	Ram int `json:"ram" x-kubebuilder-validation-maximum:"65536" x-kubebuilder-validation-minimum:"1"`
 
 	// VCPU The number of virtual CPUs (vCPUs) allocated to the instance SKU.
 	// This value represents the number of cores visible to the operating system.
 	// It does not specify the number of physical processors or hyper-threads available.
-	VCPU int `json:"vCPU"`
+	// +kubebuilder:validation:Maximum=60
+	// +kubebuilder:validation:Minimum=1
+	VCPU int `json:"vCPU" x-kubebuilder-validation-maximum:"60" x-kubebuilder-validation-minimum:"1"`
 }

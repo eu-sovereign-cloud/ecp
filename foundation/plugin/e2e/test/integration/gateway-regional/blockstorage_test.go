@@ -23,7 +23,7 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	regionalmodel "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
-	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/storage/block-storages/v1"
+	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage/block-storages/v1"
 )
 
 // newBlockStorageBody is a helper to construct the body for creating/updating block storage.
@@ -33,7 +33,7 @@ func newBlockStorageBody(t *testing.T, sizeGB int) schema.BlockStorage {
 	return schema.BlockStorage{
 		Spec: schema.BlockStorageSpec{
 			SizeGB: sizeGB,
-			SkuRef: schema.ReferenceObject{Resource: "sku-1"},
+			SkuRef: schema.Reference{Resource: "sku-1"},
 		},
 	}
 }

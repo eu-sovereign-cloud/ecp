@@ -1,10 +1,10 @@
 module github.com/eu-sovereign-cloud/ecp/foundation/plugin/e2e
 
-go 1.26.2
+go 1.26.3
 
 require (
 	github.com/Arubacloud/arubacloud-resource-operator v1.0.0
-	github.com/eu-sovereign-cloud/go-sdk v0.4.0
+	github.com/eu-sovereign-cloud/go-sdk v0.4.1
 	github.com/google/uuid v1.6.0
 	github.com/stretchr/testify v1.11.1
 	k8s.io/api v0.35.0

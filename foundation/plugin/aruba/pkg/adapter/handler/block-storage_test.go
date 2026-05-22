@@ -147,7 +147,7 @@ package handler
 // 			bd := &regional.BlockStorageDomain{
 // 				Spec: regional.BlockStorageSpecDomain{
 // 					SizeGB: 100,
-// 					SkuRef: regional.ReferenceObjectDomain{
+// 					SkuRef: regional.Domain{
 // 						Tenant: "sku-id",
 // 					},
 // 				},
@@ -330,7 +330,7 @@ package handler
 // 			bd := &regional.BlockStorageDomain{
 // 				Spec: regional.BlockStorageSpecDomain{
 // 					SizeGB: 100,
-// 					SkuRef: regional.ReferenceObjectDomain{
+// 					SkuRef: regional.Domain{
 // 						Tenant: "sku-id",
 // 					},
 // 				},
@@ -419,7 +419,7 @@ package handler
 // 			bd := &regional.BlockStorageDomain{
 // 				Spec: regional.BlockStorageSpecDomain{
 // 					SizeGB: 200, // New size for increase
-// 					SkuRef: regional.ReferenceObjectDomain{
+// 					SkuRef: regional.Domain{
 // 						Tenant: "sku-id",
 // 					},
 // 				},

@@ -30,17 +30,20 @@ type ActivityLogSpec struct {
 	Response *ResponseObject `json:"response,omitempty"`
 
 	// Subject User-JWT executing this query
-	Subject string `json:"subject,omitempty"`
+	// +kubebuilder:validation:MaxLength=256
+	Subject string `json:"subject,omitempty" x-kubebuilder-validation-max-length:"256"`
 }
 
 // RequestObject Request object
 type RequestObject struct {
 	Body     *RequestObject_Body `json:"body,omitempty"`
-	Resource string              `json:"resource,omitempty"`
+	// +kubebuilder:validation:MaxLength=2000
+	Resource string              `json:"resource,omitempty" x-kubebuilder-validation-max-length:"2000"`
 
 	// Verb Verb that describes the action to be performed on the resource.
 	// The verb can be one of the following: get, list, put, delete, post, ..
-	Verb string `json:"verb,omitempty"`
+	// +kubebuilder:validation:MaxLength=7
+	Verb string `json:"verb,omitempty" x-kubebuilder-validation-max-length:"7"`
 }
 
 // RequestObject_Body defines model for RequestObject.Body.
@@ -50,7 +53,9 @@ type RequestObject_Body struct {
 
 // ResponseObject Response object
 type ResponseObject struct {
-	Code *float32 `json:"code,omitempty"`
+	// +kubebuilder:validation:Maximum=599
+	// +kubebuilder:validation:Minimum=100
+	Code *float32 `json:"code,omitempty" x-kubebuilder-validation-maximum:"599" x-kubebuilder-validation-minimum:"100"`
 }
 
 // AsBlockStorageSpec returns the union data inside the RequestObject_Body as a BlockStorageSpec

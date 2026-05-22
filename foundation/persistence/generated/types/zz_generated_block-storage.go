@@ -41,12 +41,15 @@ type BlockStorage struct {
 // If a reference to the source image is used as the base for creating this block storage.
 type BlockStorageSpec struct {
 	// SizeGB Size of the block storage in GB.
-	// +kubebuilder:validation:XValidation:rule="!oldSelf.hasValue() || self >= oldSelf.value()",message="spec.sizeGB cannot be decreased",optionalOldSelf=true
-	// +kubebuilder:validation:XValidation:rule="self > 0",message="spec.sizeGB must be greater than 0"
-	SizeGB int `json:"sizeGB" x-cel-message-0:"spec.sizeGB cannot be decreased" x-cel-message-1:"spec.sizeGB must be greater than 0" x-cel-rule-0:"!oldSelf.hasValue() || self >= oldSelf.value()" x-cel-rule-1:"self > 0"`
+	// +kubebuilder:validation:Maximum=1000000
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:XValidation:rule="self >= oldSelf",message="spec.sizeGB cannot be decreased"
+	SizeGB int `json:"sizeGB" x-cel-message-0:"spec.sizeGB cannot be decreased" x-cel-rule-0:"self >= oldSelf" x-kubebuilder-validation-maximum:"1000000" x-kubebuilder-validation-minimum:"1"`
 
-	// SkuRef Reference to the SKU of the block storage.
-	SkuRef Reference `json:"skuRef"`
+	// SkuRef Reference to the SKU of the block storage. The SKU is immutable after creation.
+	// If you want to change the SKU, you need to create a new block storage and migrate the data.
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="spec.skuRef is immutable"
+	SkuRef Reference `json:"skuRef" x-cel-message-0:"spec.skuRef is immutable" x-cel-rule-0:"self == oldSelf"`
 
 	// SourceImageRef Reference to the source image used as the base for creating the block storage.
 	SourceImageRef *Reference `json:"sourceImageRef,omitempty"`
@@ -55,11 +58,14 @@ type BlockStorageSpec struct {
 // BlockStorageStatus defines model for BlockStorageStatus.
 type BlockStorageStatus struct {
 	// AttachedTo Reference to the instance the block storage is attached to.
-	AttachedTo *ReferenceObject  `json:"attachedTo,omitempty"`
-	Conditions []StatusCondition `json:"conditions"`
+	AttachedTo *Reference        `json:"attachedTo,omitempty"`
+	// +kubebuilder:validation:MaxItems=32
+	Conditions []StatusCondition `json:"conditions" x-kubebuilder-validation-max-items:"32"`
 
 	// SizeGB Size of the block storage in GB.
-	SizeGB int           `json:"sizeGB"`
+	// +kubebuilder:validation:Maximum=1000000
+	// +kubebuilder:validation:Minimum=1
+	SizeGB int           `json:"sizeGB" x-kubebuilder-validation-maximum:"1000000" x-kubebuilder-validation-minimum:"1"`
 	State  ResourceState `json:"state,omitempty"`
 }
 
@@ -69,7 +75,10 @@ type VolumeReference struct {
 	DeviceRef Reference `json:"deviceRef"`
 
 	// Type The connection type depends on the type of device and type of block storage.
-	Type VolumeReferenceType `json:"type,omitempty"`
+	// +kubebuilder:default="virtio"
+	// +kubebuilder:validation:Enum=virtio
+	// +kubebuilder:validation:MaxLength=7
+	Type VolumeReferenceType `json:"type,omitempty" x-kubebuilder-default:"virtio" x-kubebuilder-validation-enum:"virtio" x-kubebuilder-validation-max-length:"7"`
 }
 
 // VolumeReferenceType The connection type depends on the type of device and type of block storage.

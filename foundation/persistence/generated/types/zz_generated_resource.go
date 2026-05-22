@@ -413,19 +413,14 @@ type PermissionMetadata struct {
 // The advantage of this representation is that it can be used to reference
 // resources in different workspaces or regions without the need to specify
 // the full URN.
-type Reference = ReferenceObject
-
-// ReferenceObject A reference to a resource using an object. The object contains the
-// same information as the ReferenceURN, but is represented as a structured object.
-// The advantage of this representation is that it can be used to reference
-// resources in different workspaces or regions without the need to specify
-// the full URN.
-type ReferenceObject struct {
+type Reference struct {
 	// Provider Provider of the resource. If not set, the provider is inferred from the context.
-	Provider string `json:"provider,omitempty"`
+	// +kubebuilder:validation:MaxLength=64
+	Provider string `json:"provider,omitempty" x-kubebuilder-validation-max-length:"64"`
 
 	// Region Region of the resource. If not set, the region is inferred from the context.
-	Region string `json:"region,omitempty"`
+	// +kubebuilder:validation:MaxLength=64
+	Region string `json:"region,omitempty" x-kubebuilder-validation-max-length:"64"`
 
 	// Resource Resource-specific path identifying the resource within its workspace context.
 	// This is the segment of the full URN after the provider, version, tenant, and
@@ -434,13 +429,17 @@ type ReferenceObject struct {
 	//   `networks/<network-name>/route-tables/<rt-name>`
 	// The provider, tenant, and workspace can be specified as separate fields in this
 	// object; they do not need to be repeated here.
-	Resource string `json:"resource"`
+	// +kubebuilder:validation:MaxLength=256
+	// +kubebuilder:validation:MinLength=1
+	Resource string `json:"resource" x-kubebuilder-validation-max-length:"256" x-kubebuilder-validation-min-length:"1"`
 
 	// Tenant Tenant of the resource. If not set, the tenant is inferred from the context.
-	Tenant string `json:"tenant,omitempty"`
+	// +kubebuilder:validation:MaxLength=64
+	Tenant string `json:"tenant,omitempty" x-kubebuilder-validation-max-length:"64"`
 
 	// Workspace Workspace of the resource. If not set, the workspace is inferred from the context.
-	Workspace string `json:"workspace,omitempty"`
+	// +kubebuilder:validation:MaxLength=64
+	Workspace string `json:"workspace,omitempty" x-kubebuilder-validation-max-length:"64"`
 }
 
 // ReferenceURN A unique resource name (URN) used to identify and reference this resource.
@@ -860,7 +859,8 @@ type SkuResourceMetadataKind string
 
 // Status Current status of the resource
 type Status struct {
-	Conditions []StatusCondition `json:"conditions"`
+	// +kubebuilder:validation:MaxItems=32
+	Conditions []StatusCondition `json:"conditions" x-kubebuilder-validation-max-items:"32"`
 	State      ResourceState     `json:"state,omitempty"`
 }
 
@@ -875,12 +875,15 @@ type StatusCondition struct {
 	LastTransitionAt metav1.Time `json:"lastTransitionAt"`
 
 	// Message A human-readable message indicating details about the transition.
-	Message string `json:"message,omitempty"`
+	// +kubebuilder:validation:MaxLength=32768
+	Message string `json:"message,omitempty" x-kubebuilder-validation-max-length:"32768"`
 
 	// Reason The reason for the condition's last transition in CamelCase.
 	// The specific set of reason values is provider-specific and should be
 	// documented by the provider.
-	Reason string `json:"reason,omitempty"`
+	// +kubebuilder:validation:MaxLength=1024
+	// +kubebuilder:validation:Pattern=`^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$`
+	Reason string `json:"reason,omitempty" x-kubebuilder-validation-max-length:"1024" x-kubebuilder-validation-pattern:"^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$"`
 
 	// State Current phase of the resource:
 	// - pending: not available, waiting for other resources

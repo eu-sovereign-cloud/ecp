@@ -63,13 +63,18 @@ type ImageSpec struct {
 	BlockStorageRef Reference `json:"blockStorageRef"`
 
 	// Boot Boot type for the Image
-	Boot ImageSpecBoot `json:"boot,omitempty"`
+	// +kubebuilder:default="UEFI"
+	// +kubebuilder:validation:Enum=UEFI;BIOS
+	Boot ImageSpecBoot `json:"boot,omitempty" x-kubebuilder-default:"UEFI" x-kubebuilder-validation-enum:"UEFI;BIOS"`
 
 	// CpuArchitecture CPU architecture for the Image
-	CpuArchitecture ImageSpecCpuArchitecture `json:"cpuArchitecture"`
+	// +kubebuilder:validation:Enum=amd64;arm64
+	CpuArchitecture ImageSpecCpuArchitecture `json:"cpuArchitecture" x-kubebuilder-validation-enum:"amd64;arm64"`
 
 	// Initializer Initializer for the Image
-	Initializer ImageSpecInitializer `json:"initializer,omitempty"`
+	// +kubebuilder:default="none"
+	// +kubebuilder:validation:Enum=none;cloudinit-22
+	Initializer ImageSpecInitializer `json:"initializer,omitempty" x-kubebuilder-default:"none" x-kubebuilder-validation-enum:"none;cloudinit-22"`
 }
 
 // ImageSpecBoot Boot type for the Image
@@ -83,9 +88,11 @@ type ImageSpecInitializer string
 
 // ImageStatus defines model for ImageStatus.
 type ImageStatus struct {
-	Conditions []StatusCondition `json:"conditions"`
+	// +kubebuilder:validation:MaxItems=32
+	Conditions []StatusCondition `json:"conditions" x-kubebuilder-validation-max-items:"32"`
 
 	// SizeMB Size of the Image in MB
-	SizeMB *int          `json:"sizeMB,omitempty"`
+	// +kubebuilder:validation:Minimum=1
+	SizeMB *int          `json:"sizeMB,omitempty" x-kubebuilder-validation-minimum:"1"`
 	State  ResourceState `json:"state,omitempty"`
 }

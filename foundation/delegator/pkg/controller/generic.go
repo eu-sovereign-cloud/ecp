@@ -18,8 +18,8 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
 	gateway "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
+	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/common"
 	genv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/generated/types"
-	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/common"
 
 	delegator "github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/port"
 )

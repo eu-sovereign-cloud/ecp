@@ -31,8 +31,12 @@ type NetworkSku struct {
 // NetworkSkuSpec Specification of the network SKU, including its bandwidth and packets per second.
 type NetworkSkuSpec struct {
 	// Bandwidth The bandwidth in Mbps (Megabits per second).
-	Bandwidth int `json:"bandwidth"`
+	// +kubebuilder:validation:Maximum=800000
+	// +kubebuilder:validation:Minimum=1
+	Bandwidth int `json:"bandwidth" x-kubebuilder-validation-maximum:"800000" x-kubebuilder-validation-minimum:"1"`
 
 	// Packets The number of packets per second (PPS) that the network SKU can handle.
-	Packets int `json:"packets"`
+	// +kubebuilder:validation:Maximum=200000000000
+	// +kubebuilder:validation:Minimum=1
+	Packets int `json:"packets" x-kubebuilder-validation-maximum:"200000000000" x-kubebuilder-validation-minimum:"1"`
 }

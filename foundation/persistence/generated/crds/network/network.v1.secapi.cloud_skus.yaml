@@ -44,10 +44,14 @@ spec:
             properties:
               bandwidth:
                 description: Bandwidth The bandwidth in Mbps (Megabits per second).
+                maximum: 800000
+                minimum: 1
                 type: integer
               packets:
                 description: Packets The number of packets per second (PPS) that the
                   network SKU can handle.
+                maximum: 200000000000
+                minimum: 1
                 type: integer
             required:
             - bandwidth

@@ -6,8 +6,8 @@ import (
 
 	"k8s.io/apimachinery/pkg/util/json"
 
-	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/storage/block-storages/v1"
-	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/regional/workspace/v1"
+	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage/block-storages/v1"
+	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/workspace/v1"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
@@ -164,7 +164,7 @@ func FuzzWorkspaceSpecRoundTrip(f *testing.F) {
 
 // FuzzBlockStorageSpecRoundTrip verifies that a BlockStorageDomain survives a
 // domain→CR→domain→CR→domain→CR round-trip. The interesting complexity is in
-// mapDomainReferenceObjectToCR, which extracts "providers/", "regions/",
+// mapDomainReferenceToCR, which extracts "providers/", "regions/",
 // "tenants/", "workspaces/" from the Resource path — a normalizing transformation.
 //
 // Invariants:
@@ -180,7 +180,7 @@ func FuzzBlockStorageSpecRoundTrip(f *testing.F) {
 	// embedded path segments in Resource — normalised on first round-trip
 	f.Add(10, "providers/ionos/regions/de-fra/tenants/t-1/block-storages/my-bs", "", "", "", "", "bs", "", "t", "ws", "de-fra")
 	f.Add(10, "regions/de-fra/workspaces/ws-1/block-storages/bs", "", "", "", "", "bs", "ionos", "t", "", "")
-	// adversarial: repeated segment type — requires idempotency fix in mapDomainReferenceObjectToCR
+	// adversarial: repeated segment type — requires idempotency fix in mapDomainReferenceToCR
 	f.Add(5, "providers/a/providers/b/block-storages/bs", "", "", "", "", "bs", "", "t", "", "")
 	f.Add(5, "regions/eu/regions/us/block-storages/bs", "", "", "", "", "bs", "", "t", "", "")
 	f.Add(5, "providers/0/providers/0/providers/0", "", "", "", "", "0", "", "0", "", "")
@@ -206,7 +206,7 @@ func FuzzBlockStorageSpecRoundTrip(f *testing.F) {
 			},
 			Spec: regional.BlockStorageSpecDomain{
 				SizeGB: sizeGB,
-				SkuRef: regional.ReferenceObjectDomain{
+				SkuRef: regional.ReferenceDomain{
 					Resource:  skuRefResource,
 					Provider:  skuRefProvider,
 					Region:    skuRefRegion,

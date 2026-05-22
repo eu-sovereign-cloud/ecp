@@ -38,7 +38,8 @@ type InternetGatewaySpec struct {
 	// EgressOnly If set to true, the internet gateway will only allow outgoing traffic
 	// and will not allow incoming traffic. This is useful for public subnets
 	// that should not be accessible from the internet.
-	EgressOnly bool `json:"egressOnly,omitempty"`
+	// +kubebuilder:default=false
+	EgressOnly bool `json:"egressOnly,omitempty" x-kubebuilder-default:"false"`
 }
 
 // InternetGatewayStatus Current status of the resource
