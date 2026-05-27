@@ -358,7 +358,7 @@ go-get: $(addsuffix -go-get,$(GO_MODULES))
 .PHONY: workspace-sync
 workspace-sync:
 	@echo "==> go work sync"
-	cd $(_REPO_ROOT) && go work sync
+	cd $(_REPO_ROOT) && go work sync && go list -m all
 
 .PHONY: workspace-verify
 workspace-verify: workspace-sync
