@@ -18,10 +18,12 @@ import (
 	sdkstorageapi "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	sdkworkspaceapi "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1"
 
+	networksv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/network/networks/v1"
 	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage/block-storages/v1"
 	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage/skus/v1"
 	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/workspace/v1"
 
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/regional/network"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/regional/storage"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/regional/workspace"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/httpserver"
@@ -103,8 +105,47 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 
 	sdkcomputeapi.HandlerWithOptions(regionalhandler.Compute{},
 		sdkcomputeapi.StdHTTPServerOptions{BaseURL: consts.NetworkBaseURL, BaseRouter: mux, Middlewares: nil, ErrorHandlerFunc: nil})
-	sdknetworkapi.HandlerWithOptions(regionalhandler.Network{},
-		sdknetworkapi.StdHTTPServerOptions{BaseURL: consts.ComputeBaseURL, BaseRouter: mux, Middlewares: nil, ErrorHandlerFunc: nil})
+
+	// Network adapters
+	networkWriterAdapter := kubernetes.NewWriterAdapter(
+		client.Client,
+		networksv1.NetworkGVR,
+		logger,
+		kubernetes.MapNetworkDomainToCR,
+		kubernetes.MapCRToNetworkDomain,
+	)
+	networkReaderAdapter := kubernetes.NewReaderAdapter(
+		client.Client,
+		networksv1.NetworkGVR,
+		logger,
+		kubernetes.MapCRToNetworkDomain,
+	)
+
+	sdknetworkapi.HandlerWithOptions(regionalhandler.Network{
+		ListSKUs: nil,
+		GetSKU:   nil,
+		ListNetworksCtrl: &network.ListNetworks{
+			Logger:      logger,
+			NetworkRepo: networkReaderAdapter,
+		},
+		GetNetworkCtrl: &network.GetNetwork{
+			Logger:      logger,
+			NetworkRepo: networkReaderAdapter,
+		},
+		CreateNetworkCtrl: &network.CreateNetwork{
+			Logger:      logger,
+			NetworkRepo: networkWriterAdapter,
+		},
+		UpdateNetworkCtrl: &network.UpdateNetwork{
+			Logger:      logger,
+			NetworkRepo: networkWriterAdapter,
+		},
+		DeleteNetworkCtrl: &network.DeleteNetwork{
+			Logger:      logger,
+			NetworkRepo: networkWriterAdapter,
+		},
+		Logger: logger,
+	}, sdknetworkapi.StdHTTPServerOptions{BaseURL: consts.ComputeBaseURL, BaseRouter: mux, Middlewares: nil, ErrorHandlerFunc: nil})
 	// Block storage writer adapter
 	blockStorageWriterAdapter := kubernetes.NewWriterAdapter(
 		client.Client,
