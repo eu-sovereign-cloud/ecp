@@ -79,13 +79,13 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 
 	logger.Info("Starting regional API server", slog.String("region", config.Singleton().Region()), slog.Any("addr", addr))
 
-	config, err := rest.InClusterConfig()
+	inClusterConfig, err := rest.InClusterConfig()
 	if err != nil {
 		logger.Warn(
 			"could not get in-cluster config, falling back to kubeconfig file",
 			slog.Any("error", err),
 		)
-		config, err = clientcmd.BuildConfigFromFlags("", kubeconfigPath)
+		inClusterConfig, err = clientcmd.BuildConfigFromFlags("", kubeconfigPath)
 		if err != nil {
 			logger.Error(
 				"failed to build kubeconfig", "path", kubeconfigPath, slog.Any("error", err),
@@ -94,7 +94,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		}
 	}
 
-	client, err := kubeclient.NewFromConfig(config)
+	client, err := kubeclient.NewFromConfig(inClusterConfig)
 	if err != nil {
 		logger.Error("failed to create kubeclient", slog.Any("error", err))
 		log.Fatal(err, " - failed to create kubeclient")
@@ -104,7 +104,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 	mux := http.NewServeMux()
 
 	sdkcomputeapi.HandlerWithOptions(regionalhandler.Compute{},
-		sdkcomputeapi.StdHTTPServerOptions{BaseURL: consts.NetworkBaseURL, BaseRouter: mux, Middlewares: nil, ErrorHandlerFunc: nil})
+		sdkcomputeapi.StdHTTPServerOptions{BaseURL: consts.ComputeBaseURL, BaseRouter: mux, Middlewares: nil, ErrorHandlerFunc: nil})
 
 	// Network adapters
 	networkWriterAdapter := kubernetes.NewWriterAdapter(
@@ -145,7 +145,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 			NetworkRepo: networkWriterAdapter,
 		},
 		Logger: logger,
-	}, sdknetworkapi.StdHTTPServerOptions{BaseURL: consts.ComputeBaseURL, BaseRouter: mux, Middlewares: nil, ErrorHandlerFunc: nil})
+	}, sdknetworkapi.StdHTTPServerOptions{BaseURL: consts.NetworkBaseURL, BaseRouter: mux, Middlewares: nil, ErrorHandlerFunc: nil})
 	// Block storage writer adapter
 	blockStorageWriterAdapter := kubernetes.NewWriterAdapter(
 		client.Client,
