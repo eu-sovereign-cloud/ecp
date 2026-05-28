@@ -145,7 +145,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 			NetworkRepo: networkWriterAdapter,
 		},
 		Logger: logger,
-	}, sdknetworkapi.StdHTTPServerOptions{BaseURL: consts.ComputeBaseURL, BaseRouter: mux, Middlewares: nil, ErrorHandlerFunc: nil})
+	}, sdknetworkapi.StdHTTPServerOptions{BaseURL: consts.NetworkBaseURL, BaseRouter: mux, Middlewares: nil, ErrorHandlerFunc: nil})
 	// Block storage writer adapter
 	blockStorageWriterAdapter := kubernetes.NewWriterAdapter(
 		client.Client,
