@@ -83,9 +83,9 @@ func (n Network) CreateOrUpdateInternetGateway(w http.ResponseWriter, r *http.Re
 
 func (n Network) ListNetworks(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, params sdknetwork.ListNetworksParams) {
 	handler.HandleList(w, r, n.Logger.With("provider", "network").With("resource", "network"),
-		apinetwork.ListParamsFromAPI(params, tenant, workspace),
+		apinetwork.NetworkListParamsFromAPI(params, tenant, workspace),
 		n.ListNetworksCtrl,
-		apinetwork.DomainToAPIIterator,
+		apinetwork.NetworkDomainToAPIIterator,
 	)
 }
 
@@ -124,7 +124,7 @@ func (n Network) GetNetwork(w http.ResponseWriter, r *http.Request, tenant sdksc
 			Region: config.Singleton().Region(),
 		},
 		n.GetNetworkCtrl,
-		apinetwork.DomainToAPIWithVerb(http.MethodGet),
+		apinetwork.NetworkDomainToAPIWithVerb(http.MethodGet),
 	)
 }
 
@@ -151,7 +151,7 @@ func (n Network) CreateOrUpdateNetwork(w http.ResponseWriter, r *http.Request, t
 			Creator:     n.CreateNetworkCtrl,
 			Updater:     n.UpdateNetworkCtrl,
 			APIToDomain: apinetwork.APIToNetworkDomain,
-			DomainToAPI: apinetwork.DomainToAPIWithVerb(http.MethodPut),
+			DomainToAPI: apinetwork.NetworkDomainToAPIWithVerb(http.MethodPut),
 		},
 	)
 }

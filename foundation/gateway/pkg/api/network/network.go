@@ -21,8 +21,8 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
 )
 
-// DomainToAPIWithVerb returns a func that converts a NetworkDomain to its SDK representation with the given verb.
-func DomainToAPIWithVerb(verb string) func(domain *regional.NetworkDomain) *sdkschema.Network {
+// NetworkDomainToAPIWithVerb returns a func that converts a NetworkDomain to its SDK representation with the given verb.
+func NetworkDomainToAPIWithVerb(verb string) func(domain *regional.NetworkDomain) *sdkschema.Network {
 	return func(domain *regional.NetworkDomain) *sdkschema.Network {
 		sdk := networkDomainToAPI(domain)
 		sdk.Metadata.Verb = verb
@@ -88,8 +88,8 @@ func networkDomainToAPI(domain *regional.NetworkDomain) *sdkschema.Network {
 	return n
 }
 
-// ListParamsFromAPI converts SDK ListNetworksParams to model.ListParams.
-func ListParamsFromAPI(params sdknetwork.ListNetworksParams, tenant, workspace string) model.ListParams {
+// NetworkListParamsFromAPI converts SDK ListNetworksParams to model.ListParams.
+func NetworkListParamsFromAPI(params sdknetwork.ListNetworksParams, tenant, workspace string) model.ListParams {
 	limit := validation.GetLimit(params.Limit)
 
 	var skipToken string
@@ -113,8 +113,8 @@ func ListParamsFromAPI(params sdknetwork.ListNetworksParams, tenant, workspace s
 	}
 }
 
-// DomainToAPIIterator converts a list of NetworkDomain to an SDK NetworkIterator.
-func DomainToAPIIterator(domains []*regional.NetworkDomain, nextSkipToken *string) *sdknetwork.NetworkIterator {
+// NetworkDomainToAPIIterator converts a list of NetworkDomain to an SDK NetworkIterator.
+func NetworkDomainToAPIIterator(domains []*regional.NetworkDomain, nextSkipToken *string) *sdknetwork.NetworkIterator {
 	items := make([]sdkschema.Network, len(domains))
 	for i := range domains {
 		mapped := networkDomainToAPI(domains[i])
