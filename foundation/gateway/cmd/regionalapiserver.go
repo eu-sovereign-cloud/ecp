@@ -18,10 +18,12 @@ import (
 	sdkstorageapi "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	sdkworkspaceapi "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1"
 
+	networksv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/network/networks/v1"
 	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage/block-storages/v1"
 	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage/skus/v1"
 	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/workspace/v1"
 
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/regional/network"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/regional/storage"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/regional/workspace"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/httpserver"
@@ -77,13 +79,13 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 
 	logger.Info("Starting regional API server", slog.String("region", config.Singleton().Region()), slog.Any("addr", addr))
 
-	config, err := rest.InClusterConfig()
+	inClusterConfig, err := rest.InClusterConfig()
 	if err != nil {
 		logger.Warn(
 			"could not get in-cluster config, falling back to kubeconfig file",
 			slog.Any("error", err),
 		)
-		config, err = clientcmd.BuildConfigFromFlags("", kubeconfigPath)
+		inClusterConfig, err = clientcmd.BuildConfigFromFlags("", kubeconfigPath)
 		if err != nil {
 			logger.Error(
 				"failed to build kubeconfig", "path", kubeconfigPath, slog.Any("error", err),
@@ -92,7 +94,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		}
 	}
 
-	client, err := kubeclient.NewFromConfig(config)
+	client, err := kubeclient.NewFromConfig(inClusterConfig)
 	if err != nil {
 		logger.Error("failed to create kubeclient", slog.Any("error", err))
 		log.Fatal(err, " - failed to create kubeclient")
@@ -102,9 +104,48 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 	mux := http.NewServeMux()
 
 	sdkcomputeapi.HandlerWithOptions(regionalhandler.Compute{},
-		sdkcomputeapi.StdHTTPServerOptions{BaseURL: consts.NetworkBaseURL, BaseRouter: mux, Middlewares: nil, ErrorHandlerFunc: nil})
-	sdknetworkapi.HandlerWithOptions(regionalhandler.Network{},
-		sdknetworkapi.StdHTTPServerOptions{BaseURL: consts.ComputeBaseURL, BaseRouter: mux, Middlewares: nil, ErrorHandlerFunc: nil})
+		sdkcomputeapi.StdHTTPServerOptions{BaseURL: consts.ComputeBaseURL, BaseRouter: mux, Middlewares: nil, ErrorHandlerFunc: nil})
+
+	// Network adapters
+	networkWriterAdapter := kubernetes.NewWriterAdapter(
+		client.Client,
+		networksv1.NetworkGVR,
+		logger,
+		kubernetes.MapNetworkDomainToCR,
+		kubernetes.MapCRToNetworkDomain,
+	)
+	networkReaderAdapter := kubernetes.NewReaderAdapter(
+		client.Client,
+		networksv1.NetworkGVR,
+		logger,
+		kubernetes.MapCRToNetworkDomain,
+	)
+
+	sdknetworkapi.HandlerWithOptions(regionalhandler.Network{
+		ListSKUs: nil,
+		GetSKU:   nil,
+		ListNetworksCtrl: &network.ListNetworks{
+			Logger:      logger,
+			NetworkRepo: networkReaderAdapter,
+		},
+		GetNetworkCtrl: &network.GetNetwork{
+			Logger:      logger,
+			NetworkRepo: networkReaderAdapter,
+		},
+		CreateNetworkCtrl: &network.CreateNetwork{
+			Logger:      logger,
+			NetworkRepo: networkWriterAdapter,
+		},
+		UpdateNetworkCtrl: &network.UpdateNetwork{
+			Logger:      logger,
+			NetworkRepo: networkWriterAdapter,
+		},
+		DeleteNetworkCtrl: &network.DeleteNetwork{
+			Logger:      logger,
+			NetworkRepo: networkWriterAdapter,
+		},
+		Logger: logger,
+	}, sdknetworkapi.StdHTTPServerOptions{BaseURL: consts.NetworkBaseURL, BaseRouter: mux, Middlewares: nil, ErrorHandlerFunc: nil})
 	// Block storage writer adapter
 	blockStorageWriterAdapter := kubernetes.NewWriterAdapter(
 		client.Client,
