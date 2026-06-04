@@ -8,17 +8,16 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/builder"
+	networkpersistence "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/network"
 	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage"
 	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/workspace/v1"
-
 	dummyplugin "github.com/eu-sovereign-cloud/ecp/foundation/plugin/dummy/pkg/plugin"
-
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
 
 var (
@@ -29,6 +28,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(workspacev1.AddToScheme(scheme))
 	utilruntime.Must(storage.AddToScheme(scheme))
+	utilruntime.Must(networkpersistence.AddToScheme(scheme))
 }
 
 func main() {
@@ -53,11 +53,13 @@ func main() {
 	// 3. Instantiate dummy plugins
 	bsPlugin := dummyplugin.NewBlockStorage(logger.With("plugin", "blockstorage"))
 	wsPlugin := dummyplugin.NewWorkspace(logger.With("plugin", "workspace"))
+	netPlugin := dummyplugin.NewNetwork(logger.With("plugin", "network"))
 
 	// 4. Create a plugin set
 	pluginSet := builder.PluginSet{
 		BlockStorage: bsPlugin,
 		Workspace:    wsPlugin,
+		Network:      netPlugin,
 	}
 
 	// 5. Create the controller set
