@@ -12,7 +12,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/common"
-	netowrkskuv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/network/skus/v1"
 	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage/block-storages/v1"
 	storageskuv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage/skus/v1"
 	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/workspace/v1"
@@ -204,7 +203,7 @@ func MapCRToBlockStorageDomain(obj client.Object) (*regional.BlockStorageDomain,
 
 	spec := regional.BlockStorageSpecDomain{
 		SizeGB: cr.Spec.SizeGB,
-		SkuRef: mapCRReferenceToDomain(cr.Spec.SkuRef),
+		SkuRef: mapCRToReferenceDomain(cr.Spec.SkuRef),
 	}
 
 	crLabels := cr.GetLabels()
@@ -234,7 +233,7 @@ func MapCRToBlockStorageDomain(obj client.Object) (*regional.BlockStorageDomain,
 	}
 
 	if cr.Spec.SourceImageRef != nil {
-		spec.SourceImageRef = new(mapCRReferenceToDomain(*cr.Spec.SourceImageRef))
+		spec.SourceImageRef = new(mapCRToReferenceDomain(*cr.Spec.SourceImageRef))
 	}
 
 	var status = &regional.BlockStorageStatusDomain{}
@@ -248,7 +247,7 @@ func MapCRToBlockStorageDomain(obj client.Object) (*regional.BlockStorageDomain,
 		}
 
 		if cr.Status.AttachedTo != nil {
-			status.AttachedTo = new(mapCRReferenceToDomain(*cr.Status.AttachedTo))
+			status.AttachedTo = new(mapCRToReferenceDomain(*cr.Status.AttachedTo))
 		}
 	} else {
 		status.PushCondition(regional.DefaultPendingCondition)
@@ -284,13 +283,13 @@ func MapBlockStorageDomainToCR(domain *regional.BlockStorageDomain) (client.Obje
 		},
 		Spec: genv1.BlockStorageSpec{
 			SizeGB: domain.Spec.SizeGB,
-			SkuRef: mapDomainReferenceToCR(domain.Spec.SkuRef),
+			SkuRef: mapReferenceDomainToCR(domain.Spec.SkuRef),
 		},
 	}
 	cr.SetGroupVersionKind(blockstoragev1.BlockStorageGVK)
 
 	if domain.Spec.SourceImageRef != nil {
-		ref := mapDomainReferenceToCR(*domain.Spec.SourceImageRef)
+		ref := mapReferenceDomainToCR(*domain.Spec.SourceImageRef)
 		cr.Spec.SourceImageRef = &ref
 	}
 
@@ -305,29 +304,11 @@ func MapBlockStorageDomainToCR(domain *regional.BlockStorageDomain) (client.Obje
 			State:      *state,
 		}
 		if domain.Status.AttachedTo != nil {
-			cr.Status.AttachedTo = new(mapDomainReferenceToCR(*domain.Status.AttachedTo))
+			cr.Status.AttachedTo = new(mapReferenceDomainToCR(*domain.Status.AttachedTo))
 		}
 	}
 
 	return cr, nil
-}
-
-//
-// Network Domain
-
-// MapCRToNetworkSKUDomain converts either concrete *networkskuv1.NetworkSKU or unstructured.Unstructured into a NetworkSKUDomain.
-func MapCRToNetworkSKUDomain(cr netowrkskuv1.SKU) *regional.NetworkSKUDomain {
-	return &regional.NetworkSKUDomain{
-		Metadata: regional.Metadata{
-			CommonMetadata: model.CommonMetadata{
-				Name: cr.GetName(),
-			},
-		},
-		Spec: regional.NetworkSKUSpecDomain{
-			Bandwidth: cr.Spec.Bandwidth,
-			Packets:   cr.Spec.Packets,
-		},
-	}
 }
 
 //
@@ -424,10 +405,10 @@ func mapCRToResourceStateDomain(crResourceState genv1.ResourceState) regional.Re
 	return state
 }
 
-// mapCRReferenceToDomain converts a generated types.Reference to a domain Reference.
+// mapCRToReferenceDomain converts a generated types.Reference to a domain Reference.
 // Tenant and Workspace are embedded into the Resource path so the domain always
 // carries a fully-qualified resource string (e.g. "seca.storage/v1/tenants/t/skus/s").
-func mapCRReferenceToDomain(ref genv1.Reference) regional.ReferenceDomain {
+func mapCRToReferenceDomain(ref genv1.Reference) regional.ReferenceDomain {
 	resource := ref.Resource
 	if ref.Tenant != "" || ref.Workspace != "" {
 		resource = embedScopeInResource(resource, ref.Tenant, ref.Workspace)
@@ -476,11 +457,11 @@ func embedScopeInResource(resource, tenant, workspace string) string {
 	return scopePath + "/" + suffix
 }
 
-// mapDomainReferenceToCR converts a domain Reference to a generated types Reference.
+// mapReferenceDomainToCR converts a domain Reference to a generated types Reference.
 // It parses the Resource path to extract embedded segments (providers, regions, tenants, workspaces)
 // and sets the corresponding fields. Extracted segments are stripped from the Resource path.
 // If a segment is not in the path, it falls back to the domain value.
-func mapDomainReferenceToCR(ref regional.ReferenceDomain) genv1.Reference {
+func mapReferenceDomainToCR(ref regional.ReferenceDomain) genv1.Reference {
 	resource := ref.Resource
 	result := genv1.Reference{}
 

@@ -11,6 +11,7 @@ import (
 	v1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/workspace/v1"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/validation"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/reference"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/status"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/config"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
@@ -62,7 +63,7 @@ func blockStorageDomainToAPI(domain *regional.BlockStorageDomain) *sdkschema.Blo
 		Extensions:  domain.Extensions,
 		Spec: sdkschema.BlockStorageSpec{
 			SizeGB: domain.Spec.SizeGB,
-			SkuRef: ReferenceToAPI(domain.Spec.SkuRef),
+			SkuRef: reference.ToAPI(domain.Spec.SkuRef),
 		},
 	}
 
@@ -72,7 +73,7 @@ func blockStorageDomainToAPI(domain *regional.BlockStorageDomain) *sdkschema.Blo
 	}
 
 	if domain.Spec.SourceImageRef != nil {
-		bs.Spec.SourceImageRef = ReferencePtrToAPI(domain.Spec.SourceImageRef)
+		bs.Spec.SourceImageRef = reference.PtrToAPI(domain.Spec.SourceImageRef)
 	}
 
 	if domain.Status != nil {
@@ -81,7 +82,7 @@ func blockStorageDomainToAPI(domain *regional.BlockStorageDomain) *sdkschema.Blo
 			Conditions: status.ConditionDomainsToAPI(domain.Status.Conditions),
 		}
 		if domain.Status.AttachedTo != nil {
-			bs.Status.AttachedTo = ReferencePtrToAPI(domain.Status.AttachedTo)
+			bs.Status.AttachedTo = reference.PtrToAPI(domain.Status.AttachedTo)
 		}
 
 		bs.Status.State = sdkschema.ResourceState(domain.Status.State)
@@ -161,42 +162,13 @@ func APIToBlockStorageDomain(sdk sdkschema.BlockStorage, params port.Identifiabl
 		},
 		Spec: regional.BlockStorageSpecDomain{
 			SizeGB: sdk.Spec.SizeGB,
-			SkuRef: ReferenceFromAPI(sdk.Spec.SkuRef),
+			SkuRef: reference.FromAPI(sdk.Spec.SkuRef),
 		},
 	}
 
 	if sdk.Spec.SourceImageRef != nil {
-		domain.Spec.SourceImageRef = new(ReferenceFromAPI(*sdk.Spec.SourceImageRef))
+		domain.Spec.SourceImageRef = new(reference.FromAPI(*sdk.Spec.SourceImageRef))
 	}
 
 	return domain
-}
-
-// Helper functions for reference object conversion
-
-func ReferenceToAPI(ref regional.ReferenceDomain) sdkschema.Reference {
-	return sdkschema.Reference{
-		Provider:  ref.Provider,
-		Region:    ref.Region,
-		Resource:  ref.Resource,
-		Tenant:    ref.Tenant,
-		Workspace: ref.Workspace,
-	}
-}
-
-func ReferencePtrToAPI(ref *regional.ReferenceDomain) *sdkschema.Reference {
-	if ref == nil {
-		return nil
-	}
-	return new(ReferenceToAPI(*ref))
-}
-
-func ReferenceFromAPI(ref sdkschema.Reference) regional.ReferenceDomain {
-	return regional.ReferenceDomain{
-		Provider:  ref.Provider,
-		Region:    ref.Region,
-		Resource:  ref.Resource,
-		Tenant:    ref.Tenant,
-		Workspace: ref.Workspace,
-	}
 }

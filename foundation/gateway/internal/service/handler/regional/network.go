@@ -3,17 +3,30 @@ package regionalhandler
 import (
 	"log/slog"
 	"net/http"
+	"strconv"
 
 	sdknetwork "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.network.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/regional/network"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/service/handler"
+	apinetwork "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/network"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/config"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional/consts"
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
 )
 
 type Network struct {
-	ListSKUs *network.ListSKUs
-	GetSKU   *network.GetSKU
-	Logger   *slog.Logger
+	ListSKUs          *network.ListSKUs
+	GetSKU            *network.GetSKU
+	ListNetworksCtrl  *network.ListNetworks
+	GetNetworkCtrl    *network.GetNetwork
+	CreateNetworkCtrl *network.CreateNetwork
+	UpdateNetworkCtrl *network.UpdateNetwork
+	DeleteNetworkCtrl *network.DeleteNetwork
+	Logger            *slog.Logger
 }
 
 func (n Network) ListSecurityGroupRules(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, params sdknetwork.ListSecurityGroupRulesParams) {
@@ -69,23 +82,78 @@ func (n Network) CreateOrUpdateInternetGateway(w http.ResponseWriter, r *http.Re
 }
 
 func (n Network) ListNetworks(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, params sdknetwork.ListNetworksParams) {
-	// TODO implement me
-	n.Logger.Debug("implement me")
+	handler.HandleList(w, r, n.Logger.With("provider", "network").With("resource", "network"),
+		apinetwork.NetworkListParamsFromAPI(params, tenant, workspace),
+		n.ListNetworksCtrl,
+		apinetwork.NetworkDomainToAPIIterator,
+	)
 }
 
 func (n Network) DeleteNetwork(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdknetwork.DeleteNetworkParams) {
-	// TODO implement me
-	n.Logger.Debug("implement me")
+	metadata := regional.Metadata{
+		CommonMetadata: model.CommonMetadata{
+			Name:     name,
+			Provider: consts.NetworkProvider,
+		},
+		Scope: scope.Scope{
+			Tenant:    tenant,
+			Workspace: workspace,
+		},
+		Region: config.Singleton().Region(),
+	}
+	if params.IfUnmodifiedSince != nil {
+		metadata.ResourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
+	}
+	handler.HandleDelete(w, r, n.Logger.With("provider", "network").With("resource", "network"),
+		&metadata,
+		n.DeleteNetworkCtrl,
+	)
 }
 
 func (n Network) GetNetwork(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam) {
-	// TODO implement me
-	n.Logger.Debug("implement me")
+	handler.HandleGet(w, r, n.Logger.With("provider", "network").With("resource", "network"),
+		&regional.Metadata{
+			CommonMetadata: model.CommonMetadata{
+				Name:     name,
+				Provider: consts.NetworkProvider,
+			},
+			Scope: scope.Scope{
+				Tenant:    tenant,
+				Workspace: workspace,
+			},
+			Region: config.Singleton().Region(),
+		},
+		n.GetNetworkCtrl,
+		apinetwork.NetworkDomainToAPIWithVerb(http.MethodGet),
+	)
 }
 
 func (n Network) CreateOrUpdateNetwork(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdknetwork.CreateOrUpdateNetworkParams) {
-	// TODO implement me
-	n.Logger.Debug("implement me")
+	var resourceVersion string
+	if params.IfUnmodifiedSince != nil {
+		resourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
+	}
+
+	handler.HandleUpsert(w, r, n.Logger.With("provider", "network").With("resource", "network"),
+		handler.UpsertOptions[sdkschema.Network, *regional.NetworkDomain, *sdkschema.Network]{
+			Params: &regional.Metadata{
+				CommonMetadata: model.CommonMetadata{
+					Name:            name,
+					Provider:        consts.NetworkProvider,
+					ResourceVersion: resourceVersion,
+				},
+				Scope: scope.Scope{
+					Tenant:    tenant,
+					Workspace: workspace,
+				},
+				Region: config.Singleton().Region(),
+			},
+			Creator:     n.CreateNetworkCtrl,
+			Updater:     n.UpdateNetworkCtrl,
+			APIToDomain: apinetwork.APIToNetworkDomain,
+			DomainToAPI: apinetwork.NetworkDomainToAPIWithVerb(http.MethodPut),
+		},
+	)
 }
 
 func (n Network) ListRouteTables(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, network sdkschema.NetworkPathParam, params sdknetwork.ListRouteTablesParams) {
