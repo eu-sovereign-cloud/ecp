@@ -26,6 +26,7 @@ const (
 type ControllerSet struct {
 	blockStorage *controller.BlockStorageController
 	workspace    *controller.WorkspaceController
+	network      *controller.NetworkController
 }
 
 // Options contains optional configuration for the ControllerSet.
@@ -72,18 +73,16 @@ func NewControllerSet(config *rest.Config, k8sClient client.Client, plugins Plug
 		return nil, err
 	}
 
-	clientset, err := kubernetes.NewForConfig(config)
+	clientSet, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create clientset: %w", err)
+		return nil, fmt.Errorf("failed to create k8s client: %w", err)
 	}
 
 	// 5. Create the controllers
-	bs := newBlockStorageController(k8sClient, dynamicClient, plugins.BlockStorage, o)
-	ws := newWorkspaceController(k8sClient, dynamicClient, clientset, plugins.Workspace, o)
-
 	return &ControllerSet{
-		blockStorage: &bs,
-		workspace:    &ws,
+		blockStorage: new(newBlockStorageController(k8sClient, dynamicClient, plugins.BlockStorage, o)),
+		workspace:    new(newWorkspaceController(k8sClient, dynamicClient, clientSet, plugins.Workspace, o)),
+		network:      new(newNetworkController(k8sClient, dynamicClient, plugins.Network, o)),
 	}, nil
 }
 
@@ -99,6 +98,10 @@ func (c *ControllerSet) validate() error {
 
 	if c.workspace == nil {
 		return errors.New("workspace is required")
+	}
+
+	if c.network == nil {
+		return errors.New("network is required")
 	}
 
 	return nil
@@ -119,6 +122,10 @@ func (c *ControllerSet) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	if err := (*controller.GenericController[*regional.WorkspaceDomain])(c.workspace).SetupWithManager(mgr); err != nil {
+		return err
+	}
+
+	if err := (*controller.GenericController[*regional.NetworkDomain])(c.network).SetupWithManager(mgr); err != nil {
 		return err
 	}
 

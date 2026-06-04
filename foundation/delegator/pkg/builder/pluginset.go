@@ -10,6 +10,7 @@ import (
 type PluginSet struct {
 	BlockStorage plugin.BlockStorage
 	Workspace    plugin.Workspace
+	Network      plugin.Network
 }
 
 // Validate checks that all required plugins are set.
@@ -19,6 +20,9 @@ func (ps PluginSet) Validate() error {
 	}
 	if ps.Workspace == nil {
 		return errors.New("workspace plugin is required")
+	}
+	if ps.Network == nil {
+		return errors.New("network plugin is required")
 	}
 	return nil
 }

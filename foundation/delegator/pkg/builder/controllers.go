@@ -8,6 +8,7 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/controller"
 	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/plugin"
 	kubernetesadapter "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
+	networksv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/network/networks/v1"
 	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage/block-storages/v1"
 	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/workspace/v1"
 )
@@ -46,4 +47,21 @@ func newWorkspaceController(
 	)
 
 	return controller.NewWorkspaceController(client, repo, plugin, opts.RequeueAfter, opts.Logger, opts.MaxConditions)
+}
+
+func newNetworkController(
+	client client.Client,
+	dynamicClient dynamic.Interface,
+	plugin plugin.Network,
+	opts Options,
+) controller.NetworkController {
+	repo := kubernetesadapter.NewRepoAdapter(
+		dynamicClient,
+		networksv1.NetworkGVR,
+		opts.Logger,
+		kubernetesadapter.MapNetworkDomainToCR,
+		kubernetesadapter.MapCRToNetworkDomain,
+	)
+
+	return controller.NewNetworkController(client, repo, plugin, opts.RequeueAfter, opts.Logger, opts.MaxConditions)
 }
