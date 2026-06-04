@@ -441,8 +441,8 @@ pre-merge: gh-token-ensure branch-rebase-verify workspace-verify go-sdk-verify g
 # Workspace membership: add / remove a module from go.work
 #
 # RELPATH is the path relative to the repo root.
-#   make workspace-use-add  RELPATH=foundation/plugin/newthing
-#   make workspace-use-drop RELPATH=foundation/plugin/oldthing
+#   make workspace-use-add  RELPATH=csp/newthing
+#   make workspace-use-drop RELPATH=csp/oldthing
 #
 # These targets only manipulate the `use (...)` block. The `replace (...)` block
 # in go.work pins foundation modules to their local paths at v0.0.1, which is

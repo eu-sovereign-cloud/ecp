@@ -57,9 +57,9 @@ Kubernetes controllers watch CRs and apply the business logic:
 
 Each CSP plugin implements the delegator's plugin interface:
 
-- **IONOS plugin** (`foundation/plugin/ionos/`) — uses Crossplane with `provider-upjet-ionoscloud`.
-- **Aruba plugin** (`foundation/plugin/aruba/`) — direct CSP adapter.
-- **Dummy plugin** (`foundation/plugin/dummy/`) — reference implementation; logs operations without real provisioning, used for integration testing.
+- **IONOS plugin** (`csp/ionos/`) — uses Crossplane with `provider-upjet-ionoscloud`.
+- **Aruba plugin** (`csp/aruba/`) — direct CSP adapter.
+- **Dummy plugin** (`csp/dummy/`) — reference implementation; logs operations without real provisioning, used for integration testing.
 
 A plugin may introduce its own internal controller layer when the CSP's resource model differs from ECP's.
 

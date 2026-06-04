@@ -19,14 +19,14 @@ COPY foundation/persistence/go.mod foundation/persistence/go.mod
 COPY foundation/persistence/go.sum foundation/persistence/go.sum
 COPY foundation/delegator/go.mod foundation/delegator/go.mod
 COPY foundation/delegator/go.sum foundation/delegator/go.sum
-COPY foundation/plugin/aruba/go.mod foundation/plugin/aruba/go.mod
-COPY foundation/plugin/aruba/go.sum foundation/plugin/aruba/go.sum
-COPY foundation/plugin/ionos/go.mod foundation/plugin/ionos/go.mod
-COPY foundation/plugin/ionos/go.sum foundation/plugin/ionos/go.sum
-COPY foundation/plugin/dummy/go.mod foundation/plugin/dummy/go.mod
-COPY foundation/plugin/dummy/go.sum foundation/plugin/dummy/go.sum
-COPY foundation/plugin/e2e/go.mod foundation/plugin/e2e/go.mod
-COPY foundation/plugin/e2e/go.sum foundation/plugin/e2e/go.sum
+COPY csp/aruba/go.mod csp/aruba/go.mod
+COPY csp/aruba/go.sum csp/aruba/go.sum
+COPY csp/ionos/go.mod csp/ionos/go.mod
+COPY csp/ionos/go.sum csp/ionos/go.sum
+COPY csp/dummy/go.mod csp/dummy/go.mod
+COPY csp/dummy/go.sum csp/dummy/go.sum
+COPY csp/e2e/go.mod csp/e2e/go.mod
+COPY csp/e2e/go.sum csp/e2e/go.sum
 
 WORKDIR /app/foundation/gateway
 RUN go mod download

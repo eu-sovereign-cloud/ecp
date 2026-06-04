@@ -18,7 +18,11 @@ ECP uses a **container-first** development model:
 | Docker or Podman | Container runtime | Auto-detected; both are fully supported |
 | `kubectl` | Kubernetes CLI | Required for cluster operations |
 | KIND | Local Kubernetes clusters | Required for integration tests |
+<<<<<<< HEAD
 | Go 1.26.4+ | Build/test on host | Required only for bare-metal workflow |
+=======
+| go 1.26.4+ | Build/test on host | Required only for bare-metal workflow |
+>>>>>>> bf872f7f (refactor: moved /foundation/plugin to /csp; updated modules' names and references; updated go to 1.26.4 for vulnerabilities)
 
 > **Podman users:** The Makefile handles SELinux volume labels (`:Z`), cgroupv2 delegation, rootless userns mapping, and KIND preflight automatically. See `.common.mk` for details.
 
@@ -59,7 +63,11 @@ echo "<PAT>" | docker login ghcr.io -u <github-username> --password-stdin
 
 ### Bare-Metal Development
 
+<<<<<<< HEAD
 Running directly on the host requires Go 1.26.4+ and the dev tools installed locally.
+=======
+Running directly on the host requires go 1.26.4+ and the dev tools installed locally.
+>>>>>>> bf872f7f (refactor: moved /foundation/plugin to /csp; updated modules' names and references; updated go to 1.26.4 for vulnerabilities)
 
 ```bash
 # Install pinned dev tools to ci/tools/bin/ (golangci-lint, controller-gen, etc.)
@@ -295,9 +303,9 @@ Any target `FOO` defined at the root can be run as `FOO-ctzd`. The wrapper:
 |----------|-------------|
 | `foundation/gateway/Makefile` | `run-global-server`, `run-regional-server`, `build-gateway`, `create-dev-clusters`, `clean-dev-clusters` |
 | `foundation/persistence/Makefile` | `generate-all`, `generate-models`, `generate-crds`, `clean-generated`, `clean-crds` |
-| `foundation/plugin/dummy/Makefile` | `build`, `deploy`, `kind-start`, `kind-stop`, `test-integration` |
-| `foundation/plugin/e2e/Makefile` | `build-all`, `push-all`, `deploy-all`, `kind-start`, `kind-stop`, `kind-load-all`, `test-all` |
-| `foundation/plugin/ionos/deploy/Makefile` | `install-crossplane`, `install-provider`, `install-all`, `install-on-regional` |
+| `csp/dummy/Makefile` | `build`, `deploy`, `kind-start`, `kind-stop`, `test-integration` |
+| `csp/e2e/Makefile` | `build-all`, `push-all`, `deploy-all`, `kind-start`, `kind-stop`, `kind-load-all`, `test-all` |
+| `csp/ionos/deploy/Makefile` | `install-crossplane`, `install-provider`, `install-all`, `install-on-regional` |
 | `foundation/ionos_e2e/Makefile` | `secatest-scaffolding`, `secatest`, `secatest-all`, `secatest-clean` |
 
 ## CI Pipeline (GitHub Actions)
