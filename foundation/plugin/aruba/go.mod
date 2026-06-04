@@ -1,6 +1,6 @@
 module github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba
 
-go 1.26.3
+go 1.26.4
 
 require (
 	github.com/Arubacloud/arubacloud-resource-operator v1.0.0
