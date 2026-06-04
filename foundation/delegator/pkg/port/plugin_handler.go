@@ -3,7 +3,7 @@ package port
 import (
 	"context"
 
-	gateway "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
+	gateway "github.com/eu-sovereign-cloud/ecp/foundation/persistence/port"
 )
 
 // PluginHandler defines the contract for handling resource-specific logic.

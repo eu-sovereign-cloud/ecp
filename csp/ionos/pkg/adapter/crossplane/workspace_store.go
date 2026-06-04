@@ -11,9 +11,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/eu-sovereign-cloud/ecp/csp/ionos/pkg/port"
-	k8s "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/scope"
+	k8s "github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes"
 )
 
 var _ port.WorkspaceStore = (*WorkspaceStore)(nil)

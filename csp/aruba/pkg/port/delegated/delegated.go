@@ -110,7 +110,7 @@ package delegated
 import (
 	"context"
 
-	seca_gateway_port "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
+	seca_gateway_port "github.com/eu-sovereign-cloud/ecp/foundation/persistence/port"
 )
 
 // TODO: this type should be an alias for the Delegator type.

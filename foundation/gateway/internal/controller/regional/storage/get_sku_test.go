@@ -13,14 +13,15 @@ import (
 	k8sschema "k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage"
-	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage/skus/v1"
-	generatedv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/generated/types"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/converters/kubernetes2domain"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/storage"
+	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/storage/skus/v1"
+	generatedv1 "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/generated/types"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
+	model "github.com/eu-sovereign-cloud/ecp/foundation/models/domain"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/scope"
+	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes"
 )
 
 func TestStorageController_GetSKU(t *testing.T) {
@@ -69,7 +70,7 @@ func TestStorageController_GetSKU(t *testing.T) {
 			dynClient,
 			skuv1.SKUGVR,
 			slog.Default(),
-			kubernetes.MapCRToStorageSKUDomain,
+			kubernetes2domain.MapCRToStorageSKUDomain,
 		),
 	}
 	t.Run("get_existing", func(t *testing.T) {

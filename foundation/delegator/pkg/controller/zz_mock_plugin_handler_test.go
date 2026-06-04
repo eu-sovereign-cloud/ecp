@@ -13,7 +13,7 @@ import (
 	context "context"
 	reflect "reflect"
 
-	port "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
+	port "github.com/eu-sovereign-cloud/ecp/foundation/persistence/port"
 	gomock "go.uber.org/mock/gomock"
 )
 

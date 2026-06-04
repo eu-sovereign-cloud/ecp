@@ -6,7 +6,7 @@ import (
 	"math/rand/v2"
 	"time"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional"
 )
 
 type Network struct {

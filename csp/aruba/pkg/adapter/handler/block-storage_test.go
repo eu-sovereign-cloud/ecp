@@ -12,7 +12,7 @@ package handler
 // 	"k8s.io/apimachinery/pkg/api/errors"
 // 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-// 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
+// 	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional"
 // )
 
 // func TestBlockStorage_create(t *testing.T) {

@@ -95,7 +95,7 @@ go-sdk-update:
 	@#
 	@# We use `go mod edit` + `go mod download` instead of `go get` because
 	@# `go get` builds the full module graph and tries to fetch
-	@# foundation/persistence@v0.0.1 from the proxy — that pseudo-version only
+	@# foundation/models/kubernetes@v0.0.1 from the proxy — that pseudo-version only
 	@# resolves via the workspace-level replace, which `go get` ignores. The
 	@# edit+download combo pins the require and populates go.sum for just the
 	@# bumped package, which is all we need.
@@ -122,9 +122,9 @@ go-sdk-verify:
 # Per-module vulnerability check (govulncheck)
 #
 # Usage:
-#   make foundation/persistence-vuln          # single module
+#   make foundation/models/kubernetes-vuln          # single module
 #   make vuln                                 # all GO_MODULES (parallelisable: -jN)
-#   make foundation/persistence-vuln-ctzd     # via tools container
+#   make foundation/models/kubernetes-vuln-ctzd     # via tools container
 #
 # GOWORK=off forces single-module mode so the scan stays scoped to the
 # module's own go.mod. Without it, Go walks up to the repo-root go.work and
@@ -147,11 +147,11 @@ vuln: $(addsuffix -vuln,$(GO_MODULES))
 # Per-module tests
 #
 # Usage:
-#   make foundation/persistence-test                     # all tests, one module
+#   make foundation/models/kubernetes-test                     # all tests, one module
 #   make test                                            # all modules
 #   make test RUN=TestCreateFoo                          # filter by name
 #   make test RUN='TestFoo|TestBar'                      # regex (quote to protect from shell)
-#   make foundation/persistence-test-ctzd RUN=TestFoo    # via tools container
+#   make foundation/models/kubernetes-test-ctzd RUN=TestFoo    # via tools container
 #
 # RUN is optional. When set it is forwarded verbatim to `go test -run <regex>`,
 # which matches the test's fully qualified name (Go's own filter semantics —
@@ -177,9 +177,9 @@ test: $(addsuffix -test,$(GO_MODULES))
 # Per-module lint (golangci-lint)
 #
 # Usage:
-#   make foundation/persistence-lint
+#   make foundation/models/kubernetes-lint
 #   make lint
-#   make foundation/persistence-lint-ctzd
+#   make foundation/models/kubernetes-lint-ctzd
 #
 # Uses the pinned golangci-lint from ci/tools/bin/ (via tools-install).
 # Workspace mode is kept so cross-module replaces resolve correctly.
@@ -235,9 +235,9 @@ gofmt-check: $(addsuffix -gofmt-check,$(GO_MODULES))
 # Per-module gosec
 #
 # Usage:
-#   make foundation/persistence-gosec
+#   make foundation/models/kubernetes-gosec
 #   make gosec
-#   make foundation/persistence-gosec-ctzd
+#   make foundation/models/kubernetes-gosec-ctzd
 #
 # Runs with the Go workspace active (go.work) so that cross-module imports
 # resolve correctly. The pinned gosec binary (GOSEC_VERSION in .config.mk)
@@ -259,7 +259,7 @@ gosec: $(addsuffix -gosec,$(GO_MODULES))
 #   make generate-api          # run directly on host
 #   make generate-api-ctzd     # run inside the tools container
 #
-# Delegates to foundation/persistence/Makefile, which is the only module with
+# Delegates to foundation/models/kubernetes/Makefile, which is the only module with
 # generated artifacts today. Kept as a top-level alias so CI and developers
 # share one entry point — and so the %-ctzd wrapper composes for free.
 #
@@ -267,7 +267,7 @@ gosec: $(addsuffix -gosec,$(GO_MODULES))
 
 .PHONY: generate-api
 generate-api:
-	$(MAKE) -C $(_REPO_ROOT)/foundation/persistence generate-all
+	$(MAKE) -C $(_REPO_ROOT)/foundation/models/kubernetes generate-all
 
 # generate-api-verify — same as generate-api but fails if the tree is dirty
 # afterwards. This is what CI runs; developers use `generate-api` directly.
@@ -275,7 +275,7 @@ generate-api:
 .PHONY: generate-api-verify
 generate-api-verify: generate-api
 	@$(_REPO_ROOT)/ci/scripts/verify-run.sh generate-api-verify "Generated API artifacts are in sync" -- \
-	  $(_REPO_ROOT)/ci/scripts/git-tree-clean-verify.sh --against-index $(_REPO_ROOT) generate-api "make generate-api" foundation/persistence/
+	  $(_REPO_ROOT)/ci/scripts/git-tree-clean-verify.sh --against-index $(_REPO_ROOT) generate-api "make generate-api" foundation/models/kubernetes/
 
 ###############################################################################
 # Per-module: go mod tidy
@@ -288,7 +288,7 @@ generate-api-verify: generate-api
 # CAVEAT: `go mod tidy` intentionally ignores go.work, so it runs the module
 # in single-module mode. If a module imports packages from another workspace
 # member and relies on go.work's `replace (...)` block to resolve them (as
-# foundation/delegator does against foundation/gateway and foundation/persistence),
+# foundation/delegator does against foundation/gateway and foundation/models/kubernetes),
 # tidy will fail trying to fetch the v0.0.1 pseudo-version from the proxy.
 #
 # Use this target only on modules whose imports resolve in isolation, or
@@ -321,7 +321,7 @@ tidy: $(addsuffix -tidy,$(GO_MODULES))
 # NOTE: We deliberately use `go mod edit -require=…@VERSION` + `go mod download`
 # instead of `go get` + `go mod tidy`. Using `go get` or `go mod tidy` rebuilds
 # the full module graph and tries to fetch sibling workspace modules (e.g.
-# foundation/persistence@v0.0.1) from the module proxy — pseudo-versions that
+# foundation/models/kubernetes@v0.0.1) from the module proxy — pseudo-versions that
 # only resolve via the workspace `replace` directives, which the proxy never
 # has. The edit+download approach updates go.mod and go.sum for the target
 # package without touching the rest of the module graph.

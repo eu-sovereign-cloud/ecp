@@ -10,12 +10,12 @@ import (
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/regional/network"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/service/handler"
-	apinetwork "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/network"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/config"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional/consts"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
+	apinetwork "github.com/eu-sovereign-cloud/ecp/foundation/models/converters/rest2domain/network"
+	model "github.com/eu-sovereign-cloud/ecp/foundation/models/domain"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional/consts"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/scope"
 )
 
 type Network struct {

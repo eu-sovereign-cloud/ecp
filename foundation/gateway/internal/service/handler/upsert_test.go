@@ -15,10 +15,10 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
+	model "github.com/eu-sovereign-cloud/ecp/foundation/models/domain"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/scope"
+	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/port"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/service/handler"
 )

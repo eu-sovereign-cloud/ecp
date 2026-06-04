@@ -3,7 +3,7 @@ package delegated
 import (
 	"context"
 
-	seca_gateway_port "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
+	seca_gateway_port "github.com/eu-sovereign-cloud/ecp/foundation/persistence/port"
 
 	resolver_bypass "github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/generic/resolver"
 	converter_port "github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/port/converter"

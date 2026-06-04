@@ -19,11 +19,12 @@ import (
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
-	regionsv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/global/regions/v1"
-	generatedv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/generated/types"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/converters/kubernetes2domain"
+	regionsv1 "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/global/regions/v1"
+	generatedv1 "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/generated/types"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
+	model "github.com/eu-sovereign-cloud/ecp/foundation/models/domain"
+	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes"
 )
 
 var cfg *rest.Config // package-level test kubeconfig
@@ -51,7 +52,7 @@ func TestRegionController_ListRegions(t *testing.T) {
 			fake.NewSimpleDynamicClient(scheme, objs...),
 			regionsv1.GroupVersionResource,
 			slog.Default(),
-			kubernetes.MapCRRegionToDomain,
+			kubernetes2domain.MapCRRegionToDomain,
 		),
 	}
 
@@ -102,7 +103,7 @@ func TestRegionController_ListRegions(t *testing.T) {
 func TestMain(m *testing.M) {
 	// Resolve CRD directory path relative to this test file's package directory.
 	wd, _ := os.Getwd()
-	crdDir := filepath.Clean(filepath.Join(wd, "../../../../../persistence/generated/crds/regions"))
+	crdDir := filepath.Clean(filepath.Join(wd, "../../../../../models/kubernetes/generated/crds/regions"))
 
 	// Ensure envtest downloads the required control-plane binaries and installs the CRDs.
 	testenv := &envtest.Environment{
@@ -154,7 +155,7 @@ func TestRegionController_ListRegions_Pagination(t *testing.T) {
 			dynClient,
 			regionsv1.GroupVersionResource,
 			slog.Default(),
-			kubernetes.MapCRRegionToDomain,
+			kubernetes2domain.MapCRRegionToDomain,
 		),
 	}
 	// 1. First page: limit=2, no skip token

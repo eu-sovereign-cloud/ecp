@@ -13,9 +13,9 @@ import (
 
 	"github.com/eu-sovereign-cloud/ecp/csp/ionos/pkg/adapter/crossplane"
 	delegator "github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/port"
-	k8s "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/scope"
+	k8s "github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes"
 )
 
 // Network handles create/delete of SECA Network resources on IONOS Cloud.

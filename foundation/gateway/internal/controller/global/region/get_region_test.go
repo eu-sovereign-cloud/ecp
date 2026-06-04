@@ -10,10 +10,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic/fake"
 
-	regionsv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/global/regions/v1"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/converters/kubernetes2domain"
+	regionsv1 "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/global/regions/v1"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
+	model "github.com/eu-sovereign-cloud/ecp/foundation/models/domain"
+	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes"
 )
 
 func TestRegionController_GetRegion(t *testing.T) {
@@ -40,7 +41,7 @@ func TestRegionController_GetRegion(t *testing.T) {
 				dyn,
 				regionsv1.GroupVersionResource,
 				slog.Default(),
-				kubernetes.MapCRRegionToDomain,
+				kubernetes2domain.MapCRRegionToDomain,
 			),
 		}
 
@@ -74,7 +75,7 @@ func TestRegionController_GetRegion(t *testing.T) {
 				fake.NewSimpleDynamicClient(scheme),
 				regionsv1.GroupVersionResource,
 				slog.Default(),
-				kubernetes.MapCRRegionToDomain,
+				kubernetes2domain.MapCRRegionToDomain,
 			),
 		}
 
@@ -100,7 +101,7 @@ func TestRegionController_GetRegion(t *testing.T) {
 				}...),
 				regionsv1.GroupVersionResource,
 				slog.Default(),
-				kubernetes.MapCRRegionToDomain,
+				kubernetes2domain.MapCRRegionToDomain,
 			),
 		}
 
@@ -135,7 +136,7 @@ func TestRegionController_GetRegion(t *testing.T) {
 				fake.NewSimpleDynamicClient(scheme, objs...),
 				regionsv1.GroupVersionResource,
 				slog.Default(),
-				kubernetes.MapCRRegionToDomain,
+				kubernetes2domain.MapCRRegionToDomain,
 			),
 		}
 		region, err := gc.Do(context.Background(), &model.Metadata{
@@ -168,7 +169,7 @@ func TestRegionController_GetRegion_EdgeCases(t *testing.T) {
 				fake.NewSimpleDynamicClient(scheme),
 				regionsv1.GroupVersionResource,
 				slog.Default(),
-				kubernetes.MapCRRegionToDomain,
+				kubernetes2domain.MapCRRegionToDomain,
 			),
 		}
 
@@ -197,7 +198,7 @@ func TestRegionController_GetRegion_EdgeCases(t *testing.T) {
 				dyn,
 				regionsv1.GroupVersionResource,
 				slog.Default(),
-				kubernetes.MapCRRegionToDomain,
+				kubernetes2domain.MapCRRegionToDomain,
 			),
 		}
 

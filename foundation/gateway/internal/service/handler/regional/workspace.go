@@ -10,12 +10,12 @@ import (
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/regional/workspace"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/service/handler"
-	apiworkspace "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/workspace"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/config"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional/consts"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
+	apiworkspace "github.com/eu-sovereign-cloud/ecp/foundation/models/converters/rest2domain/workspace"
+	model "github.com/eu-sovereign-cloud/ecp/foundation/models/domain"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional/consts"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/scope"
 )
 
 type Workspace struct {

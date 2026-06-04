@@ -18,15 +18,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/builder"
-	kubernetesadapter "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
-	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage"
-	storageskuv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage/skus/v1"
-	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/workspace/v1"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/storage"
+	storageskuv1 "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/storage/skus/v1"
+	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/workspace/v1"
+	kubernetesadapter "github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes"
 
 	"github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/converter"
 	aruba "github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/handler"
 	"github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/repository"
 	dummyplugin "github.com/eu-sovereign-cloud/ecp/csp/dummy/pkg/plugin"
+	kubernetes2domain "github.com/eu-sovereign-cloud/ecp/foundation/models/converters/kubernetes2domain"
 
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
@@ -134,8 +135,8 @@ func loadArubaPluginSet(ctx context.Context, dyn dynamic.Interface, mgr ctrl.Man
 	logger.Info("Loading 'aruba' plugin set")
 
 	// Instantiate seca-specific repositories
-	secaWsRepo := kubernetesadapter.NewReaderAdapter(dyn, workspacev1.WorkspaceGVR, logger, kubernetesadapter.MapCRToWorkspaceDomain)
-	secaSkuRepo := kubernetesadapter.NewReaderAdapter(dyn, storageskuv1.SKUGVR, logger, kubernetesadapter.MapCRToStorageSKUDomain)
+	secaWsRepo := kubernetesadapter.NewReaderAdapter(dyn, workspacev1.WorkspaceGVR, logger, kubernetes2domain.MapCRToWorkspaceDomain)
+	secaSkuRepo := kubernetesadapter.NewReaderAdapter(dyn, storageskuv1.SKUGVR, logger, kubernetes2domain.MapCRToStorageSKUDomain)
 
 	// Instantiate aruba-specific repositories
 	wr := repository.NewProjectRepository(ctx, mgr.GetClient(), mgr.GetCache())

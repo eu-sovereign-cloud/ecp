@@ -6,10 +6,10 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
-	gateway "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
-	networksv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/network/networks/v1"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/converters/kubernetes2domain"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional"
+	networksv1 "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/network/networks/v1"
+	gateway "github.com/eu-sovereign-cloud/ecp/foundation/persistence/port"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/plugin"
 	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/plugin/handler"
@@ -34,7 +34,7 @@ func NewNetworkController(
 
 	return (NetworkController)(NewGenericController[*regional.NetworkDomain](
 		client,
-		kubernetes.MapCRToNetworkDomain,
+		kubernetes2domain.MapCRToNetworkDomain,
 		h,
 		&networksv1.Network{},
 		requeueAfter,
