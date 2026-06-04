@@ -15,15 +15,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/testutil"
-	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage"
-	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/workspace/v1"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/converters/kubernetes2domain"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/storage"
+	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/workspace/v1"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/kubeclient"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes/labels"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
+	model "github.com/eu-sovereign-cloud/ecp/foundation/models/domain"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/scope"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/labels"
+	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes"
 )
 
 var cfg *rest.Config
@@ -31,7 +32,7 @@ var cfg *rest.Config
 // --- Envtest lifecycle ---
 func TestMain(m *testing.M) {
 	wd, _ := os.Getwd()
-	crdDir := filepath.Clean(filepath.Join(wd, "../../../../../persistence/generated/crds/workspace"))
+	crdDir := filepath.Clean(filepath.Join(wd, "../../../../../models/kubernetes/generated/crds/workspace"))
 	testEnvironment := &envtest.Environment{
 		ErrorIfCRDPathMissing: true,
 		CRDDirectoryPaths:     []string{crdDir},
@@ -78,15 +79,15 @@ func TestWorkspaceController(t *testing.T) {
 		client.ClientSet,
 		workspacev1.WorkspaceGVR,
 		slog.Default(),
-		kubernetes.MapWorkspaceDomainToCR,
-		kubernetes.MapCRToWorkspaceDomain,
+		kubernetes2domain.MapWorkspaceDomainToCR,
+		kubernetes2domain.MapCRToWorkspaceDomain,
 	)
 
 	readerRepo := kubernetes.NewReaderAdapter(
 		client.Client,
 		workspacev1.WorkspaceGVR,
 		slog.Default(),
-		kubernetes.MapCRToWorkspaceDomain,
+		kubernetes2domain.MapCRToWorkspaceDomain,
 	)
 
 	// Setup controllers

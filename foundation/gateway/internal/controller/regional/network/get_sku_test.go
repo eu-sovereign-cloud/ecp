@@ -6,8 +6,8 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/network/skus/v1"
-	generatedv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/generated/types"
+	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/network/skus/v1"
+	generatedv1 "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/generated/types"
 )
 
 // newNetworkSKUCR constructs a typed NetworkSKU CR.

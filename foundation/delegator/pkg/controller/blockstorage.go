@@ -6,13 +6,13 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
-	gateway "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
-	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage/block-storages/v1"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional"
+	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/storage/block-storages/v1"
+	gateway "github.com/eu-sovereign-cloud/ecp/foundation/persistence/port"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/plugin"
 	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/plugin/handler"
+	kubernetes2domain "github.com/eu-sovereign-cloud/ecp/foundation/models/converters/kubernetes2domain"
 )
 
 // BlockStorageController is the specialized controller for BlockStorage resources.
@@ -34,7 +34,7 @@ func NewBlockStorageController(
 
 	return (BlockStorageController)(NewGenericController[*regional.BlockStorageDomain](
 		client,
-		kubernetes.MapCRToBlockStorageDomain,
+		kubernetes2domain.MapCRToBlockStorageDomain,
 		h,
 		&blockstoragev1.BlockStorage{},
 		requeueAfter,

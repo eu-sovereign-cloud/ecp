@@ -13,7 +13,7 @@ import (
 	context "context"
 	reflect "reflect"
 
-	regional "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
+	regional "github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional"
 	gomock "go.uber.org/mock/gomock"
 )
 

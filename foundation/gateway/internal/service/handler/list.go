@@ -7,10 +7,9 @@ import (
 	"log/slog"
 	"net/http"
 
-	apierr "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/errors"
+	apierr "github.com/eu-sovereign-cloud/ecp/foundation/models/converters/rest2domain/errors"
+	model "github.com/eu-sovereign-cloud/ecp/foundation/models/domain"
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
-
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
 )
 
 // Lister defines the interface for controller List operations.

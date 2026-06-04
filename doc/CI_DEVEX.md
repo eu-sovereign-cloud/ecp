@@ -29,7 +29,7 @@ The builder image is published to `ghcr.io/eu-sovereign-cloud/ecp-builder` and p
 The toolchain pulls from `docker.io` (builder base image) and `ghcr.io` (published builder image). Authenticating to both avoids rate-limit failures on first build.
 
 **`docker.io`** — Docker Hub enforces anonymous-pull rate limits. The builder
-base image (`golang:1.26.3-trixie`) is fetched from Docker Hub on a local
+base image (`golang:1.26.4-trixie`) is fetched from Docker Hub on a local
 builder build (`make builder-rebuild`):
 
 ```bash
@@ -180,7 +180,7 @@ The 3 images form a layered chain. Each layer adds tooling on top of the previou
 
 | Attribute | Value |
 |-----------|-------|
-| Base | `golang:1.26.3-trixie` |
+| Base | `golang:1.26.4-trixie` |
 | Contains | Go toolchain, all codegen/lint/security tools (pinned versions) |
 | Published by | CI (`builder-publish.yaml`) to `ghcr.io/eu-sovereign-cloud/ecp-builder` |
 | Pinned at | `.builder-digest` (committed to git) |
@@ -200,7 +200,7 @@ make tools-build       # propagate downstream (auto on next -ctzd)
 |-----------|-------|
 | Base | `builder` |
 | Adds | Docker CLI (static binary), KIND, kubectl, GitHub CLI, bash completion, coloring |
-| Tag | `localhost/ecp/tools:<version>-trixie-go-v1.26.3` |
+| Tag | `localhost/ecp/tools:<version>-trixie-go-v1.26.4` |
 | Built by | `make tools-build` (auto-triggered by `-ctzd` targets if missing) |
 
 This image is what the `-ctzd` targets and the devcontainer use.
@@ -211,7 +211,7 @@ This image is what the `-ctzd` targets and the devcontainer use.
 |-----------|-------|
 | Base | `tools` |
 | Adds | OpenSSH server, neovim, gopls, sudo |
-| Tag | `localhost/ecp/dev:<version>-trixie-go-v1.26.3` |
+| Tag | `localhost/ecp/dev:<version>-trixie-go-v1.26.4` |
 | Built by | `make dev-build` (auto-triggered by `ctzdev-start` if missing) |
 
 ### Runner Image (`ci/container/runner/`)

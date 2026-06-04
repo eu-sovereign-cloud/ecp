@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"net/http"
 
-	apierr "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/errors"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
+	apierr "github.com/eu-sovereign-cloud/ecp/foundation/models/converters/rest2domain/errors"
+	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/port"
 )
 
 // Deleter defines the interface for controller Delete operations

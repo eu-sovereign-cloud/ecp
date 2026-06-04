@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	gateway "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
+	gateway "github.com/eu-sovereign-cloud/ecp/foundation/persistence/port"
 )
 
 var ErrStillProcessing = errors.New("operation still in progress")

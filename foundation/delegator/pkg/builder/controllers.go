@@ -7,9 +7,10 @@ import (
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/controller"
 	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/plugin"
-	kubernetesadapter "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
-	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage/block-storages/v1"
-	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/workspace/v1"
+	kubernetes2domain "github.com/eu-sovereign-cloud/ecp/foundation/models/converters/kubernetes2domain"
+	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/storage/block-storages/v1"
+	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/workspace/v1"
+	kubernetesadapter "github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes"
 )
 
 func newBlockStorageController(
@@ -22,8 +23,8 @@ func newBlockStorageController(
 		dynamicClient,
 		blockstoragev1.BlockStorageGVR,
 		opts.Logger,
-		kubernetesadapter.MapBlockStorageDomainToCR,
-		kubernetesadapter.MapCRToBlockStorageDomain,
+		kubernetes2domain.MapBlockStorageDomainToCR,
+		kubernetes2domain.MapCRToBlockStorageDomain,
 	)
 
 	return controller.NewBlockStorageController(client, repo, plugin, opts.RequeueAfter, opts.Logger, opts.MaxConditions)
@@ -41,8 +42,8 @@ func newWorkspaceController(
 		clientset,
 		workspacev1.WorkspaceGVR,
 		opts.Logger,
-		kubernetesadapter.MapWorkspaceDomainToCR,
-		kubernetesadapter.MapCRToWorkspaceDomain,
+		kubernetes2domain.MapWorkspaceDomainToCR,
+		kubernetes2domain.MapCRToWorkspaceDomain,
 	)
 
 	return controller.NewWorkspaceController(client, repo, plugin, opts.RequeueAfter, opts.Logger, opts.MaxConditions)

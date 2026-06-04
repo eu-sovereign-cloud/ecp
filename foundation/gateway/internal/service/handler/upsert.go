@@ -12,9 +12,9 @@ import (
 
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
-	apierr "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/errors"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
+	apierr "github.com/eu-sovereign-cloud/ecp/foundation/models/converters/rest2domain/errors"
+	model "github.com/eu-sovereign-cloud/ecp/foundation/models/domain"
+	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/port"
 )
 
 // Creator defines the interface for controller Create operations

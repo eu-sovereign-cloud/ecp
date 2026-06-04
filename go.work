@@ -5,6 +5,9 @@ use (
 	./foundation/delegator
 	./foundation/gateway
 	./foundation/persistence
+	./foundation/models/domain
+	./foundation/models/converters
+	./foundation/models/kubernetes
 	./csp/aruba
 	./csp/dummy
 	./csp/e2e
@@ -15,6 +18,9 @@ replace (
 	github.com/eu-sovereign-cloud/ecp/foundation/delegator v0.0.1 => ./foundation/delegator
 	github.com/eu-sovereign-cloud/ecp/foundation/gateway v0.0.1 => ./foundation/gateway
 	github.com/eu-sovereign-cloud/ecp/foundation/persistence v0.0.1 => ./foundation/persistence
+	github.com/eu-sovereign-cloud/ecp/foundation/models/domain v0.0.1 => ./foundation/models/domain
+	github.com/eu-sovereign-cloud/ecp/foundation/models/converters v0.0.1 => ./foundation/models/converters
+	github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes v0.0.1 => ./foundation/models/kubernetes
 	github.com/eu-sovereign-cloud/ecp/csp/aruba v0.0.1 => ./csp/aruba
 	github.com/eu-sovereign-cloud/ecp/csp/dummy v0.0.1 => ./csp/dummy
 	github.com/eu-sovereign-cloud/ecp/csp/ionos v0.0.1 => ./csp/ionos

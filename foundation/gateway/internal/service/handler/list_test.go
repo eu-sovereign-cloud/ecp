@@ -9,7 +9,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
+	model "github.com/eu-sovereign-cloud/ecp/foundation/models/domain"
 )
 
 // mockLister is a generic mock implementing Lister[D]

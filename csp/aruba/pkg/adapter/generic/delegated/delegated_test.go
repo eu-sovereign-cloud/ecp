@@ -11,7 +11,7 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/port/repository"
 )
 
-//go:generate mockgen -package delegated -destination=zz_mock_identifiable_test.go github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port IdentifiableResource
+//go:generate mockgen -package delegated -destination=zz_mock_identifiable_test.go github.com/eu-sovereign-cloud/ecp/foundation/persistence/port IdentifiableResource
 //go:generate mockgen -package delegated -destination=zz_mock_resolver_test.go github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/port/resolver DependenciesResolver
 //go:generate mockgen -package delegated -destination=zz_mock_converter_test.go github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/port/converter Converter
 //go:generate mockgen -package delegated -destination=zz_mock_mutator_test.go github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/port/mutator Mutator

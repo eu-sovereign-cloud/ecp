@@ -19,14 +19,15 @@ import (
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage"
-	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage/skus/v1"
-	generatedv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/generated/types"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/converters/kubernetes2domain"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/storage"
+	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/storage/skus/v1"
+	generatedv1 "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/generated/types"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
+	model "github.com/eu-sovereign-cloud/ecp/foundation/models/domain"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/scope"
+	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes"
 )
 
 const TenantLabelKey = "secapi.cloud/tenant-id"
@@ -78,7 +79,7 @@ func extractSKUNames(skus []*regional.StorageSKUDomain) []string {
 // --- Envtest lifecycle ---
 func TestMain(m *testing.M) {
 	wd, _ := os.Getwd()
-	crdDir := filepath.Clean(filepath.Join(wd, "../../../../../persistence/generated/crds/storage"))
+	crdDir := filepath.Clean(filepath.Join(wd, "../../../../../models/kubernetes/generated/crds/storage"))
 	testEnvironment := &envtest.Environment{
 		ErrorIfCRDPathMissing: true,
 		CRDDirectoryPaths:     []string{crdDir},
@@ -115,7 +116,7 @@ func TestStorageController_ListSKUs(t *testing.T) {
 			dynClient,
 			skuv1.SKUGVR,
 			slog.Default(),
-			kubernetes.MapCRToStorageSKUDomain,
+			kubernetes2domain.MapCRToStorageSKUDomain,
 		),
 	}
 

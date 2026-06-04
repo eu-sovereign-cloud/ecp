@@ -15,13 +15,14 @@ import (
 	"k8s.io/client-go/rest"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/testutil"
-	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage"
-	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage/block-storages/v1"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/converters/kubernetes2domain"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/storage"
+	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/storage/block-storages/v1"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
+	model "github.com/eu-sovereign-cloud/ecp/foundation/models/domain"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/scope"
+	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes"
 )
 
 func TestStorageController_CreateAndGetBlockStorage(t *testing.T) {
@@ -75,8 +76,8 @@ func TestStorageController_CreateAndGetBlockStorage(t *testing.T) {
 			dynClient,
 			blockstoragev1.BlockStorageGVR,
 			slog.Default(),
-			kubernetes.MapBlockStorageDomainToCR,
-			kubernetes.MapCRToBlockStorageDomain,
+			kubernetes2domain.MapBlockStorageDomainToCR,
+			kubernetes2domain.MapCRToBlockStorageDomain,
 		),
 	}
 
@@ -86,7 +87,7 @@ func TestStorageController_CreateAndGetBlockStorage(t *testing.T) {
 			dynClient,
 			blockstoragev1.BlockStorageGVR,
 			slog.Default(),
-			kubernetes.MapCRToBlockStorageDomain,
+			kubernetes2domain.MapCRToBlockStorageDomain,
 		),
 	}
 
@@ -96,8 +97,8 @@ func TestStorageController_CreateAndGetBlockStorage(t *testing.T) {
 			dynClient,
 			blockstoragev1.BlockStorageGVR,
 			slog.Default(),
-			kubernetes.MapBlockStorageDomainToCR,
-			kubernetes.MapCRToBlockStorageDomain,
+			kubernetes2domain.MapBlockStorageDomainToCR,
+			kubernetes2domain.MapCRToBlockStorageDomain,
 		),
 	}
 
@@ -107,8 +108,8 @@ func TestStorageController_CreateAndGetBlockStorage(t *testing.T) {
 			dynClient,
 			blockstoragev1.BlockStorageGVR,
 			slog.Default(),
-			kubernetes.MapBlockStorageDomainToCR,
-			kubernetes.MapCRToBlockStorageDomain,
+			kubernetes2domain.MapBlockStorageDomainToCR,
+			kubernetes2domain.MapCRToBlockStorageDomain,
 		),
 	}
 
@@ -118,7 +119,7 @@ func TestStorageController_CreateAndGetBlockStorage(t *testing.T) {
 			dynClient,
 			blockstoragev1.BlockStorageGVR,
 			slog.Default(),
-			kubernetes.MapCRToBlockStorageDomain,
+			kubernetes2domain.MapCRToBlockStorageDomain,
 		),
 	}
 

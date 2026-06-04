@@ -13,8 +13,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/builder"
-	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage"
-	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/workspace/v1"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/storage"
+	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/workspace/v1"
 
 	dummyplugin "github.com/eu-sovereign-cloud/ecp/csp/dummy/pkg/plugin"
 

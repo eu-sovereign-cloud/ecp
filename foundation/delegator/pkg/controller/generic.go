@@ -15,11 +15,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
-	gateway "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
-	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/common"
-	genv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/generated/types"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/common"
+	genv1 "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/generated/types"
+	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes"
+	gateway "github.com/eu-sovereign-cloud/ecp/foundation/persistence/port"
 
 	delegator "github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/port"
 )

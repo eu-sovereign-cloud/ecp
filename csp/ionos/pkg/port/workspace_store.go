@@ -3,7 +3,7 @@ package port
 import (
 	"context"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional"
 )
 
 type WorkspaceStore interface {

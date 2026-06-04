@@ -9,8 +9,8 @@ import (
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/global/region"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/service/handler"
-	regionapi "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/api/region"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
+	regionapi "github.com/eu-sovereign-cloud/ecp/foundation/models/converters/rest2domain/region"
+	model "github.com/eu-sovereign-cloud/ecp/foundation/models/domain"
 )
 
 // Region handles HTTP requests for region data.
