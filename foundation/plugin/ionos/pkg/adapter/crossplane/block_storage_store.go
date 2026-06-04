@@ -86,8 +86,8 @@ func newVolume(domain *regional.BlockStorageDomain) *ionosv1alpha1.Volume {
 			},
 			ManagedResourceSpec: v2.ManagedResourceSpec{
 				ProviderConfigReference: &v1.ProviderConfigReference{
-					Name: providerConfigName,
-					Kind: providerConfigType,
+					Name: ProviderConfigName,
+					Kind: ProviderConfigType,
 				},
 			},
 		},

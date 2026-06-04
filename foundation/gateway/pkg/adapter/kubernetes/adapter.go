@@ -159,7 +159,7 @@ func ComputeNamespace(obj port.Scope) string {
 	if obj.GetTenant() != "" && obj.GetWorkspace() == "" {
 		_, _ = fmt.Fprintf(hasher, "%s", obj.GetTenant())
 	} else {
-		_, _ = fmt.Fprintf(hasher, "%s/%s", obj.GetTenant(), obj.GetWorkspace())
+		_, _ = fmt.Fprintf(hasher, "%s", obj.GetTenant())
 	}
 
 	return fmt.Sprintf("%x", hasher.Sum(nil))

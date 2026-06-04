@@ -17,9 +17,11 @@ import (
 	ionosapis "github.com/ionos-cloud/provider-upjet-ionoscloud/apis/namespaced/compute/v1alpha1"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/builder"
+	networkpersistence "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/network"
 	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage"
 	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/workspace/v1"
 	blockstoragectrl "github.com/eu-sovereign-cloud/ecp/foundation/plugin/ionos/internal/controller/block_storage"
+	networkctrl "github.com/eu-sovereign-cloud/ecp/foundation/plugin/ionos/internal/controller/network"
 	workspacectrl "github.com/eu-sovereign-cloud/ecp/foundation/plugin/ionos/internal/controller/workspace"
 	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/ionos/internal/service"
 	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/ionos/pkg/adapter/crossplane"
@@ -31,6 +33,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(workspacev1.AddToScheme(scheme))
 	utilruntime.Must(storage.AddToScheme(scheme))
+	utilruntime.Must(networkpersistence.AddToScheme(scheme))
 	utilruntime.Must(ionosapis.AddToScheme(scheme))
 }
 
@@ -54,6 +57,7 @@ func main() {
 
 	wsAdapter := crossplane.NewWorkspaceStore(mgr.GetClient(), logger.With("adapter", "workspace"))
 	bsAdapter := crossplane.NewBlockStorageStore(mgr.GetClient(), logger.With("adapter", "block-storage"))
+	netAdapter := crossplane.NewNetworkStore(mgr.GetClient(), logger.With("adapter", "network"))
 
 	wsPlugin := &service.Workspace{
 		Creator: &workspacectrl.CreateWorkspace{Store: wsAdapter},
@@ -64,10 +68,15 @@ func main() {
 		Deleter:       &blockstoragectrl.DeleteBlockStorage{Store: bsAdapter},
 		SizeIncreaser: &blockstoragectrl.IncreaseSizeBlockStorage{Store: bsAdapter},
 	}
+	netPlugin := &service.Network{
+		Creator: &networkctrl.CreateNetwork{Store: netAdapter},
+		Deleter: &networkctrl.DeleteNetwork{Store: netAdapter},
+	}
 
 	pluginSet := builder.PluginSet{
 		Workspace:    wsPlugin,
 		BlockStorage: bsPlugin,
+		Network:      netPlugin,
 	}
 
 	controllerSet, err := builder.NewControllerSet(
