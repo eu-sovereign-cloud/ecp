@@ -1,6 +1,6 @@
 module github.com/eu-sovereign-cloud/ecp/foundation/persistence
 
-go 1.26.3
+go 1.26.4
 
 tool sigs.k8s.io/controller-tools/cmd/controller-gen
 

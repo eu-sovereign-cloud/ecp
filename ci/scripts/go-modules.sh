@@ -13,7 +13,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 go_work="${repo_root}/go.work"
 
 # Workspace modules excluded from product CI (tool module, e2e harness).
-exclude=" ci/tools/go foundation/plugin/e2e "
+exclude=" ci/tools/go csp/e2e "
 
 modules=()
 if [ -r "${go_work}" ]; then

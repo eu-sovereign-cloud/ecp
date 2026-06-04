@@ -10,7 +10,7 @@ VERSION?=v0.1.0-alpha1-preview
 ###############################################################################
 
 # Go & toolchain version
-GO_VERSION?=1.26.3
+GO_VERSION?=1.26.4
 
 # Builder base image
 BUILDER_BASE_REGISTRY?=docker.io

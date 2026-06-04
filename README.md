@@ -34,10 +34,10 @@ This is a Go monorepo managed with `go.work`. The workspace contains 8 modules:
 | `foundation/persistence` | CRD definitions, generated API types, K8s repository interfaces |
 | `foundation/gateway` | Global and regional REST API servers |
 | `foundation/delegator` | Kubernetes controllers and plugin interface |
-| `foundation/plugin/dummy` | Reference plugin (no real backend) |
-| `foundation/plugin/ionos` | IONOS CSP adapter via Crossplane |
-| `foundation/plugin/aruba` | Aruba CSP adapter |
-| `foundation/plugin/e2e` | End-to-end test harness |
+| `csp/dummy` | Reference plugin (no real backend) |
+| `csp/ionos` | IONOS CSP adapter via Crossplane |
+| `csp/aruba` | Aruba CSP adapter |
+| `csp/e2e` | End-to-end test harness |
 | `ci/tools/go` | Pinned versions of Go development tools |
 
 ## Quick Start
