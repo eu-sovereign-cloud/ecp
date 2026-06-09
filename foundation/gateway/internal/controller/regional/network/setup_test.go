@@ -17,7 +17,7 @@ var cfg *rest.Config
 // --- Envtest lifecycle ---
 func TestMain(m *testing.M) {
 	wd, _ := os.Getwd()
-	crdDir := filepath.Clean(filepath.Join(wd, "../../../../../persistence/generated/crds/network"))
+	crdDir := filepath.Clean(filepath.Join(wd, "../../../../../models/kubernetes/generated/crds/network"))
 	testEnvironment := &envtest.Environment{
 		ErrorIfCRDPathMissing: true,
 		CRDDirectoryPaths:     []string{crdDir},
