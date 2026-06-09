@@ -5,7 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional"
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/persistence/port"
+	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/port"
 )
 
 // DeleteNetwork deletes a network resource by identity.
