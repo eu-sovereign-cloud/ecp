@@ -74,15 +74,15 @@ make -C csp/ionos/deploy install-on-regional
 
 See `csp/ionos/README.md` for full deployment instructions, including token secret setup and provider configuration.
 
-**IONOS E2E tests** (`foundation/ionos_e2e/`):
+**IONOS E2E tests** (`csp/ionos_e2e/`):
 ```bash
 # Full scaffolding + test in one shot
-make -C foundation/ionos_e2e secatest-all
+make -C csp/ionos_e2e secatest-all
 
 # Step by step
-make -C foundation/ionos_e2e secatest-scaffolding
-make -C foundation/ionos_e2e secatest
-make -C foundation/ionos_e2e secatest-clean
+make -C csp/ionos_e2e secatest-scaffolding
+make -C csp/ionos_e2e secatest
+make -C csp/ionos_e2e secatest-clean
 ```
 
 ### Aruba Plugin (`csp/aruba/`)
