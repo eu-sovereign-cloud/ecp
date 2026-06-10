@@ -26,6 +26,7 @@ import (
 	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/storage/block-storages/v1"
 	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/workspace/v1"
 	kubernetesadapter "github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes"
+	kubernetes2domain "github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes/domain"
 	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/port"
 )
 
@@ -88,8 +89,8 @@ func TestMain(m *testing.M) {
 		dynamicClient,
 		blockstoragev1.BlockStorageGVR,
 		testLogger,
-		kubernetesadapter.MapBlockStorageDomainToCR,
-		kubernetesadapter.MapCRToBlockStorageDomain,
+		kubernetes2domain.MapBlockStorageDomainToCR,
+		kubernetes2domain.MapCRToBlockStorageDomain,
 	)
 
 	workspaceRepo = kubernetesadapter.NewNamespaceManagingRepoAdapter(
@@ -97,8 +98,8 @@ func TestMain(m *testing.M) {
 		clientset,
 		workspacev1.WorkspaceGVR,
 		testLogger,
-		kubernetesadapter.MapWorkspaceDomainToCR,
-		kubernetesadapter.MapCRToWorkspaceDomain,
+		kubernetes2domain.MapWorkspaceDomainToCR,
+		kubernetes2domain.MapCRToWorkspaceDomain,
 	)
 
 	// Provide Workspace for BlockStorage tests
