@@ -18,11 +18,11 @@ import (
 	sdkstorageapi "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	sdkworkspaceapi "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/converters/kubernetes2domain"
-	networksv1 "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/network/networks/v1"
-	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/storage/block-storages/v1"
-	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/storage/skus/v1"
-	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/workspace/v1"
+	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes2domain"
+	networksv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/network/networks/v1"
+	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage/block-storages/v1"
+	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage/skus/v1"
+	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/workspace/v1"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/regional/network"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/regional/storage"
@@ -32,7 +32,7 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/logger"
 	regionalhandler "github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/service/handler/regional"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/config"
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional/consts"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/regional/consts"
 	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes"
 )
 

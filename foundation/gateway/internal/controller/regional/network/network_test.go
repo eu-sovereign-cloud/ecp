@@ -15,14 +15,14 @@ import (
 	"k8s.io/client-go/rest"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/testutil"
-	model "github.com/eu-sovereign-cloud/ecp/foundation/models/domain"
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional"
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/scope"
-	persistencenetwork "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/network"
-	networksv1 "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/network/networks/v1"
+	model "github.com/eu-sovereign-cloud/ecp/foundation/models"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/scope"
 	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes"
+	persistencenetwork "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/network"
+	networksv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/network/networks/v1"
 
-	kubernetes2domain "github.com/eu-sovereign-cloud/ecp/foundation/models/converters/kubernetes2domain"
+	kubernetes2domain "github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes2domain"
 )
 
 func TestNetworkController_CreateAndGetNetwork(t *testing.T) {

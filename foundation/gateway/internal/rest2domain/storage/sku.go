@@ -1,0 +1,74 @@
+package storage
+
+import (
+	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
+	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
+
+	v1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage/skus/v1"
+
+	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/rest2domain/validation"
+	model "github.com/eu-sovereign-cloud/ecp/foundation/models"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/regional/consts"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/scope"
+)
+
+// SKUDomainToAPI converts a StorageSKUDomain to its SDK representation.
+func SKUDomainToAPI(domain *regional.StorageSKUDomain) *sdkschema.StorageSku {
+	return &sdkschema.StorageSku{
+		Metadata: &sdkschema.SkuResourceMetadata{
+			Name: domain.Name, // no namespace?
+		},
+		Spec: &sdkschema.StorageSkuSpec{
+			Iops:          int(domain.Spec.Iops),
+			MinVolumeSize: int(domain.Spec.MinVolumeSize),
+			Type:          sdkschema.StorageSkuSpecType(domain.Spec.Type),
+		},
+	}
+}
+
+func SKUListParamsFromAPI(params sdkstorage.ListSkusParams, tenant string) model.ListParams {
+	limit := validation.GetLimit(params.Limit)
+
+	var skipToken string
+	if params.SkipToken != nil {
+		skipToken = *params.SkipToken
+	}
+
+	var selector string
+	if params.Labels != nil {
+		selector = *params.Labels
+	}
+
+	return model.ListParams{
+		Limit:     limit,
+		SkipToken: skipToken,
+		Selector:  selector,
+		Scope: scope.Scope{
+			Tenant: tenant,
+		},
+	}
+}
+
+func SKUDomainToAPIIterator(domainSKUs []*regional.StorageSKUDomain, nextSkipToken *string) *sdkstorage.SkuIterator {
+	sdkSKUs := make([]sdkschema.StorageSku, len(domainSKUs))
+	for i := range domainSKUs {
+		mapped := SKUDomainToAPI(domainSKUs[i])
+		sdkSKUs[i] = *mapped
+	}
+
+	iterator := &sdkstorage.SkuIterator{
+		Items: sdkSKUs,
+		Metadata: sdkschema.ResponseMetadata{
+			Provider: consts.StorageProvider,
+			Resource: v1.SKUResource,
+			Verb:     "list",
+		},
+	}
+
+	if nextSkipToken != nil {
+		iterator.Metadata.SkipToken = nextSkipToken
+	}
+
+	return iterator
+}

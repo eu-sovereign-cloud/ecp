@@ -19,11 +19,11 @@ import (
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	convertererrors "github.com/eu-sovereign-cloud/ecp/foundation/models/converters/kubernetes2domain/errors"
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/converters/rest2domain/validation/filter"
-	model "github.com/eu-sovereign-cloud/ecp/foundation/models/domain"
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/scope"
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/labels"
+	model "github.com/eu-sovereign-cloud/ecp/foundation/models"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/scope"
+	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes/filter"
+	convertererrors "github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes2domain/errors"
+	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/labels"
 	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/port"
 )
 

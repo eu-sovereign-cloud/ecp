@@ -8,9 +8,7 @@ use (
 	./csp/ionos
 	./foundation/delegator
 	./foundation/gateway
-	./foundation/models/converters
-	./foundation/models/domain
-	./foundation/models/kubernetes
+	./foundation/models
 	./foundation/persistence
 )
 
@@ -20,8 +18,6 @@ replace (
 	github.com/eu-sovereign-cloud/ecp/csp/ionos v0.0.1 => ./csp/ionos
 	github.com/eu-sovereign-cloud/ecp/foundation/delegator v0.0.1 => ./foundation/delegator
 	github.com/eu-sovereign-cloud/ecp/foundation/gateway v0.0.1 => ./foundation/gateway
-	github.com/eu-sovereign-cloud/ecp/foundation/models/converters v0.0.1 => ./foundation/models/converters
-	github.com/eu-sovereign-cloud/ecp/foundation/models/domain v0.0.1 => ./foundation/models/domain
-	github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes v0.0.1 => ./foundation/models/kubernetes
+	github.com/eu-sovereign-cloud/ecp/foundation/models v0.0.1 => ./foundation/models
 	github.com/eu-sovereign-cloud/ecp/foundation/persistence v0.0.1 => ./foundation/persistence
 )

@@ -5,7 +5,7 @@ import (
 
 	networkctrl "github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/controller/network"
 	delegatorplugin "github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/plugin"
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/regional"
 )
 
 var _ delegatorplugin.Network = (*Network)(nil)

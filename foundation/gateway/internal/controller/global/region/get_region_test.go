@@ -10,10 +10,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic/fake"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/converters/kubernetes2domain"
-	regionsv1 "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/global/regions/v1"
+	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes2domain"
+	regionsv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/global/regions/v1"
 
-	model "github.com/eu-sovereign-cloud/ecp/foundation/models/domain"
+	model "github.com/eu-sovereign-cloud/ecp/foundation/models"
 	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes"
 )
 

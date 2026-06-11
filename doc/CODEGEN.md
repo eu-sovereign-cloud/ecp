@@ -6,18 +6,18 @@ ECP generates both Go API types and Kubernetes CRD YAML from a single source of 
 
 Two separate generation pipelines run as part of `make generate-api`:
 
-1. **Model generation** — copies Go types from the go-sdk OpenAPI schemas into `foundation/models/kubernetes/generated/types/`, applies Kubernetes annotations, and runs controller-gen to produce `DeepCopy` methods.
+1. **Model generation** — copies Go types from the go-sdk OpenAPI schemas into `foundation/persistence/generated/types/`, applies Kubernetes annotations, and runs controller-gen to produce `DeepCopy` methods.
 2. **CRD generation** — uses controller-gen to generate CRD YAML from the annotated Go types.
 
 Generated files must never be edited by hand. CI enforces this with `make generate-api-verify`.
 
 ## OpenAPI-to-Go Type Generation
 
-**Entry point:** `foundation/persistence/scripts/generate-model.sh`
+**Entry point:** `make generate-models` in `foundation/persistence/Makefile`
 
 **Steps:**
 1. Reads `.go` schema files from `modules/go-sdk/pkg/spec/schema/`.
-2. Copies each file to `foundation/models/kubernetes/generated/types/zz_generated_<filename>`.
+2. Copies each file to `foundation/persistence/generated/types/zz_generated_<filename>`.
 3. Rewrites the package declaration to `package types`.
 4. Injects `+kubebuilder:object:generate=true` and `+kubebuilder:object:root=true` annotations.
 5. Replaces `time.Time` with `metav1.Time` and adjusts imports.
@@ -26,7 +26,7 @@ Generated files must never be edited by hand. CI enforces this with `make genera
 8. Runs `gofmt` on the output.
 9. Runs `controller-gen object` to generate `DeepCopy` methods alongside the types.
 
-**Outputs:** `foundation/models/kubernetes/generated/types/`
+**Outputs:** `foundation/persistence/generated/types/`
 
 ## CRD Generation
 
@@ -34,7 +34,7 @@ Generated files must never be edited by hand. CI enforces this with `make genera
 
 Runs `go generate -tags=crdgen ./...` inside `foundation/persistence/`. Source files tagged with `//go:build crdgen` invoke controller-gen to produce CRD YAML from Go struct annotations (`+kubebuilder:resource`, `+kubebuilder:validation`, etc.).
 
-**Outputs:** `foundation/models/kubernetes/generated/crds/`
+**Outputs:** `foundation/persistence/generated/crds/`
 
 ## Running Generation
 

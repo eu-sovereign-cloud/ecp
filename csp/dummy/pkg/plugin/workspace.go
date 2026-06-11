@@ -6,7 +6,7 @@ import (
 	"math/rand/v2"
 	"time"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/regional"
 )
 
 type Workspace struct {

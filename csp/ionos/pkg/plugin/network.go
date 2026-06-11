@@ -13,8 +13,8 @@ import (
 
 	"github.com/eu-sovereign-cloud/ecp/csp/ionos/pkg/adapter/crossplane"
 	delegator "github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/port"
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional"
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/scope"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/scope"
 	k8s "github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes"
 )
 

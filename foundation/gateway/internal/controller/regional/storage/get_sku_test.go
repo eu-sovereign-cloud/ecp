@@ -13,14 +13,14 @@ import (
 	k8sschema "k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/converters/kubernetes2domain"
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/storage"
-	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/storage/skus/v1"
-	generatedv1 "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/generated/types"
+	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes2domain"
+	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage"
+	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage/skus/v1"
+	generatedv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/generated/types"
 
-	model "github.com/eu-sovereign-cloud/ecp/foundation/models/domain"
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional"
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/scope"
+	model "github.com/eu-sovereign-cloud/ecp/foundation/models"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/scope"
 	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes"
 )
 

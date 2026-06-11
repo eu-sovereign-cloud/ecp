@@ -19,14 +19,14 @@ import (
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/converters/kubernetes2domain"
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/storage"
-	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/storage/skus/v1"
-	generatedv1 "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/generated/types"
+	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes2domain"
+	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage"
+	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage/skus/v1"
+	generatedv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/generated/types"
 
-	model "github.com/eu-sovereign-cloud/ecp/foundation/models/domain"
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional"
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/scope"
+	model "github.com/eu-sovereign-cloud/ecp/foundation/models"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/scope"
 	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes"
 )
 
@@ -79,7 +79,7 @@ func extractSKUNames(skus []*regional.StorageSKUDomain) []string {
 // --- Envtest lifecycle ---
 func TestMain(m *testing.M) {
 	wd, _ := os.Getwd()
-	crdDir := filepath.Clean(filepath.Join(wd, "../../../../../models/kubernetes/generated/crds/storage"))
+	crdDir := filepath.Clean(filepath.Join(wd, "../../../../../persistence/generated/crds/storage"))
 	testEnvironment := &envtest.Environment{
 		ErrorIfCRDPathMissing: true,
 		CRDDirectoryPaths:     []string{crdDir},

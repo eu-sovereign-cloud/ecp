@@ -7,11 +7,17 @@ import (
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/controller"
 	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/plugin"
+<<<<<<< HEAD
 	"github.com/eu-sovereign-cloud/ecp/foundation/models/converters/kubernetes2domain"
 	networksv1 "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/network/networks/v1"
 	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/storage/block-storages/v1"
 	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/workspace/v1"
+=======
+>>>>>>> 0b257c98 (refactor: moved kubernetes-related to foundation/persistence and rest-related to foundation/gateway)
 	kubernetesadapter "github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes"
+	kubernetes2domain "github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes2domain"
+	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage/block-storages/v1"
+	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/workspace/v1"
 )
 
 func newBlockStorageController(

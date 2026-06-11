@@ -7,7 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	apierr "github.com/eu-sovereign-cloud/ecp/foundation/models/converters/rest2domain/errors"
+	apierr "github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/rest2domain/errors"
 	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/port"
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 )

@@ -9,7 +9,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	model "github.com/eu-sovereign-cloud/ecp/foundation/models/domain"
+	model "github.com/eu-sovereign-cloud/ecp/foundation/models"
 	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/port"
 )
 

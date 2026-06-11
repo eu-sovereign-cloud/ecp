@@ -19,14 +19,12 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	ecpmodel "github.com/eu-sovereign-cloud/ecp/foundation/models/domain"
-	regionalmodel "github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional"
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/scope"
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/storage"
-	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/storage/block-storages/v1"
-	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/workspace/v1"
+	ecpmodel "github.com/eu-sovereign-cloud/ecp/foundation/models"
+	regionalmodel "github.com/eu-sovereign-cloud/ecp/foundation/models/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/scope"
 	kubernetesadapter "github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes"
 	kubernetes2domain "github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes/domain"
+	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage"
 	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/port"
 )
 

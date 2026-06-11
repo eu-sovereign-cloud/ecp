@@ -18,12 +18,12 @@ import (
 
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
-	ecpmodel "github.com/eu-sovereign-cloud/ecp/foundation/models/domain"
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional"
-	regionalmodel "github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional"
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/scope"
-	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/storage/block-storages/v1"
+	ecpmodel "github.com/eu-sovereign-cloud/ecp/foundation/models"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/regional"
+	regionalmodel "github.com/eu-sovereign-cloud/ecp/foundation/models/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/scope"
 	kubernetesadapter "github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes"
+	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage/block-storages/v1"
 )
 
 // newBlockStorageBody is a helper to construct the body for creating/updating block storage.

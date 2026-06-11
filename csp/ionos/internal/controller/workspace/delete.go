@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/eu-sovereign-cloud/ecp/csp/ionos/pkg/port"
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/regional"
 )
 
 type DeleteWorkspace struct {

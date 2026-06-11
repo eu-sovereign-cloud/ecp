@@ -10,7 +10,7 @@ VERSION=${VERSION:-"latest"}
 KUBECONFIG=${KUBECONFIG:-$HOME/.kube/config}
 export KUBECONFIG
 
-CRDS_DIR="${SCRIPT_DIR}/../../../models/kubernetes/generated/crds"
+CRDS_DIR="${SCRIPT_DIR}/../../../foundation/persistence/generated/crds"
 DEPLOY_DIR="${SCRIPT_DIR}/../deploy"
 
 # Set image name for kustomize

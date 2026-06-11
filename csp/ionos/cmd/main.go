@@ -22,9 +22,9 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/service"
 	"github.com/eu-sovereign-cloud/ecp/csp/ionos/pkg/adapter/crossplane"
 	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/builder"
-	networkpersistence "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/network"
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/storage"
-	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/workspace/v1"
+	networkpersistence "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/network"
+	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage"
+	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/workspace/v1"
 )
 
 var scheme = runtime.NewScheme()

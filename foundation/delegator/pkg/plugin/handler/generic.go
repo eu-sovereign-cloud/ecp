@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/regional"
 	gateway "github.com/eu-sovereign-cloud/ecp/foundation/persistence/port"
 
 	delegato "github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/port"

@@ -5,7 +5,7 @@ package reference
 import (
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/regional"
 )
 
 // ToAPI converts a regional.ReferenceDomain to an sdkschema.Reference.

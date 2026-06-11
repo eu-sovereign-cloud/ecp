@@ -15,13 +15,13 @@ import (
 	"k8s.io/client-go/rest"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/testutil"
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/converters/kubernetes2domain"
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/storage"
-	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/storage/block-storages/v1"
+	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes2domain"
+	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage"
+	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage/block-storages/v1"
 
-	model "github.com/eu-sovereign-cloud/ecp/foundation/models/domain"
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional"
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/scope"
+	model "github.com/eu-sovereign-cloud/ecp/foundation/models"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/scope"
 	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes"
 )
 

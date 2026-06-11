@@ -15,15 +15,15 @@ import (
 
 	regionv1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/converters/kubernetes2domain"
-	regionsv1 "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/global/regions/v1"
+	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes2domain"
+	regionsv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/global/regions/v1"
 
 	regionController "github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/global/region"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/httpserver"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/kubeclient"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/logger"
 	globalhandler "github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/service/handler/global"
-	model "github.com/eu-sovereign-cloud/ecp/foundation/models/domain"
+	model "github.com/eu-sovereign-cloud/ecp/foundation/models"
 	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes"
 )
 

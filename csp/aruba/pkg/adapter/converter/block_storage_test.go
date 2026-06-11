@@ -6,9 +6,9 @@ import (
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	model "github.com/eu-sovereign-cloud/ecp/foundation/models/domain"
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional"
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/scope"
+	model "github.com/eu-sovereign-cloud/ecp/foundation/models"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/scope"
 
 	"github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/converter"
 )

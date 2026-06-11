@@ -9,13 +9,13 @@ import (
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/regional/storage"
+	apistorage "github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/rest2domain/storage"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/service/handler"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/config"
-	apistorage "github.com/eu-sovereign-cloud/ecp/foundation/models/converters/rest2domain/storage"
-	model "github.com/eu-sovereign-cloud/ecp/foundation/models/domain"
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional"
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional/consts"
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/scope"
+	model "github.com/eu-sovereign-cloud/ecp/foundation/models"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/regional/consts"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/scope"
 )
 
 type Storage struct {
