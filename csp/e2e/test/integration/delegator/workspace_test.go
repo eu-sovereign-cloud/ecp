@@ -11,9 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/util/wait"
 
-	ecpmodel "github.com/eu-sovereign-cloud/ecp/foundation/models/domain"
-	regionalmodel "github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional"
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/scope"
+	ecpmodel "github.com/eu-sovereign-cloud/ecp/foundation/models"
+	regionalmodel "github.com/eu-sovereign-cloud/ecp/foundation/models/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/scope"
 )
 
 func TestWorkspace(t *testing.T) {

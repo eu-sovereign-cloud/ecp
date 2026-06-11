@@ -4,7 +4,7 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/regional"
 	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/port"
 )
 

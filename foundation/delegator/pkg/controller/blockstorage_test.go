@@ -15,10 +15,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional"
-	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/storage/block-storages/v1"
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/generated/types"
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/labels"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/regional"
+	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage/block-storages/v1"
+	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/generated/types"
+	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/labels"
 )
 
 func TestBlockStorageController_Reconcile(t *testing.T) {

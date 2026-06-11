@@ -15,16 +15,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/testutil"
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/converters/kubernetes2domain"
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/storage"
-	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/workspace/v1"
+	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes2domain"
+	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage"
+	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/workspace/v1"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/kubeclient"
-	model "github.com/eu-sovereign-cloud/ecp/foundation/models/domain"
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional"
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/scope"
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/labels"
+	model "github.com/eu-sovereign-cloud/ecp/foundation/models"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/scope"
 	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes"
+	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/labels"
 )
 
 var cfg *rest.Config
@@ -32,7 +32,7 @@ var cfg *rest.Config
 // --- Envtest lifecycle ---
 func TestMain(m *testing.M) {
 	wd, _ := os.Getwd()
-	crdDir := filepath.Clean(filepath.Join(wd, "../../../../../models/kubernetes/generated/crds/workspace"))
+	crdDir := filepath.Clean(filepath.Join(wd, "../../../../../persistence/generated/crds/workspace"))
 	testEnvironment := &envtest.Environment{
 		ErrorIfCRDPathMissing: true,
 		CRDDirectoryPaths:     []string{crdDir},

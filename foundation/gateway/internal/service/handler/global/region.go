@@ -8,9 +8,9 @@ import (
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/controller/global/region"
+	regionapi "github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/rest2domain/region"
 	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/service/handler"
-	regionapi "github.com/eu-sovereign-cloud/ecp/foundation/models/converters/rest2domain/region"
-	model "github.com/eu-sovereign-cloud/ecp/foundation/models/domain"
+	model "github.com/eu-sovereign-cloud/ecp/foundation/models"
 )
 
 // Region handles HTTP requests for region data.

@@ -12,8 +12,8 @@ import (
 
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
-	apierr "github.com/eu-sovereign-cloud/ecp/foundation/models/converters/rest2domain/errors"
-	model "github.com/eu-sovereign-cloud/ecp/foundation/models/domain"
+	apierr "github.com/eu-sovereign-cloud/ecp/foundation/gateway/internal/rest2domain/errors"
+	model "github.com/eu-sovereign-cloud/ecp/foundation/models"
 	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/port"
 )
 

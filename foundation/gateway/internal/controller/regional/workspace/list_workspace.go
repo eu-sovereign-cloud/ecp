@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"log/slog"
 
-	model "github.com/eu-sovereign-cloud/ecp/foundation/models/domain"
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional"
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/labels"
+	model "github.com/eu-sovereign-cloud/ecp/foundation/models"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/labels"
 	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/port"
 )
 

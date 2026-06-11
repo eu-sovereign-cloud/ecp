@@ -5,8 +5,8 @@ import (
 	"errors"
 	"log"
 
-	model "github.com/eu-sovereign-cloud/ecp/foundation/models/domain"
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional"
+	model "github.com/eu-sovereign-cloud/ecp/foundation/models"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/regional"
 	gateway "github.com/eu-sovereign-cloud/ecp/foundation/persistence/port"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/plugin"

@@ -3,7 +3,7 @@ package port
 import (
 	"context"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain"
+	domain "github.com/eu-sovereign-cloud/ecp/foundation/models"
 )
 
 // IdentifiableResource defines the interface for objects that can be identified by name, tenant, and workspace

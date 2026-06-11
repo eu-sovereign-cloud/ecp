@@ -6,13 +6,13 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional"
-	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/models/kubernetes/api/regional/storage/block-storages/v1"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/regional"
+	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage/block-storages/v1"
 	gateway "github.com/eu-sovereign-cloud/ecp/foundation/persistence/port"
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/plugin"
 	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/plugin/handler"
-	kubernetes2domain "github.com/eu-sovereign-cloud/ecp/foundation/models/converters/kubernetes2domain"
+	kubernetes2domain "github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes2domain"
 )
 
 // BlockStorageController is the specialized controller for BlockStorage resources.

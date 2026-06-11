@@ -11,9 +11,9 @@ import (
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/plugin"
 	delegator "github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/port"
-	model "github.com/eu-sovereign-cloud/ecp/foundation/models/domain"
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional"
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/scope"
+	model "github.com/eu-sovereign-cloud/ecp/foundation/models"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/scope"
 	repo "github.com/eu-sovereign-cloud/ecp/foundation/persistence/port"
 
 	adaptconverter "github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/converter"

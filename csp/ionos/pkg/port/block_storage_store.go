@@ -3,7 +3,7 @@ package port
 import (
 	"context"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/models/domain/regional"
+	"github.com/eu-sovereign-cloud/ecp/foundation/models/regional"
 )
 
 type BlockStorageStore interface {

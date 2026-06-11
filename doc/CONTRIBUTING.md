@@ -63,8 +63,8 @@ To exclude a module from standard product CI checks (e.g., test harnesses, tool 
 
 Several files are generated and must not be edited by hand:
 
-- `foundation/models/kubernetes/generated/types/zz_generated_*.go` — Go types from OpenAPI spec
-- `foundation/models/kubernetes/generated/crds/*.yaml` — CRD YAML from controller-gen
+- `foundation/persistence/generated/types/zz_generated_*.go` — Go types from OpenAPI spec
+- `foundation/persistence/generated/crds/*.yaml` — CRD YAML from controller-gen
 
 After changing the OpenAPI specs in `modules/go-sdk`, regenerate:
 ```bash
