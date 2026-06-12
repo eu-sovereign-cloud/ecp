@@ -13,7 +13,7 @@ else
 fi
 
 
-DOCKER_BUILD_CONTEXT="${SCRIPT_DIR}/../../../.."
+DOCKER_BUILD_CONTEXT="${SCRIPT_DIR}/../../.."
 DOCKERFILE_PATH="${SCRIPT_DIR}/../build/Dockerfile"
 
 docker build --build-arg DLV_VERSION="${DLV_VERSION}" -t "${IMAGE_NAME}" -f "${DOCKERFILE_PATH}" "${DOCKER_BUILD_CONTEXT}"
