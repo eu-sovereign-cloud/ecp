@@ -1,6 +1,6 @@
 # Makefile for Dummy Delegator Plugin
 
-include ../../../.config.mk
+include ../../.config.mk
 
 # =====================================================================================
 # Variables
@@ -53,7 +53,7 @@ deploy: ## Deploy the dummy delegator to the configured Kubernetes cluster
 .PHONY: kind-start
 kind-start: ## Start a KIND cluster and deploy the dummy delegator
 	@echo "Starting KIND cluster and deploying..."
-	@CLUSTER_NAME=$(CLUSTER_NAME) IMG=$(IMG) VERSION=$(VERSION) ./scripts/kind-start.sh
+	@CLUSTER_NAME=$(CLUSTER_NAME) IMG=$(IMG) VERSION=$(VERSION) DLV_VERSION=$(DLV_VERSION) ./scripts/kind-start.sh
 
 .PHONY: kind-stop
 kind-stop: ## Stop the KIND cluster

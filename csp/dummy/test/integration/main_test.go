@@ -33,7 +33,7 @@ import (
 const (
 	testNamespace = "ecp-dummy-delegator"
 	pollInterval  = 5 * time.Second
-	timeout       = 2 * time.Minute
+	timeout       = 90 * time.Second // Maximum time to wait for a block storage resource to become active, considering the simulated delays in the dummy plugin
 )
 
 var (

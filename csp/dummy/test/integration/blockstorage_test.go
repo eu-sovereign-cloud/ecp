@@ -141,7 +141,7 @@ func TestBlockStorage(t *testing.T) {
 				},
 			}
 			if err := blockStorageRepo.Load(ctx, &loadedBs); err != nil {
-				if errors.Is(err, ecpmodel.ErrForbidden) {
+				if errors.Is(err, ecpmodel.ErrNotFound) {
 					return true, nil
 				}
 				return false, err
@@ -222,7 +222,8 @@ func TestBlockStorage(t *testing.T) {
 
 		//
 		// Then the resource status should eventually reflect the new size
-		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
+		// Note: we expect this to take longer than the initial creation due to the simulated delays in the dummy plugin for size increase
+		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, 2*timeout, true, func(ctx context.Context) (bool, error) {
 			currentBs := &regionalmodel.BlockStorageDomain{
 				Metadata: regionalmodel.Metadata{
 					CommonMetadata: ecpmodel.CommonMetadata{

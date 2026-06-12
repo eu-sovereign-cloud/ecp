@@ -6,11 +6,11 @@ namespace: ecp-dummy-delegator
 
 # List of resources to be applied
 resources:
-  - namespace.yaml
-  - serviceaccount.yaml
-  - clusterrole.yaml
-  - clusterrolebinding.yaml
-  - deployment.yaml
+- namespace.yaml
+- serviceaccount.yaml
+- clusterrole.yaml
+- clusterrolebinding.yaml
+- deployment.yaml
 
 # Parameterization for image
 # To change the image, use the command:
@@ -18,4 +18,4 @@ resources:
 images:
 - name: dummy-delegator-image
   newName: localhost/ecp-dummy-delegator
-  newTag: latest
+  newTag: v0.1.0-alpha1-preview
