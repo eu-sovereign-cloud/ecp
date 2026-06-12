@@ -26,8 +26,10 @@ import (
 	regionalmodel "github.com/eu-sovereign-cloud/ecp/foundation/models/regional"
 	"github.com/eu-sovereign-cloud/ecp/foundation/models/scope"
 	kubernetesadapter "github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes"
-	kubernetes2domain "github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes/domain"
+	kubernetes2domain "github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes2domain"
 	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage"
+	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage/block-storages/v1"
+	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/workspace/v1"
 )
 
 const (
