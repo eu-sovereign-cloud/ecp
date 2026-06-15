@@ -29,6 +29,7 @@ import (
 	kubernetes2domain "github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes2domain"
 	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage"
 	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage/block-storages/v1"
+	imagev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage/images/v1"
 	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/workspace/v1"
 )
 
@@ -43,6 +44,7 @@ var (
 	testLogger       *slog.Logger
 	workspaceRepo    *kubernetesadapter.RepoAdapter[*regionalmodel.WorkspaceDomain]
 	blockStorageRepo *kubernetesadapter.RepoAdapter[*regionalmodel.BlockStorageDomain]
+	imageRepo        *kubernetesadapter.RepoAdapter[*regionalmodel.ImageDomain]
 	k8sClient        client.Client
 )
 
@@ -92,6 +94,13 @@ func TestMain(m *testing.M) {
 		testLogger,
 		kubernetes2domain.MapBlockStorageDomainToCR,
 		kubernetes2domain.MapCRToBlockStorageDomain,
+	)
+	imageRepo = kubernetesadapter.NewRepoAdapter(
+		dynamicClient,
+		imagev1.ImageGVR,
+		testLogger,
+		kubernetes2domain.MapImageDomainToCR,
+		kubernetes2domain.MapCRToImageDomain,
 	)
 	workspaceRepo = kubernetesadapter.NewRepoAdapter(
 		dynamicClient,

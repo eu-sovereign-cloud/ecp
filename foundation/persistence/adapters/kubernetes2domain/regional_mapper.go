@@ -256,11 +256,6 @@ func MapCRToBlockStorageDomain(obj client.Object) (*regional.BlockStorageDomain,
 		status.PushCondition(regional.DefaultPendingCondition)
 	}
 
-	if status.SizeGB == 0 {
-		status.SizeGB = 1
-		fmt.Printf("Warning: BlockStorage %s has status sizeGB 0, defaulting to 1GB\n", meta.Name)
-	}
-
 	return &regional.BlockStorageDomain{
 		Metadata: meta,
 		Spec:     spec,
