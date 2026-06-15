@@ -29,6 +29,17 @@ type BlockStorage interface {
 }
 ```
 
+**`Image` interface** (`image.go`):
+```go
+type Image interface {
+    Create(ctx context.Context, resource *regional.ImageDomain) error
+    Delete(ctx context.Context, resource *regional.ImageDomain) error
+}
+```
+
+Images are immutable once created (no update/resize operation): to change an
+image it must be deleted and recreated.
+
 A plugin implements these interfaces for each resource type it supports. The delegator controllers call the appropriate interface method when a reconciliation event requires provisioning or deprovisioning.
 
 ## Available Plugins

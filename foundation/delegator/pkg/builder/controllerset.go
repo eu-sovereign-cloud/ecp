@@ -25,6 +25,7 @@ const (
 // PluginSet.
 type ControllerSet struct {
 	blockStorage *controller.BlockStorageController
+	image        *controller.ImageController
 	workspace    *controller.WorkspaceController
 }
 
@@ -79,10 +80,12 @@ func NewControllerSet(config *rest.Config, k8sClient client.Client, plugins Plug
 
 	// 5. Create the controllers
 	bs := newBlockStorageController(k8sClient, dynamicClient, plugins.BlockStorage, o)
+	img := newImageController(k8sClient, dynamicClient, plugins.Image, o)
 	ws := newWorkspaceController(k8sClient, dynamicClient, clientset, plugins.Workspace, o)
 
 	return &ControllerSet{
 		blockStorage: &bs,
+		image:        &img,
 		workspace:    &ws,
 	}, nil
 }
@@ -95,6 +98,10 @@ func (c *ControllerSet) validate() error {
 
 	if c.blockStorage == nil {
 		return errors.New("blockStorage is required")
+	}
+
+	if c.image == nil {
+		return errors.New("image is required")
 	}
 
 	if c.workspace == nil {
@@ -115,6 +122,10 @@ func (c *ControllerSet) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	if err := (*controller.GenericController[*regional.BlockStorageDomain])(c.blockStorage).SetupWithManager(mgr); err != nil {
+		return err
+	}
+
+	if err := (*controller.GenericController[*regional.ImageDomain])(c.image).SetupWithManager(mgr); err != nil {
 		return err
 	}
 

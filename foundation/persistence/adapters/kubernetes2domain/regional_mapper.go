@@ -13,6 +13,7 @@ import (
 
 	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/common"
 	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage/block-storages/v1"
+	imagev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage/images/v1"
 	storageskuv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage/skus/v1"
 	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/workspace/v1"
 	genv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/generated/types"
@@ -255,6 +256,11 @@ func MapCRToBlockStorageDomain(obj client.Object) (*regional.BlockStorageDomain,
 		status.PushCondition(regional.DefaultPendingCondition)
 	}
 
+	if status.SizeGB == 0 {
+		status.SizeGB = 1
+		fmt.Printf("Warning: BlockStorage %s has status sizeGB 0, defaulting to 1GB\n", meta.Name)
+	}
+
 	return &regional.BlockStorageDomain{
 		Metadata: meta,
 		Spec:     spec,
@@ -307,6 +313,119 @@ func MapBlockStorageDomainToCR(domain *regional.BlockStorageDomain) (client.Obje
 		}
 		if domain.Status.AttachedTo != nil {
 			cr.Status.AttachedTo = new(mapReferenceDomainToCR(*domain.Status.AttachedTo))
+		}
+	}
+
+	return cr, nil
+}
+
+//
+// Image Domain
+
+// MapCRToImageDomain converts either concrete *imagev1.Image or unstructured.Unstructured into an ImageDomain.
+func MapCRToImageDomain(obj client.Object) (*regional.ImageDomain, error) {
+	var cr imagev1.Image
+
+	switch t := obj.(type) {
+	case *imagev1.Image:
+		cr = *t
+	case *unstructured.Unstructured:
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(t.Object, &cr); err != nil {
+			return nil, fmt.Errorf("failed to convert unstructured to Image: %w", err)
+		}
+	default:
+		return nil, fmt.Errorf("unsupported object type %T", obj)
+	}
+
+	spec := regional.ImageSpecDomain{
+		BlockStorageRef: mapCRToReferenceDomain(cr.Spec.BlockStorageRef),
+		CpuArchitecture: string(cr.Spec.CpuArchitecture),
+		Initializer:     string(cr.Spec.Initializer),
+		Boot:            string(cr.Spec.Boot),
+	}
+
+	crLabels := cr.GetLabels()
+	internalLabels := labels.GetInternalLabels(crLabels)
+	keyedLabels := labels.GetKeyedLabels(crLabels)
+	// NOTE: Do we expect CSP labels on resources created by a user? If so, they'll need to be added as well.
+
+	meta := regional.Metadata{
+		CommonMetadata: model.CommonMetadata{
+			Name:            cr.GetName(),
+			ResourceVersion: cr.GetResourceVersion(),
+			CreatedAt:       cr.GetCreationTimestamp().Time,
+			UpdatedAt:       cr.GetCreationTimestamp().Time,
+			Provider:        strings.ReplaceAll(internalLabels[labels.InternalProviderLabel], "_", "/"),
+		},
+		Scope: scope.Scope{
+			Tenant: internalLabels[labels.InternalTenantLabel],
+		},
+		Region:      internalLabels[labels.InternalRegionLabel],
+		Labels:      labels.KeyedToOriginal(keyedLabels, cr.CommonData.Labels),
+		Annotations: cr.CommonData.Annotations,
+		Extensions:  cr.CommonData.Extensions,
+	}
+	if ts := cr.GetDeletionTimestamp(); ts != nil {
+		meta.DeletedAt = &ts.Time
+	}
+
+	var status = &regional.ImageStatusDomain{}
+	if cr.Status != nil {
+		status = &regional.ImageStatusDomain{
+			SizeMB: cr.Status.SizeMB,
+			StatusDomain: regional.StatusDomain{
+				State:      mapCRToResourceStateDomain(cr.Status.State),
+				Conditions: mapCRToStatusConditionDomains(cr.Status.Conditions),
+			},
+		}
+	} else {
+		status.PushCondition(regional.DefaultPendingCondition)
+	}
+
+	return &regional.ImageDomain{
+		Metadata: meta,
+		Spec:     spec,
+		Status:   status,
+	}, nil
+}
+
+// MapImageDomainToCR converts an ImageDomain to a Kubernetes Image CR.
+func MapImageDomainToCR(domain *regional.ImageDomain) (client.Object, error) {
+	// Merge CSP labels with internal labels. Image is tenant-scoped, so no workspace label.
+	crLabels := labels.OriginalToKeyed(domain.Labels)
+	crLabels[labels.InternalTenantLabel] = domain.Tenant
+	crLabels[labels.InternalProviderLabel] = strings.ReplaceAll(domain.Provider, "/", "_")
+	crLabels[labels.InternalRegionLabel] = domain.Region
+	cr := &imagev1.Image{
+		ObjectMeta: v1.ObjectMeta{
+			Name:            domain.Name,
+			Namespace:       kubernetesadapter.ComputeNamespace(domain),
+			Labels:          crLabels,
+			ResourceVersion: domain.ResourceVersion,
+		},
+		CommonData: common.CommonData{
+			Annotations: domain.Annotations,
+			Extensions:  domain.Extensions,
+			Labels:      slices.Collect(maps.Keys(domain.Labels)),
+		},
+		Spec: genv1.ImageSpec{
+			BlockStorageRef: mapReferenceDomainToCR(domain.Spec.BlockStorageRef),
+			CpuArchitecture: genv1.ImageSpecCpuArchitecture(domain.Spec.CpuArchitecture),
+			Initializer:     genv1.ImageSpecInitializer(domain.Spec.Initializer),
+			Boot:            genv1.ImageSpecBoot(domain.Spec.Boot),
+		},
+	}
+	cr.SetGroupVersionKind(imagev1.ImageGVK)
+
+	if domain.Status != nil && len(domain.Status.Conditions) > 0 {
+		state := mapResourceStateDomainToCR(domain.Status.State)
+		if state == nil {
+			return nil, fmt.Errorf("failed to convert resource state to CR")
+		}
+		cr.Status = &genv1.ImageStatus{
+			SizeMB:     domain.Status.SizeMB,
+			Conditions: mapStatusConditionDomainsToCR(domain.Status.Conditions),
+			State:      *state,
 		}
 	}
 

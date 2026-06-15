@@ -21,6 +21,7 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes2domain"
 	networksv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/network/networks/v1"
 	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage/block-storages/v1"
+	imagev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage/images/v1"
 	skuv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage/skus/v1"
 	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/workspace/v1"
 
@@ -167,6 +168,20 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		logger,
 		kubernetes2domain.MapCRToBlockStorageDomain,
 	)
+	// Image writer and reader adapters
+	imageWriterAdapter := kubernetes.NewWriterAdapter(
+		client.Client,
+		imagev1.ImageGVR,
+		logger,
+		kubernetes2domain.MapImageDomainToCR,
+		kubernetes2domain.MapCRToImageDomain,
+	)
+	imageReaderAdapter := kubernetes.NewReaderAdapter(
+		client.Client,
+		imagev1.ImageGVR,
+		logger,
+		kubernetes2domain.MapCRToImageDomain,
+	)
 	// Register storage handler
 	sdkstorageapi.HandlerWithOptions(
 		regionalhandler.Storage{
@@ -197,6 +212,26 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 			DeleteStorage: &storage.DeleteBlockStorage{
 				Logger:           logger,
 				BlockStorageRepo: blockStorageWriterAdapter,
+			},
+			ListImage: &storage.ListImages{
+				Logger:    logger,
+				ImageRepo: imageReaderAdapter,
+			},
+			ImageGet: &storage.GetImage{
+				Logger:    logger,
+				ImageRepo: imageReaderAdapter,
+			},
+			ImageCreate: &storage.CreateImage{
+				Logger:    logger,
+				ImageRepo: imageWriterAdapter,
+			},
+			ImageUpdate: &storage.UpdateImage{
+				Logger:    logger,
+				ImageRepo: imageWriterAdapter,
+			},
+			ImageDelete: &storage.DeleteImage{
+				Logger:    logger,
+				ImageRepo: imageWriterAdapter,
 			},
 			Logger: logger,
 		}, sdkstorageapi.StdHTTPServerOptions{

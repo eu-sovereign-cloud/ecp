@@ -26,6 +26,11 @@ type Storage struct {
 	CreateBlockStorage *storage.CreateBlockStorage
 	UpdateBlockStorage *storage.UpdateBlockStorage
 	DeleteStorage      *storage.DeleteBlockStorage
+	ListImage          *storage.ListImages
+	ImageGet           *storage.GetImage
+	ImageCreate        *storage.CreateImage
+	ImageUpdate        *storage.UpdateImage
+	ImageDelete        *storage.DeleteImage
 	Logger             *slog.Logger
 }
 
@@ -35,28 +40,84 @@ func (h Storage) ListImages(
 	w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam,
 	params sdkstorage.ListImagesParams,
 ) {
-	// TODO implement me
+	handler.HandleList(w, r, h.Logger.With("provider", "storage").With("resource", "image"),
+		apistorage.ImageListParamsFromAPI(params, tenant),
+		h.ListImage,
+		apistorage.ImageDomainToAPIIterator,
+	)
 }
 
 func (h Storage) DeleteImage(
 	w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam,
 	name sdkschema.ResourcePathParam, params sdkstorage.DeleteImageParams,
 ) {
-	// TODO implement me
+	metadata := regional.Metadata{
+		CommonMetadata: model.CommonMetadata{
+			Name:     name,
+			Provider: consts.StorageProvider,
+		},
+		Scope: scope.Scope{
+			Tenant: tenant,
+		},
+		Region: config.Singleton().Region(),
+	}
+	if params.IfUnmodifiedSince != nil {
+		metadata.ResourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
+	}
+	handler.HandleDelete(w, r, h.Logger.With("provider", "storage").With("resource", "image"),
+		&metadata,
+		h.ImageDelete,
+	)
 }
 
 func (h Storage) GetImage(
 	w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam,
 	name sdkschema.ResourcePathParam,
 ) {
-	// TODO implement me
+	handler.HandleGet(w, r, h.Logger.With("provider", "storage").With("resource", "image"),
+		&regional.Metadata{
+			CommonMetadata: model.CommonMetadata{
+				Name:     name,
+				Provider: consts.StorageProvider,
+			},
+			Scope: scope.Scope{
+				Tenant: tenant,
+			},
+			Region: config.Singleton().Region(),
+		},
+		h.ImageGet,
+		apistorage.ImageDomainToAPIWithVerb(http.MethodGet),
+	)
 }
 
 func (h Storage) CreateOrUpdateImage(
 	w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam,
 	name sdkschema.ResourcePathParam, params sdkstorage.CreateOrUpdateImageParams,
 ) {
-	// TODO implement me
+	var resourceVersion string
+	if params.IfUnmodifiedSince != nil {
+		resourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
+	}
+
+	handler.HandleUpsert(w, r, h.Logger.With("provider", "storage").With("resource", "image"),
+		handler.UpsertOptions[sdkschema.Image, *regional.ImageDomain, *sdkschema.Image]{
+			Params: &regional.Metadata{
+				CommonMetadata: model.CommonMetadata{
+					Name:            name,
+					Provider:        consts.StorageProvider,
+					ResourceVersion: resourceVersion,
+				},
+				Scope: scope.Scope{
+					Tenant: tenant,
+				},
+				Region: config.Singleton().Region(),
+			},
+			Creator:     h.ImageCreate,
+			Updater:     h.ImageUpdate,
+			APIToDomain: apistorage.APIToImageDomain,
+			DomainToAPI: apistorage.ImageDomainToAPIWithVerb(http.MethodPut),
+		},
+	)
 }
 
 func (h Storage) ListSkus(w http.ResponseWriter, r *http.Request,

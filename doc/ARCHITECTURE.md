@@ -41,7 +41,7 @@ Two HTTP servers expose the ECP REST API:
 | Server   | Default port | Scope                                    |
 |----------|--------------|------------------------------------------|
 | Global   | 8080         | `GET /regions`, `GET /regions/{id}`      |
-| Regional | 8080         | `GET/POST /workspaces`, `GET/POST /block-storages`, `GET /skus` |
+| Regional | 8080         | `GET/POST /workspaces`, `GET/POST /block-storages`, `GET/PUT/DELETE /images`, `GET /skus` |
 
 Both servers are generated from the OpenAPI specification shared with the [go-sdk](https://github.com/eu-sovereign-cloud/go-sdk) client library, so there is no encoding gap between client and server. Incoming requests are written directly to the Kubernetes API server as CR create/update operations.
 
@@ -92,6 +92,7 @@ Global resources are stored in the `seca` namespace. Replicating the `seca` name
 | `Tenant` | Lifecycle owner for all regional resources belonging to one tenant |
 | `Workspace` | Logical grouping of resources within a tenant |
 | `BlockStorage` | Block storage volume |
+| `Image` | Bootable image template, derived from a block storage (tenant-scoped) |
 | `Network` | Network resource |
 | `StorageSKU` / `NetworkSKU` | Available SKU options (read-only) |
 

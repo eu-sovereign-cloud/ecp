@@ -52,11 +52,13 @@ func main() {
 
 	// 3. Instantiate dummy plugins
 	bsPlugin := dummyplugin.NewBlockStorage(logger.With("plugin", "blockstorage"))
+	imgPlugin := dummyplugin.NewImage(logger.With("plugin", "image"))
 	wsPlugin := dummyplugin.NewWorkspace(logger.With("plugin", "workspace"))
 
 	// 4. Create a plugin set
 	pluginSet := builder.PluginSet{
 		BlockStorage: bsPlugin,
+		Image:        imgPlugin,
 		Workspace:    wsPlugin,
 	}
 

@@ -10,6 +10,7 @@ import (
 	kubernetesadapter "github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes"
 	kubernetes2domain "github.com/eu-sovereign-cloud/ecp/foundation/persistence/adapters/kubernetes2domain"
 	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage/block-storages/v1"
+	imagev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage/images/v1"
 	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/workspace/v1"
 )
 
@@ -28,6 +29,23 @@ func newBlockStorageController(
 	)
 
 	return controller.NewBlockStorageController(client, repo, plugin, opts.RequeueAfter, opts.Logger, opts.MaxConditions)
+}
+
+func newImageController(
+	client client.Client,
+	dynamicClient dynamic.Interface,
+	plugin plugin.Image,
+	opts Options,
+) controller.ImageController {
+	repo := kubernetesadapter.NewRepoAdapter(
+		dynamicClient,
+		imagev1.ImageGVR,
+		opts.Logger,
+		kubernetes2domain.MapImageDomainToCR,
+		kubernetes2domain.MapCRToImageDomain,
+	)
+
+	return controller.NewImageController(client, repo, plugin, opts.RequeueAfter, opts.Logger, opts.MaxConditions)
 }
 
 func newWorkspaceController(

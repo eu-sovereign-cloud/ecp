@@ -9,6 +9,7 @@ import (
 // PluginSet is a collection of plugins that a specific provider will implement.
 type PluginSet struct {
 	BlockStorage plugin.BlockStorage
+	Image        plugin.Image
 	Workspace    plugin.Workspace
 }
 
@@ -16,6 +17,9 @@ type PluginSet struct {
 func (ps PluginSet) Validate() error {
 	if ps.BlockStorage == nil {
 		return errors.New("block storage plugin is required")
+	}
+	if ps.Image == nil {
+		return errors.New("image plugin is required")
 	}
 	if ps.Workspace == nil {
 		return errors.New("workspace plugin is required")
