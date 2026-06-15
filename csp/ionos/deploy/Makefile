@@ -57,7 +57,7 @@ docker-build-plugin:
 	docker build \
 		-f ../build/Dockerfile \
 		-t $(PLUGIN_IMAGE) \
-		../../../../
+		../../../
 
 # Install ECP CRDs on the regional cluster (required for the plugin manager to sync caches)
 install-ecp-crds-on-regional:

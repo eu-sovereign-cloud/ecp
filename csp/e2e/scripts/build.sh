@@ -12,7 +12,7 @@ FULL_IMAGE_NAME=$IMAGE_NAME
 USE_KIND=true setup_registry_vars "$1"
 LOCAL_IMAGE_NAME=$IMAGE_NAME
 
-DOCKER_BUILD_CONTEXT="${SCRIPT_DIR}/../../../.."
+DOCKER_BUILD_CONTEXT="${SCRIPT_DIR}/../../.."
 DOCKERFILE_PATH="${SCRIPT_DIR}/../build/${COMPONENT}/Dockerfile"
 
 # Build with the full name
