@@ -33,9 +33,9 @@ func TestWorkspaceProjectConverter_FromSECAToAruba(t *testing.T) {
 						Workspace: "workspace-abc",
 					},
 				},
-				Spec: map[string]interface{}{
+				Spec: map[string]any{
 					"description": "My test project",
-					"tags":        []interface{}{"tag1", "tag2"},
+					"tags":        []any{"tag1", "tag2"},
 					"default":     true,
 				},
 			},

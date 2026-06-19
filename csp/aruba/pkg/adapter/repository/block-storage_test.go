@@ -172,8 +172,7 @@ func TestBlockStorage_Delete(t *testing.T) {
 }
 
 func TestBlockStorage_Watch(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
@@ -228,8 +227,7 @@ func TestBlockStorage_Watch(t *testing.T) {
 }
 
 func TestBlockStorage_WaitUntil(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 	// Create a fake client with one BlockStorage object
@@ -258,15 +256,13 @@ func TestBlockStorage_WaitUntil(t *testing.T) {
 		AddEventHandler(gomock.Any()).
 		Do(func(handler kcache.ResourceEventHandler) {
 			// Simulate an update event after a short delay
-			wg.Add(1)
-			go func() {
+			wg.Go(func() {
 				// Simulate an update to the BlockStorage
 				updatedStorage := storage.DeepCopy()
 				updatedStorage.Spec.SizeGB = 100
 				errUpdate = fakeClient.Update(ctx, updatedStorage)
 				handler.OnUpdate(storage, updatedStorage)
-				wg.Done()
-			}()
+			})
 		}).
 		AnyTimes()
 
