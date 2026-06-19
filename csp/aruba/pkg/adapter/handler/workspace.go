@@ -2,12 +2,10 @@ package handler
 
 import (
 	"context"
-	"time"
 
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 
-	backend "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
 	wsdom "github.com/eu-sovereign-cloud/ecp/resources/workspace/v1"
 	wsk8s "github.com/eu-sovereign-cloud/ecp/resources/workspace/v1/backend/kubernetes"
 
@@ -41,18 +39,14 @@ func NewWorkspaceHandler(repo repository.Repository[*v1alpha1.Project, *v1alpha1
 	handler.createDelegated = delegated.NewStraightDelegated(
 		conv.FromSECAToAruba,
 		mutator_bypass.BypassMutateFunc[*v1alpha1.Project, *wsdom.Workspace],
-		repo.Create,
-		func(p *v1alpha1.Project) bool {
-			return p.Status.Phase == v1alpha1.ResourcePhaseActive
-		},
-		handler.waitUntilManagedError,
+		handler.propagateCreate,
+		handler.checkWsCreated,
 	)
 	handler.deleteDelegated = delegated.NewStraightDelegated(
 		conv.FromSECAToAruba,
 		mutator_bypass.BypassMutateFunc[*v1alpha1.Project, *wsdom.Workspace],
-		repo.Delete,
-		handler.checkWsDeleteCondition,
-		handler.waitUntilManagedError,
+		handler.propagateDelete,
+		handler.checkWsDeleted,
 	)
 
 	return handler
@@ -68,27 +62,55 @@ func (h *WorkspaceHandler) Delete(ctx context.Context, domain *wsdom.Workspace) 
 	return h.deleteDelegated.Do(ctx, domain)
 }
 
-func (h *WorkspaceHandler) checkWsDeleteCondition(project *v1alpha1.Project) bool {
-	// TODO: refactor design completely
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
+// checkWsCreated reports whether the Aruba Project already exists and has
+// reached the active phase.
+func (h *WorkspaceHandler) checkWsCreated(ctx context.Context, _ *wsdom.Workspace, project *v1alpha1.Project) (bool, error) {
+	observed := project.DeepCopy()
 
-	err := h.repository.Load(ctx, project)
-
-	return errors.IsNotFound(err)
-}
-
-// waitUntilManagedError waits until the provided condition is met for the given resource.
-// If the condition is not met within the timeout, it returns backend.ErrStillProcessing to indicate that the operation is still in progress.
-func (h *WorkspaceHandler) waitUntilManagedError(ctx context.Context, project *v1alpha1.Project, condition repository.WaitConditionFunc[*v1alpha1.Project]) (*v1alpha1.Project, error) {
-	proj, err := h.repository.WaitUntil(ctx, project, condition)
-	if err != nil {
-		// Check if the error is due to the resource not being found, which can be expected during deletion
-		if errors.IsTimeout(err) {
-			return nil, backend.ErrStillProcessing // Resource is gone, treat as successful deletion
+	if err := h.repository.Load(ctx, observed); err != nil {
+		if errors.IsNotFound(err) {
+			return false, nil // Not created yet, it must be created.
 		}
-		return nil, err // Return other errors for handling
+
+		return false, err
 	}
 
-	return proj, nil
+	return observed.Status.Phase == v1alpha1.ResourcePhaseActive, nil
+}
+
+// checkWsDeleted reports whether the Aruba Project is gone.
+func (h *WorkspaceHandler) checkWsDeleted(ctx context.Context, _ *wsdom.Workspace, project *v1alpha1.Project) (bool, error) {
+	observed := project.DeepCopy()
+
+	if err := h.repository.Load(ctx, observed); err != nil {
+		if errors.IsNotFound(err) {
+			return true, nil // Gone, deletion is complete.
+		}
+
+		return false, err
+	}
+
+	return false, nil // Still present, deletion is in progress.
+}
+
+// propagateCreate creates the Aruba Project. It is idempotent: because the
+// create is (re)issued on every pass until the project becomes active, an
+// already existing project is not treated as an error.
+func (h *WorkspaceHandler) propagateCreate(ctx context.Context, project *v1alpha1.Project) error {
+	if err := h.repository.Create(ctx, project); err != nil && !errors.IsAlreadyExists(err) {
+		return err
+	}
+
+	return nil
+}
+
+// propagateDelete deletes the Aruba Project. It is idempotent: because the
+// delete is (re)issued on every pass until the project is gone, an already
+// missing project is not treated as an error.
+func (h *WorkspaceHandler) propagateDelete(ctx context.Context, project *v1alpha1.Project) error {
+	if err := h.repository.Delete(ctx, project); err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+
+	return nil
 }

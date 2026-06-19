@@ -14,6 +14,14 @@ import (
 	wsdom "github.com/eu-sovereign-cloud/ecp/resources/workspace/v1"
 )
 
+func notFoundErr(name string) error {
+	return errors.NewNotFound(schema.GroupResource{Group: "your.group", Resource: "your-resource"}, name)
+}
+
+func alreadyExistsErr(name string) error {
+	return errors.NewAlreadyExists(schema.GroupResource{Group: "your.group", Resource: "your-resource"}, name)
+}
+
 func TestWorkspace_create(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -47,6 +55,13 @@ func TestWorkspace_create(t *testing.T) {
 					FromSECAToAruba(workspaceDomain).
 					Return(prj, nil)
 
+				// Not created yet, so the check reports "not present".
+				mockRepo.
+					EXPECT().
+					Load(gomock.Any(), gomock.Any()).
+					Return(notFoundErr(workspaceDomain.Name)).
+					AnyTimes()
+
 				mockRepo.
 					EXPECT().
 					Create(context.Background(), prj).
@@ -56,7 +71,7 @@ func TestWorkspace_create(t *testing.T) {
 			errContains: "creation error",
 		},
 		{
-			name: "pending creation - condition not met",
+			name: "pending creation - still processing",
 			setupMocks: func(mockRepo *MockRepository[*v1alpha1.Project, *v1alpha1.ProjectList], mockConv *MockConverter[*wsdom.Workspace, *v1alpha1.Project], workspaceDomain *wsdom.Workspace) {
 				prj := &v1alpha1.Project{
 					Spec: v1alpha1.ProjectSpec{
@@ -73,23 +88,20 @@ func TestWorkspace_create(t *testing.T) {
 					FromSECAToAruba(workspaceDomain).
 					Return(prj, nil).MaxTimes(1)
 
+				// Present but not yet active, so the check reports "not done".
+				mockRepo.
+					EXPECT().
+					Load(gomock.Any(), gomock.Any()).
+					Return(nil).
+					AnyTimes()
+
 				mockRepo.
 					EXPECT().
 					Create(context.Background(), prj).
 					Return(nil).AnyTimes()
-
-				mockRepo.
-					EXPECT().
-					WaitUntil(context.Background(), prj, gomock.Any()).
-					DoAndReturn(func(_ context.Context, _ *v1alpha1.Project, condition func(*v1alpha1.Project) bool) (*v1alpha1.Project, error) {
-						if condition(prj) {
-							return prj, nil
-						}
-						return nil, fmt.Errorf("condition not met")
-					})
 			},
 			wantErr:     true,
-			errContains: "condition not met",
+			errContains: "operation still in progress",
 		},
 		{
 			name: "success create",
@@ -109,20 +121,17 @@ func TestWorkspace_create(t *testing.T) {
 					FromSECAToAruba(workspaceDomain).
 					Return(prj, nil).MaxTimes(1)
 
+				// Present and active, so the check reports "done".
+				mockRepo.
+					EXPECT().
+					Load(gomock.Any(), gomock.Any()).
+					Return(nil).
+					AnyTimes()
+
 				mockRepo.
 					EXPECT().
 					Create(context.Background(), prj).
 					Return(nil).AnyTimes()
-
-				mockRepo.
-					EXPECT().
-					WaitUntil(context.Background(), prj, gomock.Any()).
-					DoAndReturn(func(_ context.Context, _ *v1alpha1.Project, condition func(*v1alpha1.Project) bool) (*v1alpha1.Project, error) {
-						if condition(prj) {
-							return prj, nil
-						}
-						return nil, fmt.Errorf("condition not met")
-					})
 			},
 			wantErr: false,
 		},
@@ -195,8 +204,9 @@ func TestWorkspace_delete(t *testing.T) {
 					FromSECAToAruba(workspaceDomain).
 					Return(prj, nil)
 
+				// Still present, so the check reports "not done".
 				mockRepo.EXPECT().
-					Load(gomock.Any(), prj).
+					Load(gomock.Any(), gomock.Any()).
 					Return(nil).
 					AnyTimes()
 
@@ -209,7 +219,7 @@ func TestWorkspace_delete(t *testing.T) {
 			errContains: "deletion error",
 		},
 		{
-			name: "pending deletion - condition not met",
+			name: "pending deletion - still processing",
 			setupMocks: func(mockRepo *MockRepository[*v1alpha1.Project, *v1alpha1.ProjectList], mockConv *MockConverter[*wsdom.Workspace, *v1alpha1.Project], workspaceDomain *wsdom.Workspace) {
 				prj := &v1alpha1.Project{
 					Spec: v1alpha1.ProjectSpec{
@@ -226,28 +236,19 @@ func TestWorkspace_delete(t *testing.T) {
 					FromSECAToAruba(workspaceDomain).
 					Return(prj, nil).MaxTimes(1)
 
-				mockRepo.
-					EXPECT().
-					Delete(context.Background(), prj).
-					Return(nil).AnyTimes()
-
+				// Still present, so the check reports "not done".
 				mockRepo.EXPECT().
-					Load(gomock.Any(), prj).
+					Load(gomock.Any(), gomock.Any()).
 					Return(nil).
 					AnyTimes()
 
 				mockRepo.
 					EXPECT().
-					WaitUntil(context.Background(), prj, gomock.Any()).
-					DoAndReturn(func(_ context.Context, _ *v1alpha1.Project, condition func(*v1alpha1.Project) bool) (*v1alpha1.Project, error) {
-						if condition(prj) {
-							return prj, nil
-						}
-						return nil, fmt.Errorf("condition not met")
-					})
+					Delete(context.Background(), prj).
+					Return(nil).AnyTimes()
 			},
 			wantErr:     true,
-			errContains: "condition not met",
+			errContains: "operation still in progress",
 		},
 		{
 			name: "success delete",
@@ -267,33 +268,16 @@ func TestWorkspace_delete(t *testing.T) {
 					FromSECAToAruba(workspaceDomain).
 					Return(prj, nil).MaxTimes(1)
 
-				mockRepo.
-					EXPECT().
-					Delete(context.Background(), prj).
-					Return(nil).AnyTimes()
-
-				notFoundErr := errors.NewNotFound(
-					schema.GroupResource{
-						Group:    "your.group",
-						Resource: "your-resource",
-					},
-					workspaceDomain.Name,
-				)
-
+				// Gone, so the check reports "done".
 				mockRepo.EXPECT().
-					Load(gomock.Any(), prj).
-					Return(notFoundErr).
+					Load(gomock.Any(), gomock.Any()).
+					Return(notFoundErr(workspaceDomain.Name)).
 					AnyTimes()
 
 				mockRepo.
 					EXPECT().
-					WaitUntil(context.Background(), prj, gomock.Any()).
-					DoAndReturn(func(_ context.Context, _ *v1alpha1.Project, condition func(*v1alpha1.Project) bool) (*v1alpha1.Project, error) {
-						if condition(prj) {
-							return prj, nil
-						}
-						return nil, fmt.Errorf("condition not met")
-					})
+					Delete(context.Background(), prj).
+					Return(nil).AnyTimes()
 			},
 			wantErr: false,
 		},
