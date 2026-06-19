@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"strings"
-	"time"
 
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -81,10 +80,7 @@ func NewBlockStorageHandler(
 		handler.resolveArubaBlockStorageDependencies,
 		mutator_bypass.BypassMutateFunc[*ArubaBlockStorageBundle, *SecaBlockStorageBundle],
 		handler.propagateCreate,
-		func(p *ArubaBlockStorageBundle) bool {
-			return p.BlockStorage.Status.Phase == v1alpha1.ResourcePhaseActive
-		},
-		handler.waitUntilManagedError,
+		handler.checkBsCreated,
 	)
 
 	handler.deleteDelegated = delegated.NewDelegated(
@@ -93,8 +89,7 @@ func NewBlockStorageHandler(
 		resolver_bypass.BypassResolveDependenciesFunc[*ArubaBlockStorageBundle],
 		mutator_bypass.BypassMutateFunc[*ArubaBlockStorageBundle, *SecaBlockStorageBundle],
 		handler.propagateDelete,
-		handler.checkBsDeleteCondition,
-		handler.waitUntilManagedError,
+		handler.checkBsDeleted,
 	)
 
 	handler.increaseSizeDelegated = delegated.NewDelegated(
@@ -103,8 +98,7 @@ func NewBlockStorageHandler(
 		handler.resolveBlockStorageDependencies,
 		handler.blockStorageMutateSizeFunc,
 		handler.propagateUpdate,
-		handler.checkBsIncreaseSizeCondition,
-		handler.waitUntilManagedError,
+		handler.checkBsResized,
 	)
 
 	return handler
@@ -125,29 +119,52 @@ func (h *BlockStorageHandler) IncreaseSize(ctx context.Context, domain *bsdom.Bl
 	return h.increaseSizeDelegated.Do(ctx, domain)
 }
 
-func (h *BlockStorageHandler) checkBsDeleteCondition(arubaBundle *ArubaBlockStorageBundle) bool {
-	// TODO: refactor design completely
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
+// checkBsCreated reports whether the Aruba BlockStorage already exists and has
+// reached the active phase.
+func (h *BlockStorageHandler) checkBsCreated(ctx context.Context, _ *SecaBlockStorageBundle, bundle *ArubaBlockStorageBundle) (bool, error) {
+	observed := bundle.BlockStorage.DeepCopy()
 
-	err := h.bsRepository.Load(ctx, arubaBundle.BlockStorage)
+	if err := h.bsRepository.Load(ctx, observed); err != nil {
+		if apierrors.IsNotFound(err) {
+			return false, nil // Not created yet, it must be created.
+		}
 
-	return apierrors.IsNotFound(err)
-}
-
-func (h *BlockStorageHandler) checkBsIncreaseSizeCondition(arubaBundle *ArubaBlockStorageBundle) bool {
-	// TODO: refactor design completely
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-
-	size := arubaBundle.BlockStorage.Spec.SizeGB
-
-	err := h.bsRepository.Load(ctx, arubaBundle.BlockStorage)
-	if err != nil {
-		return false
+		return false, err
 	}
 
-	return arubaBundle.BlockStorage.Spec.SizeGB == size && arubaBundle.BlockStorage.Status.Phase == v1alpha1.ResourcePhaseActive
+	return observed.Status.Phase == v1alpha1.ResourcePhaseActive, nil
+}
+
+// checkBsDeleted reports whether the Aruba BlockStorage is gone.
+func (h *BlockStorageHandler) checkBsDeleted(ctx context.Context, _ *SecaBlockStorageBundle, bundle *ArubaBlockStorageBundle) (bool, error) {
+	observed := bundle.BlockStorage.DeepCopy()
+
+	if err := h.bsRepository.Load(ctx, observed); err != nil {
+		if apierrors.IsNotFound(err) {
+			return true, nil // Gone, deletion is complete.
+		}
+
+		return false, err
+	}
+
+	return false, nil // Still present, deletion is in progress.
+}
+
+// checkBsResized reports whether the Aruba BlockStorage already has the
+// requested size and is back to the active phase.
+func (h *BlockStorageHandler) checkBsResized(ctx context.Context, seca *SecaBlockStorageBundle, bundle *ArubaBlockStorageBundle) (bool, error) {
+	desiredSize, err := adaptconverter.SecaToArubaSize(seca.BlockStorage.Spec.SizeGB)
+	if err != nil {
+		return false, err
+	}
+
+	observed := bundle.BlockStorage.DeepCopy()
+
+	if err := h.bsRepository.Load(ctx, observed); err != nil {
+		return false, err
+	}
+
+	return observed.Spec.SizeGB == desiredSize && observed.Status.Phase == v1alpha1.ResourcePhaseActive, nil
 }
 
 func (h *BlockStorageHandler) blockStorageMutateSizeFunc(mutable *ArubaBlockStorageBundle, params *SecaBlockStorageBundle) error {
@@ -261,12 +278,26 @@ func (h *BlockStorageHandler) FromSECABundleToAruba(from *SecaBlockStorageBundle
 	return response, nil
 }
 
+// propagateCreate creates the Aruba BlockStorage. It is idempotent: because the
+// create is (re)issued on every pass until the resource becomes active, an
+// already existing resource is not treated as an error.
 func (h *BlockStorageHandler) propagateCreate(ctx context.Context, from *ArubaBlockStorageBundle) error {
-	return h.bsRepository.Create(ctx, from.BlockStorage)
+	if err := h.bsRepository.Create(ctx, from.BlockStorage); err != nil && !apierrors.IsAlreadyExists(err) {
+		return err
+	}
+
+	return nil
 }
 
+// propagateDelete deletes the Aruba BlockStorage. It is idempotent: because the
+// delete is (re)issued on every pass until the resource is gone, an already
+// missing resource is not treated as an error.
 func (h *BlockStorageHandler) propagateDelete(ctx context.Context, from *ArubaBlockStorageBundle) error {
-	return h.bsRepository.Delete(ctx, from.BlockStorage)
+	if err := h.bsRepository.Delete(ctx, from.BlockStorage); err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+
+	return nil
 }
 
 func (h *BlockStorageHandler) propagateUpdate(ctx context.Context, from *ArubaBlockStorageBundle) error {
@@ -279,27 +310,4 @@ func (h *BlockStorageHandler) resolveBlockStorageDependencies(ctx context.Contex
 	return &ArubaBlockStorageBundle{
 		BlockStorage: main.BlockStorage,
 	}, err
-}
-
-// waitUntilManagedError waits until the provided condition is met for the given arubaBundle.
-// If the condition is not met within the timeout, it returns backend.ErrStillProcessing to indicate that the operation is still in progress.
-func (h *BlockStorageHandler) waitUntilManagedError(ctx context.Context, arubaBundle *ArubaBlockStorageBundle, condition repository.WaitConditionFunc[*ArubaBlockStorageBundle]) (*ArubaBlockStorageBundle, error) {
-	bs, err := h.bsRepository.WaitUntil(ctx, arubaBundle.BlockStorage, func(p *v1alpha1.BlockStorage) bool {
-		return condition(&ArubaBlockStorageBundle{
-			BlockStorage: p,
-		})
-	})
-	if err != nil {
-		// Check if the error is due to the resource not being found, which can be expected during deletion
-		if apierrors.IsTimeout(err) {
-			return nil, backend.ErrStillProcessing // Resource is gone, treat as successful deletion
-		}
-
-		return nil, err // Return other errors for handling
-	}
-
-	return &ArubaBlockStorageBundle{
-		BlockStorage: bs,
-		Project:      arubaBundle.Project,
-	}, nil
 }

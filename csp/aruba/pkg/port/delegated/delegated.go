@@ -95,16 +95,26 @@
 //     necessary to achieve the wanted state. In practice, it means to handle
 //     the Aruba resources in the Kubernetes cluster.
 //
-//  6. Wait for the results:
+//  6. Check the results:
 //
-//     As the plugin calls are intended to be synchronous, in this step the
-//     plugin should be able to watch all the affected Aruba resources until
-//     they achieve the desired state.
+//     The plugin calls are non-blocking: instead of waiting in-process for the
+//     Aruba resources to reach the desired state, this step inspects the
+//     already affected resources once. When every required Aruba resource is
+//     already present in its target state, the operation is complete and the
+//     handler returns `nil`. Otherwise the handler triggers the action (mutate
+//     and propagate) and returns `delegator.ErrStillProcessing`, so the
+//     reconciler requeues and checks again on a later pass without holding the
+//     worker.
+//
+//     Note: because the action may be (re)issued on every pass until the check
+//     passes, the propagate step must be idempotent (e.g. tolerate
+//     "already exists" on create and "not found" on delete).
 //
 //  7. Then return the results:
 //
-//     In this step, the plugin should return `nil` to indicate "success" or
-//     an error to indicate "failure".
+//     In this step, the plugin should return `nil` to indicate "success",
+//     `delegator.ErrStillProcessing` to indicate the operation is still in
+//     progress, or another error to indicate "failure".
 package delegated
 
 import (
@@ -115,6 +125,18 @@ import (
 
 // TODO: this type should be an alias for the Delegator type.
 type DelegatedFunc[T persistence.IdentifiableResource] func(ctx context.Context, resource T) error
+
+// CheckFunc reports whether the Aruba resources for an operation are already in
+// their desired observed state.
+//
+// It receives both the SECA bundle (the desired state) and the Aruba bundle
+// (the resolved/observed resources) so checks that depend on requested values
+// (e.g. a target size) have everything they need.
+//
+// When it returns true the operation is complete; when it returns false the
+// caller must (re)apply the desired state and report that it is still in
+// progress.
+type CheckFunc[SB, AB any] func(ctx context.Context, seca SB, aruba AB) (bool, error)
 
 type Delegated[T persistence.IdentifiableResource] interface {
 	Do(ctx context.Context, resource T) error

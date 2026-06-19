@@ -3,6 +3,7 @@ package delegated
 import (
 	"context"
 
+	delegator "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
 	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 
 	resolver_bypass "github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/generic/resolver"
@@ -58,8 +59,7 @@ type GenericDelegated[
 	resolveAruba resolver_port.ResolveDependenciesFunc[AB, AB]
 	mutate       mutator_port.MutateFunc[AB, SB]
 	propagate    repository_port.CLUDFunc[AB]
-	condition    repository_port.WaitConditionFunc[AB]
-	wait         repository_port.WaitUntilFunc[AB]
+	check        delegated_port.CheckFunc[SB, AB]
 }
 
 var _ delegated_port.Delegated[persistence.IdentifiableResource] = (*GenericDelegated[persistence.IdentifiableResource, any, any])(nil)
@@ -72,8 +72,7 @@ func NewDelegated[S persistence.IdentifiableResource, SB any, AB any](
 	resolveArubaFunc resolver_port.ResolveDependenciesFunc[AB, AB],
 	mutateFunc mutator_port.MutateFunc[AB, SB],
 	propagateFunc repository_port.CLUDFunc[AB],
-	conditionFunc repository_port.WaitConditionFunc[AB],
-	waitFunc repository_port.WaitUntilFunc[AB],
+	checkFunc delegated_port.CheckFunc[SB, AB],
 ) *GenericDelegated[S, SB, AB] {
 	return &GenericDelegated[S, SB, AB]{
 		resolveSECA:  resolveSECAFunc,
@@ -81,8 +80,7 @@ func NewDelegated[S persistence.IdentifiableResource, SB any, AB any](
 		resolveAruba: resolveArubaFunc,
 		mutate:       mutateFunc,
 		propagate:    propagateFunc,
-		condition:    conditionFunc,
-		wait:         waitFunc,
+		check:        checkFunc,
 	}
 }
 
@@ -92,8 +90,7 @@ func NewStraightDelegated[S persistence.IdentifiableResource, A any](
 	convertFunc converter_port.ConvertFunc[S, A],
 	mutateFunc mutator_port.MutateFunc[A, S],
 	propagateFunc repository_port.CLUDFunc[A],
-	conditionFunc repository_port.WaitConditionFunc[A],
-	waitFunc repository_port.WaitUntilFunc[A],
+	checkFunc delegated_port.CheckFunc[S, A],
 ) *GenericDelegated[S, S, A] {
 	return &GenericDelegated[S, S, A]{
 		resolveSECA:  resolver_bypass.BypassResolveDependenciesFunc[S],
@@ -101,8 +98,7 @@ func NewStraightDelegated[S persistence.IdentifiableResource, A any](
 		resolveAruba: resolver_bypass.BypassResolveDependenciesFunc[A],
 		mutate:       mutateFunc,
 		propagate:    propagateFunc,
-		condition:    conditionFunc,
-		wait:         waitFunc,
+		check:        checkFunc,
 	}
 }
 
@@ -110,9 +106,10 @@ func NewStraightDelegated[S persistence.IdentifiableResource, A any](
 // 1. Resolve SECA dependencies.
 // 2. Convert SECA bundle to Aruba bundle.
 // 3. Resolve Aruba dependencies.
-// 4. Mutate Aruba resources.
-// 5. Propagate changes to the Aruba Cloud.
-// 6. Wait for the desired state to be achieved.
+// 4. Check whether the desired state is already reached; if so, return nil.
+// 5. Otherwise mutate the Aruba resources.
+// 6. Propagate changes to the Aruba Cloud.
+// 7. Report that the operation is still in progress (ErrStillProcessing) if the check does not pass yet, so the reconciler can requeue and check again later without blocking.
 func (d *GenericDelegated[S, SB, AB]) Do(ctx context.Context, resource S) error {
 	// 1. Resolve SECA-level dependencies for referenced objects in the Aruba
 	// domain.
@@ -149,7 +146,20 @@ func (d *GenericDelegated[S, SB, AB]) Do(ctx context.Context, resource S) error 
 		return err
 	}
 
-	// 4. Mutate the Aruba resources according the received specs.
+	// 4. Check whether the desired state has already been reached.
+	//
+	// Unlike a blocking wait, this step inspects the affected Aruba resources
+	// once. When every required resource is already present in its target
+	// state, there is nothing left to do and the operation is complete.
+	done, err := d.check(ctx, secaBundle, arubaBundle)
+	if err != nil {
+		return err
+	}
+	if done {
+		return nil
+	}
+
+	// 5. Mutate the Aruba resources according the received specs.
 	//
 	// In that step, the plugin handler should be able to perform all mutations
 	// on the Aruba resources that are necessary to achieve the desired state
@@ -158,23 +168,22 @@ func (d *GenericDelegated[S, SB, AB]) Do(ctx context.Context, resource S) error 
 		return err
 	}
 
-	// 5. Trigger the required action to the Aruba Provisioner.
+	// 6. Trigger the required action to the Aruba Provisioner.
 	//
 	// In that step, the plugin handler should be able to trigger all actions
 	// necessary to achieve the wanted state. In practice, it means to handle
 	// the Aruba resources in the Kubernetes cluster.
+	//
+	// As the action may be (re)issued on every pass until the check above
+	// passes, propagate must be idempotent.
 	if err := d.propagate(ctx, arubaBundle); err != nil {
 		return err
 	}
 
-	// 6. Wait for the results.
+	// 7. Report that the operation is still in progress.
 	//
-	// As the plugin calls are intended to be synchronous, in this step the
-	// plugin should be able to watch all the affected Aruba resources until
-	// they achieve the desired state.
-	if _, err := d.wait(ctx, arubaBundle, d.condition); err != nil {
-		return err
-	}
-
-	return nil
+	// The plugin calls are non-blocking: rather than waiting in-process, we
+	// return ErrStillProcessing so the reconciler requeues and checks again on
+	// a later pass without holding the worker.
+	return delegator.ErrStillProcessing
 }

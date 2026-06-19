@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	gomock "go.uber.org/mock/gomock"
 
-	"github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/port/repository"
+	delegator "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
 )
 
 //go:generate mockgen -package delegated -destination=zz_mock_identifiable_test.go github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence IdentifiableResource
@@ -34,7 +34,7 @@ func TestGenericDelegated_Do(t *testing.T) {
 		errInvalidWorkspace = errors.New("invalid workspace")
 		errInvalidName      = errors.New("invalid name")
 		errInvalidTag       = errors.New("invalid tag")
-		errConditionNotMet  = errors.New("condition not met")
+		errCheckFailed      = errors.New("check failed")
 	)
 
 	type secaBundleType struct {
@@ -45,6 +45,12 @@ func TestGenericDelegated_Do(t *testing.T) {
 	type arubaBundleType struct {
 		main       map[string]any
 		dependency map[string]any
+	}
+
+	// notDone is a check reporting that the desired state is not yet reached, so
+	// the delegated action must proceed to mutate and propagate.
+	notDone := func(_ context.Context, _ *secaBundleType, _ *arubaBundleType) (bool, error) {
+		return false, nil
 	}
 
 	t.Run("should report an error when seca dependencies resolving fails", func(t *testing.T) {
@@ -306,6 +312,7 @@ func TestGenericDelegated_Do(t *testing.T) {
 			resolveSECA:  secaResolver.ResolveDependencies,
 			convert:      converter.FromSECAToAruba,
 			resolveAruba: arubaResolver.ResolveDependencies,
+			check:        notDone,
 			mutate:       mutator.Mutate,
 		}
 
@@ -420,6 +427,7 @@ func TestGenericDelegated_Do(t *testing.T) {
 			resolveSECA:  secaResolver.ResolveDependencies,
 			convert:      converter.FromSECAToAruba,
 			resolveAruba: arubaResolver.ResolveDependencies,
+			check:        notDone,
 			mutate:       mutator.Mutate,
 			propagate:    writer.Update,
 		}
@@ -433,7 +441,7 @@ func TestGenericDelegated_Do(t *testing.T) {
 		require.ErrorIs(t, err, errInvalidTag)
 	})
 
-	t.Run("should report an error when watching fails", func(t *testing.T) {
+	t.Run("should report an error when the check fails", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
@@ -494,63 +502,11 @@ func TestGenericDelegated_Do(t *testing.T) {
 		})
 
 		//
-		// And a mutator
-		mutator := NewMockMutator[*arubaBundleType, *secaBundleType](ctrl)
-
-		mutator.EXPECT().Mutate(
-			gomock.AssignableToTypeOf(&arubaBundleType{}),
-			gomock.AssignableToTypeOf(&secaBundleType{}),
-		).DoAndReturn(
-			func(mutable *arubaBundleType, params *secaBundleType) error {
-				if mutable.dependency[resourceTagKey] != goodResourceTagValue {
-					return errInvalidTag
-				}
-
-				mutable.dependency[resourceTagKey] = goodResourceTagValue
-
-				return nil
-			},
-		).Times(1)
-
-		//
-		// And a repository writer
-		writer := NewMockWriter[*arubaBundleType](ctrl)
-
-		writer.EXPECT().Update(
-			gomock.AssignableToTypeOf(t.Context()),
-			gomock.AssignableToTypeOf(&arubaBundleType{}),
-		).DoAndReturn(
-			func(ctx context.Context, resource *arubaBundleType) error {
-				if resource.dependency[resourceTagKey] != goodResourceTagValue {
-					return errInvalidTag
-				}
-
-				return nil
-			},
-		).Times(1)
-
-		//
-		// And a condition function which always return false
-		condition := func(_ *arubaBundleType) bool { return false }
-
-		//
-		// And a watcher which will return and error for the first time that
-		// the condition does not match
-		watcher := NewMockWatcher[*arubaBundleType](ctrl)
-
-		watcher.EXPECT().WaitUntil(
-			gomock.AssignableToTypeOf(t.Context()),
-			gomock.AssignableToTypeOf(&arubaBundleType{}),
-			gomock.AssignableToTypeOf(condition),
-		).DoAndReturn(
-			func(ctx context.Context, resource *arubaBundleType, condition repository.WaitConditionFunc[*arubaBundleType]) (*arubaBundleType, error) {
-				if !condition(resource) {
-					return nil, errConditionNotMet
-				}
-
-				return resource, nil
-			},
-		).Times(1)
+		// And a check which fails. Because the check runs before mutate and
+		// propagate, neither of those steps is reached.
+		check := func(_ context.Context, _ *secaBundleType, _ *arubaBundleType) (bool, error) {
+			return false, errCheckFailed
+		}
 
 		//
 		// And a delegated which uses these above mentioned elements
@@ -558,10 +514,7 @@ func TestGenericDelegated_Do(t *testing.T) {
 			resolveSECA:  secaResolver.ResolveDependencies,
 			convert:      converter.FromSECAToAruba,
 			resolveAruba: arubaResolver.ResolveDependencies,
-			mutate:       mutator.Mutate,
-			propagate:    writer.Update,
-			condition:    condition,
-			wait:         watcher.WaitUntil,
+			check:        check,
 		}
 
 		//
@@ -569,11 +522,96 @@ func TestGenericDelegated_Do(t *testing.T) {
 		err := delegated.Do(t.Context(), resource)
 
 		//
-		// Then it should return the propagation error properly wrapped
-		require.ErrorIs(t, err, errConditionNotMet)
+		// Then it should return the check error properly wrapped
+		require.ErrorIs(t, err, errCheckFailed)
 	})
 
-	t.Run("should succeed", func(t *testing.T) {
+	t.Run("should return nil when the desired state is already reached", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		//
+		// Given a SECA identifiable resource
+		resource := NewMockIdentifiableResource(ctrl)
+
+		resource.EXPECT().GetWorkspace().Return(goodResourceWorkspace).Times(1)
+		resource.EXPECT().GetName().Return(goodResourceName).Times(2)
+
+		//
+		// And a SECA dependencies resolver
+		secaResolver := NewMockDependenciesResolver[*MockIdentifiableResource, *secaBundleType](ctrl)
+
+		secaResolver.EXPECT().ResolveDependencies(
+			gomock.AssignableToTypeOf(t.Context()),
+			gomock.AssignableToTypeOf(resource),
+		).DoAndReturn(func(ctx context.Context, main *MockIdentifiableResource) (*secaBundleType, error) {
+			if main.GetWorkspace() != goodResourceWorkspace {
+				return nil, errInvalidWorkspace
+			}
+
+			return &secaBundleType{main: main}, nil
+		}).Times(1)
+
+		//
+		// And a converter
+		converter := NewMockConverter[*secaBundleType, *arubaBundleType](ctrl)
+
+		converter.EXPECT().FromSECAToAruba(gomock.AssignableToTypeOf(&secaBundleType{})).DoAndReturn(
+			func(from *secaBundleType) (*arubaBundleType, error) {
+				if from.main.GetName() != goodResourceName {
+					return nil, errInvalidName
+				}
+
+				return &arubaBundleType{main: map[string]any{
+					"name":         from.main.GetName(),
+					resourceTagKey: goodResourceTagValue,
+				}}, nil
+			},
+		).Times(1)
+
+		//
+		// And a Aruba dependencies resolver
+		arubaResolver := NewMockDependenciesResolver[*arubaBundleType, *arubaBundleType](ctrl)
+
+		arubaResolver.EXPECT().ResolveDependencies(
+			gomock.AssignableToTypeOf(t.Context()),
+			gomock.AssignableToTypeOf(&arubaBundleType{}),
+		).DoAndReturn(func(ctx context.Context, main *arubaBundleType) (*arubaBundleType, error) {
+			if main.main[resourceTagKey] != goodResourceTagValue {
+				return nil, errInvalidTag
+			}
+
+			main.dependency = map[string]any{resourceTagKey: goodResourceTagValue}
+
+			return main, nil
+		})
+
+		//
+		// And a check reporting the desired state is already reached. Mutate and
+		// propagate must not be called in this case.
+		check := func(_ context.Context, _ *secaBundleType, _ *arubaBundleType) (bool, error) {
+			return true, nil
+		}
+
+		//
+		// And a delegated which uses these above mentioned elements
+		delegated := GenericDelegated[*MockIdentifiableResource, *secaBundleType, *arubaBundleType]{
+			resolveSECA:  secaResolver.ResolveDependencies,
+			convert:      converter.FromSECAToAruba,
+			resolveAruba: arubaResolver.ResolveDependencies,
+			check:        check,
+		}
+
+		//
+		// When we try to perform the delegated action
+		err := delegated.Do(t.Context(), resource)
+
+		//
+		// Then it should succeed without doing anything else
+		require.NoError(t, err)
+	})
+
+	t.Run("should report still processing when the action is triggered", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
@@ -670,38 +708,15 @@ func TestGenericDelegated_Do(t *testing.T) {
 		).Times(1)
 
 		//
-		// And a condition function which always return true
-		condition := func(_ *arubaBundleType) bool { return true }
-
-		//
-		// And a watcher which will return and error for the first time that
-		// the condition does not match
-		watcher := NewMockWatcher[*arubaBundleType](ctrl)
-
-		watcher.EXPECT().WaitUntil(
-			gomock.AssignableToTypeOf(t.Context()),
-			gomock.AssignableToTypeOf(&arubaBundleType{}),
-			gomock.AssignableToTypeOf(condition),
-		).DoAndReturn(
-			func(ctx context.Context, resource *arubaBundleType, condition repository.WaitConditionFunc[*arubaBundleType]) (*arubaBundleType, error) {
-				if !condition(resource) {
-					return nil, errConditionNotMet
-				}
-
-				return resource, nil
-			},
-		).Times(1)
-
-		//
-		// And a delegated which uses these above mentioned elements
+		// And a delegated which uses these above mentioned elements, with a
+		// check reporting the desired state is not yet reached
 		delegated := GenericDelegated[*MockIdentifiableResource, *secaBundleType, *arubaBundleType]{
 			resolveSECA:  secaResolver.ResolveDependencies,
 			convert:      converter.FromSECAToAruba,
 			resolveAruba: arubaResolver.ResolveDependencies,
+			check:        notDone,
 			mutate:       mutator.Mutate,
 			propagate:    writer.Update,
-			condition:    condition,
-			wait:         watcher.WaitUntil,
 		}
 
 		//
@@ -709,7 +724,7 @@ func TestGenericDelegated_Do(t *testing.T) {
 		err := delegated.Do(t.Context(), resource)
 
 		//
-		// Then it should succeed
-		require.NoError(t, err)
+		// Then it should report that the operation is still in progress
+		require.ErrorIs(t, err, delegator.ErrStillProcessing)
 	})
 }
