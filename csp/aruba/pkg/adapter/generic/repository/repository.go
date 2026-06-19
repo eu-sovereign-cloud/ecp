@@ -133,16 +133,16 @@ func (r *GenericRepository[T, L]) Watch(
 	var wg sync.WaitGroup
 
 	handler, err := r.informer.AddEventHandler(&kcache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			r.handle(ictx, obj, resource, out, &wg)
 		},
-		UpdateFunc: func(oldObj, newObj interface{}) {
+		UpdateFunc: func(oldObj, newObj any) {
 			if oldObj.(client.Object).GetResourceVersion() == newObj.(client.Object).GetResourceVersion() {
 				return
 			}
 			r.handle(ictx, newObj, resource, out, &wg)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			r.handle(ictx, obj, resource, out, &wg)
 		},
 	})
@@ -183,7 +183,7 @@ func (r *GenericRepository[T, L]) ResolveReference(
 }
 
 // handle processes an event object and sends it to the output channel if it matches the filter
-func (r *GenericRepository[T, L]) handle(ctx context.Context, obj interface{}, filter T, out chan T, wg *sync.WaitGroup) {
+func (r *GenericRepository[T, L]) handle(ctx context.Context, obj any, filter T, out chan T, wg *sync.WaitGroup) {
 	// Don't process anything if the context is already canceled.
 	if ctx.Err() != nil {
 		return

@@ -178,8 +178,7 @@ func TestProjectRepository_List(t *testing.T) {
 }
 
 func TestProjectRepository_WaitUntil(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 	// Create a fake client with one Project object
@@ -207,15 +206,13 @@ func TestProjectRepository_WaitUntil(t *testing.T) {
 		AddEventHandler(gomock.Any()).
 		Do(func(handler kcache.ResourceEventHandler) {
 			// Simulate an update event after a short delay
-			wg.Add(1)
-			go func() {
+			wg.Go(func() {
 				// Simulate an update to the project
 				updatedProject := project.DeepCopy()
 				updatedProject.Spec.Description = "Updated description"
 				errUpdate = fakeClient.Update(ctx, updatedProject)
 				handler.OnUpdate(project, updatedProject)
-				wg.Done()
-			}()
+			})
 		}).
 		AnyTimes()
 
@@ -238,8 +235,7 @@ func TestGenericRepository_WatchWithMockCache(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	project := &v1alpha1.Project{
 		ObjectMeta: v1.ObjectMeta{
@@ -305,8 +301,7 @@ func TestGenericRepository_WatchWithMockCache_FailToMatch(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	project := &v1alpha1.Project{
 		ObjectMeta: v1.ObjectMeta{
