@@ -2,6 +2,7 @@ package crossplane
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	v1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
@@ -35,6 +36,15 @@ func (a *NetworkStore) Create(ctx context.Context, domain *regional.NetworkDomai
 	if err := a.client.Get(ctx, client.ObjectKeyFromObject(desired), existing); err != nil {
 		if !apierrors.IsNotFound(err) {
 			return err
+		}
+
+		namespace := k8s.ComputeNamespace(&scope.Scope{Tenant: domain.GetTenant()})
+		datacenter := &ionosv1alpha1.Datacenter{
+			TypeMeta:   metav1.TypeMeta{Kind: ionosv1alpha1.Datacenter_Kind},
+			ObjectMeta: metav1.ObjectMeta{Name: domain.GetWorkspace(), Namespace: namespace},
+		}
+		if err := a.checkExisting(ctx, datacenter); err != nil {
+			return fmt.Errorf("network %q requires workspace datacenter %q: %w", domain.GetName(), domain.GetWorkspace(), err)
 		}
 		return a.createCR(ctx, desired)
 	}

@@ -3,6 +3,7 @@ package crossplane
 import (
 	"context"
 	"crypto/rand"
+	"fmt"
 	"log/slog"
 
 	v1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
@@ -34,7 +35,7 @@ func (a *BlockStorageStore) Create(ctx context.Context, domain *regional.BlockSt
 		ObjectMeta: metav1.ObjectMeta{Name: domain.GetWorkspace(), Namespace: namespace},
 	}
 	if err := a.checkExisting(ctx, datacenter); err != nil {
-		return err
+		return fmt.Errorf("block storage %q requires workspace datacenter %q: %w", domain.GetName(), domain.GetWorkspace(), err)
 	}
 	return a.createCR(ctx, newVolume(domain))
 }
