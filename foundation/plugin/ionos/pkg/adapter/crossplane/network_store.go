@@ -88,6 +88,20 @@ func newLan(domain *regional.NetworkDomain) *ionosv1alpha1.Lan {
 		},
 	}
 
+	// A non-empty Cidr.IPv6 means "enable IPv6 on this LAN". We deliberately send
+	// "AUTO" rather than passing domain.Spec.Cidr.IPv6 through verbatim:
+	//
+	// IONOS requires an explicitly-supplied LAN /64 to be a unique block that lies
+	// *inside* the parent Datacenter's IPv6 CIDR. That Datacenter /56 is itself
+	// auto-assigned by IONOS (workspace_store.go creates the Datacenter without an
+	// IPv6CidrBlock), so at LAN-create time we have no way to know an in-range,
+	// non-colliding /64. A tenant-supplied prefix would almost always be rejected.
+	// "AUTO" lets IONOS allocate a valid /64 from the Datacenter block; it is then
+	// late-initialized back onto spec.forProvider.ipv6CidrBlock (see Create, which
+	// compares nil vs non-nil only to avoid fighting that late-init in a loop).
+	//
+	// To honor a specific requested prefix we would first have to control the
+	// Datacenter's IPv6 /56 and sub-allocate /64s from it
 	if domain.Spec.Cidr.IPv6 != "" {
 		lan.Spec.ForProvider.IPv6CidrBlock = new("AUTO")
 	}
