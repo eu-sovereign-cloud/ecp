@@ -16,8 +16,8 @@ import (
 )
 
 const (
-	providerConfigName = "cluster-ionos-provider-config"
-	providerConfigType = "ClusterProviderConfig"
+	ProviderConfigName = "cluster-ionos-provider-config"
+	ProviderConfigType = "ClusterProviderConfig"
 )
 
 type base struct {

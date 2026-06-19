@@ -53,8 +53,8 @@ func newDatacenter(domain *regional.WorkspaceDomain) *ionosv1alpha1.Datacenter {
 		Spec: ionosv1alpha1.DatacenterSpec{
 			ManagedResourceSpec: v2.ManagedResourceSpec{
 				ProviderConfigReference: &v1.ProviderConfigReference{
-					Name: providerConfigName,
-					Kind: providerConfigType,
+					Name: ProviderConfigName,
+					Kind: ProviderConfigType,
 				},
 			},
 			ForProvider: ionosv1alpha1.DatacenterParameters{

@@ -10,13 +10,16 @@ metadata:
   name: ionos-plugin-role
 rules:
 - apiGroups: ["compute.m.ionoscloud.io"]
-  resources: ["datacenters", "volumes"]
+  resources: ["datacenters", "volumes", "lans"]
   verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
 - apiGroups: ["workspace.v1.secapi.cloud"]
   resources: ["workspaces", "workspaces/status"]
   verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
 - apiGroups: ["storage.v1.secapi.cloud"]
   resources: ["block-storages", "block-storages/status"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["network.v1.secapi.cloud"]
+  resources: ["networks", "networks/status"]
   verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
 - apiGroups: [""]
   resources: ["namespaces", "events"]
