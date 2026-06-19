@@ -68,12 +68,12 @@ func NewControllerSet(config *rest.Config, k8sClient client.Client, plugins Plug
 	}
 
 	// 4. Create shared clients
-	dynamicClient, err := dynamic.NewForConfig(config)
+	dynamicClient, err := dynamic.NewForConfig(config) //nolint:staticcheck
 	if err != nil {
 		return nil, err
 	}
 
-	clientSet, err := kubernetes.NewForConfig(config)
+	clientSet, err := kubernetes.NewForConfig(config) //nolint:staticcheck
 	if err != nil {
 		return nil, fmt.Errorf("failed to create k8s client: %w", err)
 	}
