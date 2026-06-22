@@ -25,7 +25,7 @@ func TestBlockStorage(t *testing.T) {
 		//
 		// Given a unique block storage domain resource definition
 		resourceName := "test-bs-create-" + uuid.New().String()[:8]
-		bsDomain := &regionalmodel.BlockStorageDomain{
+		bsDomain := &regionalmodel.BlockStorage{
 			Metadata: regionalmodel.Metadata{
 				CommonMetadata: ecpmodel.CommonMetadata{
 					Name: resourceName,
@@ -35,7 +35,7 @@ func TestBlockStorage(t *testing.T) {
 					Workspace: "test-workspace",
 				},
 			},
-			Spec: regionalmodel.BlockStorageSpecDomain{
+			Spec: regionalmodel.BlockStorageSpec{
 				SizeGB: 1,
 				SkuRef: regionalmodel.ReferenceDomain{
 					Resource: "sku-1",
@@ -51,7 +51,7 @@ func TestBlockStorage(t *testing.T) {
 		//
 		// Then the resource should eventually become active
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
-			loadedBs := &regionalmodel.BlockStorageDomain{
+			loadedBs := &regionalmodel.BlockStorage{
 				Metadata: regionalmodel.Metadata{
 					CommonMetadata: ecpmodel.CommonMetadata{
 						Name: resourceName,
@@ -79,7 +79,7 @@ func TestBlockStorage(t *testing.T) {
 		//
 		// Given a unique block storage resource that is already created
 		resourceName := "test-bs-delete-" + uuid.New().String()[:8]
-		bsDomain := &regionalmodel.BlockStorageDomain{
+		bsDomain := &regionalmodel.BlockStorage{
 			Metadata: regionalmodel.Metadata{
 				CommonMetadata: ecpmodel.CommonMetadata{
 					Name: resourceName,
@@ -89,7 +89,7 @@ func TestBlockStorage(t *testing.T) {
 					Workspace: "test-workspace",
 				},
 			},
-			Spec: regionalmodel.BlockStorageSpecDomain{
+			Spec: regionalmodel.BlockStorageSpec{
 				SizeGB: 1,
 				SkuRef: regionalmodel.ReferenceDomain{
 					Resource: "sku-1",
@@ -100,7 +100,7 @@ func TestBlockStorage(t *testing.T) {
 		require.NoError(t, err)
 
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
-			loadedBs := &regionalmodel.BlockStorageDomain{
+			loadedBs := &regionalmodel.BlockStorage{
 				Metadata: regionalmodel.Metadata{
 					CommonMetadata: ecpmodel.CommonMetadata{
 						Name: resourceName,
@@ -129,7 +129,7 @@ func TestBlockStorage(t *testing.T) {
 		//
 		// Then the resource should eventually be removed
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
-			loadedBs := &regionalmodel.BlockStorageDomain{
+			loadedBs := &regionalmodel.BlockStorage{
 				Metadata: regionalmodel.Metadata{
 					CommonMetadata: ecpmodel.CommonMetadata{
 						Name: resourceName,
@@ -158,7 +158,7 @@ func TestBlockStorage(t *testing.T) {
 		//
 		// Given a unique block storage resource that is already created
 		resourceName := "test-bs-increase-" + uuid.New().String()[:8]
-		bsDomain := &regionalmodel.BlockStorageDomain{
+		bsDomain := &regionalmodel.BlockStorage{
 			Metadata: regionalmodel.Metadata{
 				CommonMetadata: ecpmodel.CommonMetadata{
 					Name: resourceName,
@@ -168,7 +168,7 @@ func TestBlockStorage(t *testing.T) {
 					Workspace: "test-workspace",
 				},
 			},
-			Spec: regionalmodel.BlockStorageSpecDomain{
+			Spec: regionalmodel.BlockStorageSpec{
 				SizeGB: 1,
 				SkuRef: regionalmodel.ReferenceDomain{
 					Resource: "sku-1",
@@ -179,7 +179,7 @@ func TestBlockStorage(t *testing.T) {
 		require.NoError(t, err)
 
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
-			loadedBs := &regionalmodel.BlockStorageDomain{
+			loadedBs := &regionalmodel.BlockStorage{
 				Metadata: regionalmodel.Metadata{
 					CommonMetadata: ecpmodel.CommonMetadata{
 						Name: resourceName,
@@ -202,7 +202,7 @@ func TestBlockStorage(t *testing.T) {
 
 		//
 		// When we update the block storage resource with an increased size
-		updatedBsDomain := &regionalmodel.BlockStorageDomain{
+		updatedBsDomain := &regionalmodel.BlockStorage{
 			Metadata: regionalmodel.Metadata{
 				CommonMetadata: ecpmodel.CommonMetadata{
 					Name: resourceName,
@@ -223,7 +223,7 @@ func TestBlockStorage(t *testing.T) {
 		//
 		// Then the resource status should eventually reflect the new size
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
-			currentBs := &regionalmodel.BlockStorageDomain{
+			currentBs := &regionalmodel.BlockStorage{
 				Metadata: regionalmodel.Metadata{
 					CommonMetadata: ecpmodel.CommonMetadata{
 						Name: resourceName,

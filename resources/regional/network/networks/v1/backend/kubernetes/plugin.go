@@ -8,6 +8,6 @@ import (
 
 // NetworkPlugin is implemented by CSP plugins that manage network resources.
 type NetworkPlugin interface {
-	Create(ctx context.Context, resource *netdom.NetworkDomain) error
-	Delete(ctx context.Context, resource *netdom.NetworkDomain) error
+	Create(ctx context.Context, resource *netdom.Network) error
+	Delete(ctx context.Context, resource *netdom.Network) error
 }

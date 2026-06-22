@@ -7,6 +7,6 @@ import (
 )
 
 type WorkspaceStore interface {
-	Create(ctx context.Context, domain *wsdom.WorkspaceDomain) error
-	Delete(ctx context.Context, domain *wsdom.WorkspaceDomain) error
+	Create(ctx context.Context, domain *wsdom.Workspace) error
+	Delete(ctx context.Context, domain *wsdom.Workspace) error
 }

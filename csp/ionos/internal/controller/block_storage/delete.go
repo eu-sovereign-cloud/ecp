@@ -11,6 +11,6 @@ type DeleteBlockStorage struct {
 	Store port.BlockStorageStore
 }
 
-func (d *DeleteBlockStorage) Do(ctx context.Context, domain *bsdom.BlockStorageDomain) error {
+func (d *DeleteBlockStorage) Do(ctx context.Context, domain *bsdom.BlockStorage) error {
 	return d.Store.Delete(ctx, domain)
 }

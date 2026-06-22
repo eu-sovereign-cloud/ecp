@@ -29,7 +29,7 @@ func NewNetworkStore(c client.Client, logger *slog.Logger) *NetworkStore {
 	return &NetworkStore{base{client: c, logger: logger}}
 }
 
-func (a *NetworkStore) Create(ctx context.Context, domain *netdom.NetworkDomain) error {
+func (a *NetworkStore) Create(ctx context.Context, domain *netdom.Network) error {
 	desired := newLan(domain)
 
 	existing := &ionosv1alpha1.Lan{}
@@ -61,7 +61,7 @@ func (a *NetworkStore) Create(ctx context.Context, domain *netdom.NetworkDomain)
 	return a.checkExisting(ctx, existing)
 }
 
-func (a *NetworkStore) Delete(ctx context.Context, domain *netdom.NetworkDomain) error {
+func (a *NetworkStore) Delete(ctx context.Context, domain *netdom.Network) error {
 	namespace := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: domain.GetTenant()})
 	return a.deleteCR(ctx, &ionosv1alpha1.Lan{
 		TypeMeta:   metav1.TypeMeta{Kind: ionosv1alpha1.Lan_Kind},
@@ -69,7 +69,7 @@ func (a *NetworkStore) Delete(ctx context.Context, domain *netdom.NetworkDomain)
 	})
 }
 
-func newLan(domain *netdom.NetworkDomain) *ionosv1alpha1.Lan {
+func newLan(domain *netdom.Network) *ionosv1alpha1.Lan {
 	namespace := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: domain.GetTenant()})
 	lan := &ionosv1alpha1.Lan{
 		TypeMeta: metav1.TypeMeta{

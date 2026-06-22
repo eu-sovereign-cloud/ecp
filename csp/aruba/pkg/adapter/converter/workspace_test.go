@@ -17,12 +17,12 @@ import (
 func TestWorkspaceProjectConverter_FromSECAToAruba(t *testing.T) {
 	tests := []struct {
 		name   string
-		input  *wsdom.WorkspaceDomain
+		input  *wsdom.Workspace
 		assert func(t *testing.T, project *v1alpha1.Project)
 	}{
 		{
 			name: "happy path with description tags and default",
-			input: &wsdom.WorkspaceDomain{
+			input: &wsdom.Workspace{
 				RegionalMetadata: commondomain.RegionalMetadata{
 					Region: "region-1",
 					CommonMetadata: commondomain.CommonMetadata{
@@ -90,7 +90,7 @@ func TestWorkspaceProjectConverter_FromArubaToSECA(t *testing.T) {
 	tests := []struct {
 		name   string
 		input  *v1alpha1.Project
-		assert func(t *testing.T, workspace *wsdom.WorkspaceDomain)
+		assert func(t *testing.T, workspace *wsdom.Workspace)
 	}{
 		{
 			name: "happy path with description tags and default",
@@ -109,7 +109,7 @@ func TestWorkspaceProjectConverter_FromArubaToSECA(t *testing.T) {
 					},
 				},
 			},
-			assert: func(t *testing.T, workspace *wsdom.WorkspaceDomain) {
+			assert: func(t *testing.T, workspace *wsdom.Workspace) {
 				t.Helper()
 
 				if workspace.GetWorkspace() != "" {

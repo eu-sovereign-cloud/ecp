@@ -12,22 +12,22 @@ const (
 	ProviderID = "seca.storage/v1"
 )
 
-// BlockStorageDomain represents the domain model for a block storage instance.
-type BlockStorageDomain struct {
+// BlockStorage represents the domain model for a block storage instance.
+type BlockStorage struct {
 	domain.RegionalMetadata
-	Spec   BlockStorageSpecDomain
-	Status *BlockStorageStatusDomain
+	Spec   BlockStorageSpec
+	Status *BlockStorageStatus
 }
 
-// BlockStorageSpecDomain defines the specification for a block storage instance.
-type BlockStorageSpecDomain struct {
+// BlockStorageSpec defines the specification for a block storage instance.
+type BlockStorageSpec struct {
 	SizeGB         int
 	SkuRef         domain.ReferenceDomain
 	SourceImageRef *domain.ReferenceDomain
 }
 
-// BlockStorageStatusDomain defines the status for a block storage instance.
-type BlockStorageStatusDomain struct {
+// BlockStorageStatus defines the status for a block storage instance.
+type BlockStorageStatus struct {
 	AttachedTo *domain.ReferenceDomain
 	SizeGB     int
 	domain.StatusDomain

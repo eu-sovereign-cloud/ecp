@@ -11,6 +11,6 @@ type CreateWorkspace struct {
 	Store port.WorkspaceStore
 }
 
-func (c *CreateWorkspace) Do(ctx context.Context, domain *wsdom.WorkspaceDomain) error {
+func (c *CreateWorkspace) Do(ctx context.Context, domain *wsdom.Workspace) error {
 	return c.Store.Create(ctx, domain)
 }

@@ -174,20 +174,20 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 	)
 
 	// Network adapters
-	netReaderAdapter := k8sadapter.NewReaderAdapter[*netdom.NetworkDomain](
+	netReaderAdapter := k8sadapter.NewReaderAdapter[*netdom.Network](
 		client.Client,
 		netk8s.NetworkGVR,
 		logger,
 		netk8s.MapCRToNetworkDomain,
 	)
-	netWriterAdapter := k8sadapter.NewWriterAdapter[*netdom.NetworkDomain](
+	netWriterAdapter := k8sadapter.NewWriterAdapter[*netdom.Network](
 		client.Client,
 		netk8s.NetworkGVR,
 		logger,
 		netk8s.MapNetworkDomainToCR,
 		netk8s.MapCRToNetworkDomain,
 	)
-	netSKUReaderAdapter := k8sadapter.NewReaderAdapter[*netskudom.NetworkSKUDomain](
+	netSKUReaderAdapter := k8sadapter.NewReaderAdapter[*netskudom.NetworkSKU](
 		client.Client,
 		netskuk8s.NetworkSKUGVR,
 		logger,
@@ -210,20 +210,20 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 	)
 
 	// Storage adapters
-	bsReaderAdapter := k8sadapter.NewReaderAdapter[*bsdom.BlockStorageDomain](
+	bsReaderAdapter := k8sadapter.NewReaderAdapter[*bsdom.BlockStorage](
 		client.Client,
 		bsk8s.BlockStorageGVR,
 		logger,
 		bsk8s.MapCRToBlockStorageDomain,
 	)
-	bsWriterAdapter := k8sadapter.NewWriterAdapter[*bsdom.BlockStorageDomain](
+	bsWriterAdapter := k8sadapter.NewWriterAdapter[*bsdom.BlockStorage](
 		client.Client,
 		bsk8s.BlockStorageGVR,
 		logger,
 		bsk8s.MapBlockStorageDomainToCR,
 		bsk8s.MapCRToBlockStorageDomain,
 	)
-	skuReaderAdapter := k8sadapter.NewReaderAdapter[*skudom.StorageSKUDomain](
+	skuReaderAdapter := k8sadapter.NewReaderAdapter[*skudom.StorageSKU](
 		client.Client,
 		skuk8s.StorageSKUGVR,
 		logger,
@@ -246,7 +246,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 	)
 
 	// Workspace adapters
-	wsWriterAdapter := k8sadapter.NewNamespaceManagingWriterAdapter[*wsdom.WorkspaceDomain](
+	wsWriterAdapter := k8sadapter.NewNamespaceManagingWriterAdapter[*wsdom.Workspace](
 		client.Client,
 		client.ClientSet,
 		wsk8s.WorkspaceGVR,
@@ -254,7 +254,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		wsk8s.MapWorkspaceDomainToCR,
 		wsk8s.MapCRToWorkspaceDomain,
 	)
-	wsReaderAdapter := k8sadapter.NewReaderAdapter[*wsdom.WorkspaceDomain](
+	wsReaderAdapter := k8sadapter.NewReaderAdapter[*wsdom.Workspace](
 		client.Client,
 		wsk8s.WorkspaceGVR,
 		logger,

@@ -15,10 +15,10 @@ type Workspace struct {
 	Deleter *workspacectrl.DeleteWorkspace
 }
 
-func (s *Workspace) Create(ctx context.Context, resource *wsdom.WorkspaceDomain) error {
+func (s *Workspace) Create(ctx context.Context, resource *wsdom.Workspace) error {
 	return s.Creator.Do(ctx, resource)
 }
 
-func (s *Workspace) Delete(ctx context.Context, resource *wsdom.WorkspaceDomain) error {
+func (s *Workspace) Delete(ctx context.Context, resource *wsdom.Workspace) error {
 	return s.Deleter.Do(ctx, resource)
 }

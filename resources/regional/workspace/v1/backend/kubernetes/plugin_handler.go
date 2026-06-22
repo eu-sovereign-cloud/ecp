@@ -17,16 +17,16 @@ import (
 
 // WorkspacePluginHandler drives the workspace reconciliation state machine.
 type WorkspacePluginHandler struct {
-	frameworkbackend.GenericPluginHandler[*wsdom.WorkspaceDomain]
-	repo   persistence.Repo[*wsdom.WorkspaceDomain]
+	frameworkbackend.GenericPluginHandler[*wsdom.Workspace]
+	repo   persistence.Repo[*wsdom.Workspace]
 	plugin WorkspacePlugin
 }
 
-var _ backendport.PluginHandler[*wsdom.WorkspaceDomain] = (*WorkspacePluginHandler)(nil)
+var _ backendport.PluginHandler[*wsdom.Workspace] = (*WorkspacePluginHandler)(nil)
 
 // NewWorkspacePluginHandler creates a new WorkspacePluginHandler.
 func NewWorkspacePluginHandler(
-	repo persistence.Repo[*wsdom.WorkspaceDomain],
+	repo persistence.Repo[*wsdom.Workspace],
 	plugin WorkspacePlugin,
 	maxConditions int,
 ) *WorkspacePluginHandler {
@@ -39,28 +39,28 @@ func NewWorkspacePluginHandler(
 	return handler
 }
 
-func (h *WorkspacePluginHandler) HandleReconcile(ctx context.Context, resource *wsdom.WorkspaceDomain) (bool, error) {
-	var delegate backendport.DelegatedFunc[*wsdom.WorkspaceDomain]
+func (h *WorkspacePluginHandler) HandleReconcile(ctx context.Context, resource *wsdom.Workspace) (bool, error) {
+	var delegate backendport.DelegatedFunc[*wsdom.Workspace]
 
 	switch {
 
 	case isWorkspaceAccepted(resource):
-		delegate = frameworkbackend.BypassDelegated[*wsdom.WorkspaceDomain]
+		delegate = frameworkbackend.BypassDelegated[*wsdom.Workspace]
 
 	case isWorkspacePending(resource):
-		delegate = frameworkbackend.BypassDelegated[*wsdom.WorkspaceDomain]
+		delegate = frameworkbackend.BypassDelegated[*wsdom.Workspace]
 
 	case isWorkspaceCreating(resource):
 		delegate = h.plugin.Create
 
 	case wantWorkspaceDelete(resource):
-		delegate = frameworkbackend.BypassDelegated[*wsdom.WorkspaceDomain]
+		delegate = frameworkbackend.BypassDelegated[*wsdom.Workspace]
 
 	case isWorkspaceDeleting(resource):
 		delegate = h.plugin.Delete
 
 	case wantWorkspaceRetryCreate(resource):
-		delegate = frameworkbackend.BypassDelegated[*wsdom.WorkspaceDomain]
+		delegate = frameworkbackend.BypassDelegated[*wsdom.Workspace]
 
 	default:
 		return false, nil // Nothing to do.
@@ -106,9 +106,9 @@ func (h *WorkspacePluginHandler) HandleReconcile(ctx context.Context, resource *
 	return false, nil
 }
 
-func (h *WorkspacePluginHandler) setResourceState(ctx context.Context, resource *wsdom.WorkspaceDomain, state commondomain.ResourceStateDomain, requeue bool) (bool, error) {
+func (h *WorkspacePluginHandler) setResourceState(ctx context.Context, resource *wsdom.Workspace, state commondomain.ResourceStateDomain, requeue bool) (bool, error) {
 	if resource.Status == nil {
-		resource.Status = &wsdom.WorkspaceStatusDomain{}
+		resource.Status = &wsdom.WorkspaceStatus{}
 	}
 
 	resource.Status.PushCondition(commonbackend.ConditionFromState(state))
@@ -127,9 +127,9 @@ func (h *WorkspacePluginHandler) setResourceState(ctx context.Context, resource 
 	return requeue, nil
 }
 
-func (h *WorkspacePluginHandler) setResourceErrorState(ctx context.Context, resource *wsdom.WorkspaceDomain, err error, requeue bool) (bool, error) {
+func (h *WorkspacePluginHandler) setResourceErrorState(ctx context.Context, resource *wsdom.Workspace, err error, requeue bool) (bool, error) {
 	if resource.Status == nil {
-		resource.Status = &wsdom.WorkspaceStatusDomain{}
+		resource.Status = &wsdom.WorkspaceStatus{}
 	}
 
 	resource.Status.PushCondition(commonbackend.ConditionFromError(err))
@@ -148,37 +148,37 @@ func (h *WorkspacePluginHandler) setResourceErrorState(ctx context.Context, reso
 	return requeue, nil
 }
 
-func isWorkspaceAccepted(resource *wsdom.WorkspaceDomain) bool {
+func isWorkspaceAccepted(resource *wsdom.Workspace) bool {
 	return resource.Status == nil
 }
 
-func isWorkspacePending(resource *wsdom.WorkspaceDomain) bool {
+func isWorkspacePending(resource *wsdom.Workspace) bool {
 	return resource.Status != nil &&
 		resource.Status.State == commondomain.ResourceStatePending
 }
 
-func isWorkspaceCreating(resource *wsdom.WorkspaceDomain) bool {
+func isWorkspaceCreating(resource *wsdom.Workspace) bool {
 	return resource.DeletedAt == nil &&
 		resource.Status != nil &&
 		resource.Status.State == commondomain.ResourceStateCreating
 }
 
-func workspaceIsNotDeleting(resource *wsdom.WorkspaceDomain) bool {
+func workspaceIsNotDeleting(resource *wsdom.Workspace) bool {
 	return resource.Status == nil ||
 		resource.Status.State != commondomain.ResourceStateDeleting
 }
 
-func wantWorkspaceDelete(resource *wsdom.WorkspaceDomain) bool {
+func wantWorkspaceDelete(resource *wsdom.Workspace) bool {
 	return resource.DeletedAt != nil && workspaceIsNotDeleting(resource)
 }
 
-func isWorkspaceDeleting(resource *wsdom.WorkspaceDomain) bool {
+func isWorkspaceDeleting(resource *wsdom.Workspace) bool {
 	return resource.DeletedAt != nil &&
 		resource.Status != nil &&
 		resource.Status.State == commondomain.ResourceStateDeleting
 }
 
-func wantWorkspaceRetryCreate(resource *wsdom.WorkspaceDomain) bool {
+func wantWorkspaceRetryCreate(resource *wsdom.Workspace) bool {
 	return resource.DeletedAt == nil && resource.Status != nil &&
 		resource.Status.State == commondomain.ResourceStateError &&
 		len(resource.Status.Conditions) > 1 &&

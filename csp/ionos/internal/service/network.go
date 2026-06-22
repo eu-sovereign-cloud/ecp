@@ -15,10 +15,10 @@ type Network struct {
 	Deleter *networkctrl.DeleteNetwork
 }
 
-func (s *Network) Create(ctx context.Context, resource *netdom.NetworkDomain) error {
+func (s *Network) Create(ctx context.Context, resource *netdom.Network) error {
 	return s.Creator.Do(ctx, resource)
 }
 
-func (s *Network) Delete(ctx context.Context, resource *netdom.NetworkDomain) error {
+func (s *Network) Delete(ctx context.Context, resource *netdom.Network) error {
 	return s.Deleter.Do(ctx, resource)
 }

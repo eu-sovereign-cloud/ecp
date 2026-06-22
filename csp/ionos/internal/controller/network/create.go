@@ -11,6 +11,6 @@ type CreateNetwork struct {
 	Store port.NetworkStore
 }
 
-func (c *CreateNetwork) Do(ctx context.Context, domain *netdom.NetworkDomain) error {
+func (c *CreateNetwork) Do(ctx context.Context, domain *netdom.Network) error {
 	return c.Store.Create(ctx, domain)
 }

@@ -66,17 +66,17 @@ func ListParamsFromAPI(params sdkstorage.ListBlockStoragesParams, tenant, worksp
 	}
 }
 
-// BlockStorageDomainToAPIWithVerb returns a func that converts a BlockStorageDomain to its SDK representation with the given verb.
-func BlockStorageDomainToAPIWithVerb(verb string) func(domain *bsdom.BlockStorageDomain) *sdkschema.BlockStorage {
-	return func(domain *bsdom.BlockStorageDomain) *sdkschema.BlockStorage {
+// BlockStorageDomainToAPIWithVerb returns a func that converts a BlockStorage to its SDK representation with the given verb.
+func BlockStorageDomainToAPIWithVerb(verb string) func(domain *bsdom.BlockStorage) *sdkschema.BlockStorage {
+	return func(domain *bsdom.BlockStorage) *sdkschema.BlockStorage {
 		sdk := blockStorageDomainToAPI(domain)
 		sdk.Metadata.Verb = verb
 		return sdk
 	}
 }
 
-// blockStorageDomainToAPI converts a BlockStorageDomain to its SDK representation.
-func blockStorageDomainToAPI(domain *bsdom.BlockStorageDomain) *sdkschema.BlockStorage {
+// blockStorageDomainToAPI converts a BlockStorage to its SDK representation.
+func blockStorageDomainToAPI(domain *bsdom.BlockStorage) *sdkschema.BlockStorage {
 	resVersion := int64(0)
 	if rv, err := strconv.ParseInt(domain.ResourceVersion, 10, 64); err == nil {
 		resVersion = rv
@@ -136,8 +136,8 @@ func blockStorageDomainToAPI(domain *bsdom.BlockStorageDomain) *sdkschema.BlockS
 	return bs
 }
 
-// BlockStorageDomainToAPIIterator converts a list of BlockStorageDomain to an SDK BlockStorageIterator.
-func BlockStorageDomainToAPIIterator(domains []*bsdom.BlockStorageDomain, nextSkipToken *string) *sdkstorage.BlockStorageIterator {
+// BlockStorageDomainToAPIIterator converts a list of BlockStorage to an SDK BlockStorageIterator.
+func BlockStorageDomainToAPIIterator(domains []*bsdom.BlockStorage, nextSkipToken *string) *sdkstorage.BlockStorageIterator {
 	items := make([]sdkschema.BlockStorage, len(domains))
 	for i := range domains {
 		items[i] = *blockStorageDomainToAPI(domains[i])
@@ -159,10 +159,10 @@ func BlockStorageDomainToAPIIterator(domains []*bsdom.BlockStorageDomain, nextSk
 	return iterator
 }
 
-// APIToBlockStorageDomain converts an SDK BlockStorage to a BlockStorageDomain.
-func APIToBlockStorageDomain(sdk sdkschema.BlockStorage, id *BlockStorageIdentity, region string) *bsdom.BlockStorageDomain {
-	domain := &bsdom.BlockStorageDomain{
-		Spec: bsdom.BlockStorageSpecDomain{
+// APIToBlockStorageDomain converts an SDK BlockStorage to a BlockStorage.
+func APIToBlockStorageDomain(sdk sdkschema.BlockStorage, id *BlockStorageIdentity, region string) *bsdom.BlockStorage {
+	domain := &bsdom.BlockStorage{
+		Spec: bsdom.BlockStorageSpec{
 			SizeGB: sdk.Spec.SizeGB,
 			SkuRef: commonfrontend.FromAPI(sdk.Spec.SkuRef),
 		},

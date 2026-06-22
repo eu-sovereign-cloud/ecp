@@ -17,16 +17,16 @@ import (
 
 // BlockStoragePluginHandler drives the block-storage reconciliation state machine.
 type BlockStoragePluginHandler struct {
-	frameworkbackend.GenericPluginHandler[*bsdom.BlockStorageDomain]
-	repo   persistence.Repo[*bsdom.BlockStorageDomain]
+	frameworkbackend.GenericPluginHandler[*bsdom.BlockStorage]
+	repo   persistence.Repo[*bsdom.BlockStorage]
 	plugin BlockStoragePlugin
 }
 
-var _ backendport.PluginHandler[*bsdom.BlockStorageDomain] = (*BlockStoragePluginHandler)(nil)
+var _ backendport.PluginHandler[*bsdom.BlockStorage] = (*BlockStoragePluginHandler)(nil)
 
 // NewBlockStoragePluginHandler creates a new BlockStoragePluginHandler.
 func NewBlockStoragePluginHandler(
-	repo persistence.Repo[*bsdom.BlockStorageDomain],
+	repo persistence.Repo[*bsdom.BlockStorage],
 	plugin BlockStoragePlugin,
 	maxConditions int,
 ) *BlockStoragePluginHandler {
@@ -41,33 +41,33 @@ func NewBlockStoragePluginHandler(
 }
 
 //nolint:gocyclo // keep locality of behavior: the two switches describe the full reconciliation state machine in one place
-func (h *BlockStoragePluginHandler) HandleReconcile(ctx context.Context, resource *bsdom.BlockStorageDomain) (bool, error) {
-	var delegate backendport.DelegatedFunc[*bsdom.BlockStorageDomain]
+func (h *BlockStoragePluginHandler) HandleReconcile(ctx context.Context, resource *bsdom.BlockStorage) (bool, error) {
+	var delegate backendport.DelegatedFunc[*bsdom.BlockStorage]
 
 	switch {
 	case isBlockStorageAccepted(resource):
-		delegate = frameworkbackend.BypassDelegated[*bsdom.BlockStorageDomain]
+		delegate = frameworkbackend.BypassDelegated[*bsdom.BlockStorage]
 
 	case isBlockStoragePending(resource):
-		delegate = frameworkbackend.BypassDelegated[*bsdom.BlockStorageDomain]
+		delegate = frameworkbackend.BypassDelegated[*bsdom.BlockStorage]
 
 	case isBlockStorageCreating(resource):
 		delegate = h.plugin.Create
 
 	case wantBlockStorageDelete(resource):
-		delegate = frameworkbackend.BypassDelegated[*bsdom.BlockStorageDomain]
+		delegate = frameworkbackend.BypassDelegated[*bsdom.BlockStorage]
 
 	case isBlockStorageDeleting(resource):
 		delegate = h.plugin.Delete
 
 	case wantBlockStorageIncreaseSize(resource):
-		delegate = frameworkbackend.BypassDelegated[*bsdom.BlockStorageDomain]
+		delegate = frameworkbackend.BypassDelegated[*bsdom.BlockStorage]
 
 	case isBlockStorageIncreasingSize(resource):
 		delegate = h.plugin.IncreaseSize
 
 	case wantBlockStorageRetryCreate(resource) || wantBlockStorageRetryIncreaseSize(resource):
-		delegate = frameworkbackend.BypassDelegated[*bsdom.BlockStorageDomain]
+		delegate = frameworkbackend.BypassDelegated[*bsdom.BlockStorage]
 
 	default:
 		return false, nil // Nothing to do.
@@ -126,9 +126,9 @@ func (h *BlockStoragePluginHandler) HandleReconcile(ctx context.Context, resourc
 	return false, nil
 }
 
-func (h *BlockStoragePluginHandler) setResourceState(ctx context.Context, resource *bsdom.BlockStorageDomain, state commondomain.ResourceStateDomain, requeue bool) (bool, error) {
+func (h *BlockStoragePluginHandler) setResourceState(ctx context.Context, resource *bsdom.BlockStorage, state commondomain.ResourceStateDomain, requeue bool) (bool, error) {
 	if resource.Status == nil {
-		resource.Status = &bsdom.BlockStorageStatusDomain{}
+		resource.Status = &bsdom.BlockStorageStatus{}
 	}
 
 	resource.Status.PushCondition(commonbackend.ConditionFromState(state))
@@ -147,9 +147,9 @@ func (h *BlockStoragePluginHandler) setResourceState(ctx context.Context, resour
 	return requeue, nil
 }
 
-func (h *BlockStoragePluginHandler) setResourceErrorState(ctx context.Context, resource *bsdom.BlockStorageDomain, err error, requeue bool) (bool, error) {
+func (h *BlockStoragePluginHandler) setResourceErrorState(ctx context.Context, resource *bsdom.BlockStorage, err error, requeue bool) (bool, error) {
 	if resource.Status == nil {
-		resource.Status = &bsdom.BlockStorageStatusDomain{}
+		resource.Status = &bsdom.BlockStorageStatus{}
 	}
 
 	resource.Status.PushCondition(commonbackend.ConditionFromError(err))
@@ -168,7 +168,7 @@ func (h *BlockStoragePluginHandler) setResourceErrorState(ctx context.Context, r
 	return requeue, nil
 }
 
-func blockDecreaseSize(_ context.Context, resource *bsdom.BlockStorageDomain) error {
+func blockDecreaseSize(_ context.Context, resource *bsdom.BlockStorage) error {
 	if resource.Status != nil &&
 		resource.Status.State != commondomain.ResourceStateCreating &&
 		resource.Spec.SizeGB < resource.Status.SizeGB {
@@ -178,55 +178,55 @@ func blockDecreaseSize(_ context.Context, resource *bsdom.BlockStorageDomain) er
 	return nil
 }
 
-func isBlockStorageAccepted(resource *bsdom.BlockStorageDomain) bool {
+func isBlockStorageAccepted(resource *bsdom.BlockStorage) bool {
 	return resource.Status == nil
 }
 
-func isBlockStoragePending(resource *bsdom.BlockStorageDomain) bool {
+func isBlockStoragePending(resource *bsdom.BlockStorage) bool {
 	return resource.DeletedAt == nil && (resource.Status == nil ||
 		resource.Status.State == commondomain.ResourceStatePending)
 }
 
-func isBlockStorageCreating(resource *bsdom.BlockStorageDomain) bool {
+func isBlockStorageCreating(resource *bsdom.BlockStorage) bool {
 	return resource.DeletedAt == nil &&
 		resource.Status != nil &&
 		resource.Status.State == commondomain.ResourceStateCreating
 }
 
-func blockStorageIsNotDeleting(resource *bsdom.BlockStorageDomain) bool {
+func blockStorageIsNotDeleting(resource *bsdom.BlockStorage) bool {
 	return resource.Status == nil ||
 		resource.Status.State != commondomain.ResourceStateDeleting
 }
 
-func wantBlockStorageDelete(resource *bsdom.BlockStorageDomain) bool {
+func wantBlockStorageDelete(resource *bsdom.BlockStorage) bool {
 	return resource.DeletedAt != nil && blockStorageIsNotDeleting(resource)
 }
 
-func isBlockStorageDeleting(resource *bsdom.BlockStorageDomain) bool {
+func isBlockStorageDeleting(resource *bsdom.BlockStorage) bool {
 	return resource.DeletedAt != nil &&
 		resource.Status != nil &&
 		resource.Status.State == commondomain.ResourceStateDeleting
 }
 
-func detectIncreaseSizeCondition(resource *bsdom.BlockStorageDomain) bool {
+func detectIncreaseSizeCondition(resource *bsdom.BlockStorage) bool {
 	return resource.Spec.SizeGB > resource.Status.SizeGB
 }
 
-func wantBlockStorageIncreaseSize(resource *bsdom.BlockStorageDomain) bool {
+func wantBlockStorageIncreaseSize(resource *bsdom.BlockStorage) bool {
 	return resource.DeletedAt == nil &&
 		resource.Status != nil &&
 		resource.Status.State == commondomain.ResourceStateActive &&
 		detectIncreaseSizeCondition(resource)
 }
 
-func isBlockStorageIncreasingSize(resource *bsdom.BlockStorageDomain) bool {
+func isBlockStorageIncreasingSize(resource *bsdom.BlockStorage) bool {
 	return resource.DeletedAt == nil &&
 		resource.Status != nil &&
 		resource.Status.State == commondomain.ResourceStateUpdating &&
 		detectIncreaseSizeCondition(resource)
 }
 
-func wantBlockStorageRetryCreate(resource *bsdom.BlockStorageDomain) bool {
+func wantBlockStorageRetryCreate(resource *bsdom.BlockStorage) bool {
 	return resource.DeletedAt == nil &&
 		resource.Status != nil &&
 		resource.Status.State == commondomain.ResourceStateError &&
@@ -234,7 +234,7 @@ func wantBlockStorageRetryCreate(resource *bsdom.BlockStorageDomain) bool {
 		resource.Status.Conditions[len(resource.Status.Conditions)-2].State == commondomain.ResourceStateCreating
 }
 
-func wantBlockStorageRetryIncreaseSize(resource *bsdom.BlockStorageDomain) bool {
+func wantBlockStorageRetryIncreaseSize(resource *bsdom.BlockStorage) bool {
 	return resource.DeletedAt == nil &&
 		resource.Status != nil &&
 		resource.Status.State == commondomain.ResourceStateError &&

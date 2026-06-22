@@ -18,13 +18,13 @@ package handler
 // func TestBlockStorage_create(t *testing.T) {
 // 	tests := []struct {
 // 		name        string
-// 		setupMocks  func(*MockRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList], *MockConverter[*regional.BlockStorageDomain, *v1alpha1.BlockStorage], *regional.BlockStorageDomain)
+// 		setupMocks  func(*MockRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList], *MockConverter[*regional.BlockStorage, *v1alpha1.BlockStorage], *regional.BlockStorage)
 // 		wantErr     bool
 // 		errContains string
 // 	}{
 // 		{
 // 			name: "conversion error",
-// 			setupMocks: func(mockRepo *MockRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList], mockConv *MockConverter[*regional.BlockStorageDomain, *v1alpha1.BlockStorage], blockStorageDomain *regional.BlockStorageDomain) {
+// 			setupMocks: func(mockRepo *MockRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList], mockConv *MockConverter[*regional.BlockStorage, *v1alpha1.BlockStorage], blockStorageDomain *regional.BlockStorage) {
 // 				mockConv.
 // 					EXPECT().
 // 					FromSECAToAruba(blockStorageDomain).
@@ -35,7 +35,7 @@ package handler
 // 		},
 // 		{
 // 			name: "create error",
-// 			setupMocks: func(mockRepo *MockRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList], mockConv *MockConverter[*regional.BlockStorageDomain, *v1alpha1.BlockStorage], blockStorageDomain *regional.BlockStorageDomain) {
+// 			setupMocks: func(mockRepo *MockRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList], mockConv *MockConverter[*regional.BlockStorage, *v1alpha1.BlockStorage], blockStorageDomain *regional.BlockStorage) {
 // 				prj := &v1alpha1.BlockStorage{
 // 					Spec: v1alpha1.BlockStorageSpec{
 // 						Tenant: uuid.NewString(),
@@ -59,7 +59,7 @@ package handler
 // 		},
 // 		{
 // 			name: "pending creation - condition not met",
-// 			setupMocks: func(mockRepo *MockRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList], mockConv *MockConverter[*regional.BlockStorageDomain, *v1alpha1.BlockStorage], blockStorageDomain *regional.BlockStorageDomain) {
+// 			setupMocks: func(mockRepo *MockRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList], mockConv *MockConverter[*regional.BlockStorage, *v1alpha1.BlockStorage], blockStorageDomain *regional.BlockStorage) {
 // 				bs := &v1alpha1.BlockStorage{
 // 					Spec: v1alpha1.BlockStorageSpec{
 // 						Tenant: uuid.NewString(),
@@ -98,7 +98,7 @@ package handler
 // 		},
 // 		{
 // 			name: "success create",
-// 			setupMocks: func(mockRepo *MockRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList], mockConv *MockConverter[*regional.BlockStorageDomain, *v1alpha1.BlockStorage], blockStorageDomain *regional.BlockStorageDomain) {
+// 			setupMocks: func(mockRepo *MockRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList], mockConv *MockConverter[*regional.BlockStorage, *v1alpha1.BlockStorage], blockStorageDomain *regional.BlockStorage) {
 // 				bs := &v1alpha1.BlockStorage{
 // 					Spec: v1alpha1.BlockStorageSpec{
 // 						Tenant: uuid.NewString(),
@@ -142,10 +142,10 @@ package handler
 // 			defer ctrl.Finish()
 
 // 			mockRepo := NewMockRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList](ctrl)
-// 			mockConv := NewMockConverter[*regional.BlockStorageDomain, *v1alpha1.BlockStorage](ctrl)
+// 			mockConv := NewMockConverter[*regional.BlockStorage, *v1alpha1.BlockStorage](ctrl)
 
-// 			bd := &regional.BlockStorageDomain{
-// 				Spec: regional.BlockStorageSpecDomain{
+// 			bd := &regional.BlockStorage{
+// 				Spec: regional.BlockStorageSpec{
 // 					SizeGB: 100,
 // 					SkuRef: regional.Domain{
 // 						Tenant: "sku-id",
@@ -173,13 +173,13 @@ package handler
 // func TestBlockStorage_delete(t *testing.T) {
 // 	tests := []struct {
 // 		name        string
-// 		setupMocks  func(*MockRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList], *MockConverter[*regional.BlockStorageDomain, *v1alpha1.BlockStorage], *regional.BlockStorageDomain)
+// 		setupMocks  func(*MockRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList], *MockConverter[*regional.BlockStorage, *v1alpha1.BlockStorage], *regional.BlockStorage)
 // 		wantErr     bool
 // 		errContains string
 // 	}{
 // 		{
 // 			name: "conversion error",
-// 			setupMocks: func(mockRepo *MockRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList], mockConv *MockConverter[*regional.BlockStorageDomain, *v1alpha1.BlockStorage], blockStorageDomain *regional.BlockStorageDomain) {
+// 			setupMocks: func(mockRepo *MockRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList], mockConv *MockConverter[*regional.BlockStorage, *v1alpha1.BlockStorage], blockStorageDomain *regional.BlockStorage) {
 // 				mockConv.
 // 					EXPECT().
 // 					FromSECAToAruba(blockStorageDomain).
@@ -190,7 +190,7 @@ package handler
 // 		},
 // 		{
 // 			name: "delete error",
-// 			setupMocks: func(mockRepo *MockRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList], mockConv *MockConverter[*regional.BlockStorageDomain, *v1alpha1.BlockStorage], blockStorageDomain *regional.BlockStorageDomain) {
+// 			setupMocks: func(mockRepo *MockRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList], mockConv *MockConverter[*regional.BlockStorage, *v1alpha1.BlockStorage], blockStorageDomain *regional.BlockStorage) {
 // 				bs := &v1alpha1.BlockStorage{
 // 					Spec: v1alpha1.BlockStorageSpec{
 // 						SizeGb: 100,
@@ -220,7 +220,7 @@ package handler
 // 		},
 // 		{
 // 			name: "pending deletion - condition not met",
-// 			setupMocks: func(mockRepo *MockRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList], mockConv *MockConverter[*regional.BlockStorageDomain, *v1alpha1.BlockStorage], blockStorageDomain *regional.BlockStorageDomain) {
+// 			setupMocks: func(mockRepo *MockRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList], mockConv *MockConverter[*regional.BlockStorage, *v1alpha1.BlockStorage], blockStorageDomain *regional.BlockStorage) {
 // 				bs := &v1alpha1.BlockStorage{
 // 					Spec: v1alpha1.BlockStorageSpec{
 // 						SizeGb: 100,
@@ -266,7 +266,7 @@ package handler
 // 		},
 // 		{
 // 			name: "success delete",
-// 			setupMocks: func(mockRepo *MockRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList], mockConv *MockConverter[*regional.BlockStorageDomain, *v1alpha1.BlockStorage], blockStorageDomain *regional.BlockStorageDomain) {
+// 			setupMocks: func(mockRepo *MockRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList], mockConv *MockConverter[*regional.BlockStorage, *v1alpha1.BlockStorage], blockStorageDomain *regional.BlockStorage) {
 // 				bs := &v1alpha1.BlockStorage{
 // 					Spec: v1alpha1.BlockStorageSpec{
 // 						SizeGb: 100,
@@ -325,10 +325,10 @@ package handler
 // 			defer ctrl.Finish()
 
 // 			mockRepo := NewMockRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList](ctrl)
-// 			mockConv := NewMockConverter[*regional.BlockStorageDomain, *v1alpha1.BlockStorage](ctrl)
+// 			mockConv := NewMockConverter[*regional.BlockStorage, *v1alpha1.BlockStorage](ctrl)
 
-// 			bd := &regional.BlockStorageDomain{
-// 				Spec: regional.BlockStorageSpecDomain{
+// 			bd := &regional.BlockStorage{
+// 				Spec: regional.BlockStorageSpec{
 // 					SizeGB: 100,
 // 					SkuRef: regional.Domain{
 // 						Tenant: "sku-id",
@@ -357,13 +357,13 @@ package handler
 // func TestBlockStorage_increaseSize(t *testing.T) {
 // 	tests := []struct {
 // 		name        string
-// 		setupMocks  func(*MockRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList], *MockConverter[*regional.BlockStorageDomain, *v1alpha1.BlockStorage], *regional.BlockStorageDomain)
+// 		setupMocks  func(*MockRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList], *MockConverter[*regional.BlockStorage, *v1alpha1.BlockStorage], *regional.BlockStorage)
 // 		wantErr     bool
 // 		errContains string
 // 	}{
 // 		{
 // 			name: "increase size success",
-// 			setupMocks: func(mockRepo *MockRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList], mockConv *MockConverter[*regional.BlockStorageDomain, *v1alpha1.BlockStorage], blockStorageDomain *regional.BlockStorageDomain) {
+// 			setupMocks: func(mockRepo *MockRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList], mockConv *MockConverter[*regional.BlockStorage, *v1alpha1.BlockStorage], blockStorageDomain *regional.BlockStorage) {
 // 				bs := &v1alpha1.BlockStorage{
 // 					Spec: v1alpha1.BlockStorageSpec{
 // 						SizeGb: 200,
@@ -414,10 +414,10 @@ package handler
 // 			defer ctrl.Finish()
 
 // 			mockRepo := NewMockRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList](ctrl)
-// 			mockConv := NewMockConverter[*regional.BlockStorageDomain, *v1alpha1.BlockStorage](ctrl)
+// 			mockConv := NewMockConverter[*regional.BlockStorage, *v1alpha1.BlockStorage](ctrl)
 
-// 			bd := &regional.BlockStorageDomain{
-// 				Spec: regional.BlockStorageSpecDomain{
+// 			bd := &regional.BlockStorage{
+// 				Spec: regional.BlockStorageSpec{
 // 					SizeGB: 200, // New size for increase
 // 					SkuRef: regional.Domain{
 // 						Tenant: "sku-id",

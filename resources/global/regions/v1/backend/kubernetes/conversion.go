@@ -13,8 +13,8 @@ import (
 	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/labels"
 )
 
-// MapCRToRegionDomain converts either a concrete *Region or *unstructured.Unstructured into a *rdom.RegionDomain.
-func MapCRToRegionDomain(obj client.Object) (*rdom.RegionDomain, error) {
+// MapCRToRegionDomain converts either a concrete *Region or *unstructured.Unstructured into a *rdom.Region.
+func MapCRToRegionDomain(obj client.Object) (*rdom.Region, error) {
 	var cr Region
 
 	switch t := obj.(type) {
@@ -29,7 +29,7 @@ func MapCRToRegionDomain(obj client.Object) (*rdom.RegionDomain, error) {
 	}
 
 	if err := validateRegionSpec(cr); err != nil {
-		return &rdom.RegionDomain{}, err
+		return &rdom.Region{}, err
 	}
 
 	providers := mapProviders(cr)
@@ -48,13 +48,13 @@ func MapCRToRegionDomain(obj client.Object) (*rdom.RegionDomain, error) {
 		meta.DeletedAt = &ts.Time
 	}
 
-	return &rdom.RegionDomain{Metadata: meta, Providers: providers, Zones: zones}, nil
+	return &rdom.Region{Metadata: meta, Providers: providers, Zones: zones}, nil
 }
 
-// MapRegionDomainToCR converts a *rdom.RegionDomain to a Kubernetes Region CR.
+// MapRegionDomainToCR converts a *rdom.Region to a Kubernetes Region CR.
 // Regions are read-only resources managed by the platform, so this primarily
 // handles re-serialisation for update paths.
-func MapRegionDomainToCR(d *rdom.RegionDomain) (client.Object, error) {
+func MapRegionDomainToCR(d *rdom.Region) (client.Object, error) {
 	if d == nil {
 		return nil, fmt.Errorf("domain region is nil")
 	}

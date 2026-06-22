@@ -11,6 +11,6 @@ type DeleteWorkspace struct {
 	Store port.WorkspaceStore
 }
 
-func (d *DeleteWorkspace) Do(ctx context.Context, domain *wsdom.WorkspaceDomain) error {
+func (d *DeleteWorkspace) Do(ctx context.Context, domain *wsdom.Workspace) error {
 	return d.Store.Delete(ctx, domain)
 }

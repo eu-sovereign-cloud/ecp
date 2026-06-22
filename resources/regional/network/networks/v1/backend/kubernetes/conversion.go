@@ -21,8 +21,8 @@ import (
 )
 
 // MapCRToNetworkDomain converts either a concrete *Network or *unstructured.Unstructured
-// into a *netdom.NetworkDomain.
-func MapCRToNetworkDomain(obj client.Object) (*netdom.NetworkDomain, error) {
+// into a *netdom.Network.
+func MapCRToNetworkDomain(obj client.Object) (*netdom.Network, error) {
 	var cr Network
 
 	switch t := obj.(type) {
@@ -40,7 +40,7 @@ func MapCRToNetworkDomain(obj client.Object) (*netdom.NetworkDomain, error) {
 	internalLabels := k8slabels.GetInternalLabels(crLabels)
 	keyedLabels := k8slabels.GetKeyedLabels(crLabels)
 
-	spec := netdom.NetworkSpecDomain{
+	spec := netdom.NetworkSpec{
 		Cidr:          mapCRToCidrDomain(cr.Spec.Cidr),
 		SkuRef:        commonbackend.MapCRToReferenceDomain(cr.Spec.SkuRef),
 		RouteTableRef: commonbackend.MapCRToReferenceDomain(cr.Spec.RouteTableRef),
@@ -49,7 +49,7 @@ func MapCRToNetworkDomain(obj client.Object) (*netdom.NetworkDomain, error) {
 		spec.AdditionalCidrs = append(spec.AdditionalCidrs, mapCRToCidrDomain(c))
 	}
 
-	nd := &netdom.NetworkDomain{
+	nd := &netdom.Network{
 		Spec: spec,
 	}
 	nd.Name = cr.GetName()
@@ -68,9 +68,9 @@ func MapCRToNetworkDomain(obj client.Object) (*netdom.NetworkDomain, error) {
 		nd.DeletedAt = &ts.Time
 	}
 
-	nd.Status = &netdom.NetworkStatusDomain{}
+	nd.Status = &netdom.NetworkStatus{}
 	if cr.Status != nil {
-		nd.Status = &netdom.NetworkStatusDomain{}
+		nd.Status = &netdom.NetworkStatus{}
 		nd.Status.State = commondomain.ResourceStateDomain(cr.Status.State)
 		nd.Status.Conditions = commonbackend.MapCRToStatusConditionDomains(cr.Status.Conditions)
 	} else {
@@ -80,8 +80,8 @@ func MapCRToNetworkDomain(obj client.Object) (*netdom.NetworkDomain, error) {
 	return nd, nil
 }
 
-// MapNetworkDomainToCR converts a *netdom.NetworkDomain to a Kubernetes Network CR.
-func MapNetworkDomainToCR(d *netdom.NetworkDomain) (client.Object, error) {
+// MapNetworkDomainToCR converts a *netdom.Network to a Kubernetes Network CR.
+func MapNetworkDomainToCR(d *netdom.Network) (client.Object, error) {
 	if d == nil {
 		return nil, fmt.Errorf("domain network is nil")
 	}
@@ -132,14 +132,14 @@ func MapNetworkDomainToCR(d *netdom.NetworkDomain) (client.Object, error) {
 	return cr, nil
 }
 
-func mapCRToCidrDomain(cr genv1.Cidr) netdom.CidrDomain {
-	return netdom.CidrDomain{
+func mapCRToCidrDomain(cr genv1.Cidr) netdom.Cidr {
+	return netdom.Cidr{
 		IPv4: cr.Ipv4,
 		IPv6: cr.Ipv6,
 	}
 }
 
-func mapCidrDomainToCR(d netdom.CidrDomain) genv1.Cidr {
+func mapCidrDomainToCR(d netdom.Cidr) genv1.Cidr {
 	return genv1.Cidr{
 		Ipv4: d.IPv4,
 		Ipv6: d.IPv6,

@@ -74,7 +74,7 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
 		Addr: addr,
 		Handler: regionv1.HandlerWithOptions(
 			&regionrest.Handler{
-				Repo:   k8sadapter.NewReaderAdapter[*rdom.RegionDomain](client.Client, rk8s.RegionGVR, logger, rk8s.MapCRToRegionDomain),
+				Repo:   k8sadapter.NewReaderAdapter[*rdom.Region](client.Client, rk8s.RegionGVR, logger, rk8s.MapCRToRegionDomain),
 				Logger: logger,
 			},
 			regionv1.StdHTTPServerOptions{

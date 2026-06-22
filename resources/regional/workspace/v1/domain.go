@@ -12,19 +12,19 @@ const (
 	ProviderID = "seca.workspace/v1"
 )
 
-// WorkspaceDomain represents the domain model for a workspace.
-type WorkspaceDomain struct {
+// Workspace represents the domain model for a workspace.
+type Workspace struct {
 	domain.RegionalMetadata
 
-	Spec   WorkspaceSpecDomain
-	Status *WorkspaceStatusDomain
+	Spec   WorkspaceSpec
+	Status *WorkspaceStatus
 }
 
-// WorkspaceSpecDomain is the free-form spec for a workspace.
-type WorkspaceSpecDomain = map[string]interface{}
+// WorkspaceSpec is the free-form spec for a workspace.
+type WorkspaceSpec = map[string]interface{}
 
-// WorkspaceStatusDomain defines the status for a workspace.
-type WorkspaceStatusDomain struct {
+// WorkspaceStatus defines the status for a workspace.
+type WorkspaceStatus struct {
 	domain.StatusDomain
 	ResourceCount *int
 }

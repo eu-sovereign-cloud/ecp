@@ -40,8 +40,8 @@ const (
 var (
 	dynamicClient    dynamic.Interface
 	testLogger       *slog.Logger
-	workspaceRepo    *kubernetesadapter.RepoAdapter[*regionalmodel.WorkspaceDomain]
-	blockStorageRepo *kubernetesadapter.RepoAdapter[*regionalmodel.BlockStorageDomain]
+	workspaceRepo    *kubernetesadapter.RepoAdapter[*regionalmodel.Workspace]
+	blockStorageRepo *kubernetesadapter.RepoAdapter[*regionalmodel.BlockStorage]
 	k8sClient        client.Client
 )
 

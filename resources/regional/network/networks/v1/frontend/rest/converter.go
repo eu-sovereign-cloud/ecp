@@ -66,17 +66,17 @@ func ListParamsFromAPI(params sdknetwork.ListNetworksParams, tenant, workspace s
 	}
 }
 
-// NetworkDomainToAPIWithVerb returns a func that converts a NetworkDomain to its SDK representation with the given verb.
-func NetworkDomainToAPIWithVerb(verb string) func(domain *netdom.NetworkDomain) *sdkschema.Network {
-	return func(domain *netdom.NetworkDomain) *sdkschema.Network {
+// NetworkDomainToAPIWithVerb returns a func that converts a Network to its SDK representation with the given verb.
+func NetworkDomainToAPIWithVerb(verb string) func(domain *netdom.Network) *sdkschema.Network {
+	return func(domain *netdom.Network) *sdkschema.Network {
 		sdk := networkDomainToAPI(domain)
 		sdk.Metadata.Verb = verb
 		return sdk
 	}
 }
 
-// networkDomainToAPI converts a NetworkDomain to its SDK representation.
-func networkDomainToAPI(domain *netdom.NetworkDomain) *sdkschema.Network {
+// networkDomainToAPI converts a Network to its SDK representation.
+func networkDomainToAPI(domain *netdom.Network) *sdkschema.Network {
 	resVersion := int64(0)
 	if rv, err := strconv.ParseInt(domain.ResourceVersion, 10, 64); err == nil {
 		resVersion = rv
@@ -133,8 +133,8 @@ func networkDomainToAPI(domain *netdom.NetworkDomain) *sdkschema.Network {
 	return n
 }
 
-// NetworkDomainToAPIIterator converts a list of NetworkDomain to an SDK NetworkIterator.
-func NetworkDomainToAPIIterator(domains []*netdom.NetworkDomain, nextSkipToken *string) *sdknetwork.NetworkIterator {
+// NetworkDomainToAPIIterator converts a list of Network to an SDK NetworkIterator.
+func NetworkDomainToAPIIterator(domains []*netdom.Network, nextSkipToken *string) *sdknetwork.NetworkIterator {
 	items := make([]sdkschema.Network, len(domains))
 	for i := range domains {
 		items[i] = *networkDomainToAPI(domains[i])
@@ -156,10 +156,10 @@ func NetworkDomainToAPIIterator(domains []*netdom.NetworkDomain, nextSkipToken *
 	return iterator
 }
 
-// APIToNetworkDomain converts an SDK Network to a NetworkDomain.
-func APIToNetworkDomain(sdk sdkschema.Network, id *NetworkIdentity, region string) *netdom.NetworkDomain {
-	domain := &netdom.NetworkDomain{
-		Spec: netdom.NetworkSpecDomain{
+// APIToNetworkDomain converts an SDK Network to a Network.
+func APIToNetworkDomain(sdk sdkschema.Network, id *NetworkIdentity, region string) *netdom.Network {
+	domain := &netdom.Network{
+		Spec: netdom.NetworkSpec{
 			Cidr:          cidrFromAPI(sdk.Spec.Cidr),
 			SkuRef:        commonfrontend.FromAPI(sdk.Spec.SkuRef),
 			RouteTableRef: commonfrontend.FromAPI(sdk.Spec.RouteTableRef),
@@ -182,17 +182,17 @@ func APIToNetworkDomain(sdk sdkschema.Network, id *NetworkIdentity, region strin
 	return domain
 }
 
-// cidrDomainToAPI converts a netdom.CidrDomain to an sdkschema.Cidr.
-func cidrDomainToAPI(c netdom.CidrDomain) sdkschema.Cidr {
+// cidrDomainToAPI converts a netdom.Cidr to an sdkschema.Cidr.
+func cidrDomainToAPI(c netdom.Cidr) sdkschema.Cidr {
 	return sdkschema.Cidr{
 		Ipv4: c.IPv4,
 		Ipv6: c.IPv6,
 	}
 }
 
-// cidrFromAPI converts an sdkschema.Cidr to a netdom.CidrDomain.
-func cidrFromAPI(c sdkschema.Cidr) netdom.CidrDomain {
-	return netdom.CidrDomain{
+// cidrFromAPI converts an sdkschema.Cidr to a netdom.Cidr.
+func cidrFromAPI(c sdkschema.Cidr) netdom.Cidr {
+	return netdom.Cidr{
 		IPv4: c.Ipv4,
 		IPv6: c.Ipv6,
 	}

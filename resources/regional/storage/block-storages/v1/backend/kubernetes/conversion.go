@@ -21,8 +21,8 @@ import (
 )
 
 // MapCRToBlockStorageDomain converts either a concrete *BlockStorage or *unstructured.Unstructured
-// into a *bsdom.BlockStorageDomain.
-func MapCRToBlockStorageDomain(obj client.Object) (*bsdom.BlockStorageDomain, error) {
+// into a *bsdom.BlockStorage.
+func MapCRToBlockStorageDomain(obj client.Object) (*bsdom.BlockStorage, error) {
 	var cr BlockStorage
 
 	switch t := obj.(type) {
@@ -40,7 +40,7 @@ func MapCRToBlockStorageDomain(obj client.Object) (*bsdom.BlockStorageDomain, er
 	internalLabels := k8slabels.GetInternalLabels(crLabels)
 	keyedLabels := k8slabels.GetKeyedLabels(crLabels)
 
-	spec := bsdom.BlockStorageSpecDomain{
+	spec := bsdom.BlockStorageSpec{
 		SizeGB: cr.Spec.SizeGB,
 		SkuRef: commonbackend.MapCRToReferenceDomain(cr.Spec.SkuRef),
 	}
@@ -49,7 +49,7 @@ func MapCRToBlockStorageDomain(obj client.Object) (*bsdom.BlockStorageDomain, er
 		spec.SourceImageRef = &ref
 	}
 
-	bs := &bsdom.BlockStorageDomain{
+	bs := &bsdom.BlockStorage{
 		Spec: spec,
 	}
 	bs.Name = cr.GetName()
@@ -68,9 +68,9 @@ func MapCRToBlockStorageDomain(obj client.Object) (*bsdom.BlockStorageDomain, er
 		bs.DeletedAt = &ts.Time
 	}
 
-	bs.Status = &bsdom.BlockStorageStatusDomain{}
+	bs.Status = &bsdom.BlockStorageStatus{}
 	if cr.Status != nil {
-		bs.Status = &bsdom.BlockStorageStatusDomain{
+		bs.Status = &bsdom.BlockStorageStatus{
 			SizeGB: cr.Status.SizeGB,
 		}
 		bs.Status.State = commonbackend.MapCRToResourceStateDomain(cr.Status.State)
@@ -86,8 +86,8 @@ func MapCRToBlockStorageDomain(obj client.Object) (*bsdom.BlockStorageDomain, er
 	return bs, nil
 }
 
-// MapBlockStorageDomainToCR converts a *bsdom.BlockStorageDomain to a Kubernetes BlockStorage CR.
-func MapBlockStorageDomainToCR(d *bsdom.BlockStorageDomain) (client.Object, error) {
+// MapBlockStorageDomainToCR converts a *bsdom.BlockStorage to a Kubernetes BlockStorage CR.
+func MapBlockStorageDomainToCR(d *bsdom.BlockStorage) (client.Object, error) {
 	if d == nil {
 		return nil, fmt.Errorf("domain block storage is nil")
 	}

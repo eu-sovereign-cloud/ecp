@@ -12,30 +12,30 @@ const (
 	ProviderID = "seca.network/v1"
 )
 
-// NetworkDomain represents the domain model for a network instance.
-type NetworkDomain struct {
+// Network represents the domain model for a network instance.
+type Network struct {
 	domain.RegionalMetadata
-	Spec   NetworkSpecDomain
-	Status *NetworkStatusDomain
+	Spec   NetworkSpec
+	Status *NetworkStatus
 }
 
-// NetworkSpecDomain defines the specification for a network instance.
-type NetworkSpecDomain struct {
-	AdditionalCidrs []CidrDomain
-	Cidr            CidrDomain
+// NetworkSpec defines the specification for a network instance.
+type NetworkSpec struct {
+	AdditionalCidrs []Cidr
+	Cidr            Cidr
 	SkuRef          domain.ReferenceDomain
 	RouteTableRef   domain.ReferenceDomain
 }
 
-// CidrDomain holds IPv4 and IPv6 CIDR strings for a network address range.
+// Cidr holds IPv4 and IPv6 CIDR strings for a network address range.
 // Either field may be empty: IPv4-only, IPv6-only, or dual-stack.
-type CidrDomain struct {
+type Cidr struct {
 	IPv4 string
 	IPv6 string
 }
 
-// NetworkStatusDomain defines the status for a network instance.
-type NetworkStatusDomain struct {
+// NetworkStatus defines the status for a network instance.
+type NetworkStatus struct {
 	domain.StatusDomain
 	// TODO: add Cidr/AdditionalCidrs/RouteTableRef from SECA NetworkStatus when the reconciler surfaces assigned ranges
 }

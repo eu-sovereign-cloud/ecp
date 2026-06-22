@@ -24,9 +24,9 @@ import (
 // Handler is the HTTP handler for network resources (networks + SKUs).
 // It implements the full sdknetwork.ServerInterface.
 type Handler struct {
-	NetworkReader persistence.ReaderRepo[*netdom.NetworkDomain]
-	NetworkWriter persistence.WriterRepo[*netdom.NetworkDomain]
-	SKUReader     persistence.ReaderRepo[*skudom.NetworkSKUDomain]
+	NetworkReader persistence.ReaderRepo[*netdom.Network]
+	NetworkWriter persistence.WriterRepo[*netdom.Network]
+	SKUReader     persistence.ReaderRepo[*skudom.NetworkSKU]
 	Logger        *slog.Logger
 }
 
@@ -53,7 +53,7 @@ func (h *Handler) ListSkus(w http.ResponseWriter, r *http.Request, tenant sdksch
 		Selector:  selector,
 	}
 
-	var domains []*skudom.NetworkSKUDomain
+	var domains []*skudom.NetworkSKU
 	nextSkipToken, err := h.SKUReader.List(r.Context(), listParams, &domains)
 	if err != nil {
 		logger.ErrorContext(r.Context(), "failed to list network SKUs", slog.Any("error", err))
@@ -67,7 +67,7 @@ func (h *Handler) ListSkus(w http.ResponseWriter, r *http.Request, tenant sdksch
 func (h *Handler) GetSku(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam) {
 	logger := h.Logger.With("provider", "network", "resource", "sku", "name", name)
 
-	domain := &skudom.NetworkSKUDomain{}
+	domain := &skudom.NetworkSKU{}
 	domain.Name = name
 	domain.Tenant = tenant
 
@@ -85,7 +85,7 @@ func (h *Handler) ListNetworks(w http.ResponseWriter, r *http.Request, tenant sd
 	logger := h.Logger.With("provider", "network", "resource", "network")
 	listParams := ListParamsFromAPI(params, tenant, workspace)
 
-	var domains []*netdom.NetworkDomain
+	var domains []*netdom.Network
 	nextSkipToken, err := h.NetworkReader.List(r.Context(), listParams, &domains)
 	if err != nil {
 		logger.ErrorContext(r.Context(), "failed to list networks", slog.Any("error", err))
@@ -99,7 +99,7 @@ func (h *Handler) ListNetworks(w http.ResponseWriter, r *http.Request, tenant sd
 func (h *Handler) DeleteNetwork(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdknetwork.DeleteNetworkParams) {
 	logger := h.Logger.With("provider", "network", "resource", "network", "name", name)
 
-	domain := &netdom.NetworkDomain{}
+	domain := &netdom.Network{}
 	domain.Name = name
 	domain.Tenant = tenant
 	domain.Workspace = workspace
@@ -118,7 +118,7 @@ func (h *Handler) DeleteNetwork(w http.ResponseWriter, r *http.Request, tenant s
 func (h *Handler) GetNetwork(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam) {
 	logger := h.Logger.With("provider", "network", "resource", "network", "name", name)
 
-	domain := &netdom.NetworkDomain{}
+	domain := &netdom.Network{}
 	domain.Name = name
 	domain.Tenant = tenant
 	domain.Workspace = workspace
@@ -162,7 +162,7 @@ func (h *Handler) CreateOrUpdateNetwork(w http.ResponseWriter, r *http.Request, 
 	region := frameworkconfig.Singleton().Region()
 	domainObj := APIToNetworkDomain(apiObj, id, region)
 
-	var result *netdom.NetworkDomain
+	var result *netdom.Network
 	if resourceVersion == "" {
 		r2, err := h.NetworkWriter.Create(r.Context(), domainObj)
 		if err != nil {

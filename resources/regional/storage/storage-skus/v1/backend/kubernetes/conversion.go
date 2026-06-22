@@ -12,8 +12,8 @@ import (
 )
 
 // MapCRToStorageSKUDomain converts either a concrete *StorageSKU or *unstructured.Unstructured
-// into a *ssdom.StorageSKUDomain.
-func MapCRToStorageSKUDomain(obj client.Object) (*ssdom.StorageSKUDomain, error) {
+// into a *ssdom.StorageSKU.
+func MapCRToStorageSKUDomain(obj client.Object) (*ssdom.StorageSKU, error) {
 	var cr StorageSKU
 
 	switch t := obj.(type) {
@@ -30,8 +30,8 @@ func MapCRToStorageSKUDomain(obj client.Object) (*ssdom.StorageSKUDomain, error)
 	crLabels := cr.GetLabels()
 	internalLabels := k8slabels.GetInternalLabels(crLabels)
 
-	sku := &ssdom.StorageSKUDomain{
-		Spec: ssdom.StorageSKUSpecDomain{
+	sku := &ssdom.StorageSKU{
+		Spec: ssdom.StorageSKUSpec{
 			Iops:          int64(cr.Spec.Iops),
 			MinVolumeSize: int64(cr.Spec.MinVolumeSize),
 			Type:          string(cr.Spec.Type),
@@ -52,9 +52,9 @@ func MapCRToStorageSKUDomain(obj client.Object) (*ssdom.StorageSKUDomain, error)
 	return sku, nil
 }
 
-// MapStorageSKUDomainToCR converts a *ssdom.StorageSKUDomain to a Kubernetes StorageSKU CR.
+// MapStorageSKUDomainToCR converts a *ssdom.StorageSKU to a Kubernetes StorageSKU CR.
 // StorageSKUs are read-only resources — this is provided for completeness.
-func MapStorageSKUDomainToCR(d *ssdom.StorageSKUDomain) (client.Object, error) {
+func MapStorageSKUDomainToCR(d *ssdom.StorageSKU) (client.Object, error) {
 	if d == nil {
 		return nil, fmt.Errorf("domain storage SKU is nil")
 	}

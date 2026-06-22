@@ -34,7 +34,7 @@ func NewNetwork(client client.Client, logger *slog.Logger) *Network {
 	return &Network{client: client, logger: logger}
 }
 
-func (n *Network) Create(ctx context.Context, resource *netdom.NetworkDomain) error {
+func (n *Network) Create(ctx context.Context, resource *netdom.Network) error {
 	n.logger.Info("ionos network plugin: Create called", "resource_name", resource.GetName())
 
 	namespace := k8sadapter.ComputeNamespace(&kresource.Scope{Tenant: resource.GetTenant()})
@@ -93,7 +93,7 @@ func (n *Network) Create(ctx context.Context, resource *netdom.NetworkDomain) er
 	return nil
 }
 
-func (n *Network) Delete(ctx context.Context, resource *netdom.NetworkDomain) error {
+func (n *Network) Delete(ctx context.Context, resource *netdom.Network) error {
 	n.logger.Info("ionos network plugin: Delete called", "resource_name", resource.GetName())
 
 	namespace := k8sadapter.ComputeNamespace(&kresource.Scope{Tenant: resource.GetTenant()})
