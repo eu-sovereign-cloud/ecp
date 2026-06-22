@@ -17,9 +17,9 @@ type SecurityGroupRule struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec       genv1.SecurityGroupRuleSpec    `json:"spec,omitempty"`
+	Spec       SecurityGroupRuleSpec    `json:"spec,omitempty"`
 	CommonData genv1.CommonData               `json:"commonData,omitempty"`
-	Status     *genv1.SecurityGroupRuleStatus `json:"status,omitempty"`
+	Status     *SecurityGroupRuleStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true

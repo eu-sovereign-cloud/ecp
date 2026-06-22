@@ -110,7 +110,7 @@ func MapBlockStorageDomainToCR(d *bsdom.BlockStorageDomain) (client.Object, erro
 			Extensions:  d.Extensions,
 			Labels:      slices.Collect(maps.Keys(d.Labels)),
 		},
-		Spec: genv1.BlockStorageSpec{
+		Spec: BlockStorageSpec{
 			SizeGB: d.Spec.SizeGB,
 			SkuRef: commonbackend.MapReferenceDomainToCR(d.Spec.SkuRef),
 		},
@@ -127,7 +127,7 @@ func MapBlockStorageDomainToCR(d *bsdom.BlockStorageDomain) (client.Object, erro
 		if state == nil {
 			return nil, fmt.Errorf("failed to convert resource state to CR")
 		}
-		cr.Status = &genv1.BlockStorageStatus{
+		cr.Status = &BlockStorageStatus{
 			SizeGB:     d.Status.SizeGB,
 			Conditions: commonbackend.MapStatusConditionDomainsToCR(d.Status.Conditions),
 			State:      *state,

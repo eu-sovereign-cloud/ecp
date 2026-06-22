@@ -177,7 +177,7 @@ type StatusCondition struct {
 func TestInjectKubebuilderHeader(t *testing.T) {
 	t.Run("inserts block after package types line", func(t *testing.T) {
 		src := []byte("package types\n\ntype S struct{}\n")
-		out := injectKubebuilderHeader(src)
+		out := injectKubebuilderHeader(src, "types")
 		if !bytes.Contains(out, []byte("// +kubebuilder:object:generate=true")) {
 			t.Errorf("kubebuilder marker missing:\n%s", out)
 		}
@@ -190,7 +190,7 @@ func TestInjectKubebuilderHeader(t *testing.T) {
 
 	t.Run("no-op when package types line absent", func(t *testing.T) {
 		src := []byte("package other\n\ntype S struct{}\n")
-		out := injectKubebuilderHeader(src)
+		out := injectKubebuilderHeader(src, "types")
 		if !bytes.Equal(out, src) {
 			t.Errorf("src was modified unexpectedly:\n%s", out)
 		}

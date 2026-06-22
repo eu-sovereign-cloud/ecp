@@ -12,10 +12,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
-	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
-	bsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1/domain"
 	"github.com/eu-sovereign-cloud/ecp/csp/ionos/pkg/port"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
+	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
+	bsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1/domain"
 )
 
 var _ port.BlockStorageStore = (*BlockStorageStore)(nil)

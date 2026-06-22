@@ -17,7 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	delegator "github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/port"
+	delegator "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
 )
 
 // compile-time check: testCR must satisfy the interface used by base methods.

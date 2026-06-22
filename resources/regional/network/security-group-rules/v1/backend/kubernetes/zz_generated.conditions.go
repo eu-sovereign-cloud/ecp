@@ -27,7 +27,7 @@ func (x *SecurityGroupRule) PushCondition(condition genv1.StatusCondition) {
 		return
 	}
 	if x.Status == nil {
-		x.Status = &genv1.SecurityGroupRuleStatus{}
+		x.Status = &genv1.Status{}
 	}
 	if x.Status.Conditions == nil {
 		x.Status.Conditions = []genv1.StatusCondition{}

@@ -17,9 +17,9 @@ type Subnet struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec       genv1.SubnetSpec    `json:"spec,omitempty"`
+	Spec       SubnetSpec    `json:"spec,omitempty"`
 	CommonData genv1.CommonData    `json:"commonData,omitempty"`
-	Status     *genv1.SubnetStatus `json:"status,omitempty"`
+	Status     *SubnetStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true

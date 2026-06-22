@@ -27,7 +27,7 @@ func (x *Subnet) PushCondition(condition genv1.StatusCondition) {
 		return
 	}
 	if x.Status == nil {
-		x.Status = &genv1.SubnetStatus{}
+		x.Status = &SubnetStatus{}
 	}
 	if x.Status.Conditions == nil {
 		x.Status.Conditions = []genv1.StatusCondition{}

@@ -27,7 +27,7 @@ func (x *Instance) PushCondition(condition genv1.StatusCondition) {
 		return
 	}
 	if x.Status == nil {
-		x.Status = &genv1.InstanceStatus{}
+		x.Status = &InstanceStatus{}
 	}
 	if x.Status.Conditions == nil {
 		x.Status.Conditions = []genv1.StatusCondition{}

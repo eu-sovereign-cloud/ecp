@@ -16,9 +16,9 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/validation"
 	commonfrontend "github.com/eu-sovereign-cloud/ecp/resources/common/frontend"
-	netdom "github.com/eu-sovereign-cloud/ecp/resources/regional/network/networks/v1/domain"
-	skurest "github.com/eu-sovereign-cloud/ecp/resources/regional/network/network-skus/v1/frontend/rest"
 	skudom "github.com/eu-sovereign-cloud/ecp/resources/regional/network/network-skus/v1/domain"
+	skurest "github.com/eu-sovereign-cloud/ecp/resources/regional/network/network-skus/v1/frontend/rest"
+	netdom "github.com/eu-sovereign-cloud/ecp/resources/regional/network/networks/v1/domain"
 )
 
 // Handler is the HTTP handler for network resources (networks + SKUs).
@@ -145,7 +145,7 @@ func (h *Handler) CreateOrUpdateNetwork(w http.ResponseWriter, r *http.Request, 
 		commonfrontend.WriteErrorResponse(w, r, logger, err)
 		return
 	}
-	defer r.Body.Close()
+	defer func() { _ = r.Body.Close() }()
 
 	var apiObj sdkschema.Network
 	if err := json.Unmarshal(body, &apiObj); err != nil {

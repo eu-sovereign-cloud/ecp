@@ -17,9 +17,9 @@ type Instance struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec       genv1.InstanceSpec    `json:"spec,omitempty"`
+	Spec       InstanceSpec    `json:"spec,omitempty"`
 	CommonData genv1.CommonData      `json:"commonData,omitempty"`
-	Status     *genv1.InstanceStatus `json:"status,omitempty"`
+	Status     *InstanceStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true

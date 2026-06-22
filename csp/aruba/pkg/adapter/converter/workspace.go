@@ -4,8 +4,8 @@ import (
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
 	res "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
+	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
 	wsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/workspace/v1/domain"
 )

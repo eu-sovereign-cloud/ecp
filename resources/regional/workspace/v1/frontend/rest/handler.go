@@ -93,7 +93,7 @@ func (h *Handler) CreateOrUpdateWorkspace(w http.ResponseWriter, r *http.Request
 		commonfrontend.WriteErrorResponse(w, r, logger, err)
 		return
 	}
-	defer r.Body.Close()
+	defer func() { _ = r.Body.Close() }()
 
 	var apiObj sdkschema.Workspace
 	if err := json.Unmarshal(body, &apiObj); err != nil {

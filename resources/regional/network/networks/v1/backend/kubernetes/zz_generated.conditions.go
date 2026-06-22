@@ -27,7 +27,7 @@ func (x *Network) PushCondition(condition genv1.StatusCondition) {
 		return
 	}
 	if x.Status == nil {
-		x.Status = &genv1.NetworkStatus{}
+		x.Status = &NetworkStatus{}
 	}
 	if x.Status.Conditions == nil {
 		x.Status.Conditions = []genv1.StatusCondition{}

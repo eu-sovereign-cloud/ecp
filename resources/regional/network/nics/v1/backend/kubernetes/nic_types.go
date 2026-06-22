@@ -17,9 +17,9 @@ type Nic struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec       genv1.NicSpec    `json:"spec,omitempty"`
+	Spec       NicSpec    `json:"spec,omitempty"`
 	CommonData genv1.CommonData `json:"commonData,omitempty"`
-	Status     *genv1.NicStatus `json:"status,omitempty"`
+	Status     *NicStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true

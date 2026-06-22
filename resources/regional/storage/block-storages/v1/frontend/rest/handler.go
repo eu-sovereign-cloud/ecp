@@ -171,7 +171,7 @@ func (h *Handler) CreateOrUpdateBlockStorage(w http.ResponseWriter, r *http.Requ
 		commonfrontend.WriteErrorResponse(w, r, logger, err)
 		return
 	}
-	defer r.Body.Close()
+	defer func() { _ = r.Body.Close() }()
 
 	var apiObj sdkschema.BlockStorage
 	if err := json.Unmarshal(body, &apiObj); err != nil {

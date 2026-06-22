@@ -17,9 +17,9 @@ type RouteTable struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec       genv1.RouteTableSpec    `json:"spec,omitempty"`
+	Spec       RouteTableSpec    `json:"spec,omitempty"`
 	CommonData genv1.CommonData        `json:"commonData,omitempty"`
-	Status     *genv1.RouteTableStatus `json:"status,omitempty"`
+	Status     *RouteTableStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true

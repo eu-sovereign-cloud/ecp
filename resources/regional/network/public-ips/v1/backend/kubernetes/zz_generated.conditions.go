@@ -27,7 +27,7 @@ func (x *PublicIp) PushCondition(condition genv1.StatusCondition) {
 		return
 	}
 	if x.Status == nil {
-		x.Status = &genv1.PublicIpStatus{}
+		x.Status = &PublicIpStatus{}
 	}
 	if x.Status.Conditions == nil {
 		x.Status.Conditions = []genv1.StatusCondition{}

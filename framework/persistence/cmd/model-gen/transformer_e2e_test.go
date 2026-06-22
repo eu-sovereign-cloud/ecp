@@ -25,7 +25,7 @@ func TestTransformFile_Valid(t *testing.T) {
 	)
 	outPath := testOutFile(t, "testdata/valid", "zz_test_schema.go")
 
-	if err := transformFile(srcPath, outPath); err != nil {
+	if err := transformFile(srcPath, outPath, "types"); err != nil {
 		t.Fatalf("transformFile: %v", err)
 	}
 
@@ -54,7 +54,7 @@ func TestRun_Valid(t *testing.T) {
 	outDir := t.TempDir()
 	const goldenPath = "testdata/valid/zz_generated_schema.go.golden"
 
-	if err := run("testdata/valid", outDir); err != nil {
+	if err := run("testdata/valid", outDir, "types"); err != nil {
 		t.Fatalf("run: %v", err)
 	}
 
@@ -78,14 +78,14 @@ func TestTransformFile_ParseError(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := testOutFile(t, t.TempDir(), "out.go")
-	err := transformFile(src, out)
+	err := transformFile(src, out, "types")
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
 }
 
 func TestRun_MissingDir(t *testing.T) {
-	err := run("/nonexistent/does/not/exist", t.TempDir())
+	err := run("/nonexistent/does/not/exist", t.TempDir(), "types")
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}

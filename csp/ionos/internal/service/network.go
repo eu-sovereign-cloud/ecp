@@ -3,9 +3,9 @@ package service
 import (
 	"context"
 
-	netdom "github.com/eu-sovereign-cloud/ecp/resources/regional/network/networks/v1/domain"
-	netk8s "github.com/eu-sovereign-cloud/ecp/resources/regional/network/networks/v1/backend/kubernetes"
 	networkctrl "github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/controller/network"
+	netk8s "github.com/eu-sovereign-cloud/ecp/resources/regional/network/networks/v1/backend/kubernetes"
+	netdom "github.com/eu-sovereign-cloud/ecp/resources/regional/network/networks/v1/domain"
 )
 
 var _ netk8s.NetworkPlugin = (*Network)(nil)

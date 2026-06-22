@@ -27,7 +27,7 @@ func (x *Workspace) PushCondition(condition genv1.StatusCondition) {
 		return
 	}
 	if x.Status == nil {
-		x.Status = &genv1.WorkspaceStatus{}
+		x.Status = &WorkspaceStatus{}
 	}
 	if x.Status.Conditions == nil {
 		x.Status.Conditions = []genv1.StatusCondition{}

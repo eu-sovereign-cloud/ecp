@@ -118,8 +118,8 @@ func TestRun_WrongStatusPkg(t *testing.T) {
 	if !strings.Contains(err.Error(), "one or more packages failed") {
 		t.Errorf("unexpected error: %v", err)
 	}
-	if !strings.Contains(logBuf.String(), "status field type must live in") {
-		t.Errorf("expected log to mention wrong package, got: %s", logBuf.String())
+	if !strings.Contains(logBuf.String(), "Conditions element") {
+		t.Errorf("expected log to mention Conditions element error, got: %s", logBuf.String())
 	}
 }
 

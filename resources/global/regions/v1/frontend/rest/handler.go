@@ -14,16 +14,6 @@ import (
 	rdom "github.com/eu-sovereign-cloud/ecp/resources/global/regions/v1/domain"
 )
 
-// regionIdentity carries the identity for a single region lookup.
-type regionIdentity struct {
-	name string
-}
-
-func (r *regionIdentity) GetName() string      { return r.name }
-func (r *regionIdentity) GetVersion() string   { return "" }
-func (r *regionIdentity) GetTenant() string    { return "" }
-func (r *regionIdentity) GetWorkspace() string { return "" }
-
 // Handler is the HTTP handler for region resources.
 type Handler struct {
 	Repo   persistence.ReaderRepo[*rdom.RegionDomain]
