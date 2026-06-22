@@ -17,7 +17,7 @@ func NewWorkspaceProjectConverter() *WorkspaceProjectConverter {
 	return &WorkspaceProjectConverter{}
 }
 
-func (c *WorkspaceProjectConverter) FromSECAToAruba(from *wsdom.WorkspaceDomain) (*v1alpha1.Project, error) {
+func (c *WorkspaceProjectConverter) FromSECAToAruba(from *wsdom.Workspace) (*v1alpha1.Project, error) {
 	spec := v1alpha1.ProjectSpec{}
 
 	if v, ok := from.Spec["description"].(string); ok {
@@ -61,9 +61,9 @@ func (c *WorkspaceProjectConverter) FromSECAToAruba(from *wsdom.WorkspaceDomain)
 
 func (c *WorkspaceProjectConverter) FromArubaToSECA(
 	from *v1alpha1.Project,
-) (*wsdom.WorkspaceDomain, error) {
+) (*wsdom.Workspace, error) {
 
-	spec := wsdom.WorkspaceSpecDomain{
+	spec := wsdom.WorkspaceSpec{
 		"description": from.Spec.Description,
 		"tenant":      from.Spec.Tenant,
 		"tags":        from.Spec.Tags,
@@ -74,7 +74,7 @@ func (c *WorkspaceProjectConverter) FromArubaToSECA(
 		tenant = from.Spec.Tenant
 	}
 
-	return &wsdom.WorkspaceDomain{
+	return &wsdom.Workspace{
 		RegionalMetadata: commondomain.RegionalMetadata{
 			CommonMetadata: commondomain.CommonMetadata{
 				Name: from.Name,
@@ -84,7 +84,7 @@ func (c *WorkspaceProjectConverter) FromArubaToSECA(
 			},
 		},
 		Spec: spec,
-		Status: &wsdom.WorkspaceStatusDomain{
+		Status: &wsdom.WorkspaceStatus{
 			StatusDomain: commondomain.StatusDomain{},
 		},
 	}, nil

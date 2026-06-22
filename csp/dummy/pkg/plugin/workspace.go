@@ -17,7 +17,7 @@ func NewWorkspace(logger *slog.Logger) *Workspace {
 	return &Workspace{logger: logger}
 }
 
-func (w *Workspace) Create(ctx context.Context, resource *wsdom.WorkspaceDomain) error {
+func (w *Workspace) Create(ctx context.Context, resource *wsdom.Workspace) error {
 	w.logger.Info("dummy workspace plugin: Create called", "resource_name", resource.GetName())
 	delay, err := workspaceDelay(ctx)
 	if err != nil {
@@ -27,7 +27,7 @@ func (w *Workspace) Create(ctx context.Context, resource *wsdom.WorkspaceDomain)
 	return nil
 }
 
-func (w *Workspace) Delete(ctx context.Context, resource *wsdom.WorkspaceDomain) error {
+func (w *Workspace) Delete(ctx context.Context, resource *wsdom.Workspace) error {
 	w.logger.Info("dummy workspace plugin: Delete called", "resource_name", resource.GetName())
 	delay, err := workspaceDelay(ctx)
 	if err != nil {

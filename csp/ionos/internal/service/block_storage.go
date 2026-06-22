@@ -16,14 +16,14 @@ type BlockStorage struct {
 	SizeIncreaser *blockstoragectrl.IncreaseSizeBlockStorage
 }
 
-func (s *BlockStorage) Create(ctx context.Context, resource *bsdom.BlockStorageDomain) error {
+func (s *BlockStorage) Create(ctx context.Context, resource *bsdom.BlockStorage) error {
 	return s.Creator.Do(ctx, resource)
 }
 
-func (s *BlockStorage) Delete(ctx context.Context, resource *bsdom.BlockStorageDomain) error {
+func (s *BlockStorage) Delete(ctx context.Context, resource *bsdom.BlockStorage) error {
 	return s.Deleter.Do(ctx, resource)
 }
 
-func (s *BlockStorage) IncreaseSize(ctx context.Context, resource *bsdom.BlockStorageDomain) error {
+func (s *BlockStorage) IncreaseSize(ctx context.Context, resource *bsdom.BlockStorage) error {
 	return s.SizeIncreaser.Do(ctx, resource)
 }

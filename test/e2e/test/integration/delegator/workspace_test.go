@@ -25,7 +25,7 @@ func TestWorkspace(t *testing.T) {
 		//
 		// Given a unique workspace domain resource definition
 		workspaceName := "test-ws-create-" + uuid.New().String()[:8]
-		wsDomain := &wsdom.WorkspaceDomain{
+		wsDomain := &wsdom.Workspace{
 			RegionalMetadata: commondomain.RegionalMetadata{
 				CommonMetadata: commondomain.CommonMetadata{
 					Name: workspaceName,
@@ -43,9 +43,9 @@ func TestWorkspace(t *testing.T) {
 
 		//
 		// Then the resource should eventually become active
-		var loadedWs *wsdom.WorkspaceDomain
+		var loadedWs *wsdom.Workspace
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
-			loadedWs = &wsdom.WorkspaceDomain{
+			loadedWs = &wsdom.Workspace{
 				RegionalMetadata: commondomain.RegionalMetadata{
 					CommonMetadata: commondomain.CommonMetadata{
 						Name: workspaceName,
@@ -80,7 +80,7 @@ func TestWorkspace(t *testing.T) {
 		//
 		// Given a unique workspace resource that is already created
 		workspaceName := "test-ws-delete-" + uuid.New().String()[:8]
-		wsDomain := &wsdom.WorkspaceDomain{
+		wsDomain := &wsdom.Workspace{
 			RegionalMetadata: commondomain.RegionalMetadata{
 				CommonMetadata: commondomain.CommonMetadata{
 					Name: workspaceName,
@@ -93,9 +93,9 @@ func TestWorkspace(t *testing.T) {
 		_, err := workspaceRepo.Create(t.Context(), wsDomain)
 		require.NoError(t, err)
 
-		var loadedWs *wsdom.WorkspaceDomain
+		var loadedWs *wsdom.Workspace
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
-			loadedWs = &wsdom.WorkspaceDomain{
+			loadedWs = &wsdom.Workspace{
 				RegionalMetadata: commondomain.RegionalMetadata{
 					CommonMetadata: commondomain.CommonMetadata{
 						Name: workspaceName,
@@ -126,7 +126,7 @@ func TestWorkspace(t *testing.T) {
 		//
 		// Then the resource should eventually be removed
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
-			loadedWs = &wsdom.WorkspaceDomain{
+			loadedWs = &wsdom.Workspace{
 				RegionalMetadata: commondomain.RegionalMetadata{
 					CommonMetadata: commondomain.CommonMetadata{
 						Name: workspaceName,

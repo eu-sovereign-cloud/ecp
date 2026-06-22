@@ -8,6 +8,6 @@ import (
 
 // WorkspacePlugin is implemented by CSP plugins that manage workspace resources.
 type WorkspacePlugin interface {
-	Create(ctx context.Context, resource *wsdom.WorkspaceDomain) error
-	Delete(ctx context.Context, resource *wsdom.WorkspaceDomain) error
+	Create(ctx context.Context, resource *wsdom.Workspace) error
+	Delete(ctx context.Context, resource *wsdom.Workspace) error
 }

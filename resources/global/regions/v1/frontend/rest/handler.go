@@ -16,7 +16,7 @@ import (
 
 // Handler is the HTTP handler for region resources.
 type Handler struct {
-	Repo   persistence.ReaderRepo[*rdom.RegionDomain]
+	Repo   persistence.ReaderRepo[*rdom.Region]
 	Logger *slog.Logger
 }
 
@@ -27,7 +27,7 @@ func (h *Handler) ListRegions(w http.ResponseWriter, r *http.Request, params reg
 	logger := h.Logger.With("resource", "region")
 	listParams := ListParamsFromAPI(params)
 
-	var domains []*rdom.RegionDomain
+	var domains []*rdom.Region
 	nextSkipToken, err := h.Repo.List(r.Context(), listParams, &domains)
 	if err != nil {
 		logger.ErrorContext(r.Context(), "failed to list regions", slog.Any("error", err))
@@ -43,7 +43,7 @@ func (h *Handler) ListRegions(w http.ResponseWriter, r *http.Request, params reg
 func (h *Handler) GetRegion(w http.ResponseWriter, r *http.Request, name sdkschema.ResourcePathParam) {
 	logger := h.Logger.With("resource", "region", "name", name)
 
-	domain := &rdom.RegionDomain{}
+	domain := &rdom.Region{}
 	domain.Name = name
 
 	if err := h.Repo.Load(r.Context(), &domain); err != nil {

@@ -58,8 +58,8 @@ var (
 	regionClient     *regionv1.ClientWithResponses
 	storageClient    *storagev1.ClientWithResponses
 	workspaceClient  *workspacev1sdk.ClientWithResponses
-	workspaceRepo    persistence.Repo[*wsdom.WorkspaceDomain]
-	blockStorageRepo persistence.Repo[*bsdom.BlockStorageDomain]
+	workspaceRepo    persistence.Repo[*wsdom.Workspace]
+	blockStorageRepo persistence.Repo[*bsdom.BlockStorage]
 )
 
 func TestMain(m *testing.M) {
@@ -231,8 +231,8 @@ func setupPortForward(clientset *kubernetes.Clientset, config *rest.Config, serv
 	return portforward.New(dialer, ports, stopCh, readyCh, io.Discard, io.Discard)
 }
 
-func createTestWorkspace(ctx context.Context, workspaceRepo persistence.Repo[*wsdom.WorkspaceDomain]) error {
-	wsDomain := &wsdom.WorkspaceDomain{
+func createTestWorkspace(ctx context.Context, workspaceRepo persistence.Repo[*wsdom.Workspace]) error {
+	wsDomain := &wsdom.Workspace{
 		RegionalMetadata: commondomain.RegionalMetadata{
 			CommonMetadata: commondomain.CommonMetadata{
 				Name: testWorkspace,
@@ -247,8 +247,8 @@ func createTestWorkspace(ctx context.Context, workspaceRepo persistence.Repo[*ws
 	return err
 }
 
-func cleanupTestWorkspace(ctx context.Context, workspaceRepo persistence.Repo[*wsdom.WorkspaceDomain]) error {
-	wsDomain := &wsdom.WorkspaceDomain{
+func cleanupTestWorkspace(ctx context.Context, workspaceRepo persistence.Repo[*wsdom.Workspace]) error {
+	wsDomain := &wsdom.Workspace{
 		RegionalMetadata: commondomain.RegionalMetadata{
 			CommonMetadata: commondomain.CommonMetadata{
 				Name: testWorkspace,

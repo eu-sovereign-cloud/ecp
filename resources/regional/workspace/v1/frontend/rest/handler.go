@@ -20,8 +20,8 @@ import (
 // Handler is the HTTP handler for workspace resources.
 // It implements the full sdkworkspace.ServerInterface.
 type Handler struct {
-	Reader persistence.ReaderRepo[*wsdom.WorkspaceDomain]
-	Writer persistence.WriterRepo[*wsdom.WorkspaceDomain]
+	Reader persistence.ReaderRepo[*wsdom.Workspace]
+	Writer persistence.WriterRepo[*wsdom.Workspace]
 	Logger *slog.Logger
 }
 
@@ -32,7 +32,7 @@ func (h *Handler) ListWorkspaces(w http.ResponseWriter, r *http.Request, tenant 
 	logger := h.Logger.With("provider", "workspace", "resource", "workspace")
 	listParams := ListParamsFromAPI(params, tenant)
 
-	var domains []*wsdom.WorkspaceDomain
+	var domains []*wsdom.Workspace
 	nextSkipToken, err := h.Reader.List(r.Context(), listParams, &domains)
 	if err != nil {
 		logger.ErrorContext(r.Context(), "failed to list workspaces", slog.Any("error", err))
@@ -47,7 +47,7 @@ func (h *Handler) ListWorkspaces(w http.ResponseWriter, r *http.Request, tenant 
 func (h *Handler) DeleteWorkspace(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam, params sdkworkspace.DeleteWorkspaceParams) {
 	logger := h.Logger.With("provider", "workspace", "resource", "workspace", "name", name)
 
-	domain := &wsdom.WorkspaceDomain{}
+	domain := &wsdom.Workspace{}
 	domain.Name = name
 	domain.Tenant = tenant
 	if params.IfUnmodifiedSince != nil {
@@ -66,7 +66,7 @@ func (h *Handler) DeleteWorkspace(w http.ResponseWriter, r *http.Request, tenant
 func (h *Handler) GetWorkspace(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam) {
 	logger := h.Logger.With("provider", "workspace", "resource", "workspace", "name", name)
 
-	domain := &wsdom.WorkspaceDomain{}
+	domain := &wsdom.Workspace{}
 	domain.Name = name
 	domain.Tenant = tenant
 
@@ -109,7 +109,7 @@ func (h *Handler) CreateOrUpdateWorkspace(w http.ResponseWriter, r *http.Request
 	region := frameworkconfig.Singleton().Region()
 	domainObj := APIToDomain(apiObj, id, region)
 
-	var result *wsdom.WorkspaceDomain
+	var result *wsdom.Workspace
 	if resourceVersion == "" {
 		r2, err := h.Writer.Create(r.Context(), domainObj)
 		if err != nil {

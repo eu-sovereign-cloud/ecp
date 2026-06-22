@@ -12,14 +12,14 @@ const (
 	ProviderID = "seca.network/v1"
 )
 
-// NetworkSKUDomain represents the domain model for a network SKU.
-type NetworkSKUDomain struct {
+// NetworkSKU represents the domain model for a network SKU.
+type NetworkSKU struct {
 	domain.RegionalMetadata
-	Spec NetworkSKUSpecDomain
+	Spec NetworkSKUSpec
 }
 
-// NetworkSKUSpecDomain defines the specification for a network SKU.
-type NetworkSKUSpecDomain struct {
+// NetworkSKUSpec defines the specification for a network SKU.
+type NetworkSKUSpec struct {
 	Bandwidth int
 	Packets   int
 }

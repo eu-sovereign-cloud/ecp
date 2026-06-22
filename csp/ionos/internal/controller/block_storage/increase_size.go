@@ -11,6 +11,6 @@ type IncreaseSizeBlockStorage struct {
 	Store port.BlockStorageStore
 }
 
-func (i *IncreaseSizeBlockStorage) Do(ctx context.Context, domain *bsdom.BlockStorageDomain) error {
+func (i *IncreaseSizeBlockStorage) Do(ctx context.Context, domain *bsdom.BlockStorage) error {
 	return i.Store.IncreaseSize(ctx, domain)
 }

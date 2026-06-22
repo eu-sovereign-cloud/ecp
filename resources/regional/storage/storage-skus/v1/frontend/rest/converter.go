@@ -8,8 +8,8 @@ import (
 	skudom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/storage-skus/v1"
 )
 
-// StorageSKUDomainToAPI converts a StorageSKUDomain to its SDK representation.
-func StorageSKUDomainToAPI(domain *skudom.StorageSKUDomain) *sdkschema.StorageSku {
+// StorageSKUDomainToAPI converts a StorageSKU to its SDK representation.
+func StorageSKUDomainToAPI(domain *skudom.StorageSKU) *sdkschema.StorageSku {
 	return &sdkschema.StorageSku{
 		Metadata: &sdkschema.SkuResourceMetadata{
 			Name: domain.Name,
@@ -22,8 +22,8 @@ func StorageSKUDomainToAPI(domain *skudom.StorageSKUDomain) *sdkschema.StorageSk
 	}
 }
 
-// StorageSKUDomainToAPIIterator converts a list of StorageSKUDomain to an SDK SkuIterator.
-func StorageSKUDomainToAPIIterator(domains []*skudom.StorageSKUDomain, nextSkipToken *string) *sdkstorage.SkuIterator {
+// StorageSKUDomainToAPIIterator converts a list of StorageSKU to an SDK SkuIterator.
+func StorageSKUDomainToAPIIterator(domains []*skudom.StorageSKU, nextSkipToken *string) *sdkstorage.SkuIterator {
 	items := make([]sdkschema.StorageSku, len(domains))
 	for i := range domains {
 		items[i] = *StorageSKUDomainToAPI(domains[i])

@@ -12,7 +12,7 @@ import (
 
 // Controller drives network reconciliation using the GenericController.
 type Controller struct {
-	frameworkcontroller.GenericController[*netdom.NetworkDomain]
+	frameworkcontroller.GenericController[*netdom.Network]
 }
 
 // NewController wires together the network controller.
@@ -25,7 +25,7 @@ func NewController(
 	opts ...builder.Option,
 ) *Controller {
 	options := builder.ApplyOptions(opts)
-	repo := k8sadapter.NewRepoAdapter[*netdom.NetworkDomain](
+	repo := k8sadapter.NewRepoAdapter[*netdom.Network](
 		dynClient,
 		NetworkGVR,
 		options.Logger,
@@ -34,7 +34,7 @@ func NewController(
 	)
 	handler := NewNetworkPluginHandler(repo, plugin, options.MaxConditions)
 	return &Controller{
-		GenericController: frameworkcontroller.NewGenericController[*netdom.NetworkDomain](
+		GenericController: frameworkcontroller.NewGenericController[*netdom.Network](
 			ctrlClient,
 			MapCRToNetworkDomain,
 			handler,

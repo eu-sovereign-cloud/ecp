@@ -80,7 +80,7 @@ func TestBlockStorageAPI(t *testing.T) {
 
 		//
 		// And we can cleanup the block storage
-		bsDomain := &bsdom.BlockStorageDomain{
+		bsDomain := &bsdom.BlockStorage{
 			RegionalMetadata: commondomain.RegionalMetadata{
 				CommonMetadata: commondomain.CommonMetadata{
 					Name: resourceName,
@@ -211,7 +211,7 @@ func TestBlockStorageAPI(t *testing.T) {
 
 		//
 		// And we can cleanup the block storage
-		bsDomain := &bsdom.BlockStorageDomain{
+		bsDomain := &bsdom.BlockStorage{
 			RegionalMetadata: commondomain.RegionalMetadata{
 				CommonMetadata: commondomain.CommonMetadata{
 					Name: resourceName,

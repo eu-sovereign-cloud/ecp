@@ -23,8 +23,8 @@ import (
 )
 
 // MapCRToWorkspaceDomain converts either a concrete *Workspace or *unstructured.Unstructured
-// into a *wsdom.WorkspaceDomain.
-func MapCRToWorkspaceDomain(obj client.Object) (*wsdom.WorkspaceDomain, error) {
+// into a *wsdom.Workspace.
+func MapCRToWorkspaceDomain(obj client.Object) (*wsdom.Workspace, error) {
 	var cr Workspace
 
 	switch t := obj.(type) {
@@ -38,7 +38,7 @@ func MapCRToWorkspaceDomain(obj client.Object) (*wsdom.WorkspaceDomain, error) {
 		return nil, fmt.Errorf("unsupported object type %T", obj)
 	}
 
-	spec := make(wsdom.WorkspaceSpecDomain, len(cr.Spec))
+	spec := make(wsdom.WorkspaceSpec, len(cr.Spec))
 	for k, v := range cr.Spec {
 		spec[k] = convert.StringToInterface(v)
 	}
@@ -47,7 +47,7 @@ func MapCRToWorkspaceDomain(obj client.Object) (*wsdom.WorkspaceDomain, error) {
 	internalLabels := k8slabels.GetInternalLabels(crLabels)
 	keyedLabels := k8slabels.GetKeyedLabels(crLabels)
 
-	wd := &wsdom.WorkspaceDomain{
+	wd := &wsdom.Workspace{
 		Spec: spec,
 	}
 	wd.Name = cr.GetName()
@@ -65,9 +65,9 @@ func MapCRToWorkspaceDomain(obj client.Object) (*wsdom.WorkspaceDomain, error) {
 		wd.DeletedAt = &ts.Time
 	}
 
-	wd.Status = &wsdom.WorkspaceStatusDomain{}
+	wd.Status = &wsdom.WorkspaceStatus{}
 	if cr.Status != nil {
-		wd.Status = &wsdom.WorkspaceStatusDomain{
+		wd.Status = &wsdom.WorkspaceStatus{
 			ResourceCount: cr.Status.ResourceCount,
 		}
 		wd.Status.State = commondomain.ResourceStateDomain(cr.Status.State)
@@ -79,8 +79,8 @@ func MapCRToWorkspaceDomain(obj client.Object) (*wsdom.WorkspaceDomain, error) {
 	return wd, nil
 }
 
-// MapWorkspaceDomainToCR converts a *wsdom.WorkspaceDomain to a Kubernetes Workspace CR.
-func MapWorkspaceDomainToCR(d *wsdom.WorkspaceDomain) (client.Object, error) {
+// MapWorkspaceDomainToCR converts a *wsdom.Workspace to a Kubernetes Workspace CR.
+func MapWorkspaceDomainToCR(d *wsdom.Workspace) (client.Object, error) {
 	if d == nil {
 		return nil, fmt.Errorf("domain workspace is nil")
 	}

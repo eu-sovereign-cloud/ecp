@@ -11,6 +11,6 @@ type DeleteNetwork struct {
 	Store port.NetworkStore
 }
 
-func (d *DeleteNetwork) Do(ctx context.Context, domain *netdom.NetworkDomain) error {
+func (d *DeleteNetwork) Do(ctx context.Context, domain *netdom.Network) error {
 	return d.Store.Delete(ctx, domain)
 }

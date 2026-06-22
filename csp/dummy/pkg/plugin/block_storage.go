@@ -17,7 +17,7 @@ func NewBlockStorage(logger *slog.Logger) *BlockStorage {
 	return &BlockStorage{logger: logger}
 }
 
-func (b *BlockStorage) Create(ctx context.Context, resource *bsdom.BlockStorageDomain) error {
+func (b *BlockStorage) Create(ctx context.Context, resource *bsdom.BlockStorage) error {
 	b.logger.Info("dummy block storage plugin: Create called", "resource_name", resource.GetName())
 	delay, err := blockStorageDelay(ctx)
 	if err != nil {
@@ -27,7 +27,7 @@ func (b *BlockStorage) Create(ctx context.Context, resource *bsdom.BlockStorageD
 	return nil
 }
 
-func (b *BlockStorage) Delete(ctx context.Context, resource *bsdom.BlockStorageDomain) error {
+func (b *BlockStorage) Delete(ctx context.Context, resource *bsdom.BlockStorage) error {
 	b.logger.Info("dummy block storage plugin: Delete called", "resource_name", resource.GetName())
 	delay, err := blockStorageDelay(ctx)
 	if err != nil {
@@ -37,7 +37,7 @@ func (b *BlockStorage) Delete(ctx context.Context, resource *bsdom.BlockStorageD
 	return nil
 }
 
-func (b *BlockStorage) IncreaseSize(ctx context.Context, resource *bsdom.BlockStorageDomain) error {
+func (b *BlockStorage) IncreaseSize(ctx context.Context, resource *bsdom.BlockStorage) error {
 	b.logger.Info("dummy block storage plugin: IncreaseSize called", "resource_name", resource.GetName(), "new_size_gb", resource.Spec.SizeGB)
 	d1, err := blockStorageDelay(ctx)
 	if err != nil {

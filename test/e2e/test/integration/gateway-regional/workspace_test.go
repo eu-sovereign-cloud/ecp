@@ -68,7 +68,7 @@ func TestWorkspaceAPI(t *testing.T) {
 
 		//
 		// And we can cleanup the workspace
-		wsDomain := &wsdom.WorkspaceDomain{
+		wsDomain := &wsdom.Workspace{
 			RegionalMetadata: commondomain.RegionalMetadata{
 				CommonMetadata: commondomain.CommonMetadata{
 					Name: workspaceName,

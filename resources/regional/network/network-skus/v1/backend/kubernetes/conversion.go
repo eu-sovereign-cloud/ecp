@@ -12,8 +12,8 @@ import (
 )
 
 // MapCRToNetworkSKUDomain converts either a concrete *NetworkSKU or *unstructured.Unstructured
-// into a *nsdom.NetworkSKUDomain.
-func MapCRToNetworkSKUDomain(obj client.Object) (*nsdom.NetworkSKUDomain, error) {
+// into a *nsdom.NetworkSKU.
+func MapCRToNetworkSKUDomain(obj client.Object) (*nsdom.NetworkSKU, error) {
 	var cr NetworkSKU
 
 	switch t := obj.(type) {
@@ -30,8 +30,8 @@ func MapCRToNetworkSKUDomain(obj client.Object) (*nsdom.NetworkSKUDomain, error)
 	crLabels := cr.GetLabels()
 	internalLabels := k8slabels.GetInternalLabels(crLabels)
 
-	sku := &nsdom.NetworkSKUDomain{
-		Spec: nsdom.NetworkSKUSpecDomain{
+	sku := &nsdom.NetworkSKU{
+		Spec: nsdom.NetworkSKUSpec{
 			Bandwidth: cr.Spec.Bandwidth,
 			Packets:   cr.Spec.Packets,
 		},
@@ -51,9 +51,9 @@ func MapCRToNetworkSKUDomain(obj client.Object) (*nsdom.NetworkSKUDomain, error)
 	return sku, nil
 }
 
-// MapNetworkSKUDomainToCR converts a *nsdom.NetworkSKUDomain to a Kubernetes NetworkSKU CR.
+// MapNetworkSKUDomainToCR converts a *nsdom.NetworkSKU to a Kubernetes NetworkSKU CR.
 // NetworkSKUs are read-only resources — this is provided for completeness.
-func MapNetworkSKUDomainToCR(d *nsdom.NetworkSKUDomain) (client.Object, error) {
+func MapNetworkSKUDomainToCR(d *nsdom.NetworkSKU) (client.Object, error) {
 	if d == nil {
 		return nil, fmt.Errorf("domain network SKU is nil")
 	}

@@ -12,14 +12,14 @@ const (
 	ProviderID = "seca.storage/v1"
 )
 
-// StorageSKUDomain represents the domain model for a storage SKU.
-type StorageSKUDomain struct {
+// StorageSKU represents the domain model for a storage SKU.
+type StorageSKU struct {
 	domain.RegionalMetadata
-	Spec StorageSKUSpecDomain
+	Spec StorageSKUSpec
 }
 
-// StorageSKUSpecDomain defines the specification for a storage SKU.
-type StorageSKUSpecDomain struct {
+// StorageSKUSpec defines the specification for a storage SKU.
+type StorageSKUSpec struct {
 	Iops          int64
 	MinVolumeSize int64
 	Type          string

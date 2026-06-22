@@ -26,7 +26,7 @@ func NewBlockStorageConverter() *BlockStorageConverter {
 	return &BlockStorageConverter{}
 }
 
-func (c *BlockStorageConverter) FromSECAToAruba(from *bsdom.BlockStorageDomain) (*v1alpha1.BlockStorage, error) {
+func (c *BlockStorageConverter) FromSECAToAruba(from *bsdom.BlockStorage) (*v1alpha1.BlockStorage, error) {
 	tenant := from.GetTenant()
 	workspace := from.GetWorkspace()
 	namespace := k8sadapter.ComputeNamespace(from) // TODO: ask to change repository for  ComputeNamespace from kubernetes adapter to scope
@@ -62,7 +62,7 @@ func (c *BlockStorageConverter) FromSECAToAruba(from *bsdom.BlockStorageDomain) 
 	}, nil
 }
 
-func (c *BlockStorageConverter) FromArubaToSECA(from *v1alpha1.BlockStorage) (*bsdom.BlockStorageDomain, error) {
+func (c *BlockStorageConverter) FromArubaToSECA(from *v1alpha1.BlockStorage) (*bsdom.BlockStorage, error) {
 	tenant, err := getTenantFromSpecOrError(from)
 	if err != nil {
 		return nil, err // TODO: better error handler management
@@ -72,7 +72,7 @@ func (c *BlockStorageConverter) FromArubaToSECA(from *v1alpha1.BlockStorage) (*b
 		return nil, err // TODO: better error handler management
 	}
 
-	return &bsdom.BlockStorageDomain{
+	return &bsdom.BlockStorage{
 		RegionalMetadata: commondomain.RegionalMetadata{
 			CommonMetadata: commondomain.CommonMetadata{
 				Name: from.Name,
@@ -82,7 +82,7 @@ func (c *BlockStorageConverter) FromArubaToSECA(from *v1alpha1.BlockStorage) (*b
 				Workspace: workspace,
 			},
 		},
-		Spec: bsdom.BlockStorageSpecDomain{
+		Spec: bsdom.BlockStorageSpec{
 			SizeGB: int(from.Spec.SizeGB),
 			SkuRef: commondomain.ReferenceDomain{},
 			SourceImageRef: &commondomain.ReferenceDomain{
@@ -103,7 +103,7 @@ func SecaToArubaSize(in int) (int32, error) {
 }
 
 // getRegionFromSpecOrDefault get region from source image or sku ref otherwise default value
-func getRegionFromSpecOrDefault(from *bsdom.BlockStorageDomain) string {
+func getRegionFromSpecOrDefault(from *bsdom.BlockStorage) string {
 	if from.Spec.SourceImageRef != nil {
 		return from.Spec.SourceImageRef.Region
 	}

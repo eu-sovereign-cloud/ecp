@@ -11,6 +11,6 @@ type CreateBlockStorage struct {
 	Store port.BlockStorageStore
 }
 
-func (c *CreateBlockStorage) Do(ctx context.Context, domain *bsdom.BlockStorageDomain) error {
+func (c *CreateBlockStorage) Do(ctx context.Context, domain *bsdom.BlockStorage) error {
 	return c.Store.Create(ctx, domain)
 }

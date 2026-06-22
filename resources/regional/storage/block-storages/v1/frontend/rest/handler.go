@@ -24,9 +24,9 @@ import (
 // Handler is the HTTP handler for storage resources (block-storages + SKUs).
 // It implements the full sdkstorage.ServerInterface.
 type Handler struct {
-	BlockStorageReader persistence.ReaderRepo[*bsdom.BlockStorageDomain]
-	BlockStorageWriter persistence.WriterRepo[*bsdom.BlockStorageDomain]
-	SKUReader          persistence.ReaderRepo[*skudom.StorageSKUDomain]
+	BlockStorageReader persistence.ReaderRepo[*bsdom.BlockStorage]
+	BlockStorageWriter persistence.WriterRepo[*bsdom.BlockStorage]
+	SKUReader          persistence.ReaderRepo[*skudom.StorageSKU]
 	Logger             *slog.Logger
 }
 
@@ -71,7 +71,7 @@ func (h *Handler) ListSkus(w http.ResponseWriter, r *http.Request, tenant sdksch
 
 	listParams := buildListParams(tenant, "", limit, skipToken, selector)
 
-	var domains []*skudom.StorageSKUDomain
+	var domains []*skudom.StorageSKU
 	nextSkipToken, err := h.SKUReader.List(r.Context(), listParams, &domains)
 	if err != nil {
 		logger.ErrorContext(r.Context(), "failed to list storage SKUs", slog.Any("error", err))
@@ -86,7 +86,7 @@ func (h *Handler) ListSkus(w http.ResponseWriter, r *http.Request, tenant sdksch
 func (h *Handler) GetSku(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam) {
 	logger := h.Logger.With("provider", "storage", "resource", "sku", "name", name)
 
-	domain := &skudom.StorageSKUDomain{}
+	domain := &skudom.StorageSKU{}
 	domain.Name = name
 	domain.Tenant = tenant
 
@@ -104,7 +104,7 @@ func (h *Handler) ListBlockStorages(w http.ResponseWriter, r *http.Request, tena
 	logger := h.Logger.With("provider", "storage", "resource", "block-storage")
 	listParams := ListParamsFromAPI(params, tenant, workspace)
 
-	var domains []*bsdom.BlockStorageDomain
+	var domains []*bsdom.BlockStorage
 	nextSkipToken, err := h.BlockStorageReader.List(r.Context(), listParams, &domains)
 	if err != nil {
 		logger.ErrorContext(r.Context(), "failed to list block-storages", slog.Any("error", err))
@@ -127,7 +127,7 @@ func (h *Handler) DeleteBlockStorage(w http.ResponseWriter, r *http.Request, ten
 		id.resourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
 	}
 
-	domain := &bsdom.BlockStorageDomain{}
+	domain := &bsdom.BlockStorage{}
 	domain.Name = id.name
 	domain.Tenant = id.tenant
 	domain.Workspace = id.workspace
@@ -144,7 +144,7 @@ func (h *Handler) DeleteBlockStorage(w http.ResponseWriter, r *http.Request, ten
 func (h *Handler) GetBlockStorage(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam) {
 	logger := h.Logger.With("provider", "storage", "resource", "block-storage", "name", name)
 
-	domain := &bsdom.BlockStorageDomain{}
+	domain := &bsdom.BlockStorage{}
 	domain.Name = name
 	domain.Tenant = tenant
 	domain.Workspace = workspace
@@ -188,7 +188,7 @@ func (h *Handler) CreateOrUpdateBlockStorage(w http.ResponseWriter, r *http.Requ
 	region := frameworkconfig.Singleton().Region()
 	domainObj := APIToBlockStorageDomain(apiObj, id, region)
 
-	var result *bsdom.BlockStorageDomain
+	var result *bsdom.BlockStorage
 	shouldUpdate := resourceVersion != ""
 	if !shouldUpdate {
 		r2, err := h.BlockStorageWriter.Create(r.Context(), domainObj)

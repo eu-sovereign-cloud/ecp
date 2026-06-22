@@ -7,6 +7,6 @@ import (
 )
 
 type NetworkStore interface {
-	Create(ctx context.Context, domain *netdom.NetworkDomain) error
-	Delete(ctx context.Context, domain *netdom.NetworkDomain) error
+	Create(ctx context.Context, domain *netdom.Network) error
+	Delete(ctx context.Context, domain *netdom.Network) error
 }

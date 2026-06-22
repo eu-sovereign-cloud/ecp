@@ -13,7 +13,7 @@ const (
 
 // Type aliases so callers can use this package without importing common/domain directly.
 type (
-	RegionDomain   = domain.RegionDomain
-	ProviderDomain = domain.ProviderDomain
-	ZoneDomain     = domain.ZoneDomain
+	Region   = domain.RegionDomain
+	Provider = domain.ProviderDomain
+	Zone     = domain.ZoneDomain
 )

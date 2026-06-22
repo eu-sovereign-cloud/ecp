@@ -29,25 +29,25 @@ import (
 // Ensure BlockStorageHandler implements the BlockStorage interface
 var _ bsk8s.BlockStoragePlugin = (*BlockStorageHandler)(nil)
 
-// BlockStorageHandler handles BlockStorageDomain resources by interacting with Aruba BlockStorage.
-// It is responsible for translating BlockStorageDomain resources to Aruba BlockStorage
+// BlockStorageHandler handles BlockStorage resources by interacting with Aruba BlockStorage.
+// It is responsible for translating BlockStorage resources to Aruba BlockStorage
 // and managing their lifecycle (Create/Delete).
 type BlockStorageHandler struct {
-	wsRepository          persistence.ReaderRepo[*wsdom.WorkspaceDomain]
-	skuRepository         persistence.ReaderRepo[*ssdom.StorageSKUDomain]
+	wsRepository          persistence.ReaderRepo[*wsdom.Workspace]
+	skuRepository         persistence.ReaderRepo[*ssdom.StorageSKU]
 	bsRepository          repository.Repository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList]
 	prjRepository         repository.Repository[*v1alpha1.Project, *v1alpha1.ProjectList]
-	bsConverter           converter.Converter[*bsdom.BlockStorageDomain, *v1alpha1.BlockStorage]
-	wsConverter           converter.Converter[*wsdom.WorkspaceDomain, *v1alpha1.Project]
-	createDelegated       *delegated.GenericDelegated[*bsdom.BlockStorageDomain, *SecaBlockStorageBundle, *ArubaBlockStorageBundle]
-	deleteDelegated       *delegated.GenericDelegated[*bsdom.BlockStorageDomain, *SecaBlockStorageBundle, *ArubaBlockStorageBundle]
-	increaseSizeDelegated *delegated.GenericDelegated[*bsdom.BlockStorageDomain, *SecaBlockStorageBundle, *ArubaBlockStorageBundle]
+	bsConverter           converter.Converter[*bsdom.BlockStorage, *v1alpha1.BlockStorage]
+	wsConverter           converter.Converter[*wsdom.Workspace, *v1alpha1.Project]
+	createDelegated       *delegated.GenericDelegated[*bsdom.BlockStorage, *SecaBlockStorageBundle, *ArubaBlockStorageBundle]
+	deleteDelegated       *delegated.GenericDelegated[*bsdom.BlockStorage, *SecaBlockStorageBundle, *ArubaBlockStorageBundle]
+	increaseSizeDelegated *delegated.GenericDelegated[*bsdom.BlockStorage, *SecaBlockStorageBundle, *ArubaBlockStorageBundle]
 }
 
 type SecaBlockStorageBundle struct {
-	BlockStorage *bsdom.BlockStorageDomain
-	Workspace    *wsdom.WorkspaceDomain
-	StorageSku   *ssdom.StorageSKUDomain
+	BlockStorage *bsdom.BlockStorage
+	Workspace    *wsdom.Workspace
+	StorageSku   *ssdom.StorageSKU
 }
 
 type ArubaBlockStorageBundle struct {
@@ -56,15 +56,15 @@ type ArubaBlockStorageBundle struct {
 }
 
 // NewBlockStorageHandler creates a new BlockStorageHandler with the provided repository and converter.
-// It sets up the necessary delegated operations for creating and deleting WorkspaceDomain resources.
+// It sets up the necessary delegated operations for creating and deleting Workspace resources.
 // The handler uses bypass mutators since no mutation is needed on the Aruba Project objects.
 func NewBlockStorageHandler(
-	wsRepo persistence.ReaderRepo[*wsdom.WorkspaceDomain],
-	skuRepo persistence.ReaderRepo[*ssdom.StorageSKUDomain],
+	wsRepo persistence.ReaderRepo[*wsdom.Workspace],
+	skuRepo persistence.ReaderRepo[*ssdom.StorageSKU],
 	bsRepo repository.Repository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList],
 	prjRepo repository.Repository[*v1alpha1.Project, *v1alpha1.ProjectList],
-	bsConv converter.Converter[*bsdom.BlockStorageDomain, *v1alpha1.BlockStorage],
-	wsConv converter.Converter[*wsdom.WorkspaceDomain, *v1alpha1.Project]) *BlockStorageHandler {
+	bsConv converter.Converter[*bsdom.BlockStorage, *v1alpha1.BlockStorage],
+	wsConv converter.Converter[*wsdom.Workspace, *v1alpha1.Project]) *BlockStorageHandler {
 
 	handler := &BlockStorageHandler{
 		wsRepository:  wsRepo,
@@ -110,18 +110,18 @@ func NewBlockStorageHandler(
 	return handler
 }
 
-// Create creates a new BlockStorageDomain by creating an Aruba BlockStorage.
-func (h *BlockStorageHandler) Create(ctx context.Context, domain *bsdom.BlockStorageDomain) error {
+// Create creates a new BlockStorage by creating an Aruba BlockStorage.
+func (h *BlockStorageHandler) Create(ctx context.Context, domain *bsdom.BlockStorage) error {
 	return h.createDelegated.Do(ctx, domain)
 }
 
-// Delete deletes an existing BlockStorageDomain by deleting the corresponding Aruba BlockStorage.
-func (h *BlockStorageHandler) Delete(ctx context.Context, domain *bsdom.BlockStorageDomain) error {
+// Delete deletes an existing BlockStorage by deleting the corresponding Aruba BlockStorage.
+func (h *BlockStorageHandler) Delete(ctx context.Context, domain *bsdom.BlockStorage) error {
 	return h.deleteDelegated.Do(ctx, domain)
 }
 
-// IncreaseSize increases the size of an existing BlockStorageDomain by updating the corresponding Aruba BlockStorage.
-func (h *BlockStorageHandler) IncreaseSize(ctx context.Context, domain *bsdom.BlockStorageDomain) error {
+// IncreaseSize increases the size of an existing BlockStorage by updating the corresponding Aruba BlockStorage.
+func (h *BlockStorageHandler) IncreaseSize(ctx context.Context, domain *bsdom.BlockStorage) error {
 	return h.increaseSizeDelegated.Do(ctx, domain)
 }
 
@@ -161,14 +161,14 @@ func (h *BlockStorageHandler) blockStorageMutateSizeFunc(mutable *ArubaBlockStor
 	return nil
 }
 
-func (h *BlockStorageHandler) BypassDependencyResolver(ctx context.Context, domain *bsdom.BlockStorageDomain) (*SecaBlockStorageBundle, error) {
+func (h *BlockStorageHandler) BypassDependencyResolver(ctx context.Context, domain *bsdom.BlockStorage) (*SecaBlockStorageBundle, error) {
 	return &SecaBlockStorageBundle{
 		BlockStorage: domain,
 	}, nil
 }
 
-func (h *BlockStorageHandler) resolveSecaBlockStorageDependencies(ctx context.Context, domain *bsdom.BlockStorageDomain) (*SecaBlockStorageBundle, error) {
-	ws := &wsdom.WorkspaceDomain{
+func (h *BlockStorageHandler) resolveSecaBlockStorageDependencies(ctx context.Context, domain *bsdom.BlockStorage) (*SecaBlockStorageBundle, error) {
+	ws := &wsdom.Workspace{
 		RegionalMetadata: commondomain.RegionalMetadata{
 			CommonMetadata: commondomain.CommonMetadata{
 				Name: domain.GetWorkspace(),
@@ -197,7 +197,7 @@ func (h *BlockStorageHandler) resolveSecaBlockStorageDependencies(ctx context.Co
 
 	skuName := splittedSKU[1]
 
-	storageSku := &ssdom.StorageSKUDomain{
+	storageSku := &ssdom.StorageSKU{
 		RegionalMetadata: commondomain.RegionalMetadata{
 			CommonMetadata: commondomain.CommonMetadata{
 				Name: skuName,

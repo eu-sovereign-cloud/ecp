@@ -28,7 +28,7 @@ func NewBlockStorageStore(c client.Client, logger *slog.Logger) *BlockStorageSto
 	return &BlockStorageStore{base{client: c, logger: logger}}
 }
 
-func (a *BlockStorageStore) Create(ctx context.Context, domain *bsdom.BlockStorageDomain) error {
+func (a *BlockStorageStore) Create(ctx context.Context, domain *bsdom.BlockStorage) error {
 	namespace := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: domain.GetTenant()})
 	datacenter := &ionosv1alpha1.Datacenter{
 		TypeMeta:   metav1.TypeMeta{Kind: ionosv1alpha1.Datacenter_Kind},
@@ -40,7 +40,7 @@ func (a *BlockStorageStore) Create(ctx context.Context, domain *bsdom.BlockStora
 	return a.createCR(ctx, newVolume(domain))
 }
 
-func (a *BlockStorageStore) Delete(ctx context.Context, domain *bsdom.BlockStorageDomain) error {
+func (a *BlockStorageStore) Delete(ctx context.Context, domain *bsdom.BlockStorage) error {
 	namespace := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: domain.GetTenant()})
 	return a.deleteCR(ctx, &ionosv1alpha1.Volume{
 		TypeMeta:   metav1.TypeMeta{Kind: ionosv1alpha1.Volume_Kind},
@@ -48,7 +48,7 @@ func (a *BlockStorageStore) Delete(ctx context.Context, domain *bsdom.BlockStora
 	})
 }
 
-func (a *BlockStorageStore) IncreaseSize(ctx context.Context, domain *bsdom.BlockStorageDomain) error {
+func (a *BlockStorageStore) IncreaseSize(ctx context.Context, domain *bsdom.BlockStorage) error {
 	namespace := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: domain.GetTenant()})
 	vol := &ionosv1alpha1.Volume{}
 	if err := a.client.Get(ctx, client.ObjectKey{Name: domain.GetName(), Namespace: namespace}, vol); err != nil {
@@ -63,7 +63,7 @@ func (a *BlockStorageStore) IncreaseSize(ctx context.Context, domain *bsdom.Bloc
 	return a.updateCR(ctx, vol)
 }
 
-func newVolume(domain *bsdom.BlockStorageDomain) *ionosv1alpha1.Volume {
+func newVolume(domain *bsdom.BlockStorage) *ionosv1alpha1.Volume {
 
 	namespace := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: domain.GetTenant()})
 	return &ionosv1alpha1.Volume{

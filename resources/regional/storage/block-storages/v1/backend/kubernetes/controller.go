@@ -12,7 +12,7 @@ import (
 
 // Controller drives block-storage reconciliation using the GenericController.
 type Controller struct {
-	frameworkcontroller.GenericController[*bsdom.BlockStorageDomain]
+	frameworkcontroller.GenericController[*bsdom.BlockStorage]
 }
 
 // NewController wires together the block-storage controller.
@@ -25,7 +25,7 @@ func NewController(
 	opts ...builder.Option,
 ) *Controller {
 	options := builder.ApplyOptions(opts)
-	repo := k8sadapter.NewRepoAdapter[*bsdom.BlockStorageDomain](
+	repo := k8sadapter.NewRepoAdapter[*bsdom.BlockStorage](
 		dynClient,
 		BlockStorageGVR,
 		options.Logger,
@@ -34,7 +34,7 @@ func NewController(
 	)
 	handler := NewBlockStoragePluginHandler(repo, plugin, options.MaxConditions)
 	return &Controller{
-		GenericController: frameworkcontroller.NewGenericController[*bsdom.BlockStorageDomain](
+		GenericController: frameworkcontroller.NewGenericController[*bsdom.BlockStorage](
 			ctrlClient,
 			MapCRToBlockStorageDomain,
 			handler,

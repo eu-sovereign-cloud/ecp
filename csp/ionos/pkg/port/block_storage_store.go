@@ -7,7 +7,7 @@ import (
 )
 
 type BlockStorageStore interface {
-	Create(ctx context.Context, domain *bsdom.BlockStorageDomain) error
-	Delete(ctx context.Context, domain *bsdom.BlockStorageDomain) error
-	IncreaseSize(ctx context.Context, domain *bsdom.BlockStorageDomain) error
+	Create(ctx context.Context, domain *bsdom.BlockStorage) error
+	Delete(ctx context.Context, domain *bsdom.BlockStorage) error
+	IncreaseSize(ctx context.Context, domain *bsdom.BlockStorage) error
 }

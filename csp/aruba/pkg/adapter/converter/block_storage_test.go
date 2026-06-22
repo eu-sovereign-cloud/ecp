@@ -16,12 +16,12 @@ import (
 func TestBlockStorageConverter_FromSECAToAruba(t *testing.T) {
 	tests := []struct {
 		name   string
-		input  *bsdom.BlockStorageDomain
+		input  *bsdom.BlockStorage
 		assert func(t *testing.T, project *v1alpha1.BlockStorage)
 	}{
 		{
 			name: "happy path",
-			input: &bsdom.BlockStorageDomain{
+			input: &bsdom.BlockStorage{
 				RegionalMetadata: commondomain.RegionalMetadata{
 					Scope: res.Scope{
 						Workspace: "test-workspace",
@@ -31,14 +31,14 @@ func TestBlockStorageConverter_FromSECAToAruba(t *testing.T) {
 						Name: "my-block-storage",
 					},
 				},
-				Spec: bsdom.BlockStorageSpecDomain{
+				Spec: bsdom.BlockStorageSpec{
 					SizeGB: 100,
 					SourceImageRef: &commondomain.ReferenceDomain{
 						Region: "eu-de",
 						Tenant: "tenant-123",
 					},
 				},
-				Status: &bsdom.BlockStorageStatusDomain{
+				Status: &bsdom.BlockStorageStatus{
 					StatusDomain: commondomain.StatusDomain{
 						State: commondomain.ResourceStateActive,
 					},
@@ -93,7 +93,7 @@ func TestBlockStorageConverter_FromArubaToSECA(t *testing.T) {
 	tests := []struct {
 		name   string
 		input  *v1alpha1.BlockStorage
-		assert func(t *testing.T, project *bsdom.BlockStorageDomain)
+		assert func(t *testing.T, project *bsdom.BlockStorage)
 	}{
 		{
 			name: "happy path",
@@ -114,7 +114,7 @@ func TestBlockStorageConverter_FromArubaToSECA(t *testing.T) {
 					Region: "eu-fr",
 				},
 			},
-			assert: func(t *testing.T, bs *bsdom.BlockStorageDomain) {
+			assert: func(t *testing.T, bs *bsdom.BlockStorage) {
 				t.Helper()
 				if bs.Name != "my-block-storage" {
 					t.Errorf("expected block storage name 'my-block-storage', got %s", bs.Name)

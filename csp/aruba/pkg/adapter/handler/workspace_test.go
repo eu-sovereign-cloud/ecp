@@ -17,13 +17,13 @@ import (
 func TestWorkspace_create(t *testing.T) {
 	tests := []struct {
 		name        string
-		setupMocks  func(*MockRepository[*v1alpha1.Project, *v1alpha1.ProjectList], *MockConverter[*wsdom.WorkspaceDomain, *v1alpha1.Project], *wsdom.WorkspaceDomain)
+		setupMocks  func(*MockRepository[*v1alpha1.Project, *v1alpha1.ProjectList], *MockConverter[*wsdom.Workspace, *v1alpha1.Project], *wsdom.Workspace)
 		wantErr     bool
 		errContains string
 	}{
 		{
 			name: "conversion error",
-			setupMocks: func(mockRepo *MockRepository[*v1alpha1.Project, *v1alpha1.ProjectList], mockConv *MockConverter[*wsdom.WorkspaceDomain, *v1alpha1.Project], workspaceDomain *wsdom.WorkspaceDomain) {
+			setupMocks: func(mockRepo *MockRepository[*v1alpha1.Project, *v1alpha1.ProjectList], mockConv *MockConverter[*wsdom.Workspace, *v1alpha1.Project], workspaceDomain *wsdom.Workspace) {
 				mockConv.
 					EXPECT().
 					FromSECAToAruba(workspaceDomain).
@@ -34,7 +34,7 @@ func TestWorkspace_create(t *testing.T) {
 		},
 		{
 			name: "create error",
-			setupMocks: func(mockRepo *MockRepository[*v1alpha1.Project, *v1alpha1.ProjectList], mockConv *MockConverter[*wsdom.WorkspaceDomain, *v1alpha1.Project], workspaceDomain *wsdom.WorkspaceDomain) {
+			setupMocks: func(mockRepo *MockRepository[*v1alpha1.Project, *v1alpha1.ProjectList], mockConv *MockConverter[*wsdom.Workspace, *v1alpha1.Project], workspaceDomain *wsdom.Workspace) {
 				prj := &v1alpha1.Project{
 					Spec: v1alpha1.ProjectSpec{
 						Description: "Test Workspace Description",
@@ -57,7 +57,7 @@ func TestWorkspace_create(t *testing.T) {
 		},
 		{
 			name: "pending creation - condition not met",
-			setupMocks: func(mockRepo *MockRepository[*v1alpha1.Project, *v1alpha1.ProjectList], mockConv *MockConverter[*wsdom.WorkspaceDomain, *v1alpha1.Project], workspaceDomain *wsdom.WorkspaceDomain) {
+			setupMocks: func(mockRepo *MockRepository[*v1alpha1.Project, *v1alpha1.ProjectList], mockConv *MockConverter[*wsdom.Workspace, *v1alpha1.Project], workspaceDomain *wsdom.Workspace) {
 				prj := &v1alpha1.Project{
 					Spec: v1alpha1.ProjectSpec{
 						Description: "Test Workspace Description",
@@ -93,7 +93,7 @@ func TestWorkspace_create(t *testing.T) {
 		},
 		{
 			name: "success create",
-			setupMocks: func(mockRepo *MockRepository[*v1alpha1.Project, *v1alpha1.ProjectList], mockConv *MockConverter[*wsdom.WorkspaceDomain, *v1alpha1.Project], workspaceDomain *wsdom.WorkspaceDomain) {
+			setupMocks: func(mockRepo *MockRepository[*v1alpha1.Project, *v1alpha1.ProjectList], mockConv *MockConverter[*wsdom.Workspace, *v1alpha1.Project], workspaceDomain *wsdom.Workspace) {
 				prj := &v1alpha1.Project{
 					Spec: v1alpha1.ProjectSpec{
 						Description: "Test Workspace Description",
@@ -134,10 +134,10 @@ func TestWorkspace_create(t *testing.T) {
 			defer ctrl.Finish()
 
 			mockRepo := NewMockRepository[*v1alpha1.Project, *v1alpha1.ProjectList](ctrl)
-			mockConv := NewMockConverter[*wsdom.WorkspaceDomain, *v1alpha1.Project](ctrl)
+			mockConv := NewMockConverter[*wsdom.Workspace, *v1alpha1.Project](ctrl)
 
-			wd := &wsdom.WorkspaceDomain{
-				Spec: wsdom.WorkspaceSpecDomain{
+			wd := &wsdom.Workspace{
+				Spec: wsdom.WorkspaceSpec{
 					"description": "Test Workspace Description",
 					"tags":        []string{"tag1", "tag2"},
 					"default":     true,
@@ -165,13 +165,13 @@ func TestWorkspace_create(t *testing.T) {
 func TestWorkspace_delete(t *testing.T) {
 	tests := []struct {
 		name        string
-		setupMocks  func(*MockRepository[*v1alpha1.Project, *v1alpha1.ProjectList], *MockConverter[*wsdom.WorkspaceDomain, *v1alpha1.Project], *wsdom.WorkspaceDomain)
+		setupMocks  func(*MockRepository[*v1alpha1.Project, *v1alpha1.ProjectList], *MockConverter[*wsdom.Workspace, *v1alpha1.Project], *wsdom.Workspace)
 		wantErr     bool
 		errContains string
 	}{
 		{
 			name: "conversion error",
-			setupMocks: func(mockRepo *MockRepository[*v1alpha1.Project, *v1alpha1.ProjectList], mockConv *MockConverter[*wsdom.WorkspaceDomain, *v1alpha1.Project], workspaceDomain *wsdom.WorkspaceDomain) {
+			setupMocks: func(mockRepo *MockRepository[*v1alpha1.Project, *v1alpha1.ProjectList], mockConv *MockConverter[*wsdom.Workspace, *v1alpha1.Project], workspaceDomain *wsdom.Workspace) {
 				mockConv.
 					EXPECT().
 					FromSECAToAruba(workspaceDomain).
@@ -182,7 +182,7 @@ func TestWorkspace_delete(t *testing.T) {
 		},
 		{
 			name: "delete error",
-			setupMocks: func(mockRepo *MockRepository[*v1alpha1.Project, *v1alpha1.ProjectList], mockConv *MockConverter[*wsdom.WorkspaceDomain, *v1alpha1.Project], workspaceDomain *wsdom.WorkspaceDomain) {
+			setupMocks: func(mockRepo *MockRepository[*v1alpha1.Project, *v1alpha1.ProjectList], mockConv *MockConverter[*wsdom.Workspace, *v1alpha1.Project], workspaceDomain *wsdom.Workspace) {
 				prj := &v1alpha1.Project{
 					Spec: v1alpha1.ProjectSpec{
 						Description: "Test Workspace Description",
@@ -210,7 +210,7 @@ func TestWorkspace_delete(t *testing.T) {
 		},
 		{
 			name: "pending deletion - condition not met",
-			setupMocks: func(mockRepo *MockRepository[*v1alpha1.Project, *v1alpha1.ProjectList], mockConv *MockConverter[*wsdom.WorkspaceDomain, *v1alpha1.Project], workspaceDomain *wsdom.WorkspaceDomain) {
+			setupMocks: func(mockRepo *MockRepository[*v1alpha1.Project, *v1alpha1.ProjectList], mockConv *MockConverter[*wsdom.Workspace, *v1alpha1.Project], workspaceDomain *wsdom.Workspace) {
 				prj := &v1alpha1.Project{
 					Spec: v1alpha1.ProjectSpec{
 						Description: "Test Workspace Description",
@@ -251,7 +251,7 @@ func TestWorkspace_delete(t *testing.T) {
 		},
 		{
 			name: "success delete",
-			setupMocks: func(mockRepo *MockRepository[*v1alpha1.Project, *v1alpha1.ProjectList], mockConv *MockConverter[*wsdom.WorkspaceDomain, *v1alpha1.Project], workspaceDomain *wsdom.WorkspaceDomain) {
+			setupMocks: func(mockRepo *MockRepository[*v1alpha1.Project, *v1alpha1.ProjectList], mockConv *MockConverter[*wsdom.Workspace, *v1alpha1.Project], workspaceDomain *wsdom.Workspace) {
 				prj := &v1alpha1.Project{
 					Spec: v1alpha1.ProjectSpec{
 						Description: "Test Workspace Description",
@@ -305,10 +305,10 @@ func TestWorkspace_delete(t *testing.T) {
 			defer ctrl.Finish()
 
 			mockRepo := NewMockRepository[*v1alpha1.Project, *v1alpha1.ProjectList](ctrl)
-			mockConv := NewMockConverter[*wsdom.WorkspaceDomain, *v1alpha1.Project](ctrl)
+			mockConv := NewMockConverter[*wsdom.Workspace, *v1alpha1.Project](ctrl)
 
-			wd := &wsdom.WorkspaceDomain{
-				Spec: wsdom.WorkspaceSpecDomain{
+			wd := &wsdom.Workspace{
+				Spec: wsdom.WorkspaceSpec{
 					"description": "Test Workspace Description",
 					"tags":        []string{"tag1", "tag2"},
 					"default":     true,

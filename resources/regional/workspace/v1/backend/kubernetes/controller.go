@@ -12,7 +12,7 @@ import (
 
 // Controller drives workspace reconciliation using the GenericController.
 type Controller struct {
-	frameworkcontroller.GenericController[*wsdom.WorkspaceDomain]
+	frameworkcontroller.GenericController[*wsdom.Workspace]
 }
 
 // NewController wires together the workspace controller.
@@ -25,7 +25,7 @@ func NewController(
 	opts ...builder.Option,
 ) *Controller {
 	options := builder.ApplyOptions(opts)
-	repo := k8sadapter.NewRepoAdapter[*wsdom.WorkspaceDomain](
+	repo := k8sadapter.NewRepoAdapter[*wsdom.Workspace](
 		dynClient,
 		WorkspaceGVR,
 		options.Logger,
@@ -34,7 +34,7 @@ func NewController(
 	)
 	handler := NewWorkspacePluginHandler(repo, plugin, options.MaxConditions)
 	return &Controller{
-		GenericController: frameworkcontroller.NewGenericController[*wsdom.WorkspaceDomain](
+		GenericController: frameworkcontroller.NewGenericController[*wsdom.Workspace](
 			ctrlClient,
 			MapCRToWorkspaceDomain,
 			handler,

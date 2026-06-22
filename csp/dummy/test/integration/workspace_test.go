@@ -23,7 +23,7 @@ func TestWorkspace(t *testing.T) {
 		//
 		// Given a unique workspace domain resource definition
 		resourceName := "test-ws-create-" + uuid.New().String()[:8]
-		wsDomain := &regionalmodel.WorkspaceDomain{
+		wsDomain := &regionalmodel.Workspace{
 			Metadata: regionalmodel.Metadata{
 				CommonMetadata: ecpmodel.CommonMetadata{
 					Name: resourceName,
@@ -32,7 +32,7 @@ func TestWorkspace(t *testing.T) {
 					Tenant: "test-tenant",
 				},
 			},
-			Spec: regionalmodel.WorkspaceSpecDomain{},
+			Spec: regionalmodel.WorkspaceSpec{},
 		}
 
 		//
@@ -43,7 +43,7 @@ func TestWorkspace(t *testing.T) {
 		//
 		// Then the resource should eventually become active
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
-			loadedWs := &regionalmodel.WorkspaceDomain{
+			loadedWs := &regionalmodel.Workspace{
 				Metadata: regionalmodel.Metadata{
 					CommonMetadata: ecpmodel.CommonMetadata{
 						Name: resourceName,
@@ -70,7 +70,7 @@ func TestWorkspace(t *testing.T) {
 		//
 		// Given a unique workspace resource that is already created
 		resourceName := "test-ws-delete-" + uuid.New().String()[:8]
-		wsDomain := &regionalmodel.WorkspaceDomain{
+		wsDomain := &regionalmodel.Workspace{
 			Metadata: regionalmodel.Metadata{
 				CommonMetadata: ecpmodel.CommonMetadata{
 					Name: resourceName,
@@ -79,13 +79,13 @@ func TestWorkspace(t *testing.T) {
 					Tenant: "test-tenant",
 				},
 			},
-			Spec: regionalmodel.WorkspaceSpecDomain{},
+			Spec: regionalmodel.WorkspaceSpec{},
 		}
 		_, err := workspaceRepo.Create(t.Context(), wsDomain)
 		require.NoError(t, err)
 
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
-			loadedWs := &regionalmodel.WorkspaceDomain{
+			loadedWs := &regionalmodel.Workspace{
 				Metadata: regionalmodel.Metadata{
 					CommonMetadata: ecpmodel.CommonMetadata{
 						Name: resourceName,
@@ -113,7 +113,7 @@ func TestWorkspace(t *testing.T) {
 		//
 		// Then the resource should eventually be removed
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
-			loadedWs := &regionalmodel.WorkspaceDomain{
+			loadedWs := &regionalmodel.Workspace{
 				Metadata: regionalmodel.Metadata{
 					CommonMetadata: ecpmodel.CommonMetadata{
 						Name: resourceName,

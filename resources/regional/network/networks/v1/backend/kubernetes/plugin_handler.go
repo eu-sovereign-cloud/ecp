@@ -17,16 +17,16 @@ import (
 
 // NetworkPluginHandler drives the network reconciliation state machine.
 type NetworkPluginHandler struct {
-	frameworkbackend.GenericPluginHandler[*netdom.NetworkDomain]
-	repo   persistence.Repo[*netdom.NetworkDomain]
+	frameworkbackend.GenericPluginHandler[*netdom.Network]
+	repo   persistence.Repo[*netdom.Network]
 	plugin NetworkPlugin
 }
 
-var _ backendport.PluginHandler[*netdom.NetworkDomain] = (*NetworkPluginHandler)(nil)
+var _ backendport.PluginHandler[*netdom.Network] = (*NetworkPluginHandler)(nil)
 
 // NewNetworkPluginHandler creates a new NetworkPluginHandler.
 func NewNetworkPluginHandler(
-	repo persistence.Repo[*netdom.NetworkDomain],
+	repo persistence.Repo[*netdom.Network],
 	plugin NetworkPlugin,
 	maxConditions int,
 ) *NetworkPluginHandler {
@@ -39,28 +39,28 @@ func NewNetworkPluginHandler(
 	return handler
 }
 
-func (h *NetworkPluginHandler) HandleReconcile(ctx context.Context, resource *netdom.NetworkDomain) (bool, error) {
-	var delegate backendport.DelegatedFunc[*netdom.NetworkDomain]
+func (h *NetworkPluginHandler) HandleReconcile(ctx context.Context, resource *netdom.Network) (bool, error) {
+	var delegate backendport.DelegatedFunc[*netdom.Network]
 
 	switch {
 
 	case isNetworkAccepted(resource):
-		delegate = frameworkbackend.BypassDelegated[*netdom.NetworkDomain]
+		delegate = frameworkbackend.BypassDelegated[*netdom.Network]
 
 	case isNetworkPending(resource):
-		delegate = frameworkbackend.BypassDelegated[*netdom.NetworkDomain]
+		delegate = frameworkbackend.BypassDelegated[*netdom.Network]
 
 	case isNetworkCreating(resource):
 		delegate = h.plugin.Create
 
 	case wantNetworkDelete(resource):
-		delegate = frameworkbackend.BypassDelegated[*netdom.NetworkDomain]
+		delegate = frameworkbackend.BypassDelegated[*netdom.Network]
 
 	case isNetworkDeleting(resource):
 		delegate = h.plugin.Delete
 
 	case wantNetworkRetryCreate(resource):
-		delegate = frameworkbackend.BypassDelegated[*netdom.NetworkDomain]
+		delegate = frameworkbackend.BypassDelegated[*netdom.Network]
 
 	default:
 		return false, nil // Nothing to do.
@@ -106,9 +106,9 @@ func (h *NetworkPluginHandler) HandleReconcile(ctx context.Context, resource *ne
 	return false, nil
 }
 
-func (h *NetworkPluginHandler) setResourceState(ctx context.Context, resource *netdom.NetworkDomain, state commondomain.ResourceStateDomain, requeue bool) (bool, error) {
+func (h *NetworkPluginHandler) setResourceState(ctx context.Context, resource *netdom.Network, state commondomain.ResourceStateDomain, requeue bool) (bool, error) {
 	if resource.Status == nil {
-		resource.Status = &netdom.NetworkStatusDomain{}
+		resource.Status = &netdom.NetworkStatus{}
 	}
 
 	resource.Status.PushCondition(commonbackend.ConditionFromState(state))
@@ -127,9 +127,9 @@ func (h *NetworkPluginHandler) setResourceState(ctx context.Context, resource *n
 	return requeue, nil
 }
 
-func (h *NetworkPluginHandler) setResourceErrorState(ctx context.Context, resource *netdom.NetworkDomain, err error, requeue bool) (bool, error) {
+func (h *NetworkPluginHandler) setResourceErrorState(ctx context.Context, resource *netdom.Network, err error, requeue bool) (bool, error) {
 	if resource.Status == nil {
-		resource.Status = &netdom.NetworkStatusDomain{}
+		resource.Status = &netdom.NetworkStatus{}
 	}
 
 	resource.Status.PushCondition(commonbackend.ConditionFromError(err))
@@ -148,37 +148,37 @@ func (h *NetworkPluginHandler) setResourceErrorState(ctx context.Context, resour
 	return requeue, nil
 }
 
-func isNetworkAccepted(resource *netdom.NetworkDomain) bool {
+func isNetworkAccepted(resource *netdom.Network) bool {
 	return resource.Status == nil
 }
 
-func isNetworkPending(resource *netdom.NetworkDomain) bool {
+func isNetworkPending(resource *netdom.Network) bool {
 	return resource.Status != nil &&
 		resource.Status.State == commondomain.ResourceStatePending
 }
 
-func isNetworkCreating(resource *netdom.NetworkDomain) bool {
+func isNetworkCreating(resource *netdom.Network) bool {
 	return resource.DeletedAt == nil &&
 		resource.Status != nil &&
 		resource.Status.State == commondomain.ResourceStateCreating
 }
 
-func networkIsNotDeleting(resource *netdom.NetworkDomain) bool {
+func networkIsNotDeleting(resource *netdom.Network) bool {
 	return resource.Status == nil ||
 		resource.Status.State != commondomain.ResourceStateDeleting
 }
 
-func wantNetworkDelete(resource *netdom.NetworkDomain) bool {
+func wantNetworkDelete(resource *netdom.Network) bool {
 	return resource.DeletedAt != nil && networkIsNotDeleting(resource)
 }
 
-func isNetworkDeleting(resource *netdom.NetworkDomain) bool {
+func isNetworkDeleting(resource *netdom.Network) bool {
 	return resource.DeletedAt != nil &&
 		resource.Status != nil &&
 		resource.Status.State == commondomain.ResourceStateDeleting
 }
 
-func wantNetworkRetryCreate(resource *netdom.NetworkDomain) bool {
+func wantNetworkRetryCreate(resource *netdom.Network) bool {
 	return resource.DeletedAt == nil && resource.Status != nil &&
 		resource.Status.State == commondomain.ResourceStateError &&
 		len(resource.Status.Conditions) > 1 &&

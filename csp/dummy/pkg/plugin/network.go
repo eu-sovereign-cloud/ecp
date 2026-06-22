@@ -17,7 +17,7 @@ func NewNetwork(logger *slog.Logger) *Network {
 	return &Network{logger: logger}
 }
 
-func (n *Network) Create(ctx context.Context, resource *netdom.NetworkDomain) error {
+func (n *Network) Create(ctx context.Context, resource *netdom.Network) error {
 	n.logger.Info("dummy network plugin: Create called", "resource_name", resource.GetName())
 	delay, err := networkDelay(ctx)
 	if err != nil {
@@ -27,7 +27,7 @@ func (n *Network) Create(ctx context.Context, resource *netdom.NetworkDomain) er
 	return nil
 }
 
-func (n *Network) Delete(ctx context.Context, resource *netdom.NetworkDomain) error {
+func (n *Network) Delete(ctx context.Context, resource *netdom.Network) error {
 	n.logger.Info("dummy network plugin: Delete called", "resource_name", resource.GetName())
 	delay, err := networkDelay(ctx)
 	if err != nil {
