@@ -6,76 +6,66 @@ This document describes the design and implementation of the ECP (European Contr
 
 The ECP is a distributed control plane for managing and orchestrating cloud resources across multiple cloud service providers (CSPs). It exposes a unified, declarative REST API; all managed resources are persisted as Kubernetes Custom Resources (CRs), providing compatibility with existing Kubernetes tooling and GitOps workflows.
 
-The system has three main layers:
+## Two-Axis Module Topology
 
-1. **Gateway** — REST API servers (global and regional) generated from the same OpenAPI specs as the client SDK ([go-sdk](https://github.com/eu-sovereign-cloud/go-sdk)), ensuring no encoding gap between client and server.
-2. **Delegator** — Kubernetes controllers that watch CRs, validate state transitions, and delegate provisioning to CSP plugins.
-3. **Plugins** — CSP-specific adapters that perform the actual resource provisioning (IONOS, Aruba, dummy).
+The repo is organized around two orthogonal axes, each a separate Go module:
 
-## System Topology
+```
+              framework/                   (module …/ecp/framework)
+              ├─ kernel      ← leaf: ALL abstractions (ports, Scope, Error, validation)
+              ├─ persistence → kernel: k8s adapter, schema/v1 CRD types, codegen tools
+              ├─ backend     → persistence, kernel: GenericController, ControllerSet
+              └─ frontend    → kernel: httpserver, kubeclient, logger, config
+                    │
+                    ▼  framework ↛ resources (COMPILER-ENFORCED module boundary)
+              resources/                   (module …/ecp/resources)
+               ├─ common/{domain,frontend,backend}   shared backbone
+               └─ {global,regional}/<group>/<resource>/vN/
+                   ├─ domain/          canonical type + identity consts
+                   ├─ frontend/rest/   REST↔domain converters + HTTP handlers
+                   └─ backend/kubernetes/ CR types, adapters, controller, plugin iface+handler
+                         │
+              ┌──────────┴──────────┐
+           gateway/             csp/{dummy,ionos,aruba}/
+      (→ framework, resources)  (→ framework, resources)
+```
 
-Global and regional resources reside in separate Kubernetes clusters. For simplicity (e.g., local testing) both can be deployed to a single cluster.
+**Horizontal axis** (`framework/`): the architectural *layers* — generic, resource-agnostic, shared by everything. Change a layer once and it applies to all resources.
 
-![ECP Architecture](images/ecp-architecture.png)
+**Vertical axis** (`resources/`): the *features* — one self-contained bounded context per resource, cutting through all layers. Change a resource in one place; nothing else needs editing.
 
-## Hexagonal Architecture
+**Module boundary**: `framework ↛ resources` is enforced by the Go compiler (separate modules). A `framework` package that imports `resources` fails to build under `GOWORK=off`. This is the repo's load-bearing invariant.
 
-ECP follows the hexagonal architecture (ports and adapters) pattern. Two application domains are involved, each implemented as a hexagon:
+## Layer DAG (within framework/)
 
-**Gateway domain**
-- Inbound port: REST API (generated from OpenAPI spec)
-- Outbound port: K8s repository interface (abstracts client-go)
+Inter-layer ordering is enforced by `depguard` in `.golangci.yml`:
 
-**Delegator domain**
-- Inbound port: Kubernetes watch/reconcile loop
-- Outbound port: Plugin interface (CSP-agnostic provisioning contract)
+```
+kernel      — pure leaf (stdlib + gobwas/glob only)
+persistence → kernel
+backend     → persistence, kernel
+frontend    → kernel
+```
 
-Because both persistence and the plugin backend sit behind interfaces, either can be swapped without touching domain logic.
+## Per-Resource Slice (vertical hexagon)
 
-## Layers
+Each resource slice at `resources/{scope}/{group}/{resource}/vN/` contains:
 
-### API Layer (Gateway)
+- **`domain/`** — the canonical domain type, `RegionalMetadata` embed, and identity consts (`Kind`, `Resource`, `Group`, `Version`, `ProviderID`). No k8s imports.
+- **`frontend/rest/`** — REST↔domain converter + HTTP handlers implementing the go-sdk `ServerInterface`. Registered into the gateway mux.
+- **`backend/kubernetes/`** — CR wrapper types, GVR/GVK, CR↔domain adapter (`conversion.go`), plugin interface (`plugin.go`), plugin handler (`plugin_handler.go`), and controller wiring (`controller.go`). The `NewController` factory performs **builder inversion**: it assembles the `framework/persistence/kubernetes` repo adapter from this slice's own GVR and mappers, wraps it in `framework/backend/controller.GenericController[D]`, and returns a `framework/backend/builder.Reconciler` — no `framework` package ever names a concrete resource.
 
-Two HTTP servers expose the ECP REST API:
+## Module DAG
 
-| Server   | Default port | Scope                                    |
-|----------|--------------|------------------------------------------|
-| Global   | 8080         | `GET /regions`, `GET /regions/{id}`      |
-| Regional | 8080         | `GET/POST /workspaces`, `GET/POST /block-storages`, `GET /skus` |
+```
+framework   ← resources ← gateway
+                       ↖ csp/{dummy,ionos,aruba}
+                       ↖ test/e2e
+```
 
-Both servers are generated from the OpenAPI specification shared with the [go-sdk](https://github.com/eu-sovereign-cloud/go-sdk) client library, so there is no encoding gap between client and server. Incoming requests are written directly to the Kubernetes API server as CR create/update operations.
-
-### Controller Layer (Delegator)
-
-Kubernetes controllers watch CRs and apply the business logic:
-
-- Validate state transitions at admission time.
-- Delegate actual provisioning to the CSP plugin via a defined interface.
-- The controller layer is fully decoupled from any specific CSP implementation.
-
-### Plugin Layer
-
-Each CSP plugin implements the delegator's plugin interface:
-
-- **IONOS plugin** (`foundation/plugin/ionos/`) — uses Crossplane with `provider-upjet-ionoscloud`.
-- **Aruba plugin** (`foundation/plugin/aruba/`) — direct CSP adapter.
-- **Dummy plugin** (`foundation/plugin/dummy/`) — reference implementation; logs operations without real provisioning, used for integration testing.
-
-A plugin may introduce its own internal controller layer when the CSP's resource model differs from ECP's.
-
-### Persistence Layer
-
-All resources are persisted as Kubernetes Custom Resources:
-
-- CRD definitions are generated by [controller-gen](https://github.com/kubernetes-sigs/controller-tools) from Go struct annotations.
-- API types are generated from the shared OpenAPI spec.
-- A repository interface abstracts Kubernetes client-go, making the persistence layer replaceable.
-
-See [CODEGEN.md](CODEGEN.md) for details on the generation pipeline.
+No back-edges. `framework` has zero dependency on `resources`. `resources` has zero dependency on `gateway` or any CSP.
 
 ## Resource Model
-
-![ECP Resource Relationships](images/resource-model.png)
 
 ### Global Resources
 
@@ -83,13 +73,12 @@ See [CODEGEN.md](CODEGEN.md) for details on the generation pipeline.
 |----------|-------------|
 | `Region` | Available regions (read-only) |
 
-Global resources are stored in the `seca` namespace. Replicating the `seca` namespace between clusters is sufficient to propagate global data.
+Global resources are stored in the `seca` namespace.
 
 ### Regional Resources
 
 | Resource | Description |
 |----------|-------------|
-| `Tenant` | Lifecycle owner for all regional resources belonging to one tenant |
 | `Workspace` | Logical grouping of resources within a tenant |
 | `BlockStorage` | Block storage volume |
 | `Network` | Network resource |
@@ -97,13 +86,9 @@ Global resources are stored in the `seca` namespace. Replicating the `seca` name
 
 ### Namespacing Strategy
 
-All resources are namespaced:
-
 - The `seca` namespace groups global and shared resources.
 - Each `Tenant` CR triggers the creation of a dedicated tenant namespace; all regional resources owned by that tenant live there.
 - `Workspace` CRs are placed in the tenant namespace and labeled with their parent tenant.
-
-This design keeps tenant isolation at the namespace level and simplifies cross-cluster replication (replicate the `seca` namespace for global data).
 
 ## Cascaded Deletion
 
@@ -111,5 +96,3 @@ ECP enforces owner-reference–based cascaded deletion:
 
 - Deleting a **Tenant** cascades to all its Workspaces and all resources within them.
 - Deleting a **Workspace** cascades to all resources within that workspace.
-
-This ensures resources are properly cleaned up when their parent entities are removed.

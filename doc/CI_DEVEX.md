@@ -55,6 +55,21 @@ echo "<PAT>" | docker login ghcr.io -u <github-username> --password-stdin
 
 > **Podman users:** substitute `podman login` for `docker login` (same arguments).
 
+## Go Workspace (7 First-Party Modules)
+
+| Module | Path | Description |
+|--------|------|-------------|
+| `framework` | `./framework` | Resource-agnostic SDK (kernel, persistence, backend, frontend) |
+| `resources` | `./resources` | Domain vocabulary + all resource slices |
+| `gateway` | `./gateway` | Global and regional REST API server binary |
+| `csp/dummy` | `./csp/dummy` | Reference plugin (no real backend) |
+| `csp/ionos` | `./csp/ionos` | IONOS CSP adapter via Crossplane |
+| `csp/aruba` | `./csp/aruba` | Aruba CSP adapter |
+| `test/e2e` | `./test/e2e` | End-to-end test harness |
+| `ci/tools/go` | `./ci/tools/go` | Pinned versions of Go development tools |
+
+The `framework-isolation` CI lane runs `cd framework && GOWORK=off go build ./... && go test ./...` to prove no `framework/*` package imports `resources`. See [ARCHITECTURE.md](ARCHITECTURE.md) for the full module DAG.
+
 ## Development Workflows
 
 ### Bare-Metal Development
@@ -75,7 +90,7 @@ make generate-api
 make test
 
 # Run tests for a single module
-make foundation/gateway-test
+make gateway-test
 
 # Filter tests by name
 make test RUN=TestCreateWorkspace
@@ -131,7 +146,7 @@ Append `-ctzd` to any root Makefile target to run it inside the tools container.
 
 ```bash
 make test-ctzd                                  # all tests, inside container
-make foundation/gateway-lint-ctzd               # lint one module
+make gateway-lint-ctzd                          # lint one module
 make generate-api-ctzd                          # codegen inside container
 make pre-commit-ctzd                            # full local gate, containerized
 make test-ctzd RUN=TestCreateWorkspace          # pass variables through
@@ -293,12 +308,11 @@ Any target `FOO` defined at the root can be run as `FOO-ctzd`. The wrapper:
 
 | Makefile | Key Targets |
 |----------|-------------|
-| `foundation/gateway/Makefile` | `run-global-server`, `run-regional-server`, `build-gateway`, `create-dev-clusters`, `clean-dev-clusters` |
-| `foundation/persistence/Makefile` | `generate-all`, `generate-models`, `generate-crds`, `clean-generated`, `clean-crds` |
-| `foundation/plugin/dummy/Makefile` | `build`, `deploy`, `kind-start`, `kind-stop`, `test-integration` |
-| `foundation/plugin/e2e/Makefile` | `build-all`, `push-all`, `deploy-all`, `kind-start`, `kind-stop`, `kind-load-all`, `test-all` |
-| `foundation/plugin/ionos/deploy/Makefile` | `install-crossplane`, `install-provider`, `install-all`, `install-on-regional` |
-| `foundation/ionos_e2e/Makefile` | `secatest-scaffolding`, `secatest`, `secatest-all`, `secatest-clean` |
+| `gateway/Makefile` | `run-global-server`, `run-regional-server`, `build-gateway`, `create-dev-clusters`, `clean-dev-clusters` |
+| `csp/dummy/Makefile` | `build`, `deploy`, `kind-start`, `kind-stop`, `test-integration` |
+| `test/e2e/Makefile` | `build-all`, `push-all`, `deploy-all`, `kind-start`, `kind-stop`, `kind-load-all`, `test-all` |
+| `csp/ionos/deploy/Makefile` | `install-crossplane`, `install-provider`, `install-all`, `install-on-regional` |
+| `test/ionos-e2e/Makefile` | `secatest-scaffolding`, `secatest`, `secatest-all`, `secatest-clean` |
 
 ## CI Pipeline (GitHub Actions)
 
@@ -318,6 +332,8 @@ Stage 2 — depends on Stage 1
                          - If inputs changed → full rebuild, push as :pr-<N>
 
 Stage 3 — parallel, per changed module, inside the builder container
+  framework-isolation  cd framework && GOWORK=off go build ./... && go test ./...
+                         (proves no framework/* package imports resources)
   workspace-verify     make workspace-verify
   generate-api         make generate-api-verify
   test                 make <module>-test        (matrix over changed modules)
@@ -352,8 +368,7 @@ Runs are serialized (`cancel-in-progress: false`) so the second run benefits fro
 
 1. Create the module directory with a `go.mod` file.
 2. Add it to the workspace: `make workspace-use-add RELPATH=<path/to/module>`
-3. If the module imports other workspace members, add a `replace` directive:
-   `go work edit -replace <modpath>=./<path/to/module>`
+3. If the module imports other workspace members, add `require` + `replace` directives.
 4. Run `make workspace-sync` to update `go.work.sum`.
 5. Commit `go.work` and `go.work.sum`.
 
