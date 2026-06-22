@@ -90,18 +90,18 @@ func validateRegionSpec(cr Region) error {
 	return nil
 }
 
-func mapProviders(cr Region) []commondomain.ProviderDomain {
-	providers := make([]commondomain.ProviderDomain, 0, len(cr.Spec.Providers))
+func mapProviders(cr Region) []rdom.Provider {
+	providers := make([]rdom.Provider, 0, len(cr.Spec.Providers))
 	for _, p := range cr.Spec.Providers {
-		providers = append(providers, commondomain.ProviderDomain{Name: p.Name, URL: p.Url, Version: p.Version})
+		providers = append(providers, rdom.Provider{Name: p.Name, URL: p.Url, Version: p.Version})
 	}
 	return providers
 }
 
-func mapZones(cr Region) []commondomain.ZoneDomain {
-	zones := make([]commondomain.ZoneDomain, 0, len(cr.Spec.AvailableZones))
+func mapZones(cr Region) []rdom.Zone {
+	zones := make([]rdom.Zone, 0, len(cr.Spec.AvailableZones))
 	for _, z := range cr.Spec.AvailableZones {
-		zones = append(zones, commondomain.ZoneDomain(z))
+		zones = append(zones, rdom.Zone(z))
 	}
 	return zones
 }

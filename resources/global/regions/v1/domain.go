@@ -1,4 +1,4 @@
-// Package domain defines the region resource domain model and identity constants.
+// Package v1 defines the region resource domain model and identity constants.
 package v1
 
 import "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
@@ -9,11 +9,24 @@ const (
 	Resource = "regions"
 	Group    = "v1.secapi.cloud"
 	Version  = "v1"
+
+	RegionBaseURL      = "/providers/seca.region"
+	ProviderRegionName = "seca.region/v1"
 )
 
-// Type aliases so callers can use this package without importing common/domain directly.
-type (
-	Region   = domain.RegionDomain
-	Provider = domain.ProviderDomain
-	Zone     = domain.ZoneDomain
-)
+// Zone is a string type representing a region zone name.
+type Zone string
+
+// Provider represents a region provider.
+type Provider struct {
+	Name    string
+	URL     string
+	Version string
+}
+
+// Region is the domain model for a region resource.
+type Region struct {
+	domain.Metadata
+	Providers []Provider
+	Zones     []Zone
+}
