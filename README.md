@@ -7,15 +7,25 @@ ECP exposes a unified, declarative REST API for provisioning and managing cloud 
 ## Repository Layout
 
 ```
-foundation/
-├── persistence/      # CRD definitions and generated API types
-├── gateway/          # Global and regional REST API servers
-├── delegator/        # Kubernetes controllers
-└── plugin/
-    ├── dummy/        # Reference plugin implementation
-    ├── ionos/        # IONOS CSP plugin (Crossplane-based)
-    ├── aruba/        # Aruba CSP plugin
-    └── e2e/          # End-to-end test harness
+framework/            # Resource-agnostic SDK (horizontal axis)
+├── kernel/           #   All abstractions: ports, Scope, Error, validation
+├── persistence/      #   Kubernetes adapter, schema/v1 CRD types, codegen tools
+├── backend/          #   Generic controller, ControllerSet builder
+└── frontend/         #   HTTP server, kubeclient, logger, config
+resources/            # Data vocabulary + per-resource slices (vertical axis)
+├── common/           #   Shared domain, frontend, backend helpers
+└── {global,regional}/<group>/<resource>/vN/
+    ├── domain/       #   Canonical type + identity consts
+    ├── frontend/rest/#   REST↔domain converters + HTTP handlers
+    └── backend/kubernetes/ # CR types, adapters, controller, plugin interface + handler
+gateway/              # Global and regional REST API server binary
+csp/
+├── dummy/            # Reference plugin (no real backend)
+├── ionos/            # IONOS CSP plugin (Crossplane-based)
+└── aruba/            # Aruba CSP plugin
+test/
+├── e2e/              # End-to-end test harness
+└── ionos-e2e/        # IONOS-specific integration tests
 ci/
 ├── container/        # Dockerfile layers: builder, tools, dev, runner
 ├── scripts/          # CI and dev automation scripts
@@ -27,18 +37,20 @@ doc/                  # Documentation
 
 ## Go Workspace
 
-This is a Go monorepo managed with `go.work`. The workspace contains 8 modules:
+This is a Go monorepo managed with `go.work`. The workspace contains 7 first-party modules:
 
-| Module | Description |
-|--------|-------------|
-| `foundation/persistence` | CRD definitions, generated API types, K8s repository interfaces |
-| `foundation/gateway` | Global and regional REST API servers |
-| `foundation/delegator` | Kubernetes controllers and plugin interface |
-| `foundation/plugin/dummy` | Reference plugin (no real backend) |
-| `foundation/plugin/ionos` | IONOS CSP adapter via Crossplane |
-| `foundation/plugin/aruba` | Aruba CSP adapter |
-| `foundation/plugin/e2e` | End-to-end test harness |
-| `ci/tools/go` | Pinned versions of Go development tools |
+| Module | Path | Description |
+|--------|------|-------------|
+| `framework` | `./framework` | Resource-agnostic SDK (kernel, persistence, backend, frontend) |
+| `resources` | `./resources` | Domain vocabulary + all resource slices |
+| `gateway` | `./gateway` | Global and regional REST API server binary |
+| `csp/dummy` | `./csp/dummy` | Reference plugin (no real backend) |
+| `csp/ionos` | `./csp/ionos` | IONOS CSP adapter via Crossplane |
+| `csp/aruba` | `./csp/aruba` | Aruba CSP adapter |
+| `test/e2e` | `./test/e2e` | End-to-end test harness |
+| `ci/tools/go` | `./ci/tools/go` | Pinned versions of Go development tools |
+
+**Module boundary**: `framework ↛ resources` is compiler-enforced. `resources` and `gateway` depend on `framework`. CSP plugins depend on both `framework` and `resources`. See [doc/ARCHITECTURE.md](doc/ARCHITECTURE.md).
 
 ## Quick Start
 
@@ -51,11 +63,11 @@ This is a Go monorepo managed with `go.work`. The workspace contains 8 modules:
 make generate-api
 
 # Create local KIND clusters (global + regional)
-make -C foundation/gateway create-dev-clusters
+make -C gateway create-dev-clusters
 
 # Run the API servers (in separate terminals)
-make -C foundation/gateway run-global-server
-make -C foundation/gateway run-regional-server
+make -C gateway run-global-server
+make -C gateway run-regional-server
 
 # Run all tests
 make test
@@ -73,11 +85,11 @@ For containerized development, persistent dev containers, and the full Makefile 
 
 | Document | Description |
 |----------|-------------|
-| [doc/ARCHITECTURE.md](doc/ARCHITECTURE.md) | System architecture, hexagonal design, resource model |
+| [doc/ARCHITECTURE.md](doc/ARCHITECTURE.md) | DDD/hexagonal design, two-axis module topology, module DAG |
 | [doc/CI_DEVEX.md](doc/CI_DEVEX.md) | Developer environment setup, Makefile targets, CI pipeline |
 | [doc/CODEGEN.md](doc/CODEGEN.md) | Code generation pipeline (OpenAPI types, CRDs, controller-gen) |
-| [doc/PLUGINS.md](doc/PLUGINS.md) | Plugin system: available plugins, interface, writing a new CSP plugin |
-| [doc/CONTRIBUTING.md](doc/CONTRIBUTING.md) | Contribution guidelines, PR conventions, branch model |
+| [doc/PLUGINS.md](doc/PLUGINS.md) | Plugin system: interface, builder inversion, writing a new CSP plugin |
+| [doc/CONTRIBUTING.md](doc/CONTRIBUTING.md) | Contribution guidelines, import alias convention, PR conventions |
 
 ## Current Version
 
