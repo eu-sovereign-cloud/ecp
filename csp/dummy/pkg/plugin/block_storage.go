@@ -6,47 +6,27 @@ import (
 	"math/rand/v2"
 	"time"
 
-	delegator "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1"
 )
 
 type BlockStorage struct {
-	logger  *slog.Logger
-	tracker *asyncTracker
+	logger *slog.Logger
 }
 
 func NewBlockStorage(logger *slog.Logger) *BlockStorage {
-	return &BlockStorage{logger: logger, tracker: newAsyncTracker()}
+	return &BlockStorage{logger: logger}
 }
 
 func (b *BlockStorage) Create(ctx context.Context, resource *bsdom.BlockStorage) error {
-	return b.simulate("create", resource, blockStorageDelay())
+	return simulateBS(ctx, "create", resource, blockStorageDelay(), b.logger)
 }
 
 func (b *BlockStorage) Delete(ctx context.Context, resource *bsdom.BlockStorage) error {
-	return b.simulate("delete", resource, blockStorageDelay())
+	return simulateBS(ctx, "delete", resource, blockStorageDelay(), b.logger)
 }
 
 func (b *BlockStorage) IncreaseSize(ctx context.Context, resource *bsdom.BlockStorage) error {
-	return b.simulate("increase-size", resource, 2*blockStorageDelay())
-}
-
-// simulate reports a long-running operation as still in progress until its
-// simulated delay has elapsed, without blocking the reconciliation worker.
-func (b *BlockStorage) simulate(op string, resource *bsdom.BlockStorage, delay time.Duration) error {
-	key := op + ":" + resourceKey(resource)
-
-	if !b.tracker.done(key, delay) {
-		b.logger.Info("dummy block storage plugin: still processing",
-			"op", op, "resource_name", resource.GetName())
-
-		return delegator.ErrStillProcessing
-	}
-
-	b.logger.Info("dummy block storage plugin: finished",
-		"op", op, "resource_name", resource.GetName())
-
-	return nil
+	return simulateBS(ctx, "increase-size", resource, 2*blockStorageDelay(), b.logger)
 }
 
 // blockStorageDelay returns the simulated latency of a block storage operation.
