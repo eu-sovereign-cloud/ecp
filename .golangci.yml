@@ -6,6 +6,7 @@ linters:
     - bidichk
     - bodyclose
     - contextcheck
+    - depguard
     - durationcheck
     - errchkjson
     - errorlint
@@ -17,6 +18,7 @@ linters:
     - gocyclo
     - gosec
     - gosmopolitan
+    - importas
     - loggercheck
     - makezero
     - misspell
@@ -37,6 +39,53 @@ linters:
     - unparam
     - zerologlint
   settings:
+    depguard:
+      rules:
+        # Framework inter-layer DAG (applies when linting framework/* paths).
+        # "framework ↛ resources" is compiler-enforced (GOWORK=off gate) and
+        # lives in framework/.golangci.yml to avoid false-positives in other modules.
+        kernel-no-impl:
+          files:
+            - "**/kernel/**"
+          list-mode: lax
+          deny:
+            - pkg: "github.com/eu-sovereign-cloud/ecp/framework/persistence"
+              desc: "kernel must not import framework/persistence (kernel is the pure leaf)"
+            - pkg: "github.com/eu-sovereign-cloud/ecp/framework/backend"
+              desc: "kernel must not import framework/backend"
+            - pkg: "github.com/eu-sovereign-cloud/ecp/framework/frontend"
+              desc: "kernel must not import framework/frontend"
+        persistence-no-backend-or-frontend:
+          files:
+            - "**/persistence/**"
+          list-mode: lax
+          deny:
+            - pkg: "github.com/eu-sovereign-cloud/ecp/framework/backend"
+              desc: "persistence must not import framework/backend"
+            - pkg: "github.com/eu-sovereign-cloud/ecp/framework/frontend"
+              desc: "persistence must not import framework/frontend"
+        backend-no-frontend:
+          files:
+            - "**/backend/**"
+          list-mode: lax
+          deny:
+            - pkg: "github.com/eu-sovereign-cloud/ecp/framework/frontend"
+              desc: "backend must not import framework/frontend"
+        frontend-no-persistence-or-backend:
+          files:
+            - "**/frontend/**"
+          list-mode: lax
+          deny:
+            - pkg: "github.com/eu-sovereign-cloud/ecp/framework/persistence"
+              desc: "frontend must not import framework/persistence"
+            - pkg: "github.com/eu-sovereign-cloud/ecp/framework/backend"
+              desc: "frontend must not import framework/backend"
+    importas:
+      # Enforce <resource><layer> short aliases for resource slices.
+      # Per-slice aliases are added in Phase C alongside slice creation.
+      # Framework packages use longer descriptive aliases where disambiguation is needed.
+      no-unaliased: false
+      alias: []
     dupl:
       threshold: 100
     errcheck:
