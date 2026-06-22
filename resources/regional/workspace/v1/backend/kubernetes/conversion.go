@@ -85,7 +85,7 @@ func MapWorkspaceDomainToCR(d *wsdom.WorkspaceDomain) (client.Object, error) {
 		return nil, fmt.Errorf("domain workspace is nil")
 	}
 
-	spec := make(genv1.WorkspaceSpec, len(d.Spec))
+	spec := make(WorkspaceSpec, len(d.Spec))
 	for k, v := range d.Spec {
 		spec[k] = convert.InterfaceToString(v)
 	}
@@ -116,7 +116,7 @@ func MapWorkspaceDomainToCR(d *wsdom.WorkspaceDomain) (client.Object, error) {
 		if state == nil {
 			return nil, fmt.Errorf("failed to map resource state domain to CR")
 		}
-		cr.Status = &genv1.WorkspaceStatus{
+		cr.Status = &WorkspaceStatus{
 			State:         *state,
 			Conditions:    commonbackend.MapStatusConditionDomainsToCR(d.Status.Conditions),
 			ResourceCount: d.Status.ResourceCount,

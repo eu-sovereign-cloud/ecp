@@ -27,7 +27,7 @@ func (x *RouteTable) PushCondition(condition genv1.StatusCondition) {
 		return
 	}
 	if x.Status == nil {
-		x.Status = &genv1.RouteTableStatus{}
+		x.Status = &RouteTableStatus{}
 	}
 	if x.Status.Conditions == nil {
 		x.Status.Conditions = []genv1.StatusCondition{}

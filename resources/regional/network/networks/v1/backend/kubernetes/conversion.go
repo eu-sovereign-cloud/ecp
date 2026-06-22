@@ -109,7 +109,7 @@ func MapNetworkDomainToCR(d *netdom.NetworkDomain) (client.Object, error) {
 			Extensions:  d.Extensions,
 			Labels:      slices.Collect(maps.Keys(d.Labels)),
 		},
-		Spec: genv1.NetworkSpec{
+		Spec: NetworkSpec{
 			Cidr:            mapCidrDomainToCR(d.Spec.Cidr),
 			AdditionalCidrs: additionalCidrs,
 			SkuRef:          commonbackend.MapReferenceDomainToCR(d.Spec.SkuRef),
@@ -123,7 +123,7 @@ func MapNetworkDomainToCR(d *netdom.NetworkDomain) (client.Object, error) {
 		if state == nil {
 			return nil, fmt.Errorf("failed to convert resource state to CR")
 		}
-		cr.Status = &genv1.NetworkStatus{
+		cr.Status = &NetworkStatus{
 			Conditions: commonbackend.MapStatusConditionDomainsToCR(d.Status.Conditions),
 			State:      *state,
 		}

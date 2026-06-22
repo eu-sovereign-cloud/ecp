@@ -3,8 +3,8 @@ package workspace
 import (
 	"context"
 
-	wsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/workspace/v1/domain"
 	"github.com/eu-sovereign-cloud/ecp/csp/ionos/pkg/port"
+	wsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/workspace/v1/domain"
 )
 
 type CreateWorkspace struct {

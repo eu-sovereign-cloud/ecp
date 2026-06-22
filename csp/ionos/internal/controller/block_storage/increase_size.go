@@ -3,8 +3,8 @@ package block_storage
 import (
 	"context"
 
-	bsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1/domain"
 	"github.com/eu-sovereign-cloud/ecp/csp/ionos/pkg/port"
+	bsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1/domain"
 )
 
 type IncreaseSizeBlockStorage struct {

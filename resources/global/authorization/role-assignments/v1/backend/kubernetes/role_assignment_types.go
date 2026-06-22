@@ -17,9 +17,9 @@ type RoleAssignment struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec       genv1.RoleAssignmentSpec    `json:"spec,omitempty"`
+	Spec       RoleAssignmentSpec    `json:"spec,omitempty"`
 	CommonData genv1.CommonData            `json:"commonData,omitempty"`
-	Status     *genv1.RoleAssignmentStatus `json:"status,omitempty"`
+	Status     *RoleAssignmentStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true

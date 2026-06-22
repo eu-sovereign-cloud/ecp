@@ -10,13 +10,13 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
 	backend "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
+	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	res "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
-	bsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1/domain"
 	bsk8s "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1/backend/kubernetes"
+	bsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1/domain"
 	ssdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/storage-skus/v1/domain"
 	wsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/workspace/v1/domain"
-	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 
 	adaptconverter "github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/converter"
 	"github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/generic/delegated"

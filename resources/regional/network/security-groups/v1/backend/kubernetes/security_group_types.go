@@ -17,9 +17,9 @@ type SecurityGroup struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec       genv1.SecurityGroupSpec    `json:"spec,omitempty"`
+	Spec       SecurityGroupSpec    `json:"spec,omitempty"`
 	CommonData genv1.CommonData           `json:"commonData,omitempty"`
-	Status     *genv1.SecurityGroupStatus `json:"status,omitempty"`
+	Status     *SecurityGroupStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true

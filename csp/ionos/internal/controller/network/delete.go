@@ -3,8 +3,8 @@ package network
 import (
 	"context"
 
-	netdom "github.com/eu-sovereign-cloud/ecp/resources/regional/network/networks/v1/domain"
 	"github.com/eu-sovereign-cloud/ecp/csp/ionos/pkg/port"
+	netdom "github.com/eu-sovereign-cloud/ecp/resources/regional/network/networks/v1/domain"
 )
 
 type DeleteNetwork struct {

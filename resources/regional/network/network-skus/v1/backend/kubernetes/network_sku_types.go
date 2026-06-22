@@ -3,7 +3,6 @@ package kubernetes
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	genv1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
 )
 
 // +kubebuilder:object:root=true
@@ -15,7 +14,7 @@ type NetworkSKU struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec genv1.NetworkSkuSpec `json:"spec,omitempty"`
+	Spec NetworkSkuSpec `json:"spec,omitempty"`
 }
 
 // +kubebuilder:object:root=true

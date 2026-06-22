@@ -17,9 +17,9 @@ type Workspace struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec       genv1.WorkspaceSpec    `json:"spec,omitempty"`
+	Spec       WorkspaceSpec    `json:"spec,omitempty"`
 	CommonData genv1.CommonData       `json:"commonData,omitempty"`
-	Status     *genv1.WorkspaceStatus `json:"status,omitempty"`
+	Status     *WorkspaceStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true

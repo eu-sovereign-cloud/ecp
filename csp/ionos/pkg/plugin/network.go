@@ -11,11 +11,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	backend "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
-	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
-	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
-	netdom "github.com/eu-sovereign-cloud/ecp/resources/regional/network/networks/v1/domain"
 	"github.com/eu-sovereign-cloud/ecp/csp/ionos/pkg/adapter/crossplane"
+	backend "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
+	kresource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
+	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
+	netdom "github.com/eu-sovereign-cloud/ecp/resources/regional/network/networks/v1/domain"
 )
 
 // Network handles create/delete of SECA Network resources on IONOS Cloud.
@@ -37,7 +37,7 @@ func NewNetwork(client client.Client, logger *slog.Logger) *Network {
 func (n *Network) Create(ctx context.Context, resource *netdom.NetworkDomain) error {
 	n.logger.Info("ionos network plugin: Create called", "resource_name", resource.GetName())
 
-	namespace := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: resource.GetTenant()})
+	namespace := k8sadapter.ComputeNamespace(&kresource.Scope{Tenant: resource.GetTenant()})
 	name := resource.GetName()
 
 	// Idempotency: if the Lan already exists, nothing to do.
@@ -96,7 +96,7 @@ func (n *Network) Create(ctx context.Context, resource *netdom.NetworkDomain) er
 func (n *Network) Delete(ctx context.Context, resource *netdom.NetworkDomain) error {
 	n.logger.Info("ionos network plugin: Delete called", "resource_name", resource.GetName())
 
-	namespace := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: resource.GetTenant()})
+	namespace := k8sadapter.ComputeNamespace(&kresource.Scope{Tenant: resource.GetTenant()})
 	name := resource.GetName()
 
 	lan := &ionosv1alpha1.Lan{}

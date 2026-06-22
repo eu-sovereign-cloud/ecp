@@ -16,11 +16,11 @@ func (in *InternetGateway) DeepCopyInto(out *InternetGateway) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
 	in.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
-	in.Spec.DeepCopyInto(&out.Spec)
+	out.Spec = in.Spec
 	in.CommonData.DeepCopyInto(&out.CommonData)
 	if in.Status != nil {
 		in, out := &in.Status, &out.Status
-		*out = new(genv1.InternetGatewayStatus)
+		*out = new(genv1.Status)
 		(*in).DeepCopyInto(*out)
 	}
 }

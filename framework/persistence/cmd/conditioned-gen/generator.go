@@ -298,16 +298,23 @@ func (g *generator) buildTarget(pkg *packages.Package, ts *ast.TypeSpec) (target
 	if err != nil {
 		return targetType{}, err
 	}
-	namedStatus, err := resolveStatusNamedType(structT, g.statusPkgPath)
+	namedStatus, err := resolveStatusNamedType(structT, g.statusPkgPath, pkg.PkgPath)
 	if err != nil {
 		return targetType{}, err
 	}
 	if err := validateStatusStruct(namedStatus, g.statusPkgPath); err != nil {
 		return targetType{}, err
 	}
+	statusObj := namedStatus.Obj()
+	var statusTypeRef string
+	if statusObj.Pkg().Path() == g.statusPkgPath {
+		statusTypeRef = "v1." + statusObj.Name()
+	} else {
+		statusTypeRef = statusObj.Name()
+	}
 	return targetType{
 		Name:          ts.Name.Name,
-		StatusTypeRef: "v1." + namedStatus.Obj().Name(),
+		StatusTypeRef: statusTypeRef,
 	}, nil
 }
 
@@ -327,7 +334,7 @@ func resolveNamedStruct(pkg *packages.Package, ts *ast.TypeSpec) (*types.Struct,
 	return structT, nil
 }
 
-func resolveStatusNamedType(structT *types.Struct, pkgPath string) (*types.Named, error) {
+func resolveStatusNamedType(structT *types.Struct, pkgPath, localPkgPath string) (*types.Named, error) {
 	statusField := findField(structT, "Status")
 	if statusField == nil {
 		return nil, fmt.Errorf("no Status field; %s requires one", marker)
@@ -342,12 +349,12 @@ func resolveStatusNamedType(structT *types.Struct, pkgPath string) (*types.Named
 		return nil, fmt.Errorf("status field type is not a named type")
 	}
 	statusObj := namedStatus.Obj()
-	if statusObj.Pkg() == nil || statusObj.Pkg().Path() != pkgPath {
+	if statusObj.Pkg() == nil || (statusObj.Pkg().Path() != pkgPath && statusObj.Pkg().Path() != localPkgPath) {
 		got := "<unknown>"
 		if statusObj.Pkg() != nil {
 			got = statusObj.Pkg().Path()
 		}
-		return nil, fmt.Errorf("status field type must live in %s, got %s", pkgPath, got)
+		return nil, fmt.Errorf("status field type must live in %s or %s, got %s", pkgPath, localPkgPath, got)
 	}
 	return namedStatus, nil
 }

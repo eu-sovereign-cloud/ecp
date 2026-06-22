@@ -2,8 +2,6 @@ package kubernetes
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	genv1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
 )
 
 // +kubebuilder:object:root=true
@@ -15,7 +13,7 @@ type Region struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec genv1.RegionSpec `json:"spec,omitempty"`
+	Spec RegionSpec `json:"spec,omitempty"`
 }
 
 // +kubebuilder:object:root=true

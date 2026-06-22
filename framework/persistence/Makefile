@@ -8,11 +8,14 @@ generate-all: generate-models generate-crds
 
 generate-models:
 	@echo "framework/persistence: generate-models"
-	@go run ./cmd/model-gen --schema-dir=../../modules/go-sdk/pkg/spec/schema --output-dir=generated/types
+	@go run ./cmd/model-gen \
+	  --schema-file=../../modules/go-sdk/pkg/spec/schema/resource.go \
+	  --output-file=kubernetes/schema/v1/zz_generated_resource.go \
+	  --package-name=v1
 	@echo "Injecting kubebuilder markers..."
-	@go run ./cmd/inject-kubebuilder-markers "./generated/types"
-	@echo "Running controller-gen for DeepCopy..."
-	@go tool sigs.k8s.io/controller-tools/cmd/controller-gen object paths="./generated/types"
+	@go run ./cmd/inject-kubebuilder-markers "./kubernetes/schema/v1"
+	@echo "Running controller-gen for DeepCopy on schema/v1..."
+	@go tool sigs.k8s.io/controller-tools/cmd/controller-gen object paths="./kubernetes/schema/v1"
 	@echo "framework/persistence: generate-models done"
 
 generate-crds:
@@ -27,8 +30,8 @@ help:
 .PHONY: clean-generated clean-crds
 clean-generated:
 	@echo "framework/persistence: cleaning generated files"
-	@find generated -type f -name 'zz_generated*' -exec rm -f {} + || true
+	@rm -f kubernetes/schema/v1/zz_generated_resource.go kubernetes/schema/v1/zz_generated.deepcopy.go
 
 clean-crds:
 	@echo "framework/persistence: cleaning generated CRD YAMLs"
-	@find generated -type f -name '*.yaml' -exec rm -f {} + || true
+	@find kubernetes/crds -type f -name '*.yaml' -exec rm -f {} + 2>/dev/null || true
