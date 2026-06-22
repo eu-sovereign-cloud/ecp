@@ -6,29 +6,29 @@ import (
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	kubernetesadapter "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
+	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
+	res "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
+	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
+	wsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/workspace/v1/domain"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/converter"
+	"github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/converter"
 )
 
 func TestWorkspaceProjectConverter_FromSECAToAruba(t *testing.T) {
 	tests := []struct {
 		name   string
-		input  *regional.WorkspaceDomain
+		input  *wsdom.WorkspaceDomain
 		assert func(t *testing.T, project *v1alpha1.Project)
 	}{
 		{
 			name: "happy path with description tags and default",
-			input: &regional.WorkspaceDomain{
-				Metadata: regional.Metadata{
+			input: &wsdom.WorkspaceDomain{
+				RegionalMetadata: commondomain.RegionalMetadata{
 					Region: "region-1",
-					CommonMetadata: model.CommonMetadata{
+					CommonMetadata: commondomain.CommonMetadata{
 						Name: "workspace-abc",
 					},
-					Scope: scope.Scope{
+					Scope: res.Scope{
 						Tenant:    "tenant-123",
 						Workspace: "workspace-abc",
 					},
@@ -46,7 +46,7 @@ func TestWorkspaceProjectConverter_FromSECAToAruba(t *testing.T) {
 					t.Errorf("expected project name 'workspace-abc', got %s", project.Name)
 				}
 
-				if project.Namespace != kubernetesadapter.ComputeNamespace(&scope.Scope{Tenant: "tenant-123"}) {
+				if project.Namespace != k8sadapter.ComputeNamespace(&res.Scope{Tenant: "tenant-123"}) {
 					t.Errorf("expected namespace 'test-namespace', got %s", project.Namespace)
 				}
 
@@ -90,7 +90,7 @@ func TestWorkspaceProjectConverter_FromArubaToSECA(t *testing.T) {
 	tests := []struct {
 		name   string
 		input  *v1alpha1.Project
-		assert func(t *testing.T, workspace *regional.WorkspaceDomain)
+		assert func(t *testing.T, workspace *wsdom.WorkspaceDomain)
 	}{
 		{
 			name: "happy path with description tags and default",
@@ -109,7 +109,7 @@ func TestWorkspaceProjectConverter_FromArubaToSECA(t *testing.T) {
 					},
 				},
 			},
-			assert: func(t *testing.T, workspace *regional.WorkspaceDomain) {
+			assert: func(t *testing.T, workspace *wsdom.WorkspaceDomain) {
 				t.Helper()
 
 				if workspace.GetWorkspace() != "" {

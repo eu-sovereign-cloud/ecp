@@ -14,7 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/generic/repository"
+	"github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/generic/repository"
 )
 
 func newFakeStorageClientWithObject(storage *v1alpha1.BlockStorage) client.Client {

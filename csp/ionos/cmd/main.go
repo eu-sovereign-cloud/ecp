@@ -8,6 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/dynamic"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
@@ -16,24 +17,24 @@ import (
 
 	ionosapis "github.com/ionos-cloud/provider-upjet-ionoscloud/apis/namespaced/compute/v1alpha1"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/builder"
-	networkpersistence "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/network"
-	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage"
-	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/workspace/v1"
-	blockstoragectrl "github.com/eu-sovereign-cloud/ecp/foundation/plugin/ionos/internal/controller/block_storage"
-	networkctrl "github.com/eu-sovereign-cloud/ecp/foundation/plugin/ionos/internal/controller/network"
-	workspacectrl "github.com/eu-sovereign-cloud/ecp/foundation/plugin/ionos/internal/controller/workspace"
-	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/ionos/internal/service"
-	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/ionos/pkg/adapter/crossplane"
+	frameworkbuilder "github.com/eu-sovereign-cloud/ecp/framework/backend/builder"
+	bsk8s "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1/backend/kubernetes"
+	netk8s "github.com/eu-sovereign-cloud/ecp/resources/regional/network/networks/v1/backend/kubernetes"
+	wsk8s "github.com/eu-sovereign-cloud/ecp/resources/regional/workspace/v1/backend/kubernetes"
+	blockstoragectrl "github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/controller/block_storage"
+	networkctrl "github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/controller/network"
+	workspacectrl "github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/controller/workspace"
+	"github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/service"
+	"github.com/eu-sovereign-cloud/ecp/csp/ionos/pkg/adapter/crossplane"
 )
 
 var scheme = runtime.NewScheme()
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(workspacev1.AddToScheme(scheme))
-	utilruntime.Must(storage.AddToScheme(scheme))
-	utilruntime.Must(networkpersistence.AddToScheme(scheme))
+	utilruntime.Must(bsk8s.AddToScheme(scheme))
+	utilruntime.Must(netk8s.AddToScheme(scheme))
+	utilruntime.Must(wsk8s.AddToScheme(scheme))
 	utilruntime.Must(ionosapis.AddToScheme(scheme))
 }
 
@@ -55,6 +56,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	dynClient, err := dynamic.NewForConfig(mgr.GetConfig())
+	if err != nil {
+		logger.Error("unable to create dynamic client", "error", err)
+		os.Exit(1)
+	}
+
 	wsAdapter := crossplane.NewWorkspaceStore(mgr.GetClient(), logger.With("adapter", "workspace"))
 	bsAdapter := crossplane.NewBlockStorageStore(mgr.GetClient(), logger.With("adapter", "block-storage"))
 	netAdapter := crossplane.NewNetworkStore(mgr.GetClient(), logger.With("adapter", "network"))
@@ -73,24 +80,16 @@ func main() {
 		Deleter: &networkctrl.DeleteNetwork{Store: netAdapter},
 	}
 
-	pluginSet := builder.PluginSet{
-		Workspace:    wsPlugin,
-		BlockStorage: bsPlugin,
-		Network:      netPlugin,
+	controllerOpts := []frameworkbuilder.Option{
+		frameworkbuilder.WithLogger(logger.With("component", "controller-set")),
+		frameworkbuilder.WithRequeueAfter(1 * time.Second),
+		frameworkbuilder.WithMaxConditions(5),
 	}
 
-	controllerSet, err := builder.NewControllerSet(
-		mgr.GetConfig(),
-		mgr.GetClient(),
-		pluginSet,
-		builder.WithLogger(logger.With("component", "controller-set")),
-		builder.WithRequeueAfter(1*time.Second),
-		builder.WithMaxConditions(5),
-	)
-	if err != nil {
-		logger.Error("unable to create controller set", "error", err)
-		os.Exit(1)
-	}
+	controllerSet := frameworkbuilder.NewControllerSet()
+	controllerSet.Add(bsk8s.NewController(mgr.GetClient(), dynClient, bsPlugin, controllerOpts...))
+	controllerSet.Add(netk8s.NewController(mgr.GetClient(), dynClient, netPlugin, controllerOpts...))
+	controllerSet.Add(wsk8s.NewController(mgr.GetClient(), dynClient, wsPlugin, controllerOpts...))
 
 	if err := controllerSet.SetupWithManager(mgr); err != nil {
 		logger.Error("unable to setup controllers with manager", "error", err)

@@ -7,7 +7,7 @@ import (
 	crcache "sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/generic/repository"
+	"github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/generic/repository"
 )
 
 type BlockStorageRepository = *repository.GenericRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList]

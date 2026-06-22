@@ -12,33 +12,32 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/dynamic"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/builder"
-	kubernetesadapter "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
-	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage"
-	storageskuv1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage/skus/v1"
-	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/workspace/v1"
+	frameworkbuilder "github.com/eu-sovereign-cloud/ecp/framework/backend/builder"
+	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
+	bsk8s "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1/backend/kubernetes"
+	netk8s "github.com/eu-sovereign-cloud/ecp/resources/regional/network/networks/v1/backend/kubernetes"
+	ssk8s "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/storage-skus/v1/backend/kubernetes"
+	wsk8s "github.com/eu-sovereign-cloud/ecp/resources/regional/workspace/v1/backend/kubernetes"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/converter"
-	aruba "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/handler"
-	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/repository"
-	dummyplugin "github.com/eu-sovereign-cloud/ecp/foundation/plugin/dummy/pkg/plugin"
-
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	aruba_converter "github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/converter"
+	aruba_handler "github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/handler"
+	aruba_repository "github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/repository"
+	dummyplugin "github.com/eu-sovereign-cloud/ecp/csp/dummy/pkg/plugin"
 )
 
-var (
-	scheme = runtime.NewScheme()
-)
+var scheme = runtime.NewScheme()
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(workspacev1.AddToScheme(scheme))
-	utilruntime.Must(storage.AddToScheme(scheme))
+	utilruntime.Must(bsk8s.AddToScheme(scheme))
+	utilruntime.Must(netk8s.AddToScheme(scheme))
+	utilruntime.Must(wsk8s.AddToScheme(scheme))
+	utilruntime.Must(ssk8s.AddToScheme(scheme))
 	utilruntime.Must(v1alpha1.AddToScheme(scheme))
 }
 
@@ -61,12 +60,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	dyn, err := getDynamicClient(mgr)
+	dynClient, err := dynamic.NewForConfig(mgr.GetConfig())
 	if err != nil {
-		logger.Error("unable to start dynamic client", "error", err)
+		logger.Error("unable to create dynamic client", "error", err)
 		os.Exit(1)
 	}
-	ctx := context.TODO()
 
 	// 3. Read PLUGIN environment variable
 	pluginType := os.Getenv("PLUGIN")
@@ -74,40 +72,28 @@ func main() {
 		pluginType = "default" // Default to "default" if not set
 	}
 
-	// 4. Load the appropriate plugin set based on the environment variable
-	var pluginSet builder.PluginSet
+	controllerOpts := []frameworkbuilder.Option{
+		frameworkbuilder.WithLogger(logger.With("component", "controller-set")),
+		frameworkbuilder.WithRequeueAfter(1 * time.Second),
+	}
 
+	controllerSet := frameworkbuilder.NewControllerSet()
+
+	// 4. Load the appropriate plugin set based on the environment variable
 	switch pluginType {
 	case "default", "aruba":
-		pluginSet, err = loadArubaPluginSet(ctx, dyn, mgr, logger)
+		if err := loadArubaControllers(context.Background(), dynClient, mgr, logger, controllerSet, controllerOpts); err != nil {
+			logger.Error("failed to load aruba controllers", "error", err)
+			os.Exit(1)
+		}
 	case "dummy":
-		pluginSet, err = loadDummyPluginSet(logger)
+		loadDummyControllers(logger, dynClient, mgr, controllerSet, controllerOpts)
 	default:
-		// Use fmt.Fprintf for fatal errors before logger is fully propagated
 		fmt.Fprintf(os.Stderr, "Error: Invalid plugin type specified. Got '%s', expected 'aruba' or 'dummy'.\n", pluginType)
 		os.Exit(1)
 	}
 
-	if err != nil {
-		logger.Error("failed to load plugin set", "error", err)
-		os.Exit(1)
-	}
-
-	// 7. Create the controller set
-	controllerSet, err := builder.NewControllerSet(
-		mgr.GetConfig(),
-		mgr.GetClient(),
-		pluginSet,
-		builder.WithLogger(logger.With("component", "controller-set")),
-		builder.WithRequeueAfter(1*time.Second), // TODO: parameter for that
-	)
-
-	if err != nil {
-		logger.Error("unable to create controller set", "error", err)
-		os.Exit(1)
-	}
-
-	// 8. Setup controllers with manager
+	// 5. Setup controllers with manager
 	if err := controllerSet.SetupWithManager(mgr); err != nil {
 		logger.Error("unable to setup controllers with manager", "error", err)
 		os.Exit(1)
@@ -122,7 +108,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	// 9. Start manager
+	// 6. Start manager
 	logger.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		logger.Error("problem running manager", "error", err)
@@ -130,48 +116,39 @@ func main() {
 	}
 }
 
-func loadArubaPluginSet(ctx context.Context, dyn dynamic.Interface, mgr ctrl.Manager, logger *slog.Logger) (builder.PluginSet, error) {
+func loadArubaControllers(ctx context.Context, dynClient dynamic.Interface, mgr ctrl.Manager, logger *slog.Logger, controllerSet *frameworkbuilder.ControllerSet, controllerOpts []frameworkbuilder.Option) error {
 	logger.Info("Loading 'aruba' plugin set")
 
-	// Instantiate seca-specific repositories
-	secaWsRepo := kubernetesadapter.NewReaderAdapter(dyn, workspacev1.WorkspaceGVR, logger, kubernetesadapter.MapCRToWorkspaceDomain)
-	secaSkuRepo := kubernetesadapter.NewReaderAdapter(dyn, storageskuv1.SKUGVR, logger, kubernetesadapter.MapCRToStorageSKUDomain)
+	// Instantiate seca-specific read-only repositories (for aruba BlockStorageHandler dependencies)
+	secaWsRepo := k8sadapter.NewReaderAdapter(dynClient, wsk8s.WorkspaceGVR, logger, wsk8s.MapCRToWorkspaceDomain)
+	secaSkuRepo := k8sadapter.NewReaderAdapter(dynClient, ssk8s.StorageSKUGVR, logger, ssk8s.MapCRToStorageSKUDomain)
 
 	// Instantiate aruba-specific repositories
-	wr := repository.NewProjectRepository(ctx, mgr.GetClient(), mgr.GetCache())
-	br := repository.NewBlockStorageRepository(ctx, mgr.GetClient(), mgr.GetCache())
+	wr := aruba_repository.NewProjectRepository(ctx, mgr.GetClient(), mgr.GetCache())
+	br := aruba_repository.NewBlockStorageRepository(ctx, mgr.GetClient(), mgr.GetCache())
 
 	// Instantiate aruba-specific converters
-	wc := converter.NewWorkspaceProjectConverter()
-	bc := converter.NewBlockStorageConverter()
+	wc := aruba_converter.NewWorkspaceProjectConverter()
+	bc := aruba_converter.NewBlockStorageConverter()
 
 	// Create aruba-specific handlers
-	wsPlugin := aruba.NewWorkspaceHandler(wr, wc)
-	bsPlugin := aruba.NewBlockStorageHandler(secaWsRepo, secaSkuRepo, br, wr, bc, wc)
+	wsPlugin := aruba_handler.NewWorkspaceHandler(wr, wc)
+	bsPlugin := aruba_handler.NewBlockStorageHandler(secaWsRepo, secaSkuRepo, br, wr, bc, wc)
 
-	// Create and return the plugin set
-	return builder.PluginSet{
-		BlockStorage: bsPlugin,
-		Workspace:    wsPlugin,
-	}, nil
+	controllerSet.Add(bsk8s.NewController(mgr.GetClient(), dynClient, bsPlugin, controllerOpts...))
+	controllerSet.Add(wsk8s.NewController(mgr.GetClient(), dynClient, wsPlugin, controllerOpts...))
+
+	return nil
 }
 
-func loadDummyPluginSet(logger *slog.Logger) (builder.PluginSet, error) {
+func loadDummyControllers(logger *slog.Logger, dynClient dynamic.Interface, mgr ctrl.Manager, controllerSet *frameworkbuilder.ControllerSet, controllerOpts []frameworkbuilder.Option) {
 	logger.Info("Loading 'dummy' plugin set")
+
 	bsPlugin := dummyplugin.NewBlockStorage(logger.With("plugin", "blockstorage"))
 	wsPlugin := dummyplugin.NewWorkspace(logger.With("plugin", "workspace"))
+	netPlugin := dummyplugin.NewNetwork(logger.With("plugin", "network"))
 
-	return builder.PluginSet{
-		BlockStorage: bsPlugin,
-		Workspace:    wsPlugin,
-	}, nil
-}
-
-func getDynamicClient(mgr manager.Manager) (*dynamic.DynamicClient, error) {
-	// mgr.GetConfig() returns the *rest.Config
-	dynClient, err := dynamic.NewForConfig(mgr.GetConfig())
-	if err != nil {
-		return nil, err
-	}
-	return dynClient, nil
+	controllerSet.Add(bsk8s.NewController(mgr.GetClient(), dynClient, bsPlugin, controllerOpts...))
+	controllerSet.Add(wsk8s.NewController(mgr.GetClient(), dynClient, wsPlugin, controllerOpts...))
+	controllerSet.Add(netk8s.NewController(mgr.GetClient(), dynClient, netPlugin, controllerOpts...))
 }

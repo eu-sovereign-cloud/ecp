@@ -110,12 +110,12 @@ package delegated
 import (
 	"context"
 
-	seca_gateway_port "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
+	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 )
 
 // TODO: this type should be an alias for the Delegator type.
-type DelegatedFunc[T seca_gateway_port.IdentifiableResource] func(ctx context.Context, resource T) error
+type DelegatedFunc[T persistence.IdentifiableResource] func(ctx context.Context, resource T) error
 
-type Delegated[T seca_gateway_port.IdentifiableResource] interface {
+type Delegated[T persistence.IdentifiableResource] interface {
 	Do(ctx context.Context, resource T) error
 }

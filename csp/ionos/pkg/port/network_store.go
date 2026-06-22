@@ -3,10 +3,10 @@ package port
 import (
 	"context"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
+	netdom "github.com/eu-sovereign-cloud/ecp/resources/regional/network/networks/v1/domain"
 )
 
 type NetworkStore interface {
-	Create(ctx context.Context, domain *regional.NetworkDomain) error
-	Delete(ctx context.Context, domain *regional.NetworkDomain) error
+	Create(ctx context.Context, domain *netdom.NetworkDomain) error
+	Delete(ctx context.Context, domain *netdom.NetworkDomain) error
 }

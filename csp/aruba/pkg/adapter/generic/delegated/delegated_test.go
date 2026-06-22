@@ -8,14 +8,14 @@ import (
 	"github.com/stretchr/testify/require"
 	gomock "go.uber.org/mock/gomock"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/repository"
+	"github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/port/repository"
 )
 
-//go:generate mockgen -package delegated -destination=zz_mock_identifiable_test.go github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port IdentifiableResource
-//go:generate mockgen -package delegated -destination=zz_mock_resolver_test.go github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/resolver DependenciesResolver
-//go:generate mockgen -package delegated -destination=zz_mock_converter_test.go github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/converter Converter
-//go:generate mockgen -package delegated -destination=zz_mock_mutator_test.go github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/mutator Mutator
-//go:generate mockgen -package delegated -destination=zz_mock_repository_test.go github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/repository Writer,Watcher
+//go:generate mockgen -package delegated -destination=zz_mock_identifiable_test.go github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence IdentifiableResource
+//go:generate mockgen -package delegated -destination=zz_mock_resolver_test.go github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/port/resolver DependenciesResolver
+//go:generate mockgen -package delegated -destination=zz_mock_converter_test.go github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/port/converter Converter
+//go:generate mockgen -package delegated -destination=zz_mock_mutator_test.go github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/port/mutator Mutator
+//go:generate mockgen -package delegated -destination=zz_mock_repository_test.go github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/port/repository Writer,Watcher
 
 func TestGenericDelegated_Do(t *testing.T) {
 	const (

@@ -1,7 +1,7 @@
 package mutator
 
 import (
-	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/mutator"
+	"github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/port/mutator"
 )
 
 // BypassMutateFunc is a helper function that bypasses mutation and returns nil.

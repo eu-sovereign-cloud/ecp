@@ -3,10 +3,10 @@ package port
 import (
 	"context"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
+	wsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/workspace/v1/domain"
 )
 
 type WorkspaceStore interface {
-	Create(ctx context.Context, domain *regional.WorkspaceDomain) error
-	Delete(ctx context.Context, domain *regional.WorkspaceDomain) error
+	Create(ctx context.Context, domain *wsdom.WorkspaceDomain) error
+	Delete(ctx context.Context, domain *wsdom.WorkspaceDomain) error
 }

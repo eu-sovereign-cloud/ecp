@@ -12,10 +12,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	k8s "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
-	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/ionos/pkg/port"
+	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
+	bsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1/domain"
+	"github.com/eu-sovereign-cloud/ecp/csp/ionos/pkg/port"
 )
 
 var _ port.BlockStorageStore = (*BlockStorageStore)(nil)
@@ -28,8 +28,8 @@ func NewBlockStorageStore(c client.Client, logger *slog.Logger) *BlockStorageSto
 	return &BlockStorageStore{base{client: c, logger: logger}}
 }
 
-func (a *BlockStorageStore) Create(ctx context.Context, domain *regional.BlockStorageDomain) error {
-	namespace := k8s.ComputeNamespace(&scope.Scope{Tenant: domain.GetTenant()})
+func (a *BlockStorageStore) Create(ctx context.Context, domain *bsdom.BlockStorageDomain) error {
+	namespace := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: domain.GetTenant()})
 	datacenter := &ionosv1alpha1.Datacenter{
 		TypeMeta:   metav1.TypeMeta{Kind: ionosv1alpha1.Datacenter_Kind},
 		ObjectMeta: metav1.ObjectMeta{Name: domain.GetWorkspace(), Namespace: namespace},
@@ -40,16 +40,16 @@ func (a *BlockStorageStore) Create(ctx context.Context, domain *regional.BlockSt
 	return a.createCR(ctx, newVolume(domain))
 }
 
-func (a *BlockStorageStore) Delete(ctx context.Context, domain *regional.BlockStorageDomain) error {
-	namespace := k8s.ComputeNamespace(&scope.Scope{Tenant: domain.GetTenant()})
+func (a *BlockStorageStore) Delete(ctx context.Context, domain *bsdom.BlockStorageDomain) error {
+	namespace := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: domain.GetTenant()})
 	return a.deleteCR(ctx, &ionosv1alpha1.Volume{
 		TypeMeta:   metav1.TypeMeta{Kind: ionosv1alpha1.Volume_Kind},
 		ObjectMeta: metav1.ObjectMeta{Name: domain.GetName(), Namespace: namespace},
 	})
 }
 
-func (a *BlockStorageStore) IncreaseSize(ctx context.Context, domain *regional.BlockStorageDomain) error {
-	namespace := k8s.ComputeNamespace(&scope.Scope{Tenant: domain.GetTenant()})
+func (a *BlockStorageStore) IncreaseSize(ctx context.Context, domain *bsdom.BlockStorageDomain) error {
+	namespace := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: domain.GetTenant()})
 	vol := &ionosv1alpha1.Volume{}
 	if err := a.client.Get(ctx, client.ObjectKey{Name: domain.GetName(), Namespace: namespace}, vol); err != nil {
 		a.logger.Error("failed to get volume", "name", domain.GetName(), "error", err)
@@ -63,9 +63,9 @@ func (a *BlockStorageStore) IncreaseSize(ctx context.Context, domain *regional.B
 	return a.updateCR(ctx, vol)
 }
 
-func newVolume(domain *regional.BlockStorageDomain) *ionosv1alpha1.Volume {
+func newVolume(domain *bsdom.BlockStorageDomain) *ionosv1alpha1.Volume {
 
-	namespace := k8s.ComputeNamespace(&scope.Scope{Tenant: domain.GetTenant()})
+	namespace := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: domain.GetTenant()})
 	return &ionosv1alpha1.Volume{
 		TypeMeta: metav1.TypeMeta{Kind: ionosv1alpha1.Volume_Kind},
 		ObjectMeta: metav1.ObjectMeta{

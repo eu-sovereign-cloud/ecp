@@ -6,7 +6,7 @@ import (
 	"math/rand/v2"
 	"time"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
+	netdom "github.com/eu-sovereign-cloud/ecp/resources/regional/network/networks/v1/domain"
 )
 
 type Network struct {
@@ -17,7 +17,7 @@ func NewNetwork(logger *slog.Logger) *Network {
 	return &Network{logger: logger}
 }
 
-func (n *Network) Create(ctx context.Context, resource *regional.NetworkDomain) error {
+func (n *Network) Create(ctx context.Context, resource *netdom.NetworkDomain) error {
 	n.logger.Info("dummy network plugin: Create called", "resource_name", resource.GetName())
 	delay, err := networkDelay(ctx)
 	if err != nil {
@@ -27,7 +27,7 @@ func (n *Network) Create(ctx context.Context, resource *regional.NetworkDomain) 
 	return nil
 }
 
-func (n *Network) Delete(ctx context.Context, resource *regional.NetworkDomain) error {
+func (n *Network) Delete(ctx context.Context, resource *netdom.NetworkDomain) error {
 	n.logger.Info("dummy network plugin: Delete called", "resource_name", resource.GetName())
 	delay, err := networkDelay(ctx)
 	if err != nil {

@@ -11,9 +11,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/util/wait"
 
-	ecpmodel "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
-	regionalmodel "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
+	kernel "github.com/eu-sovereign-cloud/ecp/framework/kernel"
+	resource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
+	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
+	bsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1/domain"
 )
 
 func TestBlockStorage(t *testing.T) {
@@ -25,19 +26,19 @@ func TestBlockStorage(t *testing.T) {
 		//
 		// Given a unique block storage domain resource definition
 		resourceName := "test-bs-create-" + uuid.New().String()[:8]
-		bsDomain := &regionalmodel.BlockStorageDomain{
-			Metadata: regionalmodel.Metadata{
-				CommonMetadata: ecpmodel.CommonMetadata{
+		bsDomain := &bsdom.BlockStorageDomain{
+			RegionalMetadata: commondomain.RegionalMetadata{
+				CommonMetadata: commondomain.CommonMetadata{
 					Name: resourceName,
 				},
-				Scope: scope.Scope{
+				Scope: resource.Scope{
 					Tenant:    testTenant,
 					Workspace: testWorkspace,
 				},
 			},
-			Spec: regionalmodel.BlockStorageSpecDomain{
+			Spec: bsdom.BlockStorageSpecDomain{
 				SizeGB: 1,
-				SkuRef: regionalmodel.ReferenceDomain{
+				SkuRef: commondomain.ReferenceDomain{
 					Region:   "ITBG-Bergamo",
 					Resource: "sku-1",
 				},
@@ -52,15 +53,15 @@ func TestBlockStorage(t *testing.T) {
 		//
 		// Then the resource should eventually become active
 
-		var loadedBs *regionalmodel.BlockStorageDomain
+		var loadedBs *bsdom.BlockStorageDomain
 
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
-			loadedBs = &regionalmodel.BlockStorageDomain{
-				Metadata: regionalmodel.Metadata{
-					CommonMetadata: ecpmodel.CommonMetadata{
+			loadedBs = &bsdom.BlockStorageDomain{
+				RegionalMetadata: commondomain.RegionalMetadata{
+					CommonMetadata: commondomain.CommonMetadata{
 						Name: resourceName,
 					},
-					Scope: scope.Scope{
+					Scope: resource.Scope{
 						Tenant:    testTenant,
 						Workspace: testWorkspace,
 					},
@@ -69,7 +70,7 @@ func TestBlockStorage(t *testing.T) {
 			if err := blockStorageRepo.Load(ctx, &loadedBs); err != nil {
 				return false, err
 			}
-			if loadedBs.Status != nil && loadedBs.Status.State == regionalmodel.ResourceStateActive {
+			if loadedBs.Status != nil && loadedBs.Status.State == commondomain.ResourceStateActive {
 				return true, nil
 			}
 			return false, nil
@@ -78,7 +79,7 @@ func TestBlockStorage(t *testing.T) {
 		require.NotNil(t, loadedBs)
 		require.NotNil(t, loadedBs.Status)
 		require.NotNil(t, loadedBs.Status.State)
-		require.Equal(t, regionalmodel.ResourceStateActive, loadedBs.Status.State)
+		require.Equal(t, commondomain.ResourceStateActive, loadedBs.Status.State)
 
 		//
 		// And we can cleanup the block storage
@@ -92,19 +93,19 @@ func TestBlockStorage(t *testing.T) {
 		//
 		// Given a unique block storage resource that is already created
 		resourceName := "test-bs-delete-" + uuid.New().String()[:8]
-		bsDomain := &regionalmodel.BlockStorageDomain{
-			Metadata: regionalmodel.Metadata{
-				CommonMetadata: ecpmodel.CommonMetadata{
+		bsDomain := &bsdom.BlockStorageDomain{
+			RegionalMetadata: commondomain.RegionalMetadata{
+				CommonMetadata: commondomain.CommonMetadata{
 					Name: resourceName,
 				},
-				Scope: scope.Scope{
+				Scope: resource.Scope{
 					Tenant:    testTenant,
 					Workspace: testWorkspace,
 				},
 			},
-			Spec: regionalmodel.BlockStorageSpecDomain{
+			Spec: bsdom.BlockStorageSpecDomain{
 				SizeGB: 1,
-				SkuRef: regionalmodel.ReferenceDomain{
+				SkuRef: commondomain.ReferenceDomain{
 					Region:   "ITBG-Bergamo",
 					Resource: "sku-1",
 				},
@@ -113,15 +114,15 @@ func TestBlockStorage(t *testing.T) {
 		_, err := blockStorageRepo.Create(t.Context(), bsDomain)
 		require.NoError(t, err)
 
-		var loadedBs *regionalmodel.BlockStorageDomain
+		var loadedBs *bsdom.BlockStorageDomain
 
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
-			loadedBs = &regionalmodel.BlockStorageDomain{
-				Metadata: regionalmodel.Metadata{
-					CommonMetadata: ecpmodel.CommonMetadata{
+			loadedBs = &bsdom.BlockStorageDomain{
+				RegionalMetadata: commondomain.RegionalMetadata{
+					CommonMetadata: commondomain.CommonMetadata{
 						Name: resourceName,
 					},
-					Scope: scope.Scope{
+					Scope: resource.Scope{
 						Tenant:    testTenant,
 						Workspace: testWorkspace,
 					},
@@ -130,7 +131,7 @@ func TestBlockStorage(t *testing.T) {
 			if err := blockStorageRepo.Load(ctx, &loadedBs); err != nil {
 				return false, err
 			}
-			if loadedBs.Status != nil && loadedBs.Status.State == regionalmodel.ResourceStateActive {
+			if loadedBs.Status != nil && loadedBs.Status.State == commondomain.ResourceStateActive {
 				return true, nil
 			}
 			return false, nil
@@ -139,7 +140,7 @@ func TestBlockStorage(t *testing.T) {
 		require.NotNil(t, loadedBs)
 		require.NotNil(t, loadedBs.Status)
 		require.NotNil(t, loadedBs.Status.State)
-		require.Equal(t, regionalmodel.ResourceStateActive, loadedBs.Status.State)
+		require.Equal(t, commondomain.ResourceStateActive, loadedBs.Status.State)
 
 		//
 		// When we delete the block storage resource
@@ -149,19 +150,19 @@ func TestBlockStorage(t *testing.T) {
 		//
 		// Then the resource should eventually be removed
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
-			loadedBs = &regionalmodel.BlockStorageDomain{
-				Metadata: regionalmodel.Metadata{
-					CommonMetadata: ecpmodel.CommonMetadata{
+			loadedBs = &bsdom.BlockStorageDomain{
+				RegionalMetadata: commondomain.RegionalMetadata{
+					CommonMetadata: commondomain.CommonMetadata{
 						Name: resourceName,
 					},
-					Scope: scope.Scope{
+					Scope: resource.Scope{
 						Tenant:    testTenant,
 						Workspace: testWorkspace,
 					},
 				},
 			}
 			err := blockStorageRepo.Load(ctx, &loadedBs)
-			if err != nil && errors.Is(err, ecpmodel.ErrNotFound) { // Corrected IsNotFound check
+			if err != nil && errors.Is(err, kernel.ErrNotFound) { // Corrected IsNotFound check
 				return true, nil
 			}
 			if err != nil {
@@ -178,19 +179,19 @@ func TestBlockStorage(t *testing.T) {
 		//
 		// Given a unique block storage resource that is already created
 		resourceName := "test-bs-increase-" + uuid.New().String()[:8]
-		bsDomain := &regionalmodel.BlockStorageDomain{
-			Metadata: regionalmodel.Metadata{
-				CommonMetadata: ecpmodel.CommonMetadata{
+		bsDomain := &bsdom.BlockStorageDomain{
+			RegionalMetadata: commondomain.RegionalMetadata{
+				CommonMetadata: commondomain.CommonMetadata{
 					Name: resourceName,
 				},
-				Scope: scope.Scope{
+				Scope: resource.Scope{
 					Tenant:    testTenant,
 					Workspace: testWorkspace,
 				},
 			},
-			Spec: regionalmodel.BlockStorageSpecDomain{
+			Spec: bsdom.BlockStorageSpecDomain{
 				SizeGB: 1,
-				SkuRef: regionalmodel.ReferenceDomain{
+				SkuRef: commondomain.ReferenceDomain{
 					Region:   "ITBG-Bergamo",
 					Resource: "sku-1",
 				},
@@ -199,14 +200,14 @@ func TestBlockStorage(t *testing.T) {
 		_, err := blockStorageRepo.Create(t.Context(), bsDomain)
 		require.NoError(t, err)
 
-		var loadedBs *regionalmodel.BlockStorageDomain
+		var loadedBs *bsdom.BlockStorageDomain
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
-			loadedBs = &regionalmodel.BlockStorageDomain{
-				Metadata: regionalmodel.Metadata{
-					CommonMetadata: ecpmodel.CommonMetadata{
+			loadedBs = &bsdom.BlockStorageDomain{
+				RegionalMetadata: commondomain.RegionalMetadata{
+					CommonMetadata: commondomain.CommonMetadata{
 						Name: resourceName,
 					},
-					Scope: scope.Scope{
+					Scope: resource.Scope{
 						Tenant:    testTenant,
 						Workspace: testWorkspace,
 					},
@@ -217,7 +218,7 @@ func TestBlockStorage(t *testing.T) {
 				return false, err
 			}
 
-			if loadedBs.Status != nil && loadedBs.Status.State == regionalmodel.ResourceStateActive && loadedBs.Status.SizeGB == 1 {
+			if loadedBs.Status != nil && loadedBs.Status.State == commondomain.ResourceStateActive && loadedBs.Status.SizeGB == 1 {
 				return true, nil
 			}
 
@@ -228,17 +229,17 @@ func TestBlockStorage(t *testing.T) {
 		require.NotNil(t, loadedBs)
 		require.NotNil(t, loadedBs.Status)
 		require.NotNil(t, loadedBs.Status.State)
-		require.Equal(t, regionalmodel.ResourceStateActive, loadedBs.Status.State)
+		require.Equal(t, commondomain.ResourceStateActive, loadedBs.Status.State)
 		require.Equal(t, 1, loadedBs.Status.SizeGB)
 
 		//
 		// When we update the block storage resource with an increased size
-		updatedBsDomain := &regionalmodel.BlockStorageDomain{
-			Metadata: regionalmodel.Metadata{
-				CommonMetadata: ecpmodel.CommonMetadata{
+		updatedBsDomain := &bsdom.BlockStorageDomain{
+			RegionalMetadata: commondomain.RegionalMetadata{
+				CommonMetadata: commondomain.CommonMetadata{
 					Name: resourceName,
 				},
-				Scope: scope.Scope{
+				Scope: resource.Scope{
 					Tenant:    testTenant,
 					Workspace: testWorkspace,
 				},
@@ -253,15 +254,15 @@ func TestBlockStorage(t *testing.T) {
 
 		//
 		// Then the resource status should eventually reflect the new size
-		var currentBs *regionalmodel.BlockStorageDomain
+		var currentBs *bsdom.BlockStorageDomain
 
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
-			currentBs = &regionalmodel.BlockStorageDomain{
-				Metadata: regionalmodel.Metadata{
-					CommonMetadata: ecpmodel.CommonMetadata{
+			currentBs = &bsdom.BlockStorageDomain{
+				RegionalMetadata: commondomain.RegionalMetadata{
+					CommonMetadata: commondomain.CommonMetadata{
 						Name: resourceName,
 					},
-					Scope: scope.Scope{
+					Scope: resource.Scope{
 						Tenant:    testTenant,
 						Workspace: testWorkspace,
 					},
@@ -271,7 +272,7 @@ func TestBlockStorage(t *testing.T) {
 				return false, err
 			}
 
-			if currentBs.Status != nil && currentBs.Status.State == regionalmodel.ResourceStateActive && currentBs.Status.SizeGB == 2 {
+			if currentBs.Status != nil && currentBs.Status.State == commondomain.ResourceStateActive && currentBs.Status.SizeGB == 2 {
 				return true, nil
 			}
 			return false, nil
@@ -281,7 +282,7 @@ func TestBlockStorage(t *testing.T) {
 		require.NotNil(t, currentBs)
 		require.NotNil(t, currentBs.Status)
 		require.NotNil(t, currentBs.Status.State)
-		require.Equal(t, regionalmodel.ResourceStateActive, currentBs.Status.State)
+		require.Equal(t, commondomain.ResourceStateActive, currentBs.Status.State)
 		require.Equal(t, 2, currentBs.Status.SizeGB)
 
 		//

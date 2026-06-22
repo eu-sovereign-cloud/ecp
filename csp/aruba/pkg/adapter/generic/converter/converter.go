@@ -1,7 +1,7 @@
 package converter
 
 import (
-	aruba_converter_port "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/converter"
+	aruba_converter_port "github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/port/converter"
 )
 
 // GenericConverter is a generic implementation of the Converter interface.

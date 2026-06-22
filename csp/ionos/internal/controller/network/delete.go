@@ -3,14 +3,14 @@ package network
 import (
 	"context"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
-	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/ionos/pkg/port"
+	netdom "github.com/eu-sovereign-cloud/ecp/resources/regional/network/networks/v1/domain"
+	"github.com/eu-sovereign-cloud/ecp/csp/ionos/pkg/port"
 )
 
 type DeleteNetwork struct {
 	Store port.NetworkStore
 }
 
-func (d *DeleteNetwork) Do(ctx context.Context, domain *regional.NetworkDomain) error {
+func (d *DeleteNetwork) Do(ctx context.Context, domain *netdom.NetworkDomain) error {
 	return d.Store.Delete(ctx, domain)
 }

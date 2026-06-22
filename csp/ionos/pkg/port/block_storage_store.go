@@ -3,11 +3,11 @@ package port
 import (
 	"context"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
+	bsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1/domain"
 )
 
 type BlockStorageStore interface {
-	Create(ctx context.Context, domain *regional.BlockStorageDomain) error
-	Delete(ctx context.Context, domain *regional.BlockStorageDomain) error
-	IncreaseSize(ctx context.Context, domain *regional.BlockStorageDomain) error
+	Create(ctx context.Context, domain *bsdom.BlockStorageDomain) error
+	Delete(ctx context.Context, domain *bsdom.BlockStorageDomain) error
+	IncreaseSize(ctx context.Context, domain *bsdom.BlockStorageDomain) error
 }

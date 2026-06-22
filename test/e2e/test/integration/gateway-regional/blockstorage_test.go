@@ -18,12 +18,11 @@ import (
 
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
-	kubernetesadapter "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
-	ecpmodel "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
-	regionalmodel "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
-	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage/block-storages/v1"
+	resource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
+	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
+	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
+	bsk8s "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1/backend/kubernetes"
+	bsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1/domain"
 )
 
 // newBlockStorageBody is a helper to construct the body for creating/updating block storage.
@@ -64,15 +63,15 @@ func TestBlockStorageAPI(t *testing.T) {
 		//
 		// And the block storage custom resource should eventually become active in the cluster
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
-			var createdBS blockstoragev1.BlockStorage
-			ns := kubernetesadapter.ComputeNamespace(&scope.Scope{Tenant: testTenant, Workspace: testWorkspace})
+			var createdBS bsk8s.BlockStorage
+			ns := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: testTenant, Workspace: testWorkspace})
 			key := client.ObjectKey{Namespace: ns, Name: resourceName}
 
 			if err := k8sClient.Get(ctx, key, &createdBS); err != nil {
 				return false, nil // Keep retrying
 			}
 
-			if createdBS.Status != nil && regional.ResourceStateDomain(createdBS.Status.State) == regional.ResourceStateActive {
+			if createdBS.Status != nil && commondomain.ResourceStateDomain(createdBS.Status.State) == commondomain.ResourceStateActive {
 				return true, nil
 			}
 			return false, nil
@@ -81,17 +80,16 @@ func TestBlockStorageAPI(t *testing.T) {
 
 		//
 		// And we can cleanup the block storage
-		bsDomain := &regionalmodel.BlockStorageDomain{
-			Metadata: regionalmodel.Metadata{
-				CommonMetadata: ecpmodel.CommonMetadata{
+		bsDomain := &bsdom.BlockStorageDomain{
+			RegionalMetadata: commondomain.RegionalMetadata{
+				CommonMetadata: commondomain.CommonMetadata{
 					Name: resourceName,
 				},
-				Scope: scope.Scope{
+				Scope: resource.Scope{
 					Tenant:    testTenant,
 					Workspace: testWorkspace,
 				},
 			},
-			Spec: regionalmodel.BlockStorageSpecDomain{},
 		}
 
 		err = blockStorageRepo.Delete(t.Context(), bsDomain)
@@ -115,13 +113,13 @@ func TestBlockStorageAPI(t *testing.T) {
 
 		// And the resource is active in the cluster
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
-			var createdBS blockstoragev1.BlockStorage
-			ns := kubernetesadapter.ComputeNamespace(&scope.Scope{Tenant: testTenant, Workspace: testWorkspace})
+			var createdBS bsk8s.BlockStorage
+			ns := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: testTenant, Workspace: testWorkspace})
 			key := client.ObjectKey{Namespace: ns, Name: resourceName}
 			if err := k8sClient.Get(ctx, key, &createdBS); err != nil {
 				return false, nil
 			}
-			if createdBS.Status != nil && regional.ResourceStateDomain(createdBS.Status.State) == regional.ResourceStateActive {
+			if createdBS.Status != nil && commondomain.ResourceStateDomain(createdBS.Status.State) == commondomain.ResourceStateActive {
 				return true, nil
 			}
 			return false, nil
@@ -140,8 +138,8 @@ func TestBlockStorageAPI(t *testing.T) {
 
 		// And the block storage custom resource should eventually be removed
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout+2*time.Minute, true, func(ctx context.Context) (bool, error) {
-			var createdBS blockstoragev1.BlockStorage
-			ns := kubernetesadapter.ComputeNamespace(&scope.Scope{Tenant: testTenant, Workspace: testWorkspace})
+			var createdBS bsk8s.BlockStorage
+			ns := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: testTenant, Workspace: testWorkspace})
 			key := client.ObjectKey{Namespace: ns, Name: resourceName}
 			if err := k8sClient.Get(ctx, key, &createdBS); err != nil {
 				if kerrors.IsNotFound(err) {
@@ -170,14 +168,14 @@ func TestBlockStorageAPI(t *testing.T) {
 		require.Equal(t, http.StatusOK, createResp.StatusCode)
 		_ = createResp.Body.Close()
 
-		var createdBS blockstoragev1.BlockStorage
+		var createdBS bsk8s.BlockStorage
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
-			ns := kubernetesadapter.ComputeNamespace(&scope.Scope{Tenant: testTenant, Workspace: testWorkspace})
+			ns := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: testTenant, Workspace: testWorkspace})
 			key := client.ObjectKey{Namespace: ns, Name: resourceName}
 			if err := k8sClient.Get(ctx, key, &createdBS); err != nil {
 				return false, nil
 			}
-			if createdBS.Status != nil && regional.ResourceStateDomain(createdBS.Status.State) == regional.ResourceStateActive && createdBS.Status.SizeGB == 1 {
+			if createdBS.Status != nil && commondomain.ResourceStateDomain(createdBS.Status.State) == commondomain.ResourceStateActive && createdBS.Status.SizeGB == 1 {
 				return true, nil
 			}
 			return false, nil
@@ -198,13 +196,13 @@ func TestBlockStorageAPI(t *testing.T) {
 		//
 		// Then the resource status should eventually reflect the new size of 2GB
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
-			var currentBS blockstoragev1.BlockStorage
-			ns := kubernetesadapter.ComputeNamespace(&scope.Scope{Tenant: testTenant, Workspace: testWorkspace})
+			var currentBS bsk8s.BlockStorage
+			ns := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: testTenant, Workspace: testWorkspace})
 			key := client.ObjectKey{Namespace: ns, Name: resourceName}
 			if err := k8sClient.Get(ctx, key, &currentBS); err != nil {
 				return false, nil
 			}
-			if currentBS.Status != nil && regional.ResourceStateDomain(currentBS.Status.State) == regional.ResourceStateActive && currentBS.Status.SizeGB == 2 {
+			if currentBS.Status != nil && commondomain.ResourceStateDomain(currentBS.Status.State) == commondomain.ResourceStateActive && currentBS.Status.SizeGB == 2 {
 				return true, nil
 			}
 			return false, nil
@@ -213,17 +211,16 @@ func TestBlockStorageAPI(t *testing.T) {
 
 		//
 		// And we can cleanup the block storage
-		bsDomain := &regionalmodel.BlockStorageDomain{
-			Metadata: regionalmodel.Metadata{
-				CommonMetadata: ecpmodel.CommonMetadata{
+		bsDomain := &bsdom.BlockStorageDomain{
+			RegionalMetadata: commondomain.RegionalMetadata{
+				CommonMetadata: commondomain.CommonMetadata{
 					Name: resourceName,
 				},
-				Scope: scope.Scope{
+				Scope: resource.Scope{
 					Tenant:    testTenant,
 					Workspace: testWorkspace,
 				},
 			},
-			Spec: regionalmodel.BlockStorageSpecDomain{},
 		}
 
 		err = blockStorageRepo.Delete(t.Context(), bsDomain)

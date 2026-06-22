@@ -10,10 +10,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	k8s "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
-	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/ionos/pkg/port"
+	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
+	wsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/workspace/v1/domain"
+	"github.com/eu-sovereign-cloud/ecp/csp/ionos/pkg/port"
 )
 
 var _ port.WorkspaceStore = (*WorkspaceStore)(nil)
@@ -27,20 +27,20 @@ func NewWorkspaceStore(c client.Client, logger *slog.Logger) *WorkspaceStore {
 	return &WorkspaceStore{base{client: c, logger: logger}}
 }
 
-func (a *WorkspaceStore) Create(ctx context.Context, domain *regional.WorkspaceDomain) error {
+func (a *WorkspaceStore) Create(ctx context.Context, domain *wsdom.WorkspaceDomain) error {
 	return a.createCR(ctx, newDatacenter(domain))
 }
 
-func (a *WorkspaceStore) Delete(ctx context.Context, domain *regional.WorkspaceDomain) error {
-	namespace := k8s.ComputeNamespace(&scope.Scope{Tenant: domain.GetTenant()})
+func (a *WorkspaceStore) Delete(ctx context.Context, domain *wsdom.WorkspaceDomain) error {
+	namespace := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: domain.GetTenant()})
 	return a.deleteCR(ctx, &ionosv1alpha1.Datacenter{
 		TypeMeta:   metav1.TypeMeta{Kind: ionosv1alpha1.Datacenter_Kind},
 		ObjectMeta: metav1.ObjectMeta{Name: domain.GetName(), Namespace: namespace},
 	})
 }
 
-func newDatacenter(domain *regional.WorkspaceDomain) *ionosv1alpha1.Datacenter {
-	namespace := k8s.ComputeNamespace(&scope.Scope{Tenant: domain.GetTenant()})
+func newDatacenter(domain *wsdom.WorkspaceDomain) *ionosv1alpha1.Datacenter {
+	namespace := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: domain.GetTenant()})
 	return &ionosv1alpha1.Datacenter{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: ionosv1alpha1.CRDGroupVersion.String(),

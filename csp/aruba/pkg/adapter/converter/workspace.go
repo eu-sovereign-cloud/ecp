@@ -4,10 +4,10 @@ import (
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	kubernetesadapter "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
+	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
+	res "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
+	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
+	wsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/workspace/v1/domain"
 )
 
 type WorkspaceProjectConverter struct {
@@ -17,15 +17,15 @@ func NewWorkspaceProjectConverter() *WorkspaceProjectConverter {
 	return &WorkspaceProjectConverter{}
 }
 
-func (c *WorkspaceProjectConverter) FromSECAToAruba(from *regional.WorkspaceDomain) (*v1alpha1.Project, error) {
+func (c *WorkspaceProjectConverter) FromSECAToAruba(from *wsdom.WorkspaceDomain) (*v1alpha1.Project, error) {
 	spec := v1alpha1.ProjectSpec{}
 
 	if v, ok := from.Spec["description"].(string); ok {
 		spec.Description = v
 	}
 
-	namespace := kubernetesadapter.ComputeNamespace(&scope.Scope{
-		Tenant: from.Tenant,
+	namespace := k8sadapter.ComputeNamespace(&res.Scope{
+		Tenant: from.GetTenant(),
 	})
 
 	if v, ok := from.Spec["tags"].([]string); ok {
@@ -38,7 +38,7 @@ func (c *WorkspaceProjectConverter) FromSECAToAruba(from *regional.WorkspaceDoma
 		}
 	}
 
-	spec.Tenant = from.Tenant
+	spec.Tenant = from.GetTenant()
 
 	return &v1alpha1.Project{
 		TypeMeta: metav1.TypeMeta{
@@ -46,11 +46,11 @@ func (c *WorkspaceProjectConverter) FromSECAToAruba(from *regional.WorkspaceDoma
 			APIVersion: "arubacloud.com/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      from.Name,
+			Name:      from.GetName(),
 			Namespace: namespace,
 			Labels: map[string]string{
-				"seca.workspace/workspace": from.Workspace,
-				"seca.workspace/tenant":    from.Tenant,
+				"seca.workspace/workspace": from.GetWorkspace(),
+				"seca.workspace/tenant":    from.GetTenant(),
 				"seca.workspace/namespace": namespace,
 			},
 		},
@@ -61,9 +61,9 @@ func (c *WorkspaceProjectConverter) FromSECAToAruba(from *regional.WorkspaceDoma
 
 func (c *WorkspaceProjectConverter) FromArubaToSECA(
 	from *v1alpha1.Project,
-) (*regional.WorkspaceDomain, error) {
+) (*wsdom.WorkspaceDomain, error) {
 
-	spec := regional.WorkspaceSpecDomain{
+	spec := wsdom.WorkspaceSpecDomain{
 		"description": from.Spec.Description,
 		"tenant":      from.Spec.Tenant,
 		"tags":        from.Spec.Tags,
@@ -74,18 +74,18 @@ func (c *WorkspaceProjectConverter) FromArubaToSECA(
 		tenant = from.Spec.Tenant
 	}
 
-	return &regional.WorkspaceDomain{
-		Metadata: regional.Metadata{
-			CommonMetadata: model.CommonMetadata{
+	return &wsdom.WorkspaceDomain{
+		RegionalMetadata: commondomain.RegionalMetadata{
+			CommonMetadata: commondomain.CommonMetadata{
 				Name: from.Name,
 			},
-			Scope: scope.Scope{
+			Scope: res.Scope{
 				Tenant: tenant,
 			},
 		},
 		Spec: spec,
-		Status: &regional.WorkspaceStatusDomain{
-			StatusDomain: regional.StatusDomain{},
+		Status: &wsdom.WorkspaceStatusDomain{
+			StatusDomain: commondomain.StatusDomain{},
 		},
 	}, nil
 }

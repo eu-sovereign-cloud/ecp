@@ -9,43 +9,45 @@ import (
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/plugin"
-	delegator "github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/port"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
-	repo "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
+	backend "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
+	res "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
+	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
+	bsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1/domain"
+	bsk8s "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1/backend/kubernetes"
+	ssdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/storage-skus/v1/domain"
+	wsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/workspace/v1/domain"
+	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 
-	adaptconverter "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/converter"
-	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/generic/delegated"
-	mutator_bypass "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/generic/mutator"
-	resolver_bypass "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/adapter/generic/resolver"
-	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/converter"
-	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/repository"
+	adaptconverter "github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/converter"
+	"github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/generic/delegated"
+	mutator_bypass "github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/generic/mutator"
+	resolver_bypass "github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/generic/resolver"
+	"github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/port/converter"
+	"github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/port/repository"
 )
 
 // Ensure BlockStorageHandler implements the BlockStorage interface
-var _ plugin.BlockStorage = (*BlockStorageHandler)(nil)
+var _ bsk8s.BlockStoragePlugin = (*BlockStorageHandler)(nil)
 
 // BlockStorageHandler handles BlockStorageDomain resources by interacting with Aruba BlockStorage.
 // It is responsible for translating BlockStorageDomain resources to Aruba BlockStorage
 // and managing their lifecycle (Create/Delete).
 type BlockStorageHandler struct {
-	wsRepository          repo.ReaderRepo[*regional.WorkspaceDomain]
-	skuRepository         repo.ReaderRepo[*regional.StorageSKUDomain]
+	wsRepository          persistence.ReaderRepo[*wsdom.WorkspaceDomain]
+	skuRepository         persistence.ReaderRepo[*ssdom.StorageSKUDomain]
 	bsRepository          repository.Repository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList]
 	prjRepository         repository.Repository[*v1alpha1.Project, *v1alpha1.ProjectList]
-	bsConverter           converter.Converter[*regional.BlockStorageDomain, *v1alpha1.BlockStorage]
-	wsConverter           converter.Converter[*regional.WorkspaceDomain, *v1alpha1.Project]
-	createDelegated       *delegated.GenericDelegated[*regional.BlockStorageDomain, *SecaBlockStorageBundle, *ArubaBlockStorageBundle]
-	deleteDelegated       *delegated.GenericDelegated[*regional.BlockStorageDomain, *SecaBlockStorageBundle, *ArubaBlockStorageBundle]
-	increaseSizeDelegated *delegated.GenericDelegated[*regional.BlockStorageDomain, *SecaBlockStorageBundle, *ArubaBlockStorageBundle]
+	bsConverter           converter.Converter[*bsdom.BlockStorageDomain, *v1alpha1.BlockStorage]
+	wsConverter           converter.Converter[*wsdom.WorkspaceDomain, *v1alpha1.Project]
+	createDelegated       *delegated.GenericDelegated[*bsdom.BlockStorageDomain, *SecaBlockStorageBundle, *ArubaBlockStorageBundle]
+	deleteDelegated       *delegated.GenericDelegated[*bsdom.BlockStorageDomain, *SecaBlockStorageBundle, *ArubaBlockStorageBundle]
+	increaseSizeDelegated *delegated.GenericDelegated[*bsdom.BlockStorageDomain, *SecaBlockStorageBundle, *ArubaBlockStorageBundle]
 }
 
 type SecaBlockStorageBundle struct {
-	BlockStorage *regional.BlockStorageDomain
-	Workspace    *regional.WorkspaceDomain
-	StorageSku   *regional.StorageSKUDomain
+	BlockStorage *bsdom.BlockStorageDomain
+	Workspace    *wsdom.WorkspaceDomain
+	StorageSku   *ssdom.StorageSKUDomain
 }
 
 type ArubaBlockStorageBundle struct {
@@ -57,12 +59,12 @@ type ArubaBlockStorageBundle struct {
 // It sets up the necessary delegated operations for creating and deleting WorkspaceDomain resources.
 // The handler uses bypass mutators since no mutation is needed on the Aruba Project objects.
 func NewBlockStorageHandler(
-	wsRepo repo.ReaderRepo[*regional.WorkspaceDomain],
-	skuRepo repo.ReaderRepo[*regional.StorageSKUDomain],
+	wsRepo persistence.ReaderRepo[*wsdom.WorkspaceDomain],
+	skuRepo persistence.ReaderRepo[*ssdom.StorageSKUDomain],
 	bsRepo repository.Repository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList],
 	prjRepo repository.Repository[*v1alpha1.Project, *v1alpha1.ProjectList],
-	bsConv converter.Converter[*regional.BlockStorageDomain, *v1alpha1.BlockStorage],
-	wsConv converter.Converter[*regional.WorkspaceDomain, *v1alpha1.Project]) *BlockStorageHandler {
+	bsConv converter.Converter[*bsdom.BlockStorageDomain, *v1alpha1.BlockStorage],
+	wsConv converter.Converter[*wsdom.WorkspaceDomain, *v1alpha1.Project]) *BlockStorageHandler {
 
 	handler := &BlockStorageHandler{
 		wsRepository:  wsRepo,
@@ -109,44 +111,44 @@ func NewBlockStorageHandler(
 }
 
 // Create creates a new BlockStorageDomain by creating an Aruba BlockStorage.
-func (h *BlockStorageHandler) Create(ctx context.Context, resource *regional.BlockStorageDomain) error {
-	return h.createDelegated.Do(ctx, resource)
+func (h *BlockStorageHandler) Create(ctx context.Context, domain *bsdom.BlockStorageDomain) error {
+	return h.createDelegated.Do(ctx, domain)
 }
 
 // Delete deletes an existing BlockStorageDomain by deleting the corresponding Aruba BlockStorage.
-func (h *BlockStorageHandler) Delete(ctx context.Context, resource *regional.BlockStorageDomain) error {
-	return h.deleteDelegated.Do(ctx, resource)
+func (h *BlockStorageHandler) Delete(ctx context.Context, domain *bsdom.BlockStorageDomain) error {
+	return h.deleteDelegated.Do(ctx, domain)
 }
 
 // IncreaseSize increases the size of an existing BlockStorageDomain by updating the corresponding Aruba BlockStorage.
-func (h *BlockStorageHandler) IncreaseSize(ctx context.Context, resource *regional.BlockStorageDomain) error {
-	return h.increaseSizeDelegated.Do(ctx, resource)
+func (h *BlockStorageHandler) IncreaseSize(ctx context.Context, domain *bsdom.BlockStorageDomain) error {
+	return h.increaseSizeDelegated.Do(ctx, domain)
 }
 
-func (h *BlockStorageHandler) checkBsDeleteCondition(resource *ArubaBlockStorageBundle) bool {
+func (h *BlockStorageHandler) checkBsDeleteCondition(arubaBundle *ArubaBlockStorageBundle) bool {
 	// TODO: refactor design completely
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	err := h.bsRepository.Load(ctx, resource.BlockStorage)
+	err := h.bsRepository.Load(ctx, arubaBundle.BlockStorage)
 
 	return apierrors.IsNotFound(err)
 }
 
-func (h *BlockStorageHandler) checkBsIncreaseSizeCondition(resource *ArubaBlockStorageBundle) bool {
+func (h *BlockStorageHandler) checkBsIncreaseSizeCondition(arubaBundle *ArubaBlockStorageBundle) bool {
 	// TODO: refactor design completely
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	size := resource.BlockStorage.Spec.SizeGB
+	size := arubaBundle.BlockStorage.Spec.SizeGB
 
-	err := h.bsRepository.Load(ctx, resource.BlockStorage)
+	err := h.bsRepository.Load(ctx, arubaBundle.BlockStorage)
 
 	if err != nil {
 		return false
 	}
 
-	return resource.BlockStorage.Spec.SizeGB == size && resource.BlockStorage.Status.Phase == v1alpha1.ResourcePhaseActive
+	return arubaBundle.BlockStorage.Spec.SizeGB == size && arubaBundle.BlockStorage.Status.Phase == v1alpha1.ResourcePhaseActive
 }
 
 func (h *BlockStorageHandler) blockStorageMutateSizeFunc(mutable *ArubaBlockStorageBundle, params *SecaBlockStorageBundle) error {
@@ -159,49 +161,49 @@ func (h *BlockStorageHandler) blockStorageMutateSizeFunc(mutable *ArubaBlockStor
 	return nil
 }
 
-func (h *BlockStorageHandler) BypassDependencyResolver(ctx context.Context, main *regional.BlockStorageDomain) (*SecaBlockStorageBundle, error) {
+func (h *BlockStorageHandler) BypassDependencyResolver(ctx context.Context, domain *bsdom.BlockStorageDomain) (*SecaBlockStorageBundle, error) {
 	return &SecaBlockStorageBundle{
-		BlockStorage: main,
+		BlockStorage: domain,
 	}, nil
 }
 
-func (h *BlockStorageHandler) resolveSecaBlockStorageDependencies(ctx context.Context, resource *regional.BlockStorageDomain) (*SecaBlockStorageBundle, error) {
-	ws := &regional.WorkspaceDomain{
-		Metadata: regional.Metadata{
-			CommonMetadata: model.CommonMetadata{
-				Name: resource.GetWorkspace(),
+func (h *BlockStorageHandler) resolveSecaBlockStorageDependencies(ctx context.Context, domain *bsdom.BlockStorageDomain) (*SecaBlockStorageBundle, error) {
+	ws := &wsdom.WorkspaceDomain{
+		RegionalMetadata: commondomain.RegionalMetadata{
+			CommonMetadata: commondomain.CommonMetadata{
+				Name: domain.GetWorkspace(),
 			},
-			Scope: scope.Scope{
-				Tenant: resource.GetTenant(),
+			Scope: res.Scope{
+				Tenant: domain.GetTenant(),
 			},
 		},
 	}
 
 	err := h.wsRepository.Load(ctx, &ws)
 	if err != nil {
-		return nil, delegator.ErrStillProcessing // TODO: better error handling
+		return nil, backend.ErrStillProcessing // TODO: better error handling
 	}
 
-	if ws.Status == nil || ws.Status.State != regional.ResourceStateActive {
-		return nil, delegator.ErrStillProcessing // TODO: better error handling
+	if ws.Status == nil || ws.Status.State != commondomain.ResourceStateActive {
+		return nil, backend.ErrStillProcessing // TODO: better error handling
 	}
 
 	// TODO: this is a temporary solution, we should refactor the design to avoid this kind of parsing
 	// issue https://github.com/eu-sovereign-cloud/ecp/issues/216
-	splittedSKU := strings.Split(resource.Spec.SkuRef.Resource, "/")
+	splittedSKU := strings.Split(domain.Spec.SkuRef.Resource, "/")
 	if len(splittedSKU) != 2 {
 		return nil, errors.New("invalid SKU reference")
 	}
 
 	skuName := splittedSKU[1]
 
-	storageSku := &regional.StorageSKUDomain{
-		Metadata: regional.Metadata{
-			CommonMetadata: model.CommonMetadata{
+	storageSku := &ssdom.StorageSKUDomain{
+		RegionalMetadata: commondomain.RegionalMetadata{
+			CommonMetadata: commondomain.CommonMetadata{
 				Name: skuName,
 			},
-			Scope: scope.Scope{
-				Tenant: resource.GetTenant(),
+			Scope: res.Scope{
+				Tenant: domain.GetTenant(),
 			},
 		},
 	}
@@ -212,30 +214,30 @@ func (h *BlockStorageHandler) resolveSecaBlockStorageDependencies(ctx context.Co
 	}
 
 	return &SecaBlockStorageBundle{
-		BlockStorage: resource,
+		BlockStorage: domain,
 		Workspace:    ws,
 		StorageSku:   storageSku,
 	}, nil
 
 }
 
-func (h *BlockStorageHandler) resolveArubaBlockStorageDependencies(ctx context.Context, resource *ArubaBlockStorageBundle) (*ArubaBlockStorageBundle, error) {
-	err := h.prjRepository.Load(ctx, resource.Project)
+func (h *BlockStorageHandler) resolveArubaBlockStorageDependencies(ctx context.Context, arubaBundle *ArubaBlockStorageBundle) (*ArubaBlockStorageBundle, error) {
+	err := h.prjRepository.Load(ctx, arubaBundle.Project)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return nil, delegator.ErrStillProcessing // Project not found, wait for it to be created
+			return nil, backend.ErrStillProcessing // Project not found, wait for it to be created
 		}
 
 		return nil, err // Other errors should be returned for handling
 	}
 
-	if resource.Project.Status.Phase != v1alpha1.ResourcePhaseActive {
-		return nil, delegator.ErrStillProcessing // Project is not ready, wait for it to be active
+	if arubaBundle.Project.Status.Phase != v1alpha1.ResourcePhaseActive {
+		return nil, backend.ErrStillProcessing // Project is not ready, wait for it to be active
 	}
 
 	return &ArubaBlockStorageBundle{
-		BlockStorage: resource.BlockStorage,
-		Project:      resource.Project,
+		BlockStorage: arubaBundle.BlockStorage,
+		Project:      arubaBundle.Project,
 	}, nil
 }
 
@@ -283,10 +285,10 @@ func (h *BlockStorageHandler) resolveBlockStorageDependencies(ctx context.Contex
 	}, err
 }
 
-// waitUntilManagedError waits until the provided condition is met for the given resource.
-// If the condition is not met within the timeout, it returns delegator.ErrStillProcessing to indicate that the operation is still in progress.
-func (h *BlockStorageHandler) waitUntilManagedError(ctx context.Context, resource *ArubaBlockStorageBundle, condition repository.WaitConditionFunc[*ArubaBlockStorageBundle]) (*ArubaBlockStorageBundle, error) {
-	bs, err := h.bsRepository.WaitUntil(ctx, resource.BlockStorage, func(p *v1alpha1.BlockStorage) bool {
+// waitUntilManagedError waits until the provided condition is met for the given arubaBundle.
+// If the condition is not met within the timeout, it returns backend.ErrStillProcessing to indicate that the operation is still in progress.
+func (h *BlockStorageHandler) waitUntilManagedError(ctx context.Context, arubaBundle *ArubaBlockStorageBundle, condition repository.WaitConditionFunc[*ArubaBlockStorageBundle]) (*ArubaBlockStorageBundle, error) {
+	bs, err := h.bsRepository.WaitUntil(ctx, arubaBundle.BlockStorage, func(p *v1alpha1.BlockStorage) bool {
 		return condition(&ArubaBlockStorageBundle{
 			BlockStorage: p,
 		})
@@ -295,7 +297,7 @@ func (h *BlockStorageHandler) waitUntilManagedError(ctx context.Context, resourc
 	if err != nil {
 		// Check if the error is due to the resource not being found, which can be expected during deletion
 		if apierrors.IsTimeout(err) {
-			return nil, delegator.ErrStillProcessing // Resource is gone, treat as successful deletion
+			return nil, backend.ErrStillProcessing // Resource is gone, treat as successful deletion
 		}
 
 		return nil, err // Return other errors for handling
@@ -303,6 +305,6 @@ func (h *BlockStorageHandler) waitUntilManagedError(ctx context.Context, resourc
 
 	return &ArubaBlockStorageBundle{
 		BlockStorage: bs,
-		Project:      resource.Project,
+		Project:      arubaBundle.Project,
 	}, nil
 }

@@ -12,10 +12,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	k8s "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
-	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/ionos/pkg/port"
+	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
+	netdom "github.com/eu-sovereign-cloud/ecp/resources/regional/network/networks/v1/domain"
+	"github.com/eu-sovereign-cloud/ecp/csp/ionos/pkg/port"
 )
 
 var _ port.NetworkStore = (*NetworkStore)(nil)
@@ -29,7 +29,7 @@ func NewNetworkStore(c client.Client, logger *slog.Logger) *NetworkStore {
 	return &NetworkStore{base{client: c, logger: logger}}
 }
 
-func (a *NetworkStore) Create(ctx context.Context, domain *regional.NetworkDomain) error {
+func (a *NetworkStore) Create(ctx context.Context, domain *netdom.NetworkDomain) error {
 	desired := newLan(domain)
 
 	existing := &ionosv1alpha1.Lan{}
@@ -38,7 +38,7 @@ func (a *NetworkStore) Create(ctx context.Context, domain *regional.NetworkDomai
 			return err
 		}
 
-		namespace := k8s.ComputeNamespace(&scope.Scope{Tenant: domain.GetTenant()})
+		namespace := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: domain.GetTenant()})
 		datacenter := &ionosv1alpha1.Datacenter{
 			TypeMeta:   metav1.TypeMeta{Kind: ionosv1alpha1.Datacenter_Kind},
 			ObjectMeta: metav1.ObjectMeta{Name: domain.GetWorkspace(), Namespace: namespace},
@@ -61,16 +61,16 @@ func (a *NetworkStore) Create(ctx context.Context, domain *regional.NetworkDomai
 	return a.checkExisting(ctx, existing)
 }
 
-func (a *NetworkStore) Delete(ctx context.Context, domain *regional.NetworkDomain) error {
-	namespace := k8s.ComputeNamespace(&scope.Scope{Tenant: domain.GetTenant()})
+func (a *NetworkStore) Delete(ctx context.Context, domain *netdom.NetworkDomain) error {
+	namespace := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: domain.GetTenant()})
 	return a.deleteCR(ctx, &ionosv1alpha1.Lan{
 		TypeMeta:   metav1.TypeMeta{Kind: ionosv1alpha1.Lan_Kind},
 		ObjectMeta: metav1.ObjectMeta{Name: domain.GetName(), Namespace: namespace},
 	})
 }
 
-func newLan(domain *regional.NetworkDomain) *ionosv1alpha1.Lan {
-	namespace := k8s.ComputeNamespace(&scope.Scope{Tenant: domain.GetTenant()})
+func newLan(domain *netdom.NetworkDomain) *ionosv1alpha1.Lan {
+	namespace := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: domain.GetTenant()})
 	lan := &ionosv1alpha1.Lan{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: ionosv1alpha1.CRDGroupVersion.String(),

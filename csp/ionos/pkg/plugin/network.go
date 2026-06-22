@@ -11,11 +11,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	delegator "github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/port"
-	k8s "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
-	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/ionos/pkg/adapter/crossplane"
+	backend "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
+	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
+	netdom "github.com/eu-sovereign-cloud/ecp/resources/regional/network/networks/v1/domain"
+	"github.com/eu-sovereign-cloud/ecp/csp/ionos/pkg/adapter/crossplane"
 )
 
 // Network handles create/delete of SECA Network resources on IONOS Cloud.
@@ -34,10 +34,10 @@ func NewNetwork(client client.Client, logger *slog.Logger) *Network {
 	return &Network{client: client, logger: logger}
 }
 
-func (n *Network) Create(ctx context.Context, resource *regional.NetworkDomain) error {
+func (n *Network) Create(ctx context.Context, resource *netdom.NetworkDomain) error {
 	n.logger.Info("ionos network plugin: Create called", "resource_name", resource.GetName())
 
-	namespace := k8s.ComputeNamespace(&scope.Scope{Tenant: resource.GetTenant()})
+	namespace := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: resource.GetTenant()})
 	name := resource.GetName()
 
 	// Idempotency: if the Lan already exists, nothing to do.
@@ -93,10 +93,10 @@ func (n *Network) Create(ctx context.Context, resource *regional.NetworkDomain) 
 	return nil
 }
 
-func (n *Network) Delete(ctx context.Context, resource *regional.NetworkDomain) error {
+func (n *Network) Delete(ctx context.Context, resource *netdom.NetworkDomain) error {
 	n.logger.Info("ionos network plugin: Delete called", "resource_name", resource.GetName())
 
-	namespace := k8s.ComputeNamespace(&scope.Scope{Tenant: resource.GetTenant()})
+	namespace := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: resource.GetTenant()})
 	name := resource.GetName()
 
 	lan := &ionosv1alpha1.Lan{}
@@ -119,5 +119,5 @@ func (n *Network) Delete(ctx context.Context, resource *regional.NetworkDomain) 
 	}
 
 	n.logger.Info("waiting for lan deletion", "namespace", namespace, "lan", name)
-	return delegator.ErrStillProcessing
+	return backend.ErrStillProcessing
 }
