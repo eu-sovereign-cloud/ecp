@@ -1,0 +1,147 @@
+package kubernetes
+
+import (
+	"fmt"
+	"maps"
+	"slices"
+	"strings"
+
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	genv1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
+	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/labels"
+	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
+
+	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
+	commonbackend "github.com/eu-sovereign-cloud/ecp/resources/common/backend"
+	netdom "github.com/eu-sovereign-cloud/ecp/resources/regional/network/networks/v1/domain"
+)
+
+// MapCRToNetworkDomain converts either a concrete *Network or *unstructured.Unstructured
+// into a *netdom.NetworkDomain.
+func MapCRToNetworkDomain(obj client.Object) (*netdom.NetworkDomain, error) {
+	var cr Network
+
+	switch t := obj.(type) {
+	case *Network:
+		cr = *t
+	case *unstructured.Unstructured:
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(t.Object, &cr); err != nil {
+			return nil, fmt.Errorf("failed to convert unstructured to Network: %w", err)
+		}
+	default:
+		return nil, fmt.Errorf("unsupported object type %T", obj)
+	}
+
+	crLabels := cr.GetLabels()
+	internalLabels := k8slabels.GetInternalLabels(crLabels)
+	keyedLabels := k8slabels.GetKeyedLabels(crLabels)
+
+	spec := netdom.NetworkSpecDomain{
+		Cidr:          mapCRToCidrDomain(cr.Spec.Cidr),
+		SkuRef:        commonbackend.MapCRToReferenceDomain(cr.Spec.SkuRef),
+		RouteTableRef: commonbackend.MapCRToReferenceDomain(cr.Spec.RouteTableRef),
+	}
+	for _, c := range cr.Spec.AdditionalCidrs {
+		spec.AdditionalCidrs = append(spec.AdditionalCidrs, mapCRToCidrDomain(c))
+	}
+
+	nd := &netdom.NetworkDomain{
+		Spec: spec,
+	}
+	nd.Name = cr.GetName()
+	nd.ResourceVersion = cr.GetResourceVersion()
+	nd.CreatedAt = cr.GetCreationTimestamp().Time
+	nd.UpdatedAt = cr.GetCreationTimestamp().Time
+	nd.Provider = strings.ReplaceAll(internalLabels[k8slabels.InternalProviderLabel], "_", "/")
+	nd.Tenant = internalLabels[k8slabels.InternalTenantLabel]
+	nd.Workspace = internalLabels[k8slabels.InternalWorkspaceLabel]
+	nd.Region = internalLabels[k8slabels.InternalRegionLabel]
+	nd.Labels = k8slabels.KeyedToOriginal(keyedLabels, cr.CommonData.Labels)
+	nd.Annotations = cr.CommonData.Annotations
+	nd.Extensions = cr.CommonData.Extensions
+
+	if ts := cr.GetDeletionTimestamp(); ts != nil {
+		nd.DeletedAt = &ts.Time
+	}
+
+	nd.Status = &netdom.NetworkStatusDomain{}
+	if cr.Status != nil {
+		nd.Status = &netdom.NetworkStatusDomain{}
+		nd.Status.State = commondomain.ResourceStateDomain(cr.Status.State)
+		nd.Status.Conditions = commonbackend.MapCRToStatusConditionDomains(cr.Status.Conditions)
+	} else {
+		nd.Status.PushCondition(commondomain.DefaultPendingCondition)
+	}
+
+	return nd, nil
+}
+
+// MapNetworkDomainToCR converts a *netdom.NetworkDomain to a Kubernetes Network CR.
+func MapNetworkDomainToCR(d *netdom.NetworkDomain) (client.Object, error) {
+	if d == nil {
+		return nil, fmt.Errorf("domain network is nil")
+	}
+
+	crLabels := k8slabels.OriginalToKeyed(d.Labels)
+	crLabels[k8slabels.InternalTenantLabel] = d.Tenant
+	crLabels[k8slabels.InternalWorkspaceLabel] = d.Workspace
+	crLabels[k8slabels.InternalProviderLabel] = strings.ReplaceAll(d.Provider, "/", "_")
+	crLabels[k8slabels.InternalRegionLabel] = d.Region
+
+	additionalCidrs := make([]genv1.Cidr, len(d.Spec.AdditionalCidrs))
+	for i, c := range d.Spec.AdditionalCidrs {
+		additionalCidrs[i] = mapCidrDomainToCR(c)
+	}
+
+	cr := &Network{
+		ObjectMeta: v1.ObjectMeta{
+			Name:            d.Name,
+			Namespace:       k8sadapter.ComputeNamespace(d),
+			Labels:          crLabels,
+			ResourceVersion: d.ResourceVersion,
+		},
+		CommonData: genv1.CommonData{
+			Annotations: d.Annotations,
+			Extensions:  d.Extensions,
+			Labels:      slices.Collect(maps.Keys(d.Labels)),
+		},
+		Spec: genv1.NetworkSpec{
+			Cidr:            mapCidrDomainToCR(d.Spec.Cidr),
+			AdditionalCidrs: additionalCidrs,
+			SkuRef:          commonbackend.MapReferenceDomainToCR(d.Spec.SkuRef),
+			RouteTableRef:   commonbackend.MapReferenceDomainToCR(d.Spec.RouteTableRef),
+		},
+	}
+	cr.SetGroupVersionKind(NetworkGVK)
+
+	if d.Status != nil && len(d.Status.Conditions) > 0 {
+		state := commonbackend.MapResourceStateDomainToCR(d.Status.State)
+		if state == nil {
+			return nil, fmt.Errorf("failed to convert resource state to CR")
+		}
+		cr.Status = &genv1.NetworkStatus{
+			Conditions: commonbackend.MapStatusConditionDomainsToCR(d.Status.Conditions),
+			State:      *state,
+		}
+	}
+
+	return cr, nil
+}
+
+func mapCRToCidrDomain(cr genv1.Cidr) netdom.CidrDomain {
+	return netdom.CidrDomain{
+		IPv4: cr.Ipv4,
+		IPv6: cr.Ipv6,
+	}
+}
+
+func mapCidrDomainToCR(d netdom.CidrDomain) genv1.Cidr {
+	return genv1.Cidr{
+		Ipv4: d.IPv4,
+		Ipv6: d.IPv6,
+	}
+}

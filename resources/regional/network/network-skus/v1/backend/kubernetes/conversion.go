@@ -1,0 +1,69 @@
+package kubernetes
+
+import (
+	"fmt"
+
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/labels"
+	nsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/network/network-skus/v1/domain"
+)
+
+// MapCRToNetworkSKUDomain converts either a concrete *NetworkSKU or *unstructured.Unstructured
+// into a *nsdom.NetworkSKUDomain.
+func MapCRToNetworkSKUDomain(obj client.Object) (*nsdom.NetworkSKUDomain, error) {
+	var cr NetworkSKU
+
+	switch t := obj.(type) {
+	case *NetworkSKU:
+		cr = *t
+	case *unstructured.Unstructured:
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(t.Object, &cr); err != nil {
+			return nil, fmt.Errorf("failed to convert unstructured to NetworkSKU: %w", err)
+		}
+	default:
+		return nil, fmt.Errorf("unsupported object type %T", obj)
+	}
+
+	crLabels := cr.GetLabels()
+	internalLabels := k8slabels.GetInternalLabels(crLabels)
+
+	sku := &nsdom.NetworkSKUDomain{
+		Spec: nsdom.NetworkSKUSpecDomain{
+			Bandwidth: cr.Spec.Bandwidth,
+			Packets:   cr.Spec.Packets,
+		},
+	}
+	sku.Name = cr.GetName()
+	sku.ResourceVersion = cr.GetResourceVersion()
+	sku.CreatedAt = cr.GetCreationTimestamp().Time
+	sku.UpdatedAt = cr.GetCreationTimestamp().Time
+	sku.Provider = internalLabels[k8slabels.InternalProviderLabel]
+	sku.Region = internalLabels[k8slabels.InternalRegionLabel]
+	sku.Tenant = internalLabels[k8slabels.InternalTenantLabel]
+
+	if ts := cr.GetDeletionTimestamp(); ts != nil {
+		sku.DeletedAt = &ts.Time
+	}
+
+	return sku, nil
+}
+
+// MapNetworkSKUDomainToCR converts a *nsdom.NetworkSKUDomain to a Kubernetes NetworkSKU CR.
+// NetworkSKUs are read-only resources — this is provided for completeness.
+func MapNetworkSKUDomainToCR(d *nsdom.NetworkSKUDomain) (client.Object, error) {
+	if d == nil {
+		return nil, fmt.Errorf("domain network SKU is nil")
+	}
+
+	cr := &NetworkSKU{}
+	cr.SetName(d.Name)
+	cr.SetResourceVersion(d.ResourceVersion)
+	cr.SetGroupVersionKind(NetworkSKUGVK)
+
+	// TODO: populate cr.Spec from d.Spec when genv1.NetworkSkuSpec fields are available
+
+	return cr, nil
+}
