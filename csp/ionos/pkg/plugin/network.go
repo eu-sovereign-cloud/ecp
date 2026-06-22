@@ -15,7 +15,7 @@ import (
 	backend "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
 	kresource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
-	netdom "github.com/eu-sovereign-cloud/ecp/resources/regional/network/networks/v1/domain"
+	netdom "github.com/eu-sovereign-cloud/ecp/resources/regional/network/networks/v1"
 )
 
 // Network handles create/delete of SECA Network resources on IONOS Cloud.

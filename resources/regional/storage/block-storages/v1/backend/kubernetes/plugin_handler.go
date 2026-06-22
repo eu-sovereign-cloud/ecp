@@ -12,7 +12,7 @@ import (
 	frameworkbackend "github.com/eu-sovereign-cloud/ecp/framework/backend"
 	commonbackend "github.com/eu-sovereign-cloud/ecp/resources/common/backend"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
-	bsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1/domain"
+	bsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1"
 )
 
 // BlockStoragePluginHandler drives the block-storage reconciliation state machine.

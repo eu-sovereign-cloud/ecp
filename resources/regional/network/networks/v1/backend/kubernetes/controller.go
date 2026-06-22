@@ -7,7 +7,7 @@ import (
 	builder "github.com/eu-sovereign-cloud/ecp/framework/backend/builder"
 	frameworkcontroller "github.com/eu-sovereign-cloud/ecp/framework/backend/controller"
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
-	netdom "github.com/eu-sovereign-cloud/ecp/resources/regional/network/networks/v1/domain"
+	netdom "github.com/eu-sovereign-cloud/ecp/resources/regional/network/networks/v1"
 )
 
 // Controller drives network reconciliation using the GenericController.

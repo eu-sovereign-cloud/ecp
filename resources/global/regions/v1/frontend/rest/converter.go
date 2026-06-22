@@ -10,7 +10,7 @@ import (
 
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/validation"
-	rdom "github.com/eu-sovereign-cloud/ecp/resources/global/regions/v1/domain"
+	rdom "github.com/eu-sovereign-cloud/ecp/resources/global/regions/v1"
 )
 
 const (

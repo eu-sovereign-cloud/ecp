@@ -3,7 +3,7 @@ package kubernetes
 import (
 	"context"
 
-	bsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1/domain"
+	bsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1"
 )
 
 // BlockStoragePlugin is implemented by CSP plugins that manage block storage resources.

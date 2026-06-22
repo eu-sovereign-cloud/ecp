@@ -11,7 +11,7 @@ import (
 
 	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	commonfrontend "github.com/eu-sovereign-cloud/ecp/resources/common/frontend"
-	rdom "github.com/eu-sovereign-cloud/ecp/resources/global/regions/v1/domain"
+	rdom "github.com/eu-sovereign-cloud/ecp/resources/global/regions/v1"
 )
 
 // Handler is the HTTP handler for region resources.

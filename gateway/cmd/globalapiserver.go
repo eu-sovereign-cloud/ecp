@@ -21,8 +21,8 @@ import (
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
 
 	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
+	rdom "github.com/eu-sovereign-cloud/ecp/resources/global/regions/v1"
 	rk8s "github.com/eu-sovereign-cloud/ecp/resources/global/regions/v1/backend/kubernetes"
-	rdom "github.com/eu-sovereign-cloud/ecp/resources/global/regions/v1/domain"
 	regionrest "github.com/eu-sovereign-cloud/ecp/resources/global/regions/v1/frontend/rest"
 )
 

@@ -5,7 +5,7 @@ import (
 	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
-	skudom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/storage-skus/v1/domain"
+	skudom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/storage-skus/v1"
 )
 
 // StorageSKUDomainToAPI converts a StorageSKUDomain to its SDK representation.

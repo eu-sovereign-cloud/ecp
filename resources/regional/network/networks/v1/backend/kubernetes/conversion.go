@@ -17,7 +17,7 @@ import (
 
 	commonbackend "github.com/eu-sovereign-cloud/ecp/resources/common/backend"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
-	netdom "github.com/eu-sovereign-cloud/ecp/resources/regional/network/networks/v1/domain"
+	netdom "github.com/eu-sovereign-cloud/ecp/resources/regional/network/networks/v1"
 )
 
 // MapCRToNetworkDomain converts either a concrete *Network or *unstructured.Unstructured

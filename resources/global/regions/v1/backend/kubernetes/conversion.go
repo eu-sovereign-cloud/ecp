@@ -8,7 +8,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
-	rdom "github.com/eu-sovereign-cloud/ecp/resources/global/regions/v1/domain"
+	rdom "github.com/eu-sovereign-cloud/ecp/resources/global/regions/v1"
 
 	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/labels"
 )

@@ -11,7 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	wsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/workspace/v1/domain"
+	wsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/workspace/v1"
 )
 
 func TestWorkspace_create(t *testing.T) {

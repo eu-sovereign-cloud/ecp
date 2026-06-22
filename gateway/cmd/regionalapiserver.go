@@ -25,20 +25,20 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/framework/frontend/logger"
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
 
+	netskudom "github.com/eu-sovereign-cloud/ecp/resources/regional/network/network-skus/v1"
 	netskuk8s "github.com/eu-sovereign-cloud/ecp/resources/regional/network/network-skus/v1/backend/kubernetes"
-	netskudom "github.com/eu-sovereign-cloud/ecp/resources/regional/network/network-skus/v1/domain"
+	netdom "github.com/eu-sovereign-cloud/ecp/resources/regional/network/networks/v1"
 	netk8s "github.com/eu-sovereign-cloud/ecp/resources/regional/network/networks/v1/backend/kubernetes"
-	netdom "github.com/eu-sovereign-cloud/ecp/resources/regional/network/networks/v1/domain"
 	netrest "github.com/eu-sovereign-cloud/ecp/resources/regional/network/networks/v1/frontend/rest"
 
+	bsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1"
 	bsk8s "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1/backend/kubernetes"
-	bsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1/domain"
 	storagerest "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1/frontend/rest"
+	skudom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/storage-skus/v1"
 	skuk8s "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/storage-skus/v1/backend/kubernetes"
-	skudom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/storage-skus/v1/domain"
 
+	wsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/workspace/v1"
 	wsk8s "github.com/eu-sovereign-cloud/ecp/resources/regional/workspace/v1/backend/kubernetes"
-	wsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/workspace/v1/domain"
 	wsrest "github.com/eu-sovereign-cloud/ecp/resources/regional/workspace/v1/frontend/rest"
 )
 

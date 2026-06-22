@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/eu-sovereign-cloud/ecp/csp/ionos/pkg/port"
-	wsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/workspace/v1/domain"
+	wsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/workspace/v1"
 )
 
 type CreateWorkspace struct {

@@ -7,7 +7,7 @@ import (
 	builder "github.com/eu-sovereign-cloud/ecp/framework/backend/builder"
 	frameworkcontroller "github.com/eu-sovereign-cloud/ecp/framework/backend/controller"
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
-	bsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1/domain"
+	bsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1"
 )
 
 // Controller drives block-storage reconciliation using the GenericController.

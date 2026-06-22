@@ -13,10 +13,10 @@ import (
 	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	res "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
+	bsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1"
 	bsk8s "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1/backend/kubernetes"
-	bsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1/domain"
-	ssdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/storage-skus/v1/domain"
-	wsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/workspace/v1/domain"
+	ssdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/storage-skus/v1"
+	wsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/workspace/v1"
 
 	adaptconverter "github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/converter"
 	"github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/generic/delegated"

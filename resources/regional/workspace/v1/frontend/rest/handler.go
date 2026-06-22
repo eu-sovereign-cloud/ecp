@@ -14,7 +14,7 @@ import (
 	frameworkconfig "github.com/eu-sovereign-cloud/ecp/framework/frontend/config"
 	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	commonfrontend "github.com/eu-sovereign-cloud/ecp/resources/common/frontend"
-	wsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/workspace/v1/domain"
+	wsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/workspace/v1"
 )
 
 // Handler is the HTTP handler for workspace resources.
