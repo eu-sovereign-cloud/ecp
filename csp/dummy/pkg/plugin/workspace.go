@@ -6,43 +6,23 @@ import (
 	"math/rand/v2"
 	"time"
 
-	delegator "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
 	wsdom "github.com/eu-sovereign-cloud/ecp/resources/workspace/v1"
 )
 
 type Workspace struct {
-	logger  *slog.Logger
-	tracker *asyncTracker
+	logger *slog.Logger
 }
 
 func NewWorkspace(logger *slog.Logger) *Workspace {
-	return &Workspace{logger: logger, tracker: newAsyncTracker()}
+	return &Workspace{logger: logger}
 }
 
 func (w *Workspace) Create(ctx context.Context, resource *wsdom.Workspace) error {
-	return w.simulate("create", resource, workspaceDelay())
+	return simulateWS(ctx, "create", resource, workspaceDelay(), w.logger)
 }
 
 func (w *Workspace) Delete(ctx context.Context, resource *wsdom.Workspace) error {
-	return w.simulate("delete", resource, workspaceDelay())
-}
-
-// simulate reports a long-running operation as still in progress until its
-// simulated delay has elapsed, without blocking the reconciliation worker.
-func (w *Workspace) simulate(op string, resource *wsdom.Workspace, delay time.Duration) error {
-	key := op + ":" + resourceKey(resource)
-
-	if !w.tracker.done(key, delay) {
-		w.logger.Info("dummy workspace plugin: still processing",
-			"op", op, "resource_name", resource.GetName())
-
-		return delegator.ErrStillProcessing
-	}
-
-	w.logger.Info("dummy workspace plugin: finished",
-		"op", op, "resource_name", resource.GetName())
-
-	return nil
+	return simulateWS(ctx, "delete", resource, workspaceDelay(), w.logger)
 }
 
 // workspaceDelay returns the simulated latency of a workspace operation.
