@@ -6,7 +6,7 @@ package kubernetes
 // +kubebuilder:object:generate=true
 // +kubebuilder:object:root=false
 
-import genv1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
+import schemav1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
 
 // Subnet defines model for Subnet.
 
@@ -51,16 +51,16 @@ type SubnetSpec struct {
 	// * IPv4 only
 	// * IPv6 only
 	// * IPv4 and IPv6 (Dual Stack)
-	Cidr genv1.Cidr `json:"cidr"`
+	Cidr schemav1.Cidr `json:"cidr"`
 
 	// RouteTableRef Reference to the route table used by default for all NICs in this Subnet.
 	// If not provided, the routeTableRef associated with the network of the subnet will be used.
-	RouteTableRef *genv1.Reference `json:"routeTableRef,omitempty"`
+	RouteTableRef *schemav1.Reference `json:"routeTableRef,omitempty"`
 
 	// SkuRef Reference to the SKU used by default for all NICs in this Network.
 	// Can be overridden by the NIC
-	SkuRef *genv1.Reference `json:"skuRef,omitempty"`
-	Zone   genv1.Zone       `json:"zone" x-kubebuilder-validation-max-length:"32" x-kubebuilder-validation-min-length:"1"`
+	SkuRef *schemav1.Reference `json:"skuRef,omitempty"`
+	Zone   schemav1.Zone       `json:"zone" x-kubebuilder-validation-max-length:"32" x-kubebuilder-validation-min-length:"1"`
 }
 
 // SubnetStatus defines model for SubnetStatus.
@@ -72,10 +72,10 @@ type SubnetStatus struct {
 	// * IPv4 only
 	// * IPv6 only
 	// * IPv4 and IPv6 (Dual Stack)
-	Cidr       *genv1.Cidr             `json:"cidr,omitempty"`
-	Conditions []genv1.StatusCondition `json:"conditions" x-kubebuilder-validation-max-items:"32"`
+	Cidr       *schemav1.Cidr             `json:"cidr,omitempty"`
+	Conditions []schemav1.StatusCondition `json:"conditions" x-kubebuilder-validation-max-items:"32"`
 
 	// RouteTableRef The route table used by this subnet.
-	RouteTableRef *genv1.Reference    `json:"routeTableRef,omitempty"`
-	State         genv1.ResourceState `json:"state,omitempty"`
+	RouteTableRef *schemav1.Reference    `json:"routeTableRef,omitempty"`
+	State         schemav1.ResourceState `json:"state,omitempty"`
 }

@@ -8,7 +8,7 @@
 package kubernetes
 
 import (
-	genv1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
+	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -52,7 +52,7 @@ func (in *SecurityGroupRuleSpec) DeepCopyInto(out *SecurityGroupRuleSpec) {
 	*out = *in
 	if in.Annotations != nil {
 		in, out := &in.Annotations, &out.Annotations
-		*out = make(genv1.Annotations, len(*in))
+		*out = make(schemav1.Annotations, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val
 		}
@@ -69,7 +69,7 @@ func (in *SecurityGroupRuleSpec) DeepCopyInto(out *SecurityGroupRuleSpec) {
 	}
 	if in.SourceRef != nil {
 		in, out := &in.SourceRef, &out.SourceRef
-		*out = make([]genv1.Reference, len(*in))
+		*out = make([]schemav1.Reference, len(*in))
 		copy(*out, *in)
 	}
 }
@@ -92,7 +92,7 @@ func (in *SecurityGroupRule) DeepCopyInto(out *SecurityGroupRule) {
 	in.CommonData.DeepCopyInto(&out.CommonData)
 	if in.Status != nil {
 		in, out := &in.Status, &out.Status
-		*out = new(genv1.Status)
+		*out = new(schemav1.Status)
 		(*in).DeepCopyInto(*out)
 	}
 }

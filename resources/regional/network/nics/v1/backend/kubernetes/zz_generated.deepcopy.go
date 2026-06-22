@@ -8,7 +8,7 @@
 package kubernetes
 
 import (
-	genv1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
+	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -22,17 +22,17 @@ func (in *NicSpec) DeepCopyInto(out *NicSpec) {
 	}
 	if in.PublicIpRefs != nil {
 		in, out := &in.PublicIpRefs, &out.PublicIpRefs
-		*out = make([]genv1.Reference, len(*in))
+		*out = make([]schemav1.Reference, len(*in))
 		copy(*out, *in)
 	}
 	if in.SecurityGroupRefs != nil {
 		in, out := &in.SecurityGroupRefs, &out.SecurityGroupRefs
-		*out = make([]genv1.Reference, len(*in))
+		*out = make([]schemav1.Reference, len(*in))
 		copy(*out, *in)
 	}
 	if in.SkuRef != nil {
 		in, out := &in.SkuRef, &out.SkuRef
-		*out = new(genv1.Reference)
+		*out = new(schemav1.Reference)
 		**out = **in
 	}
 	out.SubnetRef = in.SubnetRef
@@ -58,14 +58,14 @@ func (in *NicStatus) DeepCopyInto(out *NicStatus) {
 	}
 	if in.Conditions != nil {
 		in, out := &in.Conditions, &out.Conditions
-		*out = make([]genv1.StatusCondition, len(*in))
+		*out = make([]schemav1.StatusCondition, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
 	if in.PublicIpRefs != nil {
 		in, out := &in.PublicIpRefs, &out.PublicIpRefs
-		*out = make([]genv1.Reference, len(*in))
+		*out = make([]schemav1.Reference, len(*in))
 		copy(*out, *in)
 	}
 }

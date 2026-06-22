@@ -7,7 +7,7 @@ package kubernetes
 // +kubebuilder:object:root=false
 
 import (
-	genv1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
+	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -38,7 +38,7 @@ const (
 // InstanceSpec Specification of the instance, including its SKU, network configuration, and storage options.
 type InstanceSpec struct {
 	// AdditionalNicRefs Additional NICs attached to this instance
-	AdditionalNicRefs []genv1.Reference `json:"additionalNicRefs,omitempty" x-kubebuilder-validation-max-items:"16"`
+	AdditionalNicRefs []schemav1.Reference `json:"additionalNicRefs,omitempty" x-kubebuilder-validation-max-items:"16"`
 
 	// AntiAffinityGroup Anti-affinity group to which this instance belongs.
 	// Instances in the same anti-affinity group are placed on different physical hosts.
@@ -46,18 +46,18 @@ type InstanceSpec struct {
 	AntiAffinityGroup string `json:"antiAffinityGroup,omitempty" x-kubebuilder-validation-max-length:"64"`
 
 	// BootVolume Reference to the block storage used to store the boot volume of the instance.
-	BootVolume  genv1.VolumeReference   `json:"bootVolume"`
-	DataVolumes []genv1.VolumeReference `json:"dataVolumes,omitempty" x-kubebuilder-validation-max-items:"64"`
+	BootVolume  schemav1.VolumeReference   `json:"bootVolume"`
+	DataVolumes []schemav1.VolumeReference `json:"dataVolumes,omitempty" x-kubebuilder-validation-max-items:"64"`
 
 	// PrimaryNicRef Reference to the primary NIC attached to this instance.
-	PrimaryNicRef *genv1.Reference `json:"primaryNicRef,omitempty"`
+	PrimaryNicRef *schemav1.Reference `json:"primaryNicRef,omitempty"`
 
 	// SecurityGroupRef Reference to the security group associated with this instance.
-	SecurityGroupRef *genv1.Reference `json:"securityGroupRef,omitempty"`
+	SecurityGroupRef *schemav1.Reference `json:"securityGroupRef,omitempty"`
 
 	// SkuRef Reference to the SKU of the instance. The SKU is immutable after the instance is created.
 	// To change the SKU, the instance must be deleted and recreated with the new SKU reference.
-	SkuRef genv1.Reference `json:"skuRef" x-cel-message-0:"spec.skuRef is immutable" x-cel-rule-0:"self == oldSelf"`
+	SkuRef schemav1.Reference `json:"skuRef" x-cel-message-0:"spec.skuRef is immutable" x-cel-rule-0:"self == oldSelf"`
 
 	// SshKeys Provider-specific references to SSH keys used in cloud-init vendorData.
 	// These references are used to inject SSH public keys during instance initialization
@@ -70,19 +70,19 @@ type InstanceSpec struct {
 
 	// Zone The zone in which the instance is deployed. The zone is immutable after the instance is created.
 	// To change the zone, the instance must be deleted and recreated with the new zone.
-	Zone genv1.Zone `json:"zone" x-cel-message-0:"spec.zone is immutable" x-cel-rule-0:"self == oldSelf" x-kubebuilder-validation-max-length:"32" x-kubebuilder-validation-min-length:"1"`
+	Zone schemav1.Zone `json:"zone" x-cel-message-0:"spec.zone is immutable" x-cel-rule-0:"self == oldSelf" x-kubebuilder-validation-max-length:"32" x-kubebuilder-validation-min-length:"1"`
 }
 
 // InstanceStatus defines model for InstanceStatus.
 type InstanceStatus struct {
-	Conditions []genv1.StatusCondition `json:"conditions" x-kubebuilder-validation-max-items:"32"`
+	Conditions []schemav1.StatusCondition `json:"conditions" x-kubebuilder-validation-max-items:"32"`
 
 	// PowerState Current power state of the instance.
 	PowerState InstanceStatusPowerState `json:"powerState" x-kubebuilder-validation-enum:"on;off"`
 
 	// PowerStateSince Indicates the time when the instance powerState has updated, basecause the instance was started, stoped or restarted. If the instance was never started the field is `null`.
 	PowerStateSince *metav1.Time        `json:"powerStateSince,omitempty"`
-	State           genv1.ResourceState `json:"state,omitempty"`
+	State           schemav1.ResourceState `json:"state,omitempty"`
 }
 
 // InstanceStatusPowerState Current power state of the instance.

@@ -6,7 +6,7 @@ package kubernetes
 // +kubebuilder:object:generate=true
 // +kubebuilder:object:root=false
 
-import genv1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
+import schemav1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
 
 // Defines values for IPVersion.
 
@@ -67,7 +67,7 @@ import genv1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes
 // CIDR block would be `0.0.0.0/16` and for a /56 IPv6 CIDR block the CIDR block would
 // be `::/56`. Most CSP will not allow to use a different IPv6 prefix length than /56.
 type NetworkSpec struct {
-	AdditionalCidrs []genv1.Cidr `json:"additionalCidrs,omitempty" x-kubebuilder-validation-max-items:"32"`
+	AdditionalCidrs []schemav1.Cidr `json:"additionalCidrs,omitempty" x-kubebuilder-validation-max-items:"32"`
 
 	// Cidr Combined IPv4 and IPv6 CIDR block for a subnet. Depending on the network
 	// configuration, either the IPv4 or IPv6 range can be omitted. So the following
@@ -76,20 +76,20 @@ type NetworkSpec struct {
 	// * IPv4 only
 	// * IPv6 only
 	// * IPv4 and IPv6 (Dual Stack)
-	Cidr genv1.Cidr `json:"cidr"`
+	Cidr schemav1.Cidr `json:"cidr"`
 
 	// RouteTableRef Reference to the route table used by default for all Subnets.
-	RouteTableRef genv1.Reference `json:"routeTableRef"`
+	RouteTableRef schemav1.Reference `json:"routeTableRef"`
 
 	// SkuRef Reference to the SKU used by default for all NIC in this Network.
 	// Can be overridden by the NIC. The SKU is immutable after the network is created.
 	// To change the SKU, the network must be deleted and recreated with the new SKU reference.
-	SkuRef genv1.Reference `json:"skuRef" x-cel-message-0:"spec.skuRef is immutable" x-cel-rule-0:"self == oldSelf"`
+	SkuRef schemav1.Reference `json:"skuRef" x-cel-message-0:"spec.skuRef is immutable" x-cel-rule-0:"self == oldSelf"`
 }
 
 // NetworkStatus defines model for NetworkStatus.
 type NetworkStatus struct {
-	AdditionalCidrs []genv1.Cidr `json:"additionalCidrs,omitempty" x-kubebuilder-validation-max-items:"32"`
+	AdditionalCidrs []schemav1.Cidr `json:"additionalCidrs,omitempty" x-kubebuilder-validation-max-items:"32"`
 
 	// Cidr Combined IPv4 and IPv6 CIDR block for a subnet. Depending on the network
 	// configuration, either the IPv4 or IPv6 range can be omitted. So the following
@@ -98,12 +98,12 @@ type NetworkStatus struct {
 	// * IPv4 only
 	// * IPv6 only
 	// * IPv4 and IPv6 (Dual Stack)
-	Cidr       genv1.Cidr              `json:"cidr"`
-	Conditions []genv1.StatusCondition `json:"conditions" x-kubebuilder-validation-max-items:"32"`
+	Cidr       schemav1.Cidr              `json:"cidr"`
+	Conditions []schemav1.StatusCondition `json:"conditions" x-kubebuilder-validation-max-items:"32"`
 
 	// RouteTableRef Reference to the route table used by default for all Subnets.
-	RouteTableRef *genv1.Reference    `json:"routeTableRef,omitempty"`
-	State         genv1.ResourceState `json:"state,omitempty"`
+	RouteTableRef *schemav1.Reference    `json:"routeTableRef,omitempty"`
+	State         schemav1.ResourceState `json:"state,omitempty"`
 }
 
 // Cidr Combined IPv4 and IPv6 CIDR block for a subnet. Depending on the network

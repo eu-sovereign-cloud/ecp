@@ -63,7 +63,7 @@ func MapNetworkSKUDomainToCR(d *nsdom.NetworkSKU) (client.Object, error) {
 	cr.SetResourceVersion(d.ResourceVersion)
 	cr.SetGroupVersionKind(NetworkSKUGVK)
 
-	// TODO: populate cr.Spec from d.Spec when genv1.NetworkSkuSpec fields are available
+	// TODO: populate cr.Spec from d.Spec when schemav1.NetworkSkuSpec fields are available
 
 	return cr, nil
 }

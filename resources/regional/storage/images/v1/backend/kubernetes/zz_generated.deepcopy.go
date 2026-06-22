@@ -8,7 +8,7 @@
 package kubernetes
 
 import (
-	genv1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
+	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -17,7 +17,7 @@ func (in *ImageStatus) DeepCopyInto(out *ImageStatus) {
 	*out = *in
 	if in.Conditions != nil {
 		in, out := &in.Conditions, &out.Conditions
-		*out = make([]genv1.StatusCondition, len(*in))
+		*out = make([]schemav1.StatusCondition, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}

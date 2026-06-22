@@ -6,7 +6,7 @@ package kubernetes
 // +kubebuilder:object:generate=true
 // +kubebuilder:object:root=false
 
-import genv1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
+import schemav1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
 
 // RouteSpec The target reference can be an instance,
 // a gateway or an IP address (v4 or v6) that is part of the
@@ -18,13 +18,13 @@ type RouteSpec struct {
 	DestinationCidrBlock string `json:"destinationCidrBlock" x-cel-message-0:"spec.destinationCidrBlock must be a valid CIDR block" x-cel-rule-0:"isCIDR(self)" x-kubebuilder-validation-max-length:"43" x-kubebuilder-validation-min-length:"1"`
 
 	// TargetRef Reference to the target of the route. The target can be an instance, an gateway or an IP address.
-	TargetRef genv1.Reference `json:"targetRef"`
+	TargetRef schemav1.Reference `json:"targetRef"`
 }
 
 // RouteStatus defines model for RouteStatus.
 type RouteStatus struct {
-	Conditions []genv1.StatusCondition `json:"conditions" x-kubebuilder-validation-max-items:"32"`
-	State      genv1.ResourceState     `json:"state,omitempty"`
+	Conditions []schemav1.StatusCondition `json:"conditions" x-kubebuilder-validation-max-items:"32"`
+	State      schemav1.ResourceState     `json:"state,omitempty"`
 }
 
 // RouteTable defines model for RouteTable.
@@ -54,7 +54,7 @@ type RouteTableSpec struct {
 
 // RouteTableStatus defines model for RouteTableStatus.
 type RouteTableStatus struct {
-	Conditions []genv1.StatusCondition `json:"conditions" x-kubebuilder-validation-max-items:"32"`
+	Conditions []schemav1.StatusCondition `json:"conditions" x-kubebuilder-validation-max-items:"32"`
 	Routes     []RouteStatus           `json:"routes,omitempty" x-kubebuilder-validation-max-items:"1000"`
-	State      genv1.ResourceState     `json:"state,omitempty"`
+	State      schemav1.ResourceState     `json:"state,omitempty"`
 }

@@ -6,7 +6,7 @@ package kubernetes
 // +kubebuilder:object:generate=true
 // +kubebuilder:object:root=false
 
-import genv1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
+import schemav1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
 
 // Nic defines model for Nic.
 
@@ -52,28 +52,28 @@ type NicSpec struct {
 
 	// PublicIpRefs References to public IP addresses associated with this NIC. The IP may be external
 	// and not directly visible on the server/NIC itself.
-	PublicIpRefs []genv1.Reference `json:"publicIpRefs,omitempty" x-kubebuilder-validation-max-items:"16"`
+	PublicIpRefs []schemav1.Reference `json:"publicIpRefs,omitempty" x-kubebuilder-validation-max-items:"16"`
 
 	// SecurityGroupRefs References to the security groups associated with this NIC.
-	SecurityGroupRefs []genv1.Reference `json:"securityGroupRefs,omitempty" x-kubebuilder-validation-max-items:"16"`
+	SecurityGroupRefs []schemav1.Reference `json:"securityGroupRefs,omitempty" x-kubebuilder-validation-max-items:"16"`
 
 	// SkuRef Reference to the SKU of the NIC. The SKU is immutable after the NIC is created.
 	// To change the SKU, the NIC must be deleted and recreated with the new SKU reference.
-	SkuRef *genv1.Reference `json:"skuRef,omitempty" x-cel-message-0:"spec.skuRef is immutable" x-cel-rule-0:"!oldSelf.hasValue() || self == oldSelf.value()"`
+	SkuRef *schemav1.Reference `json:"skuRef,omitempty" x-cel-message-0:"spec.skuRef is immutable" x-cel-rule-0:"!oldSelf.hasValue() || self == oldSelf.value()"`
 
 	// SubnetRef Reference to the subnet used by the NIC connections.
-	SubnetRef genv1.Reference `json:"subnetRef"`
+	SubnetRef schemav1.Reference `json:"subnetRef"`
 }
 
 // NicStatus defines model for NicStatus.
 type NicStatus struct {
 	Addresses  []NicIp                 `json:"addresses,omitempty" x-kubebuilder-validation-items-max-length:"39" x-kubebuilder-validation-items-min-length:"1" x-kubebuilder-validation-max-items:"32"`
-	Conditions []genv1.StatusCondition `json:"conditions" x-kubebuilder-validation-max-items:"32"`
+	Conditions []schemav1.StatusCondition `json:"conditions" x-kubebuilder-validation-max-items:"32"`
 
 	// MacAddress MAC address of the NIC.
 	MacAddress string `json:"macAddress,omitempty" x-kubebuilder-validation-max-length:"17"`
 
 	// PublicIpRefs Array of public IP addresses associated with this NIC.
-	PublicIpRefs []genv1.Reference   `json:"publicIpRefs,omitempty" x-kubebuilder-validation-max-items:"16"`
-	State        genv1.ResourceState `json:"state,omitempty"`
+	PublicIpRefs []schemav1.Reference   `json:"publicIpRefs,omitempty" x-kubebuilder-validation-max-items:"16"`
+	State        schemav1.ResourceState `json:"state,omitempty"`
 }

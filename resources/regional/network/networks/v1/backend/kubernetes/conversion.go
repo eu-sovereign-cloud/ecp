@@ -13,7 +13,7 @@ import (
 
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
 	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/labels"
-	genv1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
+	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
 
 	commonbackend "github.com/eu-sovereign-cloud/ecp/resources/common/backend"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
@@ -92,7 +92,7 @@ func MapNetworkDomainToCR(d *netdom.Network) (client.Object, error) {
 	crLabels[k8slabels.InternalProviderLabel] = strings.ReplaceAll(d.Provider, "/", "_")
 	crLabels[k8slabels.InternalRegionLabel] = d.Region
 
-	additionalCidrs := make([]genv1.Cidr, len(d.Spec.AdditionalCidrs))
+	additionalCidrs := make([]schemav1.Cidr, len(d.Spec.AdditionalCidrs))
 	for i, c := range d.Spec.AdditionalCidrs {
 		additionalCidrs[i] = mapCidrDomainToCR(c)
 	}
@@ -104,7 +104,7 @@ func MapNetworkDomainToCR(d *netdom.Network) (client.Object, error) {
 			Labels:          crLabels,
 			ResourceVersion: d.ResourceVersion,
 		},
-		CommonData: genv1.CommonData{
+		CommonData: schemav1.CommonData{
 			Annotations: d.Annotations,
 			Extensions:  d.Extensions,
 			Labels:      slices.Collect(maps.Keys(d.Labels)),
@@ -132,15 +132,15 @@ func MapNetworkDomainToCR(d *netdom.Network) (client.Object, error) {
 	return cr, nil
 }
 
-func mapCRToCidrDomain(cr genv1.Cidr) netdom.Cidr {
+func mapCRToCidrDomain(cr schemav1.Cidr) netdom.Cidr {
 	return netdom.Cidr{
 		IPv4: cr.Ipv4,
 		IPv6: cr.Ipv6,
 	}
 }
 
-func mapCidrDomainToCR(d netdom.Cidr) genv1.Cidr {
-	return genv1.Cidr{
+func mapCidrDomainToCR(d netdom.Cidr) schemav1.Cidr {
+	return schemav1.Cidr{
 		Ipv4: d.IPv4,
 		Ipv6: d.IPv6,
 	}

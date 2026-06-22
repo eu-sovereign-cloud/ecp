@@ -8,7 +8,7 @@
 package kubernetes
 
 import (
-	genv1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
+	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -18,12 +18,12 @@ func (in *SubnetSpec) DeepCopyInto(out *SubnetSpec) {
 	out.Cidr = in.Cidr
 	if in.RouteTableRef != nil {
 		in, out := &in.RouteTableRef, &out.RouteTableRef
-		*out = new(genv1.Reference)
+		*out = new(schemav1.Reference)
 		**out = **in
 	}
 	if in.SkuRef != nil {
 		in, out := &in.SkuRef, &out.SkuRef
-		*out = new(genv1.Reference)
+		*out = new(schemav1.Reference)
 		**out = **in
 	}
 }
@@ -43,19 +43,19 @@ func (in *SubnetStatus) DeepCopyInto(out *SubnetStatus) {
 	*out = *in
 	if in.Cidr != nil {
 		in, out := &in.Cidr, &out.Cidr
-		*out = new(genv1.Cidr)
+		*out = new(schemav1.Cidr)
 		**out = **in
 	}
 	if in.Conditions != nil {
 		in, out := &in.Conditions, &out.Conditions
-		*out = make([]genv1.StatusCondition, len(*in))
+		*out = make([]schemav1.StatusCondition, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
 	if in.RouteTableRef != nil {
 		in, out := &in.RouteTableRef, &out.RouteTableRef
-		*out = new(genv1.Reference)
+		*out = new(schemav1.Reference)
 		**out = **in
 	}
 }
