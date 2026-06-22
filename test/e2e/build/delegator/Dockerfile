@@ -12,7 +12,7 @@ RUN go install github.com/go-delve/delve/cmd/dlv@${DLV_VERSION}
 COPY . .
 
 # Build the delegator with debug information
-WORKDIR /workspace/foundation/plugin/e2e
+WORKDIR /workspace/test/e2e
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -gcflags="all=-N -l" -o delegator cmd/delegator/main.go
 
 # Use a more hacking-friendly base image for easier debugging and access
