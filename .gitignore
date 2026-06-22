@@ -16,6 +16,7 @@ vendor/
 kind
 bin/
 ci/tools/bin/
+/model-gen
 
 # IDE-specific files
 /.kind/
