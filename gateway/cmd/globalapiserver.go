@@ -20,7 +20,6 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/framework/frontend/logger"
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
 
-	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
 	rdom "github.com/eu-sovereign-cloud/ecp/resources/global/regions/v1"
 	rk8s "github.com/eu-sovereign-cloud/ecp/resources/global/regions/v1/backend/kubernetes"
 	regionrest "github.com/eu-sovereign-cloud/ecp/resources/global/regions/v1/frontend/rest"
@@ -78,7 +77,7 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
 				Logger: logger,
 			},
 			regionv1.StdHTTPServerOptions{
-				BaseURL:          commondomain.RegionBaseURL,
+				BaseURL:          rdom.RegionBaseURL,
 				BaseRouter:       nil,
 				Middlewares:      nil,
 				ErrorHandlerFunc: nil,
