@@ -12,7 +12,7 @@ RUN go install github.com/go-delve/delve/cmd/dlv@${DLV_VERSION}
 COPY . .
 
 # Build the dummy delegator with debug information
-WORKDIR /workspace/foundation/plugin/dummy
+WORKDIR /workspace/csp/dummy
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -gcflags="all=-N -l" -o manager cmd/main.go
 
 # Use a more hacking-friendly base image for easier debugging and access
@@ -31,7 +31,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy the manager binary from the builder stage
 WORKDIR /app
-COPY --from=builder /workspace/foundation/plugin/dummy/manager .
+COPY --from=builder /workspace/csp/dummy/manager .
 
 # Copy dlv (Delve debugger) for debugging. Assume dlv is in /go/bin in the builder image.
 COPY --from=builder /go/bin/dlv /usr/local/bin/dlv

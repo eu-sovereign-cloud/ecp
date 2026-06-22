@@ -11,8 +11,8 @@ RUN go install github.com/go-delve/delve/cmd/dlv@${DLV_VERSION}
 # Copy all the sources
 COPY . .
 
-# Build the main ecp binary from the foundation/gateway module
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -gcflags="all=-N -l" -o ecp ./foundation/gateway
+# Build the main ecp binary from the gateway module
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -gcflags="all=-N -l" -o ecp ./gateway
 
 # Use a more hacking-friendly base image for easier debugging and access
 FROM debian:bookworm-slim
@@ -33,7 +33,7 @@ WORKDIR /app
 COPY --from=builder /workspace/ecp .
 
 # Copy the start script and make it executable
-COPY ./foundation/plugin/e2e/cmd/gateway-global/start-global.sh .
+COPY ./test/e2e/cmd/gateway-global/start-global.sh .
 RUN chmod +x /app/start-global.sh
 
 # Copy dlv (Delve debugger) for debugging. Assume dlv is in /go/bin in the builder image.

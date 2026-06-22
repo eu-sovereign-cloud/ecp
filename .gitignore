@@ -29,10 +29,10 @@ ci/tools/bin/
 
 .DS_Store
 scripts/common-template/dist/
-/foundation/gateway/gateway
+/gateway/gateway
 
 # Ignore local e2e context
-/foundation/plugin/e2e/context/
+/test/e2e/context/
 
 # Devcontainer generated files (host-specific, written by devcontainer-init.sh)
 /.devcontainer/.env

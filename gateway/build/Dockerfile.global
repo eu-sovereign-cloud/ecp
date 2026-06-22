@@ -10,33 +10,33 @@ COPY go.work.sum go.work.sum
 
 COPY ci/tools/go/ ci/tools/go/
 
-# Pre-copy module manifests so replace directives resolve before full source copy
+# Pre-copy module manifests so replace directives resolve before source copy
 COPY framework/go.mod framework/go.mod
 COPY framework/go.sum framework/go.sum
 COPY resources/go.mod resources/go.mod
-COPY csp/ionos/go.mod csp/ionos/go.mod
-COPY csp/ionos/go.sum csp/ionos/go.sum
+COPY gateway/go.mod gateway/go.mod
 COPY modules/go-sdk/ modules/go-sdk/
 
-WORKDIR /app/csp/ionos
+WORKDIR /app/gateway
 RUN go mod download
 
-# Copy full source after deps to leverage layer cache
 WORKDIR /app
 COPY framework/ framework/
 COPY resources/ resources/
-COPY csp/ionos/ csp/ionos/
+COPY gateway/ gateway/
 COPY modules/go-sdk/ modules/go-sdk/
 
-WORKDIR /app/csp/ionos
 ARG BUILD_SKIP_TESTS=""
-RUN [ -n "$BUILD_SKIP_TESTS" ] || go test ./...
 
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /plugin ./cmd
+WORKDIR /app/gateway
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /server .
 
 # --- Runtime Stage ---
 FROM alpine:latest
 
-COPY --from=build /plugin /plugin
+COPY --from=build /server /server
 
-ENTRYPOINT ["/plugin"]
+EXPOSE 8080
+
+ENTRYPOINT ["/server"]
+CMD ["globalapiserver"]
