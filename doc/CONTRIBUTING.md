@@ -48,14 +48,14 @@ make pre-merge-ctzd      # same, inside the tools container
 
 ## Import Alias Convention
 
-All cross-module imports must use the canonical `<resource><layer>` alias, enforced by `golangci-lint importas`. The alias map is declared in `.golangci.yml`. Examples:
+All cross-module imports follow the canonical `<resource><layer>` alias convention. Importas lint enforcement is **planned** (the `alias:` list in `.golangci.yml` is currently empty; aliases are followed by hand convention). Examples:
 
 ```go
 import (
-    bsdom  "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1/domain"
+    bsdom  "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1"
     bsk8s  "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1/backend/kubernetes"
     bsrest "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1/frontend/rest"
-    netdom "github.com/eu-sovereign-cloud/ecp/resources/regional/network/networks/v1/domain"
+    netdom "github.com/eu-sovereign-cloud/ecp/resources/regional/network/networks/v1"
 )
 ```
 
@@ -97,7 +97,7 @@ To exclude a module from standard product CI checks (e.g., test harnesses, tool 
 ## Adding a New Resource Slice
 
 1. Create the slice directory: `resources/{global,regional}/<group>/<resource>/vN/`
-2. Add `domain/domain.go` with the canonical domain type and identity consts (`Kind`, `Resource`, `Group`, `Version`, `ProviderID`).
+2. Add `domain.go` (`package v1`) with the canonical domain type and identity consts (`Kind`, `Resource`, `Group`, `Version`, and a provider identifier).
 3. Add `backend/kubernetes/` with CR types, GVR, adapters, controller, plugin interface, and plugin handler.
 4. Add `frontend/rest/` with converter and HTTP handlers implementing the go-sdk `ServerInterface`.
 5. Run `make generate-api` to route generated types into the new slice.
@@ -109,9 +109,9 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the full per-slice hexagon descriptio
 
 Several files are generated and must not be edited by hand:
 
-- `resources/{scope}/{group}/{resource}/vN/backend/kubernetes/zz_generated_model.go` — Go types from OpenAPI spec
-- `framework/persistence/kubernetes/schema/v1/` — shared CR envelope types (generated + deepcopy)
-- `framework/persistence/kubernetes/crds/vN/*.yaml` — CRD YAML from controller-gen
+- `resources/{scope}/{group}/{resource}/vN/backend/kubernetes/zz_generated_schema.go` — Go types from go-sdk schema (per-slice; run `go generate ./...` in `resources/`)
+- `framework/persistence/kubernetes/schema/v1/` — shared CR envelope types (run `make generate-api`)
+- `framework/persistence/kubernetes/crds/*.yaml` — CRD YAML from controller-gen (**planned**; `generate-crds` target is scaffolded but no sources emit yet)
 - `**/zz_generated.deepcopy.go`, `**/zz_generated.conditions.go` — controller-gen and conditioned-gen output
 
 After changing the OpenAPI specs in `modules/go-sdk`, regenerate:

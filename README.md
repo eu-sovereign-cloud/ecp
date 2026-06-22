@@ -15,7 +15,7 @@ framework/            # Resource-agnostic SDK (horizontal axis)
 resources/            # Data vocabulary + per-resource slices (vertical axis)
 ├── common/           #   Shared domain, frontend, backend helpers
 └── {global,regional}/<group>/<resource>/vN/
-    ├── domain/       #   Canonical type + identity consts
+    ├── domain.go     #   Canonical type + identity consts (package v1)
     ├── frontend/rest/#   REST↔domain converters + HTTP handlers
     └── backend/kubernetes/ # CR types, adapters, controller, plugin interface + handler
 gateway/              # Global and regional REST API server binary
@@ -37,7 +37,7 @@ doc/                  # Documentation
 
 ## Go Workspace
 
-This is a Go monorepo managed with `go.work`. The workspace contains 7 first-party modules:
+This is a Go monorepo managed with `go.work`. The workspace contains 8 first-party modules:
 
 | Module | Path | Description |
 |--------|------|-------------|
@@ -62,12 +62,12 @@ This is a Go monorepo managed with `go.work`. The workspace contains 7 first-par
 # Generate CRDs and typed Go models from OpenAPI specs
 make generate-api
 
-# Create local KIND clusters (global + regional)
-make -C gateway create-dev-clusters
+# Start a local KIND cluster with the reference plugin (includes global + regional)
+make -C csp/dummy kind-start
 
 # Run the API servers (in separate terminals)
-make -C gateway run-global-server
-make -C gateway run-regional-server
+go run ./gateway globalapiserver
+go run ./gateway regionalapiserver
 
 # Run all tests
 make test

@@ -21,7 +21,7 @@ The repo is organized around two orthogonal axes, each a separate Go module:
               resources/                   (module …/ecp/resources)
                ├─ common/{domain,frontend,backend}   shared backbone
                └─ {global,regional}/<group>/<resource>/vN/
-                   ├─ domain/          canonical type + identity consts
+                   ├─ domain.go        canonical type + identity consts (package v1)
                    ├─ frontend/rest/   REST↔domain converters + HTTP handlers
                    └─ backend/kubernetes/ CR types, adapters, controller, plugin iface+handler
                          │
@@ -51,7 +51,7 @@ frontend    → kernel
 
 Each resource slice at `resources/{scope}/{group}/{resource}/vN/` contains:
 
-- **`domain/`** — the canonical domain type, `RegionalMetadata` embed, and identity consts (`Kind`, `Resource`, `Group`, `Version`, `ProviderID`). No k8s imports.
+- **`domain.go`** (`package v1`) — the canonical domain type, `RegionalMetadata` embed, and identity consts (`Kind`, `Resource`, `Group`, `Version`, and a provider identifier). No k8s imports.
 - **`frontend/rest/`** — REST↔domain converter + HTTP handlers implementing the go-sdk `ServerInterface`. Registered into the gateway mux.
 - **`backend/kubernetes/`** — CR wrapper types, GVR/GVK, CR↔domain adapter (`conversion.go`), plugin interface (`plugin.go`), plugin handler (`plugin_handler.go`), and controller wiring (`controller.go`). The `NewController` factory performs **builder inversion**: it assembles the `framework/persistence/kubernetes` repo adapter from this slice's own GVR and mappers, wraps it in `framework/backend/controller.GenericController[D]`, and returns a `framework/backend/builder.Reconciler` — no `framework` package ever names a concrete resource.
 

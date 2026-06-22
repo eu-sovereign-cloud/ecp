@@ -1,4 +1,4 @@
-// Package domain defines the workspace resource domain model and identity constants.
+// Package v1 defines the workspace resource domain model and identity constants.
 package v1
 
 import "github.com/eu-sovereign-cloud/ecp/resources/common/domain"

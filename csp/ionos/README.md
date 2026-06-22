@@ -114,7 +114,7 @@ type BlockStorage struct {
     logger *slog.Logger
 }
 
-func (b *BlockStorage) Create(ctx context.Context, resource *regional.BlockStorageDomain) error {
+func (b *BlockStorage) Create(ctx context.Context, resource *bsdom.BlockStorage) error {
     // Create Crossplane Volume CRD
     volume := &ionosv1alpha1.Volume{
         ObjectMeta: metav1.ObjectMeta{
