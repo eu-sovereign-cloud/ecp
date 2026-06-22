@@ -17,9 +17,9 @@ type PublicIp struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec       PublicIpSpec    `json:"spec,omitempty"`
-	CommonData genv1.CommonData      `json:"commonData,omitempty"`
-	Status     *PublicIpStatus `json:"status,omitempty"`
+	Spec       PublicIpSpec     `json:"spec,omitempty"`
+	CommonData genv1.CommonData `json:"commonData,omitempty"`
+	Status     *PublicIpStatus  `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true

@@ -18,7 +18,7 @@ type RouteTable struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	Spec       RouteTableSpec    `json:"spec,omitempty"`
-	CommonData genv1.CommonData        `json:"commonData,omitempty"`
+	CommonData genv1.CommonData  `json:"commonData,omitempty"`
 	Status     *RouteTableStatus `json:"status,omitempty"`
 }
 

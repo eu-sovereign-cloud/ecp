@@ -18,7 +18,7 @@ type BlockStorage struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	Spec       BlockStorageSpec    `json:"spec,omitempty"`
-	CommonData genv1.CommonData          `json:"commonData,omitempty"`
+	CommonData genv1.CommonData    `json:"commonData,omitempty"`
 	Status     *BlockStorageStatus `json:"status,omitempty"`
 }
 

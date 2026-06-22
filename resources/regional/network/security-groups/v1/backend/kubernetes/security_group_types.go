@@ -18,7 +18,7 @@ type SecurityGroup struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	Spec       SecurityGroupSpec    `json:"spec,omitempty"`
-	CommonData genv1.CommonData           `json:"commonData,omitempty"`
+	CommonData genv1.CommonData     `json:"commonData,omitempty"`
 	Status     *SecurityGroupStatus `json:"status,omitempty"`
 }
 

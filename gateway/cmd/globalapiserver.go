@@ -15,14 +15,14 @@ import (
 
 	regionv1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
 
-	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
 	"github.com/eu-sovereign-cloud/ecp/framework/frontend/httpserver"
 	"github.com/eu-sovereign-cloud/ecp/framework/frontend/kubeclient"
 	"github.com/eu-sovereign-cloud/ecp/framework/frontend/logger"
+	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
 
 	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
-	rdom "github.com/eu-sovereign-cloud/ecp/resources/global/regions/v1/domain"
 	rk8s "github.com/eu-sovereign-cloud/ecp/resources/global/regions/v1/backend/kubernetes"
+	rdom "github.com/eu-sovereign-cloud/ecp/resources/global/regions/v1/domain"
 	regionrest "github.com/eu-sovereign-cloud/ecp/resources/global/regions/v1/frontend/rest"
 )
 

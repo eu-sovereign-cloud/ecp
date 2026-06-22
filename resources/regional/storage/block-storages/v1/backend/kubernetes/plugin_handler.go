@@ -10,8 +10,8 @@ import (
 	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 
 	frameworkbackend "github.com/eu-sovereign-cloud/ecp/framework/backend"
-	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
 	commonbackend "github.com/eu-sovereign-cloud/ecp/resources/common/backend"
+	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1/domain"
 )
 
