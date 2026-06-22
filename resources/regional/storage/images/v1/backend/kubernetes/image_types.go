@@ -17,9 +17,9 @@ type Image struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec       ImageSpec    `json:"spec,omitempty"`
-	CommonData genv1.CommonData   `json:"commonData,omitempty"`
-	Status     *ImageStatus `json:"status,omitempty"`
+	Spec       ImageSpec        `json:"spec,omitempty"`
+	CommonData genv1.CommonData `json:"commonData,omitempty"`
+	Status     *ImageStatus     `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true

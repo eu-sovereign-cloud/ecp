@@ -18,7 +18,7 @@ type Workspace struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	Spec       WorkspaceSpec    `json:"spec,omitempty"`
-	CommonData genv1.CommonData       `json:"commonData,omitempty"`
+	CommonData genv1.CommonData `json:"commonData,omitempty"`
 	Status     *WorkspaceStatus `json:"status,omitempty"`
 }
 

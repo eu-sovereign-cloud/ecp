@@ -17,9 +17,9 @@ type Network struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec       NetworkSpec    `json:"spec,omitempty"`
-	CommonData genv1.CommonData     `json:"commonData,omitempty"`
-	Status     *NetworkStatus `json:"status,omitempty"`
+	Spec       NetworkSpec      `json:"spec,omitempty"`
+	CommonData genv1.CommonData `json:"commonData,omitempty"`
+	Status     *NetworkStatus   `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true

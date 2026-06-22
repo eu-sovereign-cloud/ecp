@@ -18,7 +18,7 @@ type RoleAssignment struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	Spec       RoleAssignmentSpec    `json:"spec,omitempty"`
-	CommonData genv1.CommonData            `json:"commonData,omitempty"`
+	CommonData genv1.CommonData      `json:"commonData,omitempty"`
 	Status     *RoleAssignmentStatus `json:"status,omitempty"`
 }
 

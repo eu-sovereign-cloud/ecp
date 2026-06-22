@@ -84,16 +84,16 @@ func networkDomainToAPI(domain *netdom.NetworkDomain) *sdkschema.Network {
 
 	n := &sdkschema.Network{
 		Metadata: &sdkschema.RegionalWorkspaceResourceMetadata{
-			ApiVersion:      NetworkAPIVersion,
-			CreatedAt:       domain.CreatedAt,
-			LastModifiedAt:  domain.UpdatedAt,
-			Kind:            sdkschema.RegionalWorkspaceResourceMetadataKindResourceKindNetwork,
-			Name:            domain.Name,
-			Tenant:          domain.Tenant,
-			Workspace:       domain.Workspace,
-			Provider:        domain.Provider,
-			Region:          domain.Region,
-			Resource:        fmt.Sprintf(ResourceFormat, sdkschema.RegionalWorkspaceResourceMetadataKindResourceKindNetwork, domain.Name),
+			ApiVersion:     NetworkAPIVersion,
+			CreatedAt:      domain.CreatedAt,
+			LastModifiedAt: domain.UpdatedAt,
+			Kind:           sdkschema.RegionalWorkspaceResourceMetadataKindResourceKindNetwork,
+			Name:           domain.Name,
+			Tenant:         domain.Tenant,
+			Workspace:      domain.Workspace,
+			Provider:       domain.Provider,
+			Region:         domain.Region,
+			Resource:       fmt.Sprintf(ResourceFormat, sdkschema.RegionalWorkspaceResourceMetadataKindResourceKindNetwork, domain.Name),
 			Ref: fmt.Sprintf(
 				domain.Provider+"/"+WorkspaceScopedResourceFormat,
 				domain.Tenant,

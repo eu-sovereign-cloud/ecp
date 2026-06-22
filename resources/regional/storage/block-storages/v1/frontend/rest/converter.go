@@ -84,16 +84,16 @@ func blockStorageDomainToAPI(domain *bsdom.BlockStorageDomain) *sdkschema.BlockS
 
 	bs := &sdkschema.BlockStorage{
 		Metadata: &sdkschema.RegionalWorkspaceResourceMetadata{
-			ApiVersion:      BlockStorageAPIVersion,
-			CreatedAt:       domain.CreatedAt,
-			LastModifiedAt:  domain.UpdatedAt,
-			Kind:            sdkschema.RegionalWorkspaceResourceMetadataKind(sdkschema.RegionalResourceMetadataKindResourceKindBlockStorage),
-			Name:            domain.Name,
-			Tenant:          domain.Tenant,
-			Workspace:       domain.Workspace,
-			Provider:        domain.Provider,
-			Region:          domain.Region,
-			Resource:        fmt.Sprintf(ResourceFormat, sdkschema.RegionalResourceMetadataKindResourceKindBlockStorage, domain.Name),
+			ApiVersion:     BlockStorageAPIVersion,
+			CreatedAt:      domain.CreatedAt,
+			LastModifiedAt: domain.UpdatedAt,
+			Kind:           sdkschema.RegionalWorkspaceResourceMetadataKind(sdkschema.RegionalResourceMetadataKindResourceKindBlockStorage),
+			Name:           domain.Name,
+			Tenant:         domain.Tenant,
+			Workspace:      domain.Workspace,
+			Provider:       domain.Provider,
+			Region:         domain.Region,
+			Resource:       fmt.Sprintf(ResourceFormat, sdkschema.RegionalResourceMetadataKindResourceKindBlockStorage, domain.Name),
 			Ref: fmt.Sprintf(
 				domain.Provider+"/"+WorkspaceScopedResourceFormat,
 				domain.Tenant,

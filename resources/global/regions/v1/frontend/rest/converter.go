@@ -8,9 +8,9 @@ import (
 	regionv1sdk "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
-	rdom "github.com/eu-sovereign-cloud/ecp/resources/global/regions/v1/domain"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/validation"
+	rdom "github.com/eu-sovereign-cloud/ecp/resources/global/regions/v1/domain"
 )
 
 const (
