@@ -7,10 +7,10 @@ import (
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	kubernetesadapter "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
+	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
+	res "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
+	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
+	bsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1/domain"
 )
 
 const (
@@ -26,11 +26,11 @@ func NewBlockStorageConverter() *BlockStorageConverter {
 	return &BlockStorageConverter{}
 }
 
-func (c *BlockStorageConverter) FromSECAToAruba(from *regional.BlockStorageDomain) (*v1alpha1.BlockStorage, error) {
+func (c *BlockStorageConverter) FromSECAToAruba(from *bsdom.BlockStorageDomain) (*v1alpha1.BlockStorage, error) {
 	tenant := from.GetTenant()
 	workspace := from.GetWorkspace()
-	namespace := kubernetesadapter.ComputeNamespace(from) // TODO: ask to change repository for  ComputeNamespace from kubernetes adapter to scope
-	namespaceWorkspace := kubernetesadapter.ComputeNamespace(&scope.Scope{Tenant: tenant})
+	namespace := k8sadapter.ComputeNamespace(from) // TODO: ask to change repository for  ComputeNamespace from kubernetes adapter to scope
+	namespaceWorkspace := k8sadapter.ComputeNamespace(&res.Scope{Tenant: tenant})
 	sizeGB, err := SecaToArubaSize(from.Spec.SizeGB)
 	if err != nil {
 		return nil, err // TODO: better error handling
@@ -62,7 +62,7 @@ func (c *BlockStorageConverter) FromSECAToAruba(from *regional.BlockStorageDomai
 	}, nil
 }
 
-func (c *BlockStorageConverter) FromArubaToSECA(from *v1alpha1.BlockStorage) (*regional.BlockStorageDomain, error) {
+func (c *BlockStorageConverter) FromArubaToSECA(from *v1alpha1.BlockStorage) (*bsdom.BlockStorageDomain, error) {
 	tenant, err := getTenantFromSpecOrError(from)
 	if err != nil {
 		return nil, err // TODO: better error handler management
@@ -72,20 +72,20 @@ func (c *BlockStorageConverter) FromArubaToSECA(from *v1alpha1.BlockStorage) (*r
 		return nil, err // TODO: better error handler management
 	}
 
-	return &regional.BlockStorageDomain{
-		Metadata: regional.Metadata{
-			Scope: scope.Scope{
+	return &bsdom.BlockStorageDomain{
+		RegionalMetadata: commondomain.RegionalMetadata{
+			CommonMetadata: commondomain.CommonMetadata{
+				Name: from.Name,
+			},
+			Scope: res.Scope{
 				Tenant:    tenant,
 				Workspace: workspace,
 			},
-			CommonMetadata: model.CommonMetadata{
-				Name: from.Name,
-			},
 		},
-		Spec: regional.BlockStorageSpecDomain{
+		Spec: bsdom.BlockStorageSpecDomain{
 			SizeGB: int(from.Spec.SizeGB),
-			SkuRef: regional.ReferenceDomain{},
-			SourceImageRef: &regional.ReferenceDomain{
+			SkuRef: commondomain.ReferenceDomain{},
+			SourceImageRef: &commondomain.ReferenceDomain{
 				Tenant:    from.Spec.Tenant,
 				Region:    from.Spec.Region,
 				Workspace: from.Spec.ProjectReference.Name,
@@ -103,7 +103,7 @@ func SecaToArubaSize(in int) (int32, error) {
 }
 
 // getRegionFromSpecOrDefault get region from source image or sku ref otherwise default value
-func getRegionFromSpecOrDefault(from *regional.BlockStorageDomain) string {
+func getRegionFromSpecOrDefault(from *bsdom.BlockStorageDomain) string {
 	if from.Spec.SourceImageRef != nil {
 		return from.Spec.SourceImageRef.Region
 	}

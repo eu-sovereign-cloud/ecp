@@ -11,7 +11,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/repository"
+	"github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/port/repository"
 )
 
 func newFakeProjectClientWithObject(project *v1alpha1.Project) client.Client {

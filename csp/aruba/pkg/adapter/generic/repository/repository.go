@@ -13,7 +13,7 @@ import (
 	crcache "sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/repository"
+	"github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/port/repository"
 )
 
 // GenericRepository is a generic repository for Kubernetes resources.

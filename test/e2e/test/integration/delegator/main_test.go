@@ -19,14 +19,14 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	kubernetesadapter "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
-	ecpmodel "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
-	regionalmodel "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/port"
-	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage"
-	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage/block-storages/v1"
-	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/workspace/v1"
+	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
+	resource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
+	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
+	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
+	bsk8s "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1/backend/kubernetes"
+	bsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1/domain"
+	wsk8s "github.com/eu-sovereign-cloud/ecp/resources/regional/workspace/v1/backend/kubernetes"
+	wsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/workspace/v1/domain"
 )
 
 const (
@@ -39,8 +39,8 @@ const (
 var (
 	dynamicClient    dynamic.Interface
 	testLogger       *slog.Logger
-	workspaceRepo    port.Repo[*regionalmodel.WorkspaceDomain]
-	blockStorageRepo port.Repo[*regionalmodel.BlockStorageDomain]
+	workspaceRepo    persistence.Repo[*wsdom.WorkspaceDomain]
+	blockStorageRepo persistence.Repo[*bsdom.BlockStorageDomain]
 	k8sClient        client.Client
 )
 
@@ -48,8 +48,8 @@ func TestMain(m *testing.M) {
 	// Initialize k8s scheme for client-go
 	s := runtime.NewScheme()
 	utilruntime.Must(scheme.AddToScheme(s))
-	utilruntime.Must(workspacev1.AddToScheme(s))
-	utilruntime.Must(storage.AddToScheme(s))
+	utilruntime.Must(wsk8s.AddToScheme(s))
+	utilruntime.Must(bsk8s.AddToScheme(s))
 	utilruntime.Must(corev1.AddToScheme(s))
 
 	kubeconfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
@@ -84,21 +84,21 @@ func TestMain(m *testing.M) {
 	testLogger = slog.New(slog.NewTextHandler(os.Stdout, nil))
 
 	// Initialize repositories
-	blockStorageRepo = kubernetesadapter.NewRepoAdapter(
+	blockStorageRepo = k8sadapter.NewRepoAdapter(
 		dynamicClient,
-		blockstoragev1.BlockStorageGVR,
+		bsk8s.BlockStorageGVR,
 		testLogger,
-		kubernetesadapter.MapBlockStorageDomainToCR,
-		kubernetesadapter.MapCRToBlockStorageDomain,
+		bsk8s.MapBlockStorageDomainToCR,
+		bsk8s.MapCRToBlockStorageDomain,
 	)
 
-	workspaceRepo = kubernetesadapter.NewNamespaceManagingRepoAdapter(
+	workspaceRepo = k8sadapter.NewNamespaceManagingRepoAdapter(
 		dynamicClient,
 		clientset,
-		workspacev1.WorkspaceGVR,
+		wsk8s.WorkspaceGVR,
 		testLogger,
-		kubernetesadapter.MapWorkspaceDomainToCR,
-		kubernetesadapter.MapCRToWorkspaceDomain,
+		wsk8s.MapWorkspaceDomainToCR,
+		wsk8s.MapCRToWorkspaceDomain,
 	)
 
 	// Provide Workspace for BlockStorage tests
@@ -115,17 +115,16 @@ func TestMain(m *testing.M) {
 	os.Exit(exitCode)
 }
 
-func createTestWorkspace(ctx context.Context, workspaceRepo port.Repo[*regionalmodel.WorkspaceDomain]) error {
-	wsDomain := &regionalmodel.WorkspaceDomain{
-		Metadata: regionalmodel.Metadata{
-			CommonMetadata: ecpmodel.CommonMetadata{
+func createTestWorkspace(ctx context.Context, workspaceRepo persistence.Repo[*wsdom.WorkspaceDomain]) error {
+	wsDomain := &wsdom.WorkspaceDomain{
+		RegionalMetadata: commondomain.RegionalMetadata{
+			CommonMetadata: commondomain.CommonMetadata{
 				Name: testWorkspace,
 			},
-			Scope: scope.Scope{
+			Scope: resource.Scope{
 				Tenant: testTenant,
 			},
 		},
-		Spec: regionalmodel.WorkspaceSpecDomain{},
 	}
 
 	_, err := workspaceRepo.Create(ctx, wsDomain)
@@ -133,17 +132,16 @@ func createTestWorkspace(ctx context.Context, workspaceRepo port.Repo[*regionalm
 	return err
 }
 
-func cleanupTestWorkspace(ctx context.Context, workspaceRepo port.Repo[*regionalmodel.WorkspaceDomain]) error {
-	wsDomain := &regionalmodel.WorkspaceDomain{
-		Metadata: regionalmodel.Metadata{
-			CommonMetadata: ecpmodel.CommonMetadata{
+func cleanupTestWorkspace(ctx context.Context, workspaceRepo persistence.Repo[*wsdom.WorkspaceDomain]) error {
+	wsDomain := &wsdom.WorkspaceDomain{
+		RegionalMetadata: commondomain.RegionalMetadata{
+			CommonMetadata: commondomain.CommonMetadata{
 				Name: testWorkspace,
 			},
-			Scope: scope.Scope{
+			Scope: resource.Scope{
 				Tenant: testTenant,
 			},
 		},
-		Spec: regionalmodel.WorkspaceSpecDomain{},
 	}
 
 	return workspaceRepo.Delete(ctx, wsDomain)

@@ -17,12 +17,11 @@ import (
 
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
-	kubernetesadapter "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
-	ecpmodel "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
-	regionalmodel "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
-	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/workspace/v1"
+	resource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
+	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
+	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
+	wsk8s "github.com/eu-sovereign-cloud/ecp/resources/regional/workspace/v1/backend/kubernetes"
+	wsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/workspace/v1/domain"
 )
 
 func TestWorkspaceAPI(t *testing.T) {
@@ -50,8 +49,8 @@ func TestWorkspaceAPI(t *testing.T) {
 		//
 		// And the workspace custom resource should eventually become active in the cluster
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
-			var createdWorkspace workspacev1.Workspace
-			ns := kubernetesadapter.ComputeNamespace(&scope.Scope{Tenant: testTenant})
+			var createdWorkspace wsk8s.Workspace
+			ns := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: testTenant})
 			key := client.ObjectKey{
 				Namespace: ns,
 				Name:      workspaceName,
@@ -60,7 +59,7 @@ func TestWorkspaceAPI(t *testing.T) {
 				return false, nil // Keep retrying if not found
 			}
 
-			if createdWorkspace.Status != nil && regional.ResourceStateDomain(createdWorkspace.Status.State) == regional.ResourceStateActive {
+			if createdWorkspace.Status != nil && commondomain.ResourceStateDomain(createdWorkspace.Status.State) == commondomain.ResourceStateActive {
 				return true, nil
 			}
 			return false, nil
@@ -69,16 +68,15 @@ func TestWorkspaceAPI(t *testing.T) {
 
 		//
 		// And we can cleanup the workspace
-		wsDomain := &regionalmodel.WorkspaceDomain{
-			Metadata: regionalmodel.Metadata{
-				CommonMetadata: ecpmodel.CommonMetadata{
+		wsDomain := &wsdom.WorkspaceDomain{
+			RegionalMetadata: commondomain.RegionalMetadata{
+				CommonMetadata: commondomain.CommonMetadata{
 					Name: workspaceName,
 				},
-				Scope: scope.Scope{
+				Scope: resource.Scope{
 					Tenant: testTenant,
 				},
 			},
-			Spec: regionalmodel.WorkspaceSpecDomain{},
 		}
 
 		err = workspaceRepo.Delete(t.Context(), wsDomain)
@@ -100,13 +98,13 @@ func TestWorkspaceAPI(t *testing.T) {
 
 		// And the resource is active in the cluster
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
-			var createdWorkspace workspacev1.Workspace
-			ns := kubernetesadapter.ComputeNamespace(&scope.Scope{Tenant: testTenant})
+			var createdWorkspace wsk8s.Workspace
+			ns := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: testTenant})
 			key := client.ObjectKey{Namespace: ns, Name: workspaceName}
 			if err := k8sClient.Get(ctx, key, &createdWorkspace); err != nil {
 				return false, nil
 			}
-			if createdWorkspace.Status != nil && regional.ResourceStateDomain(createdWorkspace.Status.State) == regional.ResourceStateActive {
+			if createdWorkspace.Status != nil && commondomain.ResourceStateDomain(createdWorkspace.Status.State) == commondomain.ResourceStateActive {
 				return true, nil
 			}
 			return false, nil
@@ -126,8 +124,8 @@ func TestWorkspaceAPI(t *testing.T) {
 		//
 		// And the workspace custom resource should eventually be marked for deletion in the cluster
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
-			var createdWorkspace workspacev1.Workspace
-			ns := kubernetesadapter.ComputeNamespace(&scope.Scope{Tenant: testTenant})
+			var createdWorkspace wsk8s.Workspace
+			ns := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: testTenant})
 			key := client.ObjectKey{Namespace: ns, Name: workspaceName}
 			if err := k8sClient.Get(ctx, key, &createdWorkspace); err != nil {
 				if kerrs.IsNotFound(err) {

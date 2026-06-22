@@ -3,12 +3,12 @@ package service
 import (
 	"context"
 
-	delegatorplugin "github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/plugin"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
-	blockstoragectrl "github.com/eu-sovereign-cloud/ecp/foundation/plugin/ionos/internal/controller/block_storage"
+	bsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1/domain"
+	bsk8s "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1/backend/kubernetes"
+	blockstoragectrl "github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/controller/block_storage"
 )
 
-var _ delegatorplugin.BlockStorage = (*BlockStorage)(nil)
+var _ bsk8s.BlockStoragePlugin = (*BlockStorage)(nil)
 
 type BlockStorage struct {
 	Creator       *blockstoragectrl.CreateBlockStorage
@@ -16,14 +16,14 @@ type BlockStorage struct {
 	SizeIncreaser *blockstoragectrl.IncreaseSizeBlockStorage
 }
 
-func (s *BlockStorage) Create(ctx context.Context, resource *regional.BlockStorageDomain) error {
+func (s *BlockStorage) Create(ctx context.Context, resource *bsdom.BlockStorageDomain) error {
 	return s.Creator.Do(ctx, resource)
 }
 
-func (s *BlockStorage) Delete(ctx context.Context, resource *regional.BlockStorageDomain) error {
+func (s *BlockStorage) Delete(ctx context.Context, resource *bsdom.BlockStorageDomain) error {
 	return s.Deleter.Do(ctx, resource)
 }
 
-func (s *BlockStorage) IncreaseSize(ctx context.Context, resource *regional.BlockStorageDomain) error {
+func (s *BlockStorage) IncreaseSize(ctx context.Context, resource *bsdom.BlockStorageDomain) error {
 	return s.SizeIncreaser.Do(ctx, resource)
 }

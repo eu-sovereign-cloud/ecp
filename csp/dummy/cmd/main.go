@@ -8,38 +8,33 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/dynamic"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/builder"
-	networkpersistence "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/network"
-	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage"
-	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/workspace/v1"
-	dummyplugin "github.com/eu-sovereign-cloud/ecp/foundation/plugin/dummy/pkg/plugin"
+	frameworkbuilder "github.com/eu-sovereign-cloud/ecp/framework/backend/builder"
+	bsk8s "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1/backend/kubernetes"
+	netk8s "github.com/eu-sovereign-cloud/ecp/resources/regional/network/networks/v1/backend/kubernetes"
+	wsk8s "github.com/eu-sovereign-cloud/ecp/resources/regional/workspace/v1/backend/kubernetes"
+	dummyplugin "github.com/eu-sovereign-cloud/ecp/csp/dummy/pkg/plugin"
 )
 
-var (
-	scheme = runtime.NewScheme()
-)
+var scheme = runtime.NewScheme()
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(workspacev1.AddToScheme(scheme))
-	utilruntime.Must(storage.AddToScheme(scheme))
-	utilruntime.Must(networkpersistence.AddToScheme(scheme))
+	utilruntime.Must(bsk8s.AddToScheme(scheme))
+	utilruntime.Must(netk8s.AddToScheme(scheme))
+	utilruntime.Must(wsk8s.AddToScheme(scheme))
 }
 
 func main() {
-	// 1. Setup logger
-	opts := zap.Options{
-		Development: true,
-	}
+	opts := zap.Options{Development: true}
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
-	// 2. Create manager
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
 		HealthProbeBindAddress: ":8081",
@@ -50,32 +45,26 @@ func main() {
 		os.Exit(1)
 	}
 
-	// 3. Instantiate dummy plugins
+	dynClient, err := dynamic.NewForConfig(mgr.GetConfig())
+	if err != nil {
+		logger.Error("unable to create dynamic client", "error", err)
+		os.Exit(1)
+	}
+
 	bsPlugin := dummyplugin.NewBlockStorage(logger.With("plugin", "blockstorage"))
 	wsPlugin := dummyplugin.NewWorkspace(logger.With("plugin", "workspace"))
 	netPlugin := dummyplugin.NewNetwork(logger.With("plugin", "network"))
 
-	// 4. Create a plugin set
-	pluginSet := builder.PluginSet{
-		BlockStorage: bsPlugin,
-		Workspace:    wsPlugin,
-		Network:      netPlugin,
+	controllerOpts := []frameworkbuilder.Option{
+		frameworkbuilder.WithLogger(logger.With("component", "controller-set")),
+		frameworkbuilder.WithRequeueAfter(1 * time.Second),
 	}
 
-	// 5. Create the controller set
-	controllerSet, err := builder.NewControllerSet(
-		mgr.GetConfig(),
-		mgr.GetClient(),
-		pluginSet,
-		builder.WithLogger(logger.With("component", "controller-set")),
-		builder.WithRequeueAfter(1*time.Second), // TODO: parameter for that
-	)
-	if err != nil {
-		logger.Error("unable to create controller set", "error", err)
-		os.Exit(1)
-	}
+	controllerSet := frameworkbuilder.NewControllerSet()
+	controllerSet.Add(bsk8s.NewController(mgr.GetClient(), dynClient, bsPlugin, controllerOpts...))
+	controllerSet.Add(netk8s.NewController(mgr.GetClient(), dynClient, netPlugin, controllerOpts...))
+	controllerSet.Add(wsk8s.NewController(mgr.GetClient(), dynClient, wsPlugin, controllerOpts...))
 
-	// 6. Setup controllers with manager
 	if err := controllerSet.SetupWithManager(mgr); err != nil {
 		logger.Error("unable to setup controllers with manager", "error", err)
 		os.Exit(1)
@@ -90,7 +79,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// 7. Start manager
 	logger.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		logger.Error("problem running manager", "error", err)

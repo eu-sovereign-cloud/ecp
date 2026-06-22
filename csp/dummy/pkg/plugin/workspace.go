@@ -6,7 +6,7 @@ import (
 	"math/rand/v2"
 	"time"
 
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
+	wsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/workspace/v1/domain"
 )
 
 type Workspace struct {
@@ -17,7 +17,7 @@ func NewWorkspace(logger *slog.Logger) *Workspace {
 	return &Workspace{logger: logger}
 }
 
-func (w *Workspace) Create(ctx context.Context, resource *regional.WorkspaceDomain) error {
+func (w *Workspace) Create(ctx context.Context, resource *wsdom.WorkspaceDomain) error {
 	w.logger.Info("dummy workspace plugin: Create called", "resource_name", resource.GetName())
 	delay, err := workspaceDelay(ctx)
 	if err != nil {
@@ -27,7 +27,7 @@ func (w *Workspace) Create(ctx context.Context, resource *regional.WorkspaceDoma
 	return nil
 }
 
-func (w *Workspace) Delete(ctx context.Context, resource *regional.WorkspaceDomain) error {
+func (w *Workspace) Delete(ctx context.Context, resource *wsdom.WorkspaceDomain) error {
 	w.logger.Info("dummy workspace plugin: Delete called", "resource_name", resource.GetName())
 	delay, err := workspaceDelay(ctx)
 	if err != nil {

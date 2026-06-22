@@ -3,7 +3,7 @@ package resolver
 import (
 	"context"
 
-	resolver_port "github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba/pkg/port/resolver"
+	resolver_port "github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/port/resolver"
 )
 
 // BypassResolveDependenciesFunc is a helper function that bypasses dependency

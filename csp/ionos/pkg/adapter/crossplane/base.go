@@ -12,7 +12,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	delegator "github.com/eu-sovereign-cloud/ecp/foundation/delegator/pkg/port"
+	backend "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
 )
 
 const (
@@ -35,7 +35,7 @@ func (c *base) createCR(ctx context.Context, obj xpconditions.ObjectWithConditio
 		return c.checkExisting(ctx, obj)
 	}
 	c.logger.Info(kind+" created, waiting for ready", "name", obj.GetName())
-	return delegator.ErrStillProcessing
+	return backend.ErrStillProcessing
 }
 
 func (c *base) updateCR(ctx context.Context, obj xpconditions.ObjectWithConditions) error {
@@ -45,7 +45,7 @@ func (c *base) updateCR(ctx context.Context, obj xpconditions.ObjectWithConditio
 		return err
 	}
 	c.logger.Info(kind+" updated, waiting for ready", "name", obj.GetName())
-	return delegator.ErrStillProcessing
+	return backend.ErrStillProcessing
 }
 
 func (c *base) deleteCR(ctx context.Context, obj xpconditions.ObjectWithConditions) error {
@@ -69,7 +69,7 @@ func (c *base) deleteCR(ctx context.Context, obj xpconditions.ObjectWithConditio
 		return err
 	}
 	c.logger.Info("waiting for "+kind+" deletion", "name", obj.GetName())
-	return delegator.ErrStillProcessing
+	return backend.ErrStillProcessing
 }
 
 func (c *base) checkExisting(ctx context.Context, obj xpconditions.ObjectWithConditions) error {
@@ -85,7 +85,7 @@ func (c *base) checkExisting(ctx context.Context, obj xpconditions.ObjectWithCon
 
 	if obj.GetDeletionTimestamp() != nil {
 		c.logger.Info(kind+" is being deleted", "name", obj.GetName())
-		return delegator.ErrStillProcessing
+		return backend.ErrStillProcessing
 	}
 
 	readyCond := obj.GetCondition(v1.TypeReady)
@@ -95,7 +95,7 @@ func (c *base) checkExisting(ctx context.Context, obj xpconditions.ObjectWithCon
 		return nil
 	}
 	c.logger.Info(kind+" not yet ready", "name", obj.GetName())
-	return delegator.ErrStillProcessing
+	return backend.ErrStillProcessing
 }
 
 func reconcileError(obj xpconditions.ObjectWithConditions) error {
