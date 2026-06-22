@@ -8,7 +8,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/labels"
-	ssdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/storage-skus/v1/domain"
+	ssdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/storage-skus/v1"
 )
 
 // MapCRToStorageSKUDomain converts either a concrete *StorageSKU or *unstructured.Unstructured

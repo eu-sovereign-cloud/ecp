@@ -16,8 +16,8 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/validation"
 	commonfrontend "github.com/eu-sovereign-cloud/ecp/resources/common/frontend"
-	bsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1/domain"
-	skudom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/storage-skus/v1/domain"
+	bsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1"
+	skudom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/storage-skus/v1"
 	skurest "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/storage-skus/v1/frontend/rest"
 )
 

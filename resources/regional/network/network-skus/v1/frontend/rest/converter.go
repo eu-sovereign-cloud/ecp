@@ -5,7 +5,7 @@ import (
 	sdknetwork "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.network.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
-	skudom "github.com/eu-sovereign-cloud/ecp/resources/regional/network/network-skus/v1/domain"
+	skudom "github.com/eu-sovereign-cloud/ecp/resources/regional/network/network-skus/v1"
 )
 
 // NetworkSKUDomainToAPI converts a NetworkSKUDomain to its SDK representation.

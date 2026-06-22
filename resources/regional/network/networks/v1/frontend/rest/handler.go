@@ -16,9 +16,9 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/validation"
 	commonfrontend "github.com/eu-sovereign-cloud/ecp/resources/common/frontend"
-	skudom "github.com/eu-sovereign-cloud/ecp/resources/regional/network/network-skus/v1/domain"
+	skudom "github.com/eu-sovereign-cloud/ecp/resources/regional/network/network-skus/v1"
 	skurest "github.com/eu-sovereign-cloud/ecp/resources/regional/network/network-skus/v1/frontend/rest"
-	netdom "github.com/eu-sovereign-cloud/ecp/resources/regional/network/networks/v1/domain"
+	netdom "github.com/eu-sovereign-cloud/ecp/resources/regional/network/networks/v1"
 )
 
 // Handler is the HTTP handler for network resources (networks + SKUs).

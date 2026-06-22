@@ -17,7 +17,7 @@ import (
 
 	commonbackend "github.com/eu-sovereign-cloud/ecp/resources/common/backend"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
-	bsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1/domain"
+	bsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1"
 )
 
 // MapCRToBlockStorageDomain converts either a concrete *BlockStorage or *unstructured.Unstructured

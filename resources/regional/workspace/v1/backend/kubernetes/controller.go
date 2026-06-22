@@ -7,7 +7,7 @@ import (
 	builder "github.com/eu-sovereign-cloud/ecp/framework/backend/builder"
 	frameworkcontroller "github.com/eu-sovereign-cloud/ecp/framework/backend/controller"
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
-	wsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/workspace/v1/domain"
+	wsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/workspace/v1"
 )
 
 // Controller drives workspace reconciliation using the GenericController.

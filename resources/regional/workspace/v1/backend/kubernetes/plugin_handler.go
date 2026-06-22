@@ -12,7 +12,7 @@ import (
 	frameworkbackend "github.com/eu-sovereign-cloud/ecp/framework/backend"
 	commonbackend "github.com/eu-sovereign-cloud/ecp/resources/common/backend"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
-	wsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/workspace/v1/domain"
+	wsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/workspace/v1"
 )
 
 // WorkspacePluginHandler drives the workspace reconciliation state machine.

@@ -8,7 +8,7 @@ import (
 
 	res "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
-	bsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1/domain"
+	bsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1"
 
 	"github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/converter"
 )
