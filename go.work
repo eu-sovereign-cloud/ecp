@@ -9,6 +9,9 @@ use (
 	./foundation/plugin/dummy
 	./foundation/plugin/e2e
 	./foundation/plugin/ionos
+	./framework
+	./gateway
+	./resources
 )
 
 replace (
@@ -18,4 +21,7 @@ replace (
 	github.com/eu-sovereign-cloud/ecp/foundation/plugin/aruba v0.0.1 => ./foundation/plugin/aruba
 	github.com/eu-sovereign-cloud/ecp/foundation/plugin/dummy v0.0.1 => ./foundation/plugin/dummy
 	github.com/eu-sovereign-cloud/ecp/foundation/plugin/ionos v0.0.1 => ./foundation/plugin/ionos
+	github.com/eu-sovereign-cloud/ecp/framework v0.0.1 => ./framework
+	github.com/eu-sovereign-cloud/ecp/gateway v0.0.1 => ./gateway
+	github.com/eu-sovereign-cloud/ecp/resources v0.0.1 => ./resources
 )

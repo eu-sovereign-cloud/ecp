@@ -1,0 +1,20 @@
+version: "2"
+# Framework-module-specific lint rules.
+# Inherits all general lint settings from the repo root and adds the
+# load-bearing "framework ↛ resources" depguard rule — kept here to avoid
+# false-positives in modules (resources, gateway, csp/*) that legitimately
+# import github.com/eu-sovereign-cloud/ecp/resources.
+extends:
+  - "../.golangci.yml"
+
+linters:
+  settings:
+    depguard:
+      rules:
+        framework-no-resources:
+          files:
+            - "**"
+          list-mode: lax
+          deny:
+            - pkg: "github.com/eu-sovereign-cloud/ecp/resources"
+              desc: "framework must not import resources — compiler-enforced via GOWORK=off; this lint catches workspace-masked violations"
