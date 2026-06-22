@@ -8,7 +8,7 @@
 package kubernetes
 
 import (
-	genv1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
+	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -20,7 +20,7 @@ func (in *InternetGateway) DeepCopyInto(out *InternetGateway) {
 	in.CommonData.DeepCopyInto(&out.CommonData)
 	if in.Status != nil {
 		in, out := &in.Status, &out.Status
-		*out = new(genv1.Status)
+		*out = new(schemav1.Status)
 		(*in).DeepCopyInto(*out)
 	}
 }

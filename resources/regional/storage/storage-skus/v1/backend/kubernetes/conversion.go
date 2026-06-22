@@ -64,7 +64,7 @@ func MapStorageSKUDomainToCR(d *ssdom.StorageSKU) (client.Object, error) {
 	cr.SetResourceVersion(d.ResourceVersion)
 	cr.SetGroupVersionKind(StorageSKUGVK)
 
-	// TODO: populate cr.Spec from d.Spec when genv1.StorageSkuSpec fields are available
+	// TODO: populate cr.Spec from d.Spec when schemav1.StorageSkuSpec fields are available
 
 	return cr, nil
 }

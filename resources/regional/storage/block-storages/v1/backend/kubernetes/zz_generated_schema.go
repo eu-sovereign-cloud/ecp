@@ -6,7 +6,7 @@ package kubernetes
 // +kubebuilder:object:generate=true
 // +kubebuilder:object:root=false
 
-import genv1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
+import schemav1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
 
 // Defines values for VolumeReferenceType.
 
@@ -37,21 +37,21 @@ type BlockStorageSpec struct {
 
 	// SkuRef Reference to the SKU of the block storage. The SKU is immutable after creation.
 	// If you want to change the SKU, you need to create a new block storage and migrate the data.
-	SkuRef genv1.Reference `json:"skuRef" x-cel-message-0:"spec.skuRef is immutable" x-cel-rule-0:"self == oldSelf"`
+	SkuRef schemav1.Reference `json:"skuRef" x-cel-message-0:"spec.skuRef is immutable" x-cel-rule-0:"self == oldSelf"`
 
 	// SourceImageRef Reference to the source image used as the base for creating the block storage.
-	SourceImageRef *genv1.Reference `json:"sourceImageRef,omitempty"`
+	SourceImageRef *schemav1.Reference `json:"sourceImageRef,omitempty"`
 }
 
 // BlockStorageStatus defines model for BlockStorageStatus.
 type BlockStorageStatus struct {
 	// AttachedTo Reference to the instance the block storage is attached to.
-	AttachedTo *genv1.Reference        `json:"attachedTo,omitempty"`
-	Conditions []genv1.StatusCondition `json:"conditions" x-kubebuilder-validation-max-items:"32"`
+	AttachedTo *schemav1.Reference        `json:"attachedTo,omitempty"`
+	Conditions []schemav1.StatusCondition `json:"conditions" x-kubebuilder-validation-max-items:"32"`
 
 	// SizeGB Size of the block storage in GB.
 	SizeGB int                 `json:"sizeGB" x-kubebuilder-validation-maximum:"1000000" x-kubebuilder-validation-minimum:"1"`
-	State  genv1.ResourceState `json:"state,omitempty"`
+	State  schemav1.ResourceState `json:"state,omitempty"`
 }
 
 // VolumeReference Represents a connection between a Block Storage and an a user of the block storage.

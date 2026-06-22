@@ -6,7 +6,7 @@ package kubernetes
 // +kubebuilder:object:generate=true
 // +kubebuilder:object:root=false
 
-import genv1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
+import schemav1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
 
 // Workspace defines model for Workspace.
 
@@ -31,9 +31,9 @@ type WorkspaceSpec = map[string]string
 
 // WorkspaceStatus defines model for WorkspaceStatus.
 type WorkspaceStatus struct {
-	Conditions []genv1.StatusCondition `json:"conditions" x-kubebuilder-validation-max-items:"32"`
+	Conditions []schemav1.StatusCondition `json:"conditions" x-kubebuilder-validation-max-items:"32"`
 
 	// ResourceCount Number of resources currently in the workspace
 	ResourceCount *int                `json:"resourceCount,omitempty" x-kubebuilder-validation-minimum:"0"`
-	State         genv1.ResourceState `json:"state,omitempty"`
+	State         schemav1.ResourceState `json:"state,omitempty"`
 }

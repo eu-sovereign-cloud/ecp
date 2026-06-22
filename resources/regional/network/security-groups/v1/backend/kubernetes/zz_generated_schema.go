@@ -6,7 +6,7 @@ package kubernetes
 // +kubebuilder:object:generate=true
 // +kubebuilder:object:root=false
 
-import genv1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
+import schemav1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
 
 // SecurityGroupRuleSpecDirection Direction of the traffic flow.
 type SecurityGroupRuleSpecDirection string
@@ -15,12 +15,12 @@ type SecurityGroupRuleSpecDirection string
 type SecurityGroupRuleSpecProtocol string
 
 // SecurityGroupRuleStatus Current status of the resource
-type SecurityGroupRuleStatus = genv1.Status
+type SecurityGroupRuleStatus = schemav1.Status
 
 // SecurityGroupRuleSpec Specification of a security group rule defining network access permissions.
 type SecurityGroupRuleSpec struct {
 	// Annotations User-defined key/value pairs that are mutable and can be used to add annotations.
-	Annotations genv1.Annotations `json:"annotations,omitempty"`
+	Annotations schemav1.Annotations `json:"annotations,omitempty"`
 
 	// Direction Direction of the traffic flow
 	Direction SecurityGroupRuleSpecDirection `json:"direction"`
@@ -35,9 +35,9 @@ type SecurityGroupRuleSpec struct {
 	Protocol SecurityGroupRuleSpecProtocol `json:"protocol,omitempty"`
 
 	// SourceRef Reference to a CIDR block, IP address, gateway, instance or security group
-	SourceRef []genv1.Reference `json:"sourceRef,omitempty"`
+	SourceRef []schemav1.Reference `json:"sourceRef,omitempty"`
 
-	Version genv1.IPVersion `json:"version,omitempty"`
+	Version schemav1.IPVersion `json:"version,omitempty"`
 }
 
 // IcmpConfig ICMP specific rule configuration
@@ -79,7 +79,7 @@ type Ports struct {
 type SecurityGroupSpec struct {
 	// RuleRefs References to shared SecurityGroupRule resources.
 	// These rules are applied in addition to the inline rules.
-	RuleRefs []genv1.Reference `json:"ruleRefs,omitempty" x-kubebuilder-validation-max-items:"500"`
+	RuleRefs []schemav1.Reference `json:"ruleRefs,omitempty" x-kubebuilder-validation-max-items:"500"`
 
 	// Rules Network access rules defining communication between security groups and external networks.
 	//
@@ -91,7 +91,7 @@ type SecurityGroupSpec struct {
 
 // SecurityGroupStatus defines model for SecurityGroupStatus.
 type SecurityGroupStatus struct {
-	Conditions []genv1.StatusCondition   `json:"conditions" x-kubebuilder-validation-max-items:"32"`
+	Conditions []schemav1.StatusCondition   `json:"conditions" x-kubebuilder-validation-max-items:"32"`
 	Rules      []SecurityGroupRuleStatus `json:"rules,omitempty" x-kubebuilder-validation-max-items:"500"`
-	State      genv1.ResourceState       `json:"state,omitempty"`
+	State      schemav1.ResourceState       `json:"state,omitempty"`
 }

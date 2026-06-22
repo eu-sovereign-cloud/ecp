@@ -11,7 +11,7 @@ import (
 
 const (
 	defaultQualifyPkgPath  = "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
-	defaultQualifyPkgAlias = "genv1"
+	defaultQualifyPkgAlias = "schemav1"
 )
 
 // hardcodedSharedTypes are always treated as shared regardless of --shared-types-source.

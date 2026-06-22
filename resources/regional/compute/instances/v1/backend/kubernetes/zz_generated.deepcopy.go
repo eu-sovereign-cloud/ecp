@@ -8,7 +8,7 @@
 package kubernetes
 
 import (
-	genv1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
+	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
@@ -18,23 +18,23 @@ func (in *InstanceSpec) DeepCopyInto(out *InstanceSpec) {
 	*out = *in
 	if in.AdditionalNicRefs != nil {
 		in, out := &in.AdditionalNicRefs, &out.AdditionalNicRefs
-		*out = make([]genv1.Reference, len(*in))
+		*out = make([]schemav1.Reference, len(*in))
 		copy(*out, *in)
 	}
 	out.BootVolume = in.BootVolume
 	if in.DataVolumes != nil {
 		in, out := &in.DataVolumes, &out.DataVolumes
-		*out = make([]genv1.VolumeReference, len(*in))
+		*out = make([]schemav1.VolumeReference, len(*in))
 		copy(*out, *in)
 	}
 	if in.PrimaryNicRef != nil {
 		in, out := &in.PrimaryNicRef, &out.PrimaryNicRef
-		*out = new(genv1.Reference)
+		*out = new(schemav1.Reference)
 		**out = **in
 	}
 	if in.SecurityGroupRef != nil {
 		in, out := &in.SecurityGroupRef, &out.SecurityGroupRef
-		*out = new(genv1.Reference)
+		*out = new(schemav1.Reference)
 		**out = **in
 	}
 	out.SkuRef = in.SkuRef
@@ -60,7 +60,7 @@ func (in *InstanceStatus) DeepCopyInto(out *InstanceStatus) {
 	*out = *in
 	if in.Conditions != nil {
 		in, out := &in.Conditions, &out.Conditions
-		*out = make([]genv1.StatusCondition, len(*in))
+		*out = make([]schemav1.StatusCondition, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}

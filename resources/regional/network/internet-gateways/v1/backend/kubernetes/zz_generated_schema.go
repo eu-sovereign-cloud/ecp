@@ -6,7 +6,7 @@ package kubernetes
 // +kubebuilder:object:generate=true
 // +kubebuilder:object:root=false
 
-import genv1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
+import schemav1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
 
 // InternetGateway defines model for InternetGateway.
 
@@ -37,4 +37,4 @@ type InternetGatewaySpec struct {
 }
 
 // InternetGatewayStatus Current status of the resource
-type InternetGatewayStatus = genv1.Status
+type InternetGatewayStatus = schemav1.Status

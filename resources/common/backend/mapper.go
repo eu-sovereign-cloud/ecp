@@ -7,19 +7,19 @@ import (
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	genv1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
+	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
 
 	"github.com/eu-sovereign-cloud/ecp/resources/common/domain"
 )
 
-// MapStatusConditionDomainToCR maps a domain.StatusConditionDomain to a genv1.StatusCondition.
-func MapStatusConditionDomainToCR(domainStatusCondition domain.StatusConditionDomain) genv1.StatusCondition {
-	var state genv1.ResourceState
+// MapStatusConditionDomainToCR maps a domain.StatusConditionDomain to a schemav1.StatusCondition.
+func MapStatusConditionDomainToCR(domainStatusCondition domain.StatusConditionDomain) schemav1.StatusCondition {
+	var state schemav1.ResourceState
 	if mappedState := MapResourceStateDomainToCR(domainStatusCondition.State); mappedState != nil {
 		state = *mappedState
 	}
 
-	return genv1.StatusCondition{
+	return schemav1.StatusCondition{
 		Type:             domainStatusCondition.Type,
 		State:            state,
 		LastTransitionAt: v1.NewTime(domainStatusCondition.LastTransitionAt),
@@ -29,39 +29,39 @@ func MapStatusConditionDomainToCR(domainStatusCondition domain.StatusConditionDo
 	}
 }
 
-// MapStatusConditionDomainsToCR maps a slice of domain.StatusConditionDomain to a slice of genv1.StatusCondition.
-func MapStatusConditionDomainsToCR(domainStatusConditions []domain.StatusConditionDomain) []genv1.StatusCondition {
-	conditions := make([]genv1.StatusCondition, len(domainStatusConditions))
+// MapStatusConditionDomainsToCR maps a slice of domain.StatusConditionDomain to a slice of schemav1.StatusCondition.
+func MapStatusConditionDomainsToCR(domainStatusConditions []domain.StatusConditionDomain) []schemav1.StatusCondition {
+	conditions := make([]schemav1.StatusCondition, len(domainStatusConditions))
 	for i, cond := range domainStatusConditions {
 		conditions[i] = MapStatusConditionDomainToCR(cond)
 	}
 	return conditions
 }
 
-// MapResourceStateDomainToCR maps domain.ResourceStateDomain to genv1.ResourceState.
-func MapResourceStateDomainToCR(domainResourceState domain.ResourceStateDomain) *genv1.ResourceState {
-	var state genv1.ResourceState
+// MapResourceStateDomainToCR maps domain.ResourceStateDomain to schemav1.ResourceState.
+func MapResourceStateDomainToCR(domainResourceState domain.ResourceStateDomain) *schemav1.ResourceState {
+	var state schemav1.ResourceState
 	switch domainResourceState {
 	case domain.ResourceStatePending:
-		state = genv1.ResourceStatePending
+		state = schemav1.ResourceStatePending
 	case domain.ResourceStateCreating:
-		state = genv1.ResourceStateCreating
+		state = schemav1.ResourceStateCreating
 	case domain.ResourceStateActive:
-		state = genv1.ResourceStateActive
+		state = schemav1.ResourceStateActive
 	case domain.ResourceStateUpdating:
-		state = genv1.ResourceStateUpdating
+		state = schemav1.ResourceStateUpdating
 	case domain.ResourceStateDeleting:
-		state = genv1.ResourceStateDeleting
+		state = schemav1.ResourceStateDeleting
 	case domain.ResourceStateError:
-		state = genv1.ResourceStateError
+		state = schemav1.ResourceStateError
 	default:
 		return nil
 	}
 	return &state
 }
 
-// MapCRToStatusConditionDomain maps a genv1.StatusCondition to a domain.StatusConditionDomain.
-func MapCRToStatusConditionDomain(crStatusCondition genv1.StatusCondition) domain.StatusConditionDomain {
+// MapCRToStatusConditionDomain maps a schemav1.StatusCondition to a domain.StatusConditionDomain.
+func MapCRToStatusConditionDomain(crStatusCondition schemav1.StatusCondition) domain.StatusConditionDomain {
 	return domain.StatusConditionDomain{
 		Type:             crStatusCondition.Type,
 		State:            MapCRToResourceStateDomain(crStatusCondition.State),
@@ -72,8 +72,8 @@ func MapCRToStatusConditionDomain(crStatusCondition genv1.StatusCondition) domai
 	}
 }
 
-// MapCRToStatusConditionDomains maps a slice of genv1.StatusCondition to a slice of domain.StatusConditionDomain.
-func MapCRToStatusConditionDomains(crStatusConditions []genv1.StatusCondition) []domain.StatusConditionDomain {
+// MapCRToStatusConditionDomains maps a slice of schemav1.StatusCondition to a slice of domain.StatusConditionDomain.
+func MapCRToStatusConditionDomains(crStatusConditions []schemav1.StatusCondition) []domain.StatusConditionDomain {
 	conditions := make([]domain.StatusConditionDomain, len(crStatusConditions))
 	for i, cond := range crStatusConditions {
 		conditions[i] = MapCRToStatusConditionDomain(cond)
@@ -81,21 +81,21 @@ func MapCRToStatusConditionDomains(crStatusConditions []genv1.StatusCondition) [
 	return conditions
 }
 
-// MapCRToResourceStateDomain maps genv1.ResourceState to domain.ResourceStateDomain.
-func MapCRToResourceStateDomain(crResourceState genv1.ResourceState) domain.ResourceStateDomain {
+// MapCRToResourceStateDomain maps schemav1.ResourceState to domain.ResourceStateDomain.
+func MapCRToResourceStateDomain(crResourceState schemav1.ResourceState) domain.ResourceStateDomain {
 	var state domain.ResourceStateDomain
 	switch crResourceState {
-	case genv1.ResourceStatePending:
+	case schemav1.ResourceStatePending:
 		state = domain.ResourceStatePending
-	case genv1.ResourceStateCreating:
+	case schemav1.ResourceStateCreating:
 		state = domain.ResourceStateCreating
-	case genv1.ResourceStateActive:
+	case schemav1.ResourceStateActive:
 		state = domain.ResourceStateActive
-	case genv1.ResourceStateUpdating:
+	case schemav1.ResourceStateUpdating:
 		state = domain.ResourceStateUpdating
-	case genv1.ResourceStateDeleting:
+	case schemav1.ResourceStateDeleting:
 		state = domain.ResourceStateDeleting
-	case genv1.ResourceStateError:
+	case schemav1.ResourceStateError:
 		state = domain.ResourceStateError
 	default:
 		state = ""
@@ -103,10 +103,10 @@ func MapCRToResourceStateDomain(crResourceState genv1.ResourceState) domain.Reso
 	return state
 }
 
-// MapCRToReferenceDomain converts a generated genv1.Reference to a domain.ReferenceDomain.
+// MapCRToReferenceDomain converts a generated schemav1.Reference to a domain.ReferenceDomain.
 // Tenant and Workspace are embedded into the Resource path so the domain always
 // carries a fully-qualified resource string (e.g. "seca.storage/v1/tenants/t/skus/s").
-func MapCRToReferenceDomain(ref genv1.Reference) domain.ReferenceDomain {
+func MapCRToReferenceDomain(ref schemav1.Reference) domain.ReferenceDomain {
 	resource := ref.Resource
 	if ref.Tenant != "" || ref.Workspace != "" {
 		resource = embedScopeInResource(resource, ref.Tenant, ref.Workspace)
@@ -118,13 +118,13 @@ func MapCRToReferenceDomain(ref genv1.Reference) domain.ReferenceDomain {
 	}
 }
 
-// MapReferenceDomainToCR converts a domain.ReferenceDomain to a generated genv1.Reference.
+// MapReferenceDomainToCR converts a domain.ReferenceDomain to a generated schemav1.Reference.
 // It parses the Resource path to extract embedded segments (providers, regions, tenants, workspaces)
 // and sets the corresponding fields. Extracted segments are stripped from the Resource path.
 // If a segment is not in the path, it falls back to the domain value.
-func MapReferenceDomainToCR(ref domain.ReferenceDomain) genv1.Reference {
+func MapReferenceDomainToCR(ref domain.ReferenceDomain) schemav1.Reference {
 	resource := ref.Resource
-	result := genv1.Reference{}
+	result := schemav1.Reference{}
 
 	// Populate each field from the Resource path only when the explicit domain field
 	// is not already set. This makes the function idempotent: on the first call the

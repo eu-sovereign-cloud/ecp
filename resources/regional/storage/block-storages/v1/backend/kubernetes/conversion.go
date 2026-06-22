@@ -13,7 +13,7 @@ import (
 
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
 	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/labels"
-	genv1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
+	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
 
 	commonbackend "github.com/eu-sovereign-cloud/ecp/resources/common/backend"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
@@ -105,7 +105,7 @@ func MapBlockStorageDomainToCR(d *bsdom.BlockStorage) (client.Object, error) {
 			Labels:          crLabels,
 			ResourceVersion: d.ResourceVersion,
 		},
-		CommonData: genv1.CommonData{
+		CommonData: schemav1.CommonData{
 			Annotations: d.Annotations,
 			Extensions:  d.Extensions,
 			Labels:      slices.Collect(maps.Keys(d.Labels)),

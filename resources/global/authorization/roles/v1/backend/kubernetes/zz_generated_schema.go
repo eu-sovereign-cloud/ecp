@@ -6,7 +6,7 @@ package kubernetes
 // +kubebuilder:object:generate=true
 // +kubebuilder:object:root=false
 
-import genv1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
+import schemav1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
 
 // Permission Permission specification, including providers, resources, and verbs.
 // Permissions are used to define access control policies for user accounts.
@@ -99,4 +99,4 @@ type RoleSpec struct {
 }
 
 // RoleStatus Current status of the resource
-type RoleStatus = genv1.Status
+type RoleStatus = schemav1.Status

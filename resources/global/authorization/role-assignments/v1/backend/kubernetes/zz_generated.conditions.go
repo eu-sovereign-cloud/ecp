@@ -8,30 +8,30 @@
 package kubernetes
 
 import (
-	genv1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
+	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// Compile-time assertion that *RoleAssignment satisfies genv1.Conditioned.
-var _ genv1.Conditioned = (*RoleAssignment)(nil)
+// Compile-time assertion that *RoleAssignment satisfies schemav1.Conditioned.
+var _ schemav1.Conditioned = (*RoleAssignment)(nil)
 
-func (x *RoleAssignment) GetConditions() []genv1.StatusCondition {
+func (x *RoleAssignment) GetConditions() []schemav1.StatusCondition {
 	if x == nil || x.Status == nil {
 		return nil
 	}
 	return x.Status.Conditions
 }
 
-func (x *RoleAssignment) PushCondition(condition genv1.StatusCondition) {
+func (x *RoleAssignment) PushCondition(condition schemav1.StatusCondition) {
 	if x == nil {
 		return
 	}
 	if x.Status == nil {
-		x.Status = &genv1.Status{}
+		x.Status = &schemav1.Status{}
 	}
 	if x.Status.Conditions == nil {
-		x.Status.Conditions = []genv1.StatusCondition{}
+		x.Status.Conditions = []schemav1.StatusCondition{}
 	}
 	if condition.LastTransitionAt.IsZero() {
 		condition.LastTransitionAt = metav1.Now()
@@ -39,17 +39,17 @@ func (x *RoleAssignment) PushCondition(condition genv1.StatusCondition) {
 	prevCondition := x.PeekConditions()
 	if prevCondition == nil {
 		condition.Occurrences = 1
-		x.Status.Conditions = append([]genv1.StatusCondition{condition}, x.Status.Conditions...)
+		x.Status.Conditions = append([]schemav1.StatusCondition{condition}, x.Status.Conditions...)
 		x.Status.State = condition.State
 		return
 	}
-	if genv1.EqualConditions(*prevCondition, condition) {
+	if schemav1.EqualConditions(*prevCondition, condition) {
 		prevCondition.LastTransitionAt = condition.LastTransitionAt
 		prevCondition.Occurrences++
 		return
 	}
 	condition.Occurrences = 1
-	x.Status.Conditions = append([]genv1.StatusCondition{condition}, x.Status.Conditions...)
+	x.Status.Conditions = append([]schemav1.StatusCondition{condition}, x.Status.Conditions...)
 	x.Status.State = condition.State
 }
 
@@ -60,7 +60,7 @@ func (x *RoleAssignment) PopCondition() {
 	x.Status.Conditions = x.Status.Conditions[:len(x.Status.Conditions)-1]
 }
 
-func (x *RoleAssignment) PeekConditions() *genv1.StatusCondition {
+func (x *RoleAssignment) PeekConditions() *schemav1.StatusCondition {
 	if x == nil || x.Status == nil || len(x.Status.Conditions) == 0 {
 		return nil
 	}

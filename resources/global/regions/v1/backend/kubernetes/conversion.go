@@ -65,7 +65,7 @@ func MapRegionDomainToCR(d *rdom.Region) (client.Object, error) {
 	cr.SetGroupVersionKind(RegionGVK)
 
 	// Spec fields are populated by the platform — return minimal CR for round-trip.
-	// TODO: populate cr.Spec from d.Providers and d.Zones when genv1.RegionSpec is available.
+	// TODO: populate cr.Spec from d.Providers and d.Zones when schemav1.RegionSpec is available.
 
 	return cr, nil
 }

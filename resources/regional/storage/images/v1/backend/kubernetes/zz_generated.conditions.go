@@ -8,21 +8,21 @@
 package kubernetes
 
 import (
-	genv1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
+	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var _ genv1.Conditioned = (*Image)(nil)
+var _ schemav1.Conditioned = (*Image)(nil)
 
-func (x *Image) GetConditions() []genv1.StatusCondition {
+func (x *Image) GetConditions() []schemav1.StatusCondition {
 	if x == nil || x.Status == nil {
 		return nil
 	}
 	return x.Status.Conditions
 }
 
-func (x *Image) PushCondition(condition genv1.StatusCondition) {
+func (x *Image) PushCondition(condition schemav1.StatusCondition) {
 	if x == nil {
 		return
 	}
@@ -30,7 +30,7 @@ func (x *Image) PushCondition(condition genv1.StatusCondition) {
 		x.Status = &ImageStatus{}
 	}
 	if x.Status.Conditions == nil {
-		x.Status.Conditions = []genv1.StatusCondition{}
+		x.Status.Conditions = []schemav1.StatusCondition{}
 	}
 	if condition.LastTransitionAt.IsZero() {
 		condition.LastTransitionAt = metav1.Now()
@@ -38,17 +38,17 @@ func (x *Image) PushCondition(condition genv1.StatusCondition) {
 	prevCondition := x.PeekConditions()
 	if prevCondition == nil {
 		condition.Occurrences = 1
-		x.Status.Conditions = append([]genv1.StatusCondition{condition}, x.Status.Conditions...)
+		x.Status.Conditions = append([]schemav1.StatusCondition{condition}, x.Status.Conditions...)
 		x.Status.State = condition.State
 		return
 	}
-	if genv1.EqualConditions(*prevCondition, condition) {
+	if schemav1.EqualConditions(*prevCondition, condition) {
 		prevCondition.LastTransitionAt = condition.LastTransitionAt
 		prevCondition.Occurrences++
 		return
 	}
 	condition.Occurrences = 1
-	x.Status.Conditions = append([]genv1.StatusCondition{condition}, x.Status.Conditions...)
+	x.Status.Conditions = append([]schemav1.StatusCondition{condition}, x.Status.Conditions...)
 	x.Status.State = condition.State
 }
 
@@ -59,7 +59,7 @@ func (x *Image) PopCondition() {
 	x.Status.Conditions = x.Status.Conditions[:len(x.Status.Conditions)-1]
 }
 
-func (x *Image) PeekConditions() *genv1.StatusCondition {
+func (x *Image) PeekConditions() *schemav1.StatusCondition {
 	if x == nil || x.Status == nil || len(x.Status.Conditions) == 0 {
 		return nil
 	}

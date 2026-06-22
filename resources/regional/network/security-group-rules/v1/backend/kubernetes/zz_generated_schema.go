@@ -6,7 +6,7 @@ package kubernetes
 // +kubebuilder:object:generate=true
 // +kubebuilder:object:root=false
 
-import genv1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
+import schemav1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
 
 // Defines values for SecurityGroupRuleSpecDirection.
 const (
@@ -77,7 +77,7 @@ type Ports struct {
 type SecurityGroupRuleSpec struct {
 	// Annotations User-defined key/value pairs that are mutable and can be used to add annotations.
 	// The number of annotations is eventually limited by the CSP.
-	Annotations genv1.Annotations `json:"annotations,omitempty"`
+	Annotations schemav1.Annotations `json:"annotations,omitempty"`
 
 	// Direction Direction of the traffic flow:
 	// * ingress: Only incoming traffic is allowed
@@ -105,8 +105,8 @@ type SecurityGroupRuleSpec struct {
 	// SourceRef Reference to a CIDR block, IP address, gateway, instance or security group that is allowed to communicate
 	// with the security group. If a security group is specified, all instances in that group are allowed.
 	// If no sourceRef is specified, all traffic is allowed.
-	SourceRef []genv1.Reference `json:"sourceRef,omitempty" x-kubebuilder-validation-max-items:"32"`
-	Version   genv1.IPVersion   `json:"version,omitempty"`
+	SourceRef []schemav1.Reference `json:"sourceRef,omitempty" x-kubebuilder-validation-max-items:"32"`
+	Version   schemav1.IPVersion   `json:"version,omitempty"`
 }
 
 // SecurityGroupRuleSpecDirection Direction of the traffic flow:
@@ -118,4 +118,4 @@ type SecurityGroupRuleSpecDirection string
 type SecurityGroupRuleSpecProtocol string
 
 // SecurityGroupRuleStatus Current status of the resource
-type SecurityGroupRuleStatus = genv1.Status
+type SecurityGroupRuleStatus = schemav1.Status

@@ -6,7 +6,7 @@ package kubernetes
 // +kubebuilder:object:generate=true
 // +kubebuilder:object:root=false
 
-import genv1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
+import schemav1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
 
 // Defines values for ImageSpecBoot.
 const (
@@ -55,7 +55,7 @@ const (
 // [Image Handling](/docs/content/Other/image-handling) section.
 type ImageSpec struct {
 	// BlockStorageRef Reference to the block storage used to store the image.
-	BlockStorageRef genv1.Reference `json:"blockStorageRef"`
+	BlockStorageRef schemav1.Reference `json:"blockStorageRef"`
 
 	// Boot Boot type for the Image
 	Boot ImageSpecBoot `json:"boot,omitempty" x-kubebuilder-default:"UEFI" x-kubebuilder-validation-enum:"UEFI;BIOS"`
@@ -78,9 +78,9 @@ type ImageSpecInitializer string
 
 // ImageStatus defines model for ImageStatus.
 type ImageStatus struct {
-	Conditions []genv1.StatusCondition `json:"conditions" x-kubebuilder-validation-max-items:"32"`
+	Conditions []schemav1.StatusCondition `json:"conditions" x-kubebuilder-validation-max-items:"32"`
 
 	// SizeMB Size of the Image in MB
 	SizeMB *int                `json:"sizeMB,omitempty" x-kubebuilder-validation-minimum:"1"`
-	State  genv1.ResourceState `json:"state,omitempty"`
+	State  schemav1.ResourceState `json:"state,omitempty"`
 }

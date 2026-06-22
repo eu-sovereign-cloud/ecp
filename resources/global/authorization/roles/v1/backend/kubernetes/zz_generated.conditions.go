@@ -19,17 +19,17 @@
 package kubernetes
 
 import (
-	genv1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
+	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// Compile-time assertion that *Role satisfies genv1.Conditioned.
-var _ genv1.Conditioned = (*Role)(nil)
+// Compile-time assertion that *Role satisfies schemav1.Conditioned.
+var _ schemav1.Conditioned = (*Role)(nil)
 
 // GetConditions returns the Status.Conditions slice, or nil
 // if the receiver, its Status or the slice is nil.
-func (x *Role) GetConditions() []genv1.StatusCondition {
+func (x *Role) GetConditions() []schemav1.StatusCondition {
 	if x == nil || x.Status == nil {
 		return nil
 	}
@@ -41,17 +41,17 @@ func (x *Role) GetConditions() []genv1.StatusCondition {
 // State onto Status.State, allocating Status or Conditions if needed.
 // If condition equals the most recent entry, only its LastTransitionAt
 // is updated; no new entry is appended.
-func (x *Role) PushCondition(condition genv1.StatusCondition) {
+func (x *Role) PushCondition(condition schemav1.StatusCondition) {
 	if x == nil {
 		return
 	}
 
 	if x.Status == nil {
-		x.Status = &genv1.Status{}
+		x.Status = &schemav1.Status{}
 	}
 
 	if x.Status.Conditions == nil {
-		x.Status.Conditions = []genv1.StatusCondition{}
+		x.Status.Conditions = []schemav1.StatusCondition{}
 	}
 
 	if condition.LastTransitionAt.IsZero() {
@@ -62,12 +62,12 @@ func (x *Role) PushCondition(condition genv1.StatusCondition) {
 	if prevCondition == nil {
 		// ensure that the condition.Occurrences field is initialized to 1 if the condition has not occurred previously
 		condition.Occurrences = 1
-		x.Status.Conditions = append([]genv1.StatusCondition{condition}, x.Status.Conditions...)
+		x.Status.Conditions = append([]schemav1.StatusCondition{condition}, x.Status.Conditions...)
 		x.Status.State = condition.State
 		return
 	}
 
-	if genv1.EqualConditions(*prevCondition, condition) {
+	if schemav1.EqualConditions(*prevCondition, condition) {
 		prevCondition.LastTransitionAt = condition.LastTransitionAt
 		prevCondition.Occurrences++
 		return
@@ -75,7 +75,7 @@ func (x *Role) PushCondition(condition genv1.StatusCondition) {
 
 	// ensure that the condition.Occurrences field is initialized to 1 if the condition has not occurred previously
 	condition.Occurrences = 1
-	x.Status.Conditions = append([]genv1.StatusCondition{condition}, x.Status.Conditions...)
+	x.Status.Conditions = append([]schemav1.StatusCondition{condition}, x.Status.Conditions...)
 	x.Status.State = condition.State
 }
 
@@ -92,7 +92,7 @@ func (x *Role) PopCondition() {
 // PeekConditions returns a pointer to the most recent (head) entry in the Status.Conditions.
 // If there is no Status or no Conditions in the Status, the function will always
 // return nil.
-func (x *Role) PeekConditions() *genv1.StatusCondition {
+func (x *Role) PeekConditions() *schemav1.StatusCondition {
 	if x == nil || x.Status == nil || len(x.Status.Conditions) == 0 {
 		return nil
 	}

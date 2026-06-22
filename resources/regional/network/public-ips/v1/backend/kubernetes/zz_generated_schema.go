@@ -6,7 +6,7 @@ package kubernetes
 // +kubebuilder:object:generate=true
 // +kubebuilder:object:root=false
 
-import genv1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
+import schemav1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
 
 // PublicIp defines model for PublicIp.
 
@@ -32,16 +32,16 @@ type PublicIpSpec struct {
 	Address string `json:"address,omitempty" x-cel-message-0:"spec.address must be a valid IPv4/IPv6 address" x-cel-rule-0:"self.size() == 0 || isIP(self)" x-kubebuilder-validation-max-length:"39"`
 
 	// Version IP version of the address
-	Version genv1.IPVersion `json:"version" x-kubebuilder-validation-enum:"IPv4;IPv6"`
+	Version schemav1.IPVersion `json:"version" x-kubebuilder-validation-enum:"IPv4;IPv6"`
 }
 
 // PublicIpStatus defines model for PublicIpStatus.
 type PublicIpStatus struct {
 	// AttachedTo Reference to the instance the public IP is attached to.
-	AttachedTo *genv1.Reference        `json:"attachedTo,omitempty"`
-	Conditions []genv1.StatusCondition `json:"conditions" x-kubebuilder-validation-max-items:"32"`
+	AttachedTo *schemav1.Reference        `json:"attachedTo,omitempty"`
+	Conditions []schemav1.StatusCondition `json:"conditions" x-kubebuilder-validation-max-items:"32"`
 
 	// IpAddress The public IP address in case of BYOIP.
 	IpAddress string              `json:"ipAddress,omitempty" x-cel-message-0:"status.ipAddress must be a valid IPv4/IPv6 address" x-cel-rule-0:"self.size() == 0 || isIP(self)" x-kubebuilder-validation-max-length:"39"`
-	State     genv1.ResourceState `json:"state,omitempty"`
+	State     schemav1.ResourceState `json:"state,omitempty"`
 }

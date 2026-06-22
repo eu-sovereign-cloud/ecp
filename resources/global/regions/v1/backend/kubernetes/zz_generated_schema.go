@@ -6,7 +6,7 @@ package kubernetes
 // +kubebuilder:object:generate=true
 // +kubebuilder:object:root=false
 
-import genv1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
+import schemav1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
 
 // Provider A provider of cloud services
 type Provider struct {
@@ -25,7 +25,7 @@ type Provider struct {
 // RegionSpec The specification of a region, including the available zones and providers.
 type RegionSpec struct {
 	// AvailableZones The list of zones available in the region.
-	AvailableZones []genv1.Zone `json:"availableZones" x-kubebuilder-validation-items-max-length:"32" x-kubebuilder-validation-items-min-length:"1" x-kubebuilder-validation-max-items:"32" x-kubebuilder-validation-min-items:"1"`
+	AvailableZones []schemav1.Zone `json:"availableZones" x-kubebuilder-validation-items-max-length:"32" x-kubebuilder-validation-items-min-length:"1" x-kubebuilder-validation-max-items:"32" x-kubebuilder-validation-min-items:"1"`
 
 	// Providers The list of providers available in the region.
 	Providers []Provider `json:"providers" x-kubebuilder-validation-max-items:"64" x-kubebuilder-validation-min-items:"1"`

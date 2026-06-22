@@ -6,7 +6,7 @@ package kubernetes
 // +kubebuilder:object:generate=true
 // +kubebuilder:object:root=false
 
-import genv1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
+import schemav1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
 
 // Permission Permission specification, including providers, resources, and verbs.
 // Permissions are used to define access control policies for user accounts.
@@ -93,7 +93,7 @@ type RoleAssignmentSpec struct {
 }
 
 // RoleAssignmentStatus Current status of the resource
-type RoleAssignmentStatus = genv1.Status
+type RoleAssignmentStatus = schemav1.Status
 
 // RoleSpec Role specification defined as a list of permissions.
 // Roles are used to define access control policies for
