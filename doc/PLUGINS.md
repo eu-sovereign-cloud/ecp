@@ -15,25 +15,25 @@ Plugin interfaces live in each resource slice at `resources/{scope}/{group}/{res
 **`WorkspacePlugin` interface** (`resources/regional/workspace/v1/backend/kubernetes/plugin.go`):
 ```go
 type WorkspacePlugin interface {
-    Create(ctx context.Context, resource *wsdomain.WorkspaceDomain) error
-    Delete(ctx context.Context, resource *wsdomain.WorkspaceDomain) error
+    Create(ctx context.Context, resource *wsdom.Workspace) error
+    Delete(ctx context.Context, resource *wsdom.Workspace) error
 }
 ```
 
 **`BlockStoragePlugin` interface** (`resources/regional/storage/block-storages/v1/backend/kubernetes/plugin.go`):
 ```go
 type BlockStoragePlugin interface {
-    Create(ctx context.Context, resource *bsdomain.BlockStorageDomain) error
-    Delete(ctx context.Context, resource *bsdomain.BlockStorageDomain) error
-    IncreaseSize(ctx context.Context, resource *bsdomain.BlockStorageDomain) error
+    Create(ctx context.Context, resource *bsdom.BlockStorage) error
+    Delete(ctx context.Context, resource *bsdom.BlockStorage) error
+    IncreaseSize(ctx context.Context, resource *bsdom.BlockStorage) error
 }
 ```
 
 **`NetworkPlugin` interface** (`resources/regional/network/networks/v1/backend/kubernetes/plugin.go`):
 ```go
 type NetworkPlugin interface {
-    Create(ctx context.Context, resource *netdomain.NetworkDomain) error
-    Delete(ctx context.Context, resource *netdomain.NetworkDomain) error
+    Create(ctx context.Context, resource *netdom.Network) error
+    Delete(ctx context.Context, resource *netdom.Network) error
 }
 ```
 

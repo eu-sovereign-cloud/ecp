@@ -55,7 +55,7 @@ echo "<PAT>" | docker login ghcr.io -u <github-username> --password-stdin
 
 > **Podman users:** substitute `podman login` for `docker login` (same arguments).
 
-## Go Workspace (7 First-Party Modules)
+## Go Workspace (8 First-Party Modules)
 
 | Module | Path | Description |
 |--------|------|-------------|
@@ -308,7 +308,6 @@ Any target `FOO` defined at the root can be run as `FOO-ctzd`. The wrapper:
 
 | Makefile | Key Targets |
 |----------|-------------|
-| `gateway/Makefile` | `run-global-server`, `run-regional-server`, `build-gateway`, `create-dev-clusters`, `clean-dev-clusters` |
 | `csp/dummy/Makefile` | `build`, `deploy`, `kind-start`, `kind-stop`, `test-integration` |
 | `test/e2e/Makefile` | `build-all`, `push-all`, `deploy-all`, `kind-start`, `kind-stop`, `kind-load-all`, `test-all` |
 | `csp/ionos/deploy/Makefile` | `install-crossplane`, `install-provider`, `install-all`, `install-on-regional` |

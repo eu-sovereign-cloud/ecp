@@ -43,7 +43,7 @@ func ListParamsFromAPI(params regionv1sdk.ListRegionsParams) resource.ListParams
 	}
 }
 
-// DomainToAPIIterator converts a list of RegionDomain to an SDK RegionIterator.
+// DomainToAPIIterator converts a list of Region domain objects to an SDK RegionIterator.
 func DomainToAPIIterator(domains []*rdom.Region, nextSkipToken *string) *regionv1sdk.RegionIterator {
 	items := make([]sdkschema.Region, len(domains))
 	for i, dom := range domains {
@@ -66,12 +66,12 @@ func DomainToAPIIterator(domains []*rdom.Region, nextSkipToken *string) *regionv
 	return iterator
 }
 
-// DomainToAPI converts a RegionDomain to a schema.Region for Get operations.
+// DomainToAPI converts a Region domain object to a schema.Region for Get operations.
 func DomainToAPI(domain *rdom.Region) sdkschema.Region {
 	return domainToAPI(*domain, "get")
 }
 
-// domainToAPI converts a RegionDomain to a schema.Region with the given verb.
+// domainToAPI converts a Region domain object to a schema.Region with the given verb.
 func domainToAPI(dom rdom.Region, verb string) sdkschema.Region {
 	providers := make([]sdkschema.Provider, 0, len(dom.Providers))
 	for _, p := range dom.Providers {
