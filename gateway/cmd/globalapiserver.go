@@ -17,7 +17,7 @@ import (
 
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/httpserver"
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/kubeclient"
-	"github.com/eu-sovereign-cloud/ecp/framework/frontend/logger"
+	"github.com/eu-sovereign-cloud/ecp/gateway/internal/logger"
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
 
 	rdom "github.com/eu-sovereign-cloud/ecp/resources/regions/v1"

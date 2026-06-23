@@ -22,7 +22,7 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/framework/frontend/config"
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/httpserver"
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/kubeclient"
-	"github.com/eu-sovereign-cloud/ecp/framework/frontend/logger"
+	"github.com/eu-sovereign-cloud/ecp/gateway/internal/logger"
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
 
 	netskudom "github.com/eu-sovereign-cloud/ecp/resources/network/network-skus/v1"
