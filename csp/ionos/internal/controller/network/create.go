@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/eu-sovereign-cloud/ecp/csp/ionos/pkg/port"
-	netdom "github.com/eu-sovereign-cloud/ecp/resources/regional/network/networks/v1"
+	netdom "github.com/eu-sovereign-cloud/ecp/resources/network/networks/v1"
 )
 
 type CreateNetwork struct {

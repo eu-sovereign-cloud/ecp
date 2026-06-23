@@ -8,7 +8,7 @@ import (
 
 	res "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
-	bsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1"
+	bsdom "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1"
 
 	"github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/converter"
 )
@@ -77,15 +77,12 @@ func TestBlockStorageConverter_FromSECAToAruba(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			converter := &converter.BlockStorageConverter{}
 			result, err := converter.FromSECAToAruba(tt.input)
-
 			if err != nil {
 				tt.assert(t, nil)
 			}
 
 			tt.assert(t, result)
-
 		})
-
 	}
 }
 
@@ -143,14 +140,11 @@ func TestBlockStorageConverter_FromArubaToSECA(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			converter := &converter.BlockStorageConverter{}
 			result, err := converter.FromArubaToSECA(tt.input)
-
 			if err != nil {
 				tt.assert(t, nil)
 			}
 
 			tt.assert(t, result)
-
 		})
-
 	}
 }

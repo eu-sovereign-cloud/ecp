@@ -7,11 +7,10 @@ import (
 	res "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
-	wsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/workspace/v1"
+	wsdom "github.com/eu-sovereign-cloud/ecp/resources/workspace/v1"
 )
 
-type WorkspaceProjectConverter struct {
-}
+type WorkspaceProjectConverter struct{}
 
 func NewWorkspaceProjectConverter() *WorkspaceProjectConverter {
 	return &WorkspaceProjectConverter{}
@@ -62,7 +61,6 @@ func (c *WorkspaceProjectConverter) FromSECAToAruba(from *wsdom.Workspace) (*v1a
 func (c *WorkspaceProjectConverter) FromArubaToSECA(
 	from *v1alpha1.Project,
 ) (*wsdom.Workspace, error) {
-
 	spec := wsdom.WorkspaceSpec{
 		"description": from.Spec.Description,
 		"tenant":      from.Spec.Tenant,

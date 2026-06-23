@@ -23,9 +23,9 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/service"
 	"github.com/eu-sovereign-cloud/ecp/csp/ionos/pkg/adapter/crossplane"
 	frameworkbuilder "github.com/eu-sovereign-cloud/ecp/framework/backend/builder"
-	netk8s "github.com/eu-sovereign-cloud/ecp/resources/regional/network/networks/v1/backend/kubernetes"
-	bsk8s "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1/backend/kubernetes"
-	wsk8s "github.com/eu-sovereign-cloud/ecp/resources/regional/workspace/v1/backend/kubernetes"
+	netk8s "github.com/eu-sovereign-cloud/ecp/resources/network/networks/v1/backend/kubernetes"
+	bsk8s "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1/backend/kubernetes"
+	wsk8s "github.com/eu-sovereign-cloud/ecp/resources/workspace/v1/backend/kubernetes"
 )
 
 var scheme = runtime.NewScheme()

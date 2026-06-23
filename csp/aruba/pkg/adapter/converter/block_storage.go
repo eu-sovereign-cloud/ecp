@@ -10,7 +10,7 @@ import (
 	res "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
-	bsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1"
+	bsdom "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1"
 )
 
 const (
@@ -19,8 +19,7 @@ const (
 	defaultBillingPeriod = "Hour" // supported values: "Hour", "Month"
 )
 
-type BlockStorageConverter struct {
-}
+type BlockStorageConverter struct{}
 
 func NewBlockStorageConverter() *BlockStorageConverter {
 	return &BlockStorageConverter{}

@@ -14,13 +14,13 @@ import (
 	kernel "github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	resource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
-	wsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/workspace/v1"
+	wsdom "github.com/eu-sovereign-cloud/ecp/resources/workspace/v1"
 )
 
 func TestWorkspace(t *testing.T) {
-	//t.Parallel()
+	// t.Parallel()
 	t.Run("should create a workspace resource", func(t *testing.T) {
-		//t.Parallel()
+		// t.Parallel()
 
 		//
 		// Given a unique workspace domain resource definition
@@ -75,7 +75,7 @@ func TestWorkspace(t *testing.T) {
 	})
 
 	t.Run("should delete a workspace resource", func(t *testing.T) {
-		//t.Parallel()
+		// t.Parallel()
 
 		//
 		// Given a unique workspace resource that is already created
@@ -146,6 +146,5 @@ func TestWorkspace(t *testing.T) {
 			return false, nil
 		})
 		require.NoError(t, err, "workspace resource should be deleted")
-
 	})
 }
