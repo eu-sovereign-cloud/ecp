@@ -9,7 +9,6 @@ import (
 
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
-	"github.com/eu-sovereign-cloud/ecp/framework/frontend/httperror"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 )
 
@@ -37,7 +36,7 @@ func HandleList[D any, Out any](
 	domainObjs, nextSkipToken, err := lister.Do(r.Context(), params)
 	if err != nil {
 		logger.ErrorContext(r.Context(), "failed to list resources", slog.Any("error", err))
-		httperror.WriteErrorResponse(w, r, logger, err)
+		WriteErrorResponse(w, r, logger, err)
 		return
 	}
 
@@ -46,7 +45,7 @@ func HandleList[D any, Out any](
 	enc := json.NewEncoder(&buf)
 	if err := enc.Encode(sdkObj); err != nil {
 		logger.ErrorContext(r.Context(), "failed to encode response", slog.Any("error", err))
-		httperror.WriteErrorResponse(w, r, logger, err)
+		WriteErrorResponse(w, r, logger, err)
 		return
 	}
 

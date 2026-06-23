@@ -9,7 +9,6 @@ import (
 
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
-	"github.com/eu-sovereign-cloud/ecp/framework/frontend/httperror"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 )
 
@@ -38,7 +37,7 @@ func HandleGet[D any, Out any](
 
 	domainObj, err := getter.Do(r.Context(), ir)
 	if err != nil {
-		httperror.WriteErrorResponse(w, r, logger, err)
+		WriteErrorResponse(w, r, logger, err)
 		return
 	}
 
@@ -47,7 +46,7 @@ func HandleGet[D any, Out any](
 	enc := json.NewEncoder(&buf)
 	if err := enc.Encode(sdkObj); err != nil {
 		logger.ErrorContext(r.Context(), "failed to encode response", slog.Any("error", err))
-		httperror.WriteErrorResponse(w, r, logger, err)
+		WriteErrorResponse(w, r, logger, err)
 		return
 	}
 

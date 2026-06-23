@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/eu-sovereign-cloud/ecp/framework/frontend/httperror"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 )
 
@@ -25,7 +24,7 @@ func HandleDelete(
 	logger = logger.With("name", ir.GetName(), "tenant", ir.GetTenant(), "workspace", ir.GetWorkspace())
 
 	if err := deleter.Do(r.Context(), ir); err != nil {
-		httperror.WriteErrorResponse(w, r, logger, err)
+		WriteErrorResponse(w, r, logger, err)
 		return
 	}
 
