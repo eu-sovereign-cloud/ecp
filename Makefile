@@ -267,7 +267,7 @@ gosec: $(addsuffix -gosec,$(GO_MODULES))
 #   make generate-api          # run directly on host
 #   make generate-api-ctzd     # run inside the tools container
 #
-# Delegates to framework/persistence/Makefile. Kept as a top-level alias so
+# Delegates to framework/backend/kubernetes/Makefile. Kept as a top-level alias so
 # CI and developers share one entry point — and so the %-ctzd wrapper composes
 # for free.
 #
@@ -275,7 +275,7 @@ gosec: $(addsuffix -gosec,$(GO_MODULES))
 
 .PHONY: generate-api
 generate-api:
-	$(MAKE) -C $(_REPO_ROOT)/framework/persistence generate-all
+	$(MAKE) -C $(_REPO_ROOT)/framework/backend/kubernetes generate-all
 
 # generate-api-verify — same as generate-api but fails if the tree is dirty
 # afterwards. This is what CI runs; developers use `generate-api` directly.
@@ -283,7 +283,7 @@ generate-api:
 .PHONY: generate-api-verify
 generate-api-verify: generate-api
 	@$(_REPO_ROOT)/ci/scripts/verify-run.sh generate-api-verify "Generated API artifacts are in sync" -- \
-	  $(_REPO_ROOT)/ci/scripts/git-tree-clean-verify.sh --against-index $(_REPO_ROOT) generate-api "make generate-api" framework/persistence/
+	  $(_REPO_ROOT)/ci/scripts/git-tree-clean-verify.sh --against-index $(_REPO_ROOT) generate-api "make generate-api" framework/backend/kubernetes/
 
 ###############################################################################
 # Per-module: go mod tidy

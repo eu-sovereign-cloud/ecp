@@ -23,8 +23,8 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	kernelresource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
-	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1"
 	bsk8s "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1/backend/kubernetes"
 	wsdom "github.com/eu-sovereign-cloud/ecp/resources/workspace/v1"

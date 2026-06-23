@@ -7,7 +7,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/labels"
+	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
 	ssdom "github.com/eu-sovereign-cloud/ecp/resources/storage/storage-skus/v1"
 )
 

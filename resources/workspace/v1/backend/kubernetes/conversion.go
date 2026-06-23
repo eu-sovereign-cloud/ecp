@@ -11,11 +11,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
+	convert "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/convert"
+	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
+	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/schema/v1"
 	kernelresource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
-	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
-	convert "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/convert"
-	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/labels"
-	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
 
 	commonbackend "github.com/eu-sovereign-cloud/ecp/resources/common/backend"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"

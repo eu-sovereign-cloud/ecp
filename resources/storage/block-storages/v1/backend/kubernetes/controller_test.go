@@ -15,9 +15,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	k8srt "sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	frameworkcontroller "github.com/eu-sovereign-cloud/ecp/framework/backend/controller"
-	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/labels"
-	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
+	frameworkcontroller "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/controller"
+	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
+	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/schema/v1"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1"
 
 	. "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1/backend/kubernetes"

@@ -15,8 +15,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 
-	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
-	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
+	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
+	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/schema/v1"
 
 	backend "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
 	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"

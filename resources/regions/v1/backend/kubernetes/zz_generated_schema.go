@@ -6,7 +6,7 @@ package kubernetes
 // +kubebuilder:object:generate=true
 // +kubebuilder:object:root=false
 
-import schemav1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
+import schemav1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/schema/v1"
 
 // Provider A provider of cloud services
 type Provider struct {

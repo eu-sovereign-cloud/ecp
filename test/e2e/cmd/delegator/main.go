@@ -17,8 +17,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	frameworkbuilder "github.com/eu-sovereign-cloud/ecp/framework/backend/builder"
-	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
+	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
+	frameworkbuilder "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/builder"
 	netk8s "github.com/eu-sovereign-cloud/ecp/resources/network/networks/v1/backend/kubernetes"
 	bsk8s "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1/backend/kubernetes"
 	ssk8s "github.com/eu-sovereign-cloud/ecp/resources/storage/storage-skus/v1/backend/kubernetes"

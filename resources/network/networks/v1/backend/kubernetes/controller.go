@@ -4,9 +4,9 @@ import (
 	"k8s.io/client-go/dynamic"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	builder "github.com/eu-sovereign-cloud/ecp/framework/backend/builder"
-	frameworkcontroller "github.com/eu-sovereign-cloud/ecp/framework/backend/controller"
-	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
+	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
+	builder "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/builder"
+	frameworkcontroller "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/controller"
 	netdom "github.com/eu-sovereign-cloud/ecp/resources/network/networks/v1"
 )
 

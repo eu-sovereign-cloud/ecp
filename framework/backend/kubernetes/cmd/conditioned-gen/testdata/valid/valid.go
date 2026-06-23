@@ -1,6 +1,6 @@
 package valid
 
-import v1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
+import v1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/schema/v1"
 
 // +ecp:conditioned
 type TypeOne struct {

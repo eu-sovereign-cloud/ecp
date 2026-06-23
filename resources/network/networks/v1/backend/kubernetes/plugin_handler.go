@@ -9,7 +9,7 @@ import (
 	backendport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
 	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 
-	frameworkbackend "github.com/eu-sovereign-cloud/ecp/framework/backend"
+	frameworkbackend "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	commonbackend "github.com/eu-sovereign-cloud/ecp/resources/common/backend"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
 	netdom "github.com/eu-sovereign-cloud/ecp/resources/network/networks/v1"

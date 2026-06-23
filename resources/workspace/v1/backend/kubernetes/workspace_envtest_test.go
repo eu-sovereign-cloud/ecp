@@ -13,9 +13,9 @@ import (
 	k8sinterface "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
+	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
+	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
 	kernelresource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
-	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
-	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/labels"
 
 	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
 	testutil "github.com/eu-sovereign-cloud/ecp/resources/common/frontend/testutil"

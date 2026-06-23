@@ -23,7 +23,7 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/validation/filter"
-	"github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/labels"
+	"github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
 )
 
 // K8sToDomain defines a function that converts a Kubernetes client.Object to a specific type T.

@@ -10,7 +10,7 @@ import (
 	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
 	rdom "github.com/eu-sovereign-cloud/ecp/resources/regions/v1"
 
-	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/labels"
+	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
 )
 
 // MapCRToRegionDomain converts either a concrete *Region or *unstructured.Unstructured into a *rdom.Region.

@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	defaultQualifyPkgPath  = "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
+	defaultQualifyPkgPath  = "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/schema/v1"
 	defaultQualifyPkgAlias = "schemav1"
 )
 

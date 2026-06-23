@@ -1,6 +1,6 @@
 package aliasstatus
 
-import v1 "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/schema/v1"
+import v1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/schema/v1"
 
 type AliasedStatus = v1.Status
 
