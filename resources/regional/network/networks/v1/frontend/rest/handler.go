@@ -1,9 +1,6 @@
 package rest
 
 import (
-	"bytes"
-	"encoding/json"
-	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -11,11 +8,11 @@ import (
 	sdknetwork "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.network.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
+	frest "github.com/eu-sovereign-cloud/ecp/framework/frontend/rest"
 	frameworkconfig "github.com/eu-sovereign-cloud/ecp/framework/frontend/config"
-	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
+	persistencepkg "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/validation"
-	commonfrontend "github.com/eu-sovereign-cloud/ecp/resources/common/frontend"
 	skudom "github.com/eu-sovereign-cloud/ecp/resources/regional/network/network-skus/v1"
 	skurest "github.com/eu-sovereign-cloud/ecp/resources/regional/network/network-skus/v1/frontend/rest"
 	netdom "github.com/eu-sovereign-cloud/ecp/resources/regional/network/networks/v1"
@@ -24,9 +21,9 @@ import (
 // Handler is the HTTP handler for network resources (networks + SKUs).
 // It implements the full sdknetwork.ServerInterface.
 type Handler struct {
-	NetworkReader persistence.ReaderRepo[*netdom.Network]
-	NetworkWriter persistence.WriterRepo[*netdom.Network]
-	SKUReader     persistence.ReaderRepo[*skudom.NetworkSKU]
+	NetworkReader persistencepkg.ReaderRepo[*netdom.Network]
+	NetworkWriter persistencepkg.WriterRepo[*netdom.Network]
+	SKUReader     persistencepkg.ReaderRepo[*skudom.NetworkSKU]
 	Logger        *slog.Logger
 }
 
@@ -36,7 +33,6 @@ var _ sdknetwork.ServerInterface = (*Handler)(nil)
 
 func (h *Handler) ListSkus(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, params sdknetwork.ListSkusParams) {
 	logger := h.Logger.With("provider", "network", "resource", "sku")
-
 	var skipToken string
 	if params.SkipToken != nil {
 		skipToken = *params.SkipToken
@@ -45,142 +41,59 @@ func (h *Handler) ListSkus(w http.ResponseWriter, r *http.Request, tenant sdksch
 	if params.Labels != nil {
 		selector = *params.Labels
 	}
-
 	listParams := resource.ListParams{
 		Scope:     resource.Scope{Tenant: tenant},
 		Limit:     validation.GetLimit(params.Limit),
 		SkipToken: skipToken,
 		Selector:  selector,
 	}
-
-	var domains []*skudom.NetworkSKU
-	nextSkipToken, err := h.SKUReader.List(r.Context(), listParams, &domains)
-	if err != nil {
-		logger.ErrorContext(r.Context(), "failed to list network SKUs", slog.Any("error", err))
-		commonfrontend.WriteErrorResponse(w, r, logger, err)
-		return
-	}
-
-	writeJSON(w, r, logger, skurest.NetworkSKUDomainToAPIIterator(domains, nextSkipToken))
+	frest.HandleList(w, r, logger, listParams, frest.ListerFromRepo(h.SKUReader), skurest.NetworkSKUDomainToAPIIterator)
 }
 
 func (h *Handler) GetSku(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam) {
 	logger := h.Logger.With("provider", "network", "resource", "sku", "name", name)
-
-	domain := &skudom.NetworkSKU{}
-	domain.Name = name
-	domain.Tenant = tenant
-
-	if err := h.SKUReader.Load(r.Context(), &domain); err != nil {
-		commonfrontend.WriteErrorResponse(w, r, logger, err)
-		return
-	}
-
-	writeJSON(w, r, logger, skurest.NetworkSKUDomainToAPI(domain))
+	ir := &networkSKUIdentity{name: name, tenant: tenant}
+	frest.HandleGet(w, r, logger, ir, frest.GetterFromRepo(h.SKUReader, newNetworkSKUWithIdentity), skurest.NetworkSKUDomainToAPI)
 }
 
 // --- Networks ---
 
 func (h *Handler) ListNetworks(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, params sdknetwork.ListNetworksParams) {
 	logger := h.Logger.With("provider", "network", "resource", "network")
-	listParams := ListParamsFromAPI(params, tenant, workspace)
-
-	var domains []*netdom.Network
-	nextSkipToken, err := h.NetworkReader.List(r.Context(), listParams, &domains)
-	if err != nil {
-		logger.ErrorContext(r.Context(), "failed to list networks", slog.Any("error", err))
-		commonfrontend.WriteErrorResponse(w, r, logger, err)
-		return
-	}
-
-	writeJSON(w, r, logger, NetworkDomainToAPIIterator(domains, nextSkipToken))
+	frest.HandleList(w, r, logger, ListParamsFromAPI(params, tenant, workspace), frest.ListerFromRepo(h.NetworkReader), NetworkDomainToAPIIterator)
 }
 
 func (h *Handler) DeleteNetwork(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdknetwork.DeleteNetworkParams) {
 	logger := h.Logger.With("provider", "network", "resource", "network", "name", name)
-
-	domain := &netdom.Network{}
-	domain.Name = name
-	domain.Tenant = tenant
-	domain.Workspace = workspace
+	id := &NetworkIdentity{name: name, tenant: tenant, workspace: workspace}
 	if params.IfUnmodifiedSince != nil {
-		domain.ResourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
+		id.resourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
 	}
-
-	if err := h.NetworkWriter.Delete(r.Context(), domain); err != nil {
-		commonfrontend.WriteErrorResponse(w, r, logger, err)
-		return
-	}
-
-	w.WriteHeader(http.StatusAccepted)
+	frest.HandleDelete(w, r, logger, id, frest.DeleterFromRepo(h.NetworkWriter, newNetworkWithIdentity))
 }
 
 func (h *Handler) GetNetwork(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam) {
 	logger := h.Logger.With("provider", "network", "resource", "network", "name", name)
-
-	domain := &netdom.Network{}
-	domain.Name = name
-	domain.Tenant = tenant
-	domain.Workspace = workspace
-
-	if err := h.NetworkReader.Load(r.Context(), &domain); err != nil {
-		commonfrontend.WriteErrorResponse(w, r, logger, err)
-		return
-	}
-
-	toAPI := NetworkDomainToAPIWithVerb(http.MethodGet)
-	writeJSON(w, r, logger, toAPI(domain))
+	ir := &NetworkIdentity{name: name, tenant: tenant, workspace: workspace}
+	frest.HandleGet(w, r, logger, ir, frest.GetterFromRepo(h.NetworkReader, newNetworkWithIdentity), NetworkDomainToAPIWithVerb(http.MethodGet))
 }
 
 func (h *Handler) CreateOrUpdateNetwork(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdknetwork.CreateOrUpdateNetworkParams) {
 	logger := h.Logger.With("provider", "network", "resource", "network", "name", name)
-
-	var resourceVersion string
+	id := &NetworkIdentity{name: name, tenant: tenant, workspace: workspace}
 	if params.IfUnmodifiedSince != nil {
-		resourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
-	}
-
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		commonfrontend.WriteErrorResponse(w, r, logger, err)
-		return
-	}
-	defer func() { _ = r.Body.Close() }()
-
-	var apiObj sdkschema.Network
-	if err := json.Unmarshal(body, &apiObj); err != nil {
-		commonfrontend.WriteErrorResponse(w, r, logger, err)
-		return
-	}
-
-	id := &NetworkIdentity{
-		name:            name,
-		tenant:          tenant,
-		workspace:       workspace,
-		resourceVersion: resourceVersion,
+		id.resourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
 	}
 	region := frameworkconfig.Singleton().Region()
-	domainObj := APIToNetworkDomain(apiObj, id, region)
-
-	var result *netdom.Network
-	if resourceVersion == "" {
-		r2, err := h.NetworkWriter.Create(r.Context(), domainObj)
-		if err != nil {
-			commonfrontend.WriteErrorResponse(w, r, logger, err)
-			return
-		}
-		result = *r2
-	} else {
-		r2, err := h.NetworkWriter.Update(r.Context(), domainObj)
-		if err != nil {
-			commonfrontend.WriteErrorResponse(w, r, logger, err)
-			return
-		}
-		result = *r2
-	}
-
-	toAPI := NetworkDomainToAPIWithVerb(http.MethodPut)
-	writeJSON(w, r, logger, toAPI(result))
+	frest.HandleUpsert(w, r, logger, frest.UpsertOptions[sdkschema.Network, *netdom.Network, *sdkschema.Network]{
+		Params:  id,
+		Creator: frest.CreatorFromRepo(h.NetworkWriter),
+		Updater: frest.UpdaterFromRepo(h.NetworkWriter),
+		APIToDomain: func(sdk sdkschema.Network, p persistencepkg.IdentifiableResource) *netdom.Network {
+			return APIToNetworkDomain(sdk, p.(*NetworkIdentity), region)
+		},
+		DomainToAPI: NetworkDomainToAPIWithVerb(http.MethodPut),
+	})
 }
 
 // --- Unimplemented (TODO) ---
@@ -325,15 +238,31 @@ func (h *Handler) CreateOrUpdateSecurityGroup(w http.ResponseWriter, r *http.Req
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
-// writeJSON encodes v to JSON and writes it to w.
-func writeJSON(w http.ResponseWriter, r *http.Request, logger *slog.Logger, v any) {
-	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(v); err != nil {
-		logger.ErrorContext(r.Context(), "failed to encode response", slog.Any("error", err))
-		commonfrontend.WriteErrorResponse(w, r, logger, err)
-		return
-	}
-	w.Header().Set("Content-Type", string(sdkschema.AcceptHeaderJson))
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(buf.Bytes())
+// newNetworkWithIdentity returns a *netdom.Network populated with identity fields from ir.
+func newNetworkWithIdentity(ir persistencepkg.IdentifiableResource) *netdom.Network {
+	d := &netdom.Network{}
+	d.Name = ir.GetName()
+	d.Tenant = ir.GetTenant()
+	d.Workspace = ir.GetWorkspace()
+	d.ResourceVersion = ir.GetVersion()
+	return d
+}
+
+// networkSKUIdentity is a minimal IdentifiableResource for network-SKU get operations.
+type networkSKUIdentity struct {
+	name   string
+	tenant string
+}
+
+func (s *networkSKUIdentity) GetName() string      { return s.name }
+func (s *networkSKUIdentity) GetVersion() string   { return "" }
+func (s *networkSKUIdentity) GetTenant() string    { return s.tenant }
+func (s *networkSKUIdentity) GetWorkspace() string { return "" }
+
+// newNetworkSKUWithIdentity returns a *skudom.NetworkSKU populated with identity fields from ir.
+func newNetworkSKUWithIdentity(ir persistencepkg.IdentifiableResource) *skudom.NetworkSKU {
+	d := &skudom.NetworkSKU{}
+	d.Name = ir.GetName()
+	d.Tenant = ir.GetTenant()
+	return d
 }
