@@ -8,8 +8,8 @@ import (
 	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
-	frest "github.com/eu-sovereign-cloud/ecp/framework/frontend/rest"
 	frameworkconfig "github.com/eu-sovereign-cloud/ecp/framework/frontend/config"
+	frest "github.com/eu-sovereign-cloud/ecp/framework/frontend/rest"
 	persistencepkg "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/validation"

@@ -16,8 +16,8 @@ import (
 
 	. "github.com/eu-sovereign-cloud/ecp/resources/global/regions/v1/backend/kubernetes"
 
-	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
 	kernelresource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
+	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
 	rdom "github.com/eu-sovereign-cloud/ecp/resources/global/regions/v1"
 )
 

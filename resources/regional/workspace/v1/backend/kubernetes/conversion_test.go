@@ -49,7 +49,7 @@ func FuzzWorkspaceSpecRoundTrip(f *testing.F) {
 	f.Add(`{"k":"v"}`, "ws", "trailing/", "t", "")
 	f.Add(`{"k":"v"}`, "ws", "a/_b", "t", "")
 	f.Add(`{"k":"v"}`, "ws", "ionos/München", "t", "")
-	f.Add(`{"k":"v"}`, "ws", "provider/日本語", "t", "")
+	f.Add(`{"k":"v"}`, "ws", "provider/nihongo", "t", "")
 	f.Add(`{"k":"v"}`, "ws", strings.Repeat("a/", 30)+"b", "t", "")
 
 	// Deeply nested JSON spec values

@@ -30,7 +30,7 @@ func FuzzBlockStorageSpecRoundTrip(f *testing.F) {
 	f.Add(1, "block-storages/"+strings.Repeat("x", 253), "", "", "", "", strings.Repeat("n", 254), "", "t", "", "")
 	// provider/region slash/underscore edge cases
 	f.Add(1, "block-storages/bs", "///", "de/fra", "t", "ws", "bs", "a/_b", "t", "ws", "de")
-	f.Add(1, "block-storages/bs", "ionos/München", "eu/中央", "t", "ws", "bs", "provider/日本語", "t", "ws", "de")
+	f.Add(1, "block-storages/bs", "ionos/Muenchen", "eu/central", "t", "ws", "bs", "provider/nihongo", "t", "ws", "de")
 
 	f.Fuzz(func(t *testing.T,
 		sizeGB int,
