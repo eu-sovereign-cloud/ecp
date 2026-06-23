@@ -13,10 +13,10 @@ import (
 	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	res "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
-	bsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1"
-	bsk8s "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1/backend/kubernetes"
-	ssdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/storage-skus/v1"
-	wsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/workspace/v1"
+	bsdom "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1"
+	bsk8s "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1/backend/kubernetes"
+	ssdom "github.com/eu-sovereign-cloud/ecp/resources/storage/storage-skus/v1"
+	wsdom "github.com/eu-sovereign-cloud/ecp/resources/workspace/v1"
 
 	adaptconverter "github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/converter"
 	"github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/generic/delegated"
@@ -64,8 +64,8 @@ func NewBlockStorageHandler(
 	bsRepo repository.Repository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList],
 	prjRepo repository.Repository[*v1alpha1.Project, *v1alpha1.ProjectList],
 	bsConv converter.Converter[*bsdom.BlockStorage, *v1alpha1.BlockStorage],
-	wsConv converter.Converter[*wsdom.Workspace, *v1alpha1.Project]) *BlockStorageHandler {
-
+	wsConv converter.Converter[*wsdom.Workspace, *v1alpha1.Project],
+) *BlockStorageHandler {
 	handler := &BlockStorageHandler{
 		wsRepository:  wsRepo,
 		skuRepository: skuRepo,
@@ -143,7 +143,6 @@ func (h *BlockStorageHandler) checkBsIncreaseSizeCondition(arubaBundle *ArubaBlo
 	size := arubaBundle.BlockStorage.Spec.SizeGB
 
 	err := h.bsRepository.Load(ctx, arubaBundle.BlockStorage)
-
 	if err != nil {
 		return false
 	}
@@ -218,7 +217,6 @@ func (h *BlockStorageHandler) resolveSecaBlockStorageDependencies(ctx context.Co
 		Workspace:    ws,
 		StorageSku:   storageSku,
 	}, nil
-
 }
 
 func (h *BlockStorageHandler) resolveArubaBlockStorageDependencies(ctx context.Context, arubaBundle *ArubaBlockStorageBundle) (*ArubaBlockStorageBundle, error) {
@@ -242,11 +240,10 @@ func (h *BlockStorageHandler) resolveArubaBlockStorageDependencies(ctx context.C
 }
 
 func (h *BlockStorageHandler) FromSECABundleToAruba(from *SecaBlockStorageBundle) (*ArubaBlockStorageBundle, error) {
-	var response = &ArubaBlockStorageBundle{}
+	response := &ArubaBlockStorageBundle{}
 
 	if from.Workspace != nil {
 		prj, err := h.wsConverter.FromSECAToAruba(from.Workspace)
-
 		if err != nil {
 			return nil, err // TODO: better error handling
 		}
@@ -255,7 +252,6 @@ func (h *BlockStorageHandler) FromSECABundleToAruba(from *SecaBlockStorageBundle
 	}
 
 	bs, err := h.bsConverter.FromSECAToAruba(from.BlockStorage)
-
 	if err != nil {
 		return nil, err // TODO: better error handling
 	}
@@ -293,7 +289,6 @@ func (h *BlockStorageHandler) waitUntilManagedError(ctx context.Context, arubaBu
 			BlockStorage: p,
 		})
 	})
-
 	if err != nil {
 		// Check if the error is due to the resource not being found, which can be expected during deletion
 		if apierrors.IsTimeout(err) {

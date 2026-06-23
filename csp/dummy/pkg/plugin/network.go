@@ -6,7 +6,7 @@ import (
 	"math/rand/v2"
 	"time"
 
-	netdom "github.com/eu-sovereign-cloud/ecp/resources/regional/network/networks/v1"
+	netdom "github.com/eu-sovereign-cloud/ecp/resources/network/networks/v1"
 )
 
 type Network struct {

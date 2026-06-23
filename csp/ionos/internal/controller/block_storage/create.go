@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/eu-sovereign-cloud/ecp/csp/ionos/pkg/port"
-	bsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1"
+	bsdom "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1"
 )
 
 type CreateBlockStorage struct {

@@ -14,7 +14,7 @@ import (
 	kernel "github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	resource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
-	bsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1"
+	bsdom "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1"
 )
 
 func TestBlockStorage(t *testing.T) {

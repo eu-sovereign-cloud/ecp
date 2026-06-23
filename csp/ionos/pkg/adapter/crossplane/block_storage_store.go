@@ -15,7 +15,7 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/csp/ionos/pkg/port"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
-	bsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1"
+	bsdom "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1"
 )
 
 var _ port.BlockStorageStore = (*BlockStorageStore)(nil)
@@ -64,7 +64,6 @@ func (a *BlockStorageStore) IncreaseSize(ctx context.Context, domain *bsdom.Bloc
 }
 
 func newVolume(domain *bsdom.BlockStorage) *ionosv1alpha1.Volume {
-
 	namespace := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: domain.GetTenant()})
 	return &ionosv1alpha1.Volume{
 		TypeMeta: metav1.TypeMeta{Kind: ionosv1alpha1.Volume_Kind},

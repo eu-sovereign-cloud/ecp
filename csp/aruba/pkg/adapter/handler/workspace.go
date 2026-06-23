@@ -8,8 +8,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 
 	backend "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
-	wsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/workspace/v1"
-	wsk8s "github.com/eu-sovereign-cloud/ecp/resources/regional/workspace/v1/backend/kubernetes"
+	wsdom "github.com/eu-sovereign-cloud/ecp/resources/workspace/v1"
+	wsk8s "github.com/eu-sovereign-cloud/ecp/resources/workspace/v1/backend/kubernetes"
 
 	"github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/generic/delegated"
 	mutator_bypass "github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/generic/mutator"
@@ -81,9 +81,7 @@ func (h *WorkspaceHandler) checkWsDeleteCondition(project *v1alpha1.Project) boo
 // waitUntilManagedError waits until the provided condition is met for the given resource.
 // If the condition is not met within the timeout, it returns backend.ErrStillProcessing to indicate that the operation is still in progress.
 func (h *WorkspaceHandler) waitUntilManagedError(ctx context.Context, project *v1alpha1.Project, condition repository.WaitConditionFunc[*v1alpha1.Project]) (*v1alpha1.Project, error) {
-
 	proj, err := h.repository.WaitUntil(ctx, project, condition)
-
 	if err != nil {
 		// Check if the error is due to the resource not being found, which can be expected during deletion
 		if errors.IsTimeout(err) {

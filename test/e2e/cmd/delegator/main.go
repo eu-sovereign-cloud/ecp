@@ -19,10 +19,10 @@ import (
 
 	frameworkbuilder "github.com/eu-sovereign-cloud/ecp/framework/backend/builder"
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
-	bsk8s "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1/backend/kubernetes"
-	netk8s "github.com/eu-sovereign-cloud/ecp/resources/regional/network/networks/v1/backend/kubernetes"
-	ssk8s "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/storage-skus/v1/backend/kubernetes"
-	wsk8s "github.com/eu-sovereign-cloud/ecp/resources/regional/workspace/v1/backend/kubernetes"
+	netk8s "github.com/eu-sovereign-cloud/ecp/resources/network/networks/v1/backend/kubernetes"
+	bsk8s "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1/backend/kubernetes"
+	ssk8s "github.com/eu-sovereign-cloud/ecp/resources/storage/storage-skus/v1/backend/kubernetes"
+	wsk8s "github.com/eu-sovereign-cloud/ecp/resources/workspace/v1/backend/kubernetes"
 
 	aruba_converter "github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/converter"
 	aruba_handler "github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/handler"

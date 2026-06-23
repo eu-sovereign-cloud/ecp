@@ -36,10 +36,10 @@ import (
 	resource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
-	bsk8s "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1/backend/kubernetes"
-	bsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1"
-	wsk8s "github.com/eu-sovereign-cloud/ecp/resources/regional/workspace/v1/backend/kubernetes"
-	wsdom "github.com/eu-sovereign-cloud/ecp/resources/regional/workspace/v1"
+	bsdom "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1"
+	bsk8s "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1/backend/kubernetes"
+	wsdom "github.com/eu-sovereign-cloud/ecp/resources/workspace/v1"
+	wsk8s "github.com/eu-sovereign-cloud/ecp/resources/workspace/v1/backend/kubernetes"
 )
 
 const (
