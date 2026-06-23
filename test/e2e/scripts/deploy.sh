@@ -9,7 +9,7 @@ setup_kube_vars
 setup_registry_vars "$1"
 
 DEPLOY_DIR="${SCRIPT_DIR}/../deploy/${COMPONENT}"
-CRDS_DIR="${SCRIPT_DIR}/../../../resources/testdata/crds"
+CRDS_DIR="${SCRIPT_DIR}/../../../chart/crd"
 
 echo "Applying CRDs from ${CRDS_DIR}..."
 find "${CRDS_DIR}" -type f -name "*.yaml" -exec cat {} + | kubectl ${KUBECONFIG_ARG} apply -f -
