@@ -178,8 +178,8 @@ test: $(addsuffix -test,$(GO_MODULES))
 # or leave it unset to let envtest download them automatically.
 .PHONY: test-envtest
 test-envtest:
-	@$(_REPO_ROOT)/ci/scripts/verify-run.sh "resources-envtest" "Envtest integration tests" -- \
-	  sh -c "cd $(_REPO_ROOT)/resources && go test -race -tags envtest -v $(if $(RUN),-run '$(RUN)') ./..."
+	@$(_REPO_ROOT)/ci/scripts/verify-run.sh "resource-envtest" "Envtest integration tests" -- \
+	  sh -c "cd $(_REPO_ROOT)/resource && go test -race -tags envtest -v $(if $(RUN),-run '$(RUN)') ./..."
 
 ###############################################################################
 # Per-module lint (golangci-lint)

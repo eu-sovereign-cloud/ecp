@@ -13,7 +13,7 @@ COPY ci/tools/go/ ci/tools/go/
 # Pre-copy module manifests so replace directives resolve before full source copy
 COPY framework/go.mod framework/go.mod
 COPY framework/go.sum framework/go.sum
-COPY resources/go.mod resources/go.mod
+COPY resource/go.mod resource/go.mod
 COPY csp/ionos/go.mod csp/ionos/go.mod
 COPY csp/ionos/go.sum csp/ionos/go.sum
 COPY modules/go-sdk/ modules/go-sdk/
@@ -24,7 +24,7 @@ RUN go mod download
 # Copy full source after deps to leverage layer cache
 WORKDIR /app
 COPY framework/ framework/
-COPY resources/ resources/
+COPY resource/ resource/
 COPY csp/ionos/ csp/ionos/
 COPY modules/go-sdk/ modules/go-sdk/
 
