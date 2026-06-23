@@ -16,7 +16,7 @@ var cfg *rest.Config
 
 func TestMain(m *testing.M) {
 	wd, _ := os.Getwd()
-	crdDir := filepath.Clean(filepath.Join(wd, "../../../../../../testdata/crds/network"))
+	crdDir := filepath.Clean(filepath.Join(wd, "../../../../../testdata/crds/network"))
 	testenv := &envtest.Environment{
 		ErrorIfCRDPathMissing: true,
 		CRDDirectoryPaths:     []string{crdDir},
