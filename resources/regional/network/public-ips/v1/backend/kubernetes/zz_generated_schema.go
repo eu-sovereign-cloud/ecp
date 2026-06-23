@@ -42,6 +42,6 @@ type PublicIpStatus struct {
 	Conditions []schemav1.StatusCondition `json:"conditions" x-kubebuilder-validation-max-items:"32"`
 
 	// IpAddress The public IP address in case of BYOIP.
-	IpAddress string              `json:"ipAddress,omitempty" x-cel-message-0:"status.ipAddress must be a valid IPv4/IPv6 address" x-cel-rule-0:"self.size() == 0 || isIP(self)" x-kubebuilder-validation-max-length:"39"`
+	IpAddress string                 `json:"ipAddress,omitempty" x-cel-message-0:"status.ipAddress must be a valid IPv4/IPv6 address" x-cel-rule-0:"self.size() == 0 || isIP(self)" x-kubebuilder-validation-max-length:"39"`
 	State     schemav1.ResourceState `json:"state,omitempty"`
 }

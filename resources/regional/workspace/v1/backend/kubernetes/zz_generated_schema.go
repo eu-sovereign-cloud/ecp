@@ -34,6 +34,6 @@ type WorkspaceStatus struct {
 	Conditions []schemav1.StatusCondition `json:"conditions" x-kubebuilder-validation-max-items:"32"`
 
 	// ResourceCount Number of resources currently in the workspace
-	ResourceCount *int                `json:"resourceCount,omitempty" x-kubebuilder-validation-minimum:"0"`
+	ResourceCount *int                   `json:"resourceCount,omitempty" x-kubebuilder-validation-minimum:"0"`
 	State         schemav1.ResourceState `json:"state,omitempty"`
 }

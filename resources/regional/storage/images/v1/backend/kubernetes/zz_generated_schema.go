@@ -81,6 +81,6 @@ type ImageStatus struct {
 	Conditions []schemav1.StatusCondition `json:"conditions" x-kubebuilder-validation-max-items:"32"`
 
 	// SizeMB Size of the Image in MB
-	SizeMB *int                `json:"sizeMB,omitempty" x-kubebuilder-validation-minimum:"1"`
+	SizeMB *int                   `json:"sizeMB,omitempty" x-kubebuilder-validation-minimum:"1"`
 	State  schemav1.ResourceState `json:"state,omitempty"`
 }

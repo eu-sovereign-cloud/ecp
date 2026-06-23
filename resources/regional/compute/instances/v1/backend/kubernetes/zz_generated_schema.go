@@ -81,7 +81,7 @@ type InstanceStatus struct {
 	PowerState InstanceStatusPowerState `json:"powerState" x-kubebuilder-validation-enum:"on;off"`
 
 	// PowerStateSince Indicates the time when the instance powerState has updated, basecause the instance was started, stoped or restarted. If the instance was never started the field is `null`.
-	PowerStateSince *metav1.Time        `json:"powerStateSince,omitempty"`
+	PowerStateSince *metav1.Time           `json:"powerStateSince,omitempty"`
 	State           schemav1.ResourceState `json:"state,omitempty"`
 }
 
