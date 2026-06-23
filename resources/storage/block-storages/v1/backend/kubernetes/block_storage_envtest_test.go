@@ -19,7 +19,7 @@ import (
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
 	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/labels"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
-	testutil "github.com/eu-sovereign-cloud/ecp/resources/common/testutil"
+	testutil "github.com/eu-sovereign-cloud/ecp/resources/common/frontend/testutil"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1"
 
 	. "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1/backend/kubernetes"
