@@ -31,7 +31,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy the manager binary from the builder stage
 WORKDIR /app
-COPY --from=builder /workspace/foundation/plugin/e2e/delegator .
+COPY --from=builder /workspace/test/e2e/delegator .
 
 # Copy dlv (Delve debugger) for debugging. Assume dlv is in /go/bin in the builder image.
 COPY --from=builder /go/bin/dlv /usr/local/bin/dlv

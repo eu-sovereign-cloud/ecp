@@ -1,6 +1,6 @@
 # Makefile for e2e Plugin
 
-include ../../../.config.mk
+include ../../.config.mk
 
 # =====================================================================================
 # Variables
