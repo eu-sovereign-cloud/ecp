@@ -123,7 +123,7 @@ func discardLogger() *slog.Logger {
 }
 
 func domainToTestOut(d TestDomain) TestOut {
-	return TestOut{ID: d.ID, Data: d.Data}
+	return TestOut(d)
 }
 
 func apiToTestDomain(sdk TestIn, params persistence.IdentifiableResource) TestDomain {
