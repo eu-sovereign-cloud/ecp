@@ -15,7 +15,7 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/csp/ionos/pkg/port"
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
-	netdom "github.com/eu-sovereign-cloud/ecp/resources/network/networks/v1"
+	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/network/v1"
 )
 
 var _ port.NetworkStore = (*NetworkStore)(nil)

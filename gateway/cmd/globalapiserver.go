@@ -20,9 +20,9 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/kubeclient"
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/logger"
 
-	rdom "github.com/eu-sovereign-cloud/ecp/resources/regions/v1"
-	rk8s "github.com/eu-sovereign-cloud/ecp/resources/regions/v1/backend/kubernetes"
-	regionrest "github.com/eu-sovereign-cloud/ecp/resources/regions/v1/frontend/rest"
+	rdom "github.com/eu-sovereign-cloud/ecp/resource/region/v1"
+	rk8s "github.com/eu-sovereign-cloud/ecp/resource/region/v1/backend/kubernetes"
+	regionrest "github.com/eu-sovereign-cloud/ecp/resource/region/v1/frontend/rest"
 )
 
 var (

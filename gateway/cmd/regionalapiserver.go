@@ -25,21 +25,21 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/kubeclient"
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/logger"
 
-	netskudom "github.com/eu-sovereign-cloud/ecp/resources/network/network-skus/v1"
-	netskuk8s "github.com/eu-sovereign-cloud/ecp/resources/network/network-skus/v1/backend/kubernetes"
-	netdom "github.com/eu-sovereign-cloud/ecp/resources/network/networks/v1"
-	netk8s "github.com/eu-sovereign-cloud/ecp/resources/network/networks/v1/backend/kubernetes"
-	netrest "github.com/eu-sovereign-cloud/ecp/resources/network/networks/v1/frontend/rest"
+	netskudom "github.com/eu-sovereign-cloud/ecp/resource/network/network-sku/v1"
+	netskuk8s "github.com/eu-sovereign-cloud/ecp/resource/network/network-sku/v1/backend/kubernetes"
+	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/network/v1"
+	netk8s "github.com/eu-sovereign-cloud/ecp/resource/network/network/v1/backend/kubernetes"
+	netrest "github.com/eu-sovereign-cloud/ecp/resource/network/network/v1/frontend/rest"
 
-	bsdom "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1"
-	bsk8s "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1/backend/kubernetes"
-	storagerest "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1/frontend/rest"
-	skudom "github.com/eu-sovereign-cloud/ecp/resources/storage/storage-skus/v1"
-	skuk8s "github.com/eu-sovereign-cloud/ecp/resources/storage/storage-skus/v1/backend/kubernetes"
+	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1"
+	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1/backend/kubernetes"
+	storagerest "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1/frontend/rest"
+	skudom "github.com/eu-sovereign-cloud/ecp/resource/storage/storage-sku/v1"
+	skuk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/storage-sku/v1/backend/kubernetes"
 
-	wsdom "github.com/eu-sovereign-cloud/ecp/resources/workspace/v1"
-	wsk8s "github.com/eu-sovereign-cloud/ecp/resources/workspace/v1/backend/kubernetes"
-	wsrest "github.com/eu-sovereign-cloud/ecp/resources/workspace/v1/frontend/rest"
+	wsdom "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1"
+	wsk8s "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1/backend/kubernetes"
+	wsrest "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1/frontend/rest"
 )
 
 var (

@@ -9,8 +9,8 @@ import (
 
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	res "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
-	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
-	bsdom "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1"
+	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
+	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1"
 )
 
 const (

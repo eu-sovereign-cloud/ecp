@@ -19,9 +19,9 @@ import (
 
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	resource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
-	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
-	wsdom "github.com/eu-sovereign-cloud/ecp/resources/workspace/v1"
-	wsk8s "github.com/eu-sovereign-cloud/ecp/resources/workspace/v1/backend/kubernetes"
+	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
+	wsdom "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1"
+	wsk8s "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1/backend/kubernetes"
 )
 
 func TestWorkspaceAPI(t *testing.T) {

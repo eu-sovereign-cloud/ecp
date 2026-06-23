@@ -5,7 +5,7 @@ go 1.26.4
 require (
 	github.com/Arubacloud/arubacloud-resource-operator v1.0.0
 	github.com/eu-sovereign-cloud/ecp/framework v0.0.1
-	github.com/eu-sovereign-cloud/ecp/resources v0.0.1
+	github.com/eu-sovereign-cloud/ecp/resource v0.0.1
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/mock v0.6.0
 	k8s.io/apimachinery v0.35.0

@@ -13,7 +13,7 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/csp/ionos/pkg/port"
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
-	wsdom "github.com/eu-sovereign-cloud/ecp/resources/workspace/v1"
+	wsdom "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1"
 )
 
 var _ port.WorkspaceStore = (*WorkspaceStore)(nil)

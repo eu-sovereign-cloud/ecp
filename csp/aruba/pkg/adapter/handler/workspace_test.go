@@ -11,7 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	wsdom "github.com/eu-sovereign-cloud/ecp/resources/workspace/v1"
+	wsdom "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1"
 )
 
 func notFoundErr(name string) error {
