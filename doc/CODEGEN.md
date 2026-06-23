@@ -8,8 +8,7 @@ ECP's type layer is built by two generation steps:
 
 1. **Shared schema types** (`make generate-api`) — reads the go-sdk `resource.go` schema, emits `framework/backend/kubernetes/schema/v1/zz_generated_resource.go` (CRD-envelope types shared by all slices, aliased as `schemav1`), applies kubebuilder markers, and runs controller-gen to produce `DeepCopy` methods.
 2. **Per-slice types** (`go generate ./...` in `resource/`) — each resource slice declares an explicit `//go:generate` directive in `backend/kubernetes/generate.go`; `model-gen` extracts the slice-specific types from the go-sdk schema and emits `zz_generated_schema.go` in that slice's `backend/kubernetes/` package.
-
-**CRD YAML generation** is scaffolded (a `generate-crds` target in `framework/backend/kubernetes/Makefile`) but currently inactive — no `//go:build crdgen`-tagged sources exist yet.
+3. **CRD YAML** (`make generate-api`) — injects `+kubebuilder:validation:*` markers into every slice's generated schema and runs controller-gen `crd` over all 18 resource slices, emitting CRD YAML files into `chart/crd/`.
 
 Generated files must never be edited by hand. CI enforces this with `make generate-api-verify`.
 
@@ -37,9 +36,12 @@ schema that defines CRD-envelope types shared by all resource slices.
 2. `inject-kubebuilder-markers` annotates the emitted types with `+kubebuilder:*` markers.
 3. `controller-gen object` generates `zz_generated.deepcopy.go` alongside.
 
-**Outputs:**
+**Outputs (generate-models):**
 - `framework/backend/kubernetes/schema/v1/zz_generated_resource.go` — shared types (`CommonData`, `Conditioned`, `Reference`, `Zone`, `Cidr`, `IPVersion`, `VolumeReference`, etc.)
 - `framework/backend/kubernetes/schema/v1/zz_generated.deepcopy.go`
+
+**Outputs (generate-crds):**
+- `chart/crd/*.yaml` — 18 CRD YAML files (one per resource slice; see [CRD Generation](#crd-generation))
 
 All importers alias this package as **`schemav1`**.
 
@@ -75,15 +77,54 @@ Run per-slice generation from the repo root:
 **Output per slice:**
 - `resource/{group}/{resource}/vN/backend/kubernetes/zz_generated_schema.go`
 
-## CRD Generation (planned)
+## CRD Generation
 
-**Entry point:** `make generate-api` → `framework/backend/kubernetes generate-crds` → `go generate -tags=crdgen ./...`
+**Entry point:** `make generate-api` → `framework/backend/kubernetes generate-crds`
 
-The scaffold exists — `framework/backend/kubernetes/Makefile` has a `generate-crds` target that would invoke
-controller-gen to produce CRD YAML from Go struct `+kubebuilder:*` annotations. However, no
-`//go:build crdgen`-tagged source files exist yet, so this step is currently a no-op.
+`generate-crds` produces CRD YAML for all 18 resource slices in two steps:
 
-**Planned output:** `framework/backend/kubernetes/crds/`
+1. **Inject kubebuilder markers** — `inject-kubebuilder-markers` is run over each slice's
+   `resource/**/v1/backend/kubernetes/` directory. It reads the `x-kubebuilder-validation-*`,
+   `x-kubebuilder-default`, and `x-cel-*` struct tags from `zz_generated_schema.go` and injects the
+   corresponding `// +kubebuilder:validation:*` comment markers above each field. The tool is idempotent
+   (strips prior markers before re-injecting), so CI's `generate-api-verify` gate always stays green.
+
+2. **Run controller-gen** — `go tool sigs.k8s.io/controller-tools/cmd/controller-gen crd` is invoked with
+   `paths="github.com/eu-sovereign-cloud/ecp/resource/..."` from the `framework/backend/kubernetes/`
+   directory. The Go workspace (`go.work`) is active, so the cross-module shared types (`schemav1.CommonData`,
+   etc.) resolve correctly. controller-gen v0.20.0 emits one YAML file per resource group+plural into
+   `chart/crd/` (the repo-root CRD output directory).
+
+**Output:** `chart/crd/*.yaml` — 18 flat CRD YAML files named `<group>_<plural>.yaml`:
+
+```
+chart/crd/
+├── authorization.v1.secapi.cloud_role-assignments.yaml
+├── authorization.v1.secapi.cloud_roles.yaml
+├── compute.v1.secapi.cloud_instances.yaml
+├── compute.v1.secapi.cloud_skus.yaml
+├── network.v1.secapi.cloud_internet-gateways.yaml
+├── network.v1.secapi.cloud_network-skus.yaml
+├── network.v1.secapi.cloud_networks.yaml
+├── network.v1.secapi.cloud_nics.yaml
+├── network.v1.secapi.cloud_public-ips.yaml
+├── network.v1.secapi.cloud_route-tables.yaml
+├── network.v1.secapi.cloud_security-group-rules.yaml
+├── network.v1.secapi.cloud_security-groups.yaml
+├── network.v1.secapi.cloud_subnets.yaml
+├── storage.v1.secapi.cloud_block-storages.yaml
+├── storage.v1.secapi.cloud_images.yaml
+├── storage.v1.secapi.cloud_skus.yaml
+├── v1.secapi.cloud_regions.yaml
+└── workspace.v1.secapi.cloud_workspaces.yaml
+```
+
+The CRDs carry full validation fidelity: CEL `x-kubernetes-validations`, `maxItems`/`maxLength`,
+`enum`, and `default` constraints all survive from the go-sdk struct tags through the inject step
+into the final YAML.
+
+`generate-api-verify` (CI gate) runs `make generate-api` and asserts the working tree is clean across
+`framework/backend/kubernetes/`, `resource/` (marker-laden schemas), and `chart/` (CRD YAML).
 
 ## Running Generation
 
@@ -116,8 +157,8 @@ When a go-sdk schema gains a new resource that needs a full slice:
 ## Conventions
 
 - Generated files are prefixed with `zz_generated`.
-- **Never edit generated files manually.** Changes will be overwritten on the next generation run (`make generate-api` for shared `schema/v1/` types; `go generate ./...` in `resource/` for per-slice types).
-- After changing OpenAPI specs in `modules/go-sdk`, run `make generate-api` (shared types) and `(cd resource && go generate ./...)` (per-slice types), then commit the result.
+- **Never edit generated files manually.** Changes will be overwritten on the next generation run (`make generate-api` for shared `schema/v1/` types, per-slice marker injection, and CRD YAML; `go generate ./...` in `resource/` for per-slice types).
+- After changing OpenAPI specs in `modules/go-sdk`, run `make generate-api` (shared types + CRDs) and `(cd resource && go generate ./...)` (per-slice types), then commit the result.
 - CI runs `make generate-api-verify` in every PR; it fails if the committed generated files differ from a fresh run.
 
 ## Import Alias Convention
