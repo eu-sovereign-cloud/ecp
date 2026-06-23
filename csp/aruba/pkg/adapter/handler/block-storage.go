@@ -204,14 +204,16 @@ func (h *BlockStorageHandler) resolveSecaBlockStorageDependencies(ctx context.Co
 		return nil, backend.ErrStillProcessing // TODO: better error handling
 	}
 
-	// TODO: this is a temporary solution, we should refactor the design to avoid this kind of parsing
-	// issue https://github.com/eu-sovereign-cloud/ecp/issues/216
-	splittedSKU := strings.Split(domain.Spec.SkuRef.Resource, "/")
-	if len(splittedSKU) != 2 {
+	// The SKU reference may be a bare name ("sku-1") or a fully-qualified path
+	// such as "seca.storage/v1/tenants/<t>/skus/<name>"; the SKU name is the
+	// last path segment. See https://github.com/eu-sovereign-cloud/ecp/issues/216
+	skuName := domain.Spec.SkuRef.Resource
+	if idx := strings.LastIndex(skuName, "/"); idx != -1 {
+		skuName = skuName[idx+1:]
+	}
+	if skuName == "" {
 		return nil, errors.New("invalid SKU reference")
 	}
-
-	skuName := splittedSKU[1]
 
 	storageSku := &ssdom.StorageSKU{
 		RegionalMetadata: commondomain.RegionalMetadata{
