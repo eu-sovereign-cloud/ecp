@@ -1,3 +1,5 @@
+//go:build !crdgen
+
 package controller
 
 //go:generate mockgen -package controller -destination=zz_mock_plugin_handler_test.go github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend PluginHandler
