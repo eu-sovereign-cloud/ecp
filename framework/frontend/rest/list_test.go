@@ -33,7 +33,7 @@ type listDTO struct {
 func domainToListDTO(items []domainModel, _ *string) listDTO {
 	dtos := make([]outputDTO, len(items))
 	for i, d := range items {
-		dtos[i] = outputDTO{Value: d.Value}
+		dtos[i] = outputDTO(d)
 	}
 	return listDTO{Items: dtos}
 }
