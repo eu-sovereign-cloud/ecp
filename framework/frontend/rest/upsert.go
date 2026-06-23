@@ -12,7 +12,6 @@ import (
 
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
-	"github.com/eu-sovereign-cloud/ecp/framework/frontend/httperror"
 	kernel "github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 )
@@ -65,7 +64,7 @@ func HandleUpsert[In any, D any, Out any](
 	if err != nil {
 		errMsg := "failed to read request body"
 		logger.ErrorContext(r.Context(), errMsg, slog.Any("error", err))
-		httperror.WriteErrorResponse(w, r, logger, fmt.Errorf("%w: %s: %w", httperror.ErrBadRequest, errMsg, err))
+		WriteErrorResponse(w, r, logger, fmt.Errorf("%w: %s: %w", ErrBadRequest, errMsg, err))
 		return
 	}
 
@@ -73,7 +72,7 @@ func HandleUpsert[In any, D any, Out any](
 	if err := json.Unmarshal(body, &apiObj); err != nil {
 		errMsg := "invalid JSON in request body"
 		logger.ErrorContext(r.Context(), errMsg, slog.Any("error", err))
-		httperror.WriteErrorResponse(w, r, logger, fmt.Errorf("%w: invalid JSON in request body: %w", httperror.ErrBadRequest, err))
+		WriteErrorResponse(w, r, logger, fmt.Errorf("%w: invalid JSON in request body: %w", ErrBadRequest, err))
 		return
 	}
 
@@ -88,7 +87,7 @@ func HandleUpsert[In any, D any, Out any](
 		if err != nil {
 			if !errors.Is(err, kernel.ErrAlreadyExists) {
 				logger.ErrorContext(r.Context(), "failed to create resource", slog.Any("error", err))
-				httperror.WriteErrorResponse(w, r, logger, err)
+				WriteErrorResponse(w, r, logger, err)
 				return
 			}
 			// Resource already exists, fall through to update.
@@ -101,7 +100,7 @@ func HandleUpsert[In any, D any, Out any](
 		result, err = options.Updater.Do(r.Context(), domainObj)
 		if err != nil {
 			logger.ErrorContext(r.Context(), "failed to update resource", slog.Any("error", err))
-			httperror.WriteErrorResponse(w, r, logger, err)
+			WriteErrorResponse(w, r, logger, err)
 			return
 		}
 	}
@@ -111,7 +110,7 @@ func HandleUpsert[In any, D any, Out any](
 	enc := json.NewEncoder(&buf)
 	if err := enc.Encode(sdkObj); err != nil {
 		logger.ErrorContext(r.Context(), "failed to encode response", slog.Any("error", err))
-		httperror.WriteErrorResponse(w, r, logger, err)
+		WriteErrorResponse(w, r, logger, err)
 		return
 	}
 

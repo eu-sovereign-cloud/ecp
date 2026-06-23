@@ -1,4 +1,4 @@
-package httperror
+package rest
 
 import (
 	"bytes"
