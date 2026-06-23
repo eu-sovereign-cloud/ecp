@@ -224,14 +224,18 @@ func TestProcessFileKBMarkers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("processFile() error: %v", err)
 	}
-	if n != 2 {
-		t.Errorf("injected %d markers, want 2", n)
+	// MaxItems=10 (no length → no Type=string) + Type=string + MaxLength=7 = 3 total.
+	if n != 3 {
+		t.Errorf("injected %d markers, want 3", n)
 	}
 
 	data, _ := os.ReadFile(path)
 	content := string(data)
 	if !strings.Contains(content, "// +kubebuilder:validation:MaxItems=10") {
 		t.Error("missing MaxItems marker")
+	}
+	if !strings.Contains(content, "// +kubebuilder:validation:Type=string") {
+		t.Error("missing Type=string marker (injected alongside MaxLength)")
 	}
 	if !strings.Contains(content, "// +kubebuilder:validation:MaxLength=7") {
 		t.Error("missing MaxLength marker")
@@ -336,14 +340,18 @@ func TestProcessFileArrayPrimitiveConstraints(t *testing.T) {
 	if err != nil {
 		t.Fatalf("processFile() error: %v", err)
 	}
-	if n != 2 {
-		t.Errorf("injected %d markers, want 2", n)
+	// items:Type=string (injected before items:MaxLength) + MaxItems + items:MaxLength = 3 total.
+	if n != 3 {
+		t.Errorf("injected %d markers, want 3", n)
 	}
 
 	data, _ := os.ReadFile(path)
 	content := string(data)
 	if !strings.Contains(content, "// +kubebuilder:validation:MaxItems=100") {
 		t.Error("missing MaxItems marker")
+	}
+	if !strings.Contains(content, "// +kubebuilder:validation:items:Type=string") {
+		t.Error("missing items:Type=string marker (injected alongside items:MaxLength)")
 	}
 	if !strings.Contains(content, "// +kubebuilder:validation:items:MaxLength=45") {
 		t.Error("missing items:MaxLength marker")
@@ -357,10 +365,10 @@ func TestProcessFileArrayPrimitiveConstraints(t *testing.T) {
 			break
 		}
 	}
-	if fieldIdx < 2 {
-		t.Fatal("expected at least 2 marker lines before field")
+	if fieldIdx < 3 {
+		t.Fatal("expected at least 3 marker lines before field")
 	}
-	// KB markers are sorted by name: MaxItems before items:MaxLength (capital M < i).
+	// Emit order: items:Type=string (fieldIdx-3), then sorted markers: MaxItems (M < i) → items:MaxLength.
 	if !strings.Contains(lines[fieldIdx-2], "MaxItems") {
 		t.Errorf("expected MaxItems 2 lines before field, got: %q", lines[fieldIdx-2])
 	}
@@ -380,12 +388,16 @@ func TestProcessFileItemsMinLength(t *testing.T) {
 	if err != nil {
 		t.Fatalf("processFile() error: %v", err)
 	}
-	if n != 2 {
-		t.Errorf("injected %d markers, want 2", n)
+	// items:Type=string (injected alongside items length constraints) + items:MaxLength + items:MinLength = 3.
+	if n != 3 {
+		t.Errorf("injected %d markers, want 3", n)
 	}
 
 	data, _ := os.ReadFile(path)
 	content := string(data)
+	if !strings.Contains(content, "// +kubebuilder:validation:items:Type=string") {
+		t.Error("missing items:Type=string marker (injected alongside items:MinLength)")
+	}
 	if !strings.Contains(content, "// +kubebuilder:validation:items:MinLength=1") {
 		t.Error("missing items:MinLength marker")
 	}
@@ -538,13 +550,17 @@ func TestProcessFilePattern(t *testing.T) {
 	if err != nil {
 		t.Fatalf("processFile() error: %v", err)
 	}
-	if n != 2 {
-		t.Errorf("injected %d markers, want 2", n)
+	// Type=string (injected before MaxLength) + MaxLength + Pattern = 3 total.
+	if n != 3 {
+		t.Errorf("injected %d markers, want 3", n)
 	}
 
 	data, _ := os.ReadFile(path)
 	content := string(data)
 
+	if !strings.Contains(content, "// +kubebuilder:validation:Type=string") {
+		t.Error("missing Type=string marker (injected alongside MaxLength)")
+	}
 	if !strings.Contains(content, "// +kubebuilder:validation:MaxLength=1024") {
 		t.Error("missing MaxLength marker")
 	}
@@ -553,7 +569,7 @@ func TestProcessFilePattern(t *testing.T) {
 		t.Errorf("missing Pattern marker; want %q", wantPattern)
 	}
 
-	// MaxLength (M=77) sorts before Pattern (P=80).
+	// Emit order: Type=string (fieldIdx-3), then sorted markers: MaxLength (M=77) before Pattern (P=80).
 	lines := strings.Split(content, "\n")
 	var fieldIdx int
 	for i, l := range lines {
@@ -562,8 +578,8 @@ func TestProcessFilePattern(t *testing.T) {
 			break
 		}
 	}
-	if fieldIdx < 2 {
-		t.Fatal("expected at least 2 marker lines before Reason field")
+	if fieldIdx < 3 {
+		t.Fatal("expected at least 3 marker lines before Reason field")
 	}
 	if !strings.Contains(lines[fieldIdx-2], "MaxLength") {
 		t.Errorf("expected MaxLength 2 lines before field, got: %q", lines[fieldIdx-2])
