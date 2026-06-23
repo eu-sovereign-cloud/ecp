@@ -18,7 +18,7 @@ import (
 	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes/labels"
 
 	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
-	testutil "github.com/eu-sovereign-cloud/ecp/resources/internal/testutil"
+	testutil "github.com/eu-sovereign-cloud/ecp/resources/common/testutil"
 	wsdom "github.com/eu-sovereign-cloud/ecp/resources/workspace/v1"
 	. "github.com/eu-sovereign-cloud/ecp/resources/workspace/v1/backend/kubernetes"
 )
