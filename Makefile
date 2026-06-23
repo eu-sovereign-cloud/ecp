@@ -173,6 +173,14 @@ RUN ?=
 .PHONY: test
 test: $(addsuffix -test,$(GO_MODULES))
 
+# test-envtest: run integration tests that require a real kube-apiserver (envtest).
+# Set KUBEBUILDER_ASSETS to a directory containing kube-apiserver + etcd binaries,
+# or leave it unset to let envtest download them automatically.
+.PHONY: test-envtest
+test-envtest:
+	@$(_REPO_ROOT)/ci/scripts/verify-run.sh "resources-envtest" "Envtest integration tests" -- \
+	  sh -c "cd $(_REPO_ROOT)/resources && go test -race -tags envtest -v $(if $(RUN),-run '$(RUN)') ./..."
+
 ###############################################################################
 # Per-module lint (golangci-lint)
 #
