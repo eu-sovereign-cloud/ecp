@@ -19,11 +19,11 @@ import (
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
 	kernel "github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/validation/filter"
-	"github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
 )
 
 // K8sToDomain defines a function that converts a Kubernetes client.Object to a specific type T.
@@ -267,7 +267,6 @@ func (a *ReaderAdapter[T]) List(ctx context.Context, params resource.ListParams,
 	*list = make([]T, 0, len(filteredItems))
 	for _, item := range filteredItems {
 		converted, err := a.k8sToDomain(&item)
-
 		if err != nil {
 			a.logger.ErrorContext(ctx, "conversion failed", "resource", a.gvr.Resource, "error", err)
 
