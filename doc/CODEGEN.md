@@ -7,7 +7,7 @@ ECP generates both Go API types and Kubernetes CRD YAML from a single source of 
 ECP's type layer is built by two generation steps:
 
 1. **Shared schema types** (`make generate-api`) — reads the go-sdk `resource.go` schema, emits `framework/backend/kubernetes/schema/v1/zz_generated_resource.go` (CRD-envelope types shared by all slices, aliased as `schemav1`), applies kubebuilder markers, and runs controller-gen to produce `DeepCopy` methods.
-2. **Per-slice types** (`go generate ./...` in `resources/`) — each resource slice declares an explicit `//go:generate` directive in `backend/kubernetes/generate.go`; `model-gen` extracts the slice-specific types from the go-sdk schema and emits `zz_generated_schema.go` in that slice's `backend/kubernetes/` package.
+2. **Per-slice types** (`go generate ./...` in `resource/`) — each resource slice declares an explicit `//go:generate` directive in `backend/kubernetes/generate.go`; `model-gen` extracts the slice-specific types from the go-sdk schema and emits `zz_generated_schema.go` in that slice's `backend/kubernetes/` package.
 
 **CRD YAML generation** is scaffolded (a `generate-crds` target in `framework/backend/kubernetes/Makefile`) but currently inactive — no `//go:build crdgen`-tagged sources exist yet.
 
@@ -23,7 +23,7 @@ All code generators live at `framework/backend/kubernetes/cmd/`:
 | `conditioned-gen` | `framework/backend/kubernetes/cmd/conditioned-gen/` | Generates `zz_generated.conditions.go` for conditioned CR types |
 | `inject-kubebuilder-markers` | `framework/backend/kubernetes/cmd/inject-kubebuilder-markers/` | Injects `+kubebuilder:*` annotations into type files |
 
-Resource slices invoke `model-gen` via `//go:generate` directives in their `backend/kubernetes/generate.go`. Note: `make generate-api` orchestrates only the shared `framework/backend/kubernetes/schema/v1/` types — per-slice generation runs separately via `go generate ./...` in `resources/`.
+Resource slices invoke `model-gen` via `//go:generate` directives in their `backend/kubernetes/generate.go`. Note: `make generate-api` orchestrates only the shared `framework/backend/kubernetes/schema/v1/` types — per-slice generation runs separately via `go generate ./...` in `resource/`.
 
 ## Shared Schema Types (`make generate-api`)
 
@@ -61,7 +61,7 @@ Types present in `--shared-types-source` are qualified with the `schemav1` alias
 
 Run per-slice generation from the repo root:
 ```bash
-(cd resources && go generate ./...)
+(cd resource && go generate ./...)
 ```
 
 **Steps per slice:**
@@ -73,7 +73,7 @@ Run per-slice generation from the repo root:
 6. `controller-gen object` generates `zz_generated.deepcopy.go` alongside.
 
 **Output per slice:**
-- `resources/{group}/{resource}/vN/backend/kubernetes/zz_generated_schema.go`
+- `resource/{group}/{resource}/vN/backend/kubernetes/zz_generated_schema.go`
 
 ## CRD Generation (planned)
 
@@ -91,8 +91,8 @@ controller-gen to produce CRD YAML from Go struct `+kubebuilder:*` annotations. 
 # Generate shared schema types (framework/backend/kubernetes/schema/v1/)
 make generate-api
 
-# Generate per-slice types (resources/.../.../backend/kubernetes/zz_generated_schema.go)
-(cd resources && go generate ./...)
+# Generate per-slice types ( resource/.../.../backend/kubernetes/zz_generated_schema.go)
+(cd resource && go generate ./...)
 
 # Same, inside the tools container
 make generate-api-ctzd
@@ -106,18 +106,18 @@ make generate-api-verify
 
 When a go-sdk schema gains a new resource that needs a full slice:
 
-1. Create the slice directory: `resources/<group>/<resource>/vN/`.
+1. Create the slice directory: `resource/<group>/<resource>/vN/`.
 2. Add `domain.go` (`package v1`) with the canonical domain type and identity consts.
 3. Add `backend/kubernetes/generate.go` with a `//go:generate` directive specifying `--root-types` for the new Kind and `--shared-types-source` pointing to go-sdk's `resource.go`.
-4. Run `(cd resources && go generate ./...)` — `model-gen` emits `zz_generated_schema.go` in the new slice's `backend/kubernetes/`.
+4. Run `(cd resource && go generate ./...)` — `model-gen` emits `zz_generated_schema.go` in the new slice's `backend/kubernetes/`.
 5. Add `frontend/rest/handler.go` and `frontend/rest/converter.go`.
 6. Add `controller.go`, `plugin.go`, `plugin_handler.go` to `backend/kubernetes/`.
 
 ## Conventions
 
 - Generated files are prefixed with `zz_generated`.
-- **Never edit generated files manually.** Changes will be overwritten on the next generation run (`make generate-api` for shared `schema/v1/` types; `go generate ./...` in `resources/` for per-slice types).
-- After changing OpenAPI specs in `modules/go-sdk`, run `make generate-api` (shared types) and `(cd resources && go generate ./...)` (per-slice types), then commit the result.
+- **Never edit generated files manually.** Changes will be overwritten on the next generation run (`make generate-api` for shared `schema/v1/` types; `go generate ./...` in `resource/` for per-slice types).
+- After changing OpenAPI specs in `modules/go-sdk`, run `make generate-api` (shared types) and `(cd resource && go generate ./...)` (per-slice types), then commit the result.
 - CI runs `make generate-api-verify` in every PR; it fails if the committed generated files differ from a fresh run.
 
 ## Import Alias Convention
@@ -126,14 +126,14 @@ All generated and hand-written code follows the canonical `<resource><layer>` im
 
 | Alias | Package |
 |-------|---------|
-| `bsdom` | `resources/storage/block-storages/v1` |
-| `bsk8s` | `resources/storage/block-storages/v1/backend/kubernetes` |
-| `bsrest` | `resources/storage/block-storages/v1/frontend/rest` |
-| `netdom` | `resources/network/networks/v1` |
-| `netk8s` | `resources/network/networks/v1/backend/kubernetes` |
-| `wsdom` | `resources/workspace/v1` |
-| `wsk8s` | `resources/workspace/v1/backend/kubernetes` |
-| `rdom` | `resources/regions/v1` |
-| `rk8s` | `resources/regions/v1/backend/kubernetes` |
+| `bsdom` | `resource/storage/block-storage/v1` |
+| `bsk8s` | `resource/storage/block-storage/v1/backend/kubernetes` |
+| `bsrest` | `resource/storage/block-storage/v1/frontend/rest` |
+| `netdom` | `resource/network/network/v1` |
+| `netk8s` | `resource/network/network/v1/backend/kubernetes` |
+| `wsdom` | `resource/workspace/v1` |
+| `wsk8s` | `resource/workspace/v1/backend/kubernetes` |
+| `rdom` | `resource/region/v1` |
+| `rk8s` | `resource/region/v1/backend/kubernetes` |
 
 The alias convention neutralizes deep paths at call sites — the full package path never appears raw in code. `model-gen` emits `schemav1` (the shared schema package alias) in generated import blocks automatically.

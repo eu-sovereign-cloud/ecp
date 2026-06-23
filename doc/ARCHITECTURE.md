@@ -16,8 +16,8 @@ The repo is organized around two orthogonal axes, each a separate Go module:
               ├─ backend/kubernetes → kernel: k8s adapter, schema/v1 CRDs, codegen, GenericController, ControllerSet
               └─ frontend           → kernel: httpserver, kubeclient, logger, config
                     │
-                    ▼  framework ↛ resources (COMPILER-ENFORCED module boundary)
-              resources/                   (module …/ecp/resources)
+                    ▼  framework ↛ resource (COMPILER-ENFORCED module boundary)
+              resource/                    (module …/ecp/resource)
                ├─ common/{domain,frontend,backend}   shared backbone
                └─ <group>/<resource>/vN/
                    ├─ domain.go        canonical type + identity consts (package v1)
@@ -26,14 +26,14 @@ The repo is organized around two orthogonal axes, each a separate Go module:
                          │
               ┌──────────┴──────────┐
            gateway/             csp/{dummy,ionos,aruba}/
-      (→ framework, resources)  (→ framework, resources)
+      (→ framework, resource)   (→ framework, resource)
 ```
 
 **Horizontal axis** (`framework/`): the architectural *layers* — generic, resource-agnostic, shared by everything. Change a layer once and it applies to all resources.
 
-**Vertical axis** (`resources/`): the *features* — one self-contained bounded context per resource, cutting through all layers. Change a resource in one place; nothing else needs editing.
+**Vertical axis** (`resource/`): the *features* — one self-contained bounded context per resource, cutting through all layers. Change a resource in one place; nothing else needs editing.
 
-**Module boundary**: `framework ↛ resources` is enforced by the Go compiler (separate modules). A `framework` package that imports `resources` fails to build under `GOWORK=off`. This is the repo's load-bearing invariant.
+**Module boundary**: `framework ↛ resource` is enforced by the Go compiler (separate modules). A `framework` package that imports `resource` fails to build under `GOWORK=off`. This is the repo's load-bearing invariant.
 
 ## Layer DAG (within framework/)
 
@@ -47,7 +47,7 @@ frontend           → kernel
 
 ## Per-Resource Slice (vertical hexagon)
 
-Each resource slice at `resources/{group}/{resource}/vN/` contains:
+Each resource slice at `resource/{group}/{resource}/vN/` contains:
 
 - **`domain.go`** (`package v1`) — the canonical domain type, `RegionalMetadata` embed, and identity consts (`Kind`, `Resource`, `Group`, `Version`, and a provider identifier). No k8s imports.
 - **`frontend/rest/`** — REST↔domain converter + HTTP handlers implementing the go-sdk `ServerInterface`. Registered into the gateway mux.
@@ -56,12 +56,12 @@ Each resource slice at `resources/{group}/{resource}/vN/` contains:
 ## Module DAG
 
 ```
-framework   ← resources ← gateway
-                       ↖ csp/{dummy,ionos,aruba}
-                       ↖ test/e2e
+framework   ← resource ← gateway
+                      ↖ csp/{dummy,ionos,aruba}
+                      ↖ test/e2e
 ```
 
-No back-edges. `framework` has zero dependency on `resources`. `resources` has zero dependency on `gateway` or any CSP.
+No back-edges. `framework` has zero dependency on `resource`. `resource` has zero dependency on `gateway` or any CSP.
 
 ## Resource Model
 

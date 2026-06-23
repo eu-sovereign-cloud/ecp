@@ -10,9 +10,9 @@ Each plugin is a separate Go module under `csp/`, keeping CSP-specific dependenc
 
 ## Plugin Interfaces
 
-Plugin interfaces live in each resource slice at `resources/{group}/{resource}/vN/backend/kubernetes/plugin.go`. This co-locates the interface with the controller and handler that use it — no framework package ever names a concrete resource.
+Plugin interfaces live in each resource slice at `resource/{group}/{resource}/vN/backend/kubernetes/plugin.go`. This co-locates the interface with the controller and handler that use it — no framework package ever names a concrete resource.
 
-**`WorkspacePlugin` interface** (`resources/workspace/v1/backend/kubernetes/plugin.go`):
+**`WorkspacePlugin` interface** (`resource/workspace/v1/backend/kubernetes/plugin.go`):
 ```go
 type WorkspacePlugin interface {
     Create(ctx context.Context, resource *wsdom.Workspace) error
@@ -20,7 +20,7 @@ type WorkspacePlugin interface {
 }
 ```
 
-**`BlockStoragePlugin` interface** (`resources/storage/block-storages/v1/backend/kubernetes/plugin.go`):
+**`BlockStoragePlugin` interface** (`resource/storage/block-storage/v1/backend/kubernetes/plugin.go`):
 ```go
 type BlockStoragePlugin interface {
     Create(ctx context.Context, resource *bsdom.BlockStorage) error
@@ -29,7 +29,7 @@ type BlockStoragePlugin interface {
 }
 ```
 
-**`NetworkPlugin` interface** (`resources/network/networks/v1/backend/kubernetes/plugin.go`):
+**`NetworkPlugin` interface** (`resource/network/network/v1/backend/kubernetes/plugin.go`):
 ```go
 type NetworkPlugin interface {
     Create(ctx context.Context, resource *netdom.Network) error
@@ -135,15 +135,15 @@ The e2e module (`test/e2e`) is excluded from the standard per-module CI checks (
    go mod init github.com/eu-sovereign-cloud/ecp/csp/<name>
    ```
 
-2. **Add `require` and `replace` directives** for `framework` and `resources`:
+2. **Add `require` and `replace` directives** for `framework` and `resource`:
    ```
    require (
        github.com/eu-sovereign-cloud/ecp/framework v0.0.1
-       github.com/eu-sovereign-cloud/ecp/resources  v0.0.1
+       github.com/eu-sovereign-cloud/ecp/resource  v0.0.1
    )
    replace (
        github.com/eu-sovereign-cloud/ecp/framework => ../../framework
-       github.com/eu-sovereign-cloud/ecp/resources  => ../../resources
+       github.com/eu-sovereign-cloud/ecp/resource  => ../../resource
    )
    ```
 
