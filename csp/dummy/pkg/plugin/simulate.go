@@ -34,7 +34,7 @@ func simulateBS(ctx context.Context, op string, resource *bsdom.BlockStorage, de
 		)
 		restConfig, err := kubeconfig.ClientConfig()
 		if err != nil {
-			return fmt.Errorf("Failed to get kubeconfig: %v", err)
+			return fmt.Errorf("failed to get kubeconfig: %w", err)
 		}
 		restConfig.QPS = 100
 		restConfig.Burst = 200
@@ -42,11 +42,10 @@ func simulateBS(ctx context.Context, op string, resource *bsdom.BlockStorage, de
 		// Initialize dynamic client
 		dynamicClient, err := dynamic.NewForConfig(restConfig)
 		if err != nil {
-			return fmt.Errorf("Failed to create dynamic client: %v", err)
+			return fmt.Errorf("failed to create dynamic client: %w", err)
 		}
 
-		var blockStorageRepo *kubernetesadapter.RepoAdapter[*bsdom.BlockStorage]
-		blockStorageRepo = kubernetesadapter.NewRepoAdapter(
+		blockStorageRepo := kubernetesadapter.NewRepoAdapter(
 			dynamicClient,
 			storageconv.BlockStorageGVR,
 			logger,
@@ -88,7 +87,7 @@ func simulateWS(ctx context.Context, op string, resource *wsdom.Workspace, delay
 		)
 		restConfig, err := kubeconfig.ClientConfig()
 		if err != nil {
-			return fmt.Errorf("Failed to get kubeconfig: %v", err)
+			return fmt.Errorf("failed to get kubeconfig: %w", err)
 		}
 		restConfig.QPS = 100
 		restConfig.Burst = 200
@@ -96,11 +95,10 @@ func simulateWS(ctx context.Context, op string, resource *wsdom.Workspace, delay
 		// Initialize dynamic client
 		dynamicClient, err := dynamic.NewForConfig(restConfig)
 		if err != nil {
-			return fmt.Errorf("Failed to create dynamic client: %v", err)
+			return fmt.Errorf("failed to create dynamic client: %w", err)
 		}
 
-		var workspaceRepo *kubernetesadapter.RepoAdapter[*wsdom.Workspace]
-		workspaceRepo = kubernetesadapter.NewRepoAdapter(
+		workspaceRepo := kubernetesadapter.NewRepoAdapter(
 			dynamicClient,
 			workspaceconv.WorkspaceGVR,
 			logger,

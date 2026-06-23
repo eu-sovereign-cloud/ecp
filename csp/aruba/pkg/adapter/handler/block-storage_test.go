@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
-	"github.com/eu-sovereign-cloud/ecp/resources/common/domain"
 	refdom "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
 	bsdomblock "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1"
 	bsdomsku "github.com/eu-sovereign-cloud/ecp/resources/storage/storage-skus/v1"
@@ -68,7 +67,7 @@ func expectWorkspaceActive(m *MockReaderRepo[*wsdom.Workspace]) {
 		Load(gomock.Any(), gomock.Any()).
 		DoAndReturn(func(_ context.Context, ws **wsdom.Workspace) error {
 			(*ws).Status = &wsdom.WorkspaceStatus{
-				StatusDomain: domain.StatusDomain{State: refdom.ResourceStateActive},
+				StatusDomain: refdom.StatusDomain{State: refdom.ResourceStateActive},
 			}
 			return nil
 		}).
