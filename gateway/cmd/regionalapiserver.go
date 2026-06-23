@@ -20,8 +20,8 @@ import (
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
 	"github.com/eu-sovereign-cloud/ecp/framework/frontend/config"
-	"github.com/eu-sovereign-cloud/ecp/framework/frontend/httpserver"
-	"github.com/eu-sovereign-cloud/ecp/framework/frontend/kubeclient"
+	"github.com/eu-sovereign-cloud/ecp/gateway/internal/httpserver"
+	"github.com/eu-sovereign-cloud/ecp/gateway/internal/kubeclient"
 	"github.com/eu-sovereign-cloud/ecp/framework/frontend/logger"
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
 
