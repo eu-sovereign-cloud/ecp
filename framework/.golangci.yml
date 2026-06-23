@@ -8,6 +8,11 @@ extends:
   - "../.golangci.yml"
 
 linters:
+  exclusions:
+    rules:
+      - linters:
+          - errcheck
+        path: _test(ing)?\.go
   settings:
     depguard:
       rules:

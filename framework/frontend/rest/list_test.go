@@ -50,7 +50,7 @@ func TestHandleList_Success(t *testing.T) {
 	HandleList(recorder, req, logger, resource.ListParams{}, lister, domainToListDTO)
 
 	resp := recorder.Result()
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 	if resp.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(resp.Body)
 		t.Fatalf("expected status 200, got %d body=%s", resp.StatusCode, string(b))
@@ -75,7 +75,7 @@ func TestHandleList_InternalError(t *testing.T) {
 	HandleList(recorder, req, logger, resource.ListParams{}, lister, domainToListDTO)
 
 	resp := recorder.Result()
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 	if resp.StatusCode != http.StatusInternalServerError {
 		b, _ := io.ReadAll(resp.Body)
 		t.Fatalf("expected status 500, got %d body=%s", resp.StatusCode, string(b))
@@ -111,7 +111,7 @@ func TestHandleList_EncodingFailure(t *testing.T) {
 	HandleList(recorder, req, logger, resource.ListParams{}, lister, mapper)
 
 	resp := recorder.Result()
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 	if resp.StatusCode != http.StatusInternalServerError {
 		b, _ := io.ReadAll(resp.Body)
 		t.Fatalf("expected status 500, got %d body=%s", resp.StatusCode, string(b))
