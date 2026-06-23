@@ -6,7 +6,7 @@ metadata:
 spec:
   iops: 5000
   minVolumeSize: 1
-  type: "local-ssd"
+  type: "local-durable"
 ---
 apiVersion: storage.v1.secapi.cloud/v1
 kind: SKU
@@ -16,4 +16,4 @@ metadata:
 spec:
   iops: 10000
   minVolumeSize: 10
-  type: "remote-ssd"
+  type: "remote-durable"
