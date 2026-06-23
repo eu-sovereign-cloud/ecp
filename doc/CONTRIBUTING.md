@@ -52,10 +52,10 @@ All cross-module imports follow the canonical `<resource><layer>` alias conventi
 
 ```go
 import (
-    bsdom  "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1"
-    bsk8s  "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1/backend/kubernetes"
-    bsrest "github.com/eu-sovereign-cloud/ecp/resources/regional/storage/block-storages/v1/frontend/rest"
-    netdom "github.com/eu-sovereign-cloud/ecp/resources/regional/network/networks/v1"
+    bsdom  "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1"
+    bsk8s  "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1/backend/kubernetes"
+    bsrest "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1/frontend/rest"
+    netdom "github.com/eu-sovereign-cloud/ecp/resources/network/networks/v1"
 )
 ```
 
@@ -96,7 +96,7 @@ To exclude a module from standard product CI checks (e.g., test harnesses, tool 
 
 ## Adding a New Resource Slice
 
-1. Create the slice directory: `resources/{global,regional}/<group>/<resource>/vN/`
+1. Create the slice directory: `resources/<group>/<resource>/vN/`
 2. Add `domain.go` (`package v1`) with the canonical domain type and identity consts (`Kind`, `Resource`, `Group`, `Version`, and a provider identifier).
 3. Add `backend/kubernetes/` with CR types, GVR, adapters, controller, plugin interface, and plugin handler.
 4. Add `frontend/rest/` with converter and HTTP handlers implementing the go-sdk `ServerInterface`.
@@ -109,7 +109,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the full per-slice hexagon descriptio
 
 Several files are generated and must not be edited by hand:
 
-- `resources/{scope}/{group}/{resource}/vN/backend/kubernetes/zz_generated_schema.go` — Go types from go-sdk schema (per-slice; run `go generate ./...` in `resources/`)
+- `resources/{group}/{resource}/vN/backend/kubernetes/zz_generated_schema.go` — Go types from go-sdk schema (per-slice; run `go generate ./...` in `resources/`)
 - `framework/persistence/kubernetes/schema/v1/` — shared CR envelope types (run `make generate-api`)
 - `framework/persistence/kubernetes/crds/*.yaml` — CRD YAML from controller-gen (**planned**; `generate-crds` target is scaffolded but no sources emit yet)
 - `**/zz_generated.deepcopy.go`, `**/zz_generated.conditions.go` — controller-gen and conditioned-gen output
