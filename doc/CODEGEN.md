@@ -73,7 +73,7 @@ Run per-slice generation from the repo root:
 6. `controller-gen object` generates `zz_generated.deepcopy.go` alongside.
 
 **Output per slice:**
-- `resources/{scope}/{group}/{resource}/vN/backend/kubernetes/zz_generated_schema.go`
+- `resources/{group}/{resource}/vN/backend/kubernetes/zz_generated_schema.go`
 
 ## CRD Generation (planned)
 
@@ -106,7 +106,7 @@ make generate-api-verify
 
 When a go-sdk schema gains a new resource that needs a full slice:
 
-1. Create the slice directory: `resources/{global,regional}/<group>/<resource>/vN/`.
+1. Create the slice directory: `resources/<group>/<resource>/vN/`.
 2. Add `domain.go` (`package v1`) with the canonical domain type and identity consts.
 3. Add `backend/kubernetes/generate.go` with a `//go:generate` directive specifying `--root-types` for the new Kind and `--shared-types-source` pointing to go-sdk's `resource.go`.
 4. Run `(cd resources && go generate ./...)` — `model-gen` emits `zz_generated_schema.go` in the new slice's `backend/kubernetes/`.
@@ -126,14 +126,14 @@ All generated and hand-written code follows the canonical `<resource><layer>` im
 
 | Alias | Package |
 |-------|---------|
-| `bsdom` | `resources/regional/storage/block-storages/v1` |
-| `bsk8s` | `resources/regional/storage/block-storages/v1/backend/kubernetes` |
-| `bsrest` | `resources/regional/storage/block-storages/v1/frontend/rest` |
-| `netdom` | `resources/regional/network/networks/v1` |
-| `netk8s` | `resources/regional/network/networks/v1/backend/kubernetes` |
-| `wsdom` | `resources/regional/workspace/v1` |
-| `wsk8s` | `resources/regional/workspace/v1/backend/kubernetes` |
-| `rdom` | `resources/global/regions/v1` |
-| `rk8s` | `resources/global/regions/v1/backend/kubernetes` |
+| `bsdom` | `resources/storage/block-storages/v1` |
+| `bsk8s` | `resources/storage/block-storages/v1/backend/kubernetes` |
+| `bsrest` | `resources/storage/block-storages/v1/frontend/rest` |
+| `netdom` | `resources/network/networks/v1` |
+| `netk8s` | `resources/network/networks/v1/backend/kubernetes` |
+| `wsdom` | `resources/workspace/v1` |
+| `wsk8s` | `resources/workspace/v1/backend/kubernetes` |
+| `rdom` | `resources/regions/v1` |
+| `rk8s` | `resources/regions/v1/backend/kubernetes` |
 
 The alias convention neutralizes deep paths at call sites — the full package path never appears raw in code. `model-gen` emits `schemav1` (the shared schema package alias) in generated import blocks automatically.

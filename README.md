@@ -14,7 +14,7 @@ framework/            # Resource-agnostic SDK (horizontal axis)
 └── frontend/         #   HTTP server, kubeclient, logger, config
 resources/            # Data vocabulary + per-resource slices (vertical axis)
 ├── common/           #   Shared domain, frontend, backend helpers
-└── {global,regional}/<group>/<resource>/vN/
+└── <group>/<resource>/vN/
     ├── domain.go     #   Canonical type + identity consts (package v1)
     ├── frontend/rest/#   REST↔domain converters + HTTP handlers
     └── backend/kubernetes/ # CR types, adapters, controller, plugin interface + handler

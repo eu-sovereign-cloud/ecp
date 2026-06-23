@@ -20,7 +20,7 @@ The repo is organized around two orthogonal axes, each a separate Go module:
                     ▼  framework ↛ resources (COMPILER-ENFORCED module boundary)
               resources/                   (module …/ecp/resources)
                ├─ common/{domain,frontend,backend}   shared backbone
-               └─ {global,regional}/<group>/<resource>/vN/
+               └─ <group>/<resource>/vN/
                    ├─ domain.go        canonical type + identity consts (package v1)
                    ├─ frontend/rest/   REST↔domain converters + HTTP handlers
                    └─ backend/kubernetes/ CR types, adapters, controller, plugin iface+handler
@@ -49,7 +49,7 @@ frontend    → kernel
 
 ## Per-Resource Slice (vertical hexagon)
 
-Each resource slice at `resources/{scope}/{group}/{resource}/vN/` contains:
+Each resource slice at `resources/{group}/{resource}/vN/` contains:
 
 - **`domain.go`** (`package v1`) — the canonical domain type, `RegionalMetadata` embed, and identity consts (`Kind`, `Resource`, `Group`, `Version`, and a provider identifier). No k8s imports.
 - **`frontend/rest/`** — REST↔domain converter + HTTP handlers implementing the go-sdk `ServerInterface`. Registered into the gateway mux.
@@ -67,15 +67,15 @@ No back-edges. `framework` has zero dependency on `resources`. `resources` has z
 
 ## Resource Model
 
-### Global Resources
+### Cluster-Scoped Resources
 
 | Resource | Description |
 |----------|-------------|
 | `Region` | Available regions (read-only) |
 
-Global resources are stored in the `seca` namespace.
+Cluster-scoped resources are stored in the `seca` namespace and carry no tenant or workspace qualifier.
 
-### Regional Resources
+### Tenant-Scoped Resources
 
 | Resource | Description |
 |----------|-------------|
@@ -86,8 +86,8 @@ Global resources are stored in the `seca` namespace.
 
 ### Namespacing Strategy
 
-- The `seca` namespace groups global and shared resources.
-- Each `Tenant` CR triggers the creation of a dedicated tenant namespace; all regional resources owned by that tenant live there.
+- The `seca` namespace groups cluster-scoped and shared resources.
+- Each `Tenant` CR triggers the creation of a dedicated tenant namespace; all tenant-scoped resources owned by that tenant live there.
 - `Workspace` CRs are placed in the tenant namespace and labeled with their parent tenant.
 
 ## Cascaded Deletion
