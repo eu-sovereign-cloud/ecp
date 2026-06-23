@@ -15,10 +15,10 @@ import (
 
 	regionv1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
 
+	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/httpserver"
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/kubeclient"
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/logger"
-	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
 
 	rdom "github.com/eu-sovereign-cloud/ecp/resources/regions/v1"
 	rk8s "github.com/eu-sovereign-cloud/ecp/resources/regions/v1/backend/kubernetes"
