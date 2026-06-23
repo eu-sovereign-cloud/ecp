@@ -159,5 +159,4 @@ Map Workspace to IonOS Server or Datacenters as needed.
 - Implement the full plugin logic with proper error handling and status synchronization.
 - Add unit tests for plugin methods.
 - Enhance integration tests to verify actual IonOS resource creation (requires real credentials).
-- Handle advanced features like snapshots, backups, etc., if supported by the model.</content>
-<parameter name="filePath">/home/cguran/surse/seca/ecp/foundation/plugin/ionos/README.md
+- Handle advanced features like snapshots, backups, etc., if supported by the model.

@@ -60,7 +60,7 @@ hooks-unskip-pre-merge:
 #
 # The go-sdk source is consumed two ways:
 #   1. As a git submodule at modules/go-sdk, used by CRD generation.
-#   2. As a Go module dependency declared in foundation/gateway/go.mod.
+#   2. As a Go module dependency declared in gateway/go.mod.
 # Both must point at the same upstream tag — otherwise the generated CRDs and
 # the compiled types drift apart, and code reviewers can no longer trust that
 # the schemas in the repo match what the binary actually understands.
@@ -95,7 +95,7 @@ go-sdk-update:
 	@#
 	@# We use `go mod edit` + `go mod download` instead of `go get` because
 	@# `go get` builds the full module graph and tries to fetch
-	@# foundation/persistence@v0.0.1 from the proxy — that pseudo-version only
+	@# framework@v0.0.1 from the proxy — that pseudo-version only
 	@# resolves via the workspace-level replace, which `go get` ignores. The
 	@# edit+download combo pins the require and populates go.sum for just the
 	@# bumped package, which is all we need.
@@ -122,9 +122,9 @@ go-sdk-verify:
 # Per-module vulnerability check (govulncheck)
 #
 # Usage:
-#   make foundation/persistence-vuln          # single module
+#   make framework-vuln          # single module
 #   make vuln                                 # all GO_MODULES (parallelisable: -jN)
-#   make foundation/persistence-vuln-ctzd     # via tools container
+#   make framework-vuln-ctzd     # via tools container
 #
 # GOWORK=off forces single-module mode so the scan stays scoped to the
 # module's own go.mod. Without it, Go walks up to the repo-root go.work and
@@ -147,11 +147,11 @@ vuln: $(addsuffix -vuln,$(GO_MODULES))
 # Per-module tests
 #
 # Usage:
-#   make foundation/persistence-test                     # all tests, one module
+#   make framework-test                     # all tests, one module
 #   make test                                            # all modules
 #   make test RUN=TestCreateFoo                          # filter by name
 #   make test RUN='TestFoo|TestBar'                      # regex (quote to protect from shell)
-#   make foundation/persistence-test-ctzd RUN=TestFoo    # via tools container
+#   make framework-test-ctzd RUN=TestFoo    # via tools container
 #
 # RUN is optional. When set it is forwarded verbatim to `go test -run <regex>`,
 # which matches the test's fully qualified name (Go's own filter semantics —
@@ -185,9 +185,9 @@ test-envtest:
 # Per-module lint (golangci-lint)
 #
 # Usage:
-#   make foundation/persistence-lint
+#   make framework-lint
 #   make lint
-#   make foundation/persistence-lint-ctzd
+#   make framework-lint-ctzd
 #
 # Uses the pinned golangci-lint from ci/tools/bin/ (via tools-install).
 # Workspace mode is kept so cross-module replaces resolve correctly.
@@ -205,12 +205,12 @@ lint: $(addsuffix -lint,$(GO_MODULES))
 # Per-module gofmt (golangci-lint fmt)
 #
 # Usage:
-#   make foundation/gateway-gofmt              # auto-fix one module
+#   make gateway-gofmt              # auto-fix one module
 #   make gofmt                                 # auto-fix all modules
-#   make foundation/gateway-gofmt-check        # check one module (fails on diff)
+#   make gateway-gofmt-check        # check one module (fails on diff)
 #   make gofmt-check                           # check all modules (CI gate)
-#   make foundation/gateway-gofmt-ctzd         # via tools container
-#   make foundation/gateway-gofmt-check-ctzd   # via tools container
+#   make gateway-gofmt-ctzd         # via tools container
+#   make gateway-gofmt-check-ctzd   # via tools container
 #
 # Uses `golangci-lint fmt`, which applies the formatters configured in
 # .golangci.yml (gofmt simplify + goimports). This keeps `make gofmt` and
@@ -243,9 +243,9 @@ gofmt-check: $(addsuffix -gofmt-check,$(GO_MODULES))
 # Per-module gosec
 #
 # Usage:
-#   make foundation/persistence-gosec
+#   make framework-gosec
 #   make gosec
-#   make foundation/persistence-gosec-ctzd
+#   make framework-gosec-ctzd
 #
 # Runs with the Go workspace active (go.work) so that cross-module imports
 # resolve correctly. The pinned gosec binary (GOSEC_VERSION in .config.mk)
@@ -289,14 +289,14 @@ generate-api-verify: generate-api
 # Per-module: go mod tidy
 #
 # Usage:
-#   make foundation/gateway-tidy          # single module
+#   make gateway-tidy          # single module
 #   make tidy                             # all GO_MODULES
-#   make foundation/gateway-tidy-ctzd     # inside tools container
+#   make gateway-tidy-ctzd     # inside tools container
 #
 # CAVEAT: `go mod tidy` intentionally ignores go.work, so it runs the module
 # in single-module mode. If a module imports packages from another workspace
 # member and relies on go.work's `replace (...)` block to resolve them (as
-# foundation/delegator does against foundation/gateway and foundation/persistence),
+# csp/aruba does against gateway and framework),
 # tidy will fail trying to fetch the v0.0.1 pseudo-version from the proxy.
 #
 # Use this target only on modules whose imports resolve in isolation, or
@@ -319,8 +319,8 @@ tidy: $(addsuffix -tidy,$(GO_MODULES))
 # Per-module: go get <pkg[@version]>
 #
 # PKG is required; include @version to pin (or @latest to upgrade).
-#   make foundation/gateway-go-get PKG=github.com/foo/bar@v1.2.3
-#   make foundation/gateway-go-get-ctzd PKG=github.com/foo/bar@v1.2.3
+#   make gateway-go-get PKG=github.com/foo/bar@v1.2.3
+#   make gateway-go-get-ctzd PKG=github.com/foo/bar@v1.2.3
 #
 # The umbrella `go-get` target runs the same PKG in every GO_MODULE — useful for
 # bumping a shared dependency across the workspace in one shot:
@@ -329,7 +329,7 @@ tidy: $(addsuffix -tidy,$(GO_MODULES))
 # NOTE: We deliberately use `go mod edit -require=…@VERSION` + `go mod download`
 # instead of `go get` + `go mod tidy`. Using `go get` or `go mod tidy` rebuilds
 # the full module graph and tries to fetch sibling workspace modules (e.g.
-# foundation/persistence@v0.0.1) from the module proxy — pseudo-versions that
+# framework@v0.0.1) from the module proxy — pseudo-versions that
 # only resolve via the workspace `replace` directives, which the proxy never
 # has. The edit+download approach updates go.mod and go.sum for the target
 # package without touching the rest of the module graph.
@@ -449,13 +449,13 @@ pre-merge: gh-token-ensure branch-rebase-verify workspace-verify go-sdk-verify g
 # Workspace membership: add / remove a module from go.work
 #
 # RELPATH is the path relative to the repo root.
-#   make workspace-use-add  RELPATH=foundation/plugin/newthing
-#   make workspace-use-drop RELPATH=foundation/plugin/oldthing
+#   make workspace-use-add  RELPATH=csp/newthing
+#   make workspace-use-drop RELPATH=csp/oldthing
 #
 # These targets only manipulate the `use (...)` block. The `replace (...)` block
-# in go.work pins foundation modules to their local paths at v0.0.1, which is
+# in go.work pins workspace modules to their local paths at v0.0.1, which is
 # load-bearing for %-vuln and %-gosec (both use GOWORK=off). After adding
-# a new foundation module, also run:
+# a new workspace module, also run:
 #
 #   go work edit -replace <modpath>=./$(RELPATH)
 #
