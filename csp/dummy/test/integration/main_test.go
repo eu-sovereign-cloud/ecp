@@ -19,16 +19,16 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/kubernetes/scheme"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	kubernetesadapter "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/adapter/kubernetes"
-	regionalmodel "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
-	"github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage"
-	blockstoragev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/storage/block-storages/v1"
-	workspacev1 "github.com/eu-sovereign-cloud/ecp/foundation/persistence/api/regional/workspace/v1"
+	kernelresource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
+	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
+	bsdom "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1"
+	bsk8s "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1/backend/kubernetes"
+	wsdom "github.com/eu-sovereign-cloud/ecp/resources/workspace/v1"
+	wsk8s "github.com/eu-sovereign-cloud/ecp/resources/workspace/v1/backend/kubernetes"
 )
 
 const (
@@ -40,23 +40,20 @@ const (
 var (
 	dynamicClient    dynamic.Interface
 	testLogger       *slog.Logger
-	workspaceRepo    *kubernetesadapter.RepoAdapter[*regionalmodel.Workspace]
-	blockStorageRepo *kubernetesadapter.RepoAdapter[*regionalmodel.BlockStorage]
+	workspaceRepo    *k8sadapter.RepoAdapter[*wsdom.Workspace]
+	blockStorageRepo *k8sadapter.RepoAdapter[*bsdom.BlockStorage]
 	k8sClient        client.Client
 )
 
 func TestMain(m *testing.M) {
-	//
-	// Given a running KIND cluster
 	if err := setup(); err != nil {
 		log.Fatalf("Failed to setup integration tests: %v", err)
 	}
 
-	// Initialize k8s scheme for client-go
 	s := runtime.NewScheme()
-	utilruntime.Must(scheme.AddToScheme(s))
-	utilruntime.Must(workspacev1.AddToScheme(s))
-	utilruntime.Must(storage.AddToScheme(s))
+	utilruntime.Must(clientgoscheme.AddToScheme(s))
+	utilruntime.Must(wsk8s.AddToScheme(s))
+	utilruntime.Must(bsk8s.AddToScheme(s))
 	utilruntime.Must(corev1.AddToScheme(s))
 
 	kubeconfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
@@ -75,32 +72,28 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Failed to create k8s client: %v", err)
 	}
 
-	// Initialize dynamic client
 	dynamicClient, err = dynamic.NewForConfig(restConfig)
 	if err != nil {
 		log.Fatalf("Failed to create dynamic client: %v", err)
 	}
 
-	// Initialize test logger
 	testLogger = slog.New(slog.NewTextHandler(os.Stdout, nil))
 
-	// Initialize repositories
-	blockStorageRepo = kubernetesadapter.NewRepoAdapter(
+	blockStorageRepo = k8sadapter.NewRepoAdapter[*bsdom.BlockStorage](
 		dynamicClient,
-		blockstoragev1.BlockStorageGVR,
+		bsk8s.BlockStorageGVR,
 		testLogger,
-		kubernetesadapter.MapBlockStorageDomainToCR,
-		kubernetesadapter.MapCRToBlockStorageDomain,
+		bsk8s.MapBlockStorageDomainToCR,
+		bsk8s.MapCRToBlockStorageDomain,
 	)
-	workspaceRepo = kubernetesadapter.NewRepoAdapter(
+	workspaceRepo = k8sadapter.NewRepoAdapter[*wsdom.Workspace](
 		dynamicClient,
-		workspacev1.WorkspaceGVR,
+		wsk8s.WorkspaceGVR,
 		testLogger,
-		kubernetesadapter.MapWorkspaceDomainToCR,
-		kubernetesadapter.MapCRToWorkspaceDomain,
+		wsk8s.MapWorkspaceDomainToCR,
+		wsk8s.MapCRToWorkspaceDomain,
 	)
 
-	// Wait for the test namespace to be created
 	if err := waitForNamespace(context.Background(), testNamespace); err != nil {
 		log.Fatalf("Failed to wait for namespace %s: %v", testNamespace, err)
 	}
@@ -109,12 +102,8 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Failed to create test namespaces: %v", err)
 	}
 
-	//
-	// When running the test suite
 	code := m.Run()
 
-	//
-	// Then teardown the cluster
 	if err := teardown(); err != nil {
 		log.Printf("Failed to teardown integration tests: %v", err)
 	}
@@ -146,19 +135,19 @@ func waitForNamespace(ctx context.Context, namespace string) error {
 		err := k8sClient.Get(ctx, client.ObjectKey{Name: namespace}, &ns)
 		if err != nil {
 			if kerrors.IsNotFound(err) {
-				return false, nil // Namespace not found yet, continue polling.
+				return false, nil
 			}
-			return false, err // Other error, stop polling.
+			return false, err
 		}
-		return true, nil // Namespace found.
+		return true, nil
 	})
 }
 
 func createTestNamespaces(ctx context.Context) error {
 	log.Println("Creating test namespaces...")
 	nsToCreate := []string{
-		kubernetesadapter.ComputeNamespace(&scope.Scope{Tenant: "test-tenant"}),
-		kubernetesadapter.ComputeNamespace(&scope.Scope{Tenant: "test-tenant", Workspace: "test-workspace"}),
+		k8sadapter.ComputeNamespace(&kernelresource.Scope{Tenant: "test-tenant"}),
+		k8sadapter.ComputeNamespace(&kernelresource.Scope{Tenant: "test-tenant", Workspace: "test-workspace"}),
 	}
 
 	for _, nsName := range nsToCreate {
