@@ -9,7 +9,7 @@ setup_kube_vars
 setup_registry_vars "$1"
 
 DEPLOY_DIR="${SCRIPT_DIR}/../deploy/${COMPONENT}"
-CRDS_DIR="${SCRIPT_DIR}/../../../persistence/generated/crds"
+CRDS_DIR="${SCRIPT_DIR}/../../../resources/testdata/crds"
 
 echo "Applying CRDs from ${CRDS_DIR}..."
 find "${CRDS_DIR}" -type f -name "*.yaml" -exec cat {} + | kubectl ${KUBECONFIG_ARG} apply -f -
@@ -27,11 +27,15 @@ if [[ -n "$USE_KIND" && "$USE_KIND" == "true" ]]; then
     YAML_STREAM=$(echo "${YAML_STREAM}" | sed "s|imagePullPolicy: Always|imagePullPolicy: IfNotPresent|g")
 fi
 
-# If the component is the delegator, handle the plugin type
+# If the component is the delegator, handle the plugin type.
+# PLUGIN_TYPE may be overridden via the environment; otherwise default to
+# aruba, except on KIND where the dummy plugin is the default.
 if [ "$COMPONENT" == "delegator" ]; then
-    PLUGIN_TYPE="aruba" # Default to aruba
-    if [[ -n "$USE_KIND" && "$USE_KIND" == "true" ]]; then
-        PLUGIN_TYPE="dummy"
+    if [ -z "$PLUGIN_TYPE" ]; then
+        PLUGIN_TYPE="aruba" # Default to aruba
+        if [[ -n "$USE_KIND" && "$USE_KIND" == "true" ]]; then
+            PLUGIN_TYPE="dummy"
+        fi
     fi
     echo "Deploying delegator with plugin: ${PLUGIN_TYPE}"
     YAML_STREAM=$(echo "${YAML_STREAM}" | sed "s|##PLUGIN_TYPE##|${PLUGIN_TYPE}|g")

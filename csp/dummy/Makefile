@@ -1,6 +1,6 @@
 # Makefile for Dummy Delegator Plugin
 
-include ../../../.config.mk
+include ../../.config.mk
 
 # =====================================================================================
 # Variables
