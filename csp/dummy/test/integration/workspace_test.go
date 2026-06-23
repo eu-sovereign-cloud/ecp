@@ -10,56 +10,41 @@ import (
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/util/wait"
 
-	ecpmodel "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model"
-	regionalmodel "github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/regional"
-	"github.com/eu-sovereign-cloud/ecp/foundation/gateway/pkg/model/scope"
+	kernel "github.com/eu-sovereign-cloud/ecp/framework/kernel"
+	kernelresource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
+	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
+	wsdom "github.com/eu-sovereign-cloud/ecp/resources/workspace/v1"
 )
 
 func TestWorkspace(t *testing.T) {
 	t.Parallel()
+
 	t.Run("should create a workspace resource", func(t *testing.T) {
 		t.Parallel()
 
-		//
-		// Given a unique workspace domain resource definition
 		resourceName := "test-ws-create-" + uuid.New().String()[:8]
-		wsDomain := &regionalmodel.Workspace{
-			Metadata: regionalmodel.Metadata{
-				CommonMetadata: ecpmodel.CommonMetadata{
-					Name: resourceName,
-				},
-				Scope: scope.Scope{
-					Tenant: "test-tenant",
-				},
+		wsDomain := &wsdom.Workspace{
+			RegionalMetadata: commondomain.RegionalMetadata{
+				CommonMetadata: commondomain.CommonMetadata{Name: resourceName},
+				Scope:          kernelresource.Scope{Tenant: "test-tenant"},
 			},
-			Spec: regionalmodel.WorkspaceSpec{},
+			Spec: wsdom.WorkspaceSpec{},
 		}
 
-		//
-		// When we create the workspace resource via the adapter
 		_, err := workspaceRepo.Create(t.Context(), wsDomain)
 		require.NoError(t, err)
 
-		//
-		// Then the resource should eventually become active
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
-			loadedWs := &regionalmodel.Workspace{
-				Metadata: regionalmodel.Metadata{
-					CommonMetadata: ecpmodel.CommonMetadata{
-						Name: resourceName,
-					},
-					Scope: scope.Scope{
-						Tenant: "test-tenant",
-					},
+			loadedWs := &wsdom.Workspace{
+				RegionalMetadata: commondomain.RegionalMetadata{
+					CommonMetadata: commondomain.CommonMetadata{Name: resourceName},
+					Scope:          kernelresource.Scope{Tenant: "test-tenant"},
 				},
 			}
 			if err := workspaceRepo.Load(ctx, &loadedWs); err != nil {
 				return false, err
 			}
-			if loadedWs.Status.State == regionalmodel.ResourceStateActive {
-				return true, nil
-			}
-			return false, nil
+			return loadedWs.Status != nil && loadedWs.Status.State == commondomain.ResourceStateActive, nil
 		})
 		require.NoError(t, err, "workspace resource should become active")
 	})
@@ -67,67 +52,45 @@ func TestWorkspace(t *testing.T) {
 	t.Run("should delete a workspace resource", func(t *testing.T) {
 		t.Parallel()
 
-		//
-		// Given a unique workspace resource that is already created
 		resourceName := "test-ws-delete-" + uuid.New().String()[:8]
-		wsDomain := &regionalmodel.Workspace{
-			Metadata: regionalmodel.Metadata{
-				CommonMetadata: ecpmodel.CommonMetadata{
-					Name: resourceName,
-				},
-				Scope: scope.Scope{
-					Tenant: "test-tenant",
-				},
+		wsDomain := &wsdom.Workspace{
+			RegionalMetadata: commondomain.RegionalMetadata{
+				CommonMetadata: commondomain.CommonMetadata{Name: resourceName},
+				Scope:          kernelresource.Scope{Tenant: "test-tenant"},
 			},
-			Spec: regionalmodel.WorkspaceSpec{},
+			Spec: wsdom.WorkspaceSpec{},
 		}
 		_, err := workspaceRepo.Create(t.Context(), wsDomain)
 		require.NoError(t, err)
 
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
-			loadedWs := &regionalmodel.Workspace{
-				Metadata: regionalmodel.Metadata{
-					CommonMetadata: ecpmodel.CommonMetadata{
-						Name: resourceName,
-					},
-					Scope: scope.Scope{
-						Tenant: "test-tenant",
-					},
+			loadedWs := &wsdom.Workspace{
+				RegionalMetadata: commondomain.RegionalMetadata{
+					CommonMetadata: commondomain.CommonMetadata{Name: resourceName},
+					Scope:          kernelresource.Scope{Tenant: "test-tenant"},
 				},
 			}
 			if err := workspaceRepo.Load(ctx, &loadedWs); err != nil {
 				return false, err
 			}
-			if loadedWs.Status.State == regionalmodel.ResourceStateActive {
-				return true, nil
-			}
-			return false, nil
+			return loadedWs.Status != nil && loadedWs.Status.State == commondomain.ResourceStateActive, nil
 		})
 		require.NoError(t, err, "workspace resource should become active before deletion")
 
-		//
-		// When we delete the workspace resource
 		err = workspaceRepo.Delete(t.Context(), wsDomain)
 		require.NoError(t, err)
 
-		//
-		// Then the resource should eventually be removed
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
-			loadedWs := &regionalmodel.Workspace{
-				Metadata: regionalmodel.Metadata{
-					CommonMetadata: ecpmodel.CommonMetadata{
-						Name: resourceName,
-					},
-					Scope: scope.Scope{
-						Tenant: "test-tenant",
-					},
+			loadedWs := &wsdom.Workspace{
+				RegionalMetadata: commondomain.RegionalMetadata{
+					CommonMetadata: commondomain.CommonMetadata{Name: resourceName},
+					Scope:          kernelresource.Scope{Tenant: "test-tenant"},
 				},
 			}
-			err := workspaceRepo.Load(ctx, &loadedWs)
-			if domainErr := ecpmodel.AsError(err); domainErr != nil && domainErr.Kind == ecpmodel.KindNotFound {
-				return true, nil
-			}
-			if err != nil {
+			if err := workspaceRepo.Load(ctx, &loadedWs); err != nil {
+				if domainErr := kernel.AsError(err); domainErr != nil && domainErr.Kind == kernel.KindNotFound {
+					return true, nil
+				}
 				return false, err
 			}
 			return false, nil
