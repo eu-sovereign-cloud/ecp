@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"log/slog"
-	"strings"
 	"testing"
 	"time"
 
@@ -155,8 +154,8 @@ func TestWorkspaceController_Reconcile(t *testing.T) {
 
 		res, err := gc.Reconcile(t.Context(), req)
 
-		require.True(t, errors.Is(err, errHandler))
-		require.True(t, strings.Contains(buf.String(), "handler failed to reconcile"))
+		require.ErrorIs(t, err, errHandler)
+		require.Contains(t, buf.String(), "handler failed to reconcile")
 		require.Equal(t, k8srt.Result{RequeueAfter: requeueAfter}, res)
 	})
 }
