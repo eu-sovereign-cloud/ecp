@@ -154,7 +154,7 @@ func TestHandleGet_EncodingFailure(t *testing.T) {
 	HandleGet(recorder, req, logger, res, getter, mapper)
 
 	resp := recorder.Result()
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 	if resp.StatusCode != http.StatusInternalServerError {
 		b, _ := io.ReadAll(resp.Body)
 		t.Fatalf("expected status 500, got %d body=%s", resp.StatusCode, string(b))
