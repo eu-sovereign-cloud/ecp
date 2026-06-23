@@ -12,10 +12,9 @@ The repo is organized around two orthogonal axes, each a separate Go module:
 
 ```
               framework/                   (module …/ecp/framework)
-              ├─ kernel      ← leaf: ALL abstractions (ports, Scope, Error, validation)
-              ├─ persistence → kernel: k8s adapter, schema/v1 CRD types, codegen tools
-              ├─ backend     → persistence, kernel: GenericController, ControllerSet
-              └─ frontend    → kernel: httpserver, kubeclient, logger, config
+              ├─ kernel             ← leaf: ALL abstractions (ports, Scope, Error, validation)
+              ├─ backend/kubernetes → kernel: k8s adapter, schema/v1 CRDs, codegen, GenericController, ControllerSet
+              └─ frontend           → kernel: httpserver, kubeclient, logger, config
                     │
                     ▼  framework ↛ resources (COMPILER-ENFORCED module boundary)
               resources/                   (module …/ecp/resources)
@@ -41,10 +40,9 @@ The repo is organized around two orthogonal axes, each a separate Go module:
 Inter-layer ordering is enforced by `depguard` in `.golangci.yml`:
 
 ```
-kernel      — pure leaf (stdlib + gobwas/glob only)
-persistence → kernel
-backend     → persistence, kernel
-frontend    → kernel
+kernel             — pure leaf (stdlib + gobwas/glob only)
+backend/kubernetes → kernel
+frontend           → kernel
 ```
 
 ## Per-Resource Slice (vertical hexagon)
@@ -53,7 +51,7 @@ Each resource slice at `resources/{group}/{resource}/vN/` contains:
 
 - **`domain.go`** (`package v1`) — the canonical domain type, `RegionalMetadata` embed, and identity consts (`Kind`, `Resource`, `Group`, `Version`, and a provider identifier). No k8s imports.
 - **`frontend/rest/`** — REST↔domain converter + HTTP handlers implementing the go-sdk `ServerInterface`. Registered into the gateway mux.
-- **`backend/kubernetes/`** — CR wrapper types, GVR/GVK, CR↔domain adapter (`conversion.go`), plugin interface (`plugin.go`), plugin handler (`plugin_handler.go`), and controller wiring (`controller.go`). The `NewController` factory performs **builder inversion**: it assembles the `framework/persistence/kubernetes` repo adapter from this slice's own GVR and mappers, wraps it in `framework/backend/controller.GenericController[D]`, and returns a `framework/backend/builder.Reconciler` — no `framework` package ever names a concrete resource.
+- **`backend/kubernetes/`** — CR wrapper types, GVR/GVK, CR↔domain adapter (`conversion.go`), plugin interface (`plugin.go`), plugin handler (`plugin_handler.go`), and controller wiring (`controller.go`). The `NewController` factory performs **builder inversion**: it assembles the `framework/backend/kubernetes` repo adapter from this slice's own GVR and mappers, wraps it in `framework/backend/kubernetes/controller.GenericController[D]`, and returns a `framework/backend/kubernetes/builder.Reconciler` — no `framework` package ever names a concrete resource.
 
 ## Module DAG
 

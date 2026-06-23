@@ -66,11 +66,10 @@ The alias convention keeps deep slice paths out of the readable code. See [CODEG
 The repo enforces a strict import DAG. Violations fail both `golangci-lint depguard` and the `framework-isolation` CI lane:
 
 ```
-framework/kernel      ← pure leaf (no other framework/* imports)
-framework/persistence → kernel
-framework/backend     → persistence, kernel
-framework/frontend    → kernel
-(any framework/*)     ↛ resources   ← COMPILER-ENFORCED (separate Go modules)
+framework/kernel                ← pure leaf (no other framework/* imports)
+framework/backend/kubernetes    → kernel
+framework/frontend              → kernel
+(any framework/*)               ↛ resources   ← COMPILER-ENFORCED (separate Go modules)
 ```
 
 **Rules:**
@@ -110,8 +109,8 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the full per-slice hexagon descriptio
 Several files are generated and must not be edited by hand:
 
 - `resources/{group}/{resource}/vN/backend/kubernetes/zz_generated_schema.go` — Go types from go-sdk schema (per-slice; run `go generate ./...` in `resources/`)
-- `framework/persistence/kubernetes/schema/v1/` — shared CR envelope types (run `make generate-api`)
-- `framework/persistence/kubernetes/crds/*.yaml` — CRD YAML from controller-gen (**planned**; `generate-crds` target is scaffolded but no sources emit yet)
+- `framework/backend/kubernetes/schema/v1/` — shared CR envelope types (run `make generate-api`)
+- `framework/backend/kubernetes/crds/*.yaml` — CRD YAML from controller-gen (**planned**; `generate-crds` target is scaffolded but no sources emit yet)
 - `**/zz_generated.deepcopy.go`, `**/zz_generated.conditions.go` — controller-gen and conditioned-gen output
 
 After changing the OpenAPI specs in `modules/go-sdk`, regenerate:

@@ -59,7 +59,7 @@ echo "<PAT>" | docker login ghcr.io -u <github-username> --password-stdin
 
 | Module | Path | Description |
 |--------|------|-------------|
-| `framework` | `./framework` | Resource-agnostic SDK (kernel, persistence, backend, frontend) |
+| `framework` | `./framework` | Resource-agnostic SDK (kernel, backend, frontend) |
 | `resources` | `./resources` | Domain vocabulary + all resource slices |
 | `gateway` | `./gateway` | Global and regional REST API server binary |
 | `csp/dummy` | `./csp/dummy` | Reference plugin (no real backend) |

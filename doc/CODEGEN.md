@@ -6,40 +6,40 @@ ECP generates both Go API types and Kubernetes CRD YAML from a single source of 
 
 ECP's type layer is built by two generation steps:
 
-1. **Shared schema types** (`make generate-api`) — reads the go-sdk `resource.go` schema, emits `framework/persistence/kubernetes/schema/v1/zz_generated_resource.go` (CRD-envelope types shared by all slices, aliased as `schemav1`), applies kubebuilder markers, and runs controller-gen to produce `DeepCopy` methods.
+1. **Shared schema types** (`make generate-api`) — reads the go-sdk `resource.go` schema, emits `framework/backend/kubernetes/schema/v1/zz_generated_resource.go` (CRD-envelope types shared by all slices, aliased as `schemav1`), applies kubebuilder markers, and runs controller-gen to produce `DeepCopy` methods.
 2. **Per-slice types** (`go generate ./...` in `resources/`) — each resource slice declares an explicit `//go:generate` directive in `backend/kubernetes/generate.go`; `model-gen` extracts the slice-specific types from the go-sdk schema and emits `zz_generated_schema.go` in that slice's `backend/kubernetes/` package.
 
-**CRD YAML generation** is scaffolded (a `generate-crds` target in `framework/persistence/Makefile`) but currently inactive — no `//go:build crdgen`-tagged sources exist yet.
+**CRD YAML generation** is scaffolded (a `generate-crds` target in `framework/backend/kubernetes/Makefile`) but currently inactive — no `//go:build crdgen`-tagged sources exist yet.
 
 Generated files must never be edited by hand. CI enforces this with `make generate-api-verify`.
 
 ## Generators
 
-All code generators live at `framework/persistence/cmd/`:
+All code generators live at `framework/backend/kubernetes/cmd/`:
 
 | Generator | Path | Purpose |
 |-----------|------|---------|
-| `model-gen` | `framework/persistence/cmd/model-gen/` | Transforms go-sdk schema `.go` files into Kubernetes-compatible type definitions (`package kubernetes` for slices, `package v1` for shared schema types) |
-| `conditioned-gen` | `framework/persistence/cmd/conditioned-gen/` | Generates `zz_generated.conditions.go` for conditioned CR types |
-| `inject-kubebuilder-markers` | `framework/persistence/cmd/inject-kubebuilder-markers/` | Injects `+kubebuilder:*` annotations into type files |
+| `model-gen` | `framework/backend/kubernetes/cmd/model-gen/` | Transforms go-sdk schema `.go` files into Kubernetes-compatible type definitions (`package kubernetes` for slices, `package v1` for shared schema types) |
+| `conditioned-gen` | `framework/backend/kubernetes/cmd/conditioned-gen/` | Generates `zz_generated.conditions.go` for conditioned CR types |
+| `inject-kubebuilder-markers` | `framework/backend/kubernetes/cmd/inject-kubebuilder-markers/` | Injects `+kubebuilder:*` annotations into type files |
 
-Resource slices invoke `model-gen` via `//go:generate` directives in their `backend/kubernetes/generate.go`. Note: `make generate-api` orchestrates only the shared `framework/persistence/kubernetes/schema/v1/` types — per-slice generation runs separately via `go generate ./...` in `resources/`.
+Resource slices invoke `model-gen` via `//go:generate` directives in their `backend/kubernetes/generate.go`. Note: `make generate-api` orchestrates only the shared `framework/backend/kubernetes/schema/v1/` types — per-slice generation runs separately via `go generate ./...` in `resources/`.
 
 ## Shared Schema Types (`make generate-api`)
 
-**Entry point:** `make generate-api` → `framework/persistence generate-all`
+**Entry point:** `make generate-api` → `framework/backend/kubernetes generate-all`
 
 `model-gen` runs in single-file mode against `modules/go-sdk/pkg/spec/schema/resource.go` — the go-sdk
 schema that defines CRD-envelope types shared by all resource slices.
 
 **Steps:**
-1. `model-gen` reads `resource.go` and emits `framework/persistence/kubernetes/schema/v1/zz_generated_resource.go` as `package v1`.
+1. `model-gen` reads `resource.go` and emits `framework/backend/kubernetes/schema/v1/zz_generated_resource.go` as `package v1`.
 2. `inject-kubebuilder-markers` annotates the emitted types with `+kubebuilder:*` markers.
 3. `controller-gen object` generates `zz_generated.deepcopy.go` alongside.
 
 **Outputs:**
-- `framework/persistence/kubernetes/schema/v1/zz_generated_resource.go` — shared types (`CommonData`, `Conditioned`, `Reference`, `Zone`, `Cidr`, `IPVersion`, `VolumeReference`, etc.)
-- `framework/persistence/kubernetes/schema/v1/zz_generated.deepcopy.go`
+- `framework/backend/kubernetes/schema/v1/zz_generated_resource.go` — shared types (`CommonData`, `Conditioned`, `Reference`, `Zone`, `Cidr`, `IPVersion`, `VolumeReference`, etc.)
+- `framework/backend/kubernetes/schema/v1/zz_generated.deepcopy.go`
 
 All importers alias this package as **`schemav1`**.
 
@@ -48,7 +48,7 @@ All importers alias this package as **`schemav1`**.
 Each resource slice has a `backend/kubernetes/generate.go` with an explicit `//go:generate` directive:
 
 ```
-//go:generate go run .../framework/persistence/cmd/model-gen \
+//go:generate go run .../framework/backend/kubernetes/cmd/model-gen \
   --schema-file=.../modules/go-sdk/pkg/spec/schema/<resource>.go \
   --output-file=zz_generated_schema.go \
   --package-name=kubernetes \
@@ -77,18 +77,18 @@ Run per-slice generation from the repo root:
 
 ## CRD Generation (planned)
 
-**Entry point:** `make generate-api` → `framework/persistence generate-crds` → `go generate -tags=crdgen ./...`
+**Entry point:** `make generate-api` → `framework/backend/kubernetes generate-crds` → `go generate -tags=crdgen ./...`
 
-The scaffold exists — `framework/persistence/Makefile` has a `generate-crds` target that would invoke
+The scaffold exists — `framework/backend/kubernetes/Makefile` has a `generate-crds` target that would invoke
 controller-gen to produce CRD YAML from Go struct `+kubebuilder:*` annotations. However, no
 `//go:build crdgen`-tagged source files exist yet, so this step is currently a no-op.
 
-**Planned output:** `framework/persistence/kubernetes/crds/`
+**Planned output:** `framework/backend/kubernetes/crds/`
 
 ## Running Generation
 
 ```bash
-# Generate shared schema types (framework/persistence/kubernetes/schema/v1/)
+# Generate shared schema types (framework/backend/kubernetes/schema/v1/)
 make generate-api
 
 # Generate per-slice types (resources/.../.../backend/kubernetes/zz_generated_schema.go)

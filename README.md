@@ -9,8 +9,8 @@ ECP exposes a unified, declarative REST API for provisioning and managing cloud 
 ```
 framework/            # Resource-agnostic SDK (horizontal axis)
 ├── kernel/           #   All abstractions: ports, Scope, Error, validation
-├── persistence/      #   Kubernetes adapter, schema/v1 CRD types, codegen tools
-├── backend/          #   Generic controller, ControllerSet builder
+├── backend/          #   Kubernetes backend: adapter, schema/v1 CRDs, codegen, controller, builder
+│   └── kubernetes/   #     adapter, labels, convert, schema/v1, controller, builder, cmd
 └── frontend/         #   HTTP server, kubeclient, logger, config
 resources/            # Data vocabulary + per-resource slices (vertical axis)
 ├── common/           #   Shared domain, frontend, backend helpers
@@ -41,7 +41,7 @@ This is a Go monorepo managed with `go.work`. The workspace contains 8 first-par
 
 | Module | Path | Description |
 |--------|------|-------------|
-| `framework` | `./framework` | Resource-agnostic SDK (kernel, persistence, backend, frontend) |
+| `framework` | `./framework` | Resource-agnostic SDK (kernel, backend, frontend) |
 | `resources` | `./resources` | Domain vocabulary + all resource slices |
 | `gateway` | `./gateway` | Global and regional REST API server binary |
 | `csp/dummy` | `./csp/dummy` | Reference plugin (no real backend) |

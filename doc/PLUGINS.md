@@ -41,7 +41,7 @@ A CSP plugin implements these interfaces for each resource type it supports.
 
 ## Builder Inversion
 
-Each resource slice exports a `NewController` factory in its `backend/kubernetes/controller.go`. The factory assembles the full controller stack internally — the Kubernetes repo adapter, the plugin handler, and the `framework/backend/controller.GenericController` — and returns a `framework/backend/builder.Reconciler`.
+Each resource slice exports a `NewController` factory in its `backend/kubernetes/controller.go`. The factory assembles the full controller stack internally — the Kubernetes repo adapter, the plugin handler, and the `framework/backend/kubernetes/controller.GenericController` — and returns a `framework/backend/kubernetes/builder.Reconciler`.
 
 The CSP `cmd/main.go` performs assembly:
 ```go
@@ -52,7 +52,7 @@ controllerSet.Add(wsk8s.NewController(mgr.GetClient(), dynClient, wsPlugin, opts
 controllerSet.SetupWithManager(mgr)
 ```
 
-No framework package ever names a concrete resource type. The `framework/backend/builder.ControllerSet` is a generic `[]Reconciler` aggregator with no resource knowledge.
+No framework package ever names a concrete resource type. The `framework/backend/kubernetes/builder.ControllerSet` is a generic `[]Reconciler` aggregator with no resource knowledge.
 
 ## Available Plugins
 
