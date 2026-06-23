@@ -42,6 +42,7 @@ linters:
     depguard:
       rules:
         # Framework inter-layer DAG (applies when linting framework/* paths).
+        # Three-layer DAG: kernel (leaf) ← backend ← (nothing; frontend and backend are peers)
         # "framework ↛ resources" is compiler-enforced (GOWORK=off gate) and
         # lives in framework/.golangci.yml to avoid false-positives in other modules.
         kernel-no-impl:
@@ -49,21 +50,10 @@ linters:
             - "**/kernel/**"
           list-mode: lax
           deny:
-            - pkg: "github.com/eu-sovereign-cloud/ecp/framework/persistence"
-              desc: "kernel must not import framework/persistence (kernel is the pure leaf)"
             - pkg: "github.com/eu-sovereign-cloud/ecp/framework/backend"
               desc: "kernel must not import framework/backend"
             - pkg: "github.com/eu-sovereign-cloud/ecp/framework/frontend"
               desc: "kernel must not import framework/frontend"
-        persistence-no-backend-or-frontend:
-          files:
-            - "**/persistence/**"
-          list-mode: lax
-          deny:
-            - pkg: "github.com/eu-sovereign-cloud/ecp/framework/backend"
-              desc: "persistence must not import framework/backend"
-            - pkg: "github.com/eu-sovereign-cloud/ecp/framework/frontend"
-              desc: "persistence must not import framework/frontend"
         backend-no-frontend:
           files:
             - "**/backend/**"
@@ -71,13 +61,11 @@ linters:
           deny:
             - pkg: "github.com/eu-sovereign-cloud/ecp/framework/frontend"
               desc: "backend must not import framework/frontend"
-        frontend-no-persistence-or-backend:
+        frontend-no-backend:
           files:
             - "**/frontend/**"
           list-mode: lax
           deny:
-            - pkg: "github.com/eu-sovereign-cloud/ecp/framework/persistence"
-              desc: "frontend must not import framework/persistence"
             - pkg: "github.com/eu-sovereign-cloud/ecp/framework/backend"
               desc: "frontend must not import framework/backend"
     importas:
