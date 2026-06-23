@@ -25,9 +25,13 @@ const (
 // IcmpConfig ICMP specific rule configuration
 type IcmpConfig struct {
 	// Code ICMP code
+	// +kubebuilder:validation:Maximum=5
+	// +kubebuilder:validation:Minimum=0
 	Code int `json:"code" x-kubebuilder-validation-maximum:"5" x-kubebuilder-validation-minimum:"0"`
 
 	// Type ICMP type
+	// +kubebuilder:validation:Maximum=8
+	// +kubebuilder:validation:Minimum=0
 	Type int `json:"type" x-kubebuilder-validation-maximum:"8" x-kubebuilder-validation-minimum:"0"`
 }
 
@@ -47,6 +51,9 @@ type Port = int
 // The final result is a comprehensive list of ports and/or port ranges.
 type Ports struct {
 	From Port   `json:"from,omitempty"`
+	// +kubebuilder:validation:MaxItems=100
+	// +kubebuilder:validation:items:Maximum=65535
+	// +kubebuilder:validation:items:Minimum=1
 	List []Port `json:"list,omitempty" x-kubebuilder-validation-items-maximum:"65535" x-kubebuilder-validation-items-minimum:"1" x-kubebuilder-validation-max-items:"100"`
 	To   Port   `json:"to,omitempty"`
 }
@@ -82,6 +89,9 @@ type SecurityGroupRuleSpec struct {
 	// Direction Direction of the traffic flow:
 	// * ingress: Only incoming traffic is allowed
 	// * egress: Only outgoing traffic is allowed
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Enum=ingress;egress
+	// +kubebuilder:validation:MaxLength=7
 	Direction SecurityGroupRuleSpecDirection `json:"direction" x-kubebuilder-validation-enum:"ingress;egress" x-kubebuilder-validation-max-length:"7"`
 
 	// Icmp ICMP specific rule configuration
@@ -100,11 +110,15 @@ type SecurityGroupRuleSpec struct {
 	Ports *Ports `json:"ports,omitempty"`
 
 	// Protocol Network protocol for the rule
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Enum=tcp;udp;tcp+udp;icmp
+	// +kubebuilder:validation:MaxLength=7
 	Protocol SecurityGroupRuleSpecProtocol `json:"protocol,omitempty" x-kubebuilder-validation-enum:"tcp;udp;tcp+udp;icmp" x-kubebuilder-validation-max-length:"7"`
 
 	// SourceRef Reference to a CIDR block, IP address, gateway, instance or security group that is allowed to communicate
 	// with the security group. If a security group is specified, all instances in that group are allowed.
 	// If no sourceRef is specified, all traffic is allowed.
+	// +kubebuilder:validation:MaxItems=32
 	SourceRef []schemav1.Reference `json:"sourceRef,omitempty" x-kubebuilder-validation-max-items:"32"`
 	Version   schemav1.IPVersion   `json:"version,omitempty"`
 }

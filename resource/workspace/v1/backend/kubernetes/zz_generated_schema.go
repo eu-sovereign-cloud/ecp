@@ -31,9 +31,11 @@ type WorkspaceSpec = map[string]string
 
 // WorkspaceStatus defines model for WorkspaceStatus.
 type WorkspaceStatus struct {
+	// +kubebuilder:validation:MaxItems=32
 	Conditions []schemav1.StatusCondition `json:"conditions" x-kubebuilder-validation-max-items:"32"`
 
 	// ResourceCount Number of resources currently in the workspace
+	// +kubebuilder:validation:Minimum=0
 	ResourceCount *int                   `json:"resourceCount,omitempty" x-kubebuilder-validation-minimum:"0"`
 	State         schemav1.ResourceState `json:"state,omitempty"`
 }

@@ -33,10 +33,14 @@ import schemav1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/
 // If a reference to the source image is used as the base for creating this block storage.
 type BlockStorageSpec struct {
 	// SizeGB Size of the block storage in GB.
+	// +kubebuilder:validation:Maximum=1000000
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:XValidation:rule="self >= oldSelf",message="spec.sizeGB cannot be decreased"
 	SizeGB int `json:"sizeGB" x-cel-message-0:"spec.sizeGB cannot be decreased" x-cel-rule-0:"self >= oldSelf" x-kubebuilder-validation-maximum:"1000000" x-kubebuilder-validation-minimum:"1"`
 
 	// SkuRef Reference to the SKU of the block storage. The SKU is immutable after creation.
 	// If you want to change the SKU, you need to create a new block storage and migrate the data.
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="spec.skuRef is immutable"
 	SkuRef schemav1.Reference `json:"skuRef" x-cel-message-0:"spec.skuRef is immutable" x-cel-rule-0:"self == oldSelf"`
 
 	// SourceImageRef Reference to the source image used as the base for creating the block storage.
@@ -47,9 +51,12 @@ type BlockStorageSpec struct {
 type BlockStorageStatus struct {
 	// AttachedTo Reference to the instance the block storage is attached to.
 	AttachedTo *schemav1.Reference        `json:"attachedTo,omitempty"`
+	// +kubebuilder:validation:MaxItems=32
 	Conditions []schemav1.StatusCondition `json:"conditions" x-kubebuilder-validation-max-items:"32"`
 
 	// SizeGB Size of the block storage in GB.
+	// +kubebuilder:validation:Maximum=1000000
+	// +kubebuilder:validation:Minimum=1
 	SizeGB int                    `json:"sizeGB" x-kubebuilder-validation-maximum:"1000000" x-kubebuilder-validation-minimum:"1"`
 	State  schemav1.ResourceState `json:"state,omitempty"`
 }

@@ -415,10 +415,12 @@ type PermissionMetadata struct {
 // the full URN.
 type Reference struct {
 	// Provider Provider of the resource. If not set, the provider is inferred from the context.
+	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:MaxLength=64
 	Provider string `json:"provider,omitempty" x-kubebuilder-validation-max-length:"64"`
 
 	// Region Region of the resource. If not set, the region is inferred from the context.
+	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:MaxLength=64
 	Region string `json:"region,omitempty" x-kubebuilder-validation-max-length:"64"`
 
@@ -429,15 +431,18 @@ type Reference struct {
 	//   `networks/<network-name>/route-tables/<rt-name>`
 	// The provider, tenant, and workspace can be specified as separate fields in this
 	// object; they do not need to be repeated here.
+	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:MaxLength=256
 	// +kubebuilder:validation:MinLength=1
 	Resource string `json:"resource" x-kubebuilder-validation-max-length:"256" x-kubebuilder-validation-min-length:"1"`
 
 	// Tenant Tenant of the resource. If not set, the tenant is inferred from the context.
+	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:MaxLength=64
 	Tenant string `json:"tenant,omitempty" x-kubebuilder-validation-max-length:"64"`
 
 	// Workspace Workspace of the resource. If not set, the workspace is inferred from the context.
+	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:MaxLength=64
 	Workspace string `json:"workspace,omitempty" x-kubebuilder-validation-max-length:"64"`
 }
@@ -875,12 +880,14 @@ type StatusCondition struct {
 	LastTransitionAt metav1.Time `json:"lastTransitionAt"`
 
 	// Message A human-readable message indicating details about the transition.
+	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:MaxLength=32768
 	Message string `json:"message,omitempty" x-kubebuilder-validation-max-length:"32768"`
 
 	// Reason The reason for the condition's last transition in CamelCase.
 	// The specific set of reason values is provider-specific and should be
 	// documented by the provider.
+	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:MaxLength=1024
 	// +kubebuilder:validation:Pattern=`^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$`
 	Reason string `json:"reason,omitempty" x-kubebuilder-validation-max-length:"1024" x-kubebuilder-validation-pattern:"^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$"`

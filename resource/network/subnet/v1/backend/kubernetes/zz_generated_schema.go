@@ -60,6 +60,9 @@ type SubnetSpec struct {
 	// SkuRef Reference to the SKU used by default for all NICs in this Network.
 	// Can be overridden by the NIC
 	SkuRef *schemav1.Reference `json:"skuRef,omitempty"`
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:MaxLength=32
+	// +kubebuilder:validation:MinLength=1
 	Zone   schemav1.Zone       `json:"zone" x-kubebuilder-validation-max-length:"32" x-kubebuilder-validation-min-length:"1"`
 }
 
@@ -73,6 +76,7 @@ type SubnetStatus struct {
 	// * IPv6 only
 	// * IPv4 and IPv6 (Dual Stack)
 	Cidr       *schemav1.Cidr             `json:"cidr,omitempty"`
+	// +kubebuilder:validation:MaxItems=32
 	Conditions []schemav1.StatusCondition `json:"conditions" x-kubebuilder-validation-max-items:"32"`
 
 	// RouteTableRef The route table used by this subnet.

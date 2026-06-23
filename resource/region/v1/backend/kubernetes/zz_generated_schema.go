@@ -10,8 +10,17 @@ import schemav1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/
 
 // Provider A provider of cloud services
 type Provider struct {
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:MaxLength=64
+	// +kubebuilder:validation:MinLength=1
 	Name    string `json:"name" x-kubebuilder-validation-max-length:"64" x-kubebuilder-validation-min-length:"1"`
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:MaxLength=4000
+	// +kubebuilder:validation:MinLength=1
 	Url     string `json:"url" x-kubebuilder-validation-max-length:"4000" x-kubebuilder-validation-min-length:"1"`
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:MaxLength=16
+	// +kubebuilder:validation:MinLength=1
 	Version string `json:"version" x-kubebuilder-validation-max-length:"16" x-kubebuilder-validation-min-length:"1"`
 }
 
@@ -25,9 +34,16 @@ type Provider struct {
 // RegionSpec The specification of a region, including the available zones and providers.
 type RegionSpec struct {
 	// AvailableZones The list of zones available in the region.
+	// +kubebuilder:validation:items:Type=string
+	// +kubebuilder:validation:MaxItems=32
+	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:validation:items:MaxLength=32
+	// +kubebuilder:validation:items:MinLength=1
 	AvailableZones []schemav1.Zone `json:"availableZones" x-kubebuilder-validation-items-max-length:"32" x-kubebuilder-validation-items-min-length:"1" x-kubebuilder-validation-max-items:"32" x-kubebuilder-validation-min-items:"1"`
 
 	// Providers The list of providers available in the region.
+	// +kubebuilder:validation:MaxItems=64
+	// +kubebuilder:validation:MinItems=1
 	Providers []Provider `json:"providers" x-kubebuilder-validation-max-items:"64" x-kubebuilder-validation-min-items:"1"`
 }
 

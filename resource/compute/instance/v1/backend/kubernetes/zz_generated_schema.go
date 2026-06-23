@@ -38,15 +38,19 @@ const (
 // InstanceSpec Specification of the instance, including its SKU, network configuration, and storage options.
 type InstanceSpec struct {
 	// AdditionalNicRefs Additional NICs attached to this instance
+	// +kubebuilder:validation:MaxItems=16
 	AdditionalNicRefs []schemav1.Reference `json:"additionalNicRefs,omitempty" x-kubebuilder-validation-max-items:"16"`
 
 	// AntiAffinityGroup Anti-affinity group to which this instance belongs.
 	// Instances in the same anti-affinity group are placed on different physical hosts.
 	// The number of maximum instances in an anti-affinity group is provider-specific.
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:MaxLength=64
 	AntiAffinityGroup string `json:"antiAffinityGroup,omitempty" x-kubebuilder-validation-max-length:"64"`
 
 	// BootVolume Reference to the block storage used to store the boot volume of the instance.
 	BootVolume  schemav1.VolumeReference   `json:"bootVolume"`
+	// +kubebuilder:validation:MaxItems=64
 	DataVolumes []schemav1.VolumeReference `json:"dataVolumes,omitempty" x-kubebuilder-validation-max-items:"64"`
 
 	// PrimaryNicRef Reference to the primary NIC attached to this instance.
@@ -57,27 +61,40 @@ type InstanceSpec struct {
 
 	// SkuRef Reference to the SKU of the instance. The SKU is immutable after the instance is created.
 	// To change the SKU, the instance must be deleted and recreated with the new SKU reference.
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="spec.skuRef is immutable"
 	SkuRef schemav1.Reference `json:"skuRef" x-cel-message-0:"spec.skuRef is immutable" x-cel-rule-0:"self == oldSelf"`
 
 	// SshKeys Provider-specific references to SSH keys used in cloud-init vendorData.
 	// These references are used to inject SSH public keys during instance initialization
 	// through cloud-init's vendor data configuration.
+	// +kubebuilder:validation:items:Type=string
+	// +kubebuilder:validation:MaxItems=32
+	// +kubebuilder:validation:items:MaxLength=4096
+	// +kubebuilder:validation:items:MinLength=1
 	SshKeys []string `json:"sshKeys,omitempty" x-kubebuilder-validation-items-max-length:"4096" x-kubebuilder-validation-items-min-length:"1" x-kubebuilder-validation-max-items:"32"`
 
 	// UserData Cloud-init user data for instance initialization
 	// Example cloud-init user configuration with SSH key:
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:MaxLength=65536
 	UserData string `json:"userData,omitempty" x-kubebuilder-validation-max-length:"65536"`
 
 	// Zone The zone in which the instance is deployed. The zone is immutable after the instance is created.
 	// To change the zone, the instance must be deleted and recreated with the new zone.
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:MaxLength=32
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="spec.zone is immutable"
 	Zone schemav1.Zone `json:"zone" x-cel-message-0:"spec.zone is immutable" x-cel-rule-0:"self == oldSelf" x-kubebuilder-validation-max-length:"32" x-kubebuilder-validation-min-length:"1"`
 }
 
 // InstanceStatus defines model for InstanceStatus.
 type InstanceStatus struct {
+	// +kubebuilder:validation:MaxItems=32
 	Conditions []schemav1.StatusCondition `json:"conditions" x-kubebuilder-validation-max-items:"32"`
 
 	// PowerState Current power state of the instance.
+	// +kubebuilder:validation:Enum=on;off
 	PowerState InstanceStatusPowerState `json:"powerState" x-kubebuilder-validation-enum:"on;off"`
 
 	// PowerStateSince Indicates the time when the instance powerState has updated, basecause the instance was started, stoped or restarted. If the instance was never started the field is `null`.

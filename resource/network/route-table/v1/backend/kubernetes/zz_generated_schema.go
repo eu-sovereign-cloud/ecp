@@ -15,6 +15,10 @@ type RouteSpec struct {
 	// DestinationCidrBlock The CIDR block for the destination. The block can be
 	// a specific IP address or a range of addresses. It can be
 	// IPv6 or IPv4.
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:MaxLength=43
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:XValidation:rule="isCIDR(self)",message="spec.destinationCidrBlock must be a valid CIDR block"
 	DestinationCidrBlock string `json:"destinationCidrBlock" x-cel-message-0:"spec.destinationCidrBlock must be a valid CIDR block" x-cel-rule-0:"isCIDR(self)" x-kubebuilder-validation-max-length:"43" x-kubebuilder-validation-min-length:"1"`
 
 	// TargetRef Reference to the target of the route. The target can be an instance, an gateway or an IP address.
@@ -23,6 +27,7 @@ type RouteSpec struct {
 
 // RouteStatus defines model for RouteStatus.
 type RouteStatus struct {
+	// +kubebuilder:validation:MaxItems=32
 	Conditions []schemav1.StatusCondition `json:"conditions" x-kubebuilder-validation-max-items:"32"`
 	State      schemav1.ResourceState     `json:"state,omitempty"`
 }
@@ -49,12 +54,16 @@ type RouteStatus struct {
 
 // RouteTableSpec The RouteTableSpec defines the routes that are associated with the route table.
 type RouteTableSpec struct {
+	// +kubebuilder:validation:MaxItems=1000
+	// +kubebuilder:validation:MinItems=1
 	Routes []RouteSpec `json:"routes" x-kubebuilder-validation-max-items:"1000" x-kubebuilder-validation-min-items:"1"`
 }
 
 // RouteTableStatus defines model for RouteTableStatus.
 type RouteTableStatus struct {
+	// +kubebuilder:validation:MaxItems=32
 	Conditions []schemav1.StatusCondition `json:"conditions" x-kubebuilder-validation-max-items:"32"`
+	// +kubebuilder:validation:MaxItems=1000
 	Routes     []RouteStatus              `json:"routes,omitempty" x-kubebuilder-validation-max-items:"1000"`
 	State      schemav1.ResourceState     `json:"state,omitempty"`
 }

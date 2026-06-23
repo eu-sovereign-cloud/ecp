@@ -289,6 +289,41 @@ func processFile(path string) (int, error) {
 		}
 
 		// Inject kubebuilder validation markers (MaxItems, MaxLength, …).
+		//
+		// controller-gen validates MaxLength/MinLength by checking schema.Type==string.
+		// For fields typed via a cross-module string alias (e.g. schemav1.Zone = string)
+		// the type resolves to "" in controller-gen's schema pass, causing a false
+		// validation failure. The Type marker has ApplyPriorityDefault-1, so it is
+		// always applied before other markers regardless of source order. Emit
+		// Type=string / items:Type=string whenever length constraints are present so
+		// the schema type is set explicitly before MaxLength/MinLength run their check.
+		needTypeString := false
+		needItemsTypeString := false
+		for _, m := range kbMarkers {
+			if m.name == "MaxLength" || m.name == "MinLength" {
+				needTypeString = true
+			}
+			if m.name == "items:MaxLength" || m.name == "items:MinLength" {
+				needItemsTypeString = true
+			}
+		}
+		// Also check whether Type markers are already present (idempotency guard).
+		for _, m := range kbMarkers {
+			if m.name == "Type" {
+				needTypeString = false
+			}
+			if m.name == "items:Type" {
+				needItemsTypeString = false
+			}
+		}
+		if needTypeString {
+			out = append(out, indent+formatKBMarker(kbMarker{name: "Type", value: "string"}))
+			injected++
+		}
+		if needItemsTypeString {
+			out = append(out, indent+formatKBMarker(kbMarker{name: "items:Type", value: "string"}))
+			injected++
+		}
 		for _, m := range kbMarkers {
 			out = append(out, indent+formatKBMarker(m))
 			injected++

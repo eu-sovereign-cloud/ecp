@@ -67,28 +67,52 @@ type RoleAssignmentScope struct {
 	// Regions Optionally, a restriction can be applied to the region
 	// where the role assignment is valid. If not specified,
 	// the role assignment is valid for all regions.
+	// +kubebuilder:validation:items:Type=string
+	// +kubebuilder:validation:MaxItems=64
+	// +kubebuilder:validation:items:MaxLength=64
+	// +kubebuilder:validation:items:MinLength=1
 	Regions []string `json:"regions,omitempty" x-kubebuilder-validation-items-max-length:"64" x-kubebuilder-validation-items-min-length:"1" x-kubebuilder-validation-max-items:"64"`
 
 	// Tenants Optionally, can be opened to all tenants or restricted to a specific tenant.
 	// If not specified, the role assignment is valid for the current tenant.
+	// +kubebuilder:validation:items:Type=string
+	// +kubebuilder:validation:MaxItems=64
+	// +kubebuilder:validation:items:MaxLength=64
+	// +kubebuilder:validation:items:MinLength=1
 	Tenants []string `json:"tenants,omitempty" x-kubebuilder-validation-items-max-length:"64" x-kubebuilder-validation-items-min-length:"1" x-kubebuilder-validation-max-items:"64"`
 
 	// Workspaces Optionally, a restriction can be applied to the workspace
 	// where the role assignment is valid. If not specified,
 	// the role assignment is valid for all workspaces.
+	// +kubebuilder:validation:items:Type=string
+	// +kubebuilder:validation:MaxItems=256
+	// +kubebuilder:validation:items:MaxLength=64
+	// +kubebuilder:validation:items:MinLength=1
 	Workspaces []string `json:"workspaces,omitempty" x-kubebuilder-validation-items-max-length:"64" x-kubebuilder-validation-items-min-length:"1" x-kubebuilder-validation-max-items:"256"`
 }
 
 // RoleAssignmentSpec Role assignment for a user account. The role is assigned to the user account in the context of the specified scopes.
 type RoleAssignmentSpec struct {
 	// Roles List of assigned role names
+	// +kubebuilder:validation:items:Type=string
+	// +kubebuilder:validation:MaxItems=32
+	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:validation:items:MaxLength=64
+	// +kubebuilder:validation:items:MinLength=1
 	Roles []string `json:"roles" x-kubebuilder-validation-items-max-length:"64" x-kubebuilder-validation-items-min-length:"1" x-kubebuilder-validation-max-items:"32" x-kubebuilder-validation-min-items:"1"`
 
 	// Scopes List of scopes (e.g., tenant, workspace) for the role assignment
+	// +kubebuilder:validation:MaxItems=256
+	// +kubebuilder:validation:MinItems=1
 	Scopes []RoleAssignmentScope `json:"scopes" x-kubebuilder-validation-max-items:"256" x-kubebuilder-validation-min-items:"1"`
 
 	// Subs List of subject IDs (from JWT) to whom the roles are assigned,
 	// A wildcard `*` can be used to represent all users of the tenant scopes
+	// +kubebuilder:validation:items:Type=string
+	// +kubebuilder:validation:MaxItems=256
+	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:validation:items:MaxLength=128
+	// +kubebuilder:validation:items:MinLength=1
 	Subs []string `json:"subs" x-kubebuilder-validation-items-max-length:"128" x-kubebuilder-validation-items-min-length:"1" x-kubebuilder-validation-max-items:"256" x-kubebuilder-validation-min-items:"1"`
 }
 

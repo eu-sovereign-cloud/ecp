@@ -79,6 +79,7 @@ type Ports struct {
 type SecurityGroupSpec struct {
 	// RuleRefs References to shared SecurityGroupRule resources.
 	// These rules are applied in addition to the inline rules.
+	// +kubebuilder:validation:MaxItems=500
 	RuleRefs []schemav1.Reference `json:"ruleRefs,omitempty" x-kubebuilder-validation-max-items:"500"`
 
 	// Rules Network access rules defining communication between security groups and external networks.
@@ -86,12 +87,15 @@ type SecurityGroupSpec struct {
 	// Rule Evaluation:
 	// - Default behavior is to deny all traffic not explicitly allowed
 	// - Rules provide granular control over allowed traffic types, sources, and destinations
+	// +kubebuilder:validation:MaxItems=500
 	Rules []SecurityGroupRuleSpec `json:"rules,omitempty" x-kubebuilder-validation-max-items:"500"`
 }
 
 // SecurityGroupStatus defines model for SecurityGroupStatus.
 type SecurityGroupStatus struct {
+	// +kubebuilder:validation:MaxItems=32
 	Conditions []schemav1.StatusCondition `json:"conditions" x-kubebuilder-validation-max-items:"32"`
+	// +kubebuilder:validation:MaxItems=500
 	Rules      []SecurityGroupRuleStatus  `json:"rules,omitempty" x-kubebuilder-validation-max-items:"500"`
 	State      schemav1.ResourceState     `json:"state,omitempty"`
 }

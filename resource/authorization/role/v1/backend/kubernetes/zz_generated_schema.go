@@ -12,12 +12,20 @@ import schemav1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/
 // Permissions are used to define access control policies for user accounts.
 type Permission struct {
 	// Provider The provider for which the resource and verbs are defined.
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:MaxLength=64
+	// +kubebuilder:validation:MinLength=1
 	Provider string `json:"provider" x-kubebuilder-validation-max-length:"64" x-kubebuilder-validation-min-length:"1"`
 
 	// Resources The resources are the specific resources that the permission applies to.
 	// The resource can be a wildcard `*` to represent all resources or a
 	// specific resource type. For example, `images/my-image` or
 	// `images/*`.
+	// +kubebuilder:validation:items:Type=string
+	// +kubebuilder:validation:MaxItems=256
+	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:validation:items:MaxLength=256
+	// +kubebuilder:validation:items:MinLength=1
 	Resources []string `json:"resources" x-kubebuilder-validation-items-max-length:"256" x-kubebuilder-validation-items-min-length:"1" x-kubebuilder-validation-max-items:"256" x-kubebuilder-validation-min-items:"1"`
 
 	// Verb The verb is a string that represents the action to be performed on a resource.
@@ -25,6 +33,11 @@ type Permission struct {
 	// resource has additional actions they can to be permitted individually as
 	// verb and action in the form `<verb>:<action>`. For example, `post.start`,
 	// `post.stop`, `post.restart` or with a wildcard for all actions `post`.
+	// +kubebuilder:validation:items:Type=string
+	// +kubebuilder:validation:MaxItems=16
+	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:validation:items:MaxLength=7
+	// +kubebuilder:validation:items:MinLength=1
 	Verb []string `json:"verb" x-kubebuilder-validation-items-max-length:"7" x-kubebuilder-validation-items-min-length:"1" x-kubebuilder-validation-max-items:"16" x-kubebuilder-validation-min-items:"1"`
 }
 
@@ -95,6 +108,8 @@ type Permission struct {
 // a user account using a role assignment.
 type RoleSpec struct {
 	// Permissions List of permissions granted by this role
+	// +kubebuilder:validation:MaxItems=256
+	// +kubebuilder:validation:MinItems=1
 	Permissions []Permission `json:"permissions" x-kubebuilder-validation-max-items:"256" x-kubebuilder-validation-min-items:"1"`
 }
 

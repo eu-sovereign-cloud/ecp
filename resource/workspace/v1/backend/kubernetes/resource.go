@@ -44,7 +44,9 @@ type Workspace struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec       WorkspaceSpec       `json:"spec,omitempty"`
+	// WorkspaceSpec is a type alias for map[string]string. Use the underlying
+	// map type here to avoid a controller-gen v0.20 panic on type aliases.
+	Spec       map[string]string   `json:"spec,omitempty"`
 	CommonData schemav1.CommonData `json:"commonData,omitempty"`
 	Status     *WorkspaceStatus    `json:"status,omitempty"`
 }
