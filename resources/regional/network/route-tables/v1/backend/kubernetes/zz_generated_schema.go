@@ -55,6 +55,6 @@ type RouteTableSpec struct {
 // RouteTableStatus defines model for RouteTableStatus.
 type RouteTableStatus struct {
 	Conditions []schemav1.StatusCondition `json:"conditions" x-kubebuilder-validation-max-items:"32"`
-	Routes     []RouteStatus           `json:"routes,omitempty" x-kubebuilder-validation-max-items:"1000"`
+	Routes     []RouteStatus              `json:"routes,omitempty" x-kubebuilder-validation-max-items:"1000"`
 	State      schemav1.ResourceState     `json:"state,omitempty"`
 }

@@ -91,7 +91,7 @@ type SecurityGroupSpec struct {
 
 // SecurityGroupStatus defines model for SecurityGroupStatus.
 type SecurityGroupStatus struct {
-	Conditions []schemav1.StatusCondition   `json:"conditions" x-kubebuilder-validation-max-items:"32"`
-	Rules      []SecurityGroupRuleStatus `json:"rules,omitempty" x-kubebuilder-validation-max-items:"500"`
-	State      schemav1.ResourceState       `json:"state,omitempty"`
+	Conditions []schemav1.StatusCondition `json:"conditions" x-kubebuilder-validation-max-items:"32"`
+	Rules      []SecurityGroupRuleStatus  `json:"rules,omitempty" x-kubebuilder-validation-max-items:"500"`
+	State      schemav1.ResourceState     `json:"state,omitempty"`
 }
