@@ -29,14 +29,14 @@ func NewController(
 		dynClient,
 		WorkspaceGVR,
 		options.Logger,
-		MapWorkspaceDomainToCR,
-		MapCRToWorkspaceDomain,
+		WorkspaceToCR,
+		WorkspaceFromCR,
 	)
 	handler := NewWorkspacePluginHandler(repo, plugin, options.MaxConditions)
 	return &Controller{
 		GenericController: frameworkcontroller.NewGenericController[*wsdom.Workspace](
 			ctrlClient,
-			MapCRToWorkspaceDomain,
+			WorkspaceFromCR,
 			handler,
 			&Workspace{},
 			options.RequeueAfter,

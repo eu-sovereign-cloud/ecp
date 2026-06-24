@@ -51,15 +51,15 @@ func TestWorkspaceBackend(t *testing.T) {
 		clientset,
 		WorkspaceGVR,
 		slog.Default(),
-		MapWorkspaceDomainToCR,
-		MapCRToWorkspaceDomain,
+		WorkspaceToCR,
+		WorkspaceFromCR,
 	)
 
 	readerRepo := k8sadapter.NewReaderAdapter[*wsdom.Workspace](
 		dynClient,
 		WorkspaceGVR,
 		slog.Default(),
-		MapCRToWorkspaceDomain,
+		WorkspaceFromCR,
 	)
 
 	ctx := context.Background()

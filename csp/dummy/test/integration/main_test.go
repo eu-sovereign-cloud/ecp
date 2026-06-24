@@ -90,8 +90,8 @@ func TestMain(m *testing.M) {
 		dynamicClient,
 		wsk8s.WorkspaceGVR,
 		testLogger,
-		wsk8s.MapWorkspaceDomainToCR,
-		wsk8s.MapCRToWorkspaceDomain,
+		wsk8s.WorkspaceToCR,
+		wsk8s.WorkspaceFromCR,
 	)
 
 	if err := waitForNamespace(context.Background(), testNamespace); err != nil {

@@ -74,24 +74,24 @@ func FuzzWorkspaceSpecRoundTrip(f *testing.F) {
 			Spec: spec,
 		}
 
-		cr1, err := MapWorkspaceDomainToCR(domain)
+		cr1, err := WorkspaceToCR(domain)
 		if err != nil {
 			return
 		}
 
-		domain2, err := MapCRToWorkspaceDomain(cr1)
+		domain2, err := WorkspaceFromCR(cr1)
 		if err != nil {
 			t.Errorf("CR→domain failed after successful domain→CR: %v", err)
 			return
 		}
 
-		cr2, err := MapWorkspaceDomainToCR(domain2)
+		cr2, err := WorkspaceToCR(domain2)
 		if err != nil {
 			t.Errorf("second domain→CR failed: %v", err)
 			return
 		}
 
-		domain3, err := MapCRToWorkspaceDomain(cr2)
+		domain3, err := WorkspaceFromCR(cr2)
 		if err != nil {
 			t.Errorf("second CR→domain failed: %v", err)
 			return

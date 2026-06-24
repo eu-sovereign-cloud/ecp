@@ -94,8 +94,8 @@ func TestMain(m *testing.M) {
 		clientset,
 		wsk8s.WorkspaceGVR,
 		testLogger,
-		wsk8s.MapWorkspaceDomainToCR,
-		wsk8s.MapCRToWorkspaceDomain,
+		wsk8s.WorkspaceToCR,
+		wsk8s.WorkspaceFromCR,
 	)
 
 	blockStorageRepo = k8sadapter.NewRepoAdapter(

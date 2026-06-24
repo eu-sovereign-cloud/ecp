@@ -78,7 +78,7 @@ func TestWorkspaceController_Reconcile(t *testing.T) {
 		handler := NewWorkspacePluginHandler(mockRepo, mockPlugin, 1)
 		gc := frameworkcontroller.NewGenericController[*wsdom.Workspace](
 			fakeClient,
-			MapCRToWorkspaceDomain,
+			WorkspaceFromCR,
 			handler,
 			&Workspace{},
 			0,
@@ -109,7 +109,7 @@ func TestWorkspaceController_Reconcile(t *testing.T) {
 		handler := NewWorkspacePluginHandler(mockRepo, mockPlugin, 1)
 		gc := frameworkcontroller.NewGenericController[*wsdom.Workspace](
 			fakeClient,
-			MapCRToWorkspaceDomain,
+			WorkspaceFromCR,
 			handler,
 			&Workspace{},
 			0,
@@ -144,7 +144,7 @@ func TestWorkspaceController_Reconcile(t *testing.T) {
 		handler := NewWorkspacePluginHandler(mockRepo, mockPlugin, 1)
 		gc := frameworkcontroller.NewGenericController[*wsdom.Workspace](
 			fakeClient,
-			MapCRToWorkspaceDomain,
+			WorkspaceFromCR,
 			handler,
 			&Workspace{},
 			requeueAfter,

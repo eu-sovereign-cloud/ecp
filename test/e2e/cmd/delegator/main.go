@@ -120,7 +120,7 @@ func loadArubaControllers(ctx context.Context, dynClient dynamic.Interface, mgr 
 	logger.Info("Loading 'aruba' plugin set")
 
 	// Instantiate seca-specific read-only repositories (for aruba BlockStorageHandler dependencies)
-	secaWsRepo := k8sadapter.NewReaderAdapter(dynClient, wsk8s.WorkspaceGVR, logger, wsk8s.MapCRToWorkspaceDomain)
+	secaWsRepo := k8sadapter.NewReaderAdapter(dynClient, wsk8s.WorkspaceGVR, logger, wsk8s.WorkspaceFromCR)
 	secaSkuRepo := k8sadapter.NewReaderAdapter(dynClient, ssk8s.StorageSKUGVR, logger, ssk8s.StorageSKUFromCR)
 
 	// Instantiate aruba-specific repositories

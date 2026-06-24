@@ -65,18 +65,18 @@ func ListParamsFromAPI(params sdkworkspace.ListWorkspacesParams, tenant string) 
 	}
 }
 
-// DomainToAPIWithVerb returns a func that converts a Workspace to its SDK representation with the given verb.
-func DomainToAPIWithVerb(verb string) func(domain *wsdom.Workspace) *sdkschema.Workspace {
-	return func(domain *wsdom.Workspace) *sdkschema.Workspace {
-		return domainToAPI(*domain, verb)
+// WorkspaceToAPIWithVerb returns a func that converts a Workspace to its SDK representation with the given verb.
+func WorkspaceToAPIWithVerb(verb string) func(ws *wsdom.Workspace) *sdkschema.Workspace {
+	return func(ws *wsdom.Workspace) *sdkschema.Workspace {
+		return workspaceToAPI(*ws, verb)
 	}
 }
 
-// DomainToAPIIterator converts a list of Workspace to an SDK WorkspaceIterator.
-func DomainToAPIIterator(domains []*wsdom.Workspace, nextSkipToken *string) *sdkworkspace.WorkspaceIterator {
-	items := make([]sdkschema.Workspace, len(domains))
-	for i, dom := range domains {
-		items[i] = *(domainToAPI(*dom, http.MethodGet))
+// WorkspaceIteratorToAPI converts a list of Workspace to an SDK WorkspaceIterator.
+func WorkspaceIteratorToAPI(wss []*wsdom.Workspace, nextSkipToken *string) *sdkworkspace.WorkspaceIterator {
+	items := make([]sdkschema.Workspace, len(wss))
+	for i, ws := range wss {
+		items[i] = *(workspaceToAPI(*ws, http.MethodGet))
 	}
 
 	iterator := &sdkworkspace.WorkspaceIterator{
@@ -95,62 +95,62 @@ func DomainToAPIIterator(domains []*wsdom.Workspace, nextSkipToken *string) *sdk
 	return iterator
 }
 
-// domainToAPI converts a Workspace to a schema.Workspace with the given verb.
-func domainToAPI(domain wsdom.Workspace, verb string) *sdkschema.Workspace {
-	resVersion := int64(0)
-	if rv, err := strconv.ParseInt(domain.ResourceVersion, 10, 64); err == nil {
-		resVersion = rv
+// workspaceToAPI converts a Workspace to a schema.Workspace with the given verb.
+func workspaceToAPI(ws wsdom.Workspace, verb string) *sdkschema.Workspace {
+	resourceVersion := int64(0)
+	if parsed, err := strconv.ParseInt(ws.ResourceVersion, 10, 64); err == nil {
+		resourceVersion = parsed
 	}
 
 	sdk := &sdkschema.Workspace{
 		Metadata: &sdkschema.RegionalResourceMetadata{
 			ApiVersion:      WorkspaceAPIVersion,
-			CreatedAt:       domain.CreatedAt,
-			LastModifiedAt:  domain.UpdatedAt,
+			CreatedAt:       ws.CreatedAt,
+			LastModifiedAt:  ws.UpdatedAt,
 			Kind:            sdkschema.RegionalResourceMetadataKindResourceKindWorkspace,
-			Name:            domain.Name,
-			Tenant:          domain.Tenant,
-			Provider:        domain.Provider,
-			Region:          domain.Region,
-			Resource:        fmt.Sprintf(ResourceFormat, sdkschema.RegionalResourceMetadataKindResourceKindWorkspace, domain.Name),
-			Ref:             fmt.Sprintf(domain.Provider+"/"+TenantScopedResourceFormat, domain.Tenant, sdkschema.RegionalResourceMetadataKindResourceKindWorkspace, domain.Name),
-			ResourceVersion: resVersion,
+			Name:            ws.Name,
+			Tenant:          ws.Tenant,
+			Provider:        ws.Provider,
+			Region:          ws.Region,
+			Resource:        fmt.Sprintf(ResourceFormat, sdkschema.RegionalResourceMetadataKindResourceKindWorkspace, ws.Name),
+			Ref:             fmt.Sprintf(ws.Provider+"/"+TenantScopedResourceFormat, ws.Tenant, sdkschema.RegionalResourceMetadataKindResourceKindWorkspace, ws.Name),
+			ResourceVersion: resourceVersion,
 			Verb:            verb,
 		},
-		Labels:      domain.Labels,
-		Annotations: domain.Annotations,
-		Extensions:  domain.Extensions,
-		Spec:        domain.Spec,
+		Labels:      ws.Labels,
+		Annotations: ws.Annotations,
+		Extensions:  ws.Extensions,
+		Spec:        ws.Spec,
 	}
 	if sdk.Labels == nil {
 		sdk.Labels = make(sdkschema.Labels)
 	}
-	if domain.Status != nil {
+	if ws.Status != nil {
 		sdk.Status = &sdkschema.WorkspaceStatus{
-			ResourceCount: domain.Status.ResourceCount,
-			State:         commonfrontend.ResourceStateToAPI(domain.Status.State),
-			Conditions:    commonfrontend.ConditionsToAPI(domain.Status.Conditions),
+			ResourceCount: ws.Status.ResourceCount,
+			State:         commonfrontend.ResourceStateToAPI(ws.Status.State),
+			Conditions:    commonfrontend.ConditionsToAPI(ws.Status.Conditions),
 		}
 	}
-	if domain.DeletedAt != nil {
-		sdk.Metadata.DeletedAt = domain.DeletedAt
+	if ws.DeletedAt != nil {
+		sdk.Metadata.DeletedAt = ws.DeletedAt
 	}
 	return sdk
 }
 
-// APIToDomain converts an SDK Workspace to a Workspace.
-func APIToDomain(api sdkschema.Workspace, id *WorkspaceIdentity, region string) *wsdom.Workspace {
-	domain := &wsdom.Workspace{
+// WorkspaceFromAPI converts an SDK Workspace to a Workspace.
+func WorkspaceFromAPI(api sdkschema.Workspace, id *WorkspaceIdentity, region string) *wsdom.Workspace {
+	ws := &wsdom.Workspace{
 		Spec: api.Spec,
 	}
-	domain.Name = id.GetName()
-	domain.ResourceVersion = id.GetVersion()
-	domain.Provider = wsdom.ProviderID
-	domain.Tenant = id.GetTenant()
-	domain.Region = region
-	domain.Labels = api.Labels
-	domain.Annotations = api.Annotations
-	domain.Extensions = api.Extensions
+	ws.Name = id.GetName()
+	ws.ResourceVersion = id.GetVersion()
+	ws.Provider = wsdom.ProviderID
+	ws.Tenant = id.GetTenant()
+	ws.Region = region
+	ws.Labels = api.Labels
+	ws.Annotations = api.Annotations
+	ws.Extensions = api.Extensions
 
-	return domain
+	return ws
 }

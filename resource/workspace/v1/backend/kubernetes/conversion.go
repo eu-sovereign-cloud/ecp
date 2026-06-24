@@ -22,9 +22,9 @@ import (
 	wsdom "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1"
 )
 
-// MapCRToWorkspaceDomain converts either a concrete *Workspace or *unstructured.Unstructured
+// WorkspaceFromCR converts either a concrete *Workspace or *unstructured.Unstructured
 // into a *wsdom.Workspace.
-func MapCRToWorkspaceDomain(obj client.Object) (*wsdom.Workspace, error) {
+func WorkspaceFromCR(obj client.Object) (*wsdom.Workspace, error) {
 	var cr Workspace
 
 	switch t := obj.(type) {
@@ -47,79 +47,79 @@ func MapCRToWorkspaceDomain(obj client.Object) (*wsdom.Workspace, error) {
 	internalLabels := k8slabels.GetInternalLabels(crLabels)
 	keyedLabels := k8slabels.GetKeyedLabels(crLabels)
 
-	wd := &wsdom.Workspace{
+	ws := &wsdom.Workspace{
 		Spec: spec,
 	}
-	wd.Name = cr.GetName()
-	wd.ResourceVersion = cr.GetResourceVersion()
-	wd.CreatedAt = cr.GetCreationTimestamp().Time
-	wd.UpdatedAt = cr.GetCreationTimestamp().Time
-	wd.Provider = strings.ReplaceAll(internalLabels[k8slabels.InternalProviderLabel], "_", "/")
-	wd.Tenant = internalLabels[k8slabels.InternalTenantLabel]
-	wd.Region = internalLabels[k8slabels.InternalRegionLabel]
-	wd.Labels = k8slabels.KeyedToOriginal(keyedLabels, cr.CommonData.Labels)
-	wd.Annotations = cr.CommonData.Annotations
-	wd.Extensions = cr.CommonData.Extensions
+	ws.Name = cr.GetName()
+	ws.ResourceVersion = cr.GetResourceVersion()
+	ws.CreatedAt = cr.GetCreationTimestamp().Time
+	ws.UpdatedAt = cr.GetCreationTimestamp().Time
+	ws.Provider = strings.ReplaceAll(internalLabels[k8slabels.InternalProviderLabel], "_", "/")
+	ws.Tenant = internalLabels[k8slabels.InternalTenantLabel]
+	ws.Region = internalLabels[k8slabels.InternalRegionLabel]
+	ws.Labels = k8slabels.KeyedToOriginal(keyedLabels, cr.CommonData.Labels)
+	ws.Annotations = cr.CommonData.Annotations
+	ws.Extensions = cr.CommonData.Extensions
 
 	if ts := cr.GetDeletionTimestamp(); ts != nil {
-		wd.DeletedAt = &ts.Time
+		ws.DeletedAt = &ts.Time
 	}
 
-	wd.Status = &wsdom.WorkspaceStatus{}
+	ws.Status = &wsdom.WorkspaceStatus{}
 	if cr.Status != nil {
-		wd.Status = &wsdom.WorkspaceStatus{
+		ws.Status = &wsdom.WorkspaceStatus{
 			ResourceCount: cr.Status.ResourceCount,
 		}
-		wd.Status.State = commondomain.ResourceState(cr.Status.State)
-		wd.Status.Conditions = commonbackend.ConditionsFromCR(cr.Status.Conditions)
+		ws.Status.State = commonbackend.ResourceStateFromCR(cr.Status.State)
+		ws.Status.Conditions = commonbackend.ConditionsFromCR(cr.Status.Conditions)
 	} else {
-		wd.Status.PushCondition(commondomain.DefaultPendingCondition)
+		ws.Status.PushCondition(commondomain.DefaultPendingCondition)
 	}
 
-	return wd, nil
+	return ws, nil
 }
 
-// MapWorkspaceDomainToCR converts a *wsdom.Workspace to a Kubernetes Workspace CR.
-func MapWorkspaceDomainToCR(d *wsdom.Workspace) (client.Object, error) {
-	if d == nil {
-		return nil, fmt.Errorf("domain workspace is nil")
+// WorkspaceToCR converts a *wsdom.Workspace to a Kubernetes Workspace CR.
+func WorkspaceToCR(ws *wsdom.Workspace) (client.Object, error) {
+	if ws == nil {
+		return nil, fmt.Errorf("workspace is nil")
 	}
 
-	spec := make(WorkspaceSpec, len(d.Spec))
-	for k, v := range d.Spec {
+	spec := make(WorkspaceSpec, len(ws.Spec))
+	for k, v := range ws.Spec {
 		spec[k] = convert.InterfaceToString(v)
 	}
 
-	crLabels := k8slabels.OriginalToKeyed(d.Labels)
-	crLabels[k8slabels.InternalTenantLabel] = d.Tenant
-	crLabels[k8slabels.InternalProviderLabel] = strings.ReplaceAll(d.Provider, "/", "_")
-	crLabels[k8slabels.InternalRegionLabel] = d.Region
+	crLabels := k8slabels.OriginalToKeyed(ws.Labels)
+	crLabels[k8slabels.InternalTenantLabel] = ws.Tenant
+	crLabels[k8slabels.InternalProviderLabel] = strings.ReplaceAll(ws.Provider, "/", "_")
+	crLabels[k8slabels.InternalRegionLabel] = ws.Region
 
 	cr := &Workspace{
 		ObjectMeta: v1.ObjectMeta{
-			Name:            d.Name,
-			Namespace:       k8sadapter.ComputeNamespace(tenantOnlyScope(d.Tenant)),
+			Name:            ws.Name,
+			Namespace:       k8sadapter.ComputeNamespace(tenantOnlyScope(ws.Tenant)),
 			Labels:          crLabels,
-			ResourceVersion: d.ResourceVersion,
+			ResourceVersion: ws.ResourceVersion,
 		},
 		CommonData: schemav1.CommonData{
-			Annotations: d.Annotations,
-			Extensions:  d.Extensions,
-			Labels:      slices.Collect(maps.Keys(d.Labels)),
+			Annotations: ws.Annotations,
+			Extensions:  ws.Extensions,
+			Labels:      slices.Collect(maps.Keys(ws.Labels)),
 		},
 		Spec: spec,
 	}
 	cr.SetGroupVersionKind(WorkspaceGVK)
 
-	if d.Status != nil && (len(d.Status.Conditions) > 0 || d.Status.ResourceCount != nil) {
-		state := commonbackend.ResourceStateToCR(d.Status.State)
+	if ws.Status != nil && (len(ws.Status.Conditions) > 0 || ws.Status.ResourceCount != nil) {
+		state := commonbackend.ResourceStateToCR(ws.Status.State)
 		if state == nil {
 			return nil, fmt.Errorf("failed to map resource state domain to CR")
 		}
 		cr.Status = &WorkspaceStatus{
 			State:         *state,
-			Conditions:    commonbackend.ConditionsToCR(d.Status.Conditions),
-			ResourceCount: d.Status.ResourceCount,
+			Conditions:    commonbackend.ConditionsToCR(ws.Status.Conditions),
+			ResourceCount: ws.Status.ResourceCount,
 		}
 	}
 

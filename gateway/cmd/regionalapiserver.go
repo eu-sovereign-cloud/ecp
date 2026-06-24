@@ -251,14 +251,14 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		client.ClientSet,
 		wsk8s.WorkspaceGVR,
 		logger,
-		wsk8s.MapWorkspaceDomainToCR,
-		wsk8s.MapCRToWorkspaceDomain,
+		wsk8s.WorkspaceToCR,
+		wsk8s.WorkspaceFromCR,
 	)
 	wsReaderAdapter := k8sadapter.NewReaderAdapter[*wsdom.Workspace](
 		client.Client,
 		wsk8s.WorkspaceGVR,
 		logger,
-		wsk8s.MapCRToWorkspaceDomain,
+		wsk8s.WorkspaceFromCR,
 	)
 
 	sdkworkspaceapi.HandlerWithOptions(

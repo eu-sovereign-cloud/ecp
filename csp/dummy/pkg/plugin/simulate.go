@@ -100,8 +100,8 @@ func simulateWS(ctx context.Context, op string, resource *wsdom.Workspace, delay
 			dynamicClient,
 			workspaceconv.WorkspaceGVR,
 			logger,
-			workspaceconv.MapWorkspaceDomainToCR,
-			workspaceconv.MapCRToWorkspaceDomain,
+			workspaceconv.WorkspaceToCR,
+			workspaceconv.WorkspaceFromCR,
 		)
 		_, err = workspaceRepo.Update(ctx, resource)
 		if err != nil {
