@@ -8,8 +8,8 @@ metadata:
 spec:
   group: compute.v1.secapi.cloud
   names:
-    kind: InstanceSku
-    listKind: InstanceSkuList
+    kind: InstanceSKU
+    listKind: InstanceSKUList
     plural: skus
     shortNames:
     - instance-sku
@@ -19,7 +19,7 @@ spec:
   - name: v1
     schema:
       openAPIV3Schema:
-        description: InstanceSku is the API for getting compute instance SKU information.
+        description: InstanceSKU is the API for getting compute instance SKU information.
         properties:
           apiVersion:
             description: |-

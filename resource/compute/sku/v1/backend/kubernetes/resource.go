@@ -14,8 +14,8 @@ const (
 	Group   = "compute.v1.secapi.cloud"
 	Version = "v1"
 
-	InstanceSkuResource = "skus"
-	InstanceSkuKind     = "InstanceSku"
+	InstanceSKUResource = "skus"
+	InstanceSKUKind     = "InstanceSKU"
 )
 
 var (
@@ -23,11 +23,11 @@ var (
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
 	AddToScheme   = SchemeBuilder.AddToScheme
 
-	InstanceSkuGVR = schema.GroupVersionResource{
-		Group: Group, Version: Version, Resource: InstanceSkuResource,
+	InstanceSKUGVR = schema.GroupVersionResource{
+		Group: Group, Version: Version, Resource: InstanceSKUResource,
 	}
-	InstanceSkuGVK = schema.GroupVersionKind{
-		Group: Group, Version: Version, Kind: InstanceSkuKind,
+	InstanceSKUGVK = schema.GroupVersionKind{
+		Group: Group, Version: Version, Kind: InstanceSKUKind,
 	}
 )
 
@@ -35,8 +35,8 @@ var (
 // +kubebuilder:resource:path=skus,scope=Namespaced,shortName=instance-sku
 // +k8s:openapi-gen=true
 
-// InstanceSku is the API for getting compute instance SKU information.
-type InstanceSku struct {
+// InstanceSKU is the API for getting compute instance SKU information.
+type InstanceSKU struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
@@ -45,13 +45,13 @@ type InstanceSku struct {
 
 // +kubebuilder:object:root=true
 
-type InstanceSkuList struct {
+type InstanceSKUList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 
-	Items []InstanceSku `json:"items"`
+	Items []InstanceSKU `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&InstanceSku{}, &InstanceSkuList{})
+	SchemeBuilder.Register(&InstanceSKU{}, &InstanceSKUList{})
 }

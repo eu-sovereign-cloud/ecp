@@ -11,52 +11,52 @@ import (
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
-func (in *InstanceSku) DeepCopyInto(out *InstanceSku) {
+func (in *InstanceSKU) DeepCopyInto(out *InstanceSKU) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
 	in.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
 	out.Spec = in.Spec
 }
 
-func (in *InstanceSku) DeepCopy() *InstanceSku {
+func (in *InstanceSKU) DeepCopy() *InstanceSKU {
 	if in == nil {
 		return nil
 	}
-	out := new(InstanceSku)
+	out := new(InstanceSKU)
 	in.DeepCopyInto(out)
 	return out
 }
 
-func (in *InstanceSku) DeepCopyObject() runtime.Object {
+func (in *InstanceSKU) DeepCopyObject() runtime.Object {
 	if c := in.DeepCopy(); c != nil {
 		return c
 	}
 	return nil
 }
 
-func (in *InstanceSkuList) DeepCopyInto(out *InstanceSkuList) {
+func (in *InstanceSKUList) DeepCopyInto(out *InstanceSKUList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
 	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
-		*out = make([]InstanceSku, len(*in))
+		*out = make([]InstanceSKU, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
 }
 
-func (in *InstanceSkuList) DeepCopy() *InstanceSkuList {
+func (in *InstanceSKUList) DeepCopy() *InstanceSKUList {
 	if in == nil {
 		return nil
 	}
-	out := new(InstanceSkuList)
+	out := new(InstanceSKUList)
 	in.DeepCopyInto(out)
 	return out
 }
 
-func (in *InstanceSkuList) DeepCopyObject() runtime.Object {
+func (in *InstanceSKUList) DeepCopyObject() runtime.Object {
 	if c := in.DeepCopy(); c != nil {
 		return c
 	}
