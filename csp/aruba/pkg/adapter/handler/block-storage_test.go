@@ -9,10 +9,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
-	refdom "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
-	bsdomblock "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1"
-	bsdomsku "github.com/eu-sovereign-cloud/ecp/resources/storage/storage-skus/v1"
-	wsdom "github.com/eu-sovereign-cloud/ecp/resources/workspace/v1"
+	refdom "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
+	bsdomblock "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1"
+	bsdomsku "github.com/eu-sovereign-cloud/ecp/resource/storage/storage-sku/v1"
+	wsdom "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1"
 )
 
 // bsMocks bundles every collaborator of the BlockStorageHandler so each test

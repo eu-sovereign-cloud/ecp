@@ -9,14 +9,14 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/clientcmd"
 
-	storageconv "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1/backend/kubernetes"
-	workspaceconv "github.com/eu-sovereign-cloud/ecp/resources/workspace/v1/backend/kubernetes"
+	storageconv "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1/backend/kubernetes"
+	workspaceconv "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1/backend/kubernetes"
 
 	backendport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
-	kubernetesadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
+	kubernetesadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 
-	bsdom "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1"
-	wsdom "github.com/eu-sovereign-cloud/ecp/resources/workspace/v1"
+	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1"
+	wsdom "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1"
 )
 
 // simulate reports a long-running operation as still in progress until its
