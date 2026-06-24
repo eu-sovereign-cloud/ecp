@@ -13,16 +13,16 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var _ schemav1.Conditioned = (*Nic)(nil)
+var _ schemav1.Conditioned = (*NIC)(nil)
 
-func (x *Nic) GetConditions() []schemav1.StatusCondition {
+func (x *NIC) GetConditions() []schemav1.StatusCondition {
 	if x == nil || x.Status == nil {
 		return nil
 	}
 	return x.Status.Conditions
 }
 
-func (x *Nic) PushCondition(condition schemav1.StatusCondition) {
+func (x *NIC) PushCondition(condition schemav1.StatusCondition) {
 	if x == nil {
 		return
 	}
@@ -52,21 +52,21 @@ func (x *Nic) PushCondition(condition schemav1.StatusCondition) {
 	x.Status.State = condition.State
 }
 
-func (x *Nic) PopCondition() {
+func (x *NIC) PopCondition() {
 	if x == nil || x.Status == nil || len(x.Status.Conditions) == 0 {
 		return
 	}
 	x.Status.Conditions = x.Status.Conditions[:len(x.Status.Conditions)-1]
 }
 
-func (x *Nic) PeekConditions() *schemav1.StatusCondition {
+func (x *NIC) PeekConditions() *schemav1.StatusCondition {
 	if x == nil || x.Status == nil || len(x.Status.Conditions) == 0 {
 		return nil
 	}
 	return &x.Status.Conditions[0]
 }
 
-func (x *Nic) LenConditions() int {
+func (x *NIC) LenConditions() int {
 	if x == nil || x.Status == nil {
 		return 0
 	}

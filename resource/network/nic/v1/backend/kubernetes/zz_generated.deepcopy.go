@@ -80,7 +80,7 @@ func (in *NicStatus) DeepCopy() *NicStatus {
 	return out
 }
 
-func (in *Nic) DeepCopyInto(out *Nic) {
+func (in *NIC) DeepCopyInto(out *NIC) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
 	in.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
@@ -93,45 +93,45 @@ func (in *Nic) DeepCopyInto(out *Nic) {
 	}
 }
 
-func (in *Nic) DeepCopy() *Nic {
+func (in *NIC) DeepCopy() *NIC {
 	if in == nil {
 		return nil
 	}
-	out := new(Nic)
+	out := new(NIC)
 	in.DeepCopyInto(out)
 	return out
 }
 
-func (in *Nic) DeepCopyObject() runtime.Object {
+func (in *NIC) DeepCopyObject() runtime.Object {
 	if c := in.DeepCopy(); c != nil {
 		return c
 	}
 	return nil
 }
 
-func (in *NicList) DeepCopyInto(out *NicList) {
+func (in *NICList) DeepCopyInto(out *NICList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
 	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
-		*out = make([]Nic, len(*in))
+		*out = make([]NIC, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
 }
 
-func (in *NicList) DeepCopy() *NicList {
+func (in *NICList) DeepCopy() *NICList {
 	if in == nil {
 		return nil
 	}
-	out := new(NicList)
+	out := new(NICList)
 	in.DeepCopyInto(out)
 	return out
 }
 
-func (in *NicList) DeepCopyObject() runtime.Object {
+func (in *NICList) DeepCopyObject() runtime.Object {
 	if c := in.DeepCopy(); c != nil {
 		return c
 	}

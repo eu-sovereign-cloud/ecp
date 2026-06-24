@@ -8,8 +8,8 @@ metadata:
 spec:
   group: network.v1.secapi.cloud
   names:
-    kind: Nic
-    listKind: NicList
+    kind: NIC
+    listKind: NICList
     plural: nics
     shortNames:
     - nic
@@ -19,7 +19,7 @@ spec:
   - name: v1
     schema:
       openAPIV3Schema:
-        description: Nic is the API for managing network interface cards.
+        description: NIC is the API for managing network interface cards.
         properties:
           apiVersion:
             description: |-

@@ -16,8 +16,8 @@ const (
 	Group   = "network.v1.secapi.cloud"
 	Version = "v1"
 
-	NicResource = "nics"
-	NicKind     = "Nic"
+	NICResource = "nics"
+	NICKind     = "NIC"
 )
 
 var (
@@ -25,8 +25,8 @@ var (
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
 	AddToScheme   = SchemeBuilder.AddToScheme
 
-	NicGVR = schema.GroupVersionResource{Group: Group, Version: Version, Resource: NicResource}
-	NicGVK = schema.GroupVersionKind{Group: Group, Version: Version, Kind: NicKind}
+	NICGVR = schema.GroupVersionResource{Group: Group, Version: Version, Resource: NICResource}
+	NICGVK = schema.GroupVersionKind{Group: Group, Version: Version, Kind: NICKind}
 )
 
 // +kubebuilder:object:root=true
@@ -35,8 +35,8 @@ var (
 // +k8s:openapi-gen=true
 // +ecp:conditioned
 
-// Nic is the API for managing network interface cards.
-type Nic struct {
+// NIC is the API for managing network interface cards.
+type NIC struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
@@ -47,13 +47,13 @@ type Nic struct {
 
 // +kubebuilder:object:root=true
 
-type NicList struct {
+type NICList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 
-	Items []Nic `json:"items"`
+	Items []NIC `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&Nic{}, &NicList{})
+	SchemeBuilder.Register(&NIC{}, &NICList{})
 }
