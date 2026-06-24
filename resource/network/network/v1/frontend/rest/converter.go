@@ -108,8 +108,8 @@ func networkDomainToAPI(domain *netdom.Network) *sdkschema.Network {
 		Extensions:  domain.Extensions,
 		Spec: sdkschema.NetworkSpec{
 			Cidr:          cidrDomainToAPI(domain.Spec.Cidr),
-			SkuRef:        commonfrontend.ToAPI(domain.Spec.SkuRef),
-			RouteTableRef: commonfrontend.ToAPI(domain.Spec.RouteTableRef),
+			SkuRef:        commonfrontend.ReferenceToAPI(domain.Spec.SkuRef),
+			RouteTableRef: commonfrontend.ReferenceToAPI(domain.Spec.RouteTableRef),
 		},
 	}
 
@@ -123,8 +123,8 @@ func networkDomainToAPI(domain *netdom.Network) *sdkschema.Network {
 
 	if domain.Status != nil {
 		n.Status = &sdkschema.NetworkStatus{
-			Conditions: commonfrontend.ConditionDomainsToAPI(domain.Status.Conditions),
-			State:      commonfrontend.ResourceStateDomainToAPI(domain.Status.State),
+			Conditions: commonfrontend.ConditionsToAPI(domain.Status.Conditions),
+			State:      commonfrontend.ResourceStateToAPI(domain.Status.State),
 		}
 	}
 	if domain.DeletedAt != nil {
@@ -161,8 +161,8 @@ func APIToNetworkDomain(sdk sdkschema.Network, id *NetworkIdentity, region strin
 	domain := &netdom.Network{
 		Spec: netdom.NetworkSpec{
 			Cidr:          cidrFromAPI(sdk.Spec.Cidr),
-			SkuRef:        commonfrontend.FromAPI(sdk.Spec.SkuRef),
-			RouteTableRef: commonfrontend.FromAPI(sdk.Spec.RouteTableRef),
+			SkuRef:        commonfrontend.ReferenceFromAPI(sdk.Spec.SkuRef),
+			RouteTableRef: commonfrontend.ReferenceFromAPI(sdk.Spec.RouteTableRef),
 		},
 	}
 	domain.Name = id.GetName()

@@ -8,44 +8,44 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 )
 
-// ResourceStateDomainToAPI maps domain.ResourceState to a schema.ResourceState.
-func ResourceStateDomainToAPI(d domain.ResourceState) schema.ResourceState {
-	var state schema.ResourceState
-	switch d {
+// ResourceStateToAPI maps domain.ResourceState to a schema.ResourceState.
+func ResourceStateToAPI(state domain.ResourceState) schema.ResourceState {
+	var out schema.ResourceState
+	switch state {
 	case domain.ResourceStatePending:
-		state = schema.ResourceStatePending
+		out = schema.ResourceStatePending
 	case domain.ResourceStateCreating:
-		state = schema.ResourceStateCreating
+		out = schema.ResourceStateCreating
 	case domain.ResourceStateActive:
-		state = schema.ResourceStateActive
+		out = schema.ResourceStateActive
 	case domain.ResourceStateUpdating:
-		state = schema.ResourceStateUpdating
+		out = schema.ResourceStateUpdating
 	case domain.ResourceStateDeleting:
-		state = schema.ResourceStateDeleting
+		out = schema.ResourceStateDeleting
 	case domain.ResourceStateError:
-		state = schema.ResourceStateError
+		out = schema.ResourceStateError
 	default:
-		state = ""
+		out = ""
 	}
-	return state
+	return out
 }
 
-// ConditionDomainsToAPI maps Status.Conditions to a slice of schema.StatusCondition.
-func ConditionDomainsToAPI(domains []domain.StatusCondition) []schema.StatusCondition {
-	conditions := make([]schema.StatusCondition, len(domains))
-	for i, cond := range domains {
-		conditions[i] = conditionDomainToAPI(cond)
+// ConditionsToAPI maps Status.Conditions to a slice of schema.StatusCondition.
+func ConditionsToAPI(conds []domain.StatusCondition) []schema.StatusCondition {
+	conditions := make([]schema.StatusCondition, len(conds))
+	for i, cond := range conds {
+		conditions[i] = conditionToAPI(cond)
 	}
 	return conditions
 }
 
-// conditionDomainToAPI maps a domain.StatusCondition to a schema.StatusCondition.
-func conditionDomainToAPI(d domain.StatusCondition) schema.StatusCondition {
+// conditionToAPI maps a domain.StatusCondition to a schema.StatusCondition.
+func conditionToAPI(c domain.StatusCondition) schema.StatusCondition {
 	return schema.StatusCondition{
-		Type:             d.Type,
-		State:            ResourceStateDomainToAPI(d.State),
-		LastTransitionAt: d.LastTransitionAt,
-		Reason:           d.Reason,
-		Message:          fmt.Sprintf("%s (x%d)", d.Message, d.Occurrences),
+		Type:             c.Type,
+		State:            ResourceStateToAPI(c.State),
+		LastTransitionAt: c.LastTransitionAt,
+		Reason:           c.Reason,
+		Message:          fmt.Sprintf("%s (x%d)", c.Message, c.Occurrences),
 	}
 }

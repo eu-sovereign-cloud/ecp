@@ -108,7 +108,7 @@ func blockStorageDomainToAPI(domain *bsdom.BlockStorage) *sdkschema.BlockStorage
 		Extensions:  domain.Extensions,
 		Spec: sdkschema.BlockStorageSpec{
 			SizeGB: domain.Spec.SizeGB,
-			SkuRef: commonfrontend.ToAPI(domain.Spec.SkuRef),
+			SkuRef: commonfrontend.ReferenceToAPI(domain.Spec.SkuRef),
 		},
 	}
 
@@ -117,17 +117,17 @@ func blockStorageDomainToAPI(domain *bsdom.BlockStorage) *sdkschema.BlockStorage
 	}
 
 	if domain.Spec.SourceImageRef != nil {
-		bs.Spec.SourceImageRef = commonfrontend.PtrToAPI(domain.Spec.SourceImageRef)
+		bs.Spec.SourceImageRef = commonfrontend.ReferencePtrToAPI(domain.Spec.SourceImageRef)
 	}
 
 	if domain.Status != nil {
 		bs.Status = &sdkschema.BlockStorageStatus{
 			SizeGB:     domain.Status.SizeGB,
-			Conditions: commonfrontend.ConditionDomainsToAPI(domain.Status.Conditions),
-			State:      commonfrontend.ResourceStateDomainToAPI(domain.Status.State),
+			Conditions: commonfrontend.ConditionsToAPI(domain.Status.Conditions),
+			State:      commonfrontend.ResourceStateToAPI(domain.Status.State),
 		}
 		if domain.Status.AttachedTo != nil {
-			bs.Status.AttachedTo = commonfrontend.PtrToAPI(domain.Status.AttachedTo)
+			bs.Status.AttachedTo = commonfrontend.ReferencePtrToAPI(domain.Status.AttachedTo)
 		}
 	}
 	if domain.DeletedAt != nil {
@@ -164,7 +164,7 @@ func APIToBlockStorageDomain(sdk sdkschema.BlockStorage, id *BlockStorageIdentit
 	domain := &bsdom.BlockStorage{
 		Spec: bsdom.BlockStorageSpec{
 			SizeGB: sdk.Spec.SizeGB,
-			SkuRef: commonfrontend.FromAPI(sdk.Spec.SkuRef),
+			SkuRef: commonfrontend.ReferenceFromAPI(sdk.Spec.SkuRef),
 		},
 	}
 	domain.Name = id.GetName()
@@ -178,7 +178,7 @@ func APIToBlockStorageDomain(sdk sdkschema.BlockStorage, id *BlockStorageIdentit
 	domain.Extensions = sdk.Extensions
 
 	if sdk.Spec.SourceImageRef != nil {
-		ref := commonfrontend.FromAPI(*sdk.Spec.SourceImageRef)
+		ref := commonfrontend.ReferenceFromAPI(*sdk.Spec.SourceImageRef)
 		domain.Spec.SourceImageRef = &ref
 	}
 

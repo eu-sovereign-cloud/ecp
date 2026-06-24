@@ -8,8 +8,8 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 )
 
-// ToAPI converts a domain.Reference to an sdkschema.Reference.
-func ToAPI(ref domain.Reference) sdkschema.Reference {
+// ReferenceToAPI converts a domain.Reference to an sdkschema.Reference.
+func ReferenceToAPI(ref domain.Reference) sdkschema.Reference {
 	return sdkschema.Reference{
 		Provider:  ref.Provider,
 		Region:    ref.Region,
@@ -19,16 +19,17 @@ func ToAPI(ref domain.Reference) sdkschema.Reference {
 	}
 }
 
-// PtrToAPI converts a *domain.Reference to an *sdkschema.Reference.
-func PtrToAPI(ref *domain.Reference) *sdkschema.Reference {
+// ReferencePtrToAPI converts a *domain.Reference to an *sdkschema.Reference.
+func ReferencePtrToAPI(ref *domain.Reference) *sdkschema.Reference {
 	if ref == nil {
 		return nil
 	}
-	return new(ToAPI(*ref))
+	result := ReferenceToAPI(*ref)
+	return &result
 }
 
-// FromAPI converts an sdkschema.Reference to a domain.Reference.
-func FromAPI(ref sdkschema.Reference) domain.Reference {
+// ReferenceFromAPI converts an sdkschema.Reference to a domain.Reference.
+func ReferenceFromAPI(ref sdkschema.Reference) domain.Reference {
 	return domain.Reference{
 		Provider:  ref.Provider,
 		Region:    ref.Region,

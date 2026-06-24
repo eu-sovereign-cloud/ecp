@@ -71,7 +71,7 @@ func MapCRToWorkspaceDomain(obj client.Object) (*wsdom.Workspace, error) {
 			ResourceCount: cr.Status.ResourceCount,
 		}
 		wd.Status.State = commondomain.ResourceState(cr.Status.State)
-		wd.Status.Conditions = commonbackend.MapCRToStatusConditionDomains(cr.Status.Conditions)
+		wd.Status.Conditions = commonbackend.ConditionsFromCR(cr.Status.Conditions)
 	} else {
 		wd.Status.PushCondition(commondomain.DefaultPendingCondition)
 	}
@@ -112,13 +112,13 @@ func MapWorkspaceDomainToCR(d *wsdom.Workspace) (client.Object, error) {
 	cr.SetGroupVersionKind(WorkspaceGVK)
 
 	if d.Status != nil && (len(d.Status.Conditions) > 0 || d.Status.ResourceCount != nil) {
-		state := commonbackend.MapResourceStateDomainToCR(d.Status.State)
+		state := commonbackend.ResourceStateToCR(d.Status.State)
 		if state == nil {
 			return nil, fmt.Errorf("failed to map resource state domain to CR")
 		}
 		cr.Status = &WorkspaceStatus{
 			State:         *state,
-			Conditions:    commonbackend.MapStatusConditionDomainsToCR(d.Status.Conditions),
+			Conditions:    commonbackend.ConditionsToCR(d.Status.Conditions),
 			ResourceCount: d.Status.ResourceCount,
 		}
 	}

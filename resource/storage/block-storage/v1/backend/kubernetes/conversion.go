@@ -42,10 +42,10 @@ func MapCRToBlockStorageDomain(obj client.Object) (*bsdom.BlockStorage, error) {
 
 	spec := bsdom.BlockStorageSpec{
 		SizeGB: cr.Spec.SizeGB,
-		SkuRef: commonbackend.MapCRToReferenceDomain(cr.Spec.SkuRef),
+		SkuRef: commonbackend.ReferenceFromCR(cr.Spec.SkuRef),
 	}
 	if cr.Spec.SourceImageRef != nil {
-		ref := commonbackend.MapCRToReferenceDomain(*cr.Spec.SourceImageRef)
+		ref := commonbackend.ReferenceFromCR(*cr.Spec.SourceImageRef)
 		spec.SourceImageRef = &ref
 	}
 
@@ -73,10 +73,10 @@ func MapCRToBlockStorageDomain(obj client.Object) (*bsdom.BlockStorage, error) {
 		bs.Status = &bsdom.BlockStorageStatus{
 			SizeGB: cr.Status.SizeGB,
 		}
-		bs.Status.State = commonbackend.MapCRToResourceStateDomain(cr.Status.State)
-		bs.Status.Conditions = commonbackend.MapCRToStatusConditionDomains(cr.Status.Conditions)
+		bs.Status.State = commonbackend.ResourceStateFromCR(cr.Status.State)
+		bs.Status.Conditions = commonbackend.ConditionsFromCR(cr.Status.Conditions)
 		if cr.Status.AttachedTo != nil {
-			ref := commonbackend.MapCRToReferenceDomain(*cr.Status.AttachedTo)
+			ref := commonbackend.ReferenceFromCR(*cr.Status.AttachedTo)
 			bs.Status.AttachedTo = &ref
 		}
 	} else {
@@ -112,28 +112,28 @@ func MapBlockStorageDomainToCR(d *bsdom.BlockStorage) (client.Object, error) {
 		},
 		Spec: BlockStorageSpec{
 			SizeGB: d.Spec.SizeGB,
-			SkuRef: commonbackend.MapReferenceDomainToCR(d.Spec.SkuRef),
+			SkuRef: commonbackend.ReferenceToCR(d.Spec.SkuRef),
 		},
 	}
 	cr.SetGroupVersionKind(BlockStorageGVK)
 
 	if d.Spec.SourceImageRef != nil {
-		ref := commonbackend.MapReferenceDomainToCR(*d.Spec.SourceImageRef)
+		ref := commonbackend.ReferenceToCR(*d.Spec.SourceImageRef)
 		cr.Spec.SourceImageRef = &ref
 	}
 
 	if d.Status != nil && len(d.Status.Conditions) > 0 {
-		state := commonbackend.MapResourceStateDomainToCR(d.Status.State)
+		state := commonbackend.ResourceStateToCR(d.Status.State)
 		if state == nil {
 			return nil, fmt.Errorf("failed to convert resource state to CR")
 		}
 		cr.Status = &BlockStorageStatus{
 			SizeGB:     d.Status.SizeGB,
-			Conditions: commonbackend.MapStatusConditionDomainsToCR(d.Status.Conditions),
+			Conditions: commonbackend.ConditionsToCR(d.Status.Conditions),
 			State:      *state,
 		}
 		if d.Status.AttachedTo != nil {
-			ref := commonbackend.MapReferenceDomainToCR(*d.Status.AttachedTo)
+			ref := commonbackend.ReferenceToCR(*d.Status.AttachedTo)
 			cr.Status.AttachedTo = &ref
 		}
 	}

@@ -128,8 +128,8 @@ func domainToAPI(domain wsdom.Workspace, verb string) *sdkschema.Workspace {
 	if domain.Status != nil {
 		sdk.Status = &sdkschema.WorkspaceStatus{
 			ResourceCount: domain.Status.ResourceCount,
-			State:         commonfrontend.ResourceStateDomainToAPI(domain.Status.State),
-			Conditions:    commonfrontend.ConditionDomainsToAPI(domain.Status.Conditions),
+			State:         commonfrontend.ResourceStateToAPI(domain.Status.State),
+			Conditions:    commonfrontend.ConditionsToAPI(domain.Status.Conditions),
 		}
 	}
 	if domain.DeletedAt != nil {

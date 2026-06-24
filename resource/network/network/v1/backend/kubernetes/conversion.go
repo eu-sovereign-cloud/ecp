@@ -42,8 +42,8 @@ func MapCRToNetworkDomain(obj client.Object) (*netdom.Network, error) {
 
 	spec := netdom.NetworkSpec{
 		Cidr:          mapCRToCidrDomain(cr.Spec.Cidr),
-		SkuRef:        commonbackend.MapCRToReferenceDomain(cr.Spec.SkuRef),
-		RouteTableRef: commonbackend.MapCRToReferenceDomain(cr.Spec.RouteTableRef),
+		SkuRef:        commonbackend.ReferenceFromCR(cr.Spec.SkuRef),
+		RouteTableRef: commonbackend.ReferenceFromCR(cr.Spec.RouteTableRef),
 	}
 	for _, c := range cr.Spec.AdditionalCidrs {
 		spec.AdditionalCidrs = append(spec.AdditionalCidrs, mapCRToCidrDomain(c))
@@ -72,7 +72,7 @@ func MapCRToNetworkDomain(obj client.Object) (*netdom.Network, error) {
 	if cr.Status != nil {
 		nd.Status = &netdom.NetworkStatus{}
 		nd.Status.State = commondomain.ResourceState(cr.Status.State)
-		nd.Status.Conditions = commonbackend.MapCRToStatusConditionDomains(cr.Status.Conditions)
+		nd.Status.Conditions = commonbackend.ConditionsFromCR(cr.Status.Conditions)
 	} else {
 		nd.Status.PushCondition(commondomain.DefaultPendingCondition)
 	}
@@ -112,19 +112,19 @@ func MapNetworkDomainToCR(d *netdom.Network) (client.Object, error) {
 		Spec: NetworkSpec{
 			Cidr:            mapCidrDomainToCR(d.Spec.Cidr),
 			AdditionalCidrs: additionalCidrs,
-			SkuRef:          commonbackend.MapReferenceDomainToCR(d.Spec.SkuRef),
-			RouteTableRef:   commonbackend.MapReferenceDomainToCR(d.Spec.RouteTableRef),
+			SkuRef:          commonbackend.ReferenceToCR(d.Spec.SkuRef),
+			RouteTableRef:   commonbackend.ReferenceToCR(d.Spec.RouteTableRef),
 		},
 	}
 	cr.SetGroupVersionKind(NetworkGVK)
 
 	if d.Status != nil && len(d.Status.Conditions) > 0 {
-		state := commonbackend.MapResourceStateDomainToCR(d.Status.State)
+		state := commonbackend.ResourceStateToCR(d.Status.State)
 		if state == nil {
 			return nil, fmt.Errorf("failed to convert resource state to CR")
 		}
 		cr.Status = &NetworkStatus{
-			Conditions: commonbackend.MapStatusConditionDomainsToCR(d.Status.Conditions),
+			Conditions: commonbackend.ConditionsToCR(d.Status.Conditions),
 			State:      *state,
 		}
 	}

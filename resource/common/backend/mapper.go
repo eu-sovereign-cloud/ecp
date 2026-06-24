@@ -12,118 +12,118 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 )
 
-// MapStatusConditionDomainToCR maps a domain.StatusCondition to a schemav1.StatusCondition.
-func MapStatusConditionDomainToCR(domainStatusCondition domain.StatusCondition) schemav1.StatusCondition {
+// StatusConditionToCR maps a domain.StatusCondition to a schemav1.StatusCondition.
+func StatusConditionToCR(c domain.StatusCondition) schemav1.StatusCondition {
 	var state schemav1.ResourceState
-	if mappedState := MapResourceStateDomainToCR(domainStatusCondition.State); mappedState != nil {
+	if mappedState := ResourceStateToCR(c.State); mappedState != nil {
 		state = *mappedState
 	}
 
 	return schemav1.StatusCondition{
-		Type:             domainStatusCondition.Type,
+		Type:             c.Type,
 		State:            state,
-		LastTransitionAt: v1.NewTime(domainStatusCondition.LastTransitionAt),
-		Reason:           domainStatusCondition.Reason,
-		Message:          domainStatusCondition.Message,
-		Occurrences:      domainStatusCondition.Occurrences,
+		LastTransitionAt: v1.NewTime(c.LastTransitionAt),
+		Reason:           c.Reason,
+		Message:          c.Message,
+		Occurrences:      c.Occurrences,
 	}
 }
 
-// MapStatusConditionDomainsToCR maps a slice of domain.StatusCondition to a slice of schemav1.StatusCondition.
-func MapStatusConditionDomainsToCR(domainStatusConditions []domain.StatusCondition) []schemav1.StatusCondition {
-	conditions := make([]schemav1.StatusCondition, len(domainStatusConditions))
-	for i, cond := range domainStatusConditions {
-		conditions[i] = MapStatusConditionDomainToCR(cond)
+// ConditionsToCR maps a slice of domain.StatusCondition to a slice of schemav1.StatusCondition.
+func ConditionsToCR(conds []domain.StatusCondition) []schemav1.StatusCondition {
+	conditions := make([]schemav1.StatusCondition, len(conds))
+	for i, cond := range conds {
+		conditions[i] = StatusConditionToCR(cond)
 	}
 	return conditions
 }
 
-// MapResourceStateDomainToCR maps domain.ResourceState to schemav1.ResourceState.
-func MapResourceStateDomainToCR(domainResourceState domain.ResourceState) *schemav1.ResourceState {
-	var state schemav1.ResourceState
-	switch domainResourceState {
+// ResourceStateToCR maps domain.ResourceState to schemav1.ResourceState.
+func ResourceStateToCR(state domain.ResourceState) *schemav1.ResourceState {
+	var out schemav1.ResourceState
+	switch state {
 	case domain.ResourceStatePending:
-		state = schemav1.ResourceStatePending
+		out = schemav1.ResourceStatePending
 	case domain.ResourceStateCreating:
-		state = schemav1.ResourceStateCreating
+		out = schemav1.ResourceStateCreating
 	case domain.ResourceStateActive:
-		state = schemav1.ResourceStateActive
+		out = schemav1.ResourceStateActive
 	case domain.ResourceStateUpdating:
-		state = schemav1.ResourceStateUpdating
+		out = schemav1.ResourceStateUpdating
 	case domain.ResourceStateDeleting:
-		state = schemav1.ResourceStateDeleting
+		out = schemav1.ResourceStateDeleting
 	case domain.ResourceStateError:
-		state = schemav1.ResourceStateError
+		out = schemav1.ResourceStateError
 	default:
 		return nil
 	}
-	return &state
+	return &out
 }
 
-// MapCRToStatusConditionDomain maps a schemav1.StatusCondition to a domain.StatusCondition.
-func MapCRToStatusConditionDomain(crStatusCondition schemav1.StatusCondition) domain.StatusCondition {
+// StatusConditionFromCR maps a schemav1.StatusCondition to a domain.StatusCondition.
+func StatusConditionFromCR(c schemav1.StatusCondition) domain.StatusCondition {
 	return domain.StatusCondition{
-		Type:             crStatusCondition.Type,
-		State:            MapCRToResourceStateDomain(crStatusCondition.State),
-		LastTransitionAt: crStatusCondition.LastTransitionAt.Time,
-		Reason:           crStatusCondition.Reason,
-		Message:          crStatusCondition.Message,
-		Occurrences:      crStatusCondition.Occurrences,
+		Type:             c.Type,
+		State:            ResourceStateFromCR(c.State),
+		LastTransitionAt: c.LastTransitionAt.Time,
+		Reason:           c.Reason,
+		Message:          c.Message,
+		Occurrences:      c.Occurrences,
 	}
 }
 
-// MapCRToStatusConditionDomains maps a slice of schemav1.StatusCondition to a slice of domain.StatusCondition.
-func MapCRToStatusConditionDomains(crStatusConditions []schemav1.StatusCondition) []domain.StatusCondition {
-	conditions := make([]domain.StatusCondition, len(crStatusConditions))
-	for i, cond := range crStatusConditions {
-		conditions[i] = MapCRToStatusConditionDomain(cond)
+// ConditionsFromCR maps a slice of schemav1.StatusCondition to a slice of domain.StatusCondition.
+func ConditionsFromCR(conds []schemav1.StatusCondition) []domain.StatusCondition {
+	conditions := make([]domain.StatusCondition, len(conds))
+	for i, cond := range conds {
+		conditions[i] = StatusConditionFromCR(cond)
 	}
 	return conditions
 }
 
-// MapCRToResourceStateDomain maps schemav1.ResourceState to domain.ResourceState.
-func MapCRToResourceStateDomain(crResourceState schemav1.ResourceState) domain.ResourceState {
-	var state domain.ResourceState
-	switch crResourceState {
+// ResourceStateFromCR maps schemav1.ResourceState to domain.ResourceState.
+func ResourceStateFromCR(state schemav1.ResourceState) domain.ResourceState {
+	var out domain.ResourceState
+	switch state {
 	case schemav1.ResourceStatePending:
-		state = domain.ResourceStatePending
+		out = domain.ResourceStatePending
 	case schemav1.ResourceStateCreating:
-		state = domain.ResourceStateCreating
+		out = domain.ResourceStateCreating
 	case schemav1.ResourceStateActive:
-		state = domain.ResourceStateActive
+		out = domain.ResourceStateActive
 	case schemav1.ResourceStateUpdating:
-		state = domain.ResourceStateUpdating
+		out = domain.ResourceStateUpdating
 	case schemav1.ResourceStateDeleting:
-		state = domain.ResourceStateDeleting
+		out = domain.ResourceStateDeleting
 	case schemav1.ResourceStateError:
-		state = domain.ResourceStateError
+		out = domain.ResourceStateError
 	default:
-		state = ""
+		out = ""
 	}
-	return state
+	return out
 }
 
-// MapCRToReferenceDomain converts a generated schemav1.Reference to a domain.Reference.
+// ReferenceFromCR converts a generated schemav1.Reference to a domain.Reference.
 // Tenant and Workspace are embedded into the Resource path so the domain always
-// carries a fully-qualified resource string (e.g. "seca.storage/v1/tenants/t/skus/s").
-func MapCRToReferenceDomain(ref schemav1.Reference) domain.Reference {
-	resource := ref.Resource
+// carries a fully-qualified resource path string (e.g. "seca.storage/v1/tenants/t/skus/s").
+func ReferenceFromCR(ref schemav1.Reference) domain.Reference {
+	resourcePath := ref.Resource
 	if ref.Tenant != "" || ref.Workspace != "" {
-		resource = embedScopeInResource(resource, ref.Tenant, ref.Workspace)
+		resourcePath = embedScopeInResource(resourcePath, ref.Tenant, ref.Workspace)
 	}
 	return domain.Reference{
 		Provider: ref.Provider,
 		Region:   ref.Region,
-		Resource: resource,
+		Resource: resourcePath,
 	}
 }
 
-// MapReferenceDomainToCR converts a domain.Reference to a generated schemav1.Reference.
+// ReferenceToCR converts a domain.Reference to a generated schemav1.Reference.
 // It parses the Resource path to extract embedded segments (providers, regions, tenants, workspaces)
 // and sets the corresponding fields. Extracted segments are stripped from the Resource path.
 // If a segment is not in the path, it falls back to the domain value.
-func MapReferenceDomainToCR(ref domain.Reference) schemav1.Reference {
-	resource := ref.Resource
+func ReferenceToCR(ref domain.Reference) schemav1.Reference {
+	resourcePath := ref.Resource
 	result := schemav1.Reference{}
 
 	// Populate each field from the Resource path only when the explicit domain field
@@ -132,42 +132,42 @@ func MapReferenceDomainToCR(ref domain.Reference) schemav1.Reference {
 	// through the CR) the explicit fields are already populated and path extraction
 	// is skipped, leaving the Resource unchanged.
 	if ref.Provider == "" {
-		if provider, remaining := extractAndStripSegment(resource, "providers/"); provider != "" {
+		if provider, remaining := extractAndStripSegment(resourcePath, "providers/"); provider != "" {
 			result.Provider = provider
-			resource = remaining
+			resourcePath = remaining
 		}
 	} else {
 		result.Provider = ref.Provider
 	}
 
 	if ref.Region == "" {
-		if region, remaining := extractAndStripSegment(resource, "regions/"); region != "" {
+		if region, remaining := extractAndStripSegment(resourcePath, "regions/"); region != "" {
 			result.Region = region
-			resource = remaining
+			resourcePath = remaining
 		}
 	} else {
 		result.Region = ref.Region
 	}
 
 	if ref.Tenant == "" {
-		if tenant, remaining := extractAndStripSegment(resource, "tenants/"); tenant != "" {
+		if tenant, remaining := extractAndStripSegment(resourcePath, "tenants/"); tenant != "" {
 			result.Tenant = tenant
-			resource = remaining
+			resourcePath = remaining
 		}
 	} else {
 		result.Tenant = ref.Tenant
 	}
 
 	if ref.Workspace == "" {
-		if workspace, remaining := extractAndStripSegment(resource, "workspaces/"); workspace != "" {
+		if workspace, remaining := extractAndStripSegment(resourcePath, "workspaces/"); workspace != "" {
 			result.Workspace = workspace
-			resource = remaining
+			resourcePath = remaining
 		}
 	} else {
 		result.Workspace = ref.Workspace
 	}
 
-	result.Resource = resource
+	result.Resource = resourcePath
 	return result
 }
 
@@ -175,21 +175,21 @@ func MapReferenceDomainToCR(ref domain.Reference) schemav1.Reference {
 // into the resource path, just before the resource type/name suffix.
 // e.g. "seca.storage/v1/skus/fast-local" with tenant "seca" becomes
 // "seca.storage/v1/tenants/seca/skus/fast-local".
-func embedScopeInResource(resource, tenant, workspace string) string {
+func embedScopeInResource(resourcePath, tenant, workspace string) string {
 	// Find the resource type/name (last two path segments)
-	lastSlash := strings.LastIndex(resource, "/")
+	lastSlash := strings.LastIndex(resourcePath, "/")
 	if lastSlash < 0 {
-		return resource
+		return resourcePath
 	}
-	secondLastSlash := strings.LastIndex(resource[:lastSlash], "/")
+	secondLastSlash := strings.LastIndex(resourcePath[:lastSlash], "/")
 
 	var prefix, suffix string
 	if secondLastSlash >= 0 {
-		prefix = resource[:secondLastSlash]
-		suffix = resource[secondLastSlash+1:]
+		prefix = resourcePath[:secondLastSlash]
+		suffix = resourcePath[secondLastSlash+1:]
 	} else {
 		prefix = ""
-		suffix = resource
+		suffix = resourcePath
 	}
 
 	var scopePath string
@@ -213,14 +213,14 @@ func embedScopeInResource(resource, tenant, workspace string) string {
 // For example, extractAndStripSegment("workspaces/ws-1/block-storages/my-storage", "workspaces/")
 // returns ("ws-1", "block-storages/my-storage").
 // Returns empty strings if the segment is not found.
-func extractAndStripSegment(resource, segment string) (value, remaining string) {
+func extractAndStripSegment(resourcePath, segment string) (value, remaining string) {
 	var startIdx int
 	var prefixLen int
 
-	if strings.HasPrefix(resource, segment) {
+	if strings.HasPrefix(resourcePath, segment) {
 		startIdx = len(segment)
 		prefixLen = 0
-	} else if idx := strings.Index(resource, "/"+segment); idx >= 0 {
+	} else if idx := strings.Index(resourcePath, "/"+segment); idx >= 0 {
 		startIdx = idx + 1 + len(segment)
 		prefixLen = idx
 	} else {
@@ -228,21 +228,21 @@ func extractAndStripSegment(resource, segment string) (value, remaining string) 
 	}
 
 	// Find the end of the value (next "/" or end of string)
-	endIdx := strings.Index(resource[startIdx:], "/")
+	endIdx := strings.Index(resourcePath[startIdx:], "/")
 	if endIdx < 0 {
 		// Segment is at the end, return the value and prefix as remaining
-		value = resource[startIdx:]
+		value = resourcePath[startIdx:]
 		if prefixLen > 0 {
-			remaining = resource[:prefixLen]
+			remaining = resourcePath[:prefixLen]
 		}
 		return value, remaining
 	}
 
-	value = resource[startIdx : startIdx+endIdx]
+	value = resourcePath[startIdx : startIdx+endIdx]
 	// Build remaining: prefix + suffix after the segment
-	suffix := resource[startIdx+endIdx+1:]
+	suffix := resourcePath[startIdx+endIdx+1:]
 	if prefixLen > 0 {
-		remaining = resource[:prefixLen] + "/" + suffix
+		remaining = resourcePath[:prefixLen] + "/" + suffix
 	} else {
 		remaining = suffix
 	}
