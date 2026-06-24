@@ -8,12 +8,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
-	ssdom "github.com/eu-sovereign-cloud/ecp/resource/storage/storage-sku/v1"
+	skudom "github.com/eu-sovereign-cloud/ecp/resource/storage/storage-sku/v1"
 )
 
-// MapCRToStorageSKUDomain converts either a concrete *StorageSKU or *unstructured.Unstructured
-// into a *ssdom.StorageSKU.
-func MapCRToStorageSKUDomain(obj client.Object) (*ssdom.StorageSKU, error) {
+// StorageSKUFromCR converts either a concrete *StorageSKU or *unstructured.Unstructured
+// into a *skudom.StorageSKU.
+func StorageSKUFromCR(obj client.Object) (*skudom.StorageSKU, error) {
 	var cr StorageSKU
 
 	switch t := obj.(type) {
@@ -30,9 +30,9 @@ func MapCRToStorageSKUDomain(obj client.Object) (*ssdom.StorageSKU, error) {
 	crLabels := cr.GetLabels()
 	internalLabels := k8slabels.GetInternalLabels(crLabels)
 
-	sku := &ssdom.StorageSKU{
-		Spec: ssdom.StorageSKUSpec{
-			Iops:          int64(cr.Spec.Iops),
+	sku := &skudom.StorageSKU{
+		Spec: skudom.StorageSKUSpec{
+			IOPS:          int64(cr.Spec.Iops),
 			MinVolumeSize: int64(cr.Spec.MinVolumeSize),
 			Type:          string(cr.Spec.Type),
 		},
@@ -52,19 +52,19 @@ func MapCRToStorageSKUDomain(obj client.Object) (*ssdom.StorageSKU, error) {
 	return sku, nil
 }
 
-// MapStorageSKUDomainToCR converts a *ssdom.StorageSKU to a Kubernetes StorageSKU CR.
+// StorageSKUToCR converts a *skudom.StorageSKU to a Kubernetes StorageSKU CR.
 // StorageSKUs are read-only resources — this is provided for completeness.
-func MapStorageSKUDomainToCR(d *ssdom.StorageSKU) (client.Object, error) {
-	if d == nil {
-		return nil, fmt.Errorf("domain storage SKU is nil")
+func StorageSKUToCR(sku *skudom.StorageSKU) (client.Object, error) {
+	if sku == nil {
+		return nil, fmt.Errorf("storage SKU is nil")
 	}
 
 	cr := &StorageSKU{}
-	cr.SetName(d.Name)
-	cr.SetResourceVersion(d.ResourceVersion)
+	cr.SetName(sku.Name)
+	cr.SetResourceVersion(sku.ResourceVersion)
 	cr.SetGroupVersionKind(StorageSKUGVK)
 
-	// TODO: populate cr.Spec from d.Spec when schemav1.StorageSkuSpec fields are available
+	// TODO: populate cr.Spec from sku.Spec when schemav1.StorageSkuSpec fields are available
 
 	return cr, nil
 }

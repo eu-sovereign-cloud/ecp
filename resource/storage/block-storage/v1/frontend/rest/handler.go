@@ -56,13 +56,13 @@ func (h *Handler) CreateOrUpdateImage(w http.ResponseWriter, r *http.Request, te
 func (h *Handler) ListSkus(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, params sdkstorage.ListSkusParams) {
 	logger := h.Logger.With("provider", "storage", "resource", "sku")
 	listParams := listSKUParamsFromAPI(params, tenant)
-	frest.HandleList(w, r, logger, listParams, frest.ListerFromRepo(h.SKUReader), skurest.StorageSKUDomainToAPIIterator)
+	frest.HandleList(w, r, logger, listParams, frest.ListerFromRepo(h.SKUReader), skurest.StorageSKUIteratorToAPI)
 }
 
 func (h *Handler) GetSku(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam) {
 	logger := h.Logger.With("provider", "storage", "resource", "sku", "name", name)
 	ir := &skuIdentity{name: name, tenant: tenant}
-	frest.HandleGet(w, r, logger, ir, frest.GetterFromRepo(h.SKUReader, newStorageSKUWithIdentity), skurest.StorageSKUDomainToAPI)
+	frest.HandleGet(w, r, logger, ir, frest.GetterFromRepo(h.SKUReader, newStorageSKUWithIdentity), skurest.StorageSKUToAPI)
 }
 
 // --- Block Storages ---

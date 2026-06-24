@@ -8,25 +8,25 @@ import (
 	skudom "github.com/eu-sovereign-cloud/ecp/resource/storage/storage-sku/v1"
 )
 
-// StorageSKUDomainToAPI converts a StorageSKU to its SDK representation.
-func StorageSKUDomainToAPI(domain *skudom.StorageSKU) *sdkschema.StorageSku {
+// StorageSKUToAPI converts a StorageSKU to its SDK representation.
+func StorageSKUToAPI(sku *skudom.StorageSKU) *sdkschema.StorageSku {
 	return &sdkschema.StorageSku{
 		Metadata: &sdkschema.SkuResourceMetadata{
-			Name: domain.Name,
+			Name: sku.Name,
 		},
 		Spec: &sdkschema.StorageSkuSpec{
-			Iops:          int(domain.Spec.Iops),
-			MinVolumeSize: int(domain.Spec.MinVolumeSize),
-			Type:          sdkschema.StorageSkuSpecType(domain.Spec.Type),
+			Iops:          int(sku.Spec.IOPS),
+			MinVolumeSize: int(sku.Spec.MinVolumeSize),
+			Type:          sdkschema.StorageSkuSpecType(sku.Spec.Type),
 		},
 	}
 }
 
-// StorageSKUDomainToAPIIterator converts a list of StorageSKU to an SDK SkuIterator.
-func StorageSKUDomainToAPIIterator(domains []*skudom.StorageSKU, nextSkipToken *string) *sdkstorage.SkuIterator {
-	items := make([]sdkschema.StorageSku, len(domains))
-	for i := range domains {
-		items[i] = *StorageSKUDomainToAPI(domains[i])
+// StorageSKUIteratorToAPI converts a list of StorageSKU to an SDK SkuIterator.
+func StorageSKUIteratorToAPI(skus []*skudom.StorageSKU, nextSkipToken *string) *sdkstorage.SkuIterator {
+	items := make([]sdkschema.StorageSku, len(skus))
+	for i := range skus {
+		items[i] = *StorageSKUToAPI(skus[i])
 	}
 
 	iterator := &sdkstorage.SkuIterator{

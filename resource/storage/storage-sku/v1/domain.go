@@ -20,7 +20,7 @@ type StorageSKU struct {
 
 // StorageSKUSpec defines the specification for a storage SKU.
 type StorageSKUSpec struct {
-	Iops          int64
+	IOPS          int64
 	MinVolumeSize int64
 	Type          string
 }

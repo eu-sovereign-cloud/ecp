@@ -227,7 +227,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		client.Client,
 		skuk8s.StorageSKUGVR,
 		logger,
-		skuk8s.MapCRToStorageSKUDomain,
+		skuk8s.StorageSKUFromCR,
 	)
 
 	sdkstorageapi.HandlerWithOptions(

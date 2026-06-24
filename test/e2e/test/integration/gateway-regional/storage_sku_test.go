@@ -82,7 +82,7 @@ func TestStorageSKU_API(t *testing.T) {
 		require.Equal(t, skuName, sku.Metadata.Name, "retrieved sku name should match the requested name")
 
 		require.NotNil(t, sku.Spec, "sku spec should not be nil")
-		require.Equal(t, 5000, sku.Spec.Iops)
+		require.Equal(t, 5000, sku.Spec.IOPS)
 		require.Equal(t, "local-ssd", string(sku.Spec.Type))
 	})
 }

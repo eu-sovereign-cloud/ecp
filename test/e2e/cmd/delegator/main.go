@@ -121,7 +121,7 @@ func loadArubaControllers(ctx context.Context, dynClient dynamic.Interface, mgr 
 
 	// Instantiate seca-specific read-only repositories (for aruba BlockStorageHandler dependencies)
 	secaWsRepo := k8sadapter.NewReaderAdapter(dynClient, wsk8s.WorkspaceGVR, logger, wsk8s.MapCRToWorkspaceDomain)
-	secaSkuRepo := k8sadapter.NewReaderAdapter(dynClient, ssk8s.StorageSKUGVR, logger, ssk8s.MapCRToStorageSKUDomain)
+	secaSkuRepo := k8sadapter.NewReaderAdapter(dynClient, ssk8s.StorageSKUGVR, logger, ssk8s.StorageSKUFromCR)
 
 	// Instantiate aruba-specific repositories
 	wr := aruba_repository.NewProjectRepository(ctx, mgr.GetClient(), mgr.GetCache())
