@@ -42,6 +42,7 @@ make pre-merge-ctzd      # same, inside the tools container
 
 ## Code Style
 
+- **Naming and structure:** see [CONVENTIONS.md](CONVENTIONS.md) for the authoritative naming, initialism, conversion-function, and structural-symmetry rules.
 - **Linting:** `golangci-lint` with the configuration in `.golangci.yml`.
 - **Formatting:** `gofumpt` (applied via `golangci-lint fmt`). Run `make gofmt` to fix formatting in place; `make gofmt-check` to check without modifying (what CI runs).
 - Keep `make lint` and `make gofmt` green before pushing.
