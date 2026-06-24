@@ -66,15 +66,15 @@ func TestNetworkBackend_CreateAndGetNetwork(t *testing.T) {
 		dynClient,
 		NetworkGVR,
 		slog.Default(),
-		MapNetworkDomainToCR,
-		MapCRToNetworkDomain,
+		NetworkToCR,
+		NetworkFromCR,
 	)
 
 	readerRepo := k8sadapter.NewReaderAdapter[*netdom.Network](
 		dynClient,
 		NetworkGVR,
 		slog.Default(),
-		MapCRToNetworkDomain,
+		NetworkFromCR,
 	)
 
 	t.Run("create_update_list_delete_network", func(t *testing.T) {
@@ -85,7 +85,7 @@ func TestNetworkBackend_CreateAndGetNetwork(t *testing.T) {
 				Labels:         map[string]string{k8slabels.InternalTenantLabel: tenant},
 			},
 			Spec: netdom.NetworkSpec{
-				Cidr: netdom.Cidr{
+				CIDR: netdom.CIDR{
 					IPv4: "10.0.0.0/16",
 				},
 				SkuRef: commondomain.Reference{
@@ -118,7 +118,7 @@ func TestNetworkBackend_CreateAndGetNetwork(t *testing.T) {
 		require.NotNil(t, result)
 		createdDomain := *result
 		require.Equal(t, networkName, createdDomain.Name)
-		require.Equal(t, "10.0.0.0/16", createdDomain.Spec.Cidr.IPv4)
+		require.Equal(t, "10.0.0.0/16", createdDomain.Spec.CIDR.IPv4)
 		require.Equal(t, "standard-network", createdDomain.Spec.SkuRef.Resource)
 
 		// Get the network and verify it matches
@@ -130,7 +130,7 @@ func TestNetworkBackend_CreateAndGetNetwork(t *testing.T) {
 		retrievedDomain := net
 		require.NotNil(t, retrievedDomain)
 		require.Equal(t, networkName, retrievedDomain.Name)
-		require.Equal(t, "10.0.0.0/16", retrievedDomain.Spec.Cidr.IPv4)
+		require.Equal(t, "10.0.0.0/16", retrievedDomain.Spec.CIDR.IPv4)
 		require.Equal(t, "standard-network", retrievedDomain.Spec.SkuRef.Resource)
 
 		// Get current resource version for the update
@@ -150,7 +150,7 @@ func TestNetworkBackend_CreateAndGetNetwork(t *testing.T) {
 				Scope: kernelresource.Scope{Tenant: tenant},
 			},
 			Spec: netdom.NetworkSpec{
-				Cidr: netdom.Cidr{
+				CIDR: netdom.CIDR{
 					IPv4: "10.0.0.0/16",
 				},
 				SkuRef: commondomain.Reference{
@@ -159,7 +159,7 @@ func TestNetworkBackend_CreateAndGetNetwork(t *testing.T) {
 				RouteTableRef: commondomain.Reference{
 					Resource: "default-route-table",
 				},
-				AdditionalCidrs: []netdom.Cidr{
+				AdditionalCIDRs: []netdom.CIDR{
 					{IPv4: "10.1.0.0/24"},
 				},
 			},
@@ -168,8 +168,8 @@ func TestNetworkBackend_CreateAndGetNetwork(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, updateResult)
 		updated := *updateResult
-		require.Len(t, updated.Spec.AdditionalCidrs, 1)
-		require.Equal(t, "10.1.0.0/24", updated.Spec.AdditionalCidrs[0].IPv4)
+		require.Len(t, updated.Spec.AdditionalCIDRs, 1)
+		require.Equal(t, "10.1.0.0/24", updated.Spec.AdditionalCIDRs[0].IPv4)
 
 		// Verify update with Get
 		net3 := &netdom.Network{}
@@ -177,8 +177,8 @@ func TestNetworkBackend_CreateAndGetNetwork(t *testing.T) {
 		net3.Tenant = tenant
 		err = readerRepo.Load(ctx, &net3)
 		require.NoError(t, err)
-		require.Len(t, net3.Spec.AdditionalCidrs, 1)
-		require.Equal(t, "10.1.0.0/24", net3.Spec.AdditionalCidrs[0].IPv4)
+		require.Len(t, net3.Spec.AdditionalCIDRs, 1)
+		require.Equal(t, "10.1.0.0/24", net3.Spec.AdditionalCIDRs[0].IPv4)
 
 		// List networks and verify ours exists
 		var networks []*netdom.Network

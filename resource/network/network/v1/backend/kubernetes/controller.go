@@ -29,14 +29,14 @@ func NewController(
 		dynClient,
 		NetworkGVR,
 		options.Logger,
-		MapNetworkDomainToCR,
-		MapCRToNetworkDomain,
+		NetworkToCR,
+		NetworkFromCR,
 	)
 	handler := NewNetworkPluginHandler(repo, plugin, options.MaxConditions)
 	return &Controller{
 		GenericController: frameworkcontroller.NewGenericController[*netdom.Network](
 			ctrlClient,
-			MapCRToNetworkDomain,
+			NetworkFromCR,
 			handler,
 			&Network{},
 			options.RequeueAfter,

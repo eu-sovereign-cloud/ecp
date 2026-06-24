@@ -80,8 +80,8 @@ func (n *Network) Create(ctx context.Context, resource *netdom.Network) error {
 	// IPv6 CIDRs (/64) are natively supported on IONOS Lan.
 	// TODO: additionalCidrs IPv6 — a single Lan has one IPv6CidrBlock; multiple
 	// IPv6 ranges would require extra LANs (open question #1).
-	if resource.Spec.Cidr.IPv6 != "" {
-		lan.Spec.ForProvider.IPv6CidrBlock = new(resource.Spec.Cidr.IPv6)
+	if resource.Spec.CIDR.IPv6 != "" {
+		lan.Spec.ForProvider.IPv6CidrBlock = new(resource.Spec.CIDR.IPv6)
 	}
 
 	if err := n.client.Create(ctx, lan); err != nil {

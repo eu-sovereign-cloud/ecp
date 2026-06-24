@@ -21,15 +21,15 @@ type Network struct {
 
 // NetworkSpec defines the specification for a network instance.
 type NetworkSpec struct {
-	AdditionalCidrs []Cidr
-	Cidr            Cidr
+	AdditionalCIDRs []CIDR
+	CIDR            CIDR
 	SkuRef          domain.Reference
 	RouteTableRef   domain.Reference
 }
 
-// Cidr holds IPv4 and IPv6 CIDR strings for a network address range.
+// CIDR holds IPv4 and IPv6 CIDR strings for a network address range.
 // Either field may be empty: IPv4-only, IPv6-only, or dual-stack.
-type Cidr struct {
+type CIDR struct {
 	IPv4 string
 	IPv6 string
 }
@@ -37,5 +37,5 @@ type Cidr struct {
 // NetworkStatus defines the status for a network instance.
 type NetworkStatus struct {
 	domain.Status
-	// TODO: add Cidr/AdditionalCidrs/RouteTableRef from SECA NetworkStatus when the reconciler surfaces assigned ranges
+	// TODO: add CIDR/AdditionalCIDRs/RouteTableRef from SECA NetworkStatus when the reconciler surfaces assigned ranges
 }

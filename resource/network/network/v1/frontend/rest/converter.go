@@ -66,78 +66,78 @@ func ListParamsFromAPI(params sdknetwork.ListNetworksParams, tenant, workspace s
 	}
 }
 
-// NetworkDomainToAPIWithVerb returns a func that converts a Network to its SDK representation with the given verb.
-func NetworkDomainToAPIWithVerb(verb string) func(domain *netdom.Network) *sdkschema.Network {
-	return func(domain *netdom.Network) *sdkschema.Network {
-		sdk := networkDomainToAPI(domain)
+// NetworkToAPIWithVerb returns a func that converts a Network to its SDK representation with the given verb.
+func NetworkToAPIWithVerb(verb string) func(n *netdom.Network) *sdkschema.Network {
+	return func(n *netdom.Network) *sdkschema.Network {
+		sdk := networkToAPI(n)
 		sdk.Metadata.Verb = verb
 		return sdk
 	}
 }
 
-// networkDomainToAPI converts a Network to its SDK representation.
-func networkDomainToAPI(domain *netdom.Network) *sdkschema.Network {
-	resVersion := int64(0)
-	if rv, err := strconv.ParseInt(domain.ResourceVersion, 10, 64); err == nil {
-		resVersion = rv
+// networkToAPI converts a Network to its SDK representation.
+func networkToAPI(n *netdom.Network) *sdkschema.Network {
+	resourceVersion := int64(0)
+	if parsed, err := strconv.ParseInt(n.ResourceVersion, 10, 64); err == nil {
+		resourceVersion = parsed
 	}
 
-	n := &sdkschema.Network{
+	out := &sdkschema.Network{
 		Metadata: &sdkschema.RegionalWorkspaceResourceMetadata{
 			ApiVersion:     NetworkAPIVersion,
-			CreatedAt:      domain.CreatedAt,
-			LastModifiedAt: domain.UpdatedAt,
+			CreatedAt:      n.CreatedAt,
+			LastModifiedAt: n.UpdatedAt,
 			Kind:           sdkschema.RegionalWorkspaceResourceMetadataKindResourceKindNetwork,
-			Name:           domain.Name,
-			Tenant:         domain.Tenant,
-			Workspace:      domain.Workspace,
-			Provider:       domain.Provider,
-			Region:         domain.Region,
-			Resource:       fmt.Sprintf(ResourceFormat, sdkschema.RegionalWorkspaceResourceMetadataKindResourceKindNetwork, domain.Name),
+			Name:           n.Name,
+			Tenant:         n.Tenant,
+			Workspace:      n.Workspace,
+			Provider:       n.Provider,
+			Region:         n.Region,
+			Resource:       fmt.Sprintf(ResourceFormat, sdkschema.RegionalWorkspaceResourceMetadataKindResourceKindNetwork, n.Name),
 			Ref: fmt.Sprintf(
-				domain.Provider+"/"+WorkspaceScopedResourceFormat,
-				domain.Tenant,
-				domain.Workspace,
+				n.Provider+"/"+WorkspaceScopedResourceFormat,
+				n.Tenant,
+				n.Workspace,
 				sdkschema.RegionalWorkspaceResourceMetadataKindResourceKindNetwork,
-				domain.Name,
+				n.Name,
 			),
-			ResourceVersion: resVersion,
+			ResourceVersion: resourceVersion,
 		},
-		Labels:      domain.Labels,
-		Annotations: domain.Annotations,
-		Extensions:  domain.Extensions,
+		Labels:      n.Labels,
+		Annotations: n.Annotations,
+		Extensions:  n.Extensions,
 		Spec: sdkschema.NetworkSpec{
-			Cidr:          cidrDomainToAPI(domain.Spec.Cidr),
-			SkuRef:        commonfrontend.ReferenceToAPI(domain.Spec.SkuRef),
-			RouteTableRef: commonfrontend.ReferenceToAPI(domain.Spec.RouteTableRef),
+			Cidr:          cidrToAPI(n.Spec.CIDR),
+			SkuRef:        commonfrontend.ReferenceToAPI(n.Spec.SkuRef),
+			RouteTableRef: commonfrontend.ReferenceToAPI(n.Spec.RouteTableRef),
 		},
 	}
 
-	if n.Labels == nil {
-		n.Labels = make(sdkschema.Labels)
+	if out.Labels == nil {
+		out.Labels = make(sdkschema.Labels)
 	}
 
-	for _, c := range domain.Spec.AdditionalCidrs {
-		n.Spec.AdditionalCidrs = append(n.Spec.AdditionalCidrs, cidrDomainToAPI(c))
+	for _, c := range n.Spec.AdditionalCIDRs {
+		out.Spec.AdditionalCidrs = append(out.Spec.AdditionalCidrs, cidrToAPI(c))
 	}
 
-	if domain.Status != nil {
-		n.Status = &sdkschema.NetworkStatus{
-			Conditions: commonfrontend.ConditionsToAPI(domain.Status.Conditions),
-			State:      commonfrontend.ResourceStateToAPI(domain.Status.State),
+	if n.Status != nil {
+		out.Status = &sdkschema.NetworkStatus{
+			Conditions: commonfrontend.ConditionsToAPI(n.Status.Conditions),
+			State:      commonfrontend.ResourceStateToAPI(n.Status.State),
 		}
 	}
-	if domain.DeletedAt != nil {
-		n.Metadata.DeletedAt = domain.DeletedAt
+	if n.DeletedAt != nil {
+		out.Metadata.DeletedAt = n.DeletedAt
 	}
-	return n
+	return out
 }
 
-// NetworkDomainToAPIIterator converts a list of Network to an SDK NetworkIterator.
-func NetworkDomainToAPIIterator(domains []*netdom.Network, nextSkipToken *string) *sdknetwork.NetworkIterator {
-	items := make([]sdkschema.Network, len(domains))
-	for i := range domains {
-		items[i] = *networkDomainToAPI(domains[i])
+// NetworkIteratorToAPI converts a list of Network to an SDK NetworkIterator.
+func NetworkIteratorToAPI(ns []*netdom.Network, nextSkipToken *string) *sdknetwork.NetworkIterator {
+	items := make([]sdkschema.Network, len(ns))
+	for i := range ns {
+		items[i] = *networkToAPI(ns[i])
 	}
 
 	iterator := &sdknetwork.NetworkIterator{
@@ -156,43 +156,43 @@ func NetworkDomainToAPIIterator(domains []*netdom.Network, nextSkipToken *string
 	return iterator
 }
 
-// APIToNetworkDomain converts an SDK Network to a Network.
-func APIToNetworkDomain(sdk sdkschema.Network, id *NetworkIdentity, region string) *netdom.Network {
-	domain := &netdom.Network{
+// NetworkFromAPI converts an SDK Network to a Network.
+func NetworkFromAPI(sdk sdkschema.Network, id *NetworkIdentity, region string) *netdom.Network {
+	n := &netdom.Network{
 		Spec: netdom.NetworkSpec{
-			Cidr:          cidrFromAPI(sdk.Spec.Cidr),
+			CIDR:          cidrFromAPI(sdk.Spec.Cidr),
 			SkuRef:        commonfrontend.ReferenceFromAPI(sdk.Spec.SkuRef),
 			RouteTableRef: commonfrontend.ReferenceFromAPI(sdk.Spec.RouteTableRef),
 		},
 	}
-	domain.Name = id.GetName()
-	domain.ResourceVersion = id.GetVersion()
-	domain.Provider = netdom.ProviderID
-	domain.Tenant = id.GetTenant()
-	domain.Workspace = id.GetWorkspace()
-	domain.Region = region
-	domain.Labels = sdk.Labels
-	domain.Annotations = sdk.Annotations
-	domain.Extensions = sdk.Extensions
+	n.Name = id.GetName()
+	n.ResourceVersion = id.GetVersion()
+	n.Provider = netdom.ProviderID
+	n.Tenant = id.GetTenant()
+	n.Workspace = id.GetWorkspace()
+	n.Region = region
+	n.Labels = sdk.Labels
+	n.Annotations = sdk.Annotations
+	n.Extensions = sdk.Extensions
 
 	for _, c := range sdk.Spec.AdditionalCidrs {
-		domain.Spec.AdditionalCidrs = append(domain.Spec.AdditionalCidrs, cidrFromAPI(c))
+		n.Spec.AdditionalCIDRs = append(n.Spec.AdditionalCIDRs, cidrFromAPI(c))
 	}
 
-	return domain
+	return n
 }
 
-// cidrDomainToAPI converts a netdom.Cidr to an sdkschema.Cidr.
-func cidrDomainToAPI(c netdom.Cidr) sdkschema.Cidr {
+// cidrToAPI converts a netdom.CIDR to an sdkschema.Cidr.
+func cidrToAPI(c netdom.CIDR) sdkschema.Cidr {
 	return sdkschema.Cidr{
 		Ipv4: c.IPv4,
 		Ipv6: c.IPv6,
 	}
 }
 
-// cidrFromAPI converts an sdkschema.Cidr to a netdom.Cidr.
-func cidrFromAPI(c sdkschema.Cidr) netdom.Cidr {
-	return netdom.Cidr{
+// cidrFromAPI converts an sdkschema.Cidr to a netdom.CIDR.
+func cidrFromAPI(c sdkschema.Cidr) netdom.CIDR {
+	return netdom.CIDR{
 		IPv4: c.Ipv4,
 		IPv6: c.Ipv6,
 	}

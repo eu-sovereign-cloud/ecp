@@ -178,14 +178,14 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		client.Client,
 		netk8s.NetworkGVR,
 		logger,
-		netk8s.MapCRToNetworkDomain,
+		netk8s.NetworkFromCR,
 	)
 	netWriterAdapter := k8sadapter.NewWriterAdapter[*netdom.Network](
 		client.Client,
 		netk8s.NetworkGVR,
 		logger,
-		netk8s.MapNetworkDomainToCR,
-		netk8s.MapCRToNetworkDomain,
+		netk8s.NetworkToCR,
+		netk8s.NetworkFromCR,
 	)
 	netSKUReaderAdapter := k8sadapter.NewReaderAdapter[*netskudom.NetworkSKU](
 		client.Client,
