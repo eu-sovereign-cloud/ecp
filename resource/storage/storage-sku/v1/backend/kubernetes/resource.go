@@ -15,7 +15,7 @@ const (
 	Version = "v1"
 
 	StorageSKUResource = "skus"
-	StorageSKUKind     = "SKU"
+	StorageSKUKind     = "StorageSKU"
 )
 
 var (

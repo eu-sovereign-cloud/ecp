@@ -6,7 +6,7 @@ import "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 // Identity constants for the storage SKU resource.
 const (
 	Kind       = "StorageSKU"
-	Resource   = "storage-skus"
+	Resource   = "skus"
 	Group      = "storage.v1.secapi.cloud"
 	Version    = "v1"
 	ProviderID = "seca.storage/v1"
