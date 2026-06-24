@@ -106,7 +106,7 @@ func (h *WorkspacePluginHandler) HandleReconcile(ctx context.Context, resource *
 	return false, nil
 }
 
-func (h *WorkspacePluginHandler) setResourceState(ctx context.Context, resource *wsdom.Workspace, state commondomain.ResourceStateDomain, requeue bool) (bool, error) {
+func (h *WorkspacePluginHandler) setResourceState(ctx context.Context, resource *wsdom.Workspace, state commondomain.ResourceState, requeue bool) (bool, error) {
 	if resource.Status == nil {
 		resource.Status = &wsdom.WorkspaceStatus{}
 	}

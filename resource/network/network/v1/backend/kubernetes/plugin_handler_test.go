@@ -29,7 +29,7 @@ func TestNetworkPluginHandler_HandleReconcile(t *testing.T) {
 
 		resource := &netdom.Network{
 			Status: &netdom.NetworkStatus{
-				StatusDomain: commondomain.StatusDomain{
+				Status: commondomain.Status{
 					State: commondomain.ResourceStateActive,
 				},
 			},
@@ -51,7 +51,7 @@ func TestNetworkPluginHandler_HandleReconcile(t *testing.T) {
 
 		resource := &netdom.Network{
 			Status: &netdom.NetworkStatus{
-				StatusDomain: commondomain.StatusDomain{
+				Status: commondomain.Status{
 					State: commondomain.ResourceStatePending,
 				},
 			},
@@ -79,7 +79,7 @@ func TestNetworkPluginHandler_HandleReconcile(t *testing.T) {
 
 		resource := &netdom.Network{
 			Status: &netdom.NetworkStatus{
-				StatusDomain: commondomain.StatusDomain{
+				Status: commondomain.Status{
 					State: commondomain.ResourceStateCreating,
 				},
 			},
@@ -115,7 +115,7 @@ func TestNetworkPluginHandler_HandleReconcile(t *testing.T) {
 				},
 			},
 			Status: &netdom.NetworkStatus{
-				StatusDomain: commondomain.StatusDomain{
+				Status: commondomain.Status{
 					State: commondomain.ResourceStateDeleting,
 				},
 			},
@@ -139,7 +139,7 @@ func TestNetworkPluginHandler_HandleReconcile(t *testing.T) {
 
 		resource := &netdom.Network{
 			Status: &netdom.NetworkStatus{
-				StatusDomain: commondomain.StatusDomain{
+				Status: commondomain.Status{
 					State: commondomain.ResourceStateCreating,
 				},
 			},
@@ -172,7 +172,7 @@ func TestNetworkPluginHandler_HandleReconcile(t *testing.T) {
 
 		resource := &netdom.Network{
 			Status: &netdom.NetworkStatus{
-				StatusDomain: commondomain.StatusDomain{
+				Status: commondomain.Status{
 					State: commondomain.ResourceStateCreating,
 				},
 			},
@@ -203,7 +203,7 @@ func TestNetworkPluginHandler_HandleReconcile(t *testing.T) {
 				},
 			},
 			Status: &netdom.NetworkStatus{
-				StatusDomain: commondomain.StatusDomain{
+				Status: commondomain.Status{
 					State: commondomain.ResourceStateDeleting,
 				},
 			},
@@ -236,9 +236,9 @@ func TestNetworkPluginHandler_HandleReconcile(t *testing.T) {
 
 		resource := &netdom.Network{
 			Status: &netdom.NetworkStatus{
-				StatusDomain: commondomain.StatusDomain{
+				Status: commondomain.Status{
 					State: commondomain.ResourceStateError,
-					Conditions: []commondomain.StatusConditionDomain{
+					Conditions: []commondomain.StatusCondition{
 						{State: commondomain.ResourceStatePending, LastTransitionAt: time.Now().Add(-2 * time.Minute)},
 						{State: commondomain.ResourceStateCreating, LastTransitionAt: time.Now().Add(-1 * time.Minute)},
 						{State: commondomain.ResourceStateError, LastTransitionAt: time.Now()},
@@ -269,7 +269,7 @@ func TestNetworkPluginHandler_HandleReconcile(t *testing.T) {
 
 		resource := &netdom.Network{
 			Status: &netdom.NetworkStatus{
-				StatusDomain: commondomain.StatusDomain{
+				Status: commondomain.Status{
 					State: commondomain.ResourceStateUpdating,
 				},
 			},
@@ -291,7 +291,7 @@ func TestNetworkPluginHandler_HandleReconcile(t *testing.T) {
 
 		resource := &netdom.Network{
 			Status: &netdom.NetworkStatus{
-				StatusDomain: commondomain.StatusDomain{
+				Status: commondomain.Status{
 					State: commondomain.ResourceStatePending,
 				},
 			},
@@ -315,7 +315,7 @@ func TestNetworkPluginHandler_HandleReconcile(t *testing.T) {
 
 			resource := &netdom.Network{
 				Status: &netdom.NetworkStatus{
-					StatusDomain: commondomain.StatusDomain{
+					Status: commondomain.Status{
 						State: commondomain.ResourceStateCreating,
 					},
 				},

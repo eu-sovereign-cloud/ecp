@@ -83,7 +83,7 @@ func (c *WorkspaceProjectConverter) FromArubaToSECA(
 		},
 		Spec: spec,
 		Status: &wsdom.WorkspaceStatus{
-			StatusDomain: commondomain.StatusDomain{},
+			Status: commondomain.Status{},
 		},
 	}, nil
 }

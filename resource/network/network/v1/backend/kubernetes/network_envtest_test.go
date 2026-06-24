@@ -88,10 +88,10 @@ func TestNetworkBackend_CreateAndGetNetwork(t *testing.T) {
 				Cidr: netdom.Cidr{
 					IPv4: "10.0.0.0/16",
 				},
-				SkuRef: commondomain.ReferenceDomain{
+				SkuRef: commondomain.Reference{
 					Resource: "standard-network",
 				},
-				RouteTableRef: commondomain.ReferenceDomain{
+				RouteTableRef: commondomain.Reference{
 					Resource: "default-route-table",
 				},
 			},
@@ -153,10 +153,10 @@ func TestNetworkBackend_CreateAndGetNetwork(t *testing.T) {
 				Cidr: netdom.Cidr{
 					IPv4: "10.0.0.0/16",
 				},
-				SkuRef: commondomain.ReferenceDomain{
+				SkuRef: commondomain.Reference{
 					Resource: "standard-network",
 				},
-				RouteTableRef: commondomain.ReferenceDomain{
+				RouteTableRef: commondomain.Reference{
 					Resource: "default-route-table",
 				},
 				AdditionalCidrs: []netdom.Cidr{

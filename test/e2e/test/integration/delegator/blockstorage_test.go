@@ -38,7 +38,7 @@ func TestBlockStorage(t *testing.T) {
 			},
 			Spec: bsdom.BlockStorageSpec{
 				SizeGB: 1,
-				SkuRef: commondomain.ReferenceDomain{
+				SkuRef: commondomain.Reference{
 					Region:   "ITBG-Bergamo",
 					Resource: "sku-1",
 				},
@@ -105,7 +105,7 @@ func TestBlockStorage(t *testing.T) {
 			},
 			Spec: bsdom.BlockStorageSpec{
 				SizeGB: 1,
-				SkuRef: commondomain.ReferenceDomain{
+				SkuRef: commondomain.Reference{
 					Region:   "ITBG-Bergamo",
 					Resource: "sku-1",
 				},
@@ -191,7 +191,7 @@ func TestBlockStorage(t *testing.T) {
 			},
 			Spec: bsdom.BlockStorageSpec{
 				SizeGB: 1,
-				SkuRef: commondomain.ReferenceDomain{
+				SkuRef: commondomain.Reference{
 					Region:   "ITBG-Bergamo",
 					Resource: "sku-1",
 				},

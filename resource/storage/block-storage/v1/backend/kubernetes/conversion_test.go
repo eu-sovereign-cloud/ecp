@@ -48,7 +48,7 @@ func FuzzBlockStorageSpecRoundTrip(f *testing.F) {
 			},
 			Spec: bsdom.BlockStorageSpec{
 				SizeGB: sizeGB,
-				SkuRef: commondomain.ReferenceDomain{
+				SkuRef: commondomain.Reference{
 					Resource:  skuRefResource,
 					Provider:  skuRefProvider,
 					Region:    skuRefRegion,

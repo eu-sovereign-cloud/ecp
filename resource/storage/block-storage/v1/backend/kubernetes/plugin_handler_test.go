@@ -32,7 +32,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		resource := &bsdom.BlockStorage{
 			Spec: bsdom.BlockStorageSpec{SizeGB: 10},
 			Status: &bsdom.BlockStorageStatus{
-				StatusDomain: commondomain.StatusDomain{
+				Status: commondomain.Status{
 					State: activeState,
 				},
 				SizeGB: 10,
@@ -67,7 +67,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		pendingState := commondomain.ResourceStatePending
 		resource := &bsdom.BlockStorage{
 			Status: &bsdom.BlockStorageStatus{
-				StatusDomain: commondomain.StatusDomain{
+				Status: commondomain.Status{
 					State: pendingState,
 				},
 			},
@@ -110,7 +110,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		resource := &bsdom.BlockStorage{
 			Spec: bsdom.BlockStorageSpec{SizeGB: 20},
 			Status: &bsdom.BlockStorageStatus{
-				StatusDomain: commondomain.StatusDomain{
+				Status: commondomain.Status{
 					State: activeState,
 				},
 				SizeGB: 10,
@@ -154,7 +154,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		resource := &bsdom.BlockStorage{
 			Spec: bsdom.BlockStorageSpec{SizeGB: 10},
 			Status: &bsdom.BlockStorageStatus{
-				StatusDomain: commondomain.StatusDomain{
+				Status: commondomain.Status{
 					State: creatingState,
 				},
 			},
@@ -204,7 +204,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 				},
 			},
 			Status: &bsdom.BlockStorageStatus{
-				StatusDomain: commondomain.StatusDomain{
+				Status: commondomain.Status{
 					State: deletingState,
 				},
 			},
@@ -243,7 +243,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		resource := &bsdom.BlockStorage{
 			Spec: bsdom.BlockStorageSpec{SizeGB: 20},
 			Status: &bsdom.BlockStorageStatus{
-				StatusDomain: commondomain.StatusDomain{
+				Status: commondomain.Status{
 					State: updatingState,
 				},
 				SizeGB: 10,
@@ -288,9 +288,9 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		errorState := commondomain.ResourceStateError
 		resource := &bsdom.BlockStorage{
 			Status: &bsdom.BlockStorageStatus{
-				StatusDomain: commondomain.StatusDomain{
+				Status: commondomain.Status{
 					State: errorState,
-					Conditions: []commondomain.StatusConditionDomain{
+					Conditions: []commondomain.StatusCondition{
 						{State: commondomain.ResourceStateCreating},
 						{State: commondomain.ResourceStateError},
 					},
@@ -335,9 +335,9 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		resource := &bsdom.BlockStorage{
 			Spec: bsdom.BlockStorageSpec{SizeGB: 20},
 			Status: &bsdom.BlockStorageStatus{
-				StatusDomain: commondomain.StatusDomain{
+				Status: commondomain.Status{
 					State: errorState,
-					Conditions: []commondomain.StatusConditionDomain{
+					Conditions: []commondomain.StatusCondition{
 						{State: commondomain.ResourceStateUpdating},
 						{State: commondomain.ResourceStateError},
 					},
@@ -382,7 +382,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		creatingState := commondomain.ResourceStateCreating
 		resource := &bsdom.BlockStorage{
 			Status: &bsdom.BlockStorageStatus{
-				StatusDomain: commondomain.StatusDomain{
+				Status: commondomain.Status{
 					State: creatingState,
 				},
 			},
@@ -428,7 +428,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		creatingState := commondomain.ResourceStateCreating
 		resource := &bsdom.BlockStorage{
 			Status: &bsdom.BlockStorageStatus{
-				StatusDomain: commondomain.StatusDomain{
+				Status: commondomain.Status{
 					State: creatingState,
 				},
 			},
@@ -466,7 +466,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		pendingState := commondomain.ResourceStatePending
 		resource := &bsdom.BlockStorage{
 			Status: &bsdom.BlockStorageStatus{
-				StatusDomain: commondomain.StatusDomain{
+				Status: commondomain.Status{
 					State: pendingState,
 				},
 			},
@@ -506,7 +506,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 			creatingState := commondomain.ResourceStateCreating
 			resource := &bsdom.BlockStorage{
 				Status: &bsdom.BlockStorageStatus{
-					StatusDomain: commondomain.StatusDomain{
+					Status: commondomain.Status{
 						State: creatingState,
 					},
 				},
@@ -566,7 +566,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 				},
 			},
 			Status: &bsdom.BlockStorageStatus{
-				StatusDomain: commondomain.StatusDomain{
+				Status: commondomain.Status{
 					State: deletingState,
 				},
 			},
@@ -613,7 +613,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		resource := &bsdom.BlockStorage{
 			Spec: bsdom.BlockStorageSpec{SizeGB: 20},
 			Status: &bsdom.BlockStorageStatus{
-				StatusDomain: commondomain.StatusDomain{
+				Status: commondomain.Status{
 					State: updatingState,
 				},
 				SizeGB: 10,
@@ -660,7 +660,7 @@ func TestBlockStoragePluginHandler_HandleAdmission(t *testing.T) {
 		resource := &bsdom.BlockStorage{
 			Spec: bsdom.BlockStorageSpec{SizeGB: 20},
 			Status: &bsdom.BlockStorageStatus{
-				StatusDomain: commondomain.StatusDomain{
+				Status: commondomain.Status{
 					State: activeState,
 				},
 				SizeGB: 10,
@@ -687,7 +687,7 @@ func TestBlockStoragePluginHandler_HandleAdmission(t *testing.T) {
 		resource := &bsdom.BlockStorage{
 			Spec: bsdom.BlockStorageSpec{SizeGB: 5},
 			Status: &bsdom.BlockStorageStatus{
-				StatusDomain: commondomain.StatusDomain{
+				Status: commondomain.Status{
 					State: creatingState,
 				},
 				SizeGB: 10,
@@ -714,7 +714,7 @@ func TestBlockStoragePluginHandler_HandleAdmission(t *testing.T) {
 		resource := &bsdom.BlockStorage{
 			Spec: bsdom.BlockStorageSpec{SizeGB: 5},
 			Status: &bsdom.BlockStorageStatus{
-				StatusDomain: commondomain.StatusDomain{
+				Status: commondomain.Status{
 					State: activeState,
 				},
 				SizeGB: 10,

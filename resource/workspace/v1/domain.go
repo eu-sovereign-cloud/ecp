@@ -25,6 +25,6 @@ type WorkspaceSpec = map[string]interface{}
 
 // WorkspaceStatus defines the status for a workspace.
 type WorkspaceStatus struct {
-	domain.StatusDomain
+	domain.Status
 	ResourceCount *int
 }

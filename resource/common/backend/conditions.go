@@ -6,9 +6,9 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 )
 
-// ConditionFromState creates a domain.StatusConditionDomain from a resource state,
+// ConditionFromState creates a domain.StatusCondition from a resource state,
 // supplying a standard message for each well-known lifecycle state.
-func ConditionFromState(state domain.ResourceStateDomain) domain.StatusConditionDomain {
+func ConditionFromState(state domain.ResourceState) domain.StatusCondition {
 	var message string
 	switch state { //nolint:exhaustive // domain.ResourceStateError is handled by ConditionFromError.
 	case domain.ResourceStatePending:
@@ -22,7 +22,7 @@ func ConditionFromState(state domain.ResourceStateDomain) domain.StatusCondition
 	case domain.ResourceStateDeleting:
 		message = "Resource is being deleted."
 	}
-	return domain.StatusConditionDomain{
+	return domain.StatusCondition{
 		LastTransitionAt: time.Now(),
 		Type:             "Reconcile",
 		State:            state,
@@ -31,9 +31,9 @@ func ConditionFromState(state domain.ResourceStateDomain) domain.StatusCondition
 	}
 }
 
-// ConditionFromError creates a domain.StatusConditionDomain representing a reconciliation error.
-func ConditionFromError(err error) domain.StatusConditionDomain {
-	return domain.StatusConditionDomain{
+// ConditionFromError creates a domain.StatusCondition representing a reconciliation error.
+func ConditionFromError(err error) domain.StatusCondition {
+	return domain.StatusCondition{
 		LastTransitionAt: time.Now(),
 		Type:             "ReconcileError",
 		State:            domain.ResourceStateError,

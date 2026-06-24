@@ -126,7 +126,7 @@ func (h *BlockStoragePluginHandler) HandleReconcile(ctx context.Context, resourc
 	return false, nil
 }
 
-func (h *BlockStoragePluginHandler) setResourceState(ctx context.Context, resource *bsdom.BlockStorage, state commondomain.ResourceStateDomain, requeue bool) (bool, error) {
+func (h *BlockStoragePluginHandler) setResourceState(ctx context.Context, resource *bsdom.BlockStorage, state commondomain.ResourceState, requeue bool) (bool, error) {
 	if resource.Status == nil {
 		resource.Status = &bsdom.BlockStorageStatus{}
 	}

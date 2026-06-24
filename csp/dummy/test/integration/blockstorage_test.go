@@ -33,7 +33,7 @@ func TestBlockStorage(t *testing.T) {
 			},
 			Spec: bsdom.BlockStorageSpec{
 				SizeGB: 1,
-				SkuRef: commondomain.ReferenceDomain{Resource: "sku-1"},
+				SkuRef: commondomain.Reference{Resource: "sku-1"},
 			},
 		}
 
@@ -69,7 +69,7 @@ func TestBlockStorage(t *testing.T) {
 			},
 			Spec: bsdom.BlockStorageSpec{
 				SizeGB: 1,
-				SkuRef: commondomain.ReferenceDomain{Resource: "sku-1"},
+				SkuRef: commondomain.Reference{Resource: "sku-1"},
 			},
 		}
 		_, err := blockStorageRepo.Create(t.Context(), bsDomain)
@@ -124,7 +124,7 @@ func TestBlockStorage(t *testing.T) {
 			},
 			Spec: bsdom.BlockStorageSpec{
 				SizeGB: 1,
-				SkuRef: commondomain.ReferenceDomain{Resource: "sku-1"},
+				SkuRef: commondomain.Reference{Resource: "sku-1"},
 			},
 		}
 		_, err := blockStorageRepo.Create(t.Context(), bsDomain)

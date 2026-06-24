@@ -70,7 +70,7 @@ func MapCRToWorkspaceDomain(obj client.Object) (*wsdom.Workspace, error) {
 		wd.Status = &wsdom.WorkspaceStatus{
 			ResourceCount: cr.Status.ResourceCount,
 		}
-		wd.Status.State = commondomain.ResourceStateDomain(cr.Status.State)
+		wd.Status.State = commondomain.ResourceState(cr.Status.State)
 		wd.Status.Conditions = commonbackend.MapCRToStatusConditionDomains(cr.Status.Conditions)
 	} else {
 		wd.Status.PushCondition(commondomain.DefaultPendingCondition)

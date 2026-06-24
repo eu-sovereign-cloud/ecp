@@ -1,9 +1,9 @@
 package domain
 
-// ReferenceDomain is a domain type representing a reference to another resource.
+// Reference is a domain type representing a reference to another resource.
 // It uses a structured object format that can reference resources across
 // workspaces or regions
-type ReferenceDomain struct {
+type Reference struct {
 	// Provider of the resource. If empty, inferred from context.
 	Provider string
 	// Region of the resource. If empty, inferred from context.

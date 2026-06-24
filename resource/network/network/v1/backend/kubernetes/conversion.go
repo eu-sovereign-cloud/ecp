@@ -71,7 +71,7 @@ func MapCRToNetworkDomain(obj client.Object) (*netdom.Network, error) {
 	nd.Status = &netdom.NetworkStatus{}
 	if cr.Status != nil {
 		nd.Status = &netdom.NetworkStatus{}
-		nd.Status.State = commondomain.ResourceStateDomain(cr.Status.State)
+		nd.Status.State = commondomain.ResourceState(cr.Status.State)
 		nd.Status.Conditions = commonbackend.MapCRToStatusConditionDomains(cr.Status.Conditions)
 	} else {
 		nd.Status.PushCondition(commondomain.DefaultPendingCondition)

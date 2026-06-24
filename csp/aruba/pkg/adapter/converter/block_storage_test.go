@@ -33,13 +33,13 @@ func TestBlockStorageConverter_FromSECAToAruba(t *testing.T) {
 				},
 				Spec: bsdom.BlockStorageSpec{
 					SizeGB: 100,
-					SourceImageRef: &commondomain.ReferenceDomain{
+					SourceImageRef: &commondomain.Reference{
 						Region: "eu-de",
 						Tenant: "tenant-123",
 					},
 				},
 				Status: &bsdom.BlockStorageStatus{
-					StatusDomain: commondomain.StatusDomain{
+					Status: commondomain.Status{
 						State: commondomain.ResourceStateActive,
 					},
 				},

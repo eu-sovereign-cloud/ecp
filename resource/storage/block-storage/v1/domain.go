@@ -22,13 +22,13 @@ type BlockStorage struct {
 // BlockStorageSpec defines the specification for a block storage instance.
 type BlockStorageSpec struct {
 	SizeGB         int
-	SkuRef         domain.ReferenceDomain
-	SourceImageRef *domain.ReferenceDomain
+	SkuRef         domain.Reference
+	SourceImageRef *domain.Reference
 }
 
 // BlockStorageStatus defines the status for a block storage instance.
 type BlockStorageStatus struct {
-	AttachedTo *domain.ReferenceDomain
+	AttachedTo *domain.Reference
 	SizeGB     int
-	domain.StatusDomain
+	domain.Status
 }

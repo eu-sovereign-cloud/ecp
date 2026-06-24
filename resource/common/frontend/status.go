@@ -8,8 +8,8 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 )
 
-// ResourceStateDomainToAPI maps domain.ResourceStateDomain to a schema.ResourceState.
-func ResourceStateDomainToAPI(d domain.ResourceStateDomain) schema.ResourceState {
+// ResourceStateDomainToAPI maps domain.ResourceState to a schema.ResourceState.
+func ResourceStateDomainToAPI(d domain.ResourceState) schema.ResourceState {
 	var state schema.ResourceState
 	switch d {
 	case domain.ResourceStatePending:
@@ -30,8 +30,8 @@ func ResourceStateDomainToAPI(d domain.ResourceStateDomain) schema.ResourceState
 	return state
 }
 
-// ConditionDomainsToAPI maps StatusDomain.Conditions to a slice of schema.StatusCondition.
-func ConditionDomainsToAPI(domains []domain.StatusConditionDomain) []schema.StatusCondition {
+// ConditionDomainsToAPI maps Status.Conditions to a slice of schema.StatusCondition.
+func ConditionDomainsToAPI(domains []domain.StatusCondition) []schema.StatusCondition {
 	conditions := make([]schema.StatusCondition, len(domains))
 	for i, cond := range domains {
 		conditions[i] = conditionDomainToAPI(cond)
@@ -39,8 +39,8 @@ func ConditionDomainsToAPI(domains []domain.StatusConditionDomain) []schema.Stat
 	return conditions
 }
 
-// conditionDomainToAPI maps a domain.StatusConditionDomain to a schema.StatusCondition.
-func conditionDomainToAPI(d domain.StatusConditionDomain) schema.StatusCondition {
+// conditionDomainToAPI maps a domain.StatusCondition to a schema.StatusCondition.
+func conditionDomainToAPI(d domain.StatusCondition) schema.StatusCondition {
 	return schema.StatusCondition{
 		Type:             d.Type,
 		State:            ResourceStateDomainToAPI(d.State),

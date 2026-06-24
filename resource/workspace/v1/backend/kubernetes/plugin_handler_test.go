@@ -31,7 +31,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		activeState := commondomain.ResourceStateActive
 		resource := &wsdom.Workspace{
 			Status: &wsdom.WorkspaceStatus{
-				StatusDomain: commondomain.StatusDomain{
+				Status: commondomain.Status{
 					State: activeState,
 				},
 			},
@@ -65,7 +65,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		pendingState := commondomain.ResourceStatePending
 		resource := &wsdom.Workspace{
 			Status: &wsdom.WorkspaceStatus{
-				StatusDomain: commondomain.StatusDomain{
+				Status: commondomain.Status{
 					State: pendingState,
 				},
 			},
@@ -107,7 +107,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		creatingState := commondomain.ResourceStateCreating
 		resource := &wsdom.Workspace{
 			Status: &wsdom.WorkspaceStatus{
-				StatusDomain: commondomain.StatusDomain{
+				Status: commondomain.Status{
 					State: creatingState,
 				},
 			},
@@ -156,7 +156,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 				},
 			},
 			Status: &wsdom.WorkspaceStatus{
-				StatusDomain: commondomain.StatusDomain{
+				Status: commondomain.Status{
 					State: deletingState,
 				},
 			},
@@ -194,7 +194,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		creatingState := commondomain.ResourceStateCreating
 		resource := &wsdom.Workspace{
 			Status: &wsdom.WorkspaceStatus{
-				StatusDomain: commondomain.StatusDomain{
+				Status: commondomain.Status{
 					State: creatingState,
 				},
 			},
@@ -240,7 +240,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		creatingState := commondomain.ResourceStateCreating
 		resource := &wsdom.Workspace{
 			Status: &wsdom.WorkspaceStatus{
-				StatusDomain: commondomain.StatusDomain{
+				Status: commondomain.Status{
 					State: creatingState,
 				},
 			},
@@ -284,7 +284,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 				},
 			},
 			Status: &wsdom.WorkspaceStatus{
-				StatusDomain: commondomain.StatusDomain{
+				Status: commondomain.Status{
 					State: deletingState,
 				},
 			},
@@ -330,9 +330,9 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		errorState := commondomain.ResourceStateError
 		resource := &wsdom.Workspace{
 			Status: &wsdom.WorkspaceStatus{
-				StatusDomain: commondomain.StatusDomain{
+				Status: commondomain.Status{
 					State: errorState,
-					Conditions: []commondomain.StatusConditionDomain{
+					Conditions: []commondomain.StatusCondition{
 						{State: commondomain.ResourceStatePending, LastTransitionAt: time.Now().Add(-2 * time.Minute)},
 						{State: commondomain.ResourceStateCreating, LastTransitionAt: time.Now().Add(-1 * time.Minute)},
 						{State: commondomain.ResourceStateError, LastTransitionAt: time.Now()},
@@ -377,7 +377,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		updatingState := commondomain.ResourceStateUpdating
 		resource := &wsdom.Workspace{
 			Status: &wsdom.WorkspaceStatus{
-				StatusDomain: commondomain.StatusDomain{
+				Status: commondomain.Status{
 					State: updatingState,
 				},
 			},
@@ -411,7 +411,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		pendingState := commondomain.ResourceStatePending
 		resource := &wsdom.Workspace{
 			Status: &wsdom.WorkspaceStatus{
-				StatusDomain: commondomain.StatusDomain{
+				Status: commondomain.Status{
 					State: pendingState,
 				},
 			},
@@ -447,7 +447,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 			creatingState := commondomain.ResourceStateCreating
 			resource := &wsdom.Workspace{
 				Status: &wsdom.WorkspaceStatus{
-					StatusDomain: commondomain.StatusDomain{
+					Status: commondomain.Status{
 						State: creatingState,
 					},
 				},

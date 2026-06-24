@@ -59,7 +59,7 @@ func TestWorkspaceAPI(t *testing.T) {
 				return false, nil // Keep retrying if not found
 			}
 
-			if createdWorkspace.Status != nil && commondomain.ResourceStateDomain(createdWorkspace.Status.State) == commondomain.ResourceStateActive {
+			if createdWorkspace.Status != nil && commondomain.ResourceState(createdWorkspace.Status.State) == commondomain.ResourceStateActive {
 				return true, nil
 			}
 			return false, nil
@@ -104,7 +104,7 @@ func TestWorkspaceAPI(t *testing.T) {
 			if err := k8sClient.Get(ctx, key, &createdWorkspace); err != nil {
 				return false, nil
 			}
-			if createdWorkspace.Status != nil && commondomain.ResourceStateDomain(createdWorkspace.Status.State) == commondomain.ResourceStateActive {
+			if createdWorkspace.Status != nil && commondomain.ResourceState(createdWorkspace.Status.State) == commondomain.ResourceStateActive {
 				return true, nil
 			}
 			return false, nil

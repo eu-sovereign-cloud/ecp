@@ -106,7 +106,7 @@ func (h *NetworkPluginHandler) HandleReconcile(ctx context.Context, resource *ne
 	return false, nil
 }
 
-func (h *NetworkPluginHandler) setResourceState(ctx context.Context, resource *netdom.Network, state commondomain.ResourceStateDomain, requeue bool) (bool, error) {
+func (h *NetworkPluginHandler) setResourceState(ctx context.Context, resource *netdom.Network, state commondomain.ResourceState, requeue bool) (bool, error) {
 	if resource.Status == nil {
 		resource.Status = &netdom.NetworkStatus{}
 	}
