@@ -153,8 +153,8 @@ func isNetworkAccepted(resource *netdom.Network) bool {
 }
 
 func isNetworkPending(resource *netdom.Network) bool {
-	return resource.Status != nil &&
-		resource.Status.State == commondomain.ResourceStatePending
+	return resource.DeletedAt == nil && (resource.Status == nil ||
+		resource.Status.State == commondomain.ResourceStatePending)
 }
 
 func isNetworkCreating(resource *netdom.Network) bool {

@@ -153,8 +153,8 @@ func isWorkspaceAccepted(resource *wsdom.Workspace) bool {
 }
 
 func isWorkspacePending(resource *wsdom.Workspace) bool {
-	return resource.Status != nil &&
-		resource.Status.State == commondomain.ResourceStatePending
+	return resource.DeletedAt == nil && (resource.Status == nil ||
+		resource.Status.State == commondomain.ResourceStatePending)
 }
 
 func isWorkspaceCreating(resource *wsdom.Workspace) bool {
