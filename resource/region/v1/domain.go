@@ -10,8 +10,8 @@ const (
 	Group    = "v1.secapi.cloud"
 	Version  = "v1"
 
-	RegionBaseURL      = "/providers/seca.region"
-	ProviderRegionName = "seca.region/v1"
+	RegionBaseURL = "/providers/seca.region"
+	ProviderID    = "seca.region/v1"
 )
 
 // Zone is a string type representing a region zone name.

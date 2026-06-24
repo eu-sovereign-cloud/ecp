@@ -13,8 +13,8 @@ import (
 	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
 )
 
-// MapCRToRegionDomain converts either a concrete *Region or *unstructured.Unstructured into a *rdom.Region.
-func MapCRToRegionDomain(obj client.Object) (*rdom.Region, error) {
+// RegionFromCR converts either a concrete *Region or *unstructured.Unstructured into a *rdom.Region.
+func RegionFromCR(obj client.Object) (*rdom.Region, error) {
 	var cr Region
 
 	switch t := obj.(type) {
@@ -51,21 +51,21 @@ func MapCRToRegionDomain(obj client.Object) (*rdom.Region, error) {
 	return &rdom.Region{Metadata: meta, Providers: providers, Zones: zones}, nil
 }
 
-// MapRegionDomainToCR converts a *rdom.Region to a Kubernetes Region CR.
+// RegionToCR converts a *rdom.Region to a Kubernetes Region CR.
 // Regions are read-only resources managed by the platform, so this primarily
 // handles re-serialisation for update paths.
-func MapRegionDomainToCR(d *rdom.Region) (client.Object, error) {
-	if d == nil {
-		return nil, fmt.Errorf("domain region is nil")
+func RegionToCR(r *rdom.Region) (client.Object, error) {
+	if r == nil {
+		return nil, fmt.Errorf("region is nil")
 	}
 
 	cr := &Region{}
-	cr.SetName(d.Name)
-	cr.SetResourceVersion(d.ResourceVersion)
+	cr.SetName(r.Name)
+	cr.SetResourceVersion(r.ResourceVersion)
 	cr.SetGroupVersionKind(RegionGVK)
 
 	// Spec fields are populated by the platform — return minimal CR for round-trip.
-	// TODO: populate cr.Spec from d.Providers and d.Zones when schemav1.RegionSpec is available.
+	// TODO: populate cr.Spec from r.Providers and r.Zones when schemav1.RegionSpec is available.
 
 	return cr, nil
 }

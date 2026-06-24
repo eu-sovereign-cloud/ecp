@@ -77,7 +77,7 @@ func toUnstructured(t *testing.T, scheme *runtime.Scheme, obj runtime.Object) *u
 }
 
 func newAdapter(dynFake *fake.FakeDynamicClient) *k8sadapter.ReaderAdapter[*rdom.Region] {
-	return k8sadapter.NewReaderAdapter[*rdom.Region](dynFake, RegionGVR, slog.Default(), MapCRToRegionDomain)
+	return k8sadapter.NewReaderAdapter[*rdom.Region](dynFake, RegionGVR, slog.Default(), RegionFromCR)
 }
 
 func TestRegionController_GetRegion(t *testing.T) {

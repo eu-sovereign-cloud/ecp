@@ -18,8 +18,9 @@ const (
 	RegionResource = rdom.Resource
 	// RegionProviderName is the provider identifier used in response metadata.
 	RegionProviderName = "secapi.cloud/v1"
-	// RegionBaseURL is the base URL prefix for region refs.
-	RegionBaseURL = "/providers/secapi.cloud"
+	// regionRefBaseURL is the base URL prefix for region refs in the secapi.cloud API.
+	// Distinct from rdom.RegionBaseURL ("/providers/seca.region") which is the domain-layer identifier.
+	regionRefBaseURL = "/providers/secapi.cloud"
 )
 
 // ListParamsFromAPI converts SDK ListRegionsParams to resource.ListParams.
@@ -43,11 +44,11 @@ func ListParamsFromAPI(params regionv1sdk.ListRegionsParams) resource.ListParams
 	}
 }
 
-// DomainToAPIIterator converts a list of Region domain objects to an SDK RegionIterator.
-func DomainToAPIIterator(domains []*rdom.Region, nextSkipToken *string) *regionv1sdk.RegionIterator {
-	items := make([]sdkschema.Region, len(domains))
-	for i, dom := range domains {
-		items[i] = domainToAPI(*dom, "list")
+// RegionIteratorToAPI converts a list of Region domain objects to an SDK RegionIterator.
+func RegionIteratorToAPI(rs []*rdom.Region, nextSkipToken *string) *regionv1sdk.RegionIterator {
+	items := make([]sdkschema.Region, len(rs))
+	for i, r := range rs {
+		items[i] = regionToAPI(*r, "list")
 	}
 
 	iterator := &regionv1sdk.RegionIterator{
@@ -66,25 +67,25 @@ func DomainToAPIIterator(domains []*rdom.Region, nextSkipToken *string) *regionv
 	return iterator
 }
 
-// DomainToAPI converts a Region domain object to a schema.Region for Get operations.
-func DomainToAPI(domain *rdom.Region) sdkschema.Region {
-	return domainToAPI(*domain, "get")
+// RegionToAPI converts a Region domain object to a schema.Region for Get operations.
+func RegionToAPI(r *rdom.Region) sdkschema.Region {
+	return regionToAPI(*r, "get")
 }
 
-// domainToAPI converts a Region domain object to a schema.Region with the given verb.
-func domainToAPI(dom rdom.Region, verb string) sdkschema.Region {
-	providers := make([]sdkschema.Provider, 0, len(dom.Providers))
-	for _, p := range dom.Providers {
+// regionToAPI converts a Region domain object to a schema.Region with the given verb.
+func regionToAPI(r rdom.Region, verb string) sdkschema.Region {
+	providers := make([]sdkschema.Provider, 0, len(r.Providers))
+	for _, p := range r.Providers {
 		providers = append(providers, sdkschema.Provider{Name: p.Name, Url: p.URL, Version: p.Version})
 	}
-	zones := make([]sdkschema.Zone, 0, len(dom.Zones))
-	for _, z := range dom.Zones {
+	zones := make([]sdkschema.Zone, 0, len(r.Zones))
+	for _, z := range r.Zones {
 		zones = append(zones, sdkschema.Zone(z))
 	}
 
-	resVersion := int64(0)
-	if rv, err := strconv.ParseInt(dom.ResourceVersion, 10, 64); err == nil {
-		resVersion = rv
+	resourceVersion := int64(0)
+	if parsed, err := strconv.ParseInt(r.ResourceVersion, 10, 64); err == nil {
+		resourceVersion = parsed
 	}
 
 	sdk := sdkschema.Region{
@@ -94,19 +95,19 @@ func domainToAPI(dom rdom.Region, verb string) sdkschema.Region {
 		},
 		Metadata: &sdkschema.GlobalResourceMetadata{
 			ApiVersion:      rdom.Version,
-			CreatedAt:       dom.CreatedAt,
-			LastModifiedAt:  dom.UpdatedAt,
+			CreatedAt:       r.CreatedAt,
+			LastModifiedAt:  r.UpdatedAt,
 			Kind:            sdkschema.GlobalResourceMetadataKindResourceKindRegion,
-			Name:            dom.Name,
+			Name:            r.Name,
 			Provider:        RegionProviderName,
-			Resource:        dom.Name,
-			Ref:             fmt.Sprintf("%s/%s", RegionBaseURL, dom.Name),
-			ResourceVersion: resVersion,
+			Resource:        r.Name,
+			Ref:             fmt.Sprintf("%s/%s", regionRefBaseURL, r.Name),
+			ResourceVersion: resourceVersion,
 			Verb:            verb,
 		},
 	}
-	if dom.DeletedAt != nil {
-		sdk.Metadata.DeletedAt = dom.DeletedAt
+	if r.DeletedAt != nil {
+		sdk.Metadata.DeletedAt = r.DeletedAt
 	}
 	return sdk
 }

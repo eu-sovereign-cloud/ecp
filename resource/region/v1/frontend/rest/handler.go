@@ -23,14 +23,14 @@ var _ regionv1sdk.ServerInterface = (*Handler)(nil)
 // ListRegions handles GET /v1/regions.
 func (h *Handler) ListRegions(w http.ResponseWriter, r *http.Request, params regionv1sdk.ListRegionsParams) {
 	logger := h.Logger.With("resource", "region")
-	frest.HandleList(w, r, logger, ListParamsFromAPI(params), frest.ListerFromRepo(h.Repo), DomainToAPIIterator)
+	frest.HandleList(w, r, logger, ListParamsFromAPI(params), frest.ListerFromRepo(h.Repo), RegionIteratorToAPI)
 }
 
 // GetRegion handles GET /v1/regions/{name}.
 func (h *Handler) GetRegion(w http.ResponseWriter, r *http.Request, name sdkschema.ResourcePathParam) {
 	logger := h.Logger.With("resource", "region", "name", name)
 	ir := &regionIdentity{name: name}
-	frest.HandleGet(w, r, logger, ir, frest.GetterFromRepo(h.Repo, newRegionWithIdentity), DomainToAPI)
+	frest.HandleGet(w, r, logger, ir, frest.GetterFromRepo(h.Repo, newRegionWithIdentity), RegionToAPI)
 }
 
 // regionIdentity is a minimal IdentifiableResource for region get operations (global, no tenant/workspace).
