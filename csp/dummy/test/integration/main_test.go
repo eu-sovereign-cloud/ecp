@@ -83,8 +83,8 @@ func TestMain(m *testing.M) {
 		dynamicClient,
 		bsk8s.BlockStorageGVR,
 		testLogger,
-		bsk8s.MapBlockStorageDomainToCR,
-		bsk8s.MapCRToBlockStorageDomain,
+		bsk8s.BlockStorageToCR,
+		bsk8s.BlockStorageFromCR,
 	)
 	workspaceRepo = k8sadapter.NewRepoAdapter[*wsdom.Workspace](
 		dynamicClient,

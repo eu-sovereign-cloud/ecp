@@ -47,8 +47,8 @@ func simulateBS(ctx context.Context, op string, resource *bsdom.BlockStorage, de
 			dynamicClient,
 			storageconv.BlockStorageGVR,
 			logger,
-			storageconv.MapBlockStorageDomainToCR,
-			storageconv.MapCRToBlockStorageDomain,
+			storageconv.BlockStorageToCR,
+			storageconv.BlockStorageFromCR,
 		)
 		_, err = blockStorageRepo.Update(ctx, resource)
 		if err != nil {

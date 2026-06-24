@@ -71,14 +71,14 @@ func TestBlockStorageBackend_CreateAndGetBlockStorage(t *testing.T) {
 		dynClient,
 		BlockStorageGVR,
 		slog.Default(),
-		MapBlockStorageDomainToCR,
-		MapCRToBlockStorageDomain,
+		BlockStorageToCR,
+		BlockStorageFromCR,
 	)
 	readerRepo := k8sadapter.NewReaderAdapter[*bsdom.BlockStorage](
 		dynClient,
 		BlockStorageGVR,
 		slog.Default(),
-		MapCRToBlockStorageDomain,
+		BlockStorageFromCR,
 	)
 
 	t.Run("create_update_list_delete_block_storage", func(t *testing.T) {

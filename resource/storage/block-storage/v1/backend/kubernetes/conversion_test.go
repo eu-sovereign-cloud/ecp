@@ -58,30 +58,30 @@ func FuzzBlockStorageSpecRoundTrip(f *testing.F) {
 			},
 		}
 
-		cr1, err := MapBlockStorageDomainToCR(domain)
+		cr1, err := BlockStorageToCR(domain)
 		if err != nil {
 			return
 		}
 
-		domain2, err := MapCRToBlockStorageDomain(cr1)
+		domain2, err := BlockStorageFromCR(cr1)
 		if err != nil {
 			t.Errorf("CR→domain failed after successful domain→CR: %v", err)
 			return
 		}
 
-		cr2, err := MapBlockStorageDomainToCR(domain2)
+		cr2, err := BlockStorageToCR(domain2)
 		if err != nil {
 			t.Errorf("second domain→CR failed: %v", err)
 			return
 		}
 
-		domain3, err := MapCRToBlockStorageDomain(cr2)
+		domain3, err := BlockStorageFromCR(cr2)
 		if err != nil {
 			t.Errorf("second CR→domain failed: %v", err)
 			return
 		}
 
-		cr3, err := MapBlockStorageDomainToCR(domain3)
+		cr3, err := BlockStorageToCR(domain3)
 		if err != nil {
 			t.Errorf("third domain→CR failed: %v", err)
 			return

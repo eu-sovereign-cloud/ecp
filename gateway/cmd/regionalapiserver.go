@@ -214,14 +214,14 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		client.Client,
 		bsk8s.BlockStorageGVR,
 		logger,
-		bsk8s.MapCRToBlockStorageDomain,
+		bsk8s.BlockStorageFromCR,
 	)
 	bsWriterAdapter := k8sadapter.NewWriterAdapter[*bsdom.BlockStorage](
 		client.Client,
 		bsk8s.BlockStorageGVR,
 		logger,
-		bsk8s.MapBlockStorageDomainToCR,
-		bsk8s.MapCRToBlockStorageDomain,
+		bsk8s.BlockStorageToCR,
+		bsk8s.BlockStorageFromCR,
 	)
 	skuReaderAdapter := k8sadapter.NewReaderAdapter[*skudom.StorageSKU](
 		client.Client,

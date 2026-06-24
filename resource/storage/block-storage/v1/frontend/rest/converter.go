@@ -1,4 +1,4 @@
-// Package rest provides REST↔domain conversion and HTTP handlers for the block storage resource.
+// Package rest provides REST↔bs conversion and HTTP handlers for the block storage resource.
 package rest
 
 import (
@@ -66,81 +66,81 @@ func ListParamsFromAPI(params sdkstorage.ListBlockStoragesParams, tenant, worksp
 	}
 }
 
-// BlockStorageDomainToAPIWithVerb returns a func that converts a BlockStorage to its SDK representation with the given verb.
-func BlockStorageDomainToAPIWithVerb(verb string) func(domain *bsdom.BlockStorage) *sdkschema.BlockStorage {
-	return func(domain *bsdom.BlockStorage) *sdkschema.BlockStorage {
-		sdk := blockStorageDomainToAPI(domain)
+// BlockStorageToAPIWithVerb returns a func that converts a BlockStorage to its SDK representation with the given verb.
+func BlockStorageToAPIWithVerb(verb string) func(bs *bsdom.BlockStorage) *sdkschema.BlockStorage {
+	return func(bs *bsdom.BlockStorage) *sdkschema.BlockStorage {
+		sdk := blockStorageToAPI(bs)
 		sdk.Metadata.Verb = verb
 		return sdk
 	}
 }
 
-// blockStorageDomainToAPI converts a BlockStorage to its SDK representation.
-func blockStorageDomainToAPI(domain *bsdom.BlockStorage) *sdkschema.BlockStorage {
-	resVersion := int64(0)
-	if rv, err := strconv.ParseInt(domain.ResourceVersion, 10, 64); err == nil {
-		resVersion = rv
+// blockStorageToAPI converts a BlockStorage to its SDK representation.
+func blockStorageToAPI(bs *bsdom.BlockStorage) *sdkschema.BlockStorage {
+	resourceVersion := int64(0)
+	if parsed, err := strconv.ParseInt(bs.ResourceVersion, 10, 64); err == nil {
+		resourceVersion = parsed
 	}
 
-	bs := &sdkschema.BlockStorage{
+	out := &sdkschema.BlockStorage{
 		Metadata: &sdkschema.RegionalWorkspaceResourceMetadata{
 			ApiVersion:     BlockStorageAPIVersion,
-			CreatedAt:      domain.CreatedAt,
-			LastModifiedAt: domain.UpdatedAt,
+			CreatedAt:      bs.CreatedAt,
+			LastModifiedAt: bs.UpdatedAt,
 			Kind:           sdkschema.RegionalWorkspaceResourceMetadataKind(sdkschema.RegionalResourceMetadataKindResourceKindBlockStorage),
-			Name:           domain.Name,
-			Tenant:         domain.Tenant,
-			Workspace:      domain.Workspace,
-			Provider:       domain.Provider,
-			Region:         domain.Region,
-			Resource:       fmt.Sprintf(ResourceFormat, sdkschema.RegionalResourceMetadataKindResourceKindBlockStorage, domain.Name),
+			Name:           bs.Name,
+			Tenant:         bs.Tenant,
+			Workspace:      bs.Workspace,
+			Provider:       bs.Provider,
+			Region:         bs.Region,
+			Resource:       fmt.Sprintf(ResourceFormat, sdkschema.RegionalResourceMetadataKindResourceKindBlockStorage, bs.Name),
 			Ref: fmt.Sprintf(
-				domain.Provider+"/"+WorkspaceScopedResourceFormat,
-				domain.Tenant,
-				domain.Workspace,
+				bs.Provider+"/"+WorkspaceScopedResourceFormat,
+				bs.Tenant,
+				bs.Workspace,
 				sdkschema.RegionalResourceMetadataKindResourceKindBlockStorage,
-				domain.Name,
+				bs.Name,
 			),
-			ResourceVersion: resVersion,
+			ResourceVersion: resourceVersion,
 		},
-		Labels:      domain.Labels,
-		Annotations: domain.Annotations,
-		Extensions:  domain.Extensions,
+		Labels:      bs.Labels,
+		Annotations: bs.Annotations,
+		Extensions:  bs.Extensions,
 		Spec: sdkschema.BlockStorageSpec{
-			SizeGB: domain.Spec.SizeGB,
-			SkuRef: commonfrontend.ReferenceToAPI(domain.Spec.SkuRef),
+			SizeGB: bs.Spec.SizeGB,
+			SkuRef: commonfrontend.ReferenceToAPI(bs.Spec.SkuRef),
 		},
 	}
 
-	if bs.Labels == nil {
-		bs.Labels = make(sdkschema.Labels)
+	if out.Labels == nil {
+		out.Labels = make(sdkschema.Labels)
 	}
 
-	if domain.Spec.SourceImageRef != nil {
-		bs.Spec.SourceImageRef = commonfrontend.ReferencePtrToAPI(domain.Spec.SourceImageRef)
+	if bs.Spec.SourceImageRef != nil {
+		out.Spec.SourceImageRef = commonfrontend.ReferencePtrToAPI(bs.Spec.SourceImageRef)
 	}
 
-	if domain.Status != nil {
-		bs.Status = &sdkschema.BlockStorageStatus{
-			SizeGB:     domain.Status.SizeGB,
-			Conditions: commonfrontend.ConditionsToAPI(domain.Status.Conditions),
-			State:      commonfrontend.ResourceStateToAPI(domain.Status.State),
+	if bs.Status != nil {
+		out.Status = &sdkschema.BlockStorageStatus{
+			SizeGB:     bs.Status.SizeGB,
+			Conditions: commonfrontend.ConditionsToAPI(bs.Status.Conditions),
+			State:      commonfrontend.ResourceStateToAPI(bs.Status.State),
 		}
-		if domain.Status.AttachedTo != nil {
-			bs.Status.AttachedTo = commonfrontend.ReferencePtrToAPI(domain.Status.AttachedTo)
+		if bs.Status.AttachedTo != nil {
+			out.Status.AttachedTo = commonfrontend.ReferencePtrToAPI(bs.Status.AttachedTo)
 		}
 	}
-	if domain.DeletedAt != nil {
-		bs.Metadata.DeletedAt = domain.DeletedAt
+	if bs.DeletedAt != nil {
+		out.Metadata.DeletedAt = bs.DeletedAt
 	}
-	return bs
+	return out
 }
 
-// BlockStorageDomainToAPIIterator converts a list of BlockStorage to an SDK BlockStorageIterator.
-func BlockStorageDomainToAPIIterator(domains []*bsdom.BlockStorage, nextSkipToken *string) *sdkstorage.BlockStorageIterator {
-	items := make([]sdkschema.BlockStorage, len(domains))
-	for i := range domains {
-		items[i] = *blockStorageDomainToAPI(domains[i])
+// BlockStorageIteratorToAPI converts a list of BlockStorage to an SDK BlockStorageIterator.
+func BlockStorageIteratorToAPI(bss []*bsdom.BlockStorage, nextSkipToken *string) *sdkstorage.BlockStorageIterator {
+	items := make([]sdkschema.BlockStorage, len(bss))
+	for i := range bss {
+		items[i] = *blockStorageToAPI(bss[i])
 	}
 
 	iterator := &sdkstorage.BlockStorageIterator{
@@ -159,28 +159,28 @@ func BlockStorageDomainToAPIIterator(domains []*bsdom.BlockStorage, nextSkipToke
 	return iterator
 }
 
-// APIToBlockStorageDomain converts an SDK BlockStorage to a BlockStorage.
-func APIToBlockStorageDomain(sdk sdkschema.BlockStorage, id *BlockStorageIdentity, region string) *bsdom.BlockStorage {
-	domain := &bsdom.BlockStorage{
+// BlockStorageFromAPI converts an SDK BlockStorage to a BlockStorage.
+func BlockStorageFromAPI(sdk sdkschema.BlockStorage, id *BlockStorageIdentity, region string) *bsdom.BlockStorage {
+	bs := &bsdom.BlockStorage{
 		Spec: bsdom.BlockStorageSpec{
 			SizeGB: sdk.Spec.SizeGB,
 			SkuRef: commonfrontend.ReferenceFromAPI(sdk.Spec.SkuRef),
 		},
 	}
-	domain.Name = id.GetName()
-	domain.ResourceVersion = id.GetVersion()
-	domain.Provider = bsdom.ProviderID
-	domain.Tenant = id.GetTenant()
-	domain.Workspace = id.GetWorkspace()
-	domain.Region = region
-	domain.Labels = sdk.Labels
-	domain.Annotations = sdk.Annotations
-	domain.Extensions = sdk.Extensions
+	bs.Name = id.GetName()
+	bs.ResourceVersion = id.GetVersion()
+	bs.Provider = bsdom.ProviderID
+	bs.Tenant = id.GetTenant()
+	bs.Workspace = id.GetWorkspace()
+	bs.Region = region
+	bs.Labels = sdk.Labels
+	bs.Annotations = sdk.Annotations
+	bs.Extensions = sdk.Extensions
 
 	if sdk.Spec.SourceImageRef != nil {
 		ref := commonfrontend.ReferenceFromAPI(*sdk.Spec.SourceImageRef)
-		domain.Spec.SourceImageRef = &ref
+		bs.Spec.SourceImageRef = &ref
 	}
 
-	return domain
+	return bs
 }

@@ -81,7 +81,7 @@ func TestBlockStorageController_Reconcile(t *testing.T) {
 		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin, 1)
 		gc := frameworkcontroller.NewGenericController[*bsdom.BlockStorage](
 			fakeClient,
-			MapCRToBlockStorageDomain,
+			BlockStorageFromCR,
 			handler,
 			&BlockStorage{},
 			0,
@@ -112,7 +112,7 @@ func TestBlockStorageController_Reconcile(t *testing.T) {
 		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin, 1)
 		gc := frameworkcontroller.NewGenericController[*bsdom.BlockStorage](
 			fakeClient,
-			MapCRToBlockStorageDomain,
+			BlockStorageFromCR,
 			handler,
 			&BlockStorage{},
 			0,
@@ -147,7 +147,7 @@ func TestBlockStorageController_Reconcile(t *testing.T) {
 		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin, 1)
 		gc := frameworkcontroller.NewGenericController[*bsdom.BlockStorage](
 			fakeClient,
-			MapCRToBlockStorageDomain,
+			BlockStorageFromCR,
 			handler,
 			&BlockStorage{},
 			requeueAfter,

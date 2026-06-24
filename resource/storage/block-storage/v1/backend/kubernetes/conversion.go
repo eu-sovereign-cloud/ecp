@@ -20,9 +20,9 @@ import (
 	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1"
 )
 
-// MapCRToBlockStorageDomain converts either a concrete *BlockStorage or *unstructured.Unstructured
+// BlockStorageFromCR converts either a concrete *BlockStorage or *unstructured.Unstructured
 // into a *bsdom.BlockStorage.
-func MapCRToBlockStorageDomain(obj client.Object) (*bsdom.BlockStorage, error) {
+func BlockStorageFromCR(obj client.Object) (*bsdom.BlockStorage, error) {
 	var cr BlockStorage
 
 	switch t := obj.(type) {
@@ -86,54 +86,54 @@ func MapCRToBlockStorageDomain(obj client.Object) (*bsdom.BlockStorage, error) {
 	return bs, nil
 }
 
-// MapBlockStorageDomainToCR converts a *bsdom.BlockStorage to a Kubernetes BlockStorage CR.
-func MapBlockStorageDomainToCR(d *bsdom.BlockStorage) (client.Object, error) {
-	if d == nil {
-		return nil, fmt.Errorf("domain block storage is nil")
+// BlockStorageToCR converts a *bsdom.BlockStorage to a Kubernetes BlockStorage CR.
+func BlockStorageToCR(bs *bsdom.BlockStorage) (client.Object, error) {
+	if bs == nil {
+		return nil, fmt.Errorf("block storage is nil")
 	}
 
-	crLabels := k8slabels.OriginalToKeyed(d.Labels)
-	crLabels[k8slabels.InternalTenantLabel] = d.Tenant
-	crLabels[k8slabels.InternalWorkspaceLabel] = d.Workspace
-	crLabels[k8slabels.InternalProviderLabel] = strings.ReplaceAll(d.Provider, "/", "_")
-	crLabels[k8slabels.InternalRegionLabel] = d.Region
+	crLabels := k8slabels.OriginalToKeyed(bs.Labels)
+	crLabels[k8slabels.InternalTenantLabel] = bs.Tenant
+	crLabels[k8slabels.InternalWorkspaceLabel] = bs.Workspace
+	crLabels[k8slabels.InternalProviderLabel] = strings.ReplaceAll(bs.Provider, "/", "_")
+	crLabels[k8slabels.InternalRegionLabel] = bs.Region
 
 	cr := &BlockStorage{
 		ObjectMeta: v1.ObjectMeta{
-			Name:            d.Name,
-			Namespace:       k8sadapter.ComputeNamespace(d),
+			Name:            bs.Name,
+			Namespace:       k8sadapter.ComputeNamespace(bs),
 			Labels:          crLabels,
-			ResourceVersion: d.ResourceVersion,
+			ResourceVersion: bs.ResourceVersion,
 		},
 		CommonData: schemav1.CommonData{
-			Annotations: d.Annotations,
-			Extensions:  d.Extensions,
-			Labels:      slices.Collect(maps.Keys(d.Labels)),
+			Annotations: bs.Annotations,
+			Extensions:  bs.Extensions,
+			Labels:      slices.Collect(maps.Keys(bs.Labels)),
 		},
 		Spec: BlockStorageSpec{
-			SizeGB: d.Spec.SizeGB,
-			SkuRef: commonbackend.ReferenceToCR(d.Spec.SkuRef),
+			SizeGB: bs.Spec.SizeGB,
+			SkuRef: commonbackend.ReferenceToCR(bs.Spec.SkuRef),
 		},
 	}
 	cr.SetGroupVersionKind(BlockStorageGVK)
 
-	if d.Spec.SourceImageRef != nil {
-		ref := commonbackend.ReferenceToCR(*d.Spec.SourceImageRef)
+	if bs.Spec.SourceImageRef != nil {
+		ref := commonbackend.ReferenceToCR(*bs.Spec.SourceImageRef)
 		cr.Spec.SourceImageRef = &ref
 	}
 
-	if d.Status != nil && len(d.Status.Conditions) > 0 {
-		state := commonbackend.ResourceStateToCR(d.Status.State)
+	if bs.Status != nil && len(bs.Status.Conditions) > 0 {
+		state := commonbackend.ResourceStateToCR(bs.Status.State)
 		if state == nil {
 			return nil, fmt.Errorf("failed to convert resource state to CR")
 		}
 		cr.Status = &BlockStorageStatus{
-			SizeGB:     d.Status.SizeGB,
-			Conditions: commonbackend.ConditionsToCR(d.Status.Conditions),
+			SizeGB:     bs.Status.SizeGB,
+			Conditions: commonbackend.ConditionsToCR(bs.Status.Conditions),
 			State:      *state,
 		}
-		if d.Status.AttachedTo != nil {
-			ref := commonbackend.ReferenceToCR(*d.Status.AttachedTo)
+		if bs.Status.AttachedTo != nil {
+			ref := commonbackend.ReferenceToCR(*bs.Status.AttachedTo)
 			cr.Status.AttachedTo = &ref
 		}
 	}

@@ -29,14 +29,14 @@ func NewController(
 		dynClient,
 		BlockStorageGVR,
 		options.Logger,
-		MapBlockStorageDomainToCR,
-		MapCRToBlockStorageDomain,
+		BlockStorageToCR,
+		BlockStorageFromCR,
 	)
 	handler := NewBlockStoragePluginHandler(repo, plugin, options.MaxConditions)
 	return &Controller{
 		GenericController: frameworkcontroller.NewGenericController[*bsdom.BlockStorage](
 			ctrlClient,
-			MapCRToBlockStorageDomain,
+			BlockStorageFromCR,
 			handler,
 			&BlockStorage{},
 			options.RequeueAfter,
