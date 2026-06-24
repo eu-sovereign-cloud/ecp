@@ -16,6 +16,8 @@ const (
 	ResourceStateError    ResourceState = "error"
 )
 
+// DefaultPendingCondition is the StatusCondition reported while a resource operation is still
+// in progress and no provider-specific condition is available yet.
 var DefaultPendingCondition = StatusCondition{
 	State:   ResourceStatePending,
 	Message: "resource is pending",
