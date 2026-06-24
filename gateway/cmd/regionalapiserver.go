@@ -191,7 +191,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		client.Client,
 		netskuk8s.NetworkSKUGVR,
 		logger,
-		netskuk8s.MapCRToNetworkSKUDomain,
+		netskuk8s.NetworkSKUFromCR,
 	)
 
 	sdknetworkapi.HandlerWithOptions(

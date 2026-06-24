@@ -8,12 +8,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
-	nsdom "github.com/eu-sovereign-cloud/ecp/resource/network/network-sku/v1"
+	skudom "github.com/eu-sovereign-cloud/ecp/resource/network/network-sku/v1"
 )
 
-// MapCRToNetworkSKUDomain converts either a concrete *NetworkSKU or *unstructured.Unstructured
-// into a *nsdom.NetworkSKU.
-func MapCRToNetworkSKUDomain(obj client.Object) (*nsdom.NetworkSKU, error) {
+// NetworkSKUFromCR converts either a concrete *NetworkSKU or *unstructured.Unstructured
+// into a *skudom.NetworkSKU.
+func NetworkSKUFromCR(obj client.Object) (*skudom.NetworkSKU, error) {
 	var cr NetworkSKU
 
 	switch t := obj.(type) {
@@ -30,8 +30,8 @@ func MapCRToNetworkSKUDomain(obj client.Object) (*nsdom.NetworkSKU, error) {
 	crLabels := cr.GetLabels()
 	internalLabels := k8slabels.GetInternalLabels(crLabels)
 
-	sku := &nsdom.NetworkSKU{
-		Spec: nsdom.NetworkSKUSpec{
+	sku := &skudom.NetworkSKU{
+		Spec: skudom.NetworkSKUSpec{
 			Bandwidth: cr.Spec.Bandwidth,
 			Packets:   cr.Spec.Packets,
 		},
@@ -51,19 +51,19 @@ func MapCRToNetworkSKUDomain(obj client.Object) (*nsdom.NetworkSKU, error) {
 	return sku, nil
 }
 
-// MapNetworkSKUDomainToCR converts a *nsdom.NetworkSKU to a Kubernetes NetworkSKU CR.
+// NetworkSKUToCR converts a *skudom.NetworkSKU to a Kubernetes NetworkSKU CR.
 // NetworkSKUs are read-only resources — this is provided for completeness.
-func MapNetworkSKUDomainToCR(d *nsdom.NetworkSKU) (client.Object, error) {
-	if d == nil {
-		return nil, fmt.Errorf("domain network SKU is nil")
+func NetworkSKUToCR(sku *skudom.NetworkSKU) (client.Object, error) {
+	if sku == nil {
+		return nil, fmt.Errorf("network SKU is nil")
 	}
 
 	cr := &NetworkSKU{}
-	cr.SetName(d.Name)
-	cr.SetResourceVersion(d.ResourceVersion)
+	cr.SetName(sku.Name)
+	cr.SetResourceVersion(sku.ResourceVersion)
 	cr.SetGroupVersionKind(NetworkSKUGVK)
 
-	// TODO: populate cr.Spec from d.Spec when schemav1.NetworkSkuSpec fields are available
+	// TODO: populate cr.Spec from sku.Spec when schemav1.NetworkSkuSpec fields are available
 
 	return cr, nil
 }
