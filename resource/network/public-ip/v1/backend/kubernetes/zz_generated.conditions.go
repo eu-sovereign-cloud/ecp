@@ -13,16 +13,16 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var _ schemav1.Conditioned = (*PublicIp)(nil)
+var _ schemav1.Conditioned = (*PublicIP)(nil)
 
-func (x *PublicIp) GetConditions() []schemav1.StatusCondition {
+func (x *PublicIP) GetConditions() []schemav1.StatusCondition {
 	if x == nil || x.Status == nil {
 		return nil
 	}
 	return x.Status.Conditions
 }
 
-func (x *PublicIp) PushCondition(condition schemav1.StatusCondition) {
+func (x *PublicIP) PushCondition(condition schemav1.StatusCondition) {
 	if x == nil {
 		return
 	}
@@ -52,21 +52,21 @@ func (x *PublicIp) PushCondition(condition schemav1.StatusCondition) {
 	x.Status.State = condition.State
 }
 
-func (x *PublicIp) PopCondition() {
+func (x *PublicIP) PopCondition() {
 	if x == nil || x.Status == nil || len(x.Status.Conditions) == 0 {
 		return
 	}
 	x.Status.Conditions = x.Status.Conditions[:len(x.Status.Conditions)-1]
 }
 
-func (x *PublicIp) PeekConditions() *schemav1.StatusCondition {
+func (x *PublicIP) PeekConditions() *schemav1.StatusCondition {
 	if x == nil || x.Status == nil || len(x.Status.Conditions) == 0 {
 		return nil
 	}
 	return &x.Status.Conditions[0]
 }
 
-func (x *PublicIp) LenConditions() int {
+func (x *PublicIP) LenConditions() int {
 	if x == nil || x.Status == nil {
 		return 0
 	}

@@ -8,8 +8,8 @@ metadata:
 spec:
   group: network.v1.secapi.cloud
   names:
-    kind: PublicIp
-    listKind: PublicIpList
+    kind: PublicIP
+    listKind: PublicIPList
     plural: public-ips
     shortNames:
     - public-ip
@@ -19,7 +19,7 @@ spec:
   - name: v1
     schema:
       openAPIV3Schema:
-        description: PublicIp is the API for managing public IP addresses.
+        description: PublicIP is the API for managing public IP addresses.
         properties:
           apiVersion:
             description: |-

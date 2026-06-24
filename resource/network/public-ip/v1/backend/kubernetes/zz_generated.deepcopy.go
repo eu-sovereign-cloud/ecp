@@ -39,7 +39,7 @@ func (in *PublicIpStatus) DeepCopy() *PublicIpStatus {
 	return out
 }
 
-func (in *PublicIp) DeepCopyInto(out *PublicIp) {
+func (in *PublicIP) DeepCopyInto(out *PublicIP) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
 	in.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
@@ -52,45 +52,45 @@ func (in *PublicIp) DeepCopyInto(out *PublicIp) {
 	}
 }
 
-func (in *PublicIp) DeepCopy() *PublicIp {
+func (in *PublicIP) DeepCopy() *PublicIP {
 	if in == nil {
 		return nil
 	}
-	out := new(PublicIp)
+	out := new(PublicIP)
 	in.DeepCopyInto(out)
 	return out
 }
 
-func (in *PublicIp) DeepCopyObject() runtime.Object {
+func (in *PublicIP) DeepCopyObject() runtime.Object {
 	if c := in.DeepCopy(); c != nil {
 		return c
 	}
 	return nil
 }
 
-func (in *PublicIpList) DeepCopyInto(out *PublicIpList) {
+func (in *PublicIPList) DeepCopyInto(out *PublicIPList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
 	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
-		*out = make([]PublicIp, len(*in))
+		*out = make([]PublicIP, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
 }
 
-func (in *PublicIpList) DeepCopy() *PublicIpList {
+func (in *PublicIPList) DeepCopy() *PublicIPList {
 	if in == nil {
 		return nil
 	}
-	out := new(PublicIpList)
+	out := new(PublicIPList)
 	in.DeepCopyInto(out)
 	return out
 }
 
-func (in *PublicIpList) DeepCopyObject() runtime.Object {
+func (in *PublicIPList) DeepCopyObject() runtime.Object {
 	if c := in.DeepCopy(); c != nil {
 		return c
 	}

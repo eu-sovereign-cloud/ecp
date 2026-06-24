@@ -16,8 +16,8 @@ const (
 	Group   = "network.v1.secapi.cloud"
 	Version = "v1"
 
-	PublicIpResource = "public-ips"
-	PublicIpKind     = "PublicIp"
+	PublicIPResource = "public-ips"
+	PublicIPKind     = "PublicIP"
 )
 
 var (
@@ -25,8 +25,8 @@ var (
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
 	AddToScheme   = SchemeBuilder.AddToScheme
 
-	PublicIpGVR = schema.GroupVersionResource{Group: Group, Version: Version, Resource: PublicIpResource}
-	PublicIpGVK = schema.GroupVersionKind{Group: Group, Version: Version, Kind: PublicIpKind}
+	PublicIPGVR = schema.GroupVersionResource{Group: Group, Version: Version, Resource: PublicIPResource}
+	PublicIPGVK = schema.GroupVersionKind{Group: Group, Version: Version, Kind: PublicIPKind}
 )
 
 // +kubebuilder:object:root=true
@@ -35,8 +35,8 @@ var (
 // +k8s:openapi-gen=true
 // +ecp:conditioned
 
-// PublicIp is the API for managing public IP addresses.
-type PublicIp struct {
+// PublicIP is the API for managing public IP addresses.
+type PublicIP struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
@@ -47,13 +47,13 @@ type PublicIp struct {
 
 // +kubebuilder:object:root=true
 
-type PublicIpList struct {
+type PublicIPList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 
-	Items []PublicIp `json:"items"`
+	Items []PublicIP `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&PublicIp{}, &PublicIpList{})
+	SchemeBuilder.Register(&PublicIP{}, &PublicIPList{})
 }
