@@ -4,10 +4,13 @@ set -eo pipefail
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 
 export IMG=${IMG:-"ecp-dummy-delegator"}
-export VERSION=${VERSION:-"latest"}
+# Pin to 'latest' for KIND: the kustomization uses this tag and kustomize may not
+# be available to override it.
+export VERSION="latest"
+export DLV_VERSION=${DLV_VERSION:-"v1.26.1"}
 # For local development with kind, using 'localhost' as the registry
 # helps ensure the image name is resolved locally.
-export REGISTRY="localhost" 
+export REGISTRY="localhost"
 CLUSTER_NAME=${CLUSTER_NAME:-"dummy-delegator-cluster"}
 
 # Check if kind is installed

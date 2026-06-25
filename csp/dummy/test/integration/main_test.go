@@ -25,6 +25,8 @@ import (
 
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	kernelresource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
+	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/network/v1"
+	netk8s "github.com/eu-sovereign-cloud/ecp/resource/network/network/v1/backend/kubernetes"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1"
 	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1/backend/kubernetes"
 	wsdom "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1"
@@ -40,6 +42,7 @@ const (
 var (
 	dynamicClient    dynamic.Interface
 	testLogger       *slog.Logger
+	networkRepo      *k8sadapter.RepoAdapter[*netdom.Network]
 	workspaceRepo    *k8sadapter.RepoAdapter[*wsdom.Workspace]
 	blockStorageRepo *k8sadapter.RepoAdapter[*bsdom.BlockStorage]
 	k8sClient        client.Client
@@ -52,6 +55,7 @@ func TestMain(m *testing.M) {
 
 	s := runtime.NewScheme()
 	utilruntime.Must(clientgoscheme.AddToScheme(s))
+	utilruntime.Must(netk8s.AddToScheme(s))
 	utilruntime.Must(wsk8s.AddToScheme(s))
 	utilruntime.Must(bsk8s.AddToScheme(s))
 	utilruntime.Must(corev1.AddToScheme(s))
@@ -79,6 +83,13 @@ func TestMain(m *testing.M) {
 
 	testLogger = slog.New(slog.NewTextHandler(os.Stdout, nil))
 
+	networkRepo = k8sadapter.NewRepoAdapter[*netdom.Network](
+		dynamicClient,
+		netk8s.NetworkGVR,
+		testLogger,
+		netk8s.NetworkToCR,
+		netk8s.NetworkFromCR,
+	)
 	blockStorageRepo = k8sadapter.NewRepoAdapter[*bsdom.BlockStorage](
 		dynamicClient,
 		bsk8s.BlockStorageGVR,
