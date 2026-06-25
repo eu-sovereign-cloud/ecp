@@ -7,7 +7,7 @@ use (
 	./csp/ionos
 	./framework
 	./gateway
-	./resources
+	./resource
 	./test/e2e
 )
 
@@ -17,6 +17,6 @@ replace (
 	github.com/eu-sovereign-cloud/ecp/csp/ionos v0.0.1 => ./csp/ionos
 	github.com/eu-sovereign-cloud/ecp/framework v0.0.1 => ./framework
 	github.com/eu-sovereign-cloud/ecp/gateway v0.0.1 => ./gateway
-	github.com/eu-sovereign-cloud/ecp/resources v0.0.1 => ./resources
+	github.com/eu-sovereign-cloud/ecp/resource v0.0.1 => ./resource
 	github.com/eu-sovereign-cloud/ecp/test/e2e v0.0.1 => ./test/e2e
 )

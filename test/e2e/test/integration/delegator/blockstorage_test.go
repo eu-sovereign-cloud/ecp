@@ -13,8 +13,8 @@ import (
 
 	kernel "github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	resource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
-	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
-	bsdom "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1"
+	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
+	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1"
 )
 
 func TestBlockStorage(t *testing.T) {
@@ -38,7 +38,7 @@ func TestBlockStorage(t *testing.T) {
 			},
 			Spec: bsdom.BlockStorageSpec{
 				SizeGB: 1,
-				SkuRef: commondomain.ReferenceDomain{
+				SkuRef: commondomain.Reference{
 					Region:   "ITBG-Bergamo",
 					Resource: "sku-1",
 				},
@@ -105,7 +105,7 @@ func TestBlockStorage(t *testing.T) {
 			},
 			Spec: bsdom.BlockStorageSpec{
 				SizeGB: 1,
-				SkuRef: commondomain.ReferenceDomain{
+				SkuRef: commondomain.Reference{
 					Region:   "ITBG-Bergamo",
 					Resource: "sku-1",
 				},
@@ -191,7 +191,7 @@ func TestBlockStorage(t *testing.T) {
 			},
 			Spec: bsdom.BlockStorageSpec{
 				SizeGB: 1,
-				SkuRef: commondomain.ReferenceDomain{
+				SkuRef: commondomain.Reference{
 					Region:   "ITBG-Bergamo",
 					Resource: "sku-1",
 				},

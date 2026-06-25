@@ -15,14 +15,14 @@ import (
 
 	regionv1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
 
-	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
+	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/httpserver"
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/kubeclient"
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/logger"
 
-	rdom "github.com/eu-sovereign-cloud/ecp/resources/regions/v1"
-	rk8s "github.com/eu-sovereign-cloud/ecp/resources/regions/v1/backend/kubernetes"
-	regionrest "github.com/eu-sovereign-cloud/ecp/resources/regions/v1/frontend/rest"
+	rdom "github.com/eu-sovereign-cloud/ecp/resource/region/v1"
+	rk8s "github.com/eu-sovereign-cloud/ecp/resource/region/v1/backend/kubernetes"
+	regionrest "github.com/eu-sovereign-cloud/ecp/resource/region/v1/frontend/rest"
 )
 
 var (
@@ -73,7 +73,7 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
 		Addr: addr,
 		Handler: regionv1.HandlerWithOptions(
 			&regionrest.Handler{
-				Repo:   k8sadapter.NewReaderAdapter[*rdom.Region](client.Client, rk8s.RegionGVR, logger, rk8s.MapCRToRegionDomain),
+				Repo:   k8sadapter.NewReaderAdapter[*rdom.Region](client.Client, rk8s.RegionGVR, logger, rk8s.RegionFromCR),
 				Logger: logger,
 			},
 			regionv1.StdHTTPServerOptions{

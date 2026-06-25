@@ -23,12 +23,12 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	kernelresource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
-	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
-	bsdom "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1"
-	bsk8s "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1/backend/kubernetes"
-	wsdom "github.com/eu-sovereign-cloud/ecp/resources/workspace/v1"
-	wsk8s "github.com/eu-sovereign-cloud/ecp/resources/workspace/v1/backend/kubernetes"
+	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1"
+	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1/backend/kubernetes"
+	wsdom "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1"
+	wsk8s "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1/backend/kubernetes"
 )
 
 const (
@@ -83,15 +83,15 @@ func TestMain(m *testing.M) {
 		dynamicClient,
 		bsk8s.BlockStorageGVR,
 		testLogger,
-		bsk8s.MapBlockStorageDomainToCR,
-		bsk8s.MapCRToBlockStorageDomain,
+		bsk8s.BlockStorageToCR,
+		bsk8s.BlockStorageFromCR,
 	)
 	workspaceRepo = k8sadapter.NewRepoAdapter[*wsdom.Workspace](
 		dynamicClient,
 		wsk8s.WorkspaceGVR,
 		testLogger,
-		wsk8s.MapWorkspaceDomainToCR,
-		wsk8s.MapCRToWorkspaceDomain,
+		wsk8s.WorkspaceToCR,
+		wsk8s.WorkspaceFromCR,
 	)
 
 	if err := waitForNamespace(context.Background(), testNamespace); err != nil {

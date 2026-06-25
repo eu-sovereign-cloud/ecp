@@ -19,27 +19,27 @@ import (
 	sdkworkspaceapi "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
+	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	"github.com/eu-sovereign-cloud/ecp/framework/frontend/config"
-	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/httpserver"
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/kubeclient"
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/logger"
 
-	netskudom "github.com/eu-sovereign-cloud/ecp/resources/network/network-skus/v1"
-	netskuk8s "github.com/eu-sovereign-cloud/ecp/resources/network/network-skus/v1/backend/kubernetes"
-	netdom "github.com/eu-sovereign-cloud/ecp/resources/network/networks/v1"
-	netk8s "github.com/eu-sovereign-cloud/ecp/resources/network/networks/v1/backend/kubernetes"
-	netrest "github.com/eu-sovereign-cloud/ecp/resources/network/networks/v1/frontend/rest"
+	netskudom "github.com/eu-sovereign-cloud/ecp/resource/network/network-sku/v1"
+	netskuk8s "github.com/eu-sovereign-cloud/ecp/resource/network/network-sku/v1/backend/kubernetes"
+	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/network/v1"
+	netk8s "github.com/eu-sovereign-cloud/ecp/resource/network/network/v1/backend/kubernetes"
+	netrest "github.com/eu-sovereign-cloud/ecp/resource/network/network/v1/frontend/rest"
 
-	bsdom "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1"
-	bsk8s "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1/backend/kubernetes"
-	storagerest "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1/frontend/rest"
-	skudom "github.com/eu-sovereign-cloud/ecp/resources/storage/storage-skus/v1"
-	skuk8s "github.com/eu-sovereign-cloud/ecp/resources/storage/storage-skus/v1/backend/kubernetes"
+	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1"
+	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1/backend/kubernetes"
+	storagerest "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1/frontend/rest"
+	skudom "github.com/eu-sovereign-cloud/ecp/resource/storage/storage-sku/v1"
+	skuk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/storage-sku/v1/backend/kubernetes"
 
-	wsdom "github.com/eu-sovereign-cloud/ecp/resources/workspace/v1"
-	wsk8s "github.com/eu-sovereign-cloud/ecp/resources/workspace/v1/backend/kubernetes"
-	wsrest "github.com/eu-sovereign-cloud/ecp/resources/workspace/v1/frontend/rest"
+	wsdom "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1"
+	wsk8s "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1/backend/kubernetes"
+	wsrest "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1/frontend/rest"
 )
 
 var (
@@ -178,20 +178,20 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		client.Client,
 		netk8s.NetworkGVR,
 		logger,
-		netk8s.MapCRToNetworkDomain,
+		netk8s.NetworkFromCR,
 	)
 	netWriterAdapter := k8sadapter.NewWriterAdapter[*netdom.Network](
 		client.Client,
 		netk8s.NetworkGVR,
 		logger,
-		netk8s.MapNetworkDomainToCR,
-		netk8s.MapCRToNetworkDomain,
+		netk8s.NetworkToCR,
+		netk8s.NetworkFromCR,
 	)
 	netSKUReaderAdapter := k8sadapter.NewReaderAdapter[*netskudom.NetworkSKU](
 		client.Client,
 		netskuk8s.NetworkSKUGVR,
 		logger,
-		netskuk8s.MapCRToNetworkSKUDomain,
+		netskuk8s.NetworkSKUFromCR,
 	)
 
 	sdknetworkapi.HandlerWithOptions(
@@ -214,20 +214,20 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		client.Client,
 		bsk8s.BlockStorageGVR,
 		logger,
-		bsk8s.MapCRToBlockStorageDomain,
+		bsk8s.BlockStorageFromCR,
 	)
 	bsWriterAdapter := k8sadapter.NewWriterAdapter[*bsdom.BlockStorage](
 		client.Client,
 		bsk8s.BlockStorageGVR,
 		logger,
-		bsk8s.MapBlockStorageDomainToCR,
-		bsk8s.MapCRToBlockStorageDomain,
+		bsk8s.BlockStorageToCR,
+		bsk8s.BlockStorageFromCR,
 	)
 	skuReaderAdapter := k8sadapter.NewReaderAdapter[*skudom.StorageSKU](
 		client.Client,
 		skuk8s.StorageSKUGVR,
 		logger,
-		skuk8s.MapCRToStorageSKUDomain,
+		skuk8s.StorageSKUFromCR,
 	)
 
 	sdkstorageapi.HandlerWithOptions(
@@ -251,14 +251,14 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		client.ClientSet,
 		wsk8s.WorkspaceGVR,
 		logger,
-		wsk8s.MapWorkspaceDomainToCR,
-		wsk8s.MapCRToWorkspaceDomain,
+		wsk8s.WorkspaceToCR,
+		wsk8s.WorkspaceFromCR,
 	)
 	wsReaderAdapter := k8sadapter.NewReaderAdapter[*wsdom.Workspace](
 		client.Client,
 		wsk8s.WorkspaceGVR,
 		logger,
-		wsk8s.MapCRToWorkspaceDomain,
+		wsk8s.WorkspaceFromCR,
 	)
 
 	sdkworkspaceapi.HandlerWithOptions(

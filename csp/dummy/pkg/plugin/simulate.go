@@ -9,14 +9,12 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/clientcmd"
 
-	storageconv "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1/backend/kubernetes"
-	workspaceconv "github.com/eu-sovereign-cloud/ecp/resources/workspace/v1/backend/kubernetes"
-
+	kubernetesadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	backendport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
-	kubernetesadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
-
-	bsdom "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1"
-	wsdom "github.com/eu-sovereign-cloud/ecp/resources/workspace/v1"
+	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1"
+	storageconv "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1/backend/kubernetes"
+	wsdom "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1"
+	workspaceconv "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1/backend/kubernetes"
 )
 
 // simulate reports a long-running operation as still in progress until its
@@ -49,8 +47,8 @@ func simulateBS(ctx context.Context, op string, resource *bsdom.BlockStorage, de
 			dynamicClient,
 			storageconv.BlockStorageGVR,
 			logger,
-			storageconv.MapBlockStorageDomainToCR,
-			storageconv.MapCRToBlockStorageDomain,
+			storageconv.BlockStorageToCR,
+			storageconv.BlockStorageFromCR,
 		)
 		_, err = blockStorageRepo.Update(ctx, resource)
 		if err != nil {
@@ -102,8 +100,8 @@ func simulateWS(ctx context.Context, op string, resource *wsdom.Workspace, delay
 			dynamicClient,
 			workspaceconv.WorkspaceGVR,
 			logger,
-			workspaceconv.MapWorkspaceDomainToCR,
-			workspaceconv.MapCRToWorkspaceDomain,
+			workspaceconv.WorkspaceToCR,
+			workspaceconv.WorkspaceFromCR,
 		)
 		_, err = workspaceRepo.Update(ctx, resource)
 		if err != nil {

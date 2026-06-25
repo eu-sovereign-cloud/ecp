@@ -18,11 +18,11 @@ import (
 
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
+	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	resource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
-	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
-	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
-	bsdom "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1"
-	bsk8s "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1/backend/kubernetes"
+	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
+	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1"
+	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1/backend/kubernetes"
 )
 
 // newBlockStorageBody is a helper to construct the body for creating/updating block storage.
@@ -71,7 +71,7 @@ func TestBlockStorageAPI(t *testing.T) {
 				return false, nil // Keep retrying
 			}
 
-			if createdBS.Status != nil && commondomain.ResourceStateDomain(createdBS.Status.State) == commondomain.ResourceStateActive {
+			if createdBS.Status != nil && commondomain.ResourceState(createdBS.Status.State) == commondomain.ResourceStateActive {
 				return true, nil
 			}
 			return false, nil
@@ -119,7 +119,7 @@ func TestBlockStorageAPI(t *testing.T) {
 			if err := k8sClient.Get(ctx, key, &createdBS); err != nil {
 				return false, nil
 			}
-			if createdBS.Status != nil && commondomain.ResourceStateDomain(createdBS.Status.State) == commondomain.ResourceStateActive {
+			if createdBS.Status != nil && commondomain.ResourceState(createdBS.Status.State) == commondomain.ResourceStateActive {
 				return true, nil
 			}
 			return false, nil
@@ -175,7 +175,7 @@ func TestBlockStorageAPI(t *testing.T) {
 			if err := k8sClient.Get(ctx, key, &createdBS); err != nil {
 				return false, nil
 			}
-			if createdBS.Status != nil && commondomain.ResourceStateDomain(createdBS.Status.State) == commondomain.ResourceStateActive && createdBS.Status.SizeGB == 1 {
+			if createdBS.Status != nil && commondomain.ResourceState(createdBS.Status.State) == commondomain.ResourceStateActive && createdBS.Status.SizeGB == 1 {
 				return true, nil
 			}
 			return false, nil
@@ -202,7 +202,7 @@ func TestBlockStorageAPI(t *testing.T) {
 			if err := k8sClient.Get(ctx, key, &currentBS); err != nil {
 				return false, nil
 			}
-			if currentBS.Status != nil && commondomain.ResourceStateDomain(currentBS.Status.State) == commondomain.ResourceStateActive && currentBS.Status.SizeGB == 2 {
+			if currentBS.Status != nil && commondomain.ResourceState(currentBS.Status.State) == commondomain.ResourceStateActive && currentBS.Status.SizeGB == 2 {
 				return true, nil
 			}
 			return false, nil

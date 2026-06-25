@@ -7,8 +7,8 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	res "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
-	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
-	bsdom "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1"
+	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
+	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1"
 
 	"github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/converter"
 )
@@ -33,13 +33,13 @@ func TestBlockStorageConverter_FromSECAToAruba(t *testing.T) {
 				},
 				Spec: bsdom.BlockStorageSpec{
 					SizeGB: 100,
-					SourceImageRef: &commondomain.ReferenceDomain{
+					SourceImageRef: &commondomain.Reference{
 						Region: "eu-de",
 						Tenant: "tenant-123",
 					},
 				},
 				Status: &bsdom.BlockStorageStatus{
-					StatusDomain: commondomain.StatusDomain{
+					Status: commondomain.Status{
 						State: commondomain.ResourceStateActive,
 					},
 				},

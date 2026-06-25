@@ -12,10 +12,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/eu-sovereign-cloud/ecp/csp/ionos/pkg/adapter/crossplane"
+	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	backend "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
 	kresource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
-	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
-	netdom "github.com/eu-sovereign-cloud/ecp/resources/network/networks/v1"
+	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/network/v1"
 )
 
 // Network handles create/delete of SECA Network resources on IONOS Cloud.
@@ -80,8 +80,8 @@ func (n *Network) Create(ctx context.Context, resource *netdom.Network) error {
 	// IPv6 CIDRs (/64) are natively supported on IONOS Lan.
 	// TODO: additionalCidrs IPv6 — a single Lan has one IPv6CidrBlock; multiple
 	// IPv6 ranges would require extra LANs (open question #1).
-	if resource.Spec.Cidr.IPv6 != "" {
-		lan.Spec.ForProvider.IPv6CidrBlock = new(resource.Spec.Cidr.IPv6)
+	if resource.Spec.CIDR.IPv6 != "" {
+		lan.Spec.ForProvider.IPv6CidrBlock = new(resource.Spec.CIDR.IPv6)
 	}
 
 	if err := n.client.Create(ctx, lan); err != nil {

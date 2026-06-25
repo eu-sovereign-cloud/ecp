@@ -6,7 +6,7 @@ import (
 	"math/rand/v2"
 	"time"
 
-	wsdom "github.com/eu-sovereign-cloud/ecp/resources/workspace/v1"
+	wsdom "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1"
 )
 
 type Workspace struct {

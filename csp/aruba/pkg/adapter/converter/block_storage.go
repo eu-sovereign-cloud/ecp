@@ -7,10 +7,10 @@ import (
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	res "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
-	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
-	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
-	bsdom "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1"
+	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
+	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1"
 )
 
 const (
@@ -83,8 +83,8 @@ func (c *BlockStorageConverter) FromArubaToSECA(from *v1alpha1.BlockStorage) (*b
 		},
 		Spec: bsdom.BlockStorageSpec{
 			SizeGB: int(from.Spec.SizeGB),
-			SkuRef: commondomain.ReferenceDomain{},
-			SourceImageRef: &commondomain.ReferenceDomain{
+			SkuRef: commondomain.Reference{},
+			SourceImageRef: &commondomain.Reference{
 				Tenant:    from.Spec.Tenant,
 				Region:    from.Spec.Region,
 				Workspace: from.Spec.ProjectReference.Name,

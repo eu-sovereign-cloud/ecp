@@ -13,9 +13,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/eu-sovereign-cloud/ecp/csp/ionos/pkg/port"
+	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
-	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
-	netdom "github.com/eu-sovereign-cloud/ecp/resources/network/networks/v1"
+	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/network/v1"
 )
 
 var _ port.NetworkStore = (*NetworkStore)(nil)
@@ -99,7 +99,7 @@ func newLan(domain *netdom.Network) *ionosv1alpha1.Lan {
 	}
 
 	// A non-empty Cidr.IPv6 means "enable IPv6 on this LAN". We deliberately send
-	// "AUTO" rather than passing domain.Spec.Cidr.IPv6 through verbatim:
+	// "AUTO" rather than passing domain.Spec.CIDR.IPv6 through verbatim:
 	//
 	// IONOS requires an explicitly-supplied LAN /64 to be a unique block that lies
 	// *inside* the parent Datacenter's IPv6 CIDR. That Datacenter /56 is itself
@@ -112,7 +112,7 @@ func newLan(domain *netdom.Network) *ionosv1alpha1.Lan {
 	//
 	// To honor a specific requested prefix we would first have to control the
 	// Datacenter's IPv6 /56 and sub-allocate /64s from it
-	if domain.Spec.Cidr.IPv6 != "" {
+	if domain.Spec.CIDR.IPv6 != "" {
 		lan.Spec.ForProvider.IPv6CidrBlock = new("AUTO")
 	}
 

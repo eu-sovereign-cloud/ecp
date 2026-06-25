@@ -17,12 +17,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	frameworkbuilder "github.com/eu-sovereign-cloud/ecp/framework/backend/builder"
-	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
-	netk8s "github.com/eu-sovereign-cloud/ecp/resources/network/networks/v1/backend/kubernetes"
-	bsk8s "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1/backend/kubernetes"
-	ssk8s "github.com/eu-sovereign-cloud/ecp/resources/storage/storage-skus/v1/backend/kubernetes"
-	wsk8s "github.com/eu-sovereign-cloud/ecp/resources/workspace/v1/backend/kubernetes"
+	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
+	frameworkbuilder "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/builder"
+	netk8s "github.com/eu-sovereign-cloud/ecp/resource/network/network/v1/backend/kubernetes"
+	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1/backend/kubernetes"
+	ssk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/storage-sku/v1/backend/kubernetes"
+	wsk8s "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1/backend/kubernetes"
 
 	aruba_converter "github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/converter"
 	aruba_handler "github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/handler"
@@ -120,8 +120,8 @@ func loadArubaControllers(ctx context.Context, dynClient dynamic.Interface, mgr 
 	logger.Info("Loading 'aruba' plugin set")
 
 	// Instantiate seca-specific read-only repositories (for aruba BlockStorageHandler dependencies)
-	secaWsRepo := k8sadapter.NewReaderAdapter(dynClient, wsk8s.WorkspaceGVR, logger, wsk8s.MapCRToWorkspaceDomain)
-	secaSkuRepo := k8sadapter.NewReaderAdapter(dynClient, ssk8s.StorageSKUGVR, logger, ssk8s.MapCRToStorageSKUDomain)
+	secaWsRepo := k8sadapter.NewReaderAdapter(dynClient, wsk8s.WorkspaceGVR, logger, wsk8s.WorkspaceFromCR)
+	secaSkuRepo := k8sadapter.NewReaderAdapter(dynClient, ssk8s.StorageSKUGVR, logger, ssk8s.StorageSKUFromCR)
 
 	// Instantiate aruba-specific repositories
 	wr := aruba_repository.NewProjectRepository(ctx, mgr.GetClient(), mgr.GetCache())

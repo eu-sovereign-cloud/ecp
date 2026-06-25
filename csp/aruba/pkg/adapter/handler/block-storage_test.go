@@ -9,10 +9,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
-	refdom "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
-	bsdomblock "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1"
-	bsdomsku "github.com/eu-sovereign-cloud/ecp/resources/storage/storage-skus/v1"
-	wsdom "github.com/eu-sovereign-cloud/ecp/resources/workspace/v1"
+	refdom "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
+	bsdomblock "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1"
+	bsdomsku "github.com/eu-sovereign-cloud/ecp/resource/storage/storage-sku/v1"
+	wsdom "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1"
 )
 
 // bsMocks bundles every collaborator of the BlockStorageHandler so each test
@@ -67,7 +67,7 @@ func expectWorkspaceActive(m *MockReaderRepo[*wsdom.Workspace]) {
 		Load(gomock.Any(), gomock.Any()).
 		DoAndReturn(func(_ context.Context, ws **wsdom.Workspace) error {
 			(*ws).Status = &wsdom.WorkspaceStatus{
-				StatusDomain: refdom.StatusDomain{State: refdom.ResourceStateActive},
+				Status: refdom.Status{State: refdom.ResourceStateActive},
 			}
 			return nil
 		}).
@@ -193,7 +193,7 @@ func TestBlockStorage_create(t *testing.T) {
 			bd := &bsdomblock.BlockStorage{
 				Spec: bsdomblock.BlockStorageSpec{
 					SizeGB: 100,
-					SkuRef: refdom.ReferenceDomain{Resource: "storage/sku-id"},
+					SkuRef: refdom.Reference{Resource: "storage/sku-id"},
 				},
 			}
 
@@ -266,7 +266,7 @@ func TestBlockStorage_delete(t *testing.T) {
 			bd := &bsdomblock.BlockStorage{
 				Spec: bsdomblock.BlockStorageSpec{
 					SizeGB: 100,
-					SkuRef: refdom.ReferenceDomain{Resource: "storage/sku-id"},
+					SkuRef: refdom.Reference{Resource: "storage/sku-id"},
 				},
 			}
 
@@ -329,7 +329,7 @@ func TestBlockStorage_increaseSize(t *testing.T) {
 			bd := &bsdomblock.BlockStorage{
 				Spec: bsdomblock.BlockStorageSpec{
 					SizeGB: 200, // New size for the increase.
-					SkuRef: refdom.ReferenceDomain{Resource: "storage/sku-id"},
+					SkuRef: refdom.Reference{Resource: "storage/sku-id"},
 				},
 			}
 

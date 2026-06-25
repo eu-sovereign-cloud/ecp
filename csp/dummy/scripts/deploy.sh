@@ -10,7 +10,7 @@ VERSION=${VERSION:-"latest"}
 KUBECONFIG=${KUBECONFIG:-$HOME/.kube/config}
 export KUBECONFIG
 
-CRDS_DIR="${SCRIPT_DIR}/../../../resources/testdata/crds"
+CRDS_DIR="${SCRIPT_DIR}/../../../chart/crd"
 DEPLOY_DIR="${SCRIPT_DIR}/../deploy"
 
 # Set image name for kustomize

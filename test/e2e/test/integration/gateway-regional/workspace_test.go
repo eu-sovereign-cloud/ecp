@@ -17,11 +17,11 @@ import (
 
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
+	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	resource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
-	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
-	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
-	wsdom "github.com/eu-sovereign-cloud/ecp/resources/workspace/v1"
-	wsk8s "github.com/eu-sovereign-cloud/ecp/resources/workspace/v1/backend/kubernetes"
+	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
+	wsdom "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1"
+	wsk8s "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1/backend/kubernetes"
 )
 
 func TestWorkspaceAPI(t *testing.T) {
@@ -59,7 +59,7 @@ func TestWorkspaceAPI(t *testing.T) {
 				return false, nil // Keep retrying if not found
 			}
 
-			if createdWorkspace.Status != nil && commondomain.ResourceStateDomain(createdWorkspace.Status.State) == commondomain.ResourceStateActive {
+			if createdWorkspace.Status != nil && commondomain.ResourceState(createdWorkspace.Status.State) == commondomain.ResourceStateActive {
 				return true, nil
 			}
 			return false, nil
@@ -104,7 +104,7 @@ func TestWorkspaceAPI(t *testing.T) {
 			if err := k8sClient.Get(ctx, key, &createdWorkspace); err != nil {
 				return false, nil
 			}
-			if createdWorkspace.Status != nil && commondomain.ResourceStateDomain(createdWorkspace.Status.State) == commondomain.ResourceStateActive {
+			if createdWorkspace.Status != nil && commondomain.ResourceState(createdWorkspace.Status.State) == commondomain.ResourceStateActive {
 				return true, nil
 			}
 			return false, nil

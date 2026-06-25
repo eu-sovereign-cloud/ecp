@@ -13,8 +13,8 @@ import (
 
 	kernel "github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	resource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
-	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
-	wsdom "github.com/eu-sovereign-cloud/ecp/resources/workspace/v1"
+	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
+	wsdom "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1"
 )
 
 func TestWorkspace(t *testing.T) {

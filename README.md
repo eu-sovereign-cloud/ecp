@@ -9,10 +9,10 @@ ECP exposes a unified, declarative REST API for provisioning and managing cloud 
 ```
 framework/            # Resource-agnostic SDK (horizontal axis)
 ├── kernel/           #   All abstractions: ports, Scope, Error, validation
-├── persistence/      #   Kubernetes adapter, schema/v1 CRD types, codegen tools
-├── backend/          #   Generic controller, ControllerSet builder
+├── backend/          #   Kubernetes backend: adapter, schema/v1 CRDs, codegen, controller, builder
+│   └── kubernetes/   #     adapter, labels, convert, schema/v1, controller, builder, cmd
 └── frontend/         #   HTTP server, kubeclient, logger, config
-resources/            # Data vocabulary + per-resource slices (vertical axis)
+resource/             # Data vocabulary + per-resource slices (vertical axis)
 ├── common/           #   Shared domain, frontend, backend helpers
 └── <group>/<resource>/vN/
     ├── domain.go     #   Canonical type + identity consts (package v1)
@@ -30,6 +30,8 @@ ci/
 ├── container/        # Dockerfile layers: builder, tools, dev, runner
 ├── scripts/          # CI and dev automation scripts
 └── tools/            # Pinned Go dev tool dependencies
+chart/
+└── crd/              # Generated Kubernetes CRD YAML (all 18 resource slices)
 modules/
 └── go-sdk/           # Git submodule: shared OpenAPI specs and client SDK
 doc/                  # Documentation
@@ -41,8 +43,8 @@ This is a Go monorepo managed with `go.work`. The workspace contains 8 first-par
 
 | Module | Path | Description |
 |--------|------|-------------|
-| `framework` | `./framework` | Resource-agnostic SDK (kernel, persistence, backend, frontend) |
-| `resources` | `./resources` | Domain vocabulary + all resource slices |
+| `framework` | `./framework` | Resource-agnostic SDK (kernel, backend, frontend) |
+| `resource` | `./resource` | Domain vocabulary + all resource slices |
 | `gateway` | `./gateway` | Global and regional REST API server binary |
 | `csp/dummy` | `./csp/dummy` | Reference plugin (no real backend) |
 | `csp/ionos` | `./csp/ionos` | IONOS CSP adapter via Crossplane |
@@ -50,7 +52,7 @@ This is a Go monorepo managed with `go.work`. The workspace contains 8 first-par
 | `test/e2e` | `./test/e2e` | End-to-end test harness |
 | `ci/tools/go` | `./ci/tools/go` | Pinned versions of Go development tools |
 
-**Module boundary**: `framework ↛ resources` is compiler-enforced. `resources` and `gateway` depend on `framework`. CSP plugins depend on both `framework` and `resources`. See [doc/ARCHITECTURE.md](doc/ARCHITECTURE.md).
+**Module boundary**: `framework ↛ resource` is compiler-enforced. `resource` and `gateway` depend on `framework`. CSP plugins depend on both `framework` and `resource`. See [doc/ARCHITECTURE.md](doc/ARCHITECTURE.md).
 
 ## Quick Start
 

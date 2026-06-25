@@ -13,9 +13,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/eu-sovereign-cloud/ecp/csp/ionos/pkg/port"
+	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
-	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
-	bsdom "github.com/eu-sovereign-cloud/ecp/resources/storage/block-storages/v1"
+	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1"
 )
 
 var _ port.BlockStorageStore = (*BlockStorageStore)(nil)

@@ -59,8 +59,8 @@ echo "<PAT>" | docker login ghcr.io -u <github-username> --password-stdin
 
 | Module | Path | Description |
 |--------|------|-------------|
-| `framework` | `./framework` | Resource-agnostic SDK (kernel, persistence, backend, frontend) |
-| `resources` | `./resources` | Domain vocabulary + all resource slices |
+| `framework` | `./framework` | Resource-agnostic SDK (kernel, backend, frontend) |
+| `resource` | `./resource` | Domain vocabulary + all resource slices |
 | `gateway` | `./gateway` | Global and regional REST API server binary |
 | `csp/dummy` | `./csp/dummy` | Reference plugin (no real backend) |
 | `csp/ionos` | `./csp/ionos` | IONOS CSP adapter via Crossplane |
@@ -68,7 +68,7 @@ echo "<PAT>" | docker login ghcr.io -u <github-username> --password-stdin
 | `test/e2e` | `./test/e2e` | End-to-end test harness |
 | `ci/tools/go` | `./ci/tools/go` | Pinned versions of Go development tools |
 
-The `framework-isolation` CI lane runs `cd framework && GOWORK=off go build ./... && go test ./...` to prove no `framework/*` package imports `resources`. See [ARCHITECTURE.md](ARCHITECTURE.md) for the full module DAG.
+The `framework-isolation` CI lane runs `cd framework && GOWORK=off go build ./... && go test ./...` to prove no `framework/*` package imports `resource`. See [ARCHITECTURE.md](ARCHITECTURE.md) for the full module DAG.
 
 ## Development Workflows
 
@@ -332,7 +332,7 @@ Stage 2 — depends on Stage 1
 
 Stage 3 — parallel, per changed module, inside the builder container
   framework-isolation  cd framework && GOWORK=off go build ./... && go test ./...
-                         (proves no framework/* package imports resources)
+                         (proves no framework/* package imports resource)
   workspace-verify     make workspace-verify
   generate-api         make generate-api-verify
   test                 make <module>-test        (matrix over changed modules)

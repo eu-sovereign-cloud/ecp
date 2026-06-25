@@ -4,10 +4,10 @@ import (
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	res "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
-	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/persistence/kubernetes"
-	commondomain "github.com/eu-sovereign-cloud/ecp/resources/common/domain"
-	wsdom "github.com/eu-sovereign-cloud/ecp/resources/workspace/v1"
+	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
+	wsdom "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1"
 )
 
 type WorkspaceProjectConverter struct{}
@@ -83,7 +83,7 @@ func (c *WorkspaceProjectConverter) FromArubaToSECA(
 		},
 		Spec: spec,
 		Status: &wsdom.WorkspaceStatus{
-			StatusDomain: commondomain.StatusDomain{},
+			Status: commondomain.Status{},
 		},
 	}, nil
 }
