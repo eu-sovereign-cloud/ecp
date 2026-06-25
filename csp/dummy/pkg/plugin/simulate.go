@@ -15,6 +15,8 @@ import (
 	networkconv "github.com/eu-sovereign-cloud/ecp/resource/network/network/v1/backend/kubernetes"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1"
 	storageconv "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1/backend/kubernetes"
+	imgdom "github.com/eu-sovereign-cloud/ecp/resource/storage/image/v1"
+	imageconv "github.com/eu-sovereign-cloud/ecp/resource/storage/image/v1/backend/kubernetes"
 	wsdom "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1"
 	workspaceconv "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1/backend/kubernetes"
 )
@@ -83,6 +85,26 @@ func simulateBS(ctx context.Context, op string, resource *bsdom.BlockStorage, de
 				logger,
 				storageconv.BlockStorageToCR,
 				storageconv.BlockStorageFromCR,
+			)
+			_, err = repo.Update(ctx, resource)
+			return err
+		},
+	)
+}
+
+func simulateImage(ctx context.Context, op string, resource *imgdom.Image, delay time.Duration, logger *slog.Logger) error {
+	return simulate(ctx, op, &resource.Annotations, resource.GetName(), delay, logger,
+		func(ctx context.Context) error {
+			dynamicClient, err := newDynamicClient()
+			if err != nil {
+				return err
+			}
+			repo := kubernetesadapter.NewRepoAdapter(
+				dynamicClient,
+				imageconv.ImageGVR,
+				logger,
+				imageconv.ImageToCR,
+				imageconv.ImageFromCR,
 			)
 			_, err = repo.Update(ctx, resource)
 			return err

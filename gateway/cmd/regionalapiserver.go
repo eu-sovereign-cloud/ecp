@@ -34,8 +34,12 @@ import (
 	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1"
 	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1/backend/kubernetes"
 	storagerest "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1/frontend/rest"
+	imgdom "github.com/eu-sovereign-cloud/ecp/resource/storage/image/v1"
+	imgk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/image/v1/backend/kubernetes"
+	imgrest "github.com/eu-sovereign-cloud/ecp/resource/storage/image/v1/frontend/rest"
 	skudom "github.com/eu-sovereign-cloud/ecp/resource/storage/storage-sku/v1"
 	skuk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/storage-sku/v1/backend/kubernetes"
+	skurest "github.com/eu-sovereign-cloud/ecp/resource/storage/storage-sku/v1/frontend/rest"
 
 	wsdom "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1"
 	wsk8s "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1/backend/kubernetes"
@@ -229,13 +233,34 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		logger,
 		skuk8s.StorageSKUFromCR,
 	)
+	imgReaderAdapter := k8sadapter.NewReaderAdapter[*imgdom.Image](
+		client.Client,
+		imgk8s.ImageGVR,
+		logger,
+		imgk8s.ImageFromCR,
+	)
+	imgWriterAdapter := k8sadapter.NewWriterAdapter[*imgdom.Image](
+		client.Client,
+		imgk8s.ImageGVR,
+		logger,
+		imgk8s.ImageToCR,
+		imgk8s.ImageFromCR,
+	)
 
 	sdkstorageapi.HandlerWithOptions(
 		&storagerest.Handler{
 			BlockStorageReader: bsReaderAdapter,
 			BlockStorageWriter: bsWriterAdapter,
-			SKUReader:          skuReaderAdapter,
-			Logger:             logger,
+			ImageHandler: &imgrest.ImageHandler{
+				Reader: imgReaderAdapter,
+				Writer: imgWriterAdapter,
+				Logger: logger,
+			},
+			SKUHandler: &skurest.SKUHandler{
+				Reader: skuReaderAdapter,
+				Logger: logger,
+			},
+			Logger: logger,
 		},
 		sdkstorageapi.StdHTTPServerOptions{
 			BaseURL:          "/providers/seca.storage",
