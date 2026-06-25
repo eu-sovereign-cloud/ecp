@@ -23,6 +23,7 @@ import (
 	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/transport/spdy"
 
+	authv1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.authorization.v1"
 	regionv1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
 )
 
@@ -36,6 +37,7 @@ const (
 var (
 	testLogger   *slog.Logger
 	regionClient *regionv1.ClientWithResponses
+	authClient   *authv1.ClientWithResponses
 )
 
 func TestMain(m *testing.M) {
@@ -80,11 +82,17 @@ func TestMain(m *testing.M) {
 	}
 	localPort := forwardedPorts[0].Local
 
-	// Initialize SDK client
+	// Initialize SDK clients
 	serverURL := fmt.Sprintf("http://localhost:%d/providers/seca.region", localPort)
 	regionClient, err = regionv1.NewClientWithResponses(serverURL)
 	if err != nil {
 		log.Fatalf("Failed to create region SDK client: %v", err)
+	}
+
+	authServerURL := fmt.Sprintf("http://localhost:%d/providers/seca.authorization", localPort)
+	authClient, err = authv1.NewClientWithResponses(authServerURL)
+	if err != nil {
+		log.Fatalf("Failed to create authorization SDK client: %v", err)
 	}
 
 	// Initialize test logger
