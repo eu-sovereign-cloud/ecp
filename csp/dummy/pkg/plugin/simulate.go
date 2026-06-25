@@ -11,6 +11,8 @@ import (
 
 	kubernetesadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	backendport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
+	roledom "github.com/eu-sovereign-cloud/ecp/resource/authorization/role/v1"
+	roleconv "github.com/eu-sovereign-cloud/ecp/resource/authorization/role/v1/backend/kubernetes"
 	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/network/v1"
 	networkconv "github.com/eu-sovereign-cloud/ecp/resource/network/network/v1/backend/kubernetes"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1"
@@ -145,6 +147,26 @@ func simulateNet(ctx context.Context, op string, resource *netdom.Network, delay
 				logger,
 				networkconv.NetworkToCR,
 				networkconv.NetworkFromCR,
+			)
+			_, err = repo.Update(ctx, resource)
+			return err
+		},
+	)
+}
+
+func simulateRole(ctx context.Context, op string, resource *roledom.Role, delay time.Duration, logger *slog.Logger) error {
+	return simulate(ctx, op, &resource.Annotations, resource.GetName(), delay, logger,
+		func(ctx context.Context) error {
+			dynamicClient, err := newDynamicClient()
+			if err != nil {
+				return err
+			}
+			repo := kubernetesadapter.NewRepoAdapter(
+				dynamicClient,
+				roleconv.RoleGVR,
+				logger,
+				roleconv.RoleToCR,
+				roleconv.RoleFromCR,
 			)
 			_, err = repo.Update(ctx, resource)
 			return err
