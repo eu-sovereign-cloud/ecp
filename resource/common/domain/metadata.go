@@ -37,3 +37,15 @@ type RegionalMetadata struct {
 	Extensions  map[string]string
 	Region      string
 }
+
+// GlobalTenantMetadata carries common resource identity and classification data used in global-tenant domain models.
+// It embeds CommonMetadata and resource.Scope to provide tenant access, but has no Region field — these resources
+// are served from a single global control plane and are not tied to a specific region.
+type GlobalTenantMetadata struct {
+	CommonMetadata
+	resource.Scope
+
+	Labels      map[string]string
+	Annotations map[string]string
+	Extensions  map[string]string
+}
