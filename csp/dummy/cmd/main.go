@@ -18,6 +18,7 @@ import (
 	frameworkbuilder "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/builder"
 	netk8s "github.com/eu-sovereign-cloud/ecp/resource/network/network/v1/backend/kubernetes"
 	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1/backend/kubernetes"
+	imgk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/image/v1/backend/kubernetes"
 	wsk8s "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1/backend/kubernetes"
 )
 
@@ -26,6 +27,7 @@ var scheme = runtime.NewScheme()
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(bsk8s.AddToScheme(scheme))
+	utilruntime.Must(imgk8s.AddToScheme(scheme))
 	utilruntime.Must(netk8s.AddToScheme(scheme))
 	utilruntime.Must(wsk8s.AddToScheme(scheme))
 }
@@ -52,6 +54,7 @@ func main() {
 	}
 
 	bsPlugin := dummyplugin.NewBlockStorage(logger.With("plugin", "blockstorage"))
+	imgPlugin := dummyplugin.NewImage(logger.With("plugin", "image"))
 	wsPlugin := dummyplugin.NewWorkspace(logger.With("plugin", "workspace"))
 	netPlugin := dummyplugin.NewNetwork(logger.With("plugin", "network"))
 
@@ -62,6 +65,7 @@ func main() {
 
 	controllerSet := frameworkbuilder.NewControllerSet()
 	controllerSet.Add(bsk8s.NewController(mgr.GetClient(), dynClient, bsPlugin, controllerOpts...))
+	controllerSet.Add(imgk8s.NewController(mgr.GetClient(), dynClient, imgPlugin, controllerOpts...))
 	controllerSet.Add(netk8s.NewController(mgr.GetClient(), dynClient, netPlugin, controllerOpts...))
 	controllerSet.Add(wsk8s.NewController(mgr.GetClient(), dynClient, wsPlugin, controllerOpts...))
 

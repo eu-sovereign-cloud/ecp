@@ -25,6 +25,8 @@ import (
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1"
 	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1/backend/kubernetes"
+	imgdom "github.com/eu-sovereign-cloud/ecp/resource/storage/image/v1"
+	imgk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/image/v1/backend/kubernetes"
 	wsdom "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1"
 	wsk8s "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1/backend/kubernetes"
 )
@@ -41,6 +43,7 @@ var (
 	testLogger       *slog.Logger
 	workspaceRepo    persistence.Repo[*wsdom.Workspace]
 	blockStorageRepo persistence.Repo[*bsdom.BlockStorage]
+	imageRepo        persistence.Repo[*imgdom.Image]
 	k8sClient        client.Client
 )
 
@@ -50,6 +53,7 @@ func TestMain(m *testing.M) {
 	utilruntime.Must(scheme.AddToScheme(s))
 	utilruntime.Must(wsk8s.AddToScheme(s))
 	utilruntime.Must(bsk8s.AddToScheme(s))
+	utilruntime.Must(imgk8s.AddToScheme(s))
 	utilruntime.Must(corev1.AddToScheme(s))
 
 	kubeconfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
@@ -90,6 +94,14 @@ func TestMain(m *testing.M) {
 		testLogger,
 		bsk8s.BlockStorageToCR,
 		bsk8s.BlockStorageFromCR,
+	)
+
+	imageRepo = k8sadapter.NewRepoAdapter(
+		dynamicClient,
+		imgk8s.ImageGVR,
+		testLogger,
+		imgk8s.ImageToCR,
+		imgk8s.ImageFromCR,
 	)
 
 	workspaceRepo = k8sadapter.NewNamespaceManagingRepoAdapter(

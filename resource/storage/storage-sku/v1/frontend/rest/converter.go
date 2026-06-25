@@ -1,4 +1,4 @@
-// Package rest provides REST↔domain conversion functions for the storage SKU resource.
+// Package rest provides REST↔domain conversion and HTTP handlers for the storage SKU resource.
 package rest
 
 import (

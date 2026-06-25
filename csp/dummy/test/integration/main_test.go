@@ -29,6 +29,8 @@ import (
 	netk8s "github.com/eu-sovereign-cloud/ecp/resource/network/network/v1/backend/kubernetes"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1"
 	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1/backend/kubernetes"
+	imgdom "github.com/eu-sovereign-cloud/ecp/resource/storage/image/v1"
+	imgk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/image/v1/backend/kubernetes"
 	wsdom "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1"
 	wsk8s "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1/backend/kubernetes"
 )
@@ -45,6 +47,7 @@ var (
 	networkRepo      *k8sadapter.RepoAdapter[*netdom.Network]
 	workspaceRepo    *k8sadapter.RepoAdapter[*wsdom.Workspace]
 	blockStorageRepo *k8sadapter.RepoAdapter[*bsdom.BlockStorage]
+	imageRepo        *k8sadapter.RepoAdapter[*imgdom.Image]
 	k8sClient        client.Client
 )
 
@@ -58,6 +61,7 @@ func TestMain(m *testing.M) {
 	utilruntime.Must(netk8s.AddToScheme(s))
 	utilruntime.Must(wsk8s.AddToScheme(s))
 	utilruntime.Must(bsk8s.AddToScheme(s))
+	utilruntime.Must(imgk8s.AddToScheme(s))
 	utilruntime.Must(corev1.AddToScheme(s))
 
 	kubeconfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
@@ -103,6 +107,13 @@ func TestMain(m *testing.M) {
 		testLogger,
 		wsk8s.WorkspaceToCR,
 		wsk8s.WorkspaceFromCR,
+	)
+	imageRepo = k8sadapter.NewRepoAdapter[*imgdom.Image](
+		dynamicClient,
+		imgk8s.ImageGVR,
+		testLogger,
+		imgk8s.ImageToCR,
+		imgk8s.ImageFromCR,
 	)
 
 	if err := waitForNamespace(context.Background(), testNamespace); err != nil {
