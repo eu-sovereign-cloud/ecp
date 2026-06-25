@@ -59,12 +59,16 @@ func StorageSKUToCR(sku *skudom.StorageSKU) (client.Object, error) {
 		return nil, fmt.Errorf("storage SKU is nil")
 	}
 
-	cr := &StorageSKU{}
+	cr := &StorageSKU{
+		Spec: StorageSkuSpec{
+			Iops:          int(sku.Spec.IOPS),
+			MinVolumeSize: int(sku.Spec.MinVolumeSize),
+			Type:          StorageSkuSpecType(sku.Spec.Type),
+		},
+	}
 	cr.SetName(sku.Name)
 	cr.SetResourceVersion(sku.ResourceVersion)
 	cr.SetGroupVersionKind(StorageSKUGVK)
-
-	// TODO: populate cr.Spec from sku.Spec when schemav1.StorageSkuSpec fields are available
 
 	return cr, nil
 }

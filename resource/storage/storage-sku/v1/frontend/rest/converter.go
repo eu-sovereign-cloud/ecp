@@ -2,17 +2,51 @@
 package rest
 
 import (
+	"fmt"
+
 	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
 	skudom "github.com/eu-sovereign-cloud/ecp/resource/storage/storage-sku/v1"
 )
 
+const (
+	// StorageSKUAPIVersion is the API version string used in response metadata.
+	StorageSKUAPIVersion = skudom.Version
+	// StorageSKUResource is the resource name used in response metadata.
+	StorageSKUResource = skudom.Resource
+	// ResourceFormat formats a resource path string.
+	ResourceFormat = "%s/%s"
+	// TenantScopedResourceFormat formats a tenant-scoped resource ref.
+	TenantScopedResourceFormat = "tenants/%s/providers/%s/%s"
+)
+
+// StorageSKUToAPIWithVerb returns a func that converts a StorageSKU to its SDK representation with the given verb.
+func StorageSKUToAPIWithVerb(verb string) func(sku *skudom.StorageSKU) *sdkschema.StorageSku {
+	return func(sku *skudom.StorageSKU) *sdkschema.StorageSku {
+		sdk := StorageSKUToAPI(sku)
+		sdk.Metadata.Verb = verb
+		return sdk
+	}
+}
+
 // StorageSKUToAPI converts a StorageSKU to its SDK representation.
 func StorageSKUToAPI(sku *skudom.StorageSKU) *sdkschema.StorageSku {
 	return &sdkschema.StorageSku{
 		Metadata: &sdkschema.SkuResourceMetadata{
-			Name: sku.Name,
+			ApiVersion: StorageSKUAPIVersion,
+			Kind:       sdkschema.SkuResourceMetadataKindResourceKindStorageSku,
+			Name:       sku.Name,
+			Provider:   sku.Provider,
+			Region:     sku.Region,
+			Tenant:     sku.Tenant,
+			Resource:   fmt.Sprintf(ResourceFormat, sdkschema.SkuResourceMetadataKindResourceKindStorageSku, sku.Name),
+			Ref: fmt.Sprintf(
+				sku.Provider+"/"+TenantScopedResourceFormat,
+				sku.Tenant,
+				sdkschema.SkuResourceMetadataKindResourceKindStorageSku,
+				sku.Name,
+			),
 		},
 		Spec: &sdkschema.StorageSkuSpec{
 			Iops:          int(sku.Spec.IOPS),

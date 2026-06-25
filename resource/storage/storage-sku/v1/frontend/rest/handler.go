@@ -32,7 +32,7 @@ func (h *SKUHandler) ListSkus(w http.ResponseWriter, r *http.Request, tenant sdk
 func (h *SKUHandler) GetSku(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam) {
 	logger := h.Logger.With("provider", "storage", "resource", "sku", "name", name)
 	ir := &skuIdentity{name: name, tenant: tenant}
-	frest.HandleGet(w, r, logger, ir, frest.GetterFromRepo(h.Reader, newStorageSKUWithIdentity), StorageSKUToAPI)
+	frest.HandleGet(w, r, logger, ir, frest.GetterFromRepo(h.Reader, newStorageSKUWithIdentity), StorageSKUToAPIWithVerb(http.MethodGet))
 }
 
 // ListParamsFromAPI converts SDK ListSkusParams to a tenant-scoped resource.ListParams.
