@@ -11,6 +11,8 @@ import (
 
 	kubernetesadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	backendport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
+	radom "github.com/eu-sovereign-cloud/ecp/resource/authorization/role-assignment/v1"
+	roleassignmentconv "github.com/eu-sovereign-cloud/ecp/resource/authorization/role-assignment/v1/backend/kubernetes"
 	roledom "github.com/eu-sovereign-cloud/ecp/resource/authorization/role/v1"
 	roleconv "github.com/eu-sovereign-cloud/ecp/resource/authorization/role/v1/backend/kubernetes"
 	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/network/v1"
@@ -107,6 +109,26 @@ func simulateImage(ctx context.Context, op string, resource *imgdom.Image, delay
 				logger,
 				imageconv.ImageToCR,
 				imageconv.ImageFromCR,
+			)
+			_, err = repo.Update(ctx, resource)
+			return err
+		},
+	)
+}
+
+func simulateRA(ctx context.Context, op string, resource *radom.RoleAssignment, delay time.Duration, logger *slog.Logger) error {
+	return simulate(ctx, op, &resource.Annotations, resource.GetName(), delay, logger,
+		func(ctx context.Context) error {
+			dynamicClient, err := newDynamicClient()
+			if err != nil {
+				return err
+			}
+			repo := kubernetesadapter.NewRepoAdapter(
+				dynamicClient,
+				roleassignmentconv.RoleAssignmentGVR,
+				logger,
+				roleassignmentconv.RoleAssignmentToCR,
+				roleassignmentconv.RoleAssignmentFromCR,
 			)
 			_, err = repo.Update(ctx, resource)
 			return err
