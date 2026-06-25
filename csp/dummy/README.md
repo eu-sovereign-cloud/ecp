@@ -2,7 +2,7 @@
 
 This directory contains a template and example implementation of a Delegator with a Dummy Plugin. Its primary purpose is to serve as a reference and a starting point for developing new, fully-functional plugins for the ECP platform.
 
-By running this dummy implementation, you can observe the entire lifecycle of custom resources (`BlockStorage`, `Image`, `Workspace`) as they are processed by the controller. The dummy plugin logs the actions it performs (like `Create`, `Delete`, `IncreaseSize`) without interacting with a real cloud provider, making it an excellent tool for understanding the resource handling flow.
+By running this dummy implementation, you can observe the entire lifecycle of custom resources (`BlockStorage`, `Image`, `Role`, `Workspace`) as they are processed by the controller. The dummy plugin logs the actions it performs (like `Create`, `Delete`, `IncreaseSize`) without interacting with a real cloud provider, making it an excellent tool for understanding the resource handling flow.
 
 ## Directory Content
 
@@ -50,7 +50,7 @@ You will see logs from the controller as it reconciles resources, and messages f
 
 ### Running Integration Tests
 
-The integration tests create, update, and delete `BlockStorage`, `Image`, and `Workspace` resources in the running KIND cluster and assert that they reach the expected states.
+The integration tests create, update, and delete `BlockStorage`, `Image`, `Role`, and `Workspace` resources in the running KIND cluster and assert that they reach the expected states.
 
 To run the tests, use the following command:
 
