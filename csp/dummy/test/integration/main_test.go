@@ -25,6 +25,8 @@ import (
 
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	kernelresource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
+	radom "github.com/eu-sovereign-cloud/ecp/resource/authorization/role-assignment/v1"
+	rak8s "github.com/eu-sovereign-cloud/ecp/resource/authorization/role-assignment/v1/backend/kubernetes"
 	roledom "github.com/eu-sovereign-cloud/ecp/resource/authorization/role/v1"
 	rolek8s "github.com/eu-sovereign-cloud/ecp/resource/authorization/role/v1/backend/kubernetes"
 	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/network/v1"
@@ -44,14 +46,15 @@ const (
 )
 
 var (
-	dynamicClient    dynamic.Interface
-	testLogger       *slog.Logger
-	networkRepo      *k8sadapter.RepoAdapter[*netdom.Network]
-	workspaceRepo    *k8sadapter.RepoAdapter[*wsdom.Workspace]
-	blockStorageRepo *k8sadapter.RepoAdapter[*bsdom.BlockStorage]
-	imageRepo        *k8sadapter.RepoAdapter[*imgdom.Image]
-	roleRepo         *k8sadapter.RepoAdapter[*roledom.Role]
-	k8sClient        client.Client
+	dynamicClient      dynamic.Interface
+	testLogger         *slog.Logger
+	networkRepo        *k8sadapter.RepoAdapter[*netdom.Network]
+	workspaceRepo      *k8sadapter.RepoAdapter[*wsdom.Workspace]
+	blockStorageRepo   *k8sadapter.RepoAdapter[*bsdom.BlockStorage]
+	imageRepo          *k8sadapter.RepoAdapter[*imgdom.Image]
+	roleRepo           *k8sadapter.RepoAdapter[*roledom.Role]
+	roleAssignmentRepo *k8sadapter.RepoAdapter[*radom.RoleAssignment]
+	k8sClient          client.Client
 )
 
 func TestMain(m *testing.M) {
@@ -66,6 +69,7 @@ func TestMain(m *testing.M) {
 	utilruntime.Must(wsk8s.AddToScheme(s))
 	utilruntime.Must(bsk8s.AddToScheme(s))
 	utilruntime.Must(imgk8s.AddToScheme(s))
+	utilruntime.Must(rak8s.AddToScheme(s))
 	utilruntime.Must(corev1.AddToScheme(s))
 
 	kubeconfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
@@ -125,6 +129,13 @@ func TestMain(m *testing.M) {
 		testLogger,
 		rolek8s.RoleToCR,
 		rolek8s.RoleFromCR,
+	)
+	roleAssignmentRepo = k8sadapter.NewRepoAdapter[*radom.RoleAssignment](
+		dynamicClient,
+		rak8s.RoleAssignmentGVR,
+		testLogger,
+		rak8s.RoleAssignmentToCR,
+		rak8s.RoleAssignmentFromCR,
 	)
 
 	if err := waitForNamespace(context.Background(), testNamespace); err != nil {

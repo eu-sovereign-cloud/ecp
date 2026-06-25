@@ -16,6 +16,7 @@ import (
 
 	dummyplugin "github.com/eu-sovereign-cloud/ecp/csp/dummy/pkg/plugin"
 	frameworkbuilder "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/builder"
+	rak8s "github.com/eu-sovereign-cloud/ecp/resource/authorization/role-assignment/v1/backend/kubernetes"
 	rolek8s "github.com/eu-sovereign-cloud/ecp/resource/authorization/role/v1/backend/kubernetes"
 	netk8s "github.com/eu-sovereign-cloud/ecp/resource/network/network/v1/backend/kubernetes"
 	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1/backend/kubernetes"
@@ -31,6 +32,7 @@ func init() {
 	utilruntime.Must(bsk8s.AddToScheme(scheme))
 	utilruntime.Must(imgk8s.AddToScheme(scheme))
 	utilruntime.Must(netk8s.AddToScheme(scheme))
+	utilruntime.Must(rak8s.AddToScheme(scheme))
 	utilruntime.Must(wsk8s.AddToScheme(scheme))
 }
 
@@ -60,6 +62,7 @@ func main() {
 	imgPlugin := dummyplugin.NewImage(logger.With("plugin", "image"))
 	wsPlugin := dummyplugin.NewWorkspace(logger.With("plugin", "workspace"))
 	netPlugin := dummyplugin.NewNetwork(logger.With("plugin", "network"))
+	raPlugin := dummyplugin.NewRoleAssignment(logger.With("plugin", "roleassignment"))
 
 	controllerOpts := []frameworkbuilder.Option{
 		frameworkbuilder.WithLogger(logger.With("component", "controller-set")),
@@ -71,6 +74,7 @@ func main() {
 	controllerSet.Add(bsk8s.NewController(mgr.GetClient(), dynClient, bsPlugin, controllerOpts...))
 	controllerSet.Add(imgk8s.NewController(mgr.GetClient(), dynClient, imgPlugin, controllerOpts...))
 	controllerSet.Add(netk8s.NewController(mgr.GetClient(), dynClient, netPlugin, controllerOpts...))
+	controllerSet.Add(rak8s.NewController(mgr.GetClient(), dynClient, raPlugin, controllerOpts...))
 	controllerSet.Add(wsk8s.NewController(mgr.GetClient(), dynClient, wsPlugin, controllerOpts...))
 
 	if err := controllerSet.SetupWithManager(mgr); err != nil {
