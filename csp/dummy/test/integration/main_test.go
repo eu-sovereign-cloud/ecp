@@ -25,6 +25,8 @@ import (
 
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	kernelresource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
+	roledom "github.com/eu-sovereign-cloud/ecp/resource/authorization/role/v1"
+	rolek8s "github.com/eu-sovereign-cloud/ecp/resource/authorization/role/v1/backend/kubernetes"
 	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/network/v1"
 	netk8s "github.com/eu-sovereign-cloud/ecp/resource/network/network/v1/backend/kubernetes"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1"
@@ -48,6 +50,7 @@ var (
 	workspaceRepo    *k8sadapter.RepoAdapter[*wsdom.Workspace]
 	blockStorageRepo *k8sadapter.RepoAdapter[*bsdom.BlockStorage]
 	imageRepo        *k8sadapter.RepoAdapter[*imgdom.Image]
+	roleRepo         *k8sadapter.RepoAdapter[*roledom.Role]
 	k8sClient        client.Client
 )
 
@@ -58,6 +61,7 @@ func TestMain(m *testing.M) {
 
 	s := runtime.NewScheme()
 	utilruntime.Must(clientgoscheme.AddToScheme(s))
+	utilruntime.Must(rolek8s.AddToScheme(s))
 	utilruntime.Must(netk8s.AddToScheme(s))
 	utilruntime.Must(wsk8s.AddToScheme(s))
 	utilruntime.Must(bsk8s.AddToScheme(s))
@@ -114,6 +118,13 @@ func TestMain(m *testing.M) {
 		testLogger,
 		imgk8s.ImageToCR,
 		imgk8s.ImageFromCR,
+	)
+	roleRepo = k8sadapter.NewRepoAdapter[*roledom.Role](
+		dynamicClient,
+		rolek8s.RoleGVR,
+		testLogger,
+		rolek8s.RoleToCR,
+		rolek8s.RoleFromCR,
 	)
 
 	if err := waitForNamespace(context.Background(), testNamespace); err != nil {

@@ -22,6 +22,8 @@ import (
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	resource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
+	roledom "github.com/eu-sovereign-cloud/ecp/resource/authorization/role/v1"
+	rolek8s "github.com/eu-sovereign-cloud/ecp/resource/authorization/role/v1/backend/kubernetes"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1"
 	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1/backend/kubernetes"
@@ -44,6 +46,7 @@ var (
 	workspaceRepo    persistence.Repo[*wsdom.Workspace]
 	blockStorageRepo persistence.Repo[*bsdom.BlockStorage]
 	imageRepo        persistence.Repo[*imgdom.Image]
+	roleRepo         persistence.Repo[*roledom.Role]
 	k8sClient        client.Client
 )
 
@@ -51,6 +54,7 @@ func TestMain(m *testing.M) {
 	// Initialize k8s scheme for client-go
 	s := runtime.NewScheme()
 	utilruntime.Must(scheme.AddToScheme(s))
+	utilruntime.Must(rolek8s.AddToScheme(s))
 	utilruntime.Must(wsk8s.AddToScheme(s))
 	utilruntime.Must(bsk8s.AddToScheme(s))
 	utilruntime.Must(imgk8s.AddToScheme(s))
@@ -102,6 +106,14 @@ func TestMain(m *testing.M) {
 		testLogger,
 		imgk8s.ImageToCR,
 		imgk8s.ImageFromCR,
+	)
+
+	roleRepo = k8sadapter.NewRepoAdapter(
+		dynamicClient,
+		rolek8s.RoleGVR,
+		testLogger,
+		rolek8s.RoleToCR,
+		rolek8s.RoleFromCR,
 	)
 
 	workspaceRepo = k8sadapter.NewNamespaceManagingRepoAdapter(
