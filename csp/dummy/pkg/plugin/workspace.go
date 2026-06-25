@@ -25,7 +25,6 @@ func (w *Workspace) Delete(ctx context.Context, resource *wsdom.Workspace) error
 	return simulateWS(ctx, "delete", resource, workspaceDelay(), w.logger)
 }
 
-// workspaceDelay returns the simulated latency of a workspace operation.
 func workspaceDelay() time.Duration {
 	const base int = 15
 

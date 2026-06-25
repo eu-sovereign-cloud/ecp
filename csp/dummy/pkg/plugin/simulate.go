@@ -11,6 +11,8 @@ import (
 
 	kubernetesadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	backendport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
+	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/network/v1"
+	networkconv "github.com/eu-sovereign-cloud/ecp/resource/network/network/v1/backend/kubernetes"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1"
 	storageconv "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1/backend/kubernetes"
 	wsdom "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1"
@@ -19,108 +21,111 @@ import (
 
 // simulate reports a long-running operation as still in progress until its
 // simulated delay has elapsed, without blocking the reconciliation worker.
-func simulateBS(ctx context.Context, op string, resource *bsdom.BlockStorage, delay time.Duration, logger *slog.Logger) error {
-	if _, exists := resource.Annotations[op]; !exists {
-		if resource.Annotations == nil {
-			resource.Annotations = make(map[string]string)
+// persist is called exactly once, on the first reconciliation, to stamp the
+// expiration annotation onto the backing store.
+func simulate(
+	ctx context.Context,
+	op string,
+	annotations *map[string]string,
+	name string,
+	delay time.Duration,
+	logger *slog.Logger,
+	persist func(context.Context) error,
+) error {
+	if _, exists := (*annotations)[op]; !exists {
+		if *annotations == nil {
+			*annotations = make(map[string]string)
 		}
-		resource.Annotations[op] = time.Now().Add(delay).Format(time.RFC3339)
+		(*annotations)[op] = time.Now().Add(delay).Format(time.RFC3339)
 
-		kubeconfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-			clientcmd.NewDefaultClientConfigLoadingRules(),
-			&clientcmd.ConfigOverrides{},
-		)
-		restConfig, err := kubeconfig.ClientConfig()
-		if err != nil {
-			return fmt.Errorf("failed to get kubeconfig: %w", err)
-		}
-		restConfig.QPS = 100
-		restConfig.Burst = 200
-
-		// Initialize dynamic client
-		dynamicClient, err := dynamic.NewForConfig(restConfig)
-		if err != nil {
-			return fmt.Errorf("failed to create dynamic client: %w", err)
-		}
-
-		blockStorageRepo := kubernetesadapter.NewRepoAdapter(
-			dynamicClient,
-			storageconv.BlockStorageGVR,
-			logger,
-			storageconv.BlockStorageToCR,
-			storageconv.BlockStorageFromCR,
-		)
-		_, err = blockStorageRepo.Update(ctx, resource)
-		if err != nil {
+		if err := persist(ctx); err != nil {
 			return err
 		}
-		logger.Info("Updated resource annotations for operation %s on block storage %s", op, resource.GetName())
+		logger.Info("dummy plugin: stamped expiration annotation", "op", op, "resource_name", name)
 	}
 
-	expiration, _ := time.Parse(time.RFC3339, resource.Annotations[op])
+	expiration, _ := time.Parse(time.RFC3339, (*annotations)[op])
 
 	if time.Now().Before(expiration) {
-		logger.Info("dummy plugin: still processing",
-			"op", op, "resource_name", resource.GetName())
-
+		logger.Info("dummy plugin: still processing", "op", op, "resource_name", name)
 		return backendport.ErrStillProcessing
 	}
 
-	logger.Info("dummy plugin: finished",
-		"op", op, "resource_name", resource.GetName())
-
+	logger.Info("dummy plugin: finished", "op", op, "resource_name", name)
 	return nil
 }
 
-func simulateWS(ctx context.Context, op string, resource *wsdom.Workspace, delay time.Duration, logger *slog.Logger) error {
-	if _, exists := resource.Annotations[op]; !exists {
-		if resource.Annotations == nil {
-			resource.Annotations = make(map[string]string)
-		}
-		resource.Annotations[op] = time.Now().Add(delay).Format(time.RFC3339)
+func newDynamicClient() (*dynamic.DynamicClient, error) {
+	kubeconfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		clientcmd.NewDefaultClientConfigLoadingRules(),
+		&clientcmd.ConfigOverrides{},
+	)
+	restConfig, err := kubeconfig.ClientConfig()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get kubeconfig: %w", err)
+	}
+	restConfig.QPS = 100
+	restConfig.Burst = 200
 
-		kubeconfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-			clientcmd.NewDefaultClientConfigLoadingRules(),
-			&clientcmd.ConfigOverrides{},
-		)
-		restConfig, err := kubeconfig.ClientConfig()
-		if err != nil {
-			return fmt.Errorf("failed to get kubeconfig: %w", err)
-		}
-		restConfig.QPS = 100
-		restConfig.Burst = 200
+	return dynamic.NewForConfig(restConfig)
+}
 
-		// Initialize dynamic client
-		dynamicClient, err := dynamic.NewForConfig(restConfig)
-		if err != nil {
-			return fmt.Errorf("failed to create dynamic client: %w", err)
-		}
-
-		workspaceRepo := kubernetesadapter.NewRepoAdapter(
-			dynamicClient,
-			workspaceconv.WorkspaceGVR,
-			logger,
-			workspaceconv.WorkspaceToCR,
-			workspaceconv.WorkspaceFromCR,
-		)
-		_, err = workspaceRepo.Update(ctx, resource)
-		if err != nil {
+func simulateBS(ctx context.Context, op string, resource *bsdom.BlockStorage, delay time.Duration, logger *slog.Logger) error {
+	return simulate(ctx, op, &resource.Annotations, resource.GetName(), delay, logger,
+		func(ctx context.Context) error {
+			dynamicClient, err := newDynamicClient()
+			if err != nil {
+				return err
+			}
+			repo := kubernetesadapter.NewRepoAdapter(
+				dynamicClient,
+				storageconv.BlockStorageGVR,
+				logger,
+				storageconv.BlockStorageToCR,
+				storageconv.BlockStorageFromCR,
+			)
+			_, err = repo.Update(ctx, resource)
 			return err
-		}
-		logger.Info("Updated resource annotations for operation %s on workspace %s", op, resource.GetName())
-	}
+		},
+	)
+}
 
-	expiration, _ := time.Parse(time.RFC3339, resource.Annotations[op])
+func simulateWS(ctx context.Context, op string, resource *wsdom.Workspace, delay time.Duration, logger *slog.Logger) error {
+	return simulate(ctx, op, &resource.Annotations, resource.GetName(), delay, logger,
+		func(ctx context.Context) error {
+			dynamicClient, err := newDynamicClient()
+			if err != nil {
+				return err
+			}
+			repo := kubernetesadapter.NewRepoAdapter(
+				dynamicClient,
+				workspaceconv.WorkspaceGVR,
+				logger,
+				workspaceconv.WorkspaceToCR,
+				workspaceconv.WorkspaceFromCR,
+			)
+			_, err = repo.Update(ctx, resource)
+			return err
+		},
+	)
+}
 
-	if time.Now().Before(expiration) {
-		logger.Info("dummy plugin: still processing",
-			"op", op, "resource_name", resource.GetName())
-
-		return backendport.ErrStillProcessing
-	}
-
-	logger.Info("dummy plugin: finished",
-		"op", op, "resource_name", resource.GetName())
-
-	return nil
+func simulateNet(ctx context.Context, op string, resource *netdom.Network, delay time.Duration, logger *slog.Logger) error {
+	return simulate(ctx, op, &resource.Annotations, resource.GetName(), delay, logger,
+		func(ctx context.Context) error {
+			dynamicClient, err := newDynamicClient()
+			if err != nil {
+				return err
+			}
+			repo := kubernetesadapter.NewRepoAdapter(
+				dynamicClient,
+				networkconv.NetworkGVR,
+				logger,
+				networkconv.NetworkToCR,
+				networkconv.NetworkFromCR,
+			)
+			_, err = repo.Update(ctx, resource)
+			return err
+		},
+	)
 }

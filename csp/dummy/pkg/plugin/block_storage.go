@@ -29,7 +29,6 @@ func (b *BlockStorage) IncreaseSize(ctx context.Context, resource *bsdom.BlockSt
 	return simulateBS(ctx, "increase-size", resource, 2*blockStorageDelay(), b.logger)
 }
 
-// blockStorageDelay returns the simulated latency of a block storage operation.
 func blockStorageDelay() time.Duration {
 	const base int = 30
 
