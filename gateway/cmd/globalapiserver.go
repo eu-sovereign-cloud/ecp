@@ -13,6 +13,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 
+	authv1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.authorization.v1"
 	regionv1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
 
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
@@ -20,6 +21,9 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/kubeclient"
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/logger"
 
+	roledom "github.com/eu-sovereign-cloud/ecp/resource/authorization/role/v1"
+	rolek8s "github.com/eu-sovereign-cloud/ecp/resource/authorization/role/v1/backend/kubernetes"
+	rolerest "github.com/eu-sovereign-cloud/ecp/resource/authorization/role/v1/frontend/rest"
 	rdom "github.com/eu-sovereign-cloud/ecp/resource/region/v1"
 	rk8s "github.com/eu-sovereign-cloud/ecp/resource/region/v1/backend/kubernetes"
 	regionrest "github.com/eu-sovereign-cloud/ecp/resource/region/v1/frontend/rest"
@@ -69,20 +73,55 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
 		log.Fatal(err, " - failed to create kubeclient")
 	}
 
+	// Create a shared mux for all global handlers.
+	mux := http.NewServeMux()
+
+	// Region adapters and handler.
+	regionv1.HandlerWithOptions(
+		&regionrest.Handler{
+			Repo:   k8sadapter.NewReaderAdapter[*rdom.Region](client.Client, rk8s.RegionGVR, logger, rk8s.RegionFromCR),
+			Logger: logger,
+		},
+		regionv1.StdHTTPServerOptions{
+			BaseURL:          rdom.RegionBaseURL,
+			BaseRouter:       mux,
+			Middlewares:      nil,
+			ErrorHandlerFunc: nil,
+		},
+	)
+
+	// Authorization adapters and handler.
+	roleReaderAdapter := k8sadapter.NewReaderAdapter[*roledom.Role](
+		client.Client,
+		rolek8s.RoleGVR,
+		logger,
+		rolek8s.RoleFromCR,
+	)
+	roleWriterAdapter := k8sadapter.NewWriterAdapter[*roledom.Role](
+		client.Client,
+		rolek8s.RoleGVR,
+		logger,
+		rolek8s.RoleToCR,
+		rolek8s.RoleFromCR,
+	)
+	authv1.HandlerWithOptions(
+		&rolerest.Handler{
+			Reader: roleReaderAdapter,
+			Writer: roleWriterAdapter,
+			Logger: logger,
+		},
+		authv1.StdHTTPServerOptions{
+			BaseURL:          roledom.AuthorizationBaseURL,
+			BaseRouter:       mux,
+			Middlewares:      nil,
+			ErrorHandlerFunc: nil,
+		},
+	)
+
 	httpServer := httpserver.New(httpserver.Options{
-		Addr: addr,
-		Handler: regionv1.HandlerWithOptions(
-			&regionrest.Handler{
-				Repo:   k8sadapter.NewReaderAdapter[*rdom.Region](client.Client, rk8s.RegionGVR, logger, rk8s.RegionFromCR),
-				Logger: logger,
-			},
-			regionv1.StdHTTPServerOptions{
-				BaseURL:          rdom.RegionBaseURL,
-				BaseRouter:       nil,
-				Middlewares:      nil,
-				ErrorHandlerFunc: nil,
-			}),
-		Logger: logger,
+		Addr:    addr,
+		Handler: mux,
+		Logger:  logger,
 	})
 
 	logger.Info("Global API server started successfully")
