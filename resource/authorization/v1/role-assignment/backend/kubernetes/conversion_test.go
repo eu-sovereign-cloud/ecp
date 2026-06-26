@@ -19,28 +19,27 @@ import (
 // internal label). Hence we compare the *second* and *third* passes for stability.
 //
 // Invariants (domain2 == domain3):
-//   - Name, Provider, Tenant, Region are stable after one round-trip. Role assignments
-//     are tenant-scoped, so Workspace is never set.
+//   - Name, Provider, Tenant are stable after one round-trip. Role assignments
+//     are global-tenant resources (no region), and tenant-scoped, so Workspace is never set.
 //   - Subs, Roles and the per-scope slices are preserved exactly.
 func FuzzRoleAssignmentSpecRoundTrip(f *testing.F) {
-	// (sub, role, scopeTenant, scopeRegion, scopeWorkspace, name, provider, tenant, region)
-	f.Add("user1@example.com", "workspace-viewer", "t-1", "de-fra", "ws-1", "ra-1", "seca.authorization/v1", "t-1", "de-fra")
-	f.Add("", "", "", "", "", "", "", "", "")
-	f.Add("service-account-1", "project-manager", "*", "", "", "ra", "a/_b", "t", "")
-	f.Add(strings.Repeat("s", 128), strings.Repeat("r", 64), "t", "r", "w", strings.Repeat("n", 64), "provider/x", "t", "de")
+	// (sub, role, scopeTenant, scopeRegion, scopeWorkspace, name, provider, tenant)
+	f.Add("user1@example.com", "workspace-viewer", "t-1", "de-fra", "ws-1", "ra-1", "seca.authorization/v1", "t-1")
+	f.Add("", "", "", "", "", "", "", "")
+	f.Add("service-account-1", "project-manager", "*", "", "", "ra", "a/_b", "t")
+	f.Add(strings.Repeat("s", 128), strings.Repeat("r", 64), "t", "r", "w", strings.Repeat("n", 64), "provider/x", "t")
 
 	f.Fuzz(func(t *testing.T,
 		sub, role, scopeTenant, scopeRegion, scopeWorkspace string,
-		name, provider, tenant, region string,
+		name, provider, tenant string,
 	) {
 		domain := &radom.RoleAssignment{
-			RegionalMetadata: commondomain.RegionalMetadata{
+			GlobalTenantMetadata: commondomain.GlobalTenantMetadata{
 				CommonMetadata: commondomain.CommonMetadata{
 					Name:     name,
 					Provider: provider,
 				},
-				Scope:  kernelresource.Scope{Tenant: tenant},
-				Region: region,
+				Scope: kernelresource.Scope{Tenant: tenant},
 			},
 			Spec: radom.RoleAssignmentSpec{
 				Subs: []string{sub},
@@ -87,9 +86,6 @@ func FuzzRoleAssignmentSpecRoundTrip(f *testing.F) {
 		}
 		if domain2.Tenant != domain3.Tenant {
 			t.Errorf("Tenant not stable: %q → %q", domain2.Tenant, domain3.Tenant)
-		}
-		if domain2.Region != domain3.Region {
-			t.Errorf("Region not stable: %q → %q", domain2.Region, domain3.Region)
 		}
 		if domain2.Workspace != "" {
 			t.Errorf("Workspace must never be set for a tenant-scoped role assignment, got %q", domain2.Workspace)

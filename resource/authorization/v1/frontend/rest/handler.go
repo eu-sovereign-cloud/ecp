@@ -8,16 +8,18 @@ import (
 
 	persistencepkg "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	roledom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role"
+	radom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment"
 )
 
 // Handler is the HTTP handler for the authorization API group.
 // It owns the group's sdkauth.ServerInterface: role methods are implemented in
-// role_handler.go, and role-assignment methods are stubbed in role_assignment_handler.go
-// (pending full wiring in a future change).
+// role_handler.go and role-assignment methods in role_assignment_handler.go.
 type Handler struct {
-	Reader persistencepkg.ReaderRepo[*roledom.Role]
-	Writer persistencepkg.WriterRepo[*roledom.Role]
-	Logger *slog.Logger
+	RoleReader           persistencepkg.ReaderRepo[*roledom.Role]
+	RoleWriter           persistencepkg.WriterRepo[*roledom.Role]
+	RoleAssignmentReader persistencepkg.ReaderRepo[*radom.RoleAssignment]
+	RoleAssignmentWriter persistencepkg.WriterRepo[*radom.RoleAssignment]
+	Logger               *slog.Logger
 }
 
 var _ sdkauth.ServerInterface = (*Handler)(nil)

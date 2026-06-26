@@ -2,7 +2,7 @@
 
 This directory contains an end-to-end testing suite for ECP (Euro-Cloud-Platform) components. It provides a reference implementation and a comprehensive testing environment for ECP plugins and other components like gateways.
 
-By running this e2e implementation, you can observe the entire lifecycle of custom resources (`BlockStorage`, `Role`, `Workspace`, etc.) as they are processed by the controller. The included `delegator` with its dummy plugins logs the actions it performs (like `Create`, `Delete`) without interacting with a real cloud provider, making it an excellent tool for understanding the resource handling flow.
+By running this e2e implementation, you can observe the entire lifecycle of custom resources (`BlockStorage`, `Role`, `RoleAssignment`, `Workspace`, etc.) as they are processed by the controller. The included `delegator` with its dummy plugins logs the actions it performs (like `Create`, `Delete`) without interacting with a real cloud provider, making it an excellent tool for understanding the resource handling flow.
 
 ## Directory Content
 

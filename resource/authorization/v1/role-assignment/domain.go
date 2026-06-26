@@ -14,7 +14,7 @@ const (
 
 // RoleAssignment represents the domain model for a role assignment.
 type RoleAssignment struct {
-	domain.RegionalMetadata
+	domain.GlobalTenantMetadata
 	Spec   RoleAssignmentSpec
 	Status *RoleAssignmentStatus
 }

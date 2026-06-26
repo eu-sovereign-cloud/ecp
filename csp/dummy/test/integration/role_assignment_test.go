@@ -24,7 +24,7 @@ func TestRoleAssignment(t *testing.T) {
 
 		resourceName := "test-ra-create-" + uuid.New().String()[:8]
 		raDomain := &radom.RoleAssignment{
-			RegionalMetadata: commondomain.RegionalMetadata{
+			GlobalTenantMetadata: commondomain.GlobalTenantMetadata{
 				CommonMetadata: commondomain.CommonMetadata{Name: resourceName},
 				Scope:          kernelresource.Scope{Tenant: "test-tenant"},
 			},
@@ -40,7 +40,7 @@ func TestRoleAssignment(t *testing.T) {
 
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
 			loadedRA := &radom.RoleAssignment{
-				RegionalMetadata: commondomain.RegionalMetadata{
+				GlobalTenantMetadata: commondomain.GlobalTenantMetadata{
 					CommonMetadata: commondomain.CommonMetadata{Name: resourceName},
 					Scope:          kernelresource.Scope{Tenant: "test-tenant"},
 				},
@@ -58,7 +58,7 @@ func TestRoleAssignment(t *testing.T) {
 
 		resourceName := "test-ra-delete-" + uuid.New().String()[:8]
 		raDomain := &radom.RoleAssignment{
-			RegionalMetadata: commondomain.RegionalMetadata{
+			GlobalTenantMetadata: commondomain.GlobalTenantMetadata{
 				CommonMetadata: commondomain.CommonMetadata{Name: resourceName},
 				Scope:          kernelresource.Scope{Tenant: "test-tenant"},
 			},
@@ -73,7 +73,7 @@ func TestRoleAssignment(t *testing.T) {
 
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
 			loadedRA := &radom.RoleAssignment{
-				RegionalMetadata: commondomain.RegionalMetadata{
+				GlobalTenantMetadata: commondomain.GlobalTenantMetadata{
 					CommonMetadata: commondomain.CommonMetadata{Name: resourceName},
 					Scope:          kernelresource.Scope{Tenant: "test-tenant"},
 				},
@@ -90,7 +90,7 @@ func TestRoleAssignment(t *testing.T) {
 
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
 			loadedRA := &radom.RoleAssignment{
-				RegionalMetadata: commondomain.RegionalMetadata{
+				GlobalTenantMetadata: commondomain.GlobalTenantMetadata{
 					CommonMetadata: commondomain.CommonMetadata{Name: resourceName},
 					Scope:          kernelresource.Scope{Tenant: "test-tenant"},
 				},

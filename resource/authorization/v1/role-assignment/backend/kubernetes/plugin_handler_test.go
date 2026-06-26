@@ -152,7 +152,7 @@ func TestRoleAssignmentPluginHandler_HandleReconcile(t *testing.T) {
 		deletingState := commondomain.ResourceStateDeleting
 		now := time.Now()
 		resource := &radom.RoleAssignment{
-			RegionalMetadata: commondomain.RegionalMetadata{
+			GlobalTenantMetadata: commondomain.GlobalTenantMetadata{
 				CommonMetadata: commondomain.CommonMetadata{
 					DeletedAt: &now,
 				},
@@ -363,7 +363,7 @@ func TestRoleAssignmentPluginHandler_HandleReconcile(t *testing.T) {
 		deletingState := commondomain.ResourceStateDeleting
 		now := time.Now()
 		resource := &radom.RoleAssignment{
-			RegionalMetadata: commondomain.RegionalMetadata{
+			GlobalTenantMetadata: commondomain.GlobalTenantMetadata{
 				CommonMetadata: commondomain.CommonMetadata{
 					DeletedAt: &now,
 				},

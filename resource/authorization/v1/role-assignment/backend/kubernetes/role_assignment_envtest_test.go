@@ -82,7 +82,7 @@ func TestRoleAssignmentBackend_CreateAndGetRoleAssignment(t *testing.T) {
 
 	t.Run("create_update_list_delete_role_assignment", func(t *testing.T) {
 		createDomain := &radom.RoleAssignment{
-			RegionalMetadata: commondomain.RegionalMetadata{
+			GlobalTenantMetadata: commondomain.GlobalTenantMetadata{
 				CommonMetadata: commondomain.CommonMetadata{Name: roleAssignmentName},
 				Scope:          kernelresource.Scope{Tenant: tenant},
 				Labels:         map[string]string{k8slabels.InternalTenantLabel: tenant},
@@ -120,7 +120,7 @@ func TestRoleAssignmentBackend_CreateAndGetRoleAssignment(t *testing.T) {
 
 		// Get the role assignment and verify it matches.
 		getDomain := &radom.RoleAssignment{
-			RegionalMetadata: commondomain.RegionalMetadata{
+			GlobalTenantMetadata: commondomain.GlobalTenantMetadata{
 				CommonMetadata: commondomain.CommonMetadata{Name: roleAssignmentName},
 				Scope:          kernelresource.Scope{Tenant: tenant},
 			},
@@ -142,7 +142,7 @@ func TestRoleAssignmentBackend_CreateAndGetRoleAssignment(t *testing.T) {
 
 		// Verify update with a Get.
 		getDomain2 := &radom.RoleAssignment{
-			RegionalMetadata: commondomain.RegionalMetadata{
+			GlobalTenantMetadata: commondomain.GlobalTenantMetadata{
 				CommonMetadata: commondomain.CommonMetadata{Name: roleAssignmentName},
 				Scope:          kernelresource.Scope{Tenant: tenant},
 			},
@@ -168,7 +168,7 @@ func TestRoleAssignmentBackend_CreateAndGetRoleAssignment(t *testing.T) {
 
 		// Delete the role assignment.
 		delDomain := &radom.RoleAssignment{
-			RegionalMetadata: commondomain.RegionalMetadata{
+			GlobalTenantMetadata: commondomain.GlobalTenantMetadata{
 				CommonMetadata: commondomain.CommonMetadata{Name: roleAssignmentName},
 				Scope:          kernelresource.Scope{Tenant: tenant},
 			},
@@ -179,7 +179,7 @@ func TestRoleAssignmentBackend_CreateAndGetRoleAssignment(t *testing.T) {
 
 	t.Run("get_nonexistent_role_assignment", func(t *testing.T) {
 		getDomain := &radom.RoleAssignment{
-			RegionalMetadata: commondomain.RegionalMetadata{
+			GlobalTenantMetadata: commondomain.GlobalTenantMetadata{
 				CommonMetadata: commondomain.CommonMetadata{Name: "missing-role-assignment"},
 				Scope:          kernelresource.Scope{Tenant: tenant},
 			},
