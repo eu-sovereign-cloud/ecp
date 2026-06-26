@@ -39,8 +39,8 @@ generate-crds:
 	@go build -o /tmp/ecp-inject-kubebuilder-markers ./cmd/inject-kubebuilder-markers
 	@echo "Injecting kubebuilder markers into resource slices..."
 	@for dir in \
-	    "$(REPO_ROOT)/resource/authorization/role/v1/backend/kubernetes" \
-	    "$(REPO_ROOT)/resource/authorization/role-assignment/v1/backend/kubernetes" \
+	    "$(REPO_ROOT)/resource/authorization/v1/role/backend/kubernetes" \
+	    "$(REPO_ROOT)/resource/authorization/v1/role-assignment/backend/kubernetes" \
 	    "$(REPO_ROOT)/resource/compute/v1/instance/backend/kubernetes" \
 	    "$(REPO_ROOT)/resource/compute/v1/sku/backend/kubernetes" \
 	    "$(REPO_ROOT)/resource/network/internet-gateway/v1/backend/kubernetes" \

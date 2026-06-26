@@ -21,9 +21,9 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/kubeclient"
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/logger"
 
-	roledom "github.com/eu-sovereign-cloud/ecp/resource/authorization/role/v1"
-	rolek8s "github.com/eu-sovereign-cloud/ecp/resource/authorization/role/v1/backend/kubernetes"
-	rolerest "github.com/eu-sovereign-cloud/ecp/resource/authorization/role/v1/frontend/rest"
+	authrest "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/frontend/rest"
+	roledom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role"
+	rolek8s "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role/backend/kubernetes"
 	rdom "github.com/eu-sovereign-cloud/ecp/resource/region/v1"
 	rk8s "github.com/eu-sovereign-cloud/ecp/resource/region/v1/backend/kubernetes"
 	regionrest "github.com/eu-sovereign-cloud/ecp/resource/region/v1/frontend/rest"
@@ -105,7 +105,7 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
 		rolek8s.RoleFromCR,
 	)
 	authv1.HandlerWithOptions(
-		&rolerest.Handler{
+		&authrest.Handler{
 			Reader: roleReaderAdapter,
 			Writer: roleWriterAdapter,
 			Logger: logger,

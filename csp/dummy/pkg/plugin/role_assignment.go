@@ -6,7 +6,7 @@ import (
 	"math/rand/v2"
 	"time"
 
-	radom "github.com/eu-sovereign-cloud/ecp/resource/authorization/role-assignment/v1"
+	radom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment"
 )
 
 type RoleAssignment struct {
