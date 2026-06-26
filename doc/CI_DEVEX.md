@@ -271,8 +271,9 @@ Minimal distroless base (`gcr.io/distroless/static-debian13`) for production dep
 | | `go-get`, `<module>-go-get PKG=<pkg>` | `go get <pkg>` per module + tidy |
 | | `workspace-sync` | `go work sync` |
 | | `workspace-verify` | `workspace-sync` + git-cleanliness gate (CI gate) |
-| **CI Gates** | `pre-commit` | `go-sdk-verify generate-api-verify test lint gofmt-check vuln gosec` |
+| **CI Gates** | `pre-commit` | `go-sdk-verify generate-api-verify test vet-integration lint gofmt-check vuln gosec` |
 | | `pre-merge` | Same, plus `gh-token-ensure branch-rebase-verify workspace-verify` |
+| | `vet-integration`, `<module>-vet-integration` | `go vet -tags integration ./...` per module — compile-checks `//go:build integration` test files without running them (no KIND needed) |
 | | `branch-rebase-verify` | Verify current branch is rebased onto its PR target |
 | **Container Images** | `tools-build`, `dev-build`, `images-build` | Build image(s) |
 | | `builder-rebuild`, `tools-rebuild`, `images-rebuild` | Force-rebuild (bypass cache) |
