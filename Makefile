@@ -182,6 +182,29 @@ test-envtest:
 	  sh -c "cd $(_REPO_ROOT)/resource && go test -race -tags envtest -v $(if $(RUN),-run '$(RUN)') ./..."
 
 ###############################################################################
+# Per-module vet-integration: compile-check //go:build integration test files
+#
+# Usage:
+#   make framework-vet-integration
+#   make vet-integration
+#   make framework-vet-integration-ctzd   # via tools container
+#
+# Runs `go vet -tags integration ./...` per module. Unlike the plain `test`
+# target, this builds files gated by the `integration` build tag — catching
+# stale imports and wrong types without executing TestMain (no KIND needed).
+# Wired into pre-commit and pre-merge to prevent this class of breakage from
+# reaching CI undetected.
+###############################################################################
+
+.PHONY: %-vet-integration
+%-vet-integration:
+	@$(_REPO_ROOT)/ci/scripts/verify-run.sh "$*-vet-integration" "Integration build check" -- \
+	  sh -c "cd $(_REPO_ROOT)/$* && go vet -tags integration ./..."
+
+.PHONY: vet-integration
+vet-integration: $(addsuffix -vet-integration,$(GO_MODULES))
+
+###############################################################################
 # Per-module lint (golangci-lint)
 #
 # Usage:
@@ -440,10 +463,10 @@ branch-rebase-verify:
 ###############################################################################
 
 .PHONY: pre-commit
-pre-commit: go-sdk-verify generate-api-verify test lint gofmt-check vuln gosec
+pre-commit: go-sdk-verify generate-api-verify test vet-integration lint gofmt-check vuln gosec
 
 .PHONY: pre-merge
-pre-merge: gh-token-ensure branch-rebase-verify workspace-verify go-sdk-verify generate-api-verify test lint gofmt-check vuln gosec
+pre-merge: gh-token-ensure branch-rebase-verify workspace-verify go-sdk-verify generate-api-verify test vet-integration lint gofmt-check vuln gosec
 
 ###############################################################################
 # Workspace membership: add / remove a module from go.work
