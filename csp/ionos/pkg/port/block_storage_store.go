@@ -3,7 +3,7 @@ package port
 import (
 	"context"
 
-	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1"
+	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage"
 )
 
 type BlockStorageStore interface {

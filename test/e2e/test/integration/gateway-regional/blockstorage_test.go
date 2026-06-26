@@ -21,8 +21,8 @@ import (
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	resource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
-	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1"
-	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1/backend/kubernetes"
+	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage"
+	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage/backend/kubernetes"
 )
 
 // newBlockStorageBody is a helper to construct the body for creating/updating block storage.

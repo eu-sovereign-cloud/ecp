@@ -6,7 +6,7 @@ import (
 	"math/rand/v2"
 	"time"
 
-	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1"
+	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage"
 )
 
 type BlockStorage struct {
