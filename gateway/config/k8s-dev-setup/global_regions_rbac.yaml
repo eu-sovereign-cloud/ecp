@@ -6,6 +6,9 @@ rules:
   - apiGroups: ["v1.secapi.cloud"]
     resources: ["regions"]
     verbs: ["get", "list", "watch"]
+  - apiGroups: ["authorization.v1.secapi.cloud"]
+    resources: ["roles"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

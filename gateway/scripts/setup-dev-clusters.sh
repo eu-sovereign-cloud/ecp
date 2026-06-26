@@ -34,8 +34,8 @@ REGIONS_RBAC_YAML="${CONFIG_SETUP_DIR}/global_regions_rbac.yaml"
 REGIONAL_RBAC_YAML="${CONFIG_SETUP_DIR}/regional_rbac.yaml"
 
 # Verify required files/directories exist early to fail fast
-ensure_file() { if [ ! -f "$1" ]; then echo "Error: Required file not found: $1" >&2; exit 1; fi }
-ensure_dir() { if [ ! -d "$1" ]; then echo "Error: Required directory not found: $1" >&2; exit 1; fi }
+ensure_file() { if [ ! -f "$1" ]; then echo "Error: Required file not found: $1" >&2; exit 1; fi; }
+ensure_dir() { if [ ! -d "$1" ]; then echo "Error: Required directory not found: $1" >&2; exit 1; fi; }
 ensure_file "${GLOBAL_DEPLOYMENT_YAML}"
 ensure_file "${REGIONAL_DEPLOYMENT_YAML}"
 ensure_file "${REGIONS_RBAC_YAML}"
@@ -61,6 +61,8 @@ create_kind_cluster() {
   # kind uses kubeadm under the hood; this patch sets etcd local extra args.
   local kind_cfg
   kind_cfg="$(mktemp)"
+  trap 'rm -f "${kind_cfg}"' RETURN
+
   cat >"${kind_cfg}" <<EOF
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
@@ -75,8 +77,6 @@ EOF
 
   echo "Creating kind cluster '${name}' with etcd quota-backend-bytes=${ETCD_QUOTA_BACKEND_BYTES}"
   kind create cluster --name "${name}" --config "${kind_cfg}"
-  rm -f "${kind_cfg}"
-}
 
 # --- Script ---
 
