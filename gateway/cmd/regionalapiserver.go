@@ -25,11 +25,11 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/kubeclient"
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/logger"
 
-	netskudom "github.com/eu-sovereign-cloud/ecp/resource/network/network-sku/v1"
-	netskuk8s "github.com/eu-sovereign-cloud/ecp/resource/network/network-sku/v1/backend/kubernetes"
-	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/network/v1"
-	netk8s "github.com/eu-sovereign-cloud/ecp/resource/network/network/v1/backend/kubernetes"
-	netrest "github.com/eu-sovereign-cloud/ecp/resource/network/network/v1/frontend/rest"
+	netrest "github.com/eu-sovereign-cloud/ecp/resource/network/v1/frontend/rest"
+	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network"
+	netskudom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network-sku"
+	netskuk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network-sku/backend/kubernetes"
+	netk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network/backend/kubernetes"
 
 	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage"
 	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage/backend/kubernetes"

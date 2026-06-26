@@ -13,7 +13,7 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	kernelresource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
-	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/network/v1"
+	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network"
 )
 
 func TestNetwork(t *testing.T) {
