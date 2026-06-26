@@ -4,8 +4,8 @@ import (
 	"context"
 
 	blockstoragectrl "github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/controller/block_storage"
-	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1"
-	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1/backend/kubernetes"
+	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage"
+	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage/backend/kubernetes"
 )
 
 var _ bsk8s.BlockStoragePlugin = (*BlockStorage)(nil)

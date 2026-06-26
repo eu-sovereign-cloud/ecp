@@ -15,7 +15,7 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/csp/ionos/pkg/port"
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
-	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1"
+	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage"
 )
 
 var _ port.BlockStorageStore = (*BlockStorageStore)(nil)

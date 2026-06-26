@@ -53,9 +53,9 @@ generate-crds:
 	    "$(REPO_ROOT)/resource/network/security-group/v1/backend/kubernetes" \
 	    "$(REPO_ROOT)/resource/network/subnet/v1/backend/kubernetes" \
 	    "$(REPO_ROOT)/resource/region/v1/backend/kubernetes" \
-	    "$(REPO_ROOT)/resource/storage/block-storage/v1/backend/kubernetes" \
-	    "$(REPO_ROOT)/resource/storage/image/v1/backend/kubernetes" \
-	    "$(REPO_ROOT)/resource/storage/storage-sku/v1/backend/kubernetes" \
+	    "$(REPO_ROOT)/resource/storage/v1/block-storage/backend/kubernetes" \
+	    "$(REPO_ROOT)/resource/storage/v1/image/backend/kubernetes" \
+	    "$(REPO_ROOT)/resource/storage/v1/storage-sku/backend/kubernetes" \
 	    "$(REPO_ROOT)/resource/workspace/v1/backend/kubernetes"; do \
 	    /tmp/ecp-inject-kubebuilder-markers "$$dir"; \
 	done

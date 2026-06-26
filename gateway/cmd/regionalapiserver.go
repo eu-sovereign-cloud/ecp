@@ -31,15 +31,13 @@ import (
 	netk8s "github.com/eu-sovereign-cloud/ecp/resource/network/network/v1/backend/kubernetes"
 	netrest "github.com/eu-sovereign-cloud/ecp/resource/network/network/v1/frontend/rest"
 
-	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1"
-	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1/backend/kubernetes"
-	storagerest "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1/frontend/rest"
-	imgdom "github.com/eu-sovereign-cloud/ecp/resource/storage/image/v1"
-	imgk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/image/v1/backend/kubernetes"
-	imgrest "github.com/eu-sovereign-cloud/ecp/resource/storage/image/v1/frontend/rest"
-	skudom "github.com/eu-sovereign-cloud/ecp/resource/storage/storage-sku/v1"
-	skuk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/storage-sku/v1/backend/kubernetes"
-	skurest "github.com/eu-sovereign-cloud/ecp/resource/storage/storage-sku/v1/frontend/rest"
+	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage"
+	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage/backend/kubernetes"
+	storagerest "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/frontend/rest"
+	imgdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image"
+	imgk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image/backend/kubernetes"
+	skudom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/storage-sku"
+	skuk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/storage-sku/backend/kubernetes"
 
 	wsdom "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1"
 	wsk8s "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1/backend/kubernetes"
@@ -251,16 +249,10 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		&storagerest.Handler{
 			BlockStorageReader: bsReaderAdapter,
 			BlockStorageWriter: bsWriterAdapter,
-			ImageHandler: &imgrest.ImageHandler{
-				Reader: imgReaderAdapter,
-				Writer: imgWriterAdapter,
-				Logger: logger,
-			},
-			SKUHandler: &skurest.SKUHandler{
-				Reader: skuReaderAdapter,
-				Logger: logger,
-			},
-			Logger: logger,
+			ImageReader:        imgReaderAdapter,
+			ImageWriter:        imgWriterAdapter,
+			SKUReader:          skuReaderAdapter,
+			Logger:             logger,
 		},
 		sdkstorageapi.StdHTTPServerOptions{
 			BaseURL:          "/providers/seca.storage",
