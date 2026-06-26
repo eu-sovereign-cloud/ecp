@@ -10,7 +10,7 @@ Each plugin is a separate Go module under `csp/`, keeping CSP-specific dependenc
 
 ## Plugin Interfaces
 
-Plugin interfaces live in each resource slice at `resource/{group}/{resource}/vN/backend/kubernetes/plugin.go`. This co-locates the interface with the controller and handler that use it — no framework package ever names a concrete resource.
+Plugin interfaces live in each resource slice at `resource/{group}/vN/{resource}/backend/kubernetes/plugin.go`. This co-locates the interface with the controller and handler that use it — no framework package ever names a concrete resource.
 
 **`WorkspacePlugin` interface** (`resource/workspace/v1/backend/kubernetes/plugin.go`):
 ```go
@@ -20,7 +20,7 @@ type WorkspacePlugin interface {
 }
 ```
 
-**`BlockStoragePlugin` interface** (`resource/storage/block-storage/v1/backend/kubernetes/plugin.go`):
+**`BlockStoragePlugin` interface** (`resource/storage/v1/block-storage/backend/kubernetes/plugin.go`):
 ```go
 type BlockStoragePlugin interface {
     Create(ctx context.Context, resource *bsdom.BlockStorage) error
@@ -29,7 +29,7 @@ type BlockStoragePlugin interface {
 }
 ```
 
-**`NetworkPlugin` interface** (`resource/network/network/v1/backend/kubernetes/plugin.go`):
+**`NetworkPlugin` interface** (`resource/network/v1/network/backend/kubernetes/plugin.go`):
 ```go
 type NetworkPlugin interface {
     Create(ctx context.Context, resource *netdom.Network) error

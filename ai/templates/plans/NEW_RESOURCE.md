@@ -77,7 +77,7 @@ correct strings — locate it rather than assuming):
 > **schema type**, and verify against the scaffold dir actually present under
 > `resource/<group>/`.
 
-**Slice path:** `resource/<group>/<dir>/v1/` (only `v1` exists — default to it).
+**Slice path:** `resource/<group>/v1/<dir>/` (only `v1` exists — default to it).
 **Exception — group equals resource:** when the group `name:` equals the resource `name:`
 (e.g. `workspace`, `region`), the slice collapses to `resource/<resource>/v1/` with **no
 group segment**. `region` has a further exception — see §5.
@@ -145,10 +145,10 @@ whether a generated file is current, regenerate (§3) and observe; don't trust a
 | Role | Use as the exemplar for | Slice |
 |---|---|---|
 | **regional-tenant, read-write** | full stack incl. controller/plugin | `resource/workspace/v1/` |
-| **regional-workspace, read-write** | full stack incl. controller/plugin | `resource/storage/block-storage/v1/` |
+| **regional-workspace, read-write** | full stack incl. controller/plugin | `resource/storage/v1/block-storage/` |
 | **global, read-only** | global scope + the read-only (rest-only) shape | `resource/region/v1/` |
 
-Use **workspace** and **block-storage** as the controller/plugin references. Use **region**
+Use **workspace** (`resource/workspace/v1/`) and **block-storage** (`resource/storage/v1/block-storage/`) as the controller/plugin references. Use **region** (`resource/region/v1/`)
 only for the global-scope shape and the read-only shape — it has no controller/plugin. If a
 read-write **global** resource is ever requested, take scope from `region` but controller/
 plugin from the regional exemplars.
@@ -159,10 +159,10 @@ plugin from the regional exemplars.
 
 A few sentences per directory you will touch:
 
-- **`resource/<group>/<dir>/v1/`** — the vertical slice. `domain.go` holds the canonical
-  domain type and identity constants. `backend/kubernetes/` holds the CR wrapper, conversion,
-  controller, plugin interface + handler, and generated files. `frontend/rest/` holds the
-  REST↔domain converters and (for the group owner only) the HTTP handlers.
+- **`resource/<group>/v1/<dir>/`** — the vertical slice. `domain.go` holds the canonical
+  domain type and identity constants (`package <dir-as-identifier>`). `backend/kubernetes/` holds the CR wrapper, conversion,
+  controller, plugin interface + handler, and generated files. `resource/<group>/v1/frontend/rest/` holds the
+  REST↔domain converters (`<resource>_converter.go`) and (for the group owner) the HTTP handlers (`<resource>_handler.go`) — one handler per API group shared across all resources in that group.
 - **`resource/common/`** — shared domain types (`Reference`, `Status`, `ResourceState`,
   `RegionalMetadata`/`Metadata`) and shared conversion helpers (`commonbackend`,
   `commondomain`). Reuse these; never re-implement state conversion or metadata.
@@ -227,14 +227,15 @@ Reference: [doc/CODEGEN.md](../../../doc/CODEGEN.md).
 Notation: `<Kind>` = Go Kind, `<dir>` = slice dir, `<plural>` = spec plural. Skip the marked
 steps for **read-only** resources.
 
-### 4.1 Domain type — `resource/<group>/<dir>/v1/domain.go`
+### 4.1 Domain type — `resource/<group>/v1/<dir>/domain.go`
 Identity constants (`Kind`, `Resource`=`<plural>`, `Group`, `Version`, `ProviderID`) and the
-canonical domain struct. Embed `RegionalMetadata` (regional) or `Metadata` (global). Define
-`<Kind>Spec`; define `<Kind>Status` (embeds `domain.Status`) **only for read-write**
+canonical domain struct. Package name is `package <dir-as-identifier>` (e.g. `package blockstorage`,
+`package storagesku`, `package network`). Embed `RegionalMetadata` (regional) or `Metadata` (global).
+Define `<Kind>Spec`; define `<Kind>Status` (embeds `domain.Status`) **only for read-write**
 resources — read-only resources have no Status. Ref: the matching canonical vertical's
 `domain.go`.
 
-### 4.2 CR wrapper — `resource/<group>/<dir>/v1/backend/kubernetes/resource.go`
+### 4.2 CR wrapper — `resource/<group>/v1/<dir>/backend/kubernetes/resource.go`
 **This is where the spec's requirements/validations land**, as kubebuilder markers (mostly
 auto-injected from go-sdk struct tags). Define group/version constants, `<Kind>GVR`/`<Kind>GVK`,
 the `SchemeBuilder`/`AddToScheme`, the CR struct (`TypeMeta`+`ObjectMeta`+`Spec`+
@@ -243,28 +244,29 @@ kubebuilder markers, **including the correct `scope=`** (`Namespaced` regional /
 global) and `+ecp:conditioned` **iff read-write**. A scaffold usually already has this — verify
 it, don't recreate it. Ref: the matching vertical's `resource.go`.
 
-### 4.3 Generate directives — `resource/<group>/<dir>/v1/backend/kubernetes/generate.go`
+### 4.3 Generate directives — `resource/<group>/v1/<dir>/backend/kubernetes/generate.go`
 `//go:generate` for `model-gen` (`--root-types=<Kind>Spec,<Kind>Status` for read-write, just
 `<Kind>Spec` for read-only) and — **read-write only** — `mockgen` for `Repo` and the
 `<Kind>Plugin`. Ref: block-storage (read-write) / storage-sku (read-only) `generate.go`.
 
 ### 4.4 Register in the Makefile slice list — `framework/backend/kubernetes/Makefile`
-Per the §3 trap: add `"$(REPO_ROOT)/resource/<group>/<dir>/v1/backend/kubernetes" \` to the
+Per the §3 trap: add `"$(REPO_ROOT)/resource/<group>/v1/<dir>/backend/kubernetes" \` to the
 `generate-crds` loop **only if it is not already there.**
 
 ### 4.5 Generate and inspect
 Run `(cd resource && go generate ./...)` and `make generate-api`. Confirm the generated files
 and the CRD validations per §3. Do not proceed until the CRD reflects the spec.
 
-### 4.6 Conversion — `resource/<group>/<dir>/v1/backend/kubernetes/conversion.go`
+### 4.6 Conversion — `resource/<group>/v1/<dir>/backend/kubernetes/conversion.go`
 `<Kind>FromCR(obj client.Object) (*<dom>, error)` and `<Kind>ToCR(x *<dom>) (client.Object,
 error)` (read-only resources still need `FromCR` for the reader adapter; keep `ToCR` for
 symmetry/tests as the read-only exemplars do). Use `commonbackend.ResourceStateFromCR` (never a
 raw cast) and the error template `"<resource> <name>: <description>: %w"`. **The CR namespace is
-set here and encodes the scope** (§5). Ref: workspace / block-storage / storage-sku
-`conversion.go`.
+set here and encodes the scope** (§5). Ref: `resource/workspace/v1/backend/kubernetes/conversion.go` /
+`resource/storage/v1/block-storage/backend/kubernetes/conversion.go` /
+`resource/storage/v1/storage-sku/backend/kubernetes/conversion.go`.
 
-### 4.7 Plugin interface — `resource/<group>/<dir>/v1/backend/kubernetes/plugin.go` *(read-write)*
+### 4.7 Plugin interface — `resource/<group>/v1/<dir>/backend/kubernetes/plugin.go` *(read-write)*
 `type <Kind>Plugin interface { … }`. Methods follow the spec operations: `Create` + `Delete` at
 minimum, plus any resource-specific mutating verb. **Skip for read-only.** Ref: block-storage
 (extra verb) / workspace (create+delete only) `plugin.go`.
@@ -273,39 +275,46 @@ minimum, plus any resource-specific mutating verb. **Skip for read-only.** Ref: 
 The reconciliation state machine. Embed the framework `GenericPluginHandler`; hold `repo` +
 `plugin`; implement `HandleReconcile` and the `isX*`/`wantX*` predicates. **Structural symmetry
 is mandatory** (CONVENTIONS §8): `isXPending` treats nil status as pending and only marks
-deleting when `DeletedAt == nil`. Use **workspace** as the template for create/delete-only
-resources, **block-storage** when there is an extra mutating operation. **Skip for read-only.**
+deleting when `DeletedAt == nil`. Use **workspace** (`resource/workspace/v1/backend/kubernetes/`) as
+the template for create/delete-only resources, **block-storage**
+(`resource/storage/v1/block-storage/backend/kubernetes/`) when there is an extra mutating
+operation. **Skip for read-only.**
 
-### 4.9 Controller — `…/controller.go` *(read-write)*
+### 4.9 Controller — `resource/<group>/v1/<dir>/backend/kubernetes/controller.go` *(read-write)*
 `NewController(ctrlClient, dynClient, plugin, opts...)` wiring a repo adapter, the plugin
 handler, and the framework generic controller. **Skip for read-only.** Ref: the matching
 vertical's `controller.go`.
 
-### 4.10 REST — `resource/<group>/<dir>/v1/frontend/rest/`
-- Always add `converter.go`: `<Kind>ToAPI`/`<Kind>ToAPIWithVerb`, `<Kind>IteratorToAPI`, a
+### 4.10 REST — `resource/<group>/v1/frontend/rest/`
+REST is **per API group**, not per resource. The group's `frontend/rest/` directory is shared
+by all resources in that group.
+- Always add `<dir>_converter.go`: `<Kind>ToAPI`/`<Kind>ToAPIWithVerb`, `<Kind>IteratorToAPI`, a
   list-param helper, and (read-write only) `<Kind>FromAPI`. Read-only converters expose list/get
   shapes only (no `FromAPI`).
 - **New resource in an existing group:** implement its `List/Get` (+ `CreateOrUpdate/Delete`
-  for read-write) methods on the **group owner's** `handler.go`, and add a reader (and, for
-  read-write, writer) field to that handler struct. **Match the go-sdk `ServerInterface` method
-  signatures exactly** — they reflect the full spec path depth, not just the namespace scope:
-  regional-tenant `(tenant, …)`, regional-workspace `(tenant, workspace, …)`, and a deeper
-  resource carries its extra parent param (e.g. subnet's `(tenant, workspace, network, …)`).
-- **New group:** add `handler.go` implementing the group's `ServerInterface`.
+  for read-write) methods in `<dir>_handler.go` on the **group's** shared handler struct, and add
+  a reader (and, for read-write, writer) field to that handler struct. **Match the go-sdk
+  `ServerInterface` method signatures exactly** — they reflect the full spec path depth, not just
+  the namespace scope: regional-tenant `(tenant, …)`, regional-workspace `(tenant, workspace, …)`,
+  and a deeper resource carries its extra parent param (e.g. subnet's
+  `(tenant, workspace, network, …)`).
+- **New group:** add `handler.go` defining the group `Handler` struct and implementing the group's
+  `ServerInterface`; per-resource methods go in their `<dir>_handler.go` file.
 
 ### 4.11 Gateway wiring — `gateway/cmd/regionalapiserver.go` (regional) / `globalapiserver.go` (global)
 Build `k8sadapter.NewReaderAdapter` (always) and `NewWriterAdapter` (read-write only) for the
-resource (GVR + `FromCR`/`ToCR`), and either add them to the existing group handler struct, or
-register a new `…api.HandlerWithOptions(&<group>rest.Handler{…}, …BaseURL:
-"/providers/seca.<group>")` block for a new group. Ref: the storage block in
-`regionalapiserver.go`; the region block in `globalapiserver.go`.
+resource (GVR + `FromCR`/`ToCR`), and either add them to the existing group handler struct
+(`resource/<group>/v1/frontend/rest/`), or register a new `…api.HandlerWithOptions(&<group>rest.Handler{…},
+…BaseURL: "/providers/seca.<group>")` block for a new group. Ref: the storage block in
+`gateway/cmd/regionalapiserver.go`; the region block in `gateway/cmd/globalapiserver.go`.
 
 ### 4.12 Dummy plugin — `csp/dummy/pkg/plugin/<dir>.go` + `csp/dummy/cmd/main.go` *(read-write)*
 - New file `csp/dummy/pkg/plugin/<dir>.go`: a `type <Kind> struct{ logger }`, `New<Kind>`, and
   the `<Kind>Plugin` methods, each delegating to a `simulate<Kind>` helper added to
   `csp/dummy/pkg/plugin/simulate.go` (mirror `simulateBS`: stamp an expiry annotation, return
   `ErrStillProcessing` until it elapses).
-- In `csp/dummy/cmd/main.go`: add the `<k8s>` import, `utilruntime.Must(<k8s>.AddToScheme(scheme))`
+- In `csp/dummy/cmd/main.go`: add the `<k8s>` import (pointing to
+  `resource/<group>/v1/<dir>/backend/kubernetes`), `utilruntime.Must(<k8s>.AddToScheme(scheme))`
   in `init()`, instantiate the plugin, and `controllerSet.Add(<k8s>.NewController(…))`.
 - **Skip entirely for read-only** (no controller to run).
 
@@ -354,7 +363,7 @@ extra mutating verb deserves its own test).
 - **Scope is the spec `hierarchy`** (§1.3), not a free choice. **REST is per group** (§1.5).
 - **Region is special:** slice at `resource/region/v1/` (no group dir), bare group
   `v1.secapi.cloud`, `scope=Cluster`, **no plugin/controller**, served by the **global**
-  gateway. Most resources follow `resource/<group>/<dir>/v1/` with group `<group>.v1.secapi.cloud`.
+  gateway. Most resources follow `resource/<group>/v1/<dir>/` with group `<group>.v1.secapi.cloud`.
 
 **Scope-inference pointers — starting points; verify before relying** (these reflect a moment
 in time and can drift):

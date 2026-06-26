@@ -53,10 +53,10 @@ All cross-module imports follow the canonical `<resource><layer>` alias conventi
 
 ```go
 import (
-    bsdom  "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storages/v1"
-    bsk8s  "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storages/v1/backend/kubernetes"
-    bsrest "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storages/v1/frontend/rest"
-    netdom "github.com/eu-sovereign-cloud/ecp/resource/network/networks/v1"
+    bsdom  "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage"
+    bsk8s  "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage/backend/kubernetes"
+    bsrest "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/frontend/rest"
+    netdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network"
 )
 ```
 
@@ -96,10 +96,10 @@ To exclude a module from standard product CI checks (e.g., test harnesses, tool 
 
 ## Adding a New Resource Slice
 
-1. Create the slice directory: `resource/<group>/<resource>/vN/`
-2. Add `domain.go` (`package v1`) with the canonical domain type and identity consts (`Kind`, `Resource`, `Group`, `Version`, and a provider identifier).
+1. Create the slice directory: `resource/<group>/vN/<resource>/`
+2. Add `domain.go` (`package <resource>`) with the canonical domain type and identity consts (`Kind`, `Resource`, `Group`, `Version`, and a provider identifier).
 3. Add `backend/kubernetes/` with CR types, GVR, adapters, controller, plugin interface, and plugin handler.
-4. Add `frontend/rest/` with converter and HTTP handlers implementing the go-sdk `ServerInterface`.
+4. Add `<resource>_converter.go` to the group's `resource/<group>/vN/frontend/rest/` directory; add handler methods to `<resource>_handler.go` (or create the group handler if this is the first resource in the group).
 5. Run `make generate-api` to route generated types into the new slice.
 6. Register the handler in `gateway/cmd/` and the controller in the relevant CSP `cmd/main.go`.
 
@@ -109,7 +109,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the full per-slice hexagon descriptio
 
 Several files are generated and must not be edited by hand:
 
-- `resource/{group}/{resource}/vN/backend/kubernetes/zz_generated_schema.go` — Go types from go-sdk schema (per-slice; run `go generate ./...` in `resource/`)
+- `resource/{group}/vN/{resource}/backend/kubernetes/zz_generated_schema.go` — Go types from go-sdk schema (per-slice; run `go generate ./...` in `resource/`)
 - `framework/backend/kubernetes/schema/v1/` — shared CR envelope types (run `make generate-api`)
 - `chart/crd/*.yaml` — CRD YAML from controller-gen (run `make generate-api`)
 - `**/zz_generated.deepcopy.go`, `**/zz_generated.conditions.go` — controller-gen and conditioned-gen output
