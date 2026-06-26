@@ -11,7 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 
 	kernelresource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
-	roledom "github.com/eu-sovereign-cloud/ecp/resource/authorization/role/v1"
+	roledom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 )
 
@@ -104,7 +104,7 @@ func TestRole(t *testing.T) {
 		if err := roleRepo.Load(t.Context(), &loadedRole); err != nil {
 			t.Fatalf("failed to reload role: %v", err)
 		}
-		_, err = roleRepo.Delete(t.Context(), loadedRole)
+		err = roleRepo.Delete(t.Context(), loadedRole)
 		require.NoError(t, err)
 	})
 }
