@@ -216,7 +216,7 @@ Constant re-exports must not introduce stutter. If a slice re-exports a constant
 package path.
 
 ```go
-// package resource/storage/block-storage/v1/backend/kubernetes
+// package resource/storage/v1/block-storage/backend/kubernetes
 // ✓ correct — "Kind" is enough; the package path already says "block-storage"
 const Kind = bsdom.Kind
 
@@ -251,7 +251,7 @@ errors in a given slice. Use the same template across `FromCR`, `ToCR`, `FromAPI
 
 **Pending-state predicate:** the `isXPending` helper in every `plugin_handler.go` must apply the same
 guard: treat nil status as pending, and only consider deletion pending when `DeletedAt == nil` (i.e.
-the resource was not explicitly deleted). See `block-storage/v1/backend/kubernetes/plugin_handler.go`
+the resource was not explicitly deleted). See `resource/storage/v1/block-storage/backend/kubernetes/plugin_handler.go`
 as the authoritative template.
 
 ---

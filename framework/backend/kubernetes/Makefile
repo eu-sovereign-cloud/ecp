@@ -39,23 +39,23 @@ generate-crds:
 	@go build -o /tmp/ecp-inject-kubebuilder-markers ./cmd/inject-kubebuilder-markers
 	@echo "Injecting kubebuilder markers into resource slices..."
 	@for dir in \
-	    "$(REPO_ROOT)/resource/authorization/role/v1/backend/kubernetes" \
-	    "$(REPO_ROOT)/resource/authorization/role-assignment/v1/backend/kubernetes" \
-	    "$(REPO_ROOT)/resource/compute/instance/v1/backend/kubernetes" \
-	    "$(REPO_ROOT)/resource/compute/sku/v1/backend/kubernetes" \
-	    "$(REPO_ROOT)/resource/network/internet-gateway/v1/backend/kubernetes" \
-	    "$(REPO_ROOT)/resource/network/network-sku/v1/backend/kubernetes" \
-	    "$(REPO_ROOT)/resource/network/network/v1/backend/kubernetes" \
-	    "$(REPO_ROOT)/resource/network/nic/v1/backend/kubernetes" \
-	    "$(REPO_ROOT)/resource/network/public-ip/v1/backend/kubernetes" \
-	    "$(REPO_ROOT)/resource/network/route-table/v1/backend/kubernetes" \
-	    "$(REPO_ROOT)/resource/network/security-group-rule/v1/backend/kubernetes" \
-	    "$(REPO_ROOT)/resource/network/security-group/v1/backend/kubernetes" \
-	    "$(REPO_ROOT)/resource/network/subnet/v1/backend/kubernetes" \
+	    "$(REPO_ROOT)/resource/authorization/v1/role/backend/kubernetes" \
+	    "$(REPO_ROOT)/resource/authorization/v1/role-assignment/backend/kubernetes" \
+	    "$(REPO_ROOT)/resource/compute/v1/instance/backend/kubernetes" \
+	    "$(REPO_ROOT)/resource/compute/v1/sku/backend/kubernetes" \
+	    "$(REPO_ROOT)/resource/network/v1/internet-gateway/backend/kubernetes" \
+	    "$(REPO_ROOT)/resource/network/v1/network-sku/backend/kubernetes" \
+	    "$(REPO_ROOT)/resource/network/v1/network/backend/kubernetes" \
+	    "$(REPO_ROOT)/resource/network/v1/nic/backend/kubernetes" \
+	    "$(REPO_ROOT)/resource/network/v1/public-ip/backend/kubernetes" \
+	    "$(REPO_ROOT)/resource/network/v1/route-table/backend/kubernetes" \
+	    "$(REPO_ROOT)/resource/network/v1/security-group-rule/backend/kubernetes" \
+	    "$(REPO_ROOT)/resource/network/v1/security-group/backend/kubernetes" \
+	    "$(REPO_ROOT)/resource/network/v1/subnet/backend/kubernetes" \
 	    "$(REPO_ROOT)/resource/region/v1/backend/kubernetes" \
-	    "$(REPO_ROOT)/resource/storage/block-storage/v1/backend/kubernetes" \
-	    "$(REPO_ROOT)/resource/storage/image/v1/backend/kubernetes" \
-	    "$(REPO_ROOT)/resource/storage/storage-sku/v1/backend/kubernetes" \
+	    "$(REPO_ROOT)/resource/storage/v1/block-storage/backend/kubernetes" \
+	    "$(REPO_ROOT)/resource/storage/v1/image/backend/kubernetes" \
+	    "$(REPO_ROOT)/resource/storage/v1/storage-sku/backend/kubernetes" \
 	    "$(REPO_ROOT)/resource/workspace/v1/backend/kubernetes"; do \
 	    /tmp/ecp-inject-kubebuilder-markers "$$dir"; \
 	done

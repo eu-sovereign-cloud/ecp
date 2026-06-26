@@ -10,8 +10,8 @@ import (
 	"go.uber.org/mock/gomock"
 
 	refdom "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
-	bsdomblock "github.com/eu-sovereign-cloud/ecp/resource/storage/block-storage/v1"
-	bsdomsku "github.com/eu-sovereign-cloud/ecp/resource/storage/storage-sku/v1"
+	bsdomblock "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage"
+	bsdomsku "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/storage-sku"
 	wsdom "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1"
 )
 

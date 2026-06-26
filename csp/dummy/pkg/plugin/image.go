@@ -6,7 +6,7 @@ import (
 	"math/rand/v2"
 	"time"
 
-	imgdom "github.com/eu-sovereign-cloud/ecp/resource/storage/image/v1"
+	imgdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image"
 )
 
 type Image struct {

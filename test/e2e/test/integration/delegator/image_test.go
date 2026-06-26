@@ -14,7 +14,7 @@ import (
 	kernel "github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	resource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
-	imgdom "github.com/eu-sovereign-cloud/ecp/resource/storage/image/v1"
+	imgdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image"
 )
 
 func TestImage(t *testing.T) {

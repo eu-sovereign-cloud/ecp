@@ -21,8 +21,8 @@ import (
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	resource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
-	imgdom "github.com/eu-sovereign-cloud/ecp/resource/storage/image/v1"
-	imgk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/image/v1/backend/kubernetes"
+	imgdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image"
+	imgk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image/backend/kubernetes"
 )
 
 // newImageBody is a helper to construct the body for creating/updating an image.

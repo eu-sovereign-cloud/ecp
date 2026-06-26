@@ -3,7 +3,7 @@ package port
 import (
 	"context"
 
-	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/network/v1"
+	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network"
 )
 
 type NetworkStore interface {

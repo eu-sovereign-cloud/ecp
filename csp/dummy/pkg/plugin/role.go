@@ -6,7 +6,7 @@ import (
 	"math/rand/v2"
 	"time"
 
-	roledom "github.com/eu-sovereign-cloud/ecp/resource/authorization/role/v1"
+	roledom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role"
 )
 
 // Role is the dummy CSP plugin for the role resource.
