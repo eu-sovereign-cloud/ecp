@@ -1,11 +1,10 @@
-// Package rest provides REST↔domain conversion functions for the network SKU resource.
 package rest
 
 import (
 	sdknetwork "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.network.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
-	skudom "github.com/eu-sovereign-cloud/ecp/resource/network/network-sku/v1"
+	skudom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network-sku"
 )
 
 // NetworkSKUToAPI converts a NetworkSKU to its SDK representation.

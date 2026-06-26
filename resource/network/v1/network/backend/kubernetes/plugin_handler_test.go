@@ -12,9 +12,9 @@ import (
 	"go.uber.org/mock/gomock"
 
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
-	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/network/v1"
+	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network"
 
-	. "github.com/eu-sovereign-cloud/ecp/resource/network/network/v1/backend/kubernetes"
+	. "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network/backend/kubernetes"
 )
 
 func TestNetworkPluginHandler_HandleReconcile(t *testing.T) {

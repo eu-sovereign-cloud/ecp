@@ -8,7 +8,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
-	skudom "github.com/eu-sovereign-cloud/ecp/resource/network/network-sku/v1"
+	skudom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network-sku"
 )
 
 // NetworkSKUFromCR converts either a concrete *NetworkSKU or *unstructured.Unstructured

@@ -19,8 +19,8 @@ import (
 
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	testutil "github.com/eu-sovereign-cloud/ecp/resource/common/frontend/testutil"
-	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/network/v1"
-	. "github.com/eu-sovereign-cloud/ecp/resource/network/network/v1/backend/kubernetes"
+	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network"
+	. "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network/backend/kubernetes"
 )
 
 func TestNetworkBackend_CreateAndGetNetwork(t *testing.T) {

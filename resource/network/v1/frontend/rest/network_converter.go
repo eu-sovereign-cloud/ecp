@@ -1,4 +1,3 @@
-// Package rest provides REST↔domain conversion and HTTP handlers for the network resource.
 package rest
 
 import (
@@ -12,7 +11,7 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/validation"
 	commonfrontend "github.com/eu-sovereign-cloud/ecp/resource/common/frontend"
-	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/network/v1"
+	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network"
 )
 
 const (
@@ -20,10 +19,6 @@ const (
 	NetworkAPIVersion = netdom.Version
 	// NetworkResource is the resource name.
 	NetworkResource = netdom.Resource
-	// ResourceFormat formats a resource path string.
-	ResourceFormat = "%s/%s"
-	// WorkspaceScopedResourceFormat formats a workspace-scoped resource ref.
-	WorkspaceScopedResourceFormat = "tenants/%s/workspaces/%s/providers/%s/%s"
 )
 
 // NetworkIdentity carries identity for a single network resource.
@@ -41,8 +36,8 @@ func (n *NetworkIdentity) GetWorkspace() string { return n.workspace }
 
 var _ persistence.IdentifiableResource = (*NetworkIdentity)(nil)
 
-// ListParamsFromAPI converts SDK ListNetworksParams to resource.ListParams.
-func ListParamsFromAPI(params sdknetwork.ListNetworksParams, tenant, workspace string) resource.ListParams {
+// networkListParamsFromAPI converts SDK ListNetworksParams to resource.ListParams.
+func networkListParamsFromAPI(params sdknetwork.ListNetworksParams, tenant, workspace string) resource.ListParams {
 	limit := validation.GetLimit(params.Limit)
 
 	var skipToken string
@@ -93,9 +88,9 @@ func networkToAPI(n *netdom.Network) *sdkschema.Network {
 			Workspace:      n.Workspace,
 			Provider:       n.Provider,
 			Region:         n.Region,
-			Resource:       fmt.Sprintf(ResourceFormat, sdkschema.RegionalWorkspaceResourceMetadataKindResourceKindNetwork, n.Name),
+			Resource:       fmt.Sprintf(resourceFormat, sdkschema.RegionalWorkspaceResourceMetadataKindResourceKindNetwork, n.Name),
 			Ref: fmt.Sprintf(
-				n.Provider+"/"+WorkspaceScopedResourceFormat,
+				n.Provider+"/"+workspaceScopedResourceFormat,
 				n.Tenant,
 				n.Workspace,
 				sdkschema.RegionalWorkspaceResourceMetadataKindResourceKindNetwork,

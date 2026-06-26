@@ -4,8 +4,8 @@ import (
 	"context"
 
 	networkctrl "github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/controller/network"
-	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/network/v1"
-	netk8s "github.com/eu-sovereign-cloud/ecp/resource/network/network/v1/backend/kubernetes"
+	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network"
+	netk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network/backend/kubernetes"
 )
 
 var _ netk8s.NetworkPlugin = (*Network)(nil)

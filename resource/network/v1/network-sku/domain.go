@@ -1,5 +1,5 @@
-// Package v1 defines the network SKU resource domain model and identity constants.
-package v1
+// Package networksku defines the network SKU resource domain model and identity constants.
+package networksku
 
 import "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 

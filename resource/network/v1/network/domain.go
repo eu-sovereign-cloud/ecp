@@ -1,5 +1,5 @@
-// Package v1 defines the network resource domain model and identity constants.
-package v1
+// Package network defines the network resource domain model and identity constants.
+package network
 
 import "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 
