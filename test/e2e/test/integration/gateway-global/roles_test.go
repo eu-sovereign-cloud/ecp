@@ -4,8 +4,6 @@ package integration
 
 import (
 	"context"
-	"encoding/json"
-	"io"
 	"net/http"
 	"testing"
 
@@ -52,32 +50,20 @@ func TestRoleAPI(t *testing.T) {
 		)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, createResp.StatusCode(), "expected HTTP 200 OK on role creation")
-
-		body, err := io.ReadAll(createResp.Body)
-		_ = createResp.Body.Close()
-		require.NoError(t, err)
-
-		var createdRole schema.Role
-		require.NoError(t, json.Unmarshal(body, &createdRole), "should parse created role response")
-		require.NotNil(t, createdRole.Metadata, "created role should have metadata")
-		require.Equal(t, roleName, createdRole.Metadata.Name, "role name should match")
+		require.NotNil(t, createResp.JSON200, "created role response body should not be nil")
+		require.NotNil(t, createResp.JSON200.Metadata, "created role should have metadata")
+		require.Equal(t, roleName, createResp.JSON200.Metadata.Name, "role name should match")
 
 		//
 		// And we can retrieve it back.
 		getResp, err := authClient.GetRoleWithResponse(context.Background(), testTenant, roleName)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, getResp.StatusCode(), "expected HTTP 200 OK on role get")
-
-		getBody, err := io.ReadAll(getResp.Body)
-		_ = getResp.Body.Close()
-		require.NoError(t, err)
-
-		var fetchedRole schema.Role
-		require.NoError(t, json.Unmarshal(getBody, &fetchedRole), "should parse fetched role response")
-		require.NotNil(t, fetchedRole.Metadata)
-		require.Equal(t, roleName, fetchedRole.Metadata.Name)
-		require.Len(t, fetchedRole.Spec.Permissions, 1)
-		require.Equal(t, "seca.compute", fetchedRole.Spec.Permissions[0].Provider)
+		require.NotNil(t, getResp.JSON200, "get role response body should not be nil")
+		require.NotNil(t, getResp.JSON200.Metadata)
+		require.Equal(t, roleName, getResp.JSON200.Metadata.Name)
+		require.Len(t, getResp.JSON200.Spec.Permissions, 1)
+		require.Equal(t, "seca.compute", getResp.JSON200.Spec.Permissions[0].Provider)
 
 		//
 		// Cleanup: delete the role.
@@ -88,7 +74,6 @@ func TestRoleAPI(t *testing.T) {
 			&authv1.DeleteRoleParams{},
 		)
 		require.NoError(t, err)
-		_ = deleteResp.Body.Close()
 		require.Equal(t, http.StatusOK, deleteResp.StatusCode(), "expected HTTP 200 OK on role deletion")
 	})
 
@@ -118,7 +103,6 @@ func TestRoleAPI(t *testing.T) {
 			roleBody,
 		)
 		require.NoError(t, err)
-		_ = createResp.Body.Close()
 		require.Equal(t, http.StatusOK, createResp.StatusCode())
 
 		//
@@ -126,19 +110,13 @@ func TestRoleAPI(t *testing.T) {
 		listResp, err := authClient.ListRolesWithResponse(context.Background(), testTenant, &authv1.ListRolesParams{})
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, listResp.StatusCode(), "expected HTTP 200 OK on list roles")
-
-		listBody, err := io.ReadAll(listResp.Body)
-		_ = listResp.Body.Close()
-		require.NoError(t, err)
-
-		var roleIterator authv1.RoleIterator
-		require.NoError(t, json.Unmarshal(listBody, &roleIterator), "should parse role list response")
-		require.NotNil(t, roleIterator.Items, "role list items should not be nil")
+		require.NotNil(t, listResp.JSON200, "list roles response body should not be nil")
+		require.NotNil(t, listResp.JSON200.Items, "role list items should not be nil")
 
 		//
 		// Then the created role should appear in the list.
 		found := false
-		for _, r := range roleIterator.Items {
+		for _, r := range listResp.JSON200.Items {
 			if r.Metadata != nil && r.Metadata.Name == roleName {
 				found = true
 				break
@@ -155,7 +133,6 @@ func TestRoleAPI(t *testing.T) {
 			&authv1.DeleteRoleParams{},
 		)
 		require.NoError(t, err)
-		_ = deleteResp.Body.Close()
 		require.Equal(t, http.StatusOK, deleteResp.StatusCode())
 	})
 
@@ -164,7 +141,6 @@ func TestRoleAPI(t *testing.T) {
 		// When we try to get a role that does not exist.
 		resp, err := authClient.GetRoleWithResponse(context.Background(), testTenant, "non-existent-role-xyz")
 		require.NoError(t, err)
-		_ = resp.Body.Close()
 
 		//
 		// Then it should return 404.
