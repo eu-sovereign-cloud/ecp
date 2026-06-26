@@ -41,8 +41,8 @@ generate-crds:
 	@for dir in \
 	    "$(REPO_ROOT)/resource/authorization/role/v1/backend/kubernetes" \
 	    "$(REPO_ROOT)/resource/authorization/role-assignment/v1/backend/kubernetes" \
-	    "$(REPO_ROOT)/resource/compute/instance/v1/backend/kubernetes" \
-	    "$(REPO_ROOT)/resource/compute/sku/v1/backend/kubernetes" \
+	    "$(REPO_ROOT)/resource/compute/v1/instance/backend/kubernetes" \
+	    "$(REPO_ROOT)/resource/compute/v1/sku/backend/kubernetes" \
 	    "$(REPO_ROOT)/resource/network/internet-gateway/v1/backend/kubernetes" \
 	    "$(REPO_ROOT)/resource/network/network-sku/v1/backend/kubernetes" \
 	    "$(REPO_ROOT)/resource/network/network/v1/backend/kubernetes" \
