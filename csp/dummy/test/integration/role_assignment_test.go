@@ -12,7 +12,7 @@ import (
 
 	kernel "github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	kernelresource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
-	radom "github.com/eu-sovereign-cloud/ecp/resource/authorization/role-assignment/v1"
+	radom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 )
 
