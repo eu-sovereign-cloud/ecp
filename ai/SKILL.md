@@ -24,7 +24,7 @@ a resource defined in the **SECA spec**, using the three canonical verticals as 
 role:
 
 - `resource/workspace/v1/` — **regional-tenant**, read-write (full controller/plugin reference).
-- `resource/storage/block-storage/v1/` — **regional-workspace**, read-write (full reference).
+- `resource/storage/v1/block-storage/` — **regional-workspace**, read-write (full reference).
 - `resource/region/v1/` — **global**, read-only (global scope + rest-only shape; no controller).
 
 Every resource is already scaffolded from the go-sdk; the work is the **delta** between the
@@ -74,7 +74,7 @@ only do the missing steps.
 |---|---|
 | Full step-by-step guide | [`templates/plans/NEW_RESOURCE.md`](templates/plans/NEW_RESOURCE.md) |
 | Spec (source of truth) | [`modules/go-sdk/spec/spec/resources/`](../modules/go-sdk/spec/spec/resources/) |
-| Canonical verticals | [`resource/workspace/v1/`](../resource/workspace/v1/), [`resource/storage/block-storage/v1/`](../resource/storage/block-storage/v1/), [`resource/region/v1/`](../resource/region/v1/) |
+| Canonical verticals | [`resource/workspace/v1/`](../resource/workspace/v1/), [`resource/storage/v1/block-storage/`](../resource/storage/v1/block-storage/), [`resource/region/v1/`](../resource/region/v1/) |
 | Code generation | [`doc/CODEGEN.md`](../doc/CODEGEN.md), [`framework/backend/kubernetes/Makefile`](../framework/backend/kubernetes/Makefile) |
 | Coding conventions | [`doc/CONVENTIONS.md`](../doc/CONVENTIONS.md) |
 | Plugin system | [`doc/PLUGINS.md`](../doc/PLUGINS.md), [`csp/dummy/`](../csp/dummy/) |

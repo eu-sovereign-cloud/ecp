@@ -75,7 +75,7 @@ Run per-slice generation from the repo root:
 6. `controller-gen object` generates `zz_generated.deepcopy.go` alongside.
 
 **Output per slice:**
-- `resource/{group}/{resource}/vN/backend/kubernetes/zz_generated_schema.go`
+- `resource/{group}/vN/{resource}/backend/kubernetes/zz_generated_schema.go`
 
 ## CRD Generation
 
@@ -84,7 +84,7 @@ Run per-slice generation from the repo root:
 `generate-crds` produces CRD YAML for all 18 resource slices in two steps:
 
 1. **Inject kubebuilder markers** — `inject-kubebuilder-markers` is run over each slice's
-   `resource/**/v1/backend/kubernetes/` directory. It reads the `x-kubebuilder-validation-*`,
+   `resource/**/v1/**/backend/kubernetes/` directory. It reads the `x-kubebuilder-validation-*`,
    `x-kubebuilder-default`, and `x-cel-*` struct tags from `zz_generated_schema.go` and injects the
    corresponding `// +kubebuilder:validation:*` comment markers above each field. The tool is idempotent
    (strips prior markers before re-injecting), so CI's `generate-api-verify` gate always stays green.
@@ -147,11 +147,11 @@ make generate-api-verify
 
 When a go-sdk schema gains a new resource that needs a full slice:
 
-1. Create the slice directory: `resource/<group>/<resource>/vN/`.
-2. Add `domain.go` (`package v1`) with the canonical domain type and identity consts.
+1. Create the slice directory: `resource/<group>/vN/<resource>/`.
+2. Add `domain.go` (`package <resource>`) with the canonical domain type and identity consts.
 3. Add `backend/kubernetes/generate.go` with a `//go:generate` directive specifying `--root-types` for the new Kind and `--shared-types-source` pointing to go-sdk's `resource.go`.
 4. Run `(cd resource && go generate ./...)` — `model-gen` emits `zz_generated_schema.go` in the new slice's `backend/kubernetes/`.
-5. Add `frontend/rest/handler.go` and `frontend/rest/converter.go`.
+5. Add `<resource>_converter.go` to the group's `resource/<group>/vN/frontend/rest/` directory; add handler methods to `<resource>_handler.go` (or create the group handler if this is the first resource in the group).
 6. Add `controller.go`, `plugin.go`, `plugin_handler.go` to `backend/kubernetes/`.
 
 ## Conventions
@@ -167,11 +167,11 @@ All generated and hand-written code follows the canonical `<resource><layer>` im
 
 | Alias | Package |
 |-------|---------|
-| `bsdom` | `resource/storage/block-storage/v1` |
-| `bsk8s` | `resource/storage/block-storage/v1/backend/kubernetes` |
-| `bsrest` | `resource/storage/block-storage/v1/frontend/rest` |
-| `netdom` | `resource/network/network/v1` |
-| `netk8s` | `resource/network/network/v1/backend/kubernetes` |
+| `bsdom` | `resource/storage/v1/block-storage` |
+| `bsk8s` | `resource/storage/v1/block-storage/backend/kubernetes` |
+| `bsrest` | `resource/storage/v1/frontend/rest` |
+| `netdom` | `resource/network/v1/network` |
+| `netk8s` | `resource/network/v1/network/backend/kubernetes` |
 | `wsdom` | `resource/workspace/v1` |
 | `wsk8s` | `resource/workspace/v1/backend/kubernetes` |
 | `rdom` | `resource/region/v1` |
