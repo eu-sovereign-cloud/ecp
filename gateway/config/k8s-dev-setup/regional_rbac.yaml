@@ -1,0 +1,33 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: regional-manager-role
+rules:
+  - apiGroups: ["storage.v1.secapi.cloud"]
+    resources: ["*"]
+    verbs: ["*"]
+  - apiGroups: ["compute.v1.secapi.cloud"]
+    resources: ["*"]
+    verbs: ["*"]
+  - apiGroups: ["network.v1.secapi.cloud"]
+    resources: ["*"]
+    verbs: ["*"]
+  - apiGroups: ["workspace.v1.secapi.cloud"]
+    resources: ["*"]
+    verbs: ["*"]
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: regional-manager-binding
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: default
+roleRef:
+  kind: ClusterRole
+  name: regional-manager-role
+  apiGroup: rbac.authorization.k8s.io
