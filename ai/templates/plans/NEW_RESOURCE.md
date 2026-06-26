@@ -203,7 +203,8 @@ chart/crd/<apigroup>_<plural>.yaml`. Two entry points, **both needed** for a sli
 > `controller-gen crd` auto-discovers your CRD via the glob `paths="…/resource/..."`, **but
 > kubebuilder-marker injection runs off a hardcoded list** in
 > [framework/backend/kubernetes/Makefile](../../../framework/backend/kubernetes/Makefile)
-> (the `for dir in … done` loop in `generate-crds`). If your slice's `backend/kubernetes` dir
+> (the `for dir in … done` loop in `generate-crds`). Each entry has the form
+> `"$(REPO_ROOT)/resource/<group>/v1/<dir>/backend/kubernetes"`. If your slice's `backend/kubernetes` dir
 > is **not** in that loop, the CRD still ships — but **silently without its spec validations**
 > — and `generate-api-verify` stays green because the tree is self-consistent. This is the
 > single most common silent failure. **Check whether your slice is already in the list; add it
@@ -336,20 +337,21 @@ ClusterRole — these drift, so add your resource wherever its peers appear and 
 Follow existing conventions; **examples are inline fixtures inside the tests — there is no
 separate examples folder.** Add scenarios you judge worth covering for this resource (e.g. an
 extra mutating verb deserves its own test).
-- **Unit** (per slice, `backend/kubernetes/*_test.go`, read-write): `conversion_test.go`,
-  `plugin_handler_test.go`, `controller_test.go`, and an envtest (`<dir>_envtest_test.go` +
-  `setup_envtest_test.go`). The plugin/repo mocks come from the `generate.go` mockgen lines.
-  Read-only slices test conversion/REST only.
+- **Unit** (per slice, `resource/<group>/v1/<dir>/backend/kubernetes/*_test.go`, read-write):
+  `conversion_test.go`, `plugin_handler_test.go`, `controller_test.go`, and an envtest
+  (`<dir>_envtest_test.go` + `setup_envtest_test.go`). The plugin/repo mocks come from the
+  `generate.go` mockgen lines. Read-only slices test conversion/REST only.
 - **Dummy integration** (`csp/dummy/test/integration/<dir>_test.go`, read-write): build tag
   `//go:build integration`; create via the repo adapter; poll with
   `wait.PollUntilContextTimeout` for the expected `ResourceState`. Wire the repo + scheme in
-  `main_test.go`. Ref: `blockstorage_test.go` + `main_test.go`.
+  `main_test.go`. Ref: `csp/dummy/test/integration/blockstorage_test.go` + `main_test.go`.
 - **E2E** (`test/e2e/test/integration/…`): `delegator/` (controller behavior, read-write),
   `gateway-regional/` (regional REST), `gateway-global/` (global REST). Read-only resources get
-  a gateway read test only (mirror `storage_sku_test.go` / `regions_test.go`).
+  a gateway read test only (mirror `test/e2e/test/integration/gateway-regional/storage_sku_test.go` /
+  `gateway-global/regions_test.go`).
 
 ### 4.15 Documentation (avoid doc rot — this is critical)
-- [README.md](../../../README.md) — update the layout/CRD-count if your change affects it.
+- [README.md](../../../README.md) — update the layout/CRD-count if your change affects it (directory structure uses `<group>/vN/<resource>/`).
 - Per-folder READMEs you touched — e.g. [csp/dummy/README.md](../../../csp/dummy/README.md),
   [test/e2e/README.md](../../../test/e2e/README.md) — update any resource list/behavior prose
   that mentions the resources by name.
@@ -392,8 +394,8 @@ in time and can drift):
   casts. Match the `isXPending` predicate across handlers.
 - **Doc comment** on every exported symbol, beginning with its name; no package-name stutter
   (`const Kind`, not `const BlockStorageKind`, inside the slice package).
-- **Import-alias convention:** `<resource><layer>` (`bsdom`/`bsk8s`/`bsrest`); `schemav1` for
-  the shared schema package.
+- **Import-alias convention:** `<resource><layer>` (`bsdom`/`bsk8s`/`bsrest` where `bsrest` points to
+  `resource/storage/v1/frontend/rest`); `schemav1` for the shared schema package.
 
 ---
 
@@ -441,7 +443,7 @@ attribution (e.g. `feat(storage/image): implement image vertical`).
       (user notified on any mismatch); only-missing steps identified.
 - [ ] `domain.go`, `resource.go`, `generate.go` present and correct (Status/`+ecp:conditioned`
       only for read-write).
-- [ ] Slice present in the `framework/backend/kubernetes/Makefile` `generate-crds` loop.
+- [ ] Slice present in the `framework/backend/kubernetes/Makefile` `generate-crds` loop (path form: `$(REPO_ROOT)/resource/<group>/v1/<dir>/backend/kubernetes`).
 - [ ] Generation run; `zz_generated_*` and `chart/crd/<apigroup>_<plural>.yaml` present **with
       the spec's validations**.
 - [ ] `conversion.go` present; `plugin.go`/`plugin_handler.go`/`controller.go` present for
