@@ -23,6 +23,8 @@ import (
 
 	authrest "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/frontend/rest"
 	roledom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role"
+	radom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment"
+	rak8s "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment/backend/kubernetes"
 	rolek8s "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role/backend/kubernetes"
 	rdom "github.com/eu-sovereign-cloud/ecp/resource/region/v1"
 	rk8s "github.com/eu-sovereign-cloud/ecp/resource/region/v1/backend/kubernetes"
@@ -104,11 +106,26 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
 		rolek8s.RoleToCR,
 		rolek8s.RoleFromCR,
 	)
+	roleAssignmentReaderAdapter := k8sadapter.NewReaderAdapter[*radom.RoleAssignment](
+		client.Client,
+		rak8s.RoleAssignmentGVR,
+		logger,
+		rak8s.RoleAssignmentFromCR,
+	)
+	roleAssignmentWriterAdapter := k8sadapter.NewWriterAdapter[*radom.RoleAssignment](
+		client.Client,
+		rak8s.RoleAssignmentGVR,
+		logger,
+		rak8s.RoleAssignmentToCR,
+		rak8s.RoleAssignmentFromCR,
+	)
 	authv1.HandlerWithOptions(
 		&authrest.Handler{
-			Reader: roleReaderAdapter,
-			Writer: roleWriterAdapter,
-			Logger: logger,
+			RoleReader:           roleReaderAdapter,
+			RoleWriter:           roleWriterAdapter,
+			RoleAssignmentReader: roleAssignmentReaderAdapter,
+			RoleAssignmentWriter: roleAssignmentWriterAdapter,
+			Logger:               logger,
 		},
 		authv1.StdHTTPServerOptions{
 			BaseURL:          roledom.AuthorizationBaseURL,

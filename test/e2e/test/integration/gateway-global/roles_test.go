@@ -74,7 +74,7 @@ func TestRoleAPI(t *testing.T) {
 			&authv1.DeleteRoleParams{},
 		)
 		require.NoError(t, err)
-		require.Equal(t, http.StatusOK, deleteResp.StatusCode(), "expected HTTP 200 OK on role deletion")
+		require.Equal(t, http.StatusAccepted, deleteResp.StatusCode(), "expected HTTP 202 Accepted on role deletion")
 	})
 
 	t.Run("should list roles for a tenant", func(t *testing.T) {
@@ -133,7 +133,7 @@ func TestRoleAPI(t *testing.T) {
 			&authv1.DeleteRoleParams{},
 		)
 		require.NoError(t, err)
-		require.Equal(t, http.StatusOK, deleteResp.StatusCode())
+		require.Equal(t, http.StatusAccepted, deleteResp.StatusCode())
 	})
 
 	t.Run("should return 404 for a non-existent role", func(t *testing.T) {

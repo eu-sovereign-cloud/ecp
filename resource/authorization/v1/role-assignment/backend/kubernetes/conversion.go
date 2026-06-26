@@ -54,7 +54,6 @@ func RoleAssignmentFromCR(obj client.Object) (*radom.RoleAssignment, error) {
 	ra.UpdatedAt = cr.GetCreationTimestamp().Time
 	ra.Provider = strings.ReplaceAll(internalLabels[k8slabels.InternalProviderLabel], "_", "/")
 	ra.Tenant = internalLabels[k8slabels.InternalTenantLabel]
-	ra.Region = internalLabels[k8slabels.InternalRegionLabel]
 	ra.Labels = k8slabels.KeyedToOriginal(keyedLabels, cr.CommonData.Labels)
 	ra.Annotations = cr.CommonData.Annotations
 	ra.Extensions = cr.CommonData.Extensions
@@ -83,7 +82,6 @@ func RoleAssignmentToCR(ra *radom.RoleAssignment) (client.Object, error) {
 	crLabels := k8slabels.OriginalToKeyed(ra.Labels)
 	crLabels[k8slabels.InternalTenantLabel] = ra.Tenant
 	crLabels[k8slabels.InternalProviderLabel] = strings.ReplaceAll(ra.Provider, "/", "_")
-	crLabels[k8slabels.InternalRegionLabel] = ra.Region
 
 	cr := &RoleAssignment{
 		ObjectMeta: v1.ObjectMeta{

@@ -8,6 +8,8 @@ import (
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
 	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/validation"
 	radom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment"
 	commonfrontend "github.com/eu-sovereign-cloud/ecp/resource/common/frontend"
 )
@@ -32,6 +34,30 @@ func (r *RoleAssignmentIdentity) GetTenant() string    { return r.tenant }
 func (r *RoleAssignmentIdentity) GetWorkspace() string { return "" }
 
 var _ persistence.IdentifiableResource = (*RoleAssignmentIdentity)(nil)
+
+// ListRoleAssignmentsParamsFromAPI converts SDK ListRoleAssignmentsParams to resource.ListParams.
+func ListRoleAssignmentsParamsFromAPI(params sdkauthz.ListRoleAssignmentsParams, tenant string) resource.ListParams {
+	limit := validation.GetLimit(params.Limit)
+
+	var skipToken string
+	if params.SkipToken != nil {
+		skipToken = *params.SkipToken
+	}
+
+	var selector string
+	if params.Labels != nil {
+		selector = *params.Labels
+	}
+
+	return resource.ListParams{
+		Scope: resource.Scope{
+			Tenant: tenant,
+		},
+		Limit:     limit,
+		SkipToken: skipToken,
+		Selector:  selector,
+	}
+}
 
 // RoleAssignmentToAPIWithVerb returns a func that converts a RoleAssignment to its SDK representation with the given verb.
 func RoleAssignmentToAPIWithVerb(verb string) func(ra *radom.RoleAssignment) *sdkschema.RoleAssignment {
@@ -117,7 +143,7 @@ func RoleAssignmentIteratorToAPI(ras []*radom.RoleAssignment, nextSkipToken *str
 }
 
 // RoleAssignmentFromAPI converts an SDK RoleAssignment to a RoleAssignment.
-func RoleAssignmentFromAPI(sdk sdkschema.RoleAssignment, id *RoleAssignmentIdentity, region string) *radom.RoleAssignment {
+func RoleAssignmentFromAPI(sdk sdkschema.RoleAssignment, id *RoleAssignmentIdentity) *radom.RoleAssignment {
 	ra := &radom.RoleAssignment{
 		Spec: radom.RoleAssignmentSpec{
 			Subs:   sdk.Spec.Subs,
@@ -129,7 +155,6 @@ func RoleAssignmentFromAPI(sdk sdkschema.RoleAssignment, id *RoleAssignmentIdent
 	ra.ResourceVersion = id.GetVersion()
 	ra.Provider = radom.ProviderID
 	ra.Tenant = id.GetTenant()
-	ra.Region = region
 	ra.Labels = sdk.Labels
 	ra.Annotations = sdk.Annotations
 	ra.Extensions = sdk.Extensions
