@@ -11,7 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 
 	kernelresource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
-	roledom "github.com/eu-sovereign-cloud/ecp/resource/authorization/role/v1"
+	roledom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 )
 
