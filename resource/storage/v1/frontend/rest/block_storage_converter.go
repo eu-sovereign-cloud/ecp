@@ -7,9 +7,10 @@ import (
 	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
-	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/validation"
+	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	commonfrontend "github.com/eu-sovereign-cloud/ecp/resource/common/frontend"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage"
 )
@@ -88,9 +89,9 @@ func blockStorageToAPI(bs *bsdom.BlockStorage) *sdkschema.BlockStorage {
 			Workspace:      bs.Workspace,
 			Provider:       bs.Provider,
 			Region:         bs.Region,
-			Resource:       fmt.Sprintf(resourceFormat, sdkschema.RegionalResourceMetadataKindResourceKindBlockStorage, bs.Name),
+			Resource:       fmt.Sprintf(commondomain.RegionalResourceFormat, sdkschema.RegionalResourceMetadataKindResourceKindBlockStorage, bs.Name),
 			Ref: fmt.Sprintf(
-				bs.Provider+"/"+workspaceScopedResourceFormat,
+				bs.Provider+"/"+commondomain.RegionalWorkspaceScopedResourceFormat,
 				bs.Tenant,
 				bs.Workspace,
 				sdkschema.RegionalResourceMetadataKindResourceKindBlockStorage,

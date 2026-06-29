@@ -76,9 +76,9 @@ func nicToAPI(n *nicdom.Nic) *sdkschema.Nic {
 			Workspace:      n.Workspace,
 			Provider:       n.Provider,
 			Region:         n.Region,
-			Resource:       fmt.Sprintf(resourceFormat, kind, n.Name),
+			Resource:       fmt.Sprintf(commondomain.RegionalResourceFormat, kind, n.Name),
 			Ref: fmt.Sprintf(
-				n.Provider+"/"+workspaceScopedResourceFormat,
+				n.Provider+"/"+commondomain.RegionalWorkspaceScopedResourceFormat,
 				n.Tenant, n.Workspace, kind, n.Name,
 			),
 			ResourceVersion: resourceVersion,

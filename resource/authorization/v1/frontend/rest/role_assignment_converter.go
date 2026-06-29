@@ -7,10 +7,11 @@ import (
 	sdkauthz "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.authorization.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
-	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/validation"
 	radom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment"
+	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	commonfrontend "github.com/eu-sovereign-cloud/ecp/resource/common/frontend"
 )
 
@@ -84,9 +85,9 @@ func roleAssignmentToAPI(ra *radom.RoleAssignment) *sdkschema.RoleAssignment {
 			Name:           ra.Name,
 			Tenant:         ra.Tenant,
 			Provider:       ra.Provider,
-			Resource:       fmt.Sprintf(resourceFormat, sdkschema.GlobalTenantResourceMetadataKindResourceKindRoleAssignment, ra.Name),
+			Resource:       fmt.Sprintf(commondomain.ResourceFormat, sdkschema.GlobalTenantResourceMetadataKindResourceKindRoleAssignment, ra.Name),
 			Ref: fmt.Sprintf(
-				ra.Provider+"/"+tenantScopedResourceFormat,
+				ra.Provider+"/"+commondomain.TenantScopedResourceFormat,
 				ra.Tenant,
 				sdkschema.GlobalTenantResourceMetadataKindResourceKindRoleAssignment,
 				ra.Name,

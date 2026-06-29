@@ -8,10 +8,11 @@ import (
 	sdkauth "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.authorization.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
-	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/validation"
 	roledom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role"
+	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	commonfrontend "github.com/eu-sovereign-cloud/ecp/resource/common/frontend"
 )
 
@@ -20,10 +21,6 @@ const (
 	RoleAPIVersion = roledom.Version
 	// RoleResource is the resource name.
 	RoleResource = roledom.Resource
-	// resourceFormat formats a resource path string.
-	resourceFormat = "%s/%s"
-	// tenantScopedResourceFormat formats a tenant-scoped resource ref.
-	tenantScopedResourceFormat = "tenants/%s/providers/%s/%s"
 )
 
 // RoleIdentity carries identity for a single role resource.
@@ -110,8 +107,8 @@ func roleToAPI(r roledom.Role, verb string) *sdkschema.Role {
 			Name:            r.Name,
 			Tenant:          r.Tenant,
 			Provider:        r.Provider,
-			Resource:        fmt.Sprintf(resourceFormat, sdkschema.GlobalTenantResourceMetadataKindResourceKindRole, r.Name),
-			Ref:             fmt.Sprintf(r.Provider+"/"+tenantScopedResourceFormat, r.Tenant, sdkschema.GlobalTenantResourceMetadataKindResourceKindRole, r.Name),
+			Resource:        fmt.Sprintf(commondomain.ResourceFormat, sdkschema.GlobalTenantResourceMetadataKindResourceKindRole, r.Name),
+			Ref:             fmt.Sprintf(r.Provider+"/"+commondomain.TenantScopedResourceFormat, r.Tenant, sdkschema.GlobalTenantResourceMetadataKindResourceKindRole, r.Name),
 			ResourceVersion: resourceVersion,
 			Verb:            verb,
 		},

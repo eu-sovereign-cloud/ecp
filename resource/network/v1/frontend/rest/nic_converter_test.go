@@ -38,6 +38,14 @@ func TestNicFromAPIToAPIRoundTrip(t *testing.T) {
 	require.Equal(t, []string{"10.0.0.5"}, out.Spec.Addresses)
 	require.NotNil(t, out.Spec.SkuRef)
 	require.Equal(t, "nic-sku/small", out.Spec.SkuRef.Resource)
+	require.Equal(t, "nic/nic1", out.Metadata.Resource)
+	require.Equal(t, "seca.network/v1/tenants/t1/workspaces/w1/providers/nic/nic1", out.Metadata.Ref)
+}
+
+func TestNicIteratorToAPI_ResponseMetadata(t *testing.T) {
+	iter := NicIteratorToAPI(nil, nil)
+	require.Equal(t, "nics", iter.Metadata.Resource)
+	require.Equal(t, "seca.network/v1", iter.Metadata.Provider)
 }
 
 func TestNicFromAPI_NilSkuRef(t *testing.T) {
