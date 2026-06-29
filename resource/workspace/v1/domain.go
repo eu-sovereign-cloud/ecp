@@ -21,7 +21,7 @@ type Workspace struct {
 }
 
 // WorkspaceSpec is the free-form spec for a workspace.
-type WorkspaceSpec = map[string]interface{}
+type WorkspaceSpec = map[string]any
 
 // WorkspaceStatus defines the status for a workspace.
 type WorkspaceStatus struct {

@@ -470,7 +470,7 @@ func (a *WriterAdapter[T]) updateStatusRetry(
 	ctx context.Context,
 	ri dynamic.ResourceInterface,
 	m T,
-	desiredStatus map[string]interface{},
+	desiredStatus map[string]any,
 ) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		currObj, getErr := ri.Get(ctx, m.GetName(), metav1.GetOptions{})

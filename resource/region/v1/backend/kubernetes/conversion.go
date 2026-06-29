@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"fmt"
+	"slices"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -82,10 +83,8 @@ func validateRegionSpec(cr Region) error {
 			return fmt.Errorf("region %s has provider with empty name", cr.Name)
 		}
 	}
-	for _, z := range cr.Spec.AvailableZones {
-		if z == "" {
-			return fmt.Errorf("region %s has empty zone entry", cr.Name)
-		}
+	if slices.Contains(cr.Spec.AvailableZones, "") {
+		return fmt.Errorf("region %s has empty zone entry", cr.Name)
 	}
 	return nil
 }
