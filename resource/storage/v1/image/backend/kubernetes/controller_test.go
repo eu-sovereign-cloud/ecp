@@ -18,6 +18,7 @@ import (
 	frameworkcontroller "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/controller"
 	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
 	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/schema/v1"
+	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	imgdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image"
 
 	. "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image/backend/kubernetes"
@@ -64,7 +65,10 @@ func TestImageController_Reconcile(t *testing.T) {
 		defer mc.Finish()
 
 		mockRepo := NewMockRepo[*imgdom.Image](mc)
+		mockDeps := NewMockDependencyResolver(mc)
 		mockRepo.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).Return(nil, nil).Times(1)
+		mockDeps.EXPECT().State(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			Return(true, commondomain.ResourceStateActive, nil).Times(1)
 
 		mockPlugin := NewMockImagePlugin(mc)
 
@@ -76,7 +80,7 @@ func TestImageController_Reconcile(t *testing.T) {
 		var buf bytes.Buffer
 		logger := slog.New(slog.NewTextHandler(&buf, nil))
 
-		handler := NewImagePluginHandler(mockRepo, mockPlugin, 1)
+		handler := NewImagePluginHandler(mockRepo, mockPlugin, 1, mockDeps)
 		gc := frameworkcontroller.NewGenericController[*imgdom.Image](
 			fakeClient,
 			ImageFromCR,
@@ -98,6 +102,7 @@ func TestImageController_Reconcile(t *testing.T) {
 		defer mc.Finish()
 
 		mockRepo := NewMockRepo[*imgdom.Image](mc)
+		mockDeps := NewMockDependencyResolver(mc)
 		mockPlugin := NewMockImagePlugin(mc)
 
 		fakeClient := fake.NewClientBuilder().
@@ -107,7 +112,7 @@ func TestImageController_Reconcile(t *testing.T) {
 		var buf bytes.Buffer
 		logger := slog.New(slog.NewTextHandler(&buf, nil))
 
-		handler := NewImagePluginHandler(mockRepo, mockPlugin, 1)
+		handler := NewImagePluginHandler(mockRepo, mockPlugin, 1, mockDeps)
 		gc := frameworkcontroller.NewGenericController[*imgdom.Image](
 			fakeClient,
 			ImageFromCR,
@@ -129,7 +134,10 @@ func TestImageController_Reconcile(t *testing.T) {
 		defer mc.Finish()
 
 		mockRepo := NewMockRepo[*imgdom.Image](mc)
+		mockDeps := NewMockDependencyResolver(mc)
 		mockRepo.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).Return(nil, errHandler).Times(1)
+		mockDeps.EXPECT().State(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			Return(true, commondomain.ResourceStateActive, nil).Times(1)
 
 		mockPlugin := NewMockImagePlugin(mc)
 
@@ -142,7 +150,7 @@ func TestImageController_Reconcile(t *testing.T) {
 		logger := slog.New(slog.NewTextHandler(&buf, nil))
 
 		requeueAfter := 5 * time.Minute
-		handler := NewImagePluginHandler(mockRepo, mockPlugin, 1)
+		handler := NewImagePluginHandler(mockRepo, mockPlugin, 1, mockDeps)
 		gc := frameworkcontroller.NewGenericController[*imgdom.Image](
 			fakeClient,
 			ImageFromCR,

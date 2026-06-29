@@ -45,6 +45,13 @@ const (
 	testNamespace = "ecp-dummy-delegator"
 	pollInterval  = 5 * time.Second
 	timeout       = 2 * time.Minute
+	// dependencyTimeout allows for resources that must wait on a dependency to
+	// become active before they themselves can be reconciled (two sequential
+	// simulated operations), so it is larger than the single-operation timeout.
+	dependencyTimeout = 5 * time.Minute
+
+	testTenant    = "test-tenant"
+	testWorkspace = "test-workspace"
 )
 
 var (
