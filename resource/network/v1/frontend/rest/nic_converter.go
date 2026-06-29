@@ -48,8 +48,8 @@ func nicListParamsFromAPI(params sdknetwork.ListNicsParams, tenant, workspace st
 	}
 }
 
-// NicToAPIWithVerb returns a func that converts a Nic to its SDK representation with the given verb.
-func NicToAPIWithVerb(verb string) func(n *nicdom.Nic) *sdkschema.Nic {
+// nicToAPIWithVerb returns a func that converts a Nic to its SDK representation with the given verb.
+func nicToAPIWithVerb(verb string) func(n *nicdom.Nic) *sdkschema.Nic {
 	return func(n *nicdom.Nic) *sdkschema.Nic {
 		sdk := nicToAPI(n)
 		sdk.Metadata.Verb = verb
@@ -123,8 +123,8 @@ func nicToAPI(n *nicdom.Nic) *sdkschema.Nic {
 	return out
 }
 
-// NicIteratorToAPI converts a list of Nic to an SDK NicIterator.
-func NicIteratorToAPI(ns []*nicdom.Nic, nextSkipToken *string) *sdknetwork.NicIterator {
+// nicIteratorToAPI converts a list of Nic to an SDK NicIterator.
+func nicIteratorToAPI(ns []*nicdom.Nic, nextSkipToken *string) *sdknetwork.NicIterator {
 	items := make([]sdkschema.Nic, len(ns))
 	for i := range ns {
 		items[i] = *nicToAPI(ns[i])
@@ -143,8 +143,8 @@ func NicIteratorToAPI(ns []*nicdom.Nic, nextSkipToken *string) *sdknetwork.NicIt
 	return iterator
 }
 
-// NicFromAPI converts an SDK Nic to a Nic.
-func NicFromAPI(sdk sdkschema.Nic, id *NicIdentity, region string) *nicdom.Nic {
+// nicFromAPI converts an SDK Nic to a Nic.
+func nicFromAPI(sdk sdkschema.Nic, id *NicIdentity, region string) *nicdom.Nic {
 	n := &nicdom.Nic{
 		Spec: nicdom.NicSpec{
 			Addresses: sdk.Spec.Addresses,

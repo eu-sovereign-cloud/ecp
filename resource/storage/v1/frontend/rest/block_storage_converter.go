@@ -7,7 +7,7 @@ import (
 	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
-	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/validation"
 	commonfrontend "github.com/eu-sovereign-cloud/ecp/resource/common/frontend"
@@ -61,8 +61,8 @@ func blockStorageListParamsFromAPI(params sdkstorage.ListBlockStoragesParams, te
 	}
 }
 
-// BlockStorageToAPIWithVerb returns a func that converts a BlockStorage to its SDK representation with the given verb.
-func BlockStorageToAPIWithVerb(verb string) func(bs *bsdom.BlockStorage) *sdkschema.BlockStorage {
+// blockStorageToAPIWithVerb returns a func that converts a BlockStorage to its SDK representation with the given verb.
+func blockStorageToAPIWithVerb(verb string) func(bs *bsdom.BlockStorage) *sdkschema.BlockStorage {
 	return func(bs *bsdom.BlockStorage) *sdkschema.BlockStorage {
 		sdk := blockStorageToAPI(bs)
 		sdk.Metadata.Verb = verb
@@ -131,8 +131,8 @@ func blockStorageToAPI(bs *bsdom.BlockStorage) *sdkschema.BlockStorage {
 	return out
 }
 
-// BlockStorageIteratorToAPI converts a list of BlockStorage to an SDK BlockStorageIterator.
-func BlockStorageIteratorToAPI(bss []*bsdom.BlockStorage, nextSkipToken *string) *sdkstorage.BlockStorageIterator {
+// blockStorageIteratorToAPI converts a list of BlockStorage to an SDK BlockStorageIterator.
+func blockStorageIteratorToAPI(bss []*bsdom.BlockStorage, nextSkipToken *string) *sdkstorage.BlockStorageIterator {
 	items := make([]sdkschema.BlockStorage, len(bss))
 	for i := range bss {
 		items[i] = *blockStorageToAPI(bss[i])
@@ -154,8 +154,8 @@ func BlockStorageIteratorToAPI(bss []*bsdom.BlockStorage, nextSkipToken *string)
 	return iterator
 }
 
-// BlockStorageFromAPI converts an SDK BlockStorage to a BlockStorage.
-func BlockStorageFromAPI(sdk sdkschema.BlockStorage, id *BlockStorageIdentity, region string) *bsdom.BlockStorage {
+// blockStorageFromAPI converts an SDK BlockStorage to a BlockStorage.
+func blockStorageFromAPI(sdk sdkschema.BlockStorage, id *BlockStorageIdentity, region string) *bsdom.BlockStorage {
 	bs := &bsdom.BlockStorage{
 		Spec: bsdom.BlockStorageSpec{
 			SizeGB: sdk.Spec.SizeGB,

@@ -15,7 +15,7 @@ import (
 // ListRoleAssignments handles GET /v1/tenants/{tenant}/role-assignments.
 func (h *Handler) ListRoleAssignments(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, params sdkauth.ListRoleAssignmentsParams) {
 	logger := h.Logger.With("provider", "authorization", "resource", "role-assignment")
-	frest.HandleList(w, r, logger, ListRoleAssignmentsParamsFromAPI(params, tenant), frest.ListerFromRepo(h.RoleAssignmentReader), RoleAssignmentIteratorToAPI)
+	frest.HandleList(w, r, logger, listRoleAssignmentsParamsFromAPI(params, tenant), frest.ListerFromRepo(h.RoleAssignmentReader), roleAssignmentIteratorToAPI)
 }
 
 // DeleteRoleAssignment handles DELETE /v1/tenants/{tenant}/role-assignments/{name}.
@@ -32,7 +32,7 @@ func (h *Handler) DeleteRoleAssignment(w http.ResponseWriter, r *http.Request, t
 func (h *Handler) GetRoleAssignment(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam) {
 	logger := h.Logger.With("provider", "authorization", "resource", "role-assignment", "name", name)
 	id := &RoleAssignmentIdentity{name: name, tenant: tenant}
-	frest.HandleGet(w, r, logger, id, frest.GetterFromRepo(h.RoleAssignmentReader, newRoleAssignmentWithIdentity), RoleAssignmentToAPIWithVerb(http.MethodGet))
+	frest.HandleGet(w, r, logger, id, frest.GetterFromRepo(h.RoleAssignmentReader, newRoleAssignmentWithIdentity), roleAssignmentToAPIWithVerb(http.MethodGet))
 }
 
 // CreateOrUpdateRoleAssignment handles PUT /v1/tenants/{tenant}/role-assignments/{name}.
@@ -47,9 +47,9 @@ func (h *Handler) CreateOrUpdateRoleAssignment(w http.ResponseWriter, r *http.Re
 		Creator: frest.CreatorFromRepo(h.RoleAssignmentWriter),
 		Updater: frest.UpdaterFromRepo(h.RoleAssignmentWriter),
 		APIToDomain: func(sdk sdkschema.RoleAssignment, p persistencepkg.IdentifiableResource) *radom.RoleAssignment {
-			return RoleAssignmentFromAPI(sdk, p.(*RoleAssignmentIdentity))
+			return roleAssignmentFromAPI(sdk, p.(*RoleAssignmentIdentity))
 		},
-		DomainToAPI: RoleAssignmentToAPIWithVerb(http.MethodPut),
+		DomainToAPI: roleAssignmentToAPIWithVerb(http.MethodPut),
 	})
 }
 

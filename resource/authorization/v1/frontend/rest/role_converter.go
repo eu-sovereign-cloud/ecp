@@ -8,7 +8,7 @@ import (
 	sdkauth "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.authorization.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
-	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/validation"
 	roledom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role"
@@ -40,8 +40,8 @@ func (ri *RoleIdentity) GetWorkspace() string { return "" }
 
 var _ persistence.IdentifiableResource = (*RoleIdentity)(nil)
 
-// ListParamsFromAPI converts SDK ListRolesParams to resource.ListParams.
-func ListParamsFromAPI(params sdkauth.ListRolesParams, tenant string) resource.ListParams {
+// listParamsFromAPI converts SDK ListRolesParams to resource.ListParams.
+func listParamsFromAPI(params sdkauth.ListRolesParams, tenant string) resource.ListParams {
 	limit := validation.GetLimit(params.Limit)
 
 	var skipToken string
@@ -64,15 +64,15 @@ func ListParamsFromAPI(params sdkauth.ListRolesParams, tenant string) resource.L
 	}
 }
 
-// RoleToAPIWithVerb returns a func that converts a Role to its SDK representation with the given verb.
-func RoleToAPIWithVerb(verb string) func(r *roledom.Role) *sdkschema.Role {
+// roleToAPIWithVerb returns a func that converts a Role to its SDK representation with the given verb.
+func roleToAPIWithVerb(verb string) func(r *roledom.Role) *sdkschema.Role {
 	return func(r *roledom.Role) *sdkschema.Role {
 		return roleToAPI(*r, verb)
 	}
 }
 
-// RoleIteratorToAPI converts a list of Role to an SDK RoleIterator.
-func RoleIteratorToAPI(roles []*roledom.Role, nextSkipToken *string) *sdkauth.RoleIterator {
+// roleIteratorToAPI converts a list of Role to an SDK RoleIterator.
+func roleIteratorToAPI(roles []*roledom.Role, nextSkipToken *string) *sdkauth.RoleIterator {
 	items := make([]sdkschema.Role, len(roles))
 	for i, r := range roles {
 		items[i] = *(roleToAPI(*r, http.MethodGet))
@@ -135,8 +135,8 @@ func roleToAPI(r roledom.Role, verb string) *sdkschema.Role {
 	return sdk
 }
 
-// RoleFromAPI converts an SDK Role to a domain Role.
-func RoleFromAPI(api sdkschema.Role, id *RoleIdentity) *roledom.Role {
+// roleFromAPI converts an SDK Role to a domain Role.
+func roleFromAPI(api sdkschema.Role, id *RoleIdentity) *roledom.Role {
 	r := &roledom.Role{
 		Spec: roleSpecFromAPI(api.Spec),
 	}

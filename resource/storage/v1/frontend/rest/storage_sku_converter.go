@@ -16,8 +16,8 @@ const (
 	StorageSKUResource = skudom.Resource
 )
 
-// StorageSKUToAPIWithVerb returns a func that converts a StorageSKU to its SDK representation with the given verb.
-func StorageSKUToAPIWithVerb(verb string) func(sku *skudom.StorageSKU) *sdkschema.StorageSku {
+// storageSKUToAPIWithVerb returns a func that converts a StorageSKU to its SDK representation with the given verb.
+func storageSKUToAPIWithVerb(verb string) func(sku *skudom.StorageSKU) *sdkschema.StorageSku {
 	return func(sku *skudom.StorageSKU) *sdkschema.StorageSku {
 		sdk := storageSKUToAPI(sku)
 		sdk.Metadata.Verb = verb
@@ -51,8 +51,8 @@ func storageSKUToAPI(sku *skudom.StorageSKU) *sdkschema.StorageSku {
 	}
 }
 
-// StorageSKUIteratorToAPI converts a list of StorageSKU to an SDK SkuIterator.
-func StorageSKUIteratorToAPI(skus []*skudom.StorageSKU, nextSkipToken *string) *sdkstorage.SkuIterator {
+// storageSKUIteratorToAPI converts a list of StorageSKU to an SDK SkuIterator.
+func storageSKUIteratorToAPI(skus []*skudom.StorageSKU, nextSkipToken *string) *sdkstorage.SkuIterator {
 	items := make([]sdkschema.StorageSku, len(skus))
 	for i := range skus {
 		items[i] = *storageSKUToAPI(skus[i])

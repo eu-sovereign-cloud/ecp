@@ -27,7 +27,7 @@ var _ sdkworkspace.ServerInterface = (*Handler)(nil)
 // ListWorkspaces handles GET /v1/tenants/{tenant}/workspaces.
 func (h *Handler) ListWorkspaces(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, params sdkworkspace.ListWorkspacesParams) {
 	logger := h.Logger.With("provider", "workspace", "resource", "workspace")
-	frest.HandleList(w, r, logger, ListParamsFromAPI(params, tenant), frest.ListerFromRepo(h.Reader), WorkspaceIteratorToAPI)
+	frest.HandleList(w, r, logger, listParamsFromAPI(params, tenant), frest.ListerFromRepo(h.Reader), workspaceIteratorToAPI)
 }
 
 // DeleteWorkspace handles DELETE /v1/tenants/{tenant}/workspaces/{name}.
@@ -44,7 +44,7 @@ func (h *Handler) DeleteWorkspace(w http.ResponseWriter, r *http.Request, tenant
 func (h *Handler) GetWorkspace(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam) {
 	logger := h.Logger.With("provider", "workspace", "resource", "workspace", "name", name)
 	ir := &WorkspaceIdentity{name: name, tenant: tenant}
-	frest.HandleGet(w, r, logger, ir, frest.GetterFromRepo(h.Reader, newWorkspaceWithIdentity), WorkspaceToAPIWithVerb(http.MethodGet))
+	frest.HandleGet(w, r, logger, ir, frest.GetterFromRepo(h.Reader, newWorkspaceWithIdentity), workspaceToAPIWithVerb(http.MethodGet))
 }
 
 // CreateOrUpdateWorkspace handles PUT /v1/tenants/{tenant}/workspaces/{name}.
@@ -60,9 +60,9 @@ func (h *Handler) CreateOrUpdateWorkspace(w http.ResponseWriter, r *http.Request
 		Creator: frest.CreatorFromRepo(h.Writer),
 		Updater: frest.UpdaterFromRepo(h.Writer),
 		APIToDomain: func(sdk sdkschema.Workspace, p persistencepkg.IdentifiableResource) *wsdom.Workspace {
-			return WorkspaceFromAPI(sdk, p.(*WorkspaceIdentity), region)
+			return workspaceFromAPI(sdk, p.(*WorkspaceIdentity), region)
 		},
-		DomainToAPI: WorkspaceToAPIWithVerb(http.MethodPut),
+		DomainToAPI: workspaceToAPIWithVerb(http.MethodPut),
 	})
 }
 

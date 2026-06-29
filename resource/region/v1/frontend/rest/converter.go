@@ -23,8 +23,8 @@ const (
 	regionRefBaseURL = "/providers/secapi.cloud"
 )
 
-// ListParamsFromAPI converts SDK ListRegionsParams to resource.ListParams.
-func ListParamsFromAPI(params regionv1sdk.ListRegionsParams) resource.ListParams {
+// listParamsFromAPI converts SDK ListRegionsParams to resource.ListParams.
+func listParamsFromAPI(params regionv1sdk.ListRegionsParams) resource.ListParams {
 	limit := validation.GetLimit(params.Limit)
 
 	var skipToken string
@@ -44,8 +44,8 @@ func ListParamsFromAPI(params regionv1sdk.ListRegionsParams) resource.ListParams
 	}
 }
 
-// RegionIteratorToAPI converts a list of Region domain objects to an SDK RegionIterator.
-func RegionIteratorToAPI(rs []*rdom.Region, nextSkipToken *string) *regionv1sdk.RegionIterator {
+// regionIteratorToAPI converts a list of Region domain objects to an SDK RegionIterator.
+func regionIteratorToAPI(rs []*rdom.Region, nextSkipToken *string) *regionv1sdk.RegionIterator {
 	items := make([]sdkschema.Region, len(rs))
 	for i, r := range rs {
 		items[i] = regionToAPI(*r, "list")
@@ -67,8 +67,8 @@ func RegionIteratorToAPI(rs []*rdom.Region, nextSkipToken *string) *regionv1sdk.
 	return iterator
 }
 
-// RegionToAPI converts a Region domain object to a schema.Region for Get operations.
-func RegionToAPI(r *rdom.Region) sdkschema.Region {
+// regionToAPIForGet converts a Region domain object to a schema.Region for Get operations.
+func regionToAPIForGet(r *rdom.Region) sdkschema.Region {
 	return regionToAPI(*r, "get")
 }
 

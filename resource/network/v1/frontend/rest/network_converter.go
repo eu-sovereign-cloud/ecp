@@ -7,7 +7,7 @@ import (
 	sdknetwork "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.network.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
-	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/validation"
 	commonfrontend "github.com/eu-sovereign-cloud/ecp/resource/common/frontend"
@@ -61,8 +61,8 @@ func networkListParamsFromAPI(params sdknetwork.ListNetworksParams, tenant, work
 	}
 }
 
-// NetworkToAPIWithVerb returns a func that converts a Network to its SDK representation with the given verb.
-func NetworkToAPIWithVerb(verb string) func(n *netdom.Network) *sdkschema.Network {
+// networkToAPIWithVerb returns a func that converts a Network to its SDK representation with the given verb.
+func networkToAPIWithVerb(verb string) func(n *netdom.Network) *sdkschema.Network {
 	return func(n *netdom.Network) *sdkschema.Network {
 		sdk := networkToAPI(n)
 		sdk.Metadata.Verb = verb
@@ -128,8 +128,8 @@ func networkToAPI(n *netdom.Network) *sdkschema.Network {
 	return out
 }
 
-// NetworkIteratorToAPI converts a list of Network to an SDK NetworkIterator.
-func NetworkIteratorToAPI(ns []*netdom.Network, nextSkipToken *string) *sdknetwork.NetworkIterator {
+// networkIteratorToAPI converts a list of Network to an SDK NetworkIterator.
+func networkIteratorToAPI(ns []*netdom.Network, nextSkipToken *string) *sdknetwork.NetworkIterator {
 	items := make([]sdkschema.Network, len(ns))
 	for i := range ns {
 		items[i] = *networkToAPI(ns[i])
@@ -151,8 +151,8 @@ func NetworkIteratorToAPI(ns []*netdom.Network, nextSkipToken *string) *sdknetwo
 	return iterator
 }
 
-// NetworkFromAPI converts an SDK Network to a Network.
-func NetworkFromAPI(sdk sdkschema.Network, id *NetworkIdentity, region string) *netdom.Network {
+// networkFromAPI converts an SDK Network to a Network.
+func networkFromAPI(sdk sdkschema.Network, id *NetworkIdentity, region string) *netdom.Network {
 	n := &netdom.Network{
 		Spec: netdom.NetworkSpec{
 			CIDR:          cidrFromAPI(sdk.Spec.Cidr),

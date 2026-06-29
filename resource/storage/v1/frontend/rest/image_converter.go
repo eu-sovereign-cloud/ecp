@@ -7,7 +7,7 @@ import (
 	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
-	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/validation"
 	commonfrontend "github.com/eu-sovereign-cloud/ecp/resource/common/frontend"
@@ -68,8 +68,8 @@ func imageListParamsFromAPI(params sdkstorage.ListImagesParams, tenant string) r
 	}
 }
 
-// ImageToAPIWithVerb returns a func that converts an Image to its SDK representation with the given verb.
-func ImageToAPIWithVerb(verb string) func(img *imgdom.Image) *sdkschema.Image {
+// imageToAPIWithVerb returns a func that converts an Image to its SDK representation with the given verb.
+func imageToAPIWithVerb(verb string) func(img *imgdom.Image) *sdkschema.Image {
 	return func(img *imgdom.Image) *sdkschema.Image {
 		sdk := imageToAPI(img)
 		sdk.Metadata.Verb = verb
@@ -131,8 +131,8 @@ func imageToAPI(img *imgdom.Image) *sdkschema.Image {
 	return out
 }
 
-// ImageIteratorToAPI converts a list of Image to an SDK ImageIterator.
-func ImageIteratorToAPI(imgs []*imgdom.Image, nextSkipToken *string) *sdkstorage.ImageIterator {
+// imageIteratorToAPI converts a list of Image to an SDK ImageIterator.
+func imageIteratorToAPI(imgs []*imgdom.Image, nextSkipToken *string) *sdkstorage.ImageIterator {
 	items := make([]sdkschema.Image, len(imgs))
 	for i := range imgs {
 		items[i] = *imageToAPI(imgs[i])
@@ -154,8 +154,8 @@ func ImageIteratorToAPI(imgs []*imgdom.Image, nextSkipToken *string) *sdkstorage
 	return iterator
 }
 
-// ImageFromAPI converts an SDK Image to an Image.
-func ImageFromAPI(sdk sdkschema.Image, id *ImageIdentity, region string) *imgdom.Image {
+// imageFromAPI converts an SDK Image to an Image.
+func imageFromAPI(sdk sdkschema.Image, id *ImageIdentity, region string) *imgdom.Image {
 	img := &imgdom.Image{
 		Spec: imgdom.ImageSpec{
 			BlockStorageRef: commonfrontend.ReferenceFromAPI(sdk.Spec.BlockStorageRef),
