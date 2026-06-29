@@ -47,7 +47,7 @@ name: Pre-Merge
 #   Stage 3 — all verification jobs (gated by stage 2, parallel)
 #     workspace-verify   Ensure Workspace Is In Sync
 #     generate-api       Ensure Generated API Artifacts Are In Sync
-#     test / lint / gofmt / vuln / gosec  (per changed module)
+#     test / lint / gofmt / modernize / vuln / gosec  (per changed module)
 #
 #   Cleanup — only on action == 'closed', independent of all above
 #     builder-cleanup   Cleanup PR Builder Image
@@ -298,6 +298,36 @@ jobs:
           submodules: 'recursive'
       - name: Run gofmt check
         run: make ${{ matrix.module }}-gofmt-check
+
+  # ===========================================================================
+  # Stage 3: Modernize check via go fix (per changed module)
+  #
+  # Runs `make <module>-modernize-check` which invokes `go fix -diff` and fails
+  # if any modernization diff is produced. Mirrors the gofmt job: one job per
+  # changed module, runs inside the per-PR builder image so the go fix analyzers
+  # match the pinned toolchain (GO_VERSION in .config.mk) — no @latest drift.
+  # ===========================================================================
+  modernize:
+    needs: [module-diff, builder-publish-pr]
+    if: github.event.action != 'closed' && needs.module-diff.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ${{ fromJson(needs.module-diff.outputs.modules) }}
+    name: Modernize (${{ matrix.module }})
+    container:
+      image: ghcr.io/eu-sovereign-cloud/ecp-builder:pr-${{ github.event.pull_request.number }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          submodules: 'recursive'
+      - name: Run modernize check
+        run: make ${{ matrix.module }}-modernize-check
 
   # ===========================================================================
   # Stage 3: Vulnerability check via govulncheck (per changed module)
