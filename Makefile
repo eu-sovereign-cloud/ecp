@@ -278,16 +278,21 @@ gofmt-check: $(addsuffix -gofmt-check,$(GO_MODULES))
 # rewrites legacy constructs to their modern equivalents. Pinned by GO_VERSION
 # in .config.mk, so the fixes never drift from the toolchain.
 #
-# %-modernize        writes fixes in place (developer convenience).
-# %-modernize-check  runs `go fix -diff`, which prints the pending patch and
-#                    exits non-zero without mutating the tree. This is what CI
-#                    calls so the workspace is never modified on the runner.
+# %-modernize        applies fixes in place, re-running to a fixpoint: `go fix`
+#                    analyzes the original source each pass, so one fix can
+#                    expose another (stditerators rewrites a loop and leaves a
+#                    redundant `v := v` that forvar only removes next pass).
+#                    modernize-apply.sh loops until nothing is pending.
+# %-modernize-check  runs a single `go fix -diff`: it reports a diff at every
+#                    non-fixpoint state, so it stays a correct gate without
+#                    looping. Prints the pending patch and exits non-zero
+#                    without mutating the tree — this is what CI calls.
 ###############################################################################
 
 .PHONY: %-modernize
 %-modernize:
 	@echo "==> modernize: $*"
-	cd $(_REPO_ROOT)/$* && go fix ./...
+	@$(_REPO_ROOT)/ci/scripts/modernize-apply.sh $(_REPO_ROOT)/$*
 
 .PHONY: modernize
 modernize: $(addsuffix -modernize,$(GO_MODULES))
