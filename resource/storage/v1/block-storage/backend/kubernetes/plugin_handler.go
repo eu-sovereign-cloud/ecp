@@ -88,10 +88,6 @@ func (h *BlockStoragePluginHandler) HandleReconcile(ctx context.Context, resourc
 	switch {
 
 	case isBlockStorageAccepted(resource):
-		if resource.Status == nil {
-			resource.Status = &bsdom.BlockStorageStatus{}
-		}
-		// resource.Status.SizeGB = resource.Spec.SizeGB
 		return h.setResourceState(ctx, resource, commondomain.ResourceStatePending, false)
 
 	case isBlockStoragePending(resource):
