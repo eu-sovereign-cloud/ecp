@@ -77,6 +77,7 @@ EOF
 
   echo "Creating kind cluster '${name}' with etcd quota-backend-bytes=${ETCD_QUOTA_BACKEND_BYTES}"
   kind create cluster --name "${name}" --config "${kind_cfg}"
+}
 
 # --- Script ---
 

@@ -24,13 +24,13 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/httpserver"
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/kubeclient"
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/logger"
-
 	netrest "github.com/eu-sovereign-cloud/ecp/resource/network/v1/frontend/rest"
 	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network"
 	netskudom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network-sku"
 	netskuk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network-sku/backend/kubernetes"
 	netk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network/backend/kubernetes"
-
+	nicdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic"
+	nick8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic/backend/kubernetes"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage"
 	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage/backend/kubernetes"
 	storagerest "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/frontend/rest"
@@ -38,7 +38,6 @@ import (
 	imgk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image/backend/kubernetes"
 	skudom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/storage-sku"
 	skuk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/storage-sku/backend/kubernetes"
-
 	wsdom "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1"
 	wsk8s "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1/backend/kubernetes"
 	wsrest "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1/frontend/rest"
@@ -195,12 +194,27 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		logger,
 		netskuk8s.NetworkSKUFromCR,
 	)
+	nicReaderAdapter := k8sadapter.NewReaderAdapter[*nicdom.Nic](
+		client.Client,
+		nick8s.NICGVR,
+		logger,
+		nick8s.NicFromCR,
+	)
+	nicWriterAdapter := k8sadapter.NewWriterAdapter[*nicdom.Nic](
+		client.Client,
+		nick8s.NICGVR,
+		logger,
+		nick8s.NicToCR,
+		nick8s.NicFromCR,
+	)
 
 	sdknetworkapi.HandlerWithOptions(
 		&netrest.Handler{
 			NetworkReader: netReaderAdapter,
 			NetworkWriter: netWriterAdapter,
 			SKUReader:     netSKUReaderAdapter,
+			NicReader:     nicReaderAdapter,
+			NicWriter:     nicWriterAdapter,
 			Logger:        logger,
 		},
 		sdknetworkapi.StdHTTPServerOptions{

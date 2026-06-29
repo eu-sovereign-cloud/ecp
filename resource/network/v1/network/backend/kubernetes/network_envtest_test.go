@@ -18,7 +18,7 @@ import (
 	kernelresource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
-	testutil "github.com/eu-sovereign-cloud/ecp/resource/common/frontend/testutil"
+	"github.com/eu-sovereign-cloud/ecp/resource/common/frontend/testutil"
 	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network"
 	. "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network/backend/kubernetes"
 )
