@@ -9,9 +9,10 @@ import (
 	sdkworkspace "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
-	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/validation"
+	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	commonfrontend "github.com/eu-sovereign-cloud/ecp/resource/common/frontend"
 	wsdom "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1"
 )
@@ -21,10 +22,6 @@ const (
 	WorkspaceAPIVersion = wsdom.Version
 	// WorkspaceResource is the resource name.
 	WorkspaceResource = wsdom.Resource
-	// ResourceFormat formats a resource path string.
-	ResourceFormat = "%s/%s"
-	// TenantScopedResourceFormat formats a tenant-scoped resource ref.
-	TenantScopedResourceFormat = "tenants/%s/providers/%s/%s"
 )
 
 // WorkspaceIdentity carries identity for a single workspace resource.
@@ -112,8 +109,8 @@ func workspaceToAPI(ws wsdom.Workspace, verb string) *sdkschema.Workspace {
 			Tenant:          ws.Tenant,
 			Provider:        ws.Provider,
 			Region:          ws.Region,
-			Resource:        fmt.Sprintf(ResourceFormat, sdkschema.RegionalResourceMetadataKindResourceKindWorkspace, ws.Name),
-			Ref:             fmt.Sprintf(ws.Provider+"/"+TenantScopedResourceFormat, ws.Tenant, sdkschema.RegionalResourceMetadataKindResourceKindWorkspace, ws.Name),
+			Resource:        fmt.Sprintf(commondomain.RegionalResourceFormat, sdkschema.RegionalResourceMetadataKindResourceKindWorkspace, ws.Name),
+			Ref:             fmt.Sprintf(ws.Provider+"/"+commondomain.RegionalTenantScopedResourceFormat, ws.Tenant, sdkschema.RegionalResourceMetadataKindResourceKindWorkspace, ws.Name),
 			ResourceVersion: resourceVersion,
 			Verb:            verb,
 		},

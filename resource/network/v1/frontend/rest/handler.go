@@ -12,12 +12,6 @@ import (
 	nicdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic"
 )
 
-// resourceFormat formats a resource path string.
-const resourceFormat = "%s/%s"
-
-// workspaceScopedResourceFormat formats a workspace-scoped resource ref.
-const workspaceScopedResourceFormat = "tenants/%s/workspaces/%s/providers/%s/%s"
-
 // Handler is the HTTP handler for the network API group.
 // Network and SKU methods are in network_handler.go / network_sku_handler.go;
 // NIC methods are in nic_handler.go.

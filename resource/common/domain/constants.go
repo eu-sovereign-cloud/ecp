@@ -12,4 +12,16 @@ const (
 	// ResourceFormat defines the general format for resources. It pluralizes the resource type.
 	// Example: {resource_type}s/{resource_name}
 	ResourceFormat = "%ss/%s"
+
+	// RegionalWorkspaceScopedResourceFormat defines the format for regional workspace-scoped resources backed by a provider.
+	// Example: tenants/{tenant_name}/workspaces/{workspace_name}/providers/{resource_type}/{resource_name}
+	RegionalWorkspaceScopedResourceFormat = "tenants/%s/workspaces/%s/providers/%s/%s"
+
+	// RegionalTenantScopedResourceFormat defines the format for regional tenant-scoped resources backed by a provider.
+	// Example: tenants/{tenant_name}/providers/{resource_type}/{resource_name}
+	RegionalTenantScopedResourceFormat = "tenants/%s/providers/%s/%s"
+
+	// RegionalResourceFormat defines the short-form path for regional resources within a provider namespace.
+	// Example: {resource_type}/{resource_name}
+	RegionalResourceFormat = "%s/%s"
 )

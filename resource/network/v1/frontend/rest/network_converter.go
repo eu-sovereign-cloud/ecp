@@ -7,9 +7,10 @@ import (
 	sdknetwork "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.network.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
-	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/validation"
+	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	commonfrontend "github.com/eu-sovereign-cloud/ecp/resource/common/frontend"
 	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network"
 )
@@ -88,9 +89,9 @@ func networkToAPI(n *netdom.Network) *sdkschema.Network {
 			Workspace:      n.Workspace,
 			Provider:       n.Provider,
 			Region:         n.Region,
-			Resource:       fmt.Sprintf(resourceFormat, sdkschema.RegionalWorkspaceResourceMetadataKindResourceKindNetwork, n.Name),
+			Resource:       fmt.Sprintf(commondomain.RegionalResourceFormat, sdkschema.RegionalWorkspaceResourceMetadataKindResourceKindNetwork, n.Name),
 			Ref: fmt.Sprintf(
-				n.Provider+"/"+workspaceScopedResourceFormat,
+				n.Provider+"/"+commondomain.RegionalWorkspaceScopedResourceFormat,
 				n.Tenant,
 				n.Workspace,
 				sdkschema.RegionalWorkspaceResourceMetadataKindResourceKindNetwork,
