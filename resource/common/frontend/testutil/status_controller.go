@@ -18,7 +18,7 @@ import (
 // to "Ready", simulating what a real controller would do in a live cluster.
 // Extra fields (e.g. "sizeGB") can be supplied via extraStatus and will be
 // merged into the status object alongside "state" and "conditions".
-func SimulateStatusController(ctx context.Context, dynClient dynamic.Interface, gvr schema.GroupVersionResource, namespace, name string, extraStatus map[string]interface{}) {
+func SimulateStatusController(ctx context.Context, dynClient dynamic.Interface, gvr schema.GroupVersionResource, namespace, name string, extraStatus map[string]any) {
 	ri := dynClient.Resource(gvr).Namespace(namespace)
 	_ = wait.PollUntilContextTimeout(ctx, 50*time.Millisecond, 10*time.Second, true, func(ctx context.Context) (bool, error) {
 		obj, err := ri.Get(ctx, name, metav1.GetOptions{})
@@ -41,12 +41,12 @@ func SimulateStatusController(ctx context.Context, dynClient dynamic.Interface, 
 	})
 }
 
-func buildStatus(extra map[string]interface{}) map[string]interface{} {
+func buildStatus(extra map[string]any) map[string]any {
 	// state + conditions are required by every SECA CRD with a status subresource.
-	status := map[string]interface{}{
+	status := map[string]any{
 		"state": "Ready",
-		"conditions": []interface{}{
-			map[string]interface{}{
+		"conditions": []any{
+			map[string]any{
 				"state":            "Ready",
 				"lastTransitionAt": time.Now().UTC().Format(time.RFC3339),
 			},
