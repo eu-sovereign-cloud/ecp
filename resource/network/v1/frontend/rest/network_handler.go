@@ -127,26 +127,6 @@ func (h *Handler) CreateOrUpdateSubnet(w http.ResponseWriter, r *http.Request, t
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
-func (h *Handler) ListNics(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, params sdknetwork.ListNicsParams) {
-	h.Logger.DebugContext(r.Context(), "ListNics not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (h *Handler) DeleteNic(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdknetwork.DeleteNicParams) {
-	h.Logger.DebugContext(r.Context(), "DeleteNic not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (h *Handler) GetNic(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam) {
-	h.Logger.DebugContext(r.Context(), "GetNic not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (h *Handler) CreateOrUpdateNic(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdknetwork.CreateOrUpdateNicParams) {
-	h.Logger.DebugContext(r.Context(), "CreateOrUpdateNic not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
 func (h *Handler) ListPublicIps(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, params sdknetwork.ListPublicIpsParams) {
 	h.Logger.DebugContext(r.Context(), "ListPublicIps not implemented")
 	w.WriteHeader(http.StatusNotImplemented)

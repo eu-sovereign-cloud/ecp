@@ -17,6 +17,8 @@ import (
 	roleconv "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role/backend/kubernetes"
 	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network"
 	networkconv "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network/backend/kubernetes"
+	nicdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic"
+	nicconv "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic/backend/kubernetes"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage"
 	storageconv "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage/backend/kubernetes"
 	imgdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image"
@@ -149,6 +151,26 @@ func simulateWS(ctx context.Context, op string, resource *wsdom.Workspace, delay
 				logger,
 				workspaceconv.WorkspaceToCR,
 				workspaceconv.WorkspaceFromCR,
+			)
+			_, err = repo.Update(ctx, resource)
+			return err
+		},
+	)
+}
+
+func simulateNic(ctx context.Context, op string, resource *nicdom.Nic, delay time.Duration, logger *slog.Logger) error {
+	return simulate(ctx, op, &resource.Annotations, resource.GetName(), delay, logger,
+		func(ctx context.Context) error {
+			dynamicClient, err := newDynamicClient()
+			if err != nil {
+				return err
+			}
+			repo := kubernetesadapter.NewRepoAdapter(
+				dynamicClient,
+				nicconv.NICGVR,
+				logger,
+				nicconv.NicToCR,
+				nicconv.NicFromCR,
 			)
 			_, err = repo.Update(ctx, resource)
 			return err

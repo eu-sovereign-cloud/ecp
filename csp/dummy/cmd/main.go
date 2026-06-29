@@ -19,6 +19,7 @@ import (
 	rak8s "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment/backend/kubernetes"
 	rolek8s "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role/backend/kubernetes"
 	netk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network/backend/kubernetes"
+	nick8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic/backend/kubernetes"
 	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage/backend/kubernetes"
 	imgk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image/backend/kubernetes"
 	wsk8s "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1/backend/kubernetes"
@@ -33,6 +34,7 @@ func init() {
 	utilruntime.Must(imgk8s.AddToScheme(scheme))
 	utilruntime.Must(netk8s.AddToScheme(scheme))
 	utilruntime.Must(rak8s.AddToScheme(scheme))
+	utilruntime.Must(nick8s.AddToScheme(scheme))
 	utilruntime.Must(wsk8s.AddToScheme(scheme))
 }
 
@@ -63,6 +65,7 @@ func main() {
 	wsPlugin := dummyplugin.NewWorkspace(logger.With("plugin", "workspace"))
 	netPlugin := dummyplugin.NewNetwork(logger.With("plugin", "network"))
 	raPlugin := dummyplugin.NewRoleAssignment(logger.With("plugin", "roleassignment"))
+	nicPlugin := dummyplugin.NewNic(logger.With("plugin", "nic"))
 
 	controllerOpts := []frameworkbuilder.Option{
 		frameworkbuilder.WithLogger(logger.With("component", "controller-set")),
@@ -75,6 +78,7 @@ func main() {
 	controllerSet.Add(imgk8s.NewController(mgr.GetClient(), dynClient, imgPlugin, controllerOpts...))
 	controllerSet.Add(netk8s.NewController(mgr.GetClient(), dynClient, netPlugin, controllerOpts...))
 	controllerSet.Add(rak8s.NewController(mgr.GetClient(), dynClient, raPlugin, controllerOpts...))
+	controllerSet.Add(nick8s.NewController(mgr.GetClient(), dynClient, nicPlugin, controllerOpts...))
 	controllerSet.Add(wsk8s.NewController(mgr.GetClient(), dynClient, wsPlugin, controllerOpts...))
 
 	if err := controllerSet.SetupWithManager(mgr); err != nil {
