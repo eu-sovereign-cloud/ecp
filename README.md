@@ -9,9 +9,11 @@ ECP exposes a unified, declarative REST API for provisioning and managing cloud 
 ```
 framework/            # Resource-agnostic SDK (horizontal axis)
 ├── kernel/           #   All abstractions: ports, Scope, Error, validation
+│   └── port/         #     authn.Authenticator, authz.Checker — auth port interfaces
 ├── backend/          #   Kubernetes backend: adapter, schema/v1 CRDs, codegen, controller, builder
 │   └── kubernetes/   #     adapter, labels, convert, schema/v1, controller, builder, cmd
 └── frontend/         #   HTTP server, kubeclient, logger, config
+    └── middleware/   #     NewAuthentication, NewAuthorization, SECAClaimExtractor, Chain
 resource/             # Data vocabulary + per-resource slices (vertical axis)
 ├── common/           #   Shared domain, frontend, backend helpers
 └── <group>/vN/<resource>/
@@ -19,6 +21,9 @@ resource/             # Data vocabulary + per-resource slices (vertical axis)
     ├── frontend/rest/#   REST↔domain converters + HTTP handlers (per-group, shared handler)
     └── backend/kubernetes/ # CR types, adapters, controller, plugin interface + handler
 gateway/              # Global and regional REST API server binary
+├── internal/authn/   #   DummyAuthenticator (bearer-token dev/test auth)
+├── internal/authz/   #   seca/ — SECA RBAC Checker + CachedChecker
+└── internal/auth/    #   Build, ProviderMWs, StartChecker — opt-in wiring
 csp/
 ├── dummy/            # Reference plugin (no real backend)
 ├── ionos/            # IONOS CSP plugin (Crossplane-based)
@@ -88,6 +93,7 @@ For containerized development, persistent dev containers, and the full Makefile 
 | Document | Description |
 |----------|-------------|
 | [doc/ARCHITECTURE.md](doc/ARCHITECTURE.md) | DDD/hexagonal design, two-axis module topology, module DAG |
+| [doc/AUTH.md](doc/AUTH.md) | Authentication & authorization — bearer-token format, SECA RBAC algorithm, config flags |
 | [doc/CI_DEVEX.md](doc/CI_DEVEX.md) | Developer environment setup, Makefile targets, CI pipeline |
 | [doc/CODEGEN.md](doc/CODEGEN.md) | Code generation pipeline (OpenAPI types, CRDs, controller-gen) |
 | [doc/PLUGINS.md](doc/PLUGINS.md) | Plugin system: interface, builder inversion, writing a new CSP plugin |
