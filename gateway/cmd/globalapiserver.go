@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"log"
 	"log/slog"
@@ -111,10 +112,16 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
 	)
 
 	// Build the authenticator and RBAC checker (both nil when --auth-enabled is not set).
-	authenticator, checker, err := auth.Build(&globalAuthFlags, roleReaderAdapter, roleAssignmentReaderAdapter, logger)
+	authenticator, checker, err := auth.Build(&globalAuthFlags, client.Client, roleReaderAdapter, roleAssignmentReaderAdapter, logger)
 	if err != nil {
 		logger.Error("failed to build auth chain", slog.Any("error", err))
 		log.Fatal(err, " - failed to build auth chain")
+	}
+
+	// Start the informer-backed checker when --authz-cache is enabled.
+	if err := auth.StartChecker(context.Background(), checker, logger); err != nil {
+		logger.Error("failed to start authz cache", slog.Any("error", err))
+		log.Fatal(err, " - failed to start authz cache")
 	}
 
 	// Region adapters and handler.
