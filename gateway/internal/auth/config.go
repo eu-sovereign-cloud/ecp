@@ -7,6 +7,7 @@
 package auth
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -14,6 +15,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"k8s.io/client-go/dynamic"
 
 	middleware "github.com/eu-sovereign-cloud/ecp/framework/frontend/middleware"
 	authnport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/authn"
@@ -34,6 +36,9 @@ type Flags struct {
 	// DummyUsersFile is the path to a JSON file containing username→password pairs.
 	// Required when Enabled is true. Example file content: {"alice":"s3cr3t","bob":"p@ss"}
 	DummyUsersFile string
+	// AuthzCache enables the informer-backed CachedChecker instead of the per-request
+	// reader-backed Checker. When true, Build also requires a non-nil dynClient.
+	AuthzCache bool
 }
 
 // RegisterFlags adds auth-related flags to the given cobra command.
@@ -43,15 +48,23 @@ func RegisterFlags(cmd *cobra.Command, f *Flags) {
 	cmd.Flags().StringVar(&f.DummyUsersFile, "dummy-auth-users", "",
 		"Path to a JSON file mapping username→password for the Dummy authenticator "+
 			"(required when --auth-enabled is set)")
+	cmd.Flags().BoolVar(&f.AuthzCache, "authz-cache", false,
+		"Use the informer-backed CachedChecker instead of the per-request RBAC checker "+
+			"(requires --auth-enabled; reduces API-server load on hot paths)")
 }
 
 // Build constructs the Authenticator and Checker from the provided flags and readers.
 // Returns (nil, nil, nil) when auth is disabled — callers may check authenticator == nil
 // to skip middleware wiring.
 //
+// When flags.AuthzCache is true, a CachedChecker is built using dynClient (which must be
+// non-nil). The caller is responsible for calling CachedChecker.Start before the server
+// starts serving requests.
+//
 // Returns an error if --auth-enabled is true but the users file is missing or invalid.
 func Build(
 	flags *Flags,
+	dynClient dynamic.Interface,
 	roleReader persistence.ReaderRepo[*roledom.Role],
 	assignmentReader persistence.ReaderRepo[*radom.RoleAssignment],
 	log *slog.Logger,
@@ -63,6 +76,14 @@ func Build(
 	authenticator, err := buildAuthenticator(flags)
 	if err != nil {
 		return nil, nil, fmt.Errorf("build authenticator: %w", err)
+	}
+
+	if flags.AuthzCache {
+		if dynClient == nil {
+			return nil, nil, fmt.Errorf("--authz-cache requires a dynamic Kubernetes client")
+		}
+		checker := seca.NewCachedChecker(dynClient, log)
+		return authenticator, checker, nil
 	}
 
 	checker := seca.NewChecker(roleReader, assignmentReader, log)
@@ -122,6 +143,18 @@ func ProviderMWs[M ~func(http.Handler) http.Handler](
 	authnMW := middleware.NewAuthentication(authenticator, log)
 	authzMW := middleware.NewAuthorization(checker, middleware.SECAClaimExtractor(provider, baseURL), log)
 	return middleware.Chain[M](authnMW, authzMW)
+}
+
+// StartChecker starts the checker's background cache goroutines if it implements the
+// optional Starter interface (i.e. it is a CachedChecker). It is a no-op for the
+// plain Checker and when checker is nil (auth disabled).
+func StartChecker(ctx context.Context, checker authzport.Checker, log *slog.Logger) error {
+	type starter interface{ Start(context.Context) error }
+	if s, ok := checker.(starter); ok {
+		log.Info("authz cache: starting informer-backed checker")
+		return s.Start(ctx)
+	}
+	return nil
 }
 
 // buildAuthenticator loads the Dummy authenticator from the configured users file.
