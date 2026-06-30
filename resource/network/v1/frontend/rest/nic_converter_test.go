@@ -43,7 +43,7 @@ func TestNicFromAPIToAPIRoundTrip(t *testing.T) {
 }
 
 func TestNicIteratorToAPI_ResponseMetadata(t *testing.T) {
-	iter := NicIteratorToAPI(nil, nil)
+	iter := nicIteratorToAPI(nil, nil)
 	require.Equal(t, "nics", iter.Metadata.Resource)
 	require.Equal(t, "seca.network/v1", iter.Metadata.Provider)
 }

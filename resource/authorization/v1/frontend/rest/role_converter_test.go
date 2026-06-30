@@ -9,7 +9,7 @@ import (
 )
 
 func TestRoleIteratorToAPI_ResponseMetadata(t *testing.T) {
-	iter := RoleIteratorToAPI(nil, nil)
+	iter := roleIteratorToAPI(nil, nil)
 	require.Equal(t, "roles", iter.Metadata.Resource)
 	require.Equal(t, "seca.authorization/v1", iter.Metadata.Provider)
 }

@@ -9,7 +9,7 @@ import (
 )
 
 func TestRegionIteratorToAPI_ResponseMetadata(t *testing.T) {
-	iter := RegionIteratorToAPI(nil, nil)
+	iter := regionIteratorToAPI(nil, nil)
 	require.Equal(t, "regions", iter.Metadata.Resource)
 	require.Equal(t, "secapi.cloud/v1", iter.Metadata.Provider)
 }

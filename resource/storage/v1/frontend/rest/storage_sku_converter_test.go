@@ -9,7 +9,7 @@ import (
 )
 
 func TestStorageSKUIteratorToAPI_ResponseMetadata(t *testing.T) {
-	iter := StorageSKUIteratorToAPI(nil, nil)
+	iter := storageSKUIteratorToAPI(nil, nil)
 	require.Equal(t, "skus", iter.Metadata.Resource)
 	require.Equal(t, "seca.storage/v1", iter.Metadata.Provider)
 }
