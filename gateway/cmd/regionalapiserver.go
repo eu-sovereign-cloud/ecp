@@ -20,9 +20,14 @@ import (
 
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	"github.com/eu-sovereign-cloud/ecp/framework/frontend/config"
+	"github.com/eu-sovereign-cloud/ecp/gateway/internal/auth"
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/httpserver"
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/kubeclient"
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/logger"
+	roledom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role"
+	radom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment"
+	rak8s "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment/backend/kubernetes"
+	rolek8s "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role/backend/kubernetes"
 	computerest "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/frontend/rest"
 	instancedom "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/instance"
 	instancek8s "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/instance/backend/kubernetes"
@@ -58,6 +63,8 @@ var (
 	regionalHost       string
 	regionalPort       string
 	regionalKubeconfig string
+
+	regionalAuthFlags auth.Flags
 )
 
 var regionalApiServerCMD = &cobra.Command{
@@ -85,6 +92,7 @@ func init() {
 		&regionalKubeconfig, "kubeconfig", filepath.Join(homedir.HomeDir(), ".kube", "config"),
 		"Path to regional kubeconfig",
 	)
+	auth.RegisterFlags(regionalApiServerCMD, &regionalAuthFlags)
 	rootCmd.AddCommand(regionalApiServerCMD)
 }
 
@@ -118,7 +126,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		log.Fatal(err, " - failed to create kubeclient")
 	}
 
-	// Create a shared mux for all regional handlers
+	// Create a shared mux for all regional handlers.
 	mux := http.NewServeMux()
 
 	// Compute adapters
@@ -136,6 +144,28 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		instancek8s.InstanceFromCR,
 	)
 
+	// RBAC reader adapters used by the authorization checker.
+	roleReaderAdapter := k8sadapter.NewReaderAdapter[*roledom.Role](
+		client.Client,
+		rolek8s.RoleGVR,
+		logger,
+		rolek8s.RoleFromCR,
+	)
+	roleAssignmentReaderAdapter := k8sadapter.NewReaderAdapter[*radom.RoleAssignment](
+		client.Client,
+		rak8s.RoleAssignmentGVR,
+		logger,
+		rak8s.RoleAssignmentFromCR,
+	)
+
+	// Build the authenticator and RBAC checker (both nil when --auth-enabled is not set).
+	authenticator, checker, err := auth.Build(&regionalAuthFlags, roleReaderAdapter, roleAssignmentReaderAdapter, logger)
+	if err != nil {
+		logger.Error("failed to build auth chain", slog.Any("error", err))
+		log.Fatal(err, " - failed to build auth chain")
+	}
+
+	// Compute (stub — not yet implemented)
 	sdkcomputeapi.HandlerWithOptions(
 		&computerest.Handler{
 			InstanceReader: instanceReaderAdapter,
@@ -145,7 +175,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		sdkcomputeapi.StdHTTPServerOptions{
 			BaseURL:          "/providers/seca.compute",
 			BaseRouter:       mux,
-			Middlewares:      nil,
+			Middlewares:      auth.ProviderMWs[sdkcomputeapi.MiddlewareFunc](authenticator, checker, "seca.compute", "/providers/seca.compute", logger),
 			ErrorHandlerFunc: nil,
 		},
 	)
@@ -258,7 +288,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		sdknetworkapi.StdHTTPServerOptions{
 			BaseURL:          "/providers/seca.network",
 			BaseRouter:       mux,
-			Middlewares:      nil,
+			Middlewares:      auth.ProviderMWs[sdknetworkapi.MiddlewareFunc](authenticator, checker, "seca.network", "/providers/seca.network", logger),
 			ErrorHandlerFunc: nil,
 		},
 	)
@@ -309,7 +339,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		sdkstorageapi.StdHTTPServerOptions{
 			BaseURL:          "/providers/seca.storage",
 			BaseRouter:       mux,
-			Middlewares:      nil,
+			Middlewares:      auth.ProviderMWs[sdkstorageapi.MiddlewareFunc](authenticator, checker, "seca.storage", "/providers/seca.storage", logger),
 			ErrorHandlerFunc: nil,
 		},
 	)
@@ -340,7 +370,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		sdkworkspaceapi.StdHTTPServerOptions{
 			BaseURL:          "/providers/seca.workspace",
 			BaseRouter:       mux,
-			Middlewares:      nil,
+			Middlewares:      auth.ProviderMWs[sdkworkspaceapi.MiddlewareFunc](authenticator, checker, "seca.workspace", "/providers/seca.workspace", logger),
 			ErrorHandlerFunc: nil,
 		},
 	)
