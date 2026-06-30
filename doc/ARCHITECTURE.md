@@ -88,6 +88,38 @@ Cluster-scoped resources are stored in the `seca` namespace and carry no tenant 
 - Each `Tenant` CR triggers the creation of a dedicated tenant namespace; all tenant-scoped resources owned by that tenant live there.
 - `Workspace` CRs are placed in the tenant namespace and labeled with their parent tenant.
 
+## Authentication & Authorization
+
+The gateway enforces an opt-in bearer-token authn + SECA RBAC authz middleware
+chain. When enabled (`--auth-enabled`), every request must carry a valid
+`Authorization: Bearer <token>` header and the decoded identity must be
+authorised by the RBAC policy before the request reaches the handler.
+
+```
+HTTP request
+    │
+    ▼
+NewAuthentication  — validates bearer token → Identity in context (401 on failure)
+    │
+    ▼
+NewAuthorization   — builds AuthorizationClaim, calls Checker.Authorize (403 on denial)
+    │
+    ▼
+provider handler
+```
+
+The middleware chain is assembled once at startup in `gateway/internal/auth/config.go`
+via `ProviderMWs[M]`, which returns the correctly reversed slice required by
+oapi-codegen's `StdHTTPServerOptions.Middlewares`.
+
+All framework-layer types (`Authenticator`, `Checker`, `ClaimExtractor`,
+`AuthorizationClaim`) live under `framework/kernel/port/{authn,authz}` and are
+resource-agnostic. Concrete implementations (`DummyAuthenticator`, SECA RBAC
+`Checker`, `CachedChecker`) live in `gateway/` and may import `resource/`.
+
+See [doc/AUTH.md](AUTH.md) for the full reference — bearer-token format, config
+flags, the locked RBAC algorithm, and a code layout map.
+
 ## Cascaded Deletion
 
 ECP enforces owner-reference–based cascaded deletion:

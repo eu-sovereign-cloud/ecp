@@ -57,6 +57,17 @@ import (
     bsk8s  "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage/backend/kubernetes"
     bsrest "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/frontend/rest"
     netdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network"
+
+    // auth subsystem
+    authnport   "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/authn"
+    authzport   "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/authz"
+    middleware   "github.com/eu-sovereign-cloud/ecp/framework/frontend/middleware"
+    gatewayauthn "github.com/eu-sovereign-cloud/ecp/gateway/internal/authn"
+    seca         "github.com/eu-sovereign-cloud/ecp/gateway/internal/authz/seca"
+    roledom      "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role"
+    radom        "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment"
+    rolek8s      "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role/backend/kubernetes"
+    rak8s        "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment/backend/kubernetes"
 )
 ```
 
