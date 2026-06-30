@@ -6,6 +6,7 @@ import (
 	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
+	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	skudom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/storage-sku"
 )
 
@@ -35,9 +36,9 @@ func storageSKUToAPI(sku *skudom.StorageSKU) *sdkschema.StorageSku {
 			Provider:   sku.Provider,
 			Region:     sku.Region,
 			Tenant:     sku.Tenant,
-			Resource:   fmt.Sprintf(resourceFormat, sdkschema.SkuResourceMetadataKindResourceKindStorageSku, sku.Name),
+			Resource:   fmt.Sprintf(commondomain.RegionalResourceFormat, sdkschema.SkuResourceMetadataKindResourceKindStorageSku, sku.Name),
 			Ref: fmt.Sprintf(
-				sku.Provider+"/"+tenantScopedResourceFormat,
+				sku.Provider+"/"+commondomain.RegionalTenantScopedResourceFormat,
 				sku.Tenant,
 				sdkschema.SkuResourceMetadataKindResourceKindStorageSku,
 				sku.Name,

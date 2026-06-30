@@ -105,7 +105,7 @@ func runSingle(schemaFile, outputFile, packageName, rootTypesFlag, sharedTypesSo
 
 	// Build root types set.
 	rootTypes := map[string]bool{}
-	for _, name := range strings.Split(rootTypesFlag, ",") {
+	for name := range strings.SplitSeq(rootTypesFlag, ",") {
 		name = strings.TrimSpace(name)
 		if name != "" {
 			rootTypes[name] = true

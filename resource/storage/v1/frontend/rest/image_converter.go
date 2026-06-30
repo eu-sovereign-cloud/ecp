@@ -10,6 +10,7 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/validation"
+	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	commonfrontend "github.com/eu-sovereign-cloud/ecp/resource/common/frontend"
 	imgdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image"
 )
@@ -94,9 +95,9 @@ func imageToAPI(img *imgdom.Image) *sdkschema.Image {
 			Tenant:         img.Tenant,
 			Provider:       img.Provider,
 			Region:         img.Region,
-			Resource:       fmt.Sprintf(resourceFormat, sdkschema.RegionalResourceMetadataKindResourceKindImage, img.Name),
+			Resource:       fmt.Sprintf(commondomain.RegionalResourceFormat, sdkschema.RegionalResourceMetadataKindResourceKindImage, img.Name),
 			Ref: fmt.Sprintf(
-				img.Provider+"/"+tenantScopedResourceFormat,
+				img.Provider+"/"+commondomain.RegionalTenantScopedResourceFormat,
 				img.Tenant,
 				sdkschema.RegionalResourceMetadataKindResourceKindImage,
 				img.Name,

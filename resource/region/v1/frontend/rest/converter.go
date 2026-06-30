@@ -10,6 +10,7 @@ import (
 
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/validation"
+	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	rdom "github.com/eu-sovereign-cloud/ecp/resource/region/v1"
 )
 
@@ -18,9 +19,6 @@ const (
 	RegionResource = rdom.Resource
 	// RegionProviderName is the provider identifier used in response metadata.
 	RegionProviderName = "secapi.cloud/v1"
-	// regionRefBaseURL is the base URL prefix for region refs in the secapi.cloud API.
-	// Distinct from rdom.RegionBaseURL ("/providers/seca.region") which is the domain-layer identifier.
-	regionRefBaseURL = "/providers/secapi.cloud"
 )
 
 // listParamsFromAPI converts SDK ListRegionsParams to resource.ListParams.
@@ -100,8 +98,8 @@ func regionToAPI(r rdom.Region, verb string) sdkschema.Region {
 			Kind:            sdkschema.GlobalResourceMetadataKindResourceKindRegion,
 			Name:            r.Name,
 			Provider:        RegionProviderName,
-			Resource:        r.Name,
-			Ref:             fmt.Sprintf("%s/%s", regionRefBaseURL, r.Name),
+			Resource:        fmt.Sprintf(commondomain.ResourceFormat, sdkschema.GlobalResourceMetadataKindResourceKindRegion, r.Name),
+			Ref:             fmt.Sprintf(RegionProviderName+"/"+commondomain.ResourceFormat, sdkschema.GlobalResourceMetadataKindResourceKindRegion, r.Name),
 			ResourceVersion: resourceVersion,
 			Verb:            verb,
 		},
