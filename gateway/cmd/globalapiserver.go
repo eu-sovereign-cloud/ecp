@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"log"
 	"log/slog"
@@ -17,9 +18,11 @@ import (
 	regionv1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
 
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
+	"github.com/eu-sovereign-cloud/ecp/gateway/internal/auth"
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/httpserver"
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/kubeclient"
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/logger"
+	"github.com/eu-sovereign-cloud/ecp/gateway/internal/metrics"
 
 	authrest "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/frontend/rest"
 	roledom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role"
@@ -35,6 +38,8 @@ var (
 	host       string
 	port       string
 	kubeconfig string
+
+	globalAuthFlags auth.Flags
 )
 
 var globalAPIServerCMD = &cobra.Command{
@@ -52,6 +57,7 @@ func init() {
 	globalAPIServerCMD.Flags().StringVar(&kubeconfig, "kubeconfig", filepath.Join(homedir.HomeDir(), ".kube", "config"), "Path to kubeconfig file")
 	globalAPIServerCMD.Flags().StringVar(&host, "host", "0.0.0.0", "Host to bind the server to")
 	globalAPIServerCMD.Flags().StringVarP(&port, "port", "p", "8080", "Port to bind the server to")
+	auth.RegisterFlags(globalAPIServerCMD, &globalAuthFlags)
 	rootCmd.AddCommand(globalAPIServerCMD)
 }
 
@@ -78,21 +84,10 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
 	// Create a shared mux for all global handlers.
 	mux := http.NewServeMux()
 
-	// Region adapters and handler.
-	regionv1.HandlerWithOptions(
-		&regionrest.Handler{
-			Repo:   k8sadapter.NewReaderAdapter[*rdom.Region](client.Client, rk8s.RegionGVR, logger, rk8s.RegionFromCR),
-			Logger: logger,
-		},
-		regionv1.StdHTTPServerOptions{
-			BaseURL:          rdom.RegionBaseURL,
-			BaseRouter:       mux,
-			Middlewares:      nil,
-			ErrorHandlerFunc: nil,
-		},
-	)
+	// Metrics endpoint — unauthenticated, mounted outside provider HandlerWithOptions.
+	mux.Handle("/metrics", metrics.Handler())
 
-	// Authorization adapters and handler.
+	// Authorization adapters (reused by both the CRUD handler and the RBAC checker).
 	roleReaderAdapter := k8sadapter.NewReaderAdapter[*roledom.Role](
 		client.Client,
 		rolek8s.RoleGVR,
@@ -119,6 +114,35 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
 		rak8s.RoleAssignmentToCR,
 		rak8s.RoleAssignmentFromCR,
 	)
+
+	// Build the authenticator and RBAC checker (both nil when --auth-enabled is not set).
+	authenticator, checker, err := auth.Build(&globalAuthFlags, client.Client, roleReaderAdapter, roleAssignmentReaderAdapter, logger)
+	if err != nil {
+		logger.Error("failed to build auth chain", slog.Any("error", err))
+		log.Fatal(err, " - failed to build auth chain")
+	}
+
+	// Start the informer-backed checker when --authz-cache is enabled.
+	if err := auth.StartChecker(context.Background(), checker, logger); err != nil {
+		logger.Error("failed to start authz cache", slog.Any("error", err))
+		log.Fatal(err, " - failed to start authz cache")
+	}
+
+	// Region adapters and handler.
+	regionv1.HandlerWithOptions(
+		&regionrest.Handler{
+			Repo:   k8sadapter.NewReaderAdapter[*rdom.Region](client.Client, rk8s.RegionGVR, logger, rk8s.RegionFromCR),
+			Logger: logger,
+		},
+		regionv1.StdHTTPServerOptions{
+			BaseURL:          rdom.RegionBaseURL,
+			BaseRouter:       mux,
+			Middlewares:      auth.ProviderMWs[regionv1.MiddlewareFunc](authenticator, checker, "seca.region", rdom.RegionBaseURL, logger),
+			ErrorHandlerFunc: nil,
+		},
+	)
+
+	// Authorization CRUD handler (Roles + RoleAssignments).
 	authv1.HandlerWithOptions(
 		&authrest.Handler{
 			RoleReader:           roleReaderAdapter,
@@ -130,7 +154,7 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
 		authv1.StdHTTPServerOptions{
 			BaseURL:          roledom.AuthorizationBaseURL,
 			BaseRouter:       mux,
-			Middlewares:      nil,
+			Middlewares:      auth.ProviderMWs[authv1.MiddlewareFunc](authenticator, checker, "seca.authorization", roledom.AuthorizationBaseURL, logger),
 			ErrorHandlerFunc: nil,
 		},
 	)

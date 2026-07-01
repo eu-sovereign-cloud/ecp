@@ -12,3 +12,4 @@ resources:
   - clusterrolebinding.yaml
   - service.yaml
   - deployment.yaml
+  - users-configmap.yaml
