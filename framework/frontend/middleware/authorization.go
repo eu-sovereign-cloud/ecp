@@ -20,9 +20,14 @@ import (
 // The middleware:
 //  1. Retrieves the [authnport.Identity] injected by [NewAuthentication].
 //  2. Builds an [authzport.AuthorizationClaim] by calling extract(r) and
-//     merging the identity's Roles into the claim.
-//  3. Calls checker.Authorize; on nil it calls next. On any non-nil error it
-//     writes an RFC 7807 403 Forbidden response.
+//     merging the identity's Roles into the claim. A claim-extraction error
+//     is treated as a technical fault and yields HTTP 500.
+//  3. Calls checker.Authorize and branches on the returned [authzport.Decision]:
+//     [authzport.DecisionAllowed] → calls next handler (HTTP 2xx).
+//     [authzport.DecisionDenied]  → writes RFC 7807 HTTP 403 Forbidden.
+//     [authzport.DecisionError]   → logs the detailed error server-side and writes
+//     RFC 7807 HTTP 500. Any unrecognised Decision (including the zero value) also
+//     yields HTTP 500 so the middleware fails closed.
 //
 // NewAuthorization MUST be used after NewAuthentication in the middleware chain
 // so that the Identity is already present in the context.
@@ -42,17 +47,33 @@ func NewAuthorization(
 
 			claim, err := extract(r)
 			if err != nil {
-				rest.WriteErrorResponse(w, r, log, kernel.ErrForbidden)
+				// Claim-extraction failures are technical faults (e.g. unrecognised
+				// URL pattern), not policy denials — return 500, not 403.
+				log.ErrorContext(r.Context(), "authz: failed to extract authorization claim",
+					slog.Any("error", err))
+				rest.WriteErrorResponse(w, r, log, kernel.ErrInternal)
 				return
 			}
 			claim.Roles = identity.Roles
 
-			if err := checker.Authorize(r.Context(), claim); err != nil {
-				rest.WriteErrorResponse(w, r, log, err)
-				return
+			decision, decErr := checker.Authorize(r.Context(), claim)
+			switch decision {
+			case authzport.DecisionAllowed:
+				next.ServeHTTP(w, r)
+			case authzport.DecisionDenied:
+				rest.WriteErrorResponse(w, r, log, kernel.ErrForbidden)
+			case authzport.DecisionError:
+				// Log the detailed diagnostic error server-side; respond with the
+				// sanitised sentinel to avoid leaking internal infrastructure details.
+				log.ErrorContext(r.Context(), "authz: technical failure evaluating authorization",
+					slog.Any("error", decErr))
+				rest.WriteErrorResponse(w, r, log, kernel.ErrInternal)
+			default:
+				// Zero or unrecognised Decision — fail closed.
+				log.ErrorContext(r.Context(), "authz: checker returned unrecognised decision — failing closed",
+					slog.Int("decision", int(decision)), slog.Any("error", decErr))
+				rest.WriteErrorResponse(w, r, log, kernel.ErrInternal)
 			}
-
-			next.ServeHTTP(w, r)
 		})
 	}
 }

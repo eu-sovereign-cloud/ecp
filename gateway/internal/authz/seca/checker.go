@@ -43,18 +43,22 @@ func NewChecker(
 }
 
 // Authorize implements authzport.Checker.
-// Returns nil when the claim is permitted, kernel.ErrForbidden when denied.
-func (c *Checker) Authorize(ctx context.Context, claim authzport.AuthorizationClaim) error {
+// Returns DecisionAllowed with nil error when the claim is permitted.
+// Returns DecisionDenied with kernel.ErrForbidden when policy denies the operation.
+// Returns DecisionError with a kernel.KindInternal error when policy data cannot be
+// loaded (e.g. the Kubernetes API server is unreachable), ensuring a technical failure
+// is never silently disguised as an authorization denial.
+func (c *Checker) Authorize(ctx context.Context, claim authzport.AuthorizationClaim) (authzport.Decision, error) {
 	rolesByName, assignments, err := c.load(ctx, claim.Tenant)
 	if err != nil {
 		c.log.ErrorContext(ctx, "seca rbac: failed to load policy data", slog.Any("error", err))
-		return kernel.ErrForbidden
+		return authzport.DecisionError, kernel.NewError(kernel.KindInternal, fmt.Errorf("load policy data: %w", err))
 	}
 
 	if Evaluate(claim, rolesByName, assignments) {
-		return nil
+		return authzport.DecisionAllowed, nil
 	}
-	return kernel.ErrForbidden
+	return authzport.DecisionDenied, kernel.ErrForbidden
 }
 
 // load fetches roles and assignments for the given tenant namespace.

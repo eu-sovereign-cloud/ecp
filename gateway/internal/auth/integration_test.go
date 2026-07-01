@@ -23,20 +23,25 @@ import (
 
 // checkerFunc is a test-only implementation of authzport.Checker backed by a
 // function literal.
-type checkerFunc func(ctx context.Context, claim authzport.AuthorizationClaim) error
+type checkerFunc func(ctx context.Context, claim authzport.AuthorizationClaim) (authzport.Decision, error)
 
-func (f checkerFunc) Authorize(ctx context.Context, claim authzport.AuthorizationClaim) error {
+func (f checkerFunc) Authorize(ctx context.Context, claim authzport.AuthorizationClaim) (authzport.Decision, error) {
 	return f(ctx, claim)
 }
 
 // allowChecker always permits.
-var allowChecker checkerFunc = func(_ context.Context, _ authzport.AuthorizationClaim) error {
-	return nil
+var allowChecker checkerFunc = func(_ context.Context, _ authzport.AuthorizationClaim) (authzport.Decision, error) {
+	return authzport.DecisionAllowed, nil
 }
 
 // denyChecker always forbids.
-var denyChecker checkerFunc = func(_ context.Context, _ authzport.AuthorizationClaim) error {
-	return kernel.ErrForbidden
+var denyChecker checkerFunc = func(_ context.Context, _ authzport.AuthorizationClaim) (authzport.Decision, error) {
+	return authzport.DecisionDenied, kernel.ErrForbidden
+}
+
+// errorChecker simulates a technical failure (e.g. the RBAC store is unreachable).
+var errorChecker checkerFunc = func(_ context.Context, _ authzport.AuthorizationClaim) (authzport.Decision, error) {
+	return authzport.DecisionError, kernel.ErrInternal
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -155,6 +160,25 @@ func TestIntegration_ValidToken_Denied(t *testing.T) {
 	}
 }
 
+// TestIntegration_CheckerTechnicalError verifies that a technical failure in the
+// authorization checker (e.g. the RBAC store unreachable) yields HTTP 500, not a
+// 403 denial — confirming that technical errors are never disguised as policy denials.
+func TestIntegration_CheckerTechnicalError(t *testing.T) {
+	t.Parallel()
+
+	a := gatewayauthn.NewDummyAuthenticator(map[string]string{"alice": "s3cr3t"})
+	h := buildChain(a, errorChecker)
+
+	req := httptest.NewRequest(http.MethodGet, "/instances", nil)
+	req.Header.Set("Authorization", "Bearer "+bearerToken("alice", "s3cr3t", []string{"admin"}))
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("want 500, got %d — technical checker errors must not be disguised as 403", w.Code)
+	}
+}
+
 // TestIntegration_RolesFromToken verifies that the identity's roles (decoded from
 // the bearer token) are propagated into the AuthorizationClaim by the authorization
 // middleware — covering the key contract between authn and authz.
@@ -164,9 +188,9 @@ func TestIntegration_RolesFromToken(t *testing.T) {
 	a := gatewayauthn.NewDummyAuthenticator(map[string]string{"bob": "p@ss"})
 
 	var capturedClaim authzport.AuthorizationClaim
-	capturing := checkerFunc(func(_ context.Context, claim authzport.AuthorizationClaim) error {
+	capturing := checkerFunc(func(_ context.Context, claim authzport.AuthorizationClaim) (authzport.Decision, error) {
 		capturedClaim = claim
-		return nil
+		return authzport.DecisionAllowed, nil
 	})
 
 	log := discardLog()
