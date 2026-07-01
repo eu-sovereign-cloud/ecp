@@ -375,15 +375,15 @@ func TestSubsGrant(t *testing.T) {
 		subject string
 		want    bool
 	}{
-		{[]string{"*"}, "alice", true},                  // wildcard covers any subject
-		{[]string{"*"}, "", true},                       // wildcard covers empty subject too
-		{[]string{"alice"}, "alice", true},              // exact match
-		{[]string{"alice"}, "bob", false},               // mismatch
-		{[]string{"alice", "bob"}, "bob", true},         // second entry matches
-		{[]string{"alice", "bob"}, "carol", false},      // no entry matches
-		{nil, "alice", false},                           // nil subs → deny (fail-closed)
-		{[]string{}, "alice", false},                    // empty subs → deny (not a wildcard)
-		{[]string{"alice", "*"}, "anyone", true},        // wildcard in a mixed list
+		{[]string{"*"}, "alice", true},             // wildcard covers any subject
+		{[]string{"*"}, "", true},                  // wildcard covers empty subject too
+		{[]string{"alice"}, "alice", true},         // exact match
+		{[]string{"alice"}, "bob", false},          // mismatch
+		{[]string{"alice", "bob"}, "bob", true},    // second entry matches
+		{[]string{"alice", "bob"}, "carol", false}, // no entry matches
+		{nil, "alice", false},                      // nil subs → deny (fail-closed)
+		{[]string{}, "alice", false},               // empty subs → deny (not a wildcard)
+		{[]string{"alice", "*"}, "anyone", true},   // wildcard in a mixed list
 	}
 	for _, tc := range tests {
 		got := subsGrant(tc.subs, tc.subject)
