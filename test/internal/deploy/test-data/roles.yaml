@@ -37,7 +37,7 @@ metadata:
 spec:
   permissions:
     - provider: seca.region
-      resources: ["regions"]
+      resources: ["v1/regions"]
       verb: ["get", "list"]
 ---
 apiVersion: authorization.v1.secapi.cloud/v1
