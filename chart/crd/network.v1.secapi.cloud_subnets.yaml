@@ -106,9 +106,8 @@ spec:
                         == 6)
                 type: object
               routeTableRef:
-                description: |-
-                  RouteTableRef Reference to the route table used by default for all NICs in this Subnet.
-                  If not provided, the routeTableRef associated with the network of the subnet will be used.
+                description: RouteTableRef Reference to the route table used for all
+                  NICs in this Subnet.
                 properties:
                   provider:
                     description: Provider Provider of the resource. If not set, the
@@ -192,6 +191,7 @@ spec:
                 type: string
             required:
             - cidr
+            - routeTableRef
             - zone
             type: object
           status:

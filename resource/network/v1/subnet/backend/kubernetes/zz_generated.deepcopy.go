@@ -16,11 +16,7 @@ import (
 func (in *SubnetSpec) DeepCopyInto(out *SubnetSpec) {
 	*out = *in
 	out.Cidr = in.Cidr
-	if in.RouteTableRef != nil {
-		in, out := &in.RouteTableRef, &out.RouteTableRef
-		*out = new(schemav1.Reference)
-		**out = **in
-	}
+	out.RouteTableRef = in.RouteTableRef
 	if in.SkuRef != nil {
 		in, out := &in.SkuRef, &out.SkuRef
 		*out = new(schemav1.Reference)
