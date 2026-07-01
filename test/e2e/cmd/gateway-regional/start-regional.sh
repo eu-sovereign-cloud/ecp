@@ -14,7 +14,30 @@ if [ -n "$KUBECONFIG" ]; then
   KUBECONFIG_FLAG="--kubeconfig=$KUBECONFIG"
 fi
 
+# Auth defaults: dummy authn + cached authz enabled.
+# Override via env vars before calling this script:
+#   AUTH_ENABLED=false          — no auth (unauthenticated mode)
+#   AUTHZ_ENABLED=false         — authn-only (identity checked, no RBAC)
+#   AUTHZ_IMPL=direct           — use per-request RBAC checker instead of cached
+#   DUMMY_AUTH_USERS=/path      — path to username→password JSON (default /app/users.json)
+: "${AUTH_ENABLED:=true}"
+: "${AUTHZ_ENABLED:=true}"
+: "${AUTHZ_IMPL:=cached}"
+: "${DUMMY_AUTH_USERS:=/app/users.json}"
+
+AUTH_FLAGS=""
+if [ "$AUTH_ENABLED" = "true" ]; then
+  AUTH_FLAGS="--auth-enabled --dummy-auth-users=$DUMMY_AUTH_USERS"
+  if [ "$AUTHZ_ENABLED" = "true" ]; then
+    AUTH_FLAGS="$AUTH_FLAGS --authz-enabled"
+    [ "$AUTHZ_IMPL" = "cached" ] && AUTH_FLAGS="$AUTH_FLAGS --authz-cache"
+  else
+    AUTH_FLAGS="$AUTH_FLAGS --authz-enabled=false"
+  fi
+fi
+
 # We run the 'regionalapiserver' subcommand of the 'ecp' binary.
 # We pass any extra arguments ($@) to the binary.
 echo "Starting regional gateway..."
-./ecp regionalapiserver --regionalHost="$REGIONAL_HOST" --regionalPort="$REGIONAL_PORT" $KUBECONFIG_FLAG "$@"
+# shellcheck disable=SC2086
+./ecp regionalapiserver --regionalHost="$REGIONAL_HOST" --regionalPort="$REGIONAL_PORT" $KUBECONFIG_FLAG $AUTH_FLAGS "$@"

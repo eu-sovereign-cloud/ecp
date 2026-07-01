@@ -42,3 +42,10 @@ rules:
 - apiGroups: [""]
   resources: ["namespaces"]
   verbs: ["get", "list", "watch", "create", "delete"]
+# Required by both the reader-backed Checker and the CachedChecker informer.
+- apiGroups: ["authorization.v1.secapi.cloud"]
+  resources: ["roles"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["authorization.v1.secapi.cloud"]
+  resources: ["role-assignments"]
+  verbs: ["get", "list", "watch"]

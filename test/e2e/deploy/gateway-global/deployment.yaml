@@ -19,6 +19,17 @@ spec:
       - name: manager
         image: "##IMAGE_NAME##"
         imagePullPolicy: Always
+        env:
+        # Auth toggle env vars (default: dummy authn + cached authz ON).
+        # Override at deploy time to change behaviour without rebuilding the image.
+        - name: AUTH_ENABLED
+          value: "true"
+        - name: AUTHZ_ENABLED
+          value: "true"
+        - name: AUTHZ_IMPL
+          value: "cached"
+        - name: DUMMY_AUTH_USERS
+          value: "/app/users.json"
         ports:
         - containerPort: 40000
           name: dlv
@@ -30,3 +41,12 @@ spec:
           runAsNonRoot: true
           seccompProfile:
             type: RuntimeDefault
+        volumeMounts:
+        - name: users
+          mountPath: /app/users.json
+          subPath: users.json
+          readOnly: true
+      volumes:
+      - name: users
+        configMap:
+          name: e2e-dummy-users
