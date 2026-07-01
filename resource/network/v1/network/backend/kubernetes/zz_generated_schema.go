@@ -79,9 +79,6 @@ type NetworkSpec struct {
 	// * IPv4 and IPv6 (Dual Stack)
 	Cidr schemav1.Cidr `json:"cidr"`
 
-	// RouteTableRef Reference to the route table used by default for all Subnets.
-	RouteTableRef schemav1.Reference `json:"routeTableRef"`
-
 	// SkuRef Reference to the SKU used by default for all NIC in this Network.
 	// Can be overridden by the NIC. The SKU is immutable after the network is created.
 	// To change the SKU, the network must be deleted and recreated with the new SKU reference.
@@ -101,13 +98,11 @@ type NetworkStatus struct {
 	// * IPv4 only
 	// * IPv6 only
 	// * IPv4 and IPv6 (Dual Stack)
-	Cidr       schemav1.Cidr              `json:"cidr"`
+	Cidr schemav1.Cidr `json:"cidr"`
 	// +kubebuilder:validation:MaxItems=32
 	Conditions []schemav1.StatusCondition `json:"conditions" x-kubebuilder-validation-max-items:"32"`
 
-	// RouteTableRef Reference to the route table used by default for all Subnets.
-	RouteTableRef *schemav1.Reference    `json:"routeTableRef,omitempty"`
-	State         schemav1.ResourceState `json:"state,omitempty"`
+	State schemav1.ResourceState `json:"state,omitempty"`
 }
 
 // Cidr Combined IPv4 and IPv6 CIDR block for a subnet. Depending on the network
