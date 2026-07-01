@@ -179,6 +179,28 @@ func TestIntegration_CheckerTechnicalError(t *testing.T) {
 	}
 }
 
+// TestIntegration_AuthnOnly verifies that when the checker is nil (--authz-enabled=false),
+// valid credentials grant access without an RBAC decision. The handler is reached
+// with a 200 and no authzport.Checker is consulted.
+func TestIntegration_AuthnOnly(t *testing.T) {
+	t.Parallel()
+
+	a := gatewayauthn.NewDummyAuthenticator(map[string]string{"alice": "s3cr3t"})
+	log := discardLog()
+	authnMW := middleware.NewAuthentication(a, log)
+	// No authzMW — checker nil simulates --authz-enabled=false.
+	h := authnMW(okHandler)
+
+	req := httptest.NewRequest(http.MethodGet, "/instances", nil)
+	req.Header.Set("Authorization", "Bearer "+bearerToken("alice", "s3cr3t", []string{"viewer"}))
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("want 200 in authn-only mode, got %d", w.Code)
+	}
+}
+
 // TestIntegration_RolesFromToken verifies that the identity's roles (decoded from
 // the bearer token) are propagated into the AuthorizationClaim by the authorization
 // middleware — covering the key contract between authn and authz.
