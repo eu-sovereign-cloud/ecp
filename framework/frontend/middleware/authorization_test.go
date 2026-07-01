@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -15,11 +16,17 @@ import (
 
 // fakeChecker is a simple in-test Checker.
 type fakeChecker struct {
-	err error
+	decision authzport.Decision
+	err      error
 }
 
-func (f *fakeChecker) Authorize(_ context.Context, _ authzport.AuthorizationClaim) error {
-	return f.err
+func (f *fakeChecker) Authorize(_ context.Context, _ authzport.AuthorizationClaim) (authzport.Decision, error) {
+	return f.decision, f.err
+}
+
+// errExtractor always returns an error (simulates a technical claim-extraction failure).
+var errExtractor authzport.ClaimExtractor = func(_ *http.Request) (authzport.AuthorizationClaim, error) {
+	return authzport.AuthorizationClaim{}, errors.New("unexpected request pattern")
 }
 
 // fixedExtractor always returns the same claim (used for extractor-happy-path tests).
@@ -42,24 +49,38 @@ func TestNewAuthorization(t *testing.T) {
 		wantStatus int
 	}{
 		{
-			name:       "allowed: checker returns nil → 200",
+			name:       "allowed: checker returns DecisionAllowed → 200",
 			identity:   alice,
-			checker:    &fakeChecker{err: nil},
+			checker:    &fakeChecker{decision: authzport.DecisionAllowed},
 			extractor:  okExtract,
 			wantStatus: http.StatusOK,
 		},
 		{
-			name:       "denied: checker returns ErrForbidden → 403",
+			name:       "denied: checker returns DecisionDenied → 403",
 			identity:   alice,
-			checker:    &fakeChecker{err: kernel.ErrForbidden},
+			checker:    &fakeChecker{decision: authzport.DecisionDenied, err: kernel.ErrForbidden},
 			extractor:  okExtract,
 			wantStatus: http.StatusForbidden,
+		},
+		{
+			name:       "technical error: checker returns DecisionError → 500",
+			identity:   alice,
+			checker:    &fakeChecker{decision: authzport.DecisionError, err: kernel.ErrInternal},
+			extractor:  okExtract,
+			wantStatus: http.StatusInternalServerError,
+		},
+		{
+			name:       "extractor error → 500 (technical fault, not a policy denial)",
+			identity:   alice,
+			checker:    &fakeChecker{decision: authzport.DecisionAllowed},
+			extractor:  errExtractor,
+			wantStatus: http.StatusInternalServerError,
 		},
 		{
 			name: "missing identity (authn not run) → 401",
 			// identity not injected into context
 			identity:   nil,
-			checker:    &fakeChecker{err: nil},
+			checker:    &fakeChecker{decision: authzport.DecisionAllowed},
 			extractor:  okExtract,
 			wantStatus: http.StatusUnauthorized,
 		},
@@ -93,9 +114,9 @@ func TestNewAuthorization_RolesFromIdentity(t *testing.T) {
 	alice := &authnport.Identity{Subject: "alice", Roles: wantRoles}
 
 	var gotClaim authzport.AuthorizationClaim
-	checker := authzport.Checker(checkerFunc(func(_ context.Context, c authzport.AuthorizationClaim) error {
+	checker := authzport.Checker(checkerFunc(func(_ context.Context, c authzport.AuthorizationClaim) (authzport.Decision, error) {
 		gotClaim = c
-		return nil
+		return authzport.DecisionAllowed, nil
 	}))
 	mw := NewAuthorization(checker, fixedExtractor(authzport.AuthorizationClaim{}), discardLog)
 
@@ -110,8 +131,8 @@ func TestNewAuthorization_RolesFromIdentity(t *testing.T) {
 }
 
 // checkerFunc adapts a function to authzport.Checker.
-type checkerFunc func(context.Context, authzport.AuthorizationClaim) error
+type checkerFunc func(context.Context, authzport.AuthorizationClaim) (authzport.Decision, error)
 
-func (f checkerFunc) Authorize(ctx context.Context, c authzport.AuthorizationClaim) error {
+func (f checkerFunc) Authorize(ctx context.Context, c authzport.AuthorizationClaim) (authzport.Decision, error) {
 	return f(ctx, c)
 }

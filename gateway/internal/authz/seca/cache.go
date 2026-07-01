@@ -71,18 +71,22 @@ func (c *CachedChecker) Start(ctx context.Context) error {
 }
 
 // Authorize implements authzport.Checker.
-// Returns nil when permitted, kernel.ErrForbidden when denied.
-func (c *CachedChecker) Authorize(ctx context.Context, claim authzport.AuthorizationClaim) error {
+// Returns DecisionAllowed with nil error when the claim is permitted.
+// Returns DecisionDenied with kernel.ErrForbidden when policy denies the operation.
+// Returns DecisionError with a kernel.KindInternal error when the informer cache
+// cannot be read, ensuring a technical failure is never silently disguised as an
+// authorization denial.
+func (c *CachedChecker) Authorize(ctx context.Context, claim authzport.AuthorizationClaim) (authzport.Decision, error) {
 	rolesByName, assignments, err := c.loadFromCache(claim.Tenant)
 	if err != nil {
 		c.log.ErrorContext(ctx, "seca rbac (cached): failed to load from informer cache", slog.Any("error", err))
-		return kernel.ErrForbidden
+		return authzport.DecisionError, kernel.NewError(kernel.KindInternal, fmt.Errorf("load policy data from cache: %w", err))
 	}
 
 	if Evaluate(claim, rolesByName, assignments) {
-		return nil
+		return authzport.DecisionAllowed, nil
 	}
-	return kernel.ErrForbidden
+	return authzport.DecisionDenied, kernel.ErrForbidden
 }
 
 // loadFromCache reads Roles and RoleAssignments from the informer cache for the

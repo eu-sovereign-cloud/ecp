@@ -9,6 +9,28 @@ import (
 	"net/http"
 )
 
+// Decision represents the explicit outcome of an authorization evaluation.
+//
+// The zero value is intentionally invalid: an unset or default-constructed Decision
+// is neither allowed nor denied. The authorization middleware treats any unrecognised
+// value (including zero) as a technical error and fails closed with HTTP 500, so a
+// buggy Checker implementation can never accidentally grant access.
+type Decision int
+
+const (
+	// DecisionAllowed indicates the operation is permitted. The authorization
+	// middleware passes the request to the next handler.
+	DecisionAllowed Decision = iota + 1
+	// DecisionDenied indicates the principal is authenticated but lacks sufficient
+	// privileges to perform the requested operation. Maps to HTTP 403.
+	DecisionDenied
+	// DecisionError indicates the authorization decision could not be reached due
+	// to a technical or infrastructure failure (e.g. the RBAC store is unreachable).
+	// Maps to HTTP 500. The accompanying error carries diagnostic detail for server-side
+	// logging but MUST NOT be forwarded to the client verbatim.
+	DecisionError
+)
+
 // AuthorizationClaim encapsulates all information needed to make a single
 // authorization decision. It is assembled by a ClaimExtractor from the incoming
 // HTTP request and the Identity established by the authentication middleware.
@@ -41,12 +63,24 @@ type AuthorizationClaim struct {
 }
 
 // Checker evaluates whether an AuthorizationClaim is permitted.
-// Returning nil means the operation is allowed; any non-nil error denies it.
-// Implementations should return kernel.ErrForbidden for policy denials.
+//
+// Implementations return an explicit Decision alongside an error:
+//   - DecisionAllowed, nil:  the operation is permitted; the middleware calls next.
+//   - DecisionDenied, err:   authenticated but insufficient privileges; err MUST carry
+//     kernel.ErrForbidden (or wrap it) so the caller can log the correct detail.
+//     The middleware always responds with HTTP 403 using the sanitised sentinel.
+//   - DecisionError, err:    decision unreachable due to a technical/infrastructure failure;
+//     err MUST carry a kernel.KindInternal (or kernel.KindUnavailable) error with diagnostic
+//     context. The middleware logs err server-side and responds with HTTP 500 using the
+//     sanitised sentinel — it MUST NOT forward err to the client.
+//
+// Implementations MUST NOT return DecisionAllowed with a non-nil error, and MUST NOT
+// return a zero/unrecognised Decision value. The middleware fails closed on any
+// unrecognised Decision to ensure a buggy implementation cannot accidentally grant access.
 type Checker interface {
 	// Authorize evaluates the claim against the configured policy and returns
-	// nil when the operation is permitted or an error when it is denied.
-	Authorize(ctx context.Context, claim AuthorizationClaim) error
+	// an explicit Decision with a complementary error carrying diagnostic detail.
+	Authorize(ctx context.Context, claim AuthorizationClaim) (Decision, error)
 }
 
 // ClaimExtractor derives an AuthorizationClaim from the current HTTP request.

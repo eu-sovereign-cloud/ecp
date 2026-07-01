@@ -66,8 +66,8 @@ func TestCachedChecker_Start(t *testing.T) {
 }
 
 // TestCachedChecker_Authorize_EmptyCache verifies that Authorize returns
-// kernel.ErrForbidden when the informer cache is empty (no roles or
-// role assignments exist).
+// DecisionDenied with kernel.ErrForbidden when the informer cache is empty
+// (no roles or role assignments exist).
 //
 // Authorization correctness (the full scope + resource + verb matching logic)
 // is already exercised exhaustively in TestEvaluate. This test focuses on the
@@ -95,7 +95,10 @@ func TestCachedChecker_Authorize_EmptyCache(t *testing.T) {
 		Roles:     []string{"admin"},
 	}
 
-	err := checker.Authorize(context.Background(), claim)
+	decision, err := checker.Authorize(context.Background(), claim)
+	if decision != authzport.DecisionDenied {
+		t.Errorf("expected DecisionDenied, got %v", decision)
+	}
 	if err == nil {
 		t.Fatal("expected error, got nil — empty cache should deny")
 	}
