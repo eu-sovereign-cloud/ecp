@@ -108,6 +108,8 @@ func mapKindToHTTP(kind kernel.ErrKind) (int, string, schema.ErrorType) {
 		return http.StatusUnprocessableEntity, kernel.KindValidation.String(), schema.ErrorTypeValidationError
 	case kernel.KindUnavailable:
 		return http.StatusInternalServerError, kernel.KindUnavailable.String(), schema.ErrorTypeInternalServerError
+	case kernel.KindInternal:
+		return http.StatusInternalServerError, kernel.KindInternal.String(), schema.ErrorTypeInternalServerError
 	default:
 		return http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), schema.ErrorTypeInternalServerError
 	}
