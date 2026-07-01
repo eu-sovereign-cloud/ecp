@@ -8,54 +8,6 @@ package kubernetes
 
 import schemav1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/schema/v1"
 
-// SecurityGroupRuleSpecDirection Direction of the traffic flow.
-type SecurityGroupRuleSpecDirection string
-
-// SecurityGroupRuleSpecProtocol Network protocol for the rule.
-type SecurityGroupRuleSpecProtocol string
-
-// SecurityGroupRuleStatus Current status of the resource
-type SecurityGroupRuleStatus = schemav1.Status
-
-// SecurityGroupRuleSpec Specification of a security group rule defining network access permissions.
-type SecurityGroupRuleSpec struct {
-	// Annotations User-defined key/value pairs that are mutable and can be used to add annotations.
-	Annotations schemav1.Annotations `json:"annotations,omitempty"`
-
-	// Direction Direction of the traffic flow
-	Direction SecurityGroupRuleSpecDirection `json:"direction"`
-
-	// Icmp ICMP specific rule configuration
-	Icmp *IcmpConfig `json:"icmp,omitempty"`
-
-	// Ports Defines a specific port list or port range for the rule.
-	Ports *Ports `json:"ports,omitempty"`
-
-	// Protocol Network protocol for the rule
-	Protocol SecurityGroupRuleSpecProtocol `json:"protocol,omitempty"`
-
-	// SourceRef Reference to a CIDR block, IP address, gateway, instance or security group
-	SourceRef []schemav1.Reference `json:"sourceRef,omitempty"`
-
-	Version schemav1.IPVersion `json:"version,omitempty"`
-}
-
-// IcmpConfig ICMP specific rule configuration
-type IcmpConfig struct {
-	Code int `json:"code"`
-	Type int `json:"type"`
-}
-
-// Port A valid network port number.
-type Port = int
-
-// Ports Defines a specific port list or port range for the rule.
-type Ports struct {
-	From Port   `json:"from,omitempty"`
-	List []Port `json:"list,omitempty"`
-	To   Port   `json:"to,omitempty"`
-}
-
 // SecurityGroup defines model for SecurityGroup.
 
 // Annotations User-defined key/value pairs that are mutable and can be used to add annotations.
@@ -99,3 +51,64 @@ type SecurityGroupStatus struct {
 	Rules      []SecurityGroupRuleStatus  `json:"rules,omitempty" x-kubebuilder-validation-max-items:"500"`
 	State      schemav1.ResourceState     `json:"state,omitempty"`
 }
+
+const (
+	SecurityGroupRuleDirectionEgress  SecurityGroupRuleSpecDirection = "egress"
+	SecurityGroupRuleDirectionIngress SecurityGroupRuleSpecDirection = "ingress"
+)
+
+const (
+	SecurityGroupRuleProtocolICMP   SecurityGroupRuleSpecProtocol = "icmp"
+	SecurityGroupRuleProtocolTCP    SecurityGroupRuleSpecProtocol = "tcp"
+	SecurityGroupRuleProtocolTCPUDP SecurityGroupRuleSpecProtocol = "tcp+udp"
+	SecurityGroupRuleProtocolUDP    SecurityGroupRuleSpecProtocol = "udp"
+)
+
+type IcmpConfig struct {
+	// +kubebuilder:validation:Maximum=5
+	// +kubebuilder:validation:Minimum=0
+	Code int `json:"code" x-kubebuilder-validation-maximum:"5" x-kubebuilder-validation-minimum:"0"`
+
+	// +kubebuilder:validation:Maximum=8
+	// +kubebuilder:validation:Minimum=0
+	Type int `json:"type" x-kubebuilder-validation-maximum:"8" x-kubebuilder-validation-minimum:"0"`
+}
+
+type Port = int
+
+type Ports struct {
+	From Port   `json:"from,omitempty"`
+	// +kubebuilder:validation:MaxItems=100
+	// +kubebuilder:validation:items:Maximum=65535
+	// +kubebuilder:validation:items:Minimum=1
+	List []Port `json:"list,omitempty" x-kubebuilder-validation-items-maximum:"65535" x-kubebuilder-validation-items-minimum:"1" x-kubebuilder-validation-max-items:"100"`
+	To   Port   `json:"to,omitempty"`
+}
+
+type SecurityGroupRuleSpec struct {
+	Annotations schemav1.Annotations `json:"annotations,omitempty"`
+
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Enum=ingress;egress
+	// +kubebuilder:validation:MaxLength=7
+	Direction SecurityGroupRuleSpecDirection `json:"direction" x-kubebuilder-validation-enum:"ingress;egress" x-kubebuilder-validation-max-length:"7"`
+
+	Icmp *IcmpConfig `json:"icmp,omitempty"`
+
+	Ports *Ports `json:"ports,omitempty"`
+
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Enum=tcp;udp;tcp+udp;icmp
+	// +kubebuilder:validation:MaxLength=7
+	Protocol SecurityGroupRuleSpecProtocol `json:"protocol,omitempty" x-kubebuilder-validation-enum:"tcp;udp;tcp+udp;icmp" x-kubebuilder-validation-max-length:"7"`
+
+	// +kubebuilder:validation:MaxItems=32
+	SourceRef []schemav1.Reference `json:"sourceRef,omitempty" x-kubebuilder-validation-max-items:"32"`
+	Version   schemav1.IPVersion   `json:"version,omitempty"`
+}
+
+type SecurityGroupRuleSpecDirection string
+
+type SecurityGroupRuleSpecProtocol string
+
+type SecurityGroupRuleStatus = schemav1.Status
