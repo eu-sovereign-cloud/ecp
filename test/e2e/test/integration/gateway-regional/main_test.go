@@ -53,16 +53,17 @@ const (
 )
 
 var (
-	k8sClient        client.Client
-	clientset        *kubernetes.Clientset
-	dynamicClient    dynamic.Interface
-	testLogger       *slog.Logger
-	regionClient     *regionv1.ClientWithResponses
-	storageClient    *storagev1.ClientWithResponses
-	workspaceClient  *workspacev1sdk.ClientWithResponses
-	workspaceRepo    persistence.Repo[*wsdom.Workspace]
-	blockStorageRepo persistence.Repo[*bsdom.BlockStorage]
-	imageRepo        persistence.Repo[*imgdom.Image]
+	k8sClient         client.Client
+	clientset         *kubernetes.Clientset
+	dynamicClient     dynamic.Interface
+	testLogger        *slog.Logger
+	regionClient      *regionv1.ClientWithResponses
+	storageClient     *storagev1.ClientWithResponses
+	workspaceClient   *workspacev1sdk.ClientWithResponses
+	workspaceRepo     persistence.Repo[*wsdom.Workspace]
+	blockStorageRepo  persistence.Repo[*bsdom.BlockStorage]
+	imageRepo         persistence.Repo[*imgdom.Image]
+	regionalLocalPort uint16
 )
 
 func TestMain(m *testing.M) {
@@ -132,22 +133,28 @@ func TestMain(m *testing.M) {
 	}
 	defer close(stopRegionalPF)
 
-	// SECA SDK clients setup
+	// SECA SDK clients setup — all clients use the default admin editor so existing
+	// tests keep passing when the gateway has auth enabled (the e2e default).
+	editor := adminEditor()
+
 	globalURL := fmt.Sprintf("http://localhost:%d/providers/seca.region", globalPort)
-	regionClient, err = regionv1.NewClientWithResponses(globalURL)
+	regionClient, err = regionv1.NewClientWithResponses(globalURL, regionv1.WithRequestEditorFn(editor))
 	if err != nil {
 		log.Fatalf("Failed to create region SDK client: %v", err)
 	}
 
 	regionalBaseURL := fmt.Sprintf("http://localhost:%d", regionalPort)
-	workspaceClient, err = workspacev1sdk.NewClientWithResponses(regionalBaseURL + "/providers/seca.workspace")
+	workspaceClient, err = workspacev1sdk.NewClientWithResponses(regionalBaseURL+"/providers/seca.workspace", workspacev1sdk.WithRequestEditorFn(editor))
 	if err != nil {
 		log.Fatalf("Failed to create workspace SDK client: %v", err)
 	}
-	storageClient, err = storagev1.NewClientWithResponses(regionalBaseURL + "/providers/seca.storage")
+	storageClient, err = storagev1.NewClientWithResponses(regionalBaseURL+"/providers/seca.storage", storagev1.WithRequestEditorFn(editor))
 	if err != nil {
 		log.Fatalf("Failed to create storage SDK client: %v", err)
 	}
+
+	// Keep raw local port for auth-specific tests that need per-request token control.
+	regionalLocalPort = regionalPort
 
 	testLogger = slog.New(slog.NewTextHandler(os.Stdout, nil))
 

@@ -35,9 +35,10 @@ const (
 )
 
 var (
-	testLogger   *slog.Logger
-	regionClient *regionv1.ClientWithResponses
-	authClient   *authv1.ClientWithResponses
+	testLogger      *slog.Logger
+	regionClient    *regionv1.ClientWithResponses
+	authClient      *authv1.ClientWithResponses
+	globalLocalPort uint16
 )
 
 func TestMain(m *testing.M) {
@@ -82,18 +83,25 @@ func TestMain(m *testing.M) {
 	}
 	localPort := forwardedPorts[0].Local
 
-	// Initialize SDK clients
+	// Initialize SDK clients with the default admin bearer token so all existing tests
+	// continue to pass when the gateway has auth enabled (the default in e2e deploys).
+	editor := adminEditor()
+
 	serverURL := fmt.Sprintf("http://localhost:%d/providers/seca.region", localPort)
-	regionClient, err = regionv1.NewClientWithResponses(serverURL)
+	regionClient, err = regionv1.NewClientWithResponses(serverURL, regionv1.WithRequestEditorFn(editor))
 	if err != nil {
 		log.Fatalf("Failed to create region SDK client: %v", err)
 	}
 
 	authServerURL := fmt.Sprintf("http://localhost:%d/providers/seca.authorization", localPort)
-	authClient, err = authv1.NewClientWithResponses(authServerURL)
+	authClient, err = authv1.NewClientWithResponses(authServerURL, authv1.WithRequestEditorFn(editor))
 	if err != nil {
 		log.Fatalf("Failed to create authorization SDK client: %v", err)
 	}
+
+	// Keep a reference to the raw local port for auth-specific tests that need
+	// per-request control over the bearer token (e.g. authn_test.go).
+	globalLocalPort = localPort
 
 	// Initialize test logger
 	testLogger = slog.New(slog.NewTextHandler(os.Stdout, nil))
