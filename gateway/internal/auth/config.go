@@ -40,6 +40,11 @@ type Flags struct {
 	// AuthzCache enables the informer-backed CachedChecker instead of the per-request
 	// reader-backed Checker. When true, Build also requires a non-nil dynClient.
 	AuthzCache bool
+	// AuthzEnabled controls whether the authorization middleware is installed alongside
+	// the authentication middleware. Requires Enabled to be true. When false, requests
+	// pass through authn only (authn-only mode); authorization is skipped entirely.
+	// Default true when auth is enabled.
+	AuthzEnabled bool
 }
 
 // RegisterFlags adds auth-related flags to the given cobra command.
@@ -52,6 +57,9 @@ func RegisterFlags(cmd *cobra.Command, f *Flags) {
 	cmd.Flags().BoolVar(&f.AuthzCache, "authz-cache", false,
 		"Use the informer-backed CachedChecker instead of the per-request RBAC checker "+
 			"(requires --auth-enabled; reduces API-server load on hot paths)")
+	cmd.Flags().BoolVar(&f.AuthzEnabled, "authz-enabled", true,
+		"Install the authorization middleware; requires --auth-enabled; "+
+			"set false for authn-only mode (identity is verified but no RBAC check is performed)")
 }
 
 // Build constructs the Authenticator and Checker from the provided flags and readers.
@@ -77,6 +85,11 @@ func Build(
 	authenticator, err := buildAuthenticator(flags)
 	if err != nil {
 		return nil, nil, fmt.Errorf("build authenticator: %w", err)
+	}
+
+	if !flags.AuthzEnabled {
+		// Authn-only mode: identity is verified but no RBAC check is performed.
+		return authenticator, nil, nil
 	}
 
 	if flags.AuthzCache {
@@ -143,6 +156,10 @@ func ProviderMWs[M ~func(http.Handler) http.Handler](
 	}
 	metricsMW := metrics.Middleware(provider)
 	authnMW := middleware.NewAuthentication(authenticator, log)
+	if checker == nil {
+		// Authn-only mode: skip authorization middleware.
+		return middleware.Chain[M](metricsMW, authnMW)
+	}
 	authzMW := middleware.NewAuthorization(checker, middleware.SECAClaimExtractor(provider, baseURL), log)
 	// metrics.Middleware is the first argument so Chain places it outermost (Chain reverses).
 	return middleware.Chain[M](metricsMW, authnMW, authzMW)
