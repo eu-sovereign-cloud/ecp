@@ -72,6 +72,7 @@ func TestChecker_Authorize(t *testing.T) {
 	validAssignment := makeAssignment([]string{"viewer"}, []radom.RoleAssignmentScope{allScope})
 
 	baseClaim := authzport.AuthorizationClaim{
+		Subject:  "alice",
 		Provider: "seca.compute",
 		Resource: "instances",
 		Verb:     "list",
@@ -103,6 +104,17 @@ func TestChecker_Authorize(t *testing.T) {
 			roles:        []*roledom.Role{viewerRole},
 			assignments:  nil,
 			claim:        baseClaim,
+			wantDecision: authzport.DecisionDenied,
+			wantKind:     new(kernel.KindForbidden),
+		},
+		{
+			// A RoleAssignment whose Subs list names only "alice" must deny "bob" even
+			// when the scope, roles, and permissions all match — proving that subject
+			// filtering is enforced by the real Evaluate function through the Checker.
+			name:         "deny: subject not in Subs → DecisionDenied with ErrForbidden",
+			roles:        []*roledom.Role{viewerRole},
+			assignments:  []*radom.RoleAssignment{assignSubs([]string{"alice"}, []string{"viewer"}, allScope)},
+			claim:        with(baseClaim, func(c *authzport.AuthorizationClaim) { c.Subject = "bob" }),
 			wantDecision: authzport.DecisionDenied,
 			wantKind:     new(kernel.KindForbidden),
 		},

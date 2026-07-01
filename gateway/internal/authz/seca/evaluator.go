@@ -27,6 +27,7 @@ import (
 //
 //	authorized = ∃ ra ∈ assignments:
 //	    scopeCovers(ra.Scopes, tenant, region, workspace)
+//	  ∧ subsGrant(ra.Subs, claim.Subject)
 //	  ∧ ∃ roleName ∈ (ra.Roles ∩ claim.Roles):
 //	        role := rolesByName[roleName]
 //	        ∃ p ∈ role.Permissions:
@@ -34,8 +35,9 @@ import (
 //	          ∧ matchResource(p.Resources, claim.Resource, claim.Name)
 //	          ∧ matchVerb(p.Verb, claim.Verb)
 //
-// claim.Roles are SECA Role names (not subject identifiers).
 // RoleAssignment.Scopes scope the grant; empty Tenants/Regions/Workspaces = wildcard.
+// RoleAssignment.Subs restrict the grant to named subjects; "*" covers all subjects.
+// An empty Subs grants nobody (fail-closed; unlike scope slices, empty ≠ wildcard).
 func Evaluate(
 	claim authzport.AuthorizationClaim,
 	rolesByName map[string]*roledom.Role,
@@ -43,6 +45,9 @@ func Evaluate(
 ) bool {
 	for _, ra := range assignments {
 		if !assignmentCoversScope(ra, claim.Tenant, claim.Region, claim.Workspace) {
+			continue
+		}
+		if !subsGrant(ra.Spec.Subs, claim.Subject) {
 			continue
 		}
 		for _, roleName := range ra.Spec.Roles {
@@ -98,6 +103,19 @@ func sliceCovers(list []string, value string) bool {
 		return true
 	}
 	return slices.Contains(list, value)
+}
+
+// subsGrant reports whether the RoleAssignment's subject list grants the caller.
+// "*" is an explicit wildcard covering all subjects. An empty subs grants nobody:
+// the SECA spec makes subs mandatory (minItems 1), so an absent list is a fail-closed
+// deny — unlike scope slices, an empty subs list is NOT a wildcard.
+func subsGrant(subs []string, subject string) bool {
+	for _, s := range subs {
+		if s == "*" || s == subject {
+			return true
+		}
+	}
+	return false
 }
 
 // matchResource reports whether any pattern in the Permission.Resources list
