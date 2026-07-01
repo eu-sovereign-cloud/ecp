@@ -146,45 +146,6 @@ spec:
                       rule: self.size() == 0 || (isCIDR(self) && cidr(self).ip().family()
                         == 6)
                 type: object
-              routeTableRef:
-                description: RouteTableRef Reference to the route table used by default
-                  for all Subnets.
-                properties:
-                  provider:
-                    description: Provider Provider of the resource. If not set, the
-                      provider is inferred from the context.
-                    maxLength: 64
-                    type: string
-                  region:
-                    description: Region Region of the resource. If not set, the region
-                      is inferred from the context.
-                    maxLength: 64
-                    type: string
-                  resource:
-                    description: |-
-                      Resource Resource-specific path identifying the resource within its workspace context.
-                      This is the segment of the full URN after the provider, version, tenant, and
-                      workspace parts. For a flat resource it is `<type>/<name>`, and for hierarchical
-                      (nested) resources it includes the parent path segments:
-                        `networks/<network-name>/route-tables/<rt-name>`
-                      The provider, tenant, and workspace can be specified as separate fields in this
-                      object; they do not need to be repeated here.
-                    maxLength: 256
-                    minLength: 1
-                    type: string
-                  tenant:
-                    description: Tenant Tenant of the resource. If not set, the tenant
-                      is inferred from the context.
-                    maxLength: 64
-                    type: string
-                  workspace:
-                    description: Workspace Workspace of the resource. If not set,
-                      the workspace is inferred from the context.
-                    maxLength: 64
-                    type: string
-                required:
-                - resource
-                type: object
               skuRef:
                 description: |-
                   SkuRef Reference to the SKU used by default for all NIC in this Network.
@@ -231,7 +192,6 @@ spec:
                   rule: self == oldSelf
             required:
             - cidr
-            - routeTableRef
             - skuRef
             type: object
           status:
@@ -350,45 +310,6 @@ spec:
                   type: object
                 maxItems: 32
                 type: array
-              routeTableRef:
-                description: RouteTableRef Reference to the route table used by default
-                  for all Subnets.
-                properties:
-                  provider:
-                    description: Provider Provider of the resource. If not set, the
-                      provider is inferred from the context.
-                    maxLength: 64
-                    type: string
-                  region:
-                    description: Region Region of the resource. If not set, the region
-                      is inferred from the context.
-                    maxLength: 64
-                    type: string
-                  resource:
-                    description: |-
-                      Resource Resource-specific path identifying the resource within its workspace context.
-                      This is the segment of the full URN after the provider, version, tenant, and
-                      workspace parts. For a flat resource it is `<type>/<name>`, and for hierarchical
-                      (nested) resources it includes the parent path segments:
-                        `networks/<network-name>/route-tables/<rt-name>`
-                      The provider, tenant, and workspace can be specified as separate fields in this
-                      object; they do not need to be repeated here.
-                    maxLength: 256
-                    minLength: 1
-                    type: string
-                  tenant:
-                    description: Tenant Tenant of the resource. If not set, the tenant
-                      is inferred from the context.
-                    maxLength: 64
-                    type: string
-                  workspace:
-                    description: Workspace Workspace of the resource. If not set,
-                      the workspace is inferred from the context.
-                    maxLength: 64
-                    type: string
-                required:
-                - resource
-                type: object
               state:
                 description: |-
                   ResourceState Current phase of the resource:

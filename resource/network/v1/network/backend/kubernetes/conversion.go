@@ -41,9 +41,8 @@ func NetworkFromCR(obj client.Object) (*netdom.Network, error) {
 	keyedLabels := k8slabels.GetKeyedLabels(crLabels)
 
 	spec := netdom.NetworkSpec{
-		CIDR:          cidrFromCR(cr.Spec.Cidr),
-		SkuRef:        commonbackend.ReferenceFromCR(cr.Spec.SkuRef),
-		RouteTableRef: commonbackend.ReferenceFromCR(cr.Spec.RouteTableRef),
+		CIDR:   cidrFromCR(cr.Spec.Cidr),
+		SkuRef: commonbackend.ReferenceFromCR(cr.Spec.SkuRef),
 	}
 	for _, c := range cr.Spec.AdditionalCidrs {
 		spec.AdditionalCIDRs = append(spec.AdditionalCIDRs, cidrFromCR(c))
@@ -113,7 +112,6 @@ func NetworkToCR(n *netdom.Network) (client.Object, error) {
 			Cidr:            cidrToCR(n.Spec.CIDR),
 			AdditionalCidrs: additionalCidrs,
 			SkuRef:          commonbackend.ReferenceToCR(n.Spec.SkuRef),
-			RouteTableRef:   commonbackend.ReferenceToCR(n.Spec.RouteTableRef),
 		},
 	}
 	cr.SetGroupVersionKind(NetworkGVK)

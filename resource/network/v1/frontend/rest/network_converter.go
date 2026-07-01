@@ -103,9 +103,8 @@ func networkToAPI(n *netdom.Network) *sdkschema.Network {
 		Annotations: n.Annotations,
 		Extensions:  n.Extensions,
 		Spec: sdkschema.NetworkSpec{
-			Cidr:          cidrToAPI(n.Spec.CIDR),
-			SkuRef:        commonfrontend.ReferenceToAPI(n.Spec.SkuRef),
-			RouteTableRef: commonfrontend.ReferenceToAPI(n.Spec.RouteTableRef),
+			Cidr:   cidrToAPI(n.Spec.CIDR),
+			SkuRef: commonfrontend.ReferenceToAPI(n.Spec.SkuRef),
 		},
 	}
 
@@ -156,9 +155,8 @@ func networkIteratorToAPI(ns []*netdom.Network, nextSkipToken *string) *sdknetwo
 func networkFromAPI(sdk sdkschema.Network, id *NetworkIdentity, region string) *netdom.Network {
 	n := &netdom.Network{
 		Spec: netdom.NetworkSpec{
-			CIDR:          cidrFromAPI(sdk.Spec.Cidr),
-			SkuRef:        commonfrontend.ReferenceFromAPI(sdk.Spec.SkuRef),
-			RouteTableRef: commonfrontend.ReferenceFromAPI(sdk.Spec.RouteTableRef),
+			CIDR:   cidrFromAPI(sdk.Spec.Cidr),
+			SkuRef: commonfrontend.ReferenceFromAPI(sdk.Spec.SkuRef),
 		},
 	}
 	n.Name = id.GetName()
