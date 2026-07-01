@@ -8,7 +8,7 @@ require (
 	github.com/eu-sovereign-cloud/ecp/csp/dummy v0.0.1
 	github.com/eu-sovereign-cloud/ecp/framework v0.0.1
 	github.com/eu-sovereign-cloud/ecp/resource v0.0.1
-	github.com/eu-sovereign-cloud/go-sdk v0.4.1
+	github.com/eu-sovereign-cloud/go-sdk v0.4.3
 	github.com/google/uuid v1.6.0
 	github.com/stretchr/testify v1.11.1
 	k8s.io/api v0.35.0

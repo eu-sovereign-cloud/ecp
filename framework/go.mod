@@ -5,7 +5,7 @@ go 1.26.4
 tool sigs.k8s.io/controller-tools/cmd/controller-gen
 
 require (
-	github.com/eu-sovereign-cloud/go-sdk v0.4.1
+	github.com/eu-sovereign-cloud/go-sdk v0.4.3
 	github.com/gobwas/glob v0.2.3
 	github.com/google/go-cmp v0.7.0
 	github.com/spf13/cobra v1.10.2
