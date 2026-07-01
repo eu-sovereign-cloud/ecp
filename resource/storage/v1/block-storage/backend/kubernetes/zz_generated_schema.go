@@ -56,8 +56,7 @@ type BlockStorageStatus struct {
 
 	// SizeGB Size of the block storage in GB.
 	// +kubebuilder:validation:Maximum=1000000
-	// +kubebuilder:validation:Minimum=1
-	SizeGB int                    `json:"sizeGB" x-kubebuilder-validation-maximum:"1000000" x-kubebuilder-validation-minimum:"1"`
+	SizeGB int                    `json:"sizeGB" x-kubebuilder-validation-maximum:"1000000"`
 	State  schemav1.ResourceState `json:"state,omitempty"`
 }
 

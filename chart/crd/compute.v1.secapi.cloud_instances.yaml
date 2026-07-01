@@ -443,6 +443,7 @@ spec:
                 maxItems: 32
                 type: array
               powerState:
+                default: "off"
                 description: PowerState Current power state of the instance.
                 enum:
                 - "on"
