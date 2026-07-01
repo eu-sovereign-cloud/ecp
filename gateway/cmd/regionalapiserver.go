@@ -25,6 +25,7 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/httpserver"
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/kubeclient"
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/logger"
+	"github.com/eu-sovereign-cloud/ecp/gateway/internal/metrics"
 	roledom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role"
 	radom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment"
 	rak8s "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment/backend/kubernetes"
@@ -144,6 +145,8 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		instancek8s.InstanceToCR,
 		instancek8s.InstanceFromCR,
 	)
+	// Metrics endpoint — unauthenticated, mounted outside provider HandlerWithOptions.
+	mux.Handle("/metrics", metrics.Handler())
 
 	// RBAC reader adapters used by the authorization checker.
 	roleReaderAdapter := k8sadapter.NewReaderAdapter[*roledom.Role](
