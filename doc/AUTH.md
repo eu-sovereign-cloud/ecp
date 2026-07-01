@@ -89,7 +89,16 @@ intersected with the `RoleAssignment.Spec.Roles` field during authorization.
 |------|---------|-------------|
 | `--auth-enabled` | `false` | Enable bearer-token authn + RBAC authz. |
 | `--dummy-auth-users <file>` | `""` | Path to a JSON file mapping `username→password`. Required when `--auth-enabled` is set. |
+| `--authz-enabled` | `true` | Install the RBAC authorization middleware. Requires `--auth-enabled`. Set to `false` for authn-only mode (every authenticated caller is let through without a RBAC check). |
 | `--authz-cache` | `false` | Use the informer-backed `CachedChecker` instead of the per-request `Checker`. |
+
+#### Auth modes
+
+| `--auth-enabled` | `--authz-enabled` | Effect |
+|---|---|---|
+| `false` | _(irrelevant)_ | No auth. All requests pass through unauthenticated. |
+| `true` | `true` (default) | Full authn + authz. Invalid credentials → 401; policy denial → 403. |
+| `true` | `false` | Authn-only. Valid credentials → handler; no RBAC check is performed. |
 
 ### Users file format
 
@@ -266,6 +275,40 @@ Enable via `--authz-cache`.
 
 ---
 
+## Metrics
+
+Both servers expose a `/metrics` endpoint (unauthenticated, outside the provider
+handler chain) that serves the default Prometheus registry in text format.
+
+```
+GET /metrics
+```
+
+### Auth latency histograms
+
+Three histograms with exponential buckets from ~50 µs to ~3 s are registered
+at startup (via `promauto`) regardless of the active checker implementation:
+
+| Metric name | Label | Description |
+|-------------|-------|-------------|
+| `ecp_gateway_auth_middleware_duration_seconds` | `provider` | End-to-end latency of a single authenticated HTTP request (authn + authz + handler). |
+| `ecp_gateway_authz_check_duration_seconds` | `impl` | Latency of one `Checker.Authorize` call, including the RBAC fetch. |
+| `ecp_gateway_rbac_fetch_duration_seconds` | `impl` | Latency of the RBAC data fetch inside the checker: `List` from K8s API-server (`impl="direct"`) or in-process informer cache read (`impl="cached"`). |
+
+The `impl` label takes the value `"direct"` when `--authz-cache` is not set, and
+`"cached"` when it is. The `provider` label mirrors the registered provider name
+(e.g. `"seca.region"`, `"seca.storage"`).
+
+The bucket boundaries are `prometheus.ExponentialBuckets(50e-6, 2, 18)`, giving
+18 buckets covering roughly 50 µs → 3 s — wide enough to capture both the
+sub-millisecond cached path and the multi-millisecond K8s List path.
+
+The default registry also exposes the standard `go_*` and `process_*` series,
+which are useful for comparing allocations and goroutine counts between the two
+checker implementations.
+
+---
+
 ## Code Layout
 
 ```
@@ -284,8 +327,11 @@ gateway/internal/authz/seca/
     checker.go                             Checker — per-request reader-backed
     cache.go                               CachedChecker — informer-backed
 gateway/internal/auth/config.go            Flags, Build, StartChecker, ProviderMWs
-gateway/cmd/globalapiserver.go             wiring for global providers
-gateway/cmd/regionalapiserver.go           wiring for regional providers
+gateway/internal/metrics/
+    metrics.go                             three histograms, Handler(), Middleware()
+    checker.go                             InstrumentedChecker decorator
+gateway/cmd/globalapiserver.go             wiring for global providers; /metrics mount
+gateway/cmd/regionalapiserver.go           wiring for regional providers; /metrics mount
 ```
 
 ---
