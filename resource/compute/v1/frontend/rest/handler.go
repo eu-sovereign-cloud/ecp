@@ -24,18 +24,6 @@ type Handler struct {
 
 var _ sdkcompute.ServerInterface = (*Handler)(nil)
 
-// ListSkus is not yet implemented.
-func (h *Handler) ListSkus(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, params sdkcompute.ListSkusParams) {
-	h.Logger.DebugContext(r.Context(), "ListSkus not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-// GetSku is not yet implemented.
-func (h *Handler) GetSku(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam) {
-	h.Logger.DebugContext(r.Context(), "GetSku not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
 // RestartInstance is not yet implemented.
 func (h *Handler) RestartInstance(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdkcompute.RestartInstanceParams) {
 	h.Logger.DebugContext(r.Context(), "RestartInstance not implemented")
