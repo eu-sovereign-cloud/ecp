@@ -26,6 +26,7 @@ HTTP request
 ┌─────────────────────────────────────────────┐
 │  Authorization middleware                   │
 │  builds AuthorizationClaim from request     │
+│  merges Identity.Subject and Roles          │
 │  calls Checker.Authorize(ctx, claim)        │
 └─────────┬───────────────────────────────────┘
           │ DecisionAllowed → next handler
@@ -66,6 +67,10 @@ Clients send it in the standard HTTP header:
 ```
 Authorization: Bearer <base64-encoded-json>
 ```
+
+The `username` field becomes `Identity.Subject` after authentication. The
+authorization layer matches it against `RoleAssignment.Spec.Subs` to restrict
+which role assignments apply to the caller.
 
 The `roles` array carries **SECA Role names** (not subjects). These names are
 intersected with the `RoleAssignment.Spec.Roles` field during authorization.
@@ -124,6 +129,7 @@ all `Role` and `RoleAssignment` resources in the claim's tenant namespace.
 authorized =
     ∃ ra ∈ RoleAssignments:
         scopeCovers(ra.Spec.Scopes, claim.Tenant, claim.Region, claim.Workspace)
+      ∧ subsGrant(ra.Spec.Subs, claim.Subject)
       ∧ ∃ roleName ∈ (ra.Spec.Roles ∩ claim.Roles):
             role := rolesByName[roleName]
             ∃ p ∈ role.Spec.Permissions:
@@ -131,6 +137,20 @@ authorized =
               ∧ matchResource(p.Resources, claim.Resource, claim.Name)
               ∧ matchVerb(p.Verb, claim.Verb)
 ```
+
+### Subject matching
+
+`RoleAssignment.Spec.Subs` is a list of JWT subject IDs that this assignment applies to.
+The SECA spec makes it **mandatory** (`minItems: 1`). Matching rules:
+
+| Value | Meaning |
+|-------|---------|
+| `"*"` | Wildcard — covers any authenticated caller. |
+| `"user1@example.com"` | Exact match against `claim.Subject`. |
+| _(empty list)_ | Grants **nobody** — fail-closed (not a wildcard). |
+
+Unlike scope slices, an empty `Subs` does **not** mean "all subjects". The SECA spec's
+explicit `"*"` wildcard design means absence of a subject is always treated as a deny.
 
 ### Scope matching
 
