@@ -201,6 +201,7 @@ endef
 $(foreach comp,$(TEST_COMPONENTS),$(eval $(call TEST_template,$(comp))))
 
 # =====================================================================================
+<<<<<<< HEAD:test/Makefile
 # End-to-end test — the whole stack (both gateways + delegator) in a single run,
 # driving the SECA API and asserting reconciliation down to the delegator plugin.
 # See test/e2e/. The default plugin is the dummy plugin.
@@ -273,3 +274,32 @@ conformance-ionos-scaffolding: ## Build images, create the demo clusters and ins
 
 conformance-ionos-clean: ## Tear down the IONOS conformance demo clusters
 	@$(MAKE) -C conformance/ionos secatest-clean
+=======
+# Benchmark & report
+# =====================================================================================
+# bench — fire the load workload against the deployed gateway to populate metrics.
+# Requires a running cluster with auth enabled (the e2e default).
+#
+#   make bench                        # 500 requests (default)
+#   E2E_BENCH_REQUESTS=1000 make bench
+#   USE_KIND=true make bench
+#
+.PHONY: bench
+bench: ## Run the benchmark load workload against the deployed gateway (E2E_BENCH=1)
+	@E2E_BENCH=1 ./scripts/run-test.sh gateway-global -run=TestBench
+
+.PHONY: kind-bench
+kind-bench: ## Run the benchmark load workload against the KIND gateway (E2E_BENCH=1)
+	@E2E_BENCH=1 USE_KIND=true ./scripts/run-test.sh gateway-global -run=TestBench
+
+# report — scrape /metrics from the deployed gateway and emit report/REPORT.md.
+# Set SNAP_FILE to save the raw snapshot; set IMPL_TAG to label the series.
+#
+#   make report                                  # snap to report/snap.txt, tag=default
+#   IMPL_TAG=cached make report                  # tag the series as "cached"
+#   SNAP_FILE=report/snap-direct.txt make report # save to a named file
+#
+.PHONY: report
+report: ## Scrape gateway /metrics and generate report/REPORT.md via benchreport
+	@./scripts/report.sh
+>>>>>>> f5693d58 (test(e2e): add benchmark metrics report tool and make targets):test/e2e/Makefile
