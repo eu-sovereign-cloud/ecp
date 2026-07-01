@@ -1,0 +1,22 @@
+# ConfigMap for the Dummy authenticator used in e2e tests.
+# Maps username → password; each entry matches a Subs value in role-assignments.yaml.
+# "nobody" has valid credentials but no RoleAssignment, so it always gets 403.
+#
+# WARNING: This ConfigMap is for development and e2e testing only.
+# The Dummy authenticator performs no signature verification.
+# It must never be used in production.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: e2e-dummy-users
+data:
+  users.json: |
+    {
+      "admin":  "e2e-admin-pass",
+      "alice":  "alice-pass",
+      "bob":    "bob-pass",
+      "carol":  "carol-pass",
+      "dave":   "dave-pass",
+      "erin":   "erin-pass",
+      "nobody": "nobody-pass"
+    }
