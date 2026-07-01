@@ -18,7 +18,6 @@ import (
 	sdknetworkapi "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.network.v1"
 	sdkstorageapi "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	sdkworkspaceapi "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1"
-	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	"github.com/eu-sovereign-cloud/ecp/framework/frontend/config"
@@ -30,6 +29,7 @@ import (
 	radom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment"
 	rak8s "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment/backend/kubernetes"
 	rolek8s "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role/backend/kubernetes"
+	computerest "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/frontend/rest"
 	netrest "github.com/eu-sovereign-cloud/ecp/resource/network/v1/frontend/rest"
 	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network"
 	netskudom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network-sku"
@@ -85,58 +85,6 @@ func init() {
 	)
 	auth.RegisterFlags(regionalApiServerCMD, &regionalAuthFlags)
 	rootCmd.AddCommand(regionalApiServerCMD)
-}
-
-// computeStub is a local stub implementing sdkcomputeapi.ServerInterface with all methods returning 501.
-type computeStub struct {
-	logger *slog.Logger
-}
-
-var _ sdkcomputeapi.ServerInterface = (*computeStub)(nil)
-
-func (c *computeStub) ListSkus(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, params sdkcomputeapi.ListSkusParams) {
-	c.logger.DebugContext(r.Context(), "ListSkus not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (c *computeStub) GetSku(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam) {
-	c.logger.DebugContext(r.Context(), "GetSku not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (c *computeStub) ListInstances(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, params sdkcomputeapi.ListInstancesParams) {
-	c.logger.DebugContext(r.Context(), "ListInstances not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (c *computeStub) DeleteInstance(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdkcomputeapi.DeleteInstanceParams) {
-	c.logger.DebugContext(r.Context(), "DeleteInstance not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (c *computeStub) GetInstance(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam) {
-	c.logger.DebugContext(r.Context(), "GetInstance not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (c *computeStub) CreateOrUpdateInstance(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdkcomputeapi.CreateOrUpdateInstanceParams) {
-	c.logger.DebugContext(r.Context(), "CreateOrUpdateInstance not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (c *computeStub) RestartInstance(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdkcomputeapi.RestartInstanceParams) {
-	c.logger.DebugContext(r.Context(), "RestartInstance not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (c *computeStub) StartInstance(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdkcomputeapi.StartInstanceParams) {
-	c.logger.DebugContext(r.Context(), "StartInstance not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (c *computeStub) StopInstance(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdkcomputeapi.StopInstanceParams) {
-	c.logger.DebugContext(r.Context(), "StopInstance not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // startRegional starts the backend HTTP server on the given address.
@@ -201,7 +149,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 
 	// Compute (stub — not yet implemented)
 	sdkcomputeapi.HandlerWithOptions(
-		&computeStub{logger: logger},
+		&computerest.Handler{Logger: logger},
 		sdkcomputeapi.StdHTTPServerOptions{
 			BaseURL:          "/providers/seca.compute",
 			BaseRouter:       mux,
