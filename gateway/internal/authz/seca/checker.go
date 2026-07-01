@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	kernel "github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	authzport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/authz"
 	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
+	"github.com/eu-sovereign-cloud/ecp/gateway/internal/metrics"
 	roledom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role"
 	radom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment"
 )
@@ -49,7 +51,9 @@ func NewChecker(
 // loaded (e.g. the Kubernetes API server is unreachable), ensuring a technical failure
 // is never silently disguised as an authorization denial.
 func (c *Checker) Authorize(ctx context.Context, claim authzport.AuthorizationClaim) (authzport.Decision, error) {
+	fetchStart := time.Now()
 	rolesByName, assignments, err := c.load(ctx, claim.Tenant)
+	metrics.ObserveRBACFetch("direct", time.Since(fetchStart))
 	if err != nil {
 		c.log.ErrorContext(ctx, "seca rbac: failed to load policy data", slog.Any("error", err))
 		return authzport.DecisionError, kernel.NewError(kernel.KindInternal, fmt.Errorf("load policy data: %w", err))

@@ -16,6 +16,7 @@ import (
 	kernel "github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	authzport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/authz"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
+	"github.com/eu-sovereign-cloud/ecp/gateway/internal/metrics"
 	roledom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role"
 	radom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment"
 	rak8s "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment/backend/kubernetes"
@@ -77,7 +78,9 @@ func (c *CachedChecker) Start(ctx context.Context) error {
 // cannot be read, ensuring a technical failure is never silently disguised as an
 // authorization denial.
 func (c *CachedChecker) Authorize(ctx context.Context, claim authzport.AuthorizationClaim) (authzport.Decision, error) {
+	fetchStart := time.Now()
 	rolesByName, assignments, err := c.loadFromCache(claim.Tenant)
+	metrics.ObserveRBACFetch("cached", time.Since(fetchStart))
 	if err != nil {
 		c.log.ErrorContext(ctx, "seca rbac (cached): failed to load from informer cache", slog.Any("error", err))
 		return authzport.DecisionError, kernel.NewError(kernel.KindInternal, fmt.Errorf("load policy data from cache: %w", err))

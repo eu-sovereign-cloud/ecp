@@ -23,6 +23,7 @@ import (
 	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	gatewayauthn "github.com/eu-sovereign-cloud/ecp/gateway/internal/authn"
 	seca "github.com/eu-sovereign-cloud/ecp/gateway/internal/authz/seca"
+	"github.com/eu-sovereign-cloud/ecp/gateway/internal/metrics"
 	roledom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role"
 	radom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment"
 )
@@ -83,11 +84,11 @@ func Build(
 			return nil, nil, fmt.Errorf("--authz-cache requires a dynamic Kubernetes client")
 		}
 		checker := seca.NewCachedChecker(dynClient, log)
-		return authenticator, checker, nil
+		return authenticator, metrics.NewInstrumentedChecker(checker, "cached"), nil
 	}
 
 	checker := seca.NewChecker(roleReader, assignmentReader, log)
-	return authenticator, checker, nil
+	return authenticator, metrics.NewInstrumentedChecker(checker, "direct"), nil
 }
 
 // AuthnMiddleware returns the authentication middleware for the given Authenticator,
