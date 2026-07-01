@@ -35,6 +35,10 @@ const (
 // authorization decision. It is assembled by a ClaimExtractor from the incoming
 // HTTP request and the Identity established by the authentication middleware.
 type AuthorizationClaim struct {
+	// Subject is the authenticated principal from [authnport.Identity.Subject]
+	// (e.g. a username or JWT sub claim). The evaluator matches this against
+	// RoleAssignment.Subs to restrict which role assignments apply to the caller.
+	Subject string
 	// Roles is the list of SECA Role names carried by the authenticated identity.
 	// The checker intersects this with RoleAssignment.Roles to find applicable grants.
 	Roles []string
