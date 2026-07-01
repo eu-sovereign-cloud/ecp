@@ -26,6 +26,7 @@ func TestMapKindToHTTP(t *testing.T) {
 		{"precondition failed", kernel.KindPreconditionFailed, http.StatusPreconditionFailed},
 		{"validation", kernel.KindValidation, http.StatusUnprocessableEntity},
 		{"unavailable", kernel.KindUnavailable, http.StatusInternalServerError},
+		{"internal", kernel.KindInternal, http.StatusInternalServerError},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

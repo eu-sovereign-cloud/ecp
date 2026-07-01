@@ -22,6 +22,9 @@ const (
 	KindAlreadyExists
 	// KindUnauthorized indicates the request lacks valid authentication credentials (HTTP 401).
 	KindUnauthorized
+	// KindInternal indicates an internal/technical failure unrelated to the caller's credentials or
+	// permissions (e.g. the RBAC policy store is unreachable). Maps to HTTP 500.
+	KindInternal
 )
 
 // Sentinel errors
@@ -34,6 +37,7 @@ var (
 	ErrUnavailable        = NewError(KindUnavailable, errors.New(KindUnavailable.String()))
 	ErrAlreadyExists      = NewError(KindAlreadyExists, errors.New(KindAlreadyExists.String()))
 	ErrUnauthorized       = NewError(KindUnauthorized, errors.New(KindUnauthorized.String()))
+	ErrInternal           = NewError(KindInternal, errors.New(KindInternal.String()))
 )
 
 // String returns the string representation of the error kind.
@@ -55,6 +59,8 @@ func (k ErrKind) String() string {
 		return "resource already exists"
 	case KindUnauthorized:
 		return "unauthorized"
+	case KindInternal:
+		return "internal error"
 	default:
 		return "unknown error"
 	}
