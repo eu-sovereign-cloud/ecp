@@ -18,18 +18,21 @@ HTTP request
 │  Authentication middleware                  │
 │  reads "Authorization: Bearer <token>"      │
 │  validates it, stores *Identity in context  │
-└───────────────────┬─────────────────────────┘
-                    │ identity in context
-                    ▼
+└─────────┬───────────────────────────────────┘
+          │ success → identity in context
+          │ credential failure → 401 Unauthorized
+          │ technical failure  → 500 Internal Server Error
+          ▼
 ┌─────────────────────────────────────────────┐
 │  Authorization middleware                   │
 │  builds AuthorizationClaim from request     │
 │  calls Checker.Authorize(ctx, claim)        │
-└───────────────────┬─────────────────────────┘
-                    │ nil  → next handler
-                    │ err  → 403 Forbidden
-                    ▼
-            provider handler
+└─────────┬───────────────────────────────────┘
+          │ DecisionAllowed → next handler
+          │ DecisionDenied  → 403 Forbidden
+          │ DecisionError   → 500 Internal Server Error
+          ▼
+  provider handler
 ```
 
 The chain is **opt-in** (default off). Operators enable it per-server with
@@ -182,6 +185,24 @@ Verbs are derived from the HTTP method and route pattern:
 
 ---
 
+## Error Categories
+
+The auth chain distinguishes three failure categories, each with a distinct HTTP
+status and diagnostic handling:
+
+| Category | HTTP | When | How |
+|---|---|---|---|
+| **Authentication failure** | **401** | Missing, malformed, or invalid bearer token | Middleware writes sanitised `ErrUnauthorized`; real error logged server-side. |
+| **Authorization denial** | **403** | Credentials valid but insufficient privileges | Middleware writes sanitised `ErrForbidden`; checker's `DecisionDenied` signals this. |
+| **Technical error** | **500** | Infrastructure failure (e.g. RBAC store unreachable) | Middleware logs the detailed error server-side; writes sanitised `ErrInternal`. |
+
+**Important**: technical failures are **never disguised as denials**. Previously,
+a Kubernetes list error in the RBAC checkers produced HTTP 403 (indistinguishable
+from a genuine policy denial). Now those paths return `DecisionError` and the
+middleware responds with HTTP 500, making infrastructure outages immediately visible.
+
+---
+
 ## Implementations
 
 ### 2.2 — Reader-backed SECA RBAC Checker
@@ -195,6 +216,12 @@ On every `Authorize` call it:
    `persistence.ReaderRepo[*roledom.Role]`.
 3. Calls the pure `Evaluate` function (no I/O) to determine the decision.
 
+Returns one of three explicit outcomes:
+- `DecisionAllowed, nil` — the claim is permitted.
+- `DecisionDenied, kernel.ErrForbidden` — policy denies the operation.
+- `DecisionError, kernel.KindInternal error` — RBAC data could not be loaded
+  (infrastructure failure). The middleware logs the real error and responds HTTP 500.
+
 **Trade-off**: Two Kubernetes API-server round-trips per authorization request.
 Suitable for moderate traffic. Use `CachedChecker` for high-throughput paths.
 
@@ -206,6 +233,9 @@ Uses `k8s.io/client-go/dynamic/dynamicinformer.DynamicSharedInformerFactory` to
 maintain an in-process cache of `Role` and `RoleAssignment` resources, kept
 current by Kubernetes watch events. Authorization decisions read from the cache —
 zero API-server round-trips on the hot path.
+
+Returns the same three-outcome contract as `Checker` (see above). A cache-read
+failure yields `DecisionError` rather than `DecisionDenied`.
 
 **Lifecycle**: `Start(ctx context.Context) error` must be called at server startup
 (before serving requests). It pre-registers the informers, starts them, and blocks
@@ -220,7 +250,7 @@ Enable via `--authz-cache`.
 
 ```
 framework/kernel/port/authn/authn.go       Identity, Authenticator port
-framework/kernel/port/authz/authz.go       AuthorizationClaim, Checker, ClaimExtractor ports
+framework/kernel/port/authz/authz.go       AuthorizationClaim, Decision, Checker, ClaimExtractor ports
 framework/frontend/middleware/
     authentication.go                      NewAuthentication — reads bearer header
     authorization.go                       NewAuthorization — generic authz middleware
