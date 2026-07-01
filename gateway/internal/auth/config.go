@@ -141,9 +141,11 @@ func ProviderMWs[M ~func(http.Handler) http.Handler](
 	if authenticator == nil {
 		return nil
 	}
+	metricsMW := metrics.Middleware(provider)
 	authnMW := middleware.NewAuthentication(authenticator, log)
 	authzMW := middleware.NewAuthorization(checker, middleware.SECAClaimExtractor(provider, baseURL), log)
-	return middleware.Chain[M](authnMW, authzMW)
+	// metrics.Middleware is the first argument so Chain places it outermost (Chain reverses).
+	return middleware.Chain[M](metricsMW, authnMW, authzMW)
 }
 
 // StartChecker starts the checker's background cache goroutines if it implements the
