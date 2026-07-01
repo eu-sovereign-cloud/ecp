@@ -43,6 +43,10 @@ import schemav1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/
 // only the network prefix is required. E.g. to request a /16 IPv4 CIDR block the
 // CIDR block would be `0.0.0.0/16` and for a /56 IPv6 CIDR block the CIDR block would
 // be `::/56`. Most CSP will not allow to use a different IPv6 prefix length than /56.
+//
+// Route tables associated with this network automatically include local routes for
+// all network CIDRs (including `additionalCidrs`). These network-local routes are
+// present by default and cannot be removed.
 
 // Status The status of the network. The status is read-only and will be set by the
 // system. The status contains information about the current state of the network
@@ -66,6 +70,10 @@ import schemav1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/
 // only the network prefix is required. E.g. to request a /16 IPv4 CIDR block the
 // CIDR block would be `0.0.0.0/16` and for a /56 IPv6 CIDR block the CIDR block would
 // be `::/56`. Most CSP will not allow to use a different IPv6 prefix length than /56.
+//
+// Route tables associated with this network automatically include local routes for
+// all network CIDRs (including `additionalCidrs`). These network-local routes are
+// present by default and cannot be removed.
 type NetworkSpec struct {
 	// +kubebuilder:validation:MaxItems=32
 	AdditionalCidrs []schemav1.Cidr `json:"additionalCidrs,omitempty" x-kubebuilder-validation-max-items:"32"`
@@ -90,19 +98,11 @@ type NetworkSpec struct {
 type NetworkStatus struct {
 	// +kubebuilder:validation:MaxItems=32
 	AdditionalCidrs []schemav1.Cidr `json:"additionalCidrs,omitempty" x-kubebuilder-validation-max-items:"32"`
-
-	// Cidr Combined IPv4 and IPv6 CIDR block for a subnet. Depending on the network
-	// configuration, either the IPv4 or IPv6 range can be omitted. So the following
-	// combinations are possible:
-	//
-	// * IPv4 only
-	// * IPv6 only
-	// * IPv4 and IPv6 (Dual Stack)
-	Cidr schemav1.Cidr `json:"cidr"`
+	// +kubebuilder:default={ipv4: "0.0.0.0/0", ipv6: "::/0"}
+	Cidr            schemav1.Cidr   `json:"cidr" x-kubebuilder-default:"{ipv4: '0.0.0.0/0', ipv6: '::/0'}"`
 	// +kubebuilder:validation:MaxItems=32
 	Conditions []schemav1.StatusCondition `json:"conditions" x-kubebuilder-validation-max-items:"32"`
-
-	State schemav1.ResourceState `json:"state,omitempty"`
+	State      schemav1.ResourceState     `json:"state,omitempty"`
 }
 
 // Cidr Combined IPv4 and IPv6 CIDR block for a subnet. Depending on the network
