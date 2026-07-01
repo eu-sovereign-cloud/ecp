@@ -22,6 +22,7 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/httpserver"
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/kubeclient"
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/logger"
+	"github.com/eu-sovereign-cloud/ecp/gateway/internal/metrics"
 
 	authrest "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/frontend/rest"
 	roledom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role"
@@ -82,6 +83,9 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
 
 	// Create a shared mux for all global handlers.
 	mux := http.NewServeMux()
+
+	// Metrics endpoint — unauthenticated, mounted outside provider HandlerWithOptions.
+	mux.Handle("/metrics", metrics.Handler())
 
 	// Authorization adapters (reused by both the CRUD handler and the RBAC checker).
 	roleReaderAdapter := k8sadapter.NewReaderAdapter[*roledom.Role](
