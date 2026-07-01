@@ -16,7 +16,7 @@ import (
 // ListImages handles GET /v1/tenants/{tenant}/images.
 func (h *Handler) ListImages(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, params sdkstorage.ListImagesParams) {
 	logger := h.Logger.With("provider", "storage", "resource", "image")
-	frest.HandleList(w, r, logger, imageListParamsFromAPI(params, tenant), frest.ListerFromRepo(h.ImageReader), ImageIteratorToAPI)
+	frest.HandleList(w, r, logger, imageListParamsFromAPI(params, tenant), frest.ListerFromRepo(h.ImageReader), imageIteratorToAPI)
 }
 
 // DeleteImage handles DELETE /v1/tenants/{tenant}/images/{name}.
@@ -33,7 +33,7 @@ func (h *Handler) DeleteImage(w http.ResponseWriter, r *http.Request, tenant sdk
 func (h *Handler) GetImage(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam) {
 	logger := h.Logger.With("provider", "storage", "resource", "image", "name", name)
 	ir := &ImageIdentity{name: name, tenant: tenant}
-	frest.HandleGet(w, r, logger, ir, frest.GetterFromRepo(h.ImageReader, newImageWithIdentity), ImageToAPIWithVerb(http.MethodGet))
+	frest.HandleGet(w, r, logger, ir, frest.GetterFromRepo(h.ImageReader, newImageWithIdentity), imageToAPIWithVerb(http.MethodGet))
 }
 
 // CreateOrUpdateImage handles PUT /v1/tenants/{tenant}/images/{name}.
@@ -49,8 +49,8 @@ func (h *Handler) CreateOrUpdateImage(w http.ResponseWriter, r *http.Request, te
 		Creator: frest.CreatorFromRepo(h.ImageWriter),
 		Updater: frest.UpdaterFromRepo(h.ImageWriter),
 		APIToDomain: func(sdk sdkschema.Image, p persistencepkg.IdentifiableResource) *imgdom.Image {
-			return ImageFromAPI(sdk, p.(*ImageIdentity), region)
+			return imageFromAPI(sdk, p.(*ImageIdentity), region)
 		},
-		DomainToAPI: ImageToAPIWithVerb(http.MethodPut),
+		DomainToAPI: imageToAPIWithVerb(http.MethodPut),
 	})
 }

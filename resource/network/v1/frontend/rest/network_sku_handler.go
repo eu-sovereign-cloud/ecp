@@ -30,14 +30,14 @@ func (h *Handler) ListSkus(w http.ResponseWriter, r *http.Request, tenant sdksch
 		SkipToken: skipToken,
 		Selector:  selector,
 	}
-	frest.HandleList(w, r, logger, listParams, frest.ListerFromRepo(h.SKUReader), NetworkSKUIteratorToAPI)
+	frest.HandleList(w, r, logger, listParams, frest.ListerFromRepo(h.SKUReader), networkSKUIteratorToAPI)
 }
 
 // GetSku handles GET /v1/tenants/{tenant}/skus/{name}.
 func (h *Handler) GetSku(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam) {
 	logger := h.Logger.With("provider", "network", "resource", "sku", "name", name)
 	ir := &networkSKUIdentity{name: name, tenant: tenant}
-	frest.HandleGet(w, r, logger, ir, frest.GetterFromRepo(h.SKUReader, newNetworkSKUWithIdentity), NetworkSKUToAPI)
+	frest.HandleGet(w, r, logger, ir, frest.GetterFromRepo(h.SKUReader, newNetworkSKUWithIdentity), networkSKUToAPI)
 }
 
 // networkSKUIdentity is a minimal IdentifiableResource for network-SKU get operations.

@@ -16,7 +16,7 @@ import (
 // ListNetworks handles GET /v1/tenants/{tenant}/workspaces/{workspace}/networks.
 func (h *Handler) ListNetworks(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, params sdknetwork.ListNetworksParams) {
 	logger := h.Logger.With("provider", "network", "resource", "network")
-	frest.HandleList(w, r, logger, networkListParamsFromAPI(params, tenant, workspace), frest.ListerFromRepo(h.NetworkReader), NetworkIteratorToAPI)
+	frest.HandleList(w, r, logger, networkListParamsFromAPI(params, tenant, workspace), frest.ListerFromRepo(h.NetworkReader), networkIteratorToAPI)
 }
 
 // DeleteNetwork handles DELETE /v1/tenants/{tenant}/workspaces/{workspace}/networks/{name}.
@@ -33,7 +33,7 @@ func (h *Handler) DeleteNetwork(w http.ResponseWriter, r *http.Request, tenant s
 func (h *Handler) GetNetwork(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam) {
 	logger := h.Logger.With("provider", "network", "resource", "network", "name", name)
 	ir := &NetworkIdentity{name: name, tenant: tenant, workspace: workspace}
-	frest.HandleGet(w, r, logger, ir, frest.GetterFromRepo(h.NetworkReader, newNetworkWithIdentity), NetworkToAPIWithVerb(http.MethodGet))
+	frest.HandleGet(w, r, logger, ir, frest.GetterFromRepo(h.NetworkReader, newNetworkWithIdentity), networkToAPIWithVerb(http.MethodGet))
 }
 
 // CreateOrUpdateNetwork handles PUT /v1/tenants/{tenant}/workspaces/{workspace}/networks/{name}.
@@ -49,9 +49,9 @@ func (h *Handler) CreateOrUpdateNetwork(w http.ResponseWriter, r *http.Request, 
 		Creator: frest.CreatorFromRepo(h.NetworkWriter),
 		Updater: frest.UpdaterFromRepo(h.NetworkWriter),
 		APIToDomain: func(sdk sdkschema.Network, p persistencepkg.IdentifiableResource) *netdom.Network {
-			return NetworkFromAPI(sdk, p.(*NetworkIdentity), region)
+			return networkFromAPI(sdk, p.(*NetworkIdentity), region)
 		},
-		DomainToAPI: NetworkToAPIWithVerb(http.MethodPut),
+		DomainToAPI: networkToAPIWithVerb(http.MethodPut),
 	})
 }
 

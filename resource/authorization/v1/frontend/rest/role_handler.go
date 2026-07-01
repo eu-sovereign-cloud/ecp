@@ -15,7 +15,7 @@ import (
 // ListRoles handles GET /v1/tenants/{tenant}/roles.
 func (h *Handler) ListRoles(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, params sdkauth.ListRolesParams) {
 	logger := h.Logger.With("provider", "authorization", "resource", "role")
-	frest.HandleList(w, r, logger, ListParamsFromAPI(params, tenant), frest.ListerFromRepo(h.RoleReader), RoleIteratorToAPI)
+	frest.HandleList(w, r, logger, listParamsFromAPI(params, tenant), frest.ListerFromRepo(h.RoleReader), roleIteratorToAPI)
 }
 
 // DeleteRole handles DELETE /v1/tenants/{tenant}/roles/{name}.
@@ -32,7 +32,7 @@ func (h *Handler) DeleteRole(w http.ResponseWriter, r *http.Request, tenant sdks
 func (h *Handler) GetRole(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam) {
 	logger := h.Logger.With("provider", "authorization", "resource", "role", "name", name)
 	id := &RoleIdentity{name: name, tenant: tenant}
-	frest.HandleGet(w, r, logger, id, frest.GetterFromRepo(h.RoleReader, newRoleWithIdentity), RoleToAPIWithVerb(http.MethodGet))
+	frest.HandleGet(w, r, logger, id, frest.GetterFromRepo(h.RoleReader, newRoleWithIdentity), roleToAPIWithVerb(http.MethodGet))
 }
 
 // CreateOrUpdateRole handles PUT /v1/tenants/{tenant}/roles/{name}.
@@ -47,9 +47,9 @@ func (h *Handler) CreateOrUpdateRole(w http.ResponseWriter, r *http.Request, ten
 		Creator: frest.CreatorFromRepo(h.RoleWriter),
 		Updater: frest.UpdaterFromRepo(h.RoleWriter),
 		APIToDomain: func(sdk sdkschema.Role, p persistencepkg.IdentifiableResource) *roledom.Role {
-			return RoleFromAPI(sdk, p.(*RoleIdentity))
+			return roleFromAPI(sdk, p.(*RoleIdentity))
 		},
-		DomainToAPI: RoleToAPIWithVerb(http.MethodPut),
+		DomainToAPI: roleToAPIWithVerb(http.MethodPut),
 	})
 }
 

@@ -16,7 +16,7 @@ import (
 // ListNics handles GET /v1/tenants/{tenant}/workspaces/{workspace}/nics.
 func (h *Handler) ListNics(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, params sdknetwork.ListNicsParams) {
 	logger := h.Logger.With("provider", "network", "resource", "nic")
-	frest.HandleList(w, r, logger, nicListParamsFromAPI(params, tenant, workspace), frest.ListerFromRepo(h.NicReader), NicIteratorToAPI)
+	frest.HandleList(w, r, logger, nicListParamsFromAPI(params, tenant, workspace), frest.ListerFromRepo(h.NicReader), nicIteratorToAPI)
 }
 
 // DeleteNic handles DELETE /v1/tenants/{tenant}/workspaces/{workspace}/nics/{name}.
@@ -33,7 +33,7 @@ func (h *Handler) DeleteNic(w http.ResponseWriter, r *http.Request, tenant sdksc
 func (h *Handler) GetNic(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam) {
 	logger := h.Logger.With("provider", "network", "resource", "nic", "name", name)
 	ir := &NicIdentity{name: name, tenant: tenant, workspace: workspace}
-	frest.HandleGet(w, r, logger, ir, frest.GetterFromRepo(h.NicReader, newNicWithIdentity), NicToAPIWithVerb(http.MethodGet))
+	frest.HandleGet(w, r, logger, ir, frest.GetterFromRepo(h.NicReader, newNicWithIdentity), nicToAPIWithVerb(http.MethodGet))
 }
 
 // CreateOrUpdateNic handles PUT /v1/tenants/{tenant}/workspaces/{workspace}/nics/{name}.
@@ -49,8 +49,8 @@ func (h *Handler) CreateOrUpdateNic(w http.ResponseWriter, r *http.Request, tena
 		Creator: frest.CreatorFromRepo(h.NicWriter),
 		Updater: frest.UpdaterFromRepo(h.NicWriter),
 		APIToDomain: func(sdk sdkschema.Nic, p persistencepkg.IdentifiableResource) *nicdom.Nic {
-			return NicFromAPI(sdk, p.(*NicIdentity), region)
+			return nicFromAPI(sdk, p.(*NicIdentity), region)
 		},
-		DomainToAPI: NicToAPIWithVerb(http.MethodPut),
+		DomainToAPI: nicToAPIWithVerb(http.MethodPut),
 	})
 }

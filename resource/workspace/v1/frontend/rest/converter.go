@@ -38,8 +38,8 @@ func (w *WorkspaceIdentity) GetWorkspace() string { return "" }
 
 var _ persistence.IdentifiableResource = (*WorkspaceIdentity)(nil)
 
-// ListParamsFromAPI converts SDK ListWorkspacesParams to resource.ListParams.
-func ListParamsFromAPI(params sdkworkspace.ListWorkspacesParams, tenant string) resource.ListParams {
+// listParamsFromAPI converts SDK ListWorkspacesParams to resource.ListParams.
+func listParamsFromAPI(params sdkworkspace.ListWorkspacesParams, tenant string) resource.ListParams {
 	limit := validation.GetLimit(params.Limit)
 
 	var skipToken string
@@ -62,15 +62,15 @@ func ListParamsFromAPI(params sdkworkspace.ListWorkspacesParams, tenant string) 
 	}
 }
 
-// WorkspaceToAPIWithVerb returns a func that converts a Workspace to its SDK representation with the given verb.
-func WorkspaceToAPIWithVerb(verb string) func(ws *wsdom.Workspace) *sdkschema.Workspace {
+// workspaceToAPIWithVerb returns a func that converts a Workspace to its SDK representation with the given verb.
+func workspaceToAPIWithVerb(verb string) func(ws *wsdom.Workspace) *sdkschema.Workspace {
 	return func(ws *wsdom.Workspace) *sdkschema.Workspace {
 		return workspaceToAPI(*ws, verb)
 	}
 }
 
-// WorkspaceIteratorToAPI converts a list of Workspace to an SDK WorkspaceIterator.
-func WorkspaceIteratorToAPI(wss []*wsdom.Workspace, nextSkipToken *string) *sdkworkspace.WorkspaceIterator {
+// workspaceIteratorToAPI converts a list of Workspace to an SDK WorkspaceIterator.
+func workspaceIteratorToAPI(wss []*wsdom.Workspace, nextSkipToken *string) *sdkworkspace.WorkspaceIterator {
 	items := make([]sdkschema.Workspace, len(wss))
 	for i, ws := range wss {
 		items[i] = *(workspaceToAPI(*ws, http.MethodGet))
@@ -135,8 +135,8 @@ func workspaceToAPI(ws wsdom.Workspace, verb string) *sdkschema.Workspace {
 	return sdk
 }
 
-// WorkspaceFromAPI converts an SDK Workspace to a Workspace.
-func WorkspaceFromAPI(api sdkschema.Workspace, id *WorkspaceIdentity, region string) *wsdom.Workspace {
+// workspaceFromAPI converts an SDK Workspace to a Workspace.
+func workspaceFromAPI(api sdkschema.Workspace, id *WorkspaceIdentity, region string) *wsdom.Workspace {
 	ws := &wsdom.Workspace{
 		Spec: api.Spec,
 	}

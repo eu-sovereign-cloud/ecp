@@ -16,7 +16,7 @@ import (
 // ListBlockStorages handles GET /v1/tenants/{tenant}/workspaces/{workspace}/block-storages.
 func (h *Handler) ListBlockStorages(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, params sdkstorage.ListBlockStoragesParams) {
 	logger := h.Logger.With("provider", "storage", "resource", "block-storage")
-	frest.HandleList(w, r, logger, blockStorageListParamsFromAPI(params, tenant, workspace), frest.ListerFromRepo(h.BlockStorageReader), BlockStorageIteratorToAPI)
+	frest.HandleList(w, r, logger, blockStorageListParamsFromAPI(params, tenant, workspace), frest.ListerFromRepo(h.BlockStorageReader), blockStorageIteratorToAPI)
 }
 
 // DeleteBlockStorage handles DELETE /v1/tenants/{tenant}/workspaces/{workspace}/block-storages/{name}.
@@ -33,7 +33,7 @@ func (h *Handler) DeleteBlockStorage(w http.ResponseWriter, r *http.Request, ten
 func (h *Handler) GetBlockStorage(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam) {
 	logger := h.Logger.With("provider", "storage", "resource", "block-storage", "name", name)
 	ir := &BlockStorageIdentity{name: name, tenant: tenant, workspace: workspace}
-	frest.HandleGet(w, r, logger, ir, frest.GetterFromRepo(h.BlockStorageReader, newBlockStorageWithIdentity), BlockStorageToAPIWithVerb(http.MethodGet))
+	frest.HandleGet(w, r, logger, ir, frest.GetterFromRepo(h.BlockStorageReader, newBlockStorageWithIdentity), blockStorageToAPIWithVerb(http.MethodGet))
 }
 
 // CreateOrUpdateBlockStorage handles PUT /v1/tenants/{tenant}/workspaces/{workspace}/block-storages/{name}.
@@ -49,9 +49,9 @@ func (h *Handler) CreateOrUpdateBlockStorage(w http.ResponseWriter, r *http.Requ
 		Creator: frest.CreatorFromRepo(h.BlockStorageWriter),
 		Updater: frest.UpdaterFromRepo(h.BlockStorageWriter),
 		APIToDomain: func(sdk sdkschema.BlockStorage, p persistencepkg.IdentifiableResource) *bsdom.BlockStorage {
-			return BlockStorageFromAPI(sdk, p.(*BlockStorageIdentity), region)
+			return blockStorageFromAPI(sdk, p.(*BlockStorageIdentity), region)
 		},
-		DomainToAPI: BlockStorageToAPIWithVerb(http.MethodPut),
+		DomainToAPI: blockStorageToAPIWithVerb(http.MethodPut),
 	})
 }
 

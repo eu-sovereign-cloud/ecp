@@ -16,14 +16,14 @@ import (
 // ListSkus handles GET /v1/tenants/{tenant}/skus.
 func (h *Handler) ListSkus(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, params sdkstorage.ListSkusParams) {
 	logger := h.Logger.With("provider", "storage", "resource", "sku")
-	frest.HandleList(w, r, logger, storageSKUListParamsFromAPI(params, tenant), frest.ListerFromRepo(h.SKUReader), StorageSKUIteratorToAPI)
+	frest.HandleList(w, r, logger, storageSKUListParamsFromAPI(params, tenant), frest.ListerFromRepo(h.SKUReader), storageSKUIteratorToAPI)
 }
 
 // GetSku handles GET /v1/tenants/{tenant}/skus/{name}.
 func (h *Handler) GetSku(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam) {
 	logger := h.Logger.With("provider", "storage", "resource", "sku", "name", name)
 	ir := &skuIdentity{name: name, tenant: tenant}
-	frest.HandleGet(w, r, logger, ir, frest.GetterFromRepo(h.SKUReader, newStorageSKUWithIdentity), StorageSKUToAPIWithVerb(http.MethodGet))
+	frest.HandleGet(w, r, logger, ir, frest.GetterFromRepo(h.SKUReader, newStorageSKUWithIdentity), storageSKUToAPIWithVerb(http.MethodGet))
 }
 
 // storageSKUListParamsFromAPI converts SDK ListSkusParams to a tenant-scoped resource.ListParams.

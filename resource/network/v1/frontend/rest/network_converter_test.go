@@ -9,7 +9,7 @@ import (
 )
 
 func TestNetworkIteratorToAPI_ResponseMetadata(t *testing.T) {
-	iter := NetworkIteratorToAPI(nil, nil)
+	iter := networkIteratorToAPI(nil, nil)
 	require.Equal(t, "networks", iter.Metadata.Resource)
 	require.Equal(t, "seca.network/v1", iter.Metadata.Provider)
 }
