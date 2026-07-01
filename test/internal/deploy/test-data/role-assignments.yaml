@@ -1,0 +1,83 @@
+# SECA RoleAssignments for e2e benchmark tests.
+# All resources go in the hashed tenant namespace for "test-tenant".
+# Subs values must match the username field in the dummy bearer token.
+---
+# ra-admin: "admin" user has god-mode access to everything across all scopes.
+# This is the identity used by existing e2e tests so they keep passing after auth is enabled.
+apiVersion: authorization.v1.secapi.cloud/v1
+kind: RoleAssignment
+metadata:
+  name: ra-admin
+  namespace: f7ec6f666803cd9d9814d4c055217581afbff53f3c35fd6c5e6b444d
+spec:
+  subs: ["admin"]
+  roles: ["e2e-admin"]
+  scopes:
+    - {}
+---
+# ra-alice-region-viewer: "alice" can list/get regions in test-tenant.
+# Used in gateway-global authn/authz tests: alice lists regions (200),
+# but is denied creating a role (403, provider mismatch).
+apiVersion: authorization.v1.secapi.cloud/v1
+kind: RoleAssignment
+metadata:
+  name: ra-alice-region-viewer
+  namespace: f7ec6f666803cd9d9814d4c055217581afbff53f3c35fd6c5e6b444d
+spec:
+  subs: ["alice"]
+  roles: ["e2e-region-viewer"]
+  scopes:
+    - tenants: ["test-tenant"]
+---
+# ra-bob-scoped: "bob" can view storage, but only in the itbg-bergamo region.
+# Edge case: region-scoped assignment; bob is denied in any other region.
+apiVersion: authorization.v1.secapi.cloud/v1
+kind: RoleAssignment
+metadata:
+  name: ra-bob-scoped
+  namespace: f7ec6f666803cd9d9814d4c055217581afbff53f3c35fd6c5e6b444d
+spec:
+  subs: ["bob"]
+  roles: ["e2e-storage-viewer"]
+  scopes:
+    - tenants: ["test-tenant"]
+      regions: ["itbg-bergamo"]
+---
+# ra-multi-subject: both "carol" and "dave" are workspace editors in test-tenant.
+# Edge case: multi-subject list.
+apiVersion: authorization.v1.secapi.cloud/v1
+kind: RoleAssignment
+metadata:
+  name: ra-multi-subject
+  namespace: f7ec6f666803cd9d9814d4c055217581afbff53f3c35fd6c5e6b444d
+spec:
+  subs: ["carol", "dave"]
+  roles: ["e2e-workspace-editor"]
+  scopes:
+    - tenants: ["test-tenant"]
+---
+# ra-wildcard: any authenticated caller can list regions (wildcard Subs).
+# Edge case: Subs=["*"] covers even users with no dedicated assignment.
+apiVersion: authorization.v1.secapi.cloud/v1
+kind: RoleAssignment
+metadata:
+  name: ra-wildcard
+  namespace: f7ec6f666803cd9d9814d4c055217581afbff53f3c35fd6c5e6b444d
+spec:
+  subs: ["*"]
+  roles: ["e2e-region-viewer"]
+  scopes:
+    - {}
+---
+# ra-wrong-tenant: "erin" has admin rights, but only in "other-tenant".
+# Negative edge case: erin is denied in test-tenant despite being e2e-admin elsewhere.
+apiVersion: authorization.v1.secapi.cloud/v1
+kind: RoleAssignment
+metadata:
+  name: ra-wrong-tenant
+  namespace: f7ec6f666803cd9d9814d4c055217581afbff53f3c35fd6c5e6b444d
+spec:
+  subs: ["erin"]
+  roles: ["e2e-admin"]
+  scopes:
+    - tenants: ["other-tenant"]

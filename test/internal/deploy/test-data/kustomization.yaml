@@ -7,4 +7,6 @@ resources:
   - namespace.yaml
   - regions.yaml
   - storagesku.yaml
+  - roles.yaml
+  - role-assignments.yaml
 
