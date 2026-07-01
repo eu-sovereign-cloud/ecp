@@ -19,8 +19,8 @@ import (
 //
 // The middleware:
 //  1. Retrieves the [authnport.Identity] injected by [NewAuthentication].
-//  2. Builds an [authzport.AuthorizationClaim] by calling extract(r) and
-//     merging the identity's Roles into the claim. A claim-extraction error
+//  2. Builds an [authzport.AuthorizationClaim] by calling extract(r) and merging
+//     the identity's Subject and Roles into the claim. A claim-extraction error
 //     is treated as a technical fault and yields HTTP 500.
 //  3. Calls checker.Authorize and branches on the returned [authzport.Decision]:
 //     [authzport.DecisionAllowed] → calls next handler (HTTP 2xx).
@@ -30,7 +30,9 @@ import (
 //     yields HTTP 500 so the middleware fails closed.
 //
 // NewAuthorization MUST be used after NewAuthentication in the middleware chain
-// so that the Identity is already present in the context.
+// so that the Identity is already present in the context. The middleware merges
+// both identity.Roles and identity.Subject into the claim before invoking the
+// checker.
 func NewAuthorization(
 	checker authzport.Checker,
 	extract authzport.ClaimExtractor,
@@ -54,6 +56,7 @@ func NewAuthorization(
 				rest.WriteErrorResponse(w, r, log, kernel.ErrInternal)
 				return
 			}
+			claim.Subject = identity.Subject
 			claim.Roles = identity.Roles
 
 			decision, decErr := checker.Authorize(r.Context(), claim)

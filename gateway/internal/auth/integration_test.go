@@ -206,6 +206,9 @@ func TestIntegration_RolesFromToken(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("want 200, got %d", w.Code)
 	}
+	if capturedClaim.Subject != "bob" {
+		t.Errorf("claim.Subject = %q, want %q — subject must be propagated from the bearer token", capturedClaim.Subject, "bob")
+	}
 	if len(capturedClaim.Roles) != 2 {
 		t.Fatalf("want 2 roles, got %d: %v", len(capturedClaim.Roles), capturedClaim.Roles)
 	}
