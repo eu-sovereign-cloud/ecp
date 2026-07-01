@@ -22,9 +22,24 @@ func makeRole(name string, permissions []roledom.Permission) *roledom.Role {
 }
 
 // makeAssignment is a test helper that builds a *radom.RoleAssignment.
+// Subs defaults to ["*"] so that existing test cases (which focus on scope/role/permission
+// correctness and are intentionally subject-agnostic) remain unaffected.
 func makeAssignment(roles []string, scopes []radom.RoleAssignmentScope) *radom.RoleAssignment {
 	return &radom.RoleAssignment{
 		Spec: radom.RoleAssignmentSpec{
+			Subs:   []string{"*"},
+			Roles:  roles,
+			Scopes: scopes,
+		},
+	}
+}
+
+// assignSubs is like makeAssignment but lets the caller control the Subs list,
+// for tests that exercise subject-based filtering.
+func assignSubs(subs, roles []string, scopes ...radom.RoleAssignmentScope) *radom.RoleAssignment {
+	return &radom.RoleAssignment{
+		Spec: radom.RoleAssignmentSpec{
+			Subs:   subs,
 			Roles:  roles,
 			Scopes: scopes,
 		},
@@ -210,6 +225,47 @@ func TestEvaluate(t *testing.T) {
 			},
 			want: true,
 		},
+		// ── Subject matching ──────────────────────────────────────────────────
+		{
+			name:  "subject exact match → allowed",
+			claim: with(baseClaim, func(c *authzport.AuthorizationClaim) { c.Subject = "alice" }),
+			assignments: []*radom.RoleAssignment{
+				assignSubs([]string{"alice"}, []string{"viewer"}, allScope),
+			},
+			want: true,
+		},
+		{
+			name:  "subject mismatch → denied",
+			claim: with(baseClaim, func(c *authzport.AuthorizationClaim) { c.Subject = "bob" }),
+			assignments: []*radom.RoleAssignment{
+				assignSubs([]string{"alice"}, []string{"viewer"}, allScope),
+			},
+			want: false,
+		},
+		{
+			name:  "wildcard subject '*' → allowed for any caller",
+			claim: with(baseClaim, func(c *authzport.AuthorizationClaim) { c.Subject = "anyone" }),
+			assignments: []*radom.RoleAssignment{
+				assignSubs([]string{"*"}, []string{"viewer"}, allScope),
+			},
+			want: true,
+		},
+		{
+			name:  "empty subs → denied (fail-closed, not a wildcard)",
+			claim: with(baseClaim, func(c *authzport.AuthorizationClaim) { c.Subject = "alice" }),
+			assignments: []*radom.RoleAssignment{
+				assignSubs([]string{}, []string{"viewer"}, allScope),
+			},
+			want: false,
+		},
+		{
+			name:  "multi-subject list: second entry matches → allowed",
+			claim: with(baseClaim, func(c *authzport.AuthorizationClaim) { c.Subject = "carol" }),
+			assignments: []*radom.RoleAssignment{
+				assignSubs([]string{"alice", "carol"}, []string{"viewer"}, allScope),
+			},
+			want: true,
+		},
 	}
 
 	for _, tc := range tests {
@@ -308,6 +364,31 @@ func TestSliceCovers(t *testing.T) {
 		got := sliceCovers(tc.list, tc.value)
 		if got != tc.want {
 			t.Errorf("sliceCovers(%v, %q) = %v, want %v", tc.list, tc.value, got, tc.want)
+		}
+	}
+}
+
+func TestSubsGrant(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		subs    []string
+		subject string
+		want    bool
+	}{
+		{[]string{"*"}, "alice", true},                  // wildcard covers any subject
+		{[]string{"*"}, "", true},                       // wildcard covers empty subject too
+		{[]string{"alice"}, "alice", true},              // exact match
+		{[]string{"alice"}, "bob", false},               // mismatch
+		{[]string{"alice", "bob"}, "bob", true},         // second entry matches
+		{[]string{"alice", "bob"}, "carol", false},      // no entry matches
+		{nil, "alice", false},                           // nil subs → deny (fail-closed)
+		{[]string{}, "alice", false},                    // empty subs → deny (not a wildcard)
+		{[]string{"alice", "*"}, "anyone", true},        // wildcard in a mixed list
+	}
+	for _, tc := range tests {
+		got := subsGrant(tc.subs, tc.subject)
+		if got != tc.want {
+			t.Errorf("subsGrant(%v, %q) = %v, want %v", tc.subs, tc.subject, got, tc.want)
 		}
 	}
 }
