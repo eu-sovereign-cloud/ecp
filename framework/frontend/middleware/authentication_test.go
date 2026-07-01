@@ -114,6 +114,33 @@ func TestNewAuthentication(t *testing.T) {
 	}
 }
 
+// errAuthenticator is an in-test Authenticator that always returns a fixed error.
+// Used to simulate authenticator failures (credential or technical) without I/O.
+type errAuthenticator struct {
+	err error
+}
+
+func (e *errAuthenticator) Authenticate(_ context.Context, _ string) (*authnport.Identity, error) {
+	return nil, e.err
+}
+
+// TestNewAuthentication_TechnicalError verifies that an ErrInternal returned by the
+// authenticator yields HTTP 500, not 401 — confirming that infrastructure failures are
+// never silently disguised as authentication failures.
+func TestNewAuthentication_TechnicalError(t *testing.T) {
+	t.Parallel()
+	mw := NewAuthentication(&errAuthenticator{err: kernel.ErrInternal}, discardLog)
+
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodGet, "/", nil)
+	r.Header.Set("Authorization", "Bearer some-token")
+	mw(okHandler).ServeHTTP(w, r)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("want 500, got %d — technical auth failures must not be disguised as 401", w.Code)
+	}
+}
+
 func TestIdentityFromContext_MissingReturnsNil(t *testing.T) {
 	t.Parallel()
 	id, ok := IdentityFromContext(context.Background())

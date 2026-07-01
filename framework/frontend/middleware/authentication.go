@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"errors"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -15,8 +16,14 @@ import (
 //
 // On success the resolved [authnport.Identity] is stored in the request context
 // (retrievable via [IdentityFromContext]) and the next handler is called.
-// On failure (missing header, malformed token, invalid credentials) it writes
-// an RFC 7807 401 Unauthorized response and does NOT call next.
+//
+// On credential failure (missing/malformed header or invalid token) it writes
+// an RFC 7807 401 Unauthorized response.
+//
+// On technical/infrastructure failure from the authenticator (error wrapping
+// [kernel.ErrInternal] or [kernel.ErrUnavailable]) it logs the error server-side
+// and writes an RFC 7807 500 Internal Server Error response, so infrastructure
+// outages are never silently disguised as authentication failures.
 //
 // The bearer token format is implementation-specific and determined by the
 // injected [authnport.Authenticator]. For the Dummy authenticator used during
@@ -37,7 +44,16 @@ func NewAuthentication(a authnport.Authenticator, log *slog.Logger) func(http.Ha
 
 			identity, err := a.Authenticate(r.Context(), token)
 			if err != nil {
-				rest.WriteErrorResponse(w, r, log, kernel.ErrUnauthorized)
+				// Distinguish a technical/infrastructure failure from a credential failure.
+				// ErrInternal and ErrUnavailable represent problems on the server side;
+				// any other error indicates a bad token (credentials) from the client.
+				if errors.Is(err, kernel.ErrInternal) || errors.Is(err, kernel.ErrUnavailable) {
+					log.ErrorContext(r.Context(), "authn: technical failure authenticating request",
+						slog.Any("error", err))
+					rest.WriteErrorResponse(w, r, log, kernel.ErrInternal)
+				} else {
+					rest.WriteErrorResponse(w, r, log, kernel.ErrUnauthorized)
+				}
 				return
 			}
 
