@@ -25,6 +25,8 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/kubeclient"
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/logger"
 	netrest "github.com/eu-sovereign-cloud/ecp/resource/network/v1/frontend/rest"
+	internetgatewaydom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/internet-gateway"
+	internetgatewayk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/internet-gateway/backend/kubernetes"
 	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network"
 	netskudom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network-sku"
 	netskuk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network-sku/backend/kubernetes"
@@ -222,17 +224,32 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		publicipk8s.PublicIpToCR,
 		publicipk8s.PublicIpFromCR,
 	)
+	internetGatewayReaderAdapter := k8sadapter.NewReaderAdapter[*internetgatewaydom.InternetGateway](
+		client.Client,
+		internetgatewayk8s.InternetGatewayGVR,
+		logger,
+		internetgatewayk8s.InternetGatewayFromCR,
+	)
+	internetGatewayWriterAdapter := k8sadapter.NewWriterAdapter[*internetgatewaydom.InternetGateway](
+		client.Client,
+		internetgatewayk8s.InternetGatewayGVR,
+		logger,
+		internetgatewayk8s.InternetGatewayToCR,
+		internetgatewayk8s.InternetGatewayFromCR,
+	)
 
 	sdknetworkapi.HandlerWithOptions(
 		&netrest.Handler{
-			NetworkReader:  netReaderAdapter,
-			NetworkWriter:  netWriterAdapter,
-			SKUReader:      netSKUReaderAdapter,
-			NicReader:      nicReaderAdapter,
-			NicWriter:      nicWriterAdapter,
-			PublicIpReader: publicIpReaderAdapter,
-			PublicIpWriter: publicIpWriterAdapter,
-			Logger:         logger,
+			NetworkReader:         netReaderAdapter,
+			NetworkWriter:         netWriterAdapter,
+			SKUReader:             netSKUReaderAdapter,
+			NicReader:             nicReaderAdapter,
+			NicWriter:             nicWriterAdapter,
+			PublicIpReader:        publicIpReaderAdapter,
+			PublicIpWriter:        publicIpWriterAdapter,
+			InternetGatewayReader: internetGatewayReaderAdapter,
+			InternetGatewayWriter: internetGatewayWriterAdapter,
+			Logger:                logger,
 		},
 		sdknetworkapi.StdHTTPServerOptions{
 			BaseURL:          "/providers/seca.network",
