@@ -3,7 +3,10 @@ package kubernetes
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
+
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	kernel "github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	backendport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
@@ -12,14 +15,24 @@ import (
 	frameworkbackend "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	commonbackend "github.com/eu-sovereign-cloud/ecp/resource/common/backend"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
+	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage"
 	imgdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image"
 )
+
+// blockStorageGVR is the GroupVersionResource of the block storage an image is stored on.
+var blockStorageGVR = schema.GroupVersionResource{Group: bsdom.Group, Version: bsdom.Version, Resource: bsdom.Resource}
+
+// DependencyResolver resolves the block storage an image depends on via its BlockStorageRef.
+type DependencyResolver interface {
+	State(ctx context.Context, gvr schema.GroupVersionResource, ref commondomain.Reference, defaultTenant string) (bool, commondomain.ResourceState, error)
+}
 
 // ImagePluginHandler drives the image reconciliation state machine.
 type ImagePluginHandler struct {
 	frameworkbackend.GenericPluginHandler[*imgdom.Image]
 	repo   persistence.Repo[*imgdom.Image]
 	plugin ImagePlugin
+	deps   DependencyResolver
 }
 
 var _ backendport.PluginHandler[*imgdom.Image] = (*ImagePluginHandler)(nil)
@@ -29,10 +42,12 @@ func NewImagePluginHandler(
 	repo persistence.Repo[*imgdom.Image],
 	plugin ImagePlugin,
 	maxConditions int,
+	deps DependencyResolver,
 ) *ImagePluginHandler {
 	handler := &ImagePluginHandler{
 		repo:   repo,
 		plugin: plugin,
+		deps:   deps,
 	}
 	handler.MaxConditions = maxConditions
 
@@ -84,7 +99,7 @@ func (h *ImagePluginHandler) HandleReconcile(ctx context.Context, resource *imgd
 		return h.setResourceState(ctx, resource, commondomain.ResourceStatePending, false)
 
 	case isImagePending(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStateCreating, true)
+		return h.ensureBlockStorageReady(ctx, resource)
 
 	case isImageCreating(resource):
 		return h.setResourceState(ctx, resource, commondomain.ResourceStateActive, false)
@@ -143,6 +158,47 @@ func (h *ImagePluginHandler) setResourceErrorState(ctx context.Context, resource
 		}
 
 		return requeue, updateErr
+	}
+
+	return requeue, nil
+}
+
+// ensureBlockStorageReady gates the image's transition to creating on its referenced
+// block storage existing and being active. While the dependency is not ready the image
+// stays pending and the reconcile is requeued.
+func (h *ImagePluginHandler) ensureBlockStorageReady(ctx context.Context, resource *imgdom.Image) (bool, error) {
+	exists, state, err := h.deps.State(ctx, blockStorageGVR, resource.Spec.BlockStorageRef, resource.Tenant)
+	if err != nil {
+		return h.setResourceErrorState(ctx, resource, err, true)
+	}
+
+	if !exists || state != commondomain.ResourceStateActive {
+		message := fmt.Sprintf("waiting for block storage %q to be active", resource.Spec.BlockStorageRef.Resource)
+		c := commonbackend.DependencyPendingCondition(commondomain.ResourceStatePending, message)
+		return h.setResourceCondition(ctx, resource, c, true)
+	}
+
+	return h.setResourceState(ctx, resource, commondomain.ResourceStateCreating, true)
+}
+
+// setResourceCondition pushes c onto the resource status and persists it, mirroring
+// setResourceState but without forcing a lifecycle transition beyond what c carries.
+func (h *ImagePluginHandler) setResourceCondition(ctx context.Context, resource *imgdom.Image, c commondomain.StatusCondition, requeue bool) (bool, error) {
+	if resource.Status == nil {
+		resource.Status = &imgdom.ImageStatus{}
+	}
+
+	resource.Status.PushCondition(c)
+	for h.MaxConditions > 0 && len(resource.Status.Conditions) > h.MaxConditions {
+		resource.Status.PopCondition()
+	}
+
+	if _, err := h.repo.UpdateStatus(ctx, resource); err != nil {
+		if errors.Is(err, kernel.ErrNotFound) {
+			return false, nil
+		}
+
+		return requeue, err
 	}
 
 	return requeue, nil

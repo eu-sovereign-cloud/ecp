@@ -41,3 +41,29 @@ func ConditionFromError(err error) domain.StatusCondition {
 		Message:          err.Error(),
 	}
 }
+
+// DependencyPendingCondition creates a domain.StatusCondition reporting that a resource
+// is waiting for a referenced dependency to become active before it can be created. The
+// resource keeps state so its reconciliation re-evaluates the dependency on each requeue.
+func DependencyPendingCondition(state domain.ResourceState, message string) domain.StatusCondition {
+	return domain.StatusCondition{
+		LastTransitionAt: time.Now(),
+		Type:             "DependencyPending",
+		State:            state,
+		Reason:           "WaitingForDependency",
+		Message:          message,
+	}
+}
+
+// DeletionBlockedCondition creates a domain.StatusCondition reporting that a resource
+// cannot be deleted while other resources still reference it. The resource keeps state
+// (and therefore its cleanup finalizer) until the referrers are gone.
+func DeletionBlockedCondition(state domain.ResourceState, message string) domain.StatusCondition {
+	return domain.StatusCondition{
+		LastTransitionAt: time.Now(),
+		Type:             "DeletionBlocked",
+		State:            state,
+		Reason:           "ReferencedByDependent",
+		Message:          message,
+	}
+}

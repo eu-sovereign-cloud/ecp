@@ -53,9 +53,8 @@ type SubnetSpec struct {
 	// * IPv4 and IPv6 (Dual Stack)
 	Cidr schemav1.Cidr `json:"cidr"`
 
-	// RouteTableRef Reference to the route table used by default for all NICs in this Subnet.
-	// If not provided, the routeTableRef associated with the network of the subnet will be used.
-	RouteTableRef *schemav1.Reference `json:"routeTableRef,omitempty"`
+	// RouteTableRef Reference to the route table used for all NICs in this Subnet.
+	RouteTableRef schemav1.Reference `json:"routeTableRef"`
 
 	// SkuRef Reference to the SKU used by default for all NICs in this Network.
 	// Can be overridden by the NIC

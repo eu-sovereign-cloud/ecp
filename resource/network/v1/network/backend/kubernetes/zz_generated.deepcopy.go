@@ -21,7 +21,6 @@ func (in *NetworkSpec) DeepCopyInto(out *NetworkSpec) {
 		copy(*out, *in)
 	}
 	out.Cidr = in.Cidr
-	out.RouteTableRef = in.RouteTableRef
 	out.SkuRef = in.SkuRef
 }
 
@@ -50,11 +49,6 @@ func (in *NetworkStatus) DeepCopyInto(out *NetworkStatus) {
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
-	}
-	if in.RouteTableRef != nil {
-		in, out := &in.RouteTableRef, &out.RouteTableRef
-		*out = new(schemav1.Reference)
-		**out = **in
 	}
 }
 

@@ -84,6 +84,10 @@ spec:
               only the network prefix is required. E.g. to request a /16 IPv4 CIDR block the
               CIDR block would be `0.0.0.0/16` and for a /56 IPv6 CIDR block the CIDR block would
               be `::/56`. Most CSP will not allow to use a different IPv6 prefix length than /56.
+
+              Route tables associated with this network automatically include local routes for
+              all network CIDRs (including `additionalCidrs`). These network-local routes are
+              present by default and cannot be removed.
             properties:
               additionalCidrs:
                 items:
@@ -146,45 +150,6 @@ spec:
                       rule: self.size() == 0 || (isCIDR(self) && cidr(self).ip().family()
                         == 6)
                 type: object
-              routeTableRef:
-                description: RouteTableRef Reference to the route table used by default
-                  for all Subnets.
-                properties:
-                  provider:
-                    description: Provider Provider of the resource. If not set, the
-                      provider is inferred from the context.
-                    maxLength: 64
-                    type: string
-                  region:
-                    description: Region Region of the resource. If not set, the region
-                      is inferred from the context.
-                    maxLength: 64
-                    type: string
-                  resource:
-                    description: |-
-                      Resource Resource-specific path identifying the resource within its workspace context.
-                      This is the segment of the full URN after the provider, version, tenant, and
-                      workspace parts. For a flat resource it is `<type>/<name>`, and for hierarchical
-                      (nested) resources it includes the parent path segments:
-                        `networks/<network-name>/route-tables/<rt-name>`
-                      The provider, tenant, and workspace can be specified as separate fields in this
-                      object; they do not need to be repeated here.
-                    maxLength: 256
-                    minLength: 1
-                    type: string
-                  tenant:
-                    description: Tenant Tenant of the resource. If not set, the tenant
-                      is inferred from the context.
-                    maxLength: 64
-                    type: string
-                  workspace:
-                    description: Workspace Workspace of the resource. If not set,
-                      the workspace is inferred from the context.
-                    maxLength: 64
-                    type: string
-                required:
-                - resource
-                type: object
               skuRef:
                 description: |-
                   SkuRef Reference to the SKU used by default for all NIC in this Network.
@@ -231,7 +196,6 @@ spec:
                   rule: self == oldSelf
             required:
             - cidr
-            - routeTableRef
             - skuRef
             type: object
           status:
@@ -270,6 +234,9 @@ spec:
                 maxItems: 32
                 type: array
               cidr:
+                default:
+                  ipv4: 0.0.0.0/0
+                  ipv6: ::/0
                 description: |-
                   Cidr Combined IPv4 and IPv6 CIDR block for a subnet. Depending on the network
                   configuration, either the IPv4 or IPv6 range can be omitted. So the following
@@ -350,45 +317,6 @@ spec:
                   type: object
                 maxItems: 32
                 type: array
-              routeTableRef:
-                description: RouteTableRef Reference to the route table used by default
-                  for all Subnets.
-                properties:
-                  provider:
-                    description: Provider Provider of the resource. If not set, the
-                      provider is inferred from the context.
-                    maxLength: 64
-                    type: string
-                  region:
-                    description: Region Region of the resource. If not set, the region
-                      is inferred from the context.
-                    maxLength: 64
-                    type: string
-                  resource:
-                    description: |-
-                      Resource Resource-specific path identifying the resource within its workspace context.
-                      This is the segment of the full URN after the provider, version, tenant, and
-                      workspace parts. For a flat resource it is `<type>/<name>`, and for hierarchical
-                      (nested) resources it includes the parent path segments:
-                        `networks/<network-name>/route-tables/<rt-name>`
-                      The provider, tenant, and workspace can be specified as separate fields in this
-                      object; they do not need to be repeated here.
-                    maxLength: 256
-                    minLength: 1
-                    type: string
-                  tenant:
-                    description: Tenant Tenant of the resource. If not set, the tenant
-                      is inferred from the context.
-                    maxLength: 64
-                    type: string
-                  workspace:
-                    description: Workspace Workspace of the resource. If not set,
-                      the workspace is inferred from the context.
-                    maxLength: 64
-                    type: string
-                required:
-                - resource
-                type: object
               state:
                 description: |-
                   ResourceState Current phase of the resource:

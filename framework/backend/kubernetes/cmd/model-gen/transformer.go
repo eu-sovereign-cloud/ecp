@@ -8,6 +8,7 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"golang.org/x/tools/go/ast/astutil"
@@ -391,6 +392,70 @@ func qualifySharedTypeRefs(fset *token.FileSet, file *ast.File, sharedTypes map[
 	return replaced
 }
 
+// mergeSiblingTypeDecls appends TYPE and CONST declarations from the other .go
+// files in srcPath's directory (all part of the same go-sdk schema package)
+// into file, so that root types referencing types defined in a sibling file can
+// be resolved and inlined. Type specs already declared in file are skipped.
+// Sibling files are visited in sorted order (os.ReadDir) for deterministic
+// output.
+func mergeSiblingTypeDecls(fset *token.FileSet, file *ast.File, srcPath string) error {
+	defined := map[string]bool{}
+	for _, decl := range file.Decls {
+		genDecl, ok := decl.(*ast.GenDecl)
+		if !ok {
+			continue
+		}
+		for _, spec := range genDecl.Specs {
+			if ts, ok := spec.(*ast.TypeSpec); ok {
+				defined[ts.Name.Name] = true
+			}
+		}
+	}
+
+	dir := filepath.Dir(srcPath)
+	base := filepath.Base(srcPath)
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return fmt.Errorf("read schema dir: %w", err)
+	}
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || name == base ||
+			!strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		sibling, err := parser.ParseFile(fset, filepath.Join(dir, name), nil, parser.ParseComments)
+		if err != nil {
+			return fmt.Errorf("parse %s: %w", name, err)
+		}
+		for _, decl := range sibling.Decls {
+			genDecl, ok := decl.(*ast.GenDecl)
+			if !ok || (genDecl.Tok != token.TYPE && genDecl.Tok != token.CONST) {
+				continue
+			}
+			if genDecl.Tok == token.TYPE {
+				kept := genDecl.Specs[:0]
+				for _, spec := range genDecl.Specs {
+					ts, ok := spec.(*ast.TypeSpec)
+					if ok && defined[ts.Name.Name] {
+						continue // already declared in the primary file
+					}
+					if ok {
+						defined[ts.Name.Name] = true
+					}
+					kept = append(kept, spec)
+				}
+				if len(kept) == 0 {
+					continue
+				}
+				genDecl.Specs = kept
+			}
+			file.Decls = append(file.Decls, genDecl)
+		}
+	}
+	return nil
+}
+
 // transformFileSingle parses a single schema file, filters it to the requested
 // root types and their local dependency closure, qualifies shared type refs,
 // applies the standard mutations, and writes the result to outPath.
@@ -399,6 +464,16 @@ func transformFileSingle(srcPath, outPath, packageName string, rootTypes, shared
 	file, err := parser.ParseFile(fset, srcPath, nil, parser.ParseComments)
 	if err != nil {
 		return fmt.Errorf("parse: %w", err)
+	}
+
+	// Merge type/const declarations from sibling files of the same package so
+	// that root types referencing types defined in another file (e.g. a
+	// SecurityGroupSpec embedding SecurityGroupRuleSpec from
+	// security-group-rule.go) resolve. Only declarations reachable from the
+	// root types survive the include-set filtering below, so slices without
+	// cross-file references are unaffected.
+	if err := mergeSiblingTypeDecls(fset, file, srcPath); err != nil {
+		return fmt.Errorf("merge sibling decls: %w", err)
 	}
 
 	// a. Rename package.

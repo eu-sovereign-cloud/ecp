@@ -78,7 +78,7 @@ func TestBlockStorageController_Reconcile(t *testing.T) {
 		var buf bytes.Buffer
 		logger := slog.New(slog.NewTextHandler(&buf, nil))
 
-		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin, 1)
+		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin, 1, nil)
 		gc := frameworkcontroller.NewGenericController[*bsdom.BlockStorage](
 			fakeClient,
 			BlockStorageFromCR,
@@ -109,7 +109,7 @@ func TestBlockStorageController_Reconcile(t *testing.T) {
 		var buf bytes.Buffer
 		logger := slog.New(slog.NewTextHandler(&buf, nil))
 
-		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin, 1)
+		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin, 1, nil)
 		gc := frameworkcontroller.NewGenericController[*bsdom.BlockStorage](
 			fakeClient,
 			BlockStorageFromCR,
@@ -144,7 +144,7 @@ func TestBlockStorageController_Reconcile(t *testing.T) {
 		logger := slog.New(slog.NewTextHandler(&buf, nil))
 
 		requeueAfter := 5 * time.Minute
-		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin, 1)
+		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin, 1, nil)
 		gc := frameworkcontroller.NewGenericController[*bsdom.BlockStorage](
 			fakeClient,
 			BlockStorageFromCR,
