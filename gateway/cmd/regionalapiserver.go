@@ -31,6 +31,8 @@ import (
 	netk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network/backend/kubernetes"
 	nicdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic"
 	nick8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic/backend/kubernetes"
+	publicipdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/public-ip"
+	publicipk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/public-ip/backend/kubernetes"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage"
 	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage/backend/kubernetes"
 	storagerest "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/frontend/rest"
@@ -207,15 +209,30 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		nick8s.NicToCR,
 		nick8s.NicFromCR,
 	)
+	publicIpReaderAdapter := k8sadapter.NewReaderAdapter[*publicipdom.PublicIp](
+		client.Client,
+		publicipk8s.PublicIPGVR,
+		logger,
+		publicipk8s.PublicIpFromCR,
+	)
+	publicIpWriterAdapter := k8sadapter.NewWriterAdapter[*publicipdom.PublicIp](
+		client.Client,
+		publicipk8s.PublicIPGVR,
+		logger,
+		publicipk8s.PublicIpToCR,
+		publicipk8s.PublicIpFromCR,
+	)
 
 	sdknetworkapi.HandlerWithOptions(
 		&netrest.Handler{
-			NetworkReader: netReaderAdapter,
-			NetworkWriter: netWriterAdapter,
-			SKUReader:     netSKUReaderAdapter,
-			NicReader:     nicReaderAdapter,
-			NicWriter:     nicWriterAdapter,
-			Logger:        logger,
+			NetworkReader:  netReaderAdapter,
+			NetworkWriter:  netWriterAdapter,
+			SKUReader:      netSKUReaderAdapter,
+			NicReader:      nicReaderAdapter,
+			NicWriter:      nicWriterAdapter,
+			PublicIpReader: publicIpReaderAdapter,
+			PublicIpWriter: publicIpWriterAdapter,
+			Logger:         logger,
 		},
 		sdknetworkapi.StdHTTPServerOptions{
 			BaseURL:          "/providers/seca.network",

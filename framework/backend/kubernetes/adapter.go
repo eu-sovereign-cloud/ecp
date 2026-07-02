@@ -20,7 +20,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
-	kernel "github.com/eu-sovereign-cloud/ecp/framework/kernel"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/validation/filter"
@@ -159,7 +159,7 @@ func ComputeNamespace(obj persistence.Scope) string {
 	if obj.GetTenant() != "" && obj.GetWorkspace() == "" {
 		_, _ = fmt.Fprintf(hasher, "%s", obj.GetTenant())
 	} else {
-		_, _ = fmt.Fprintf(hasher, "%s/%s", obj.GetTenant(), obj.GetWorkspace())
+		_, _ = fmt.Fprintf(hasher, "%s", obj.GetTenant())
 	}
 
 	return fmt.Sprintf("%x", hasher.Sum(nil))

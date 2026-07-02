@@ -30,6 +30,30 @@ func ResourceStateToAPI(state domain.ResourceState) schema.ResourceState {
 	return out
 }
 
+// IPVersionToAPI maps domain.IPVersion to schema.IPVersion.
+func IPVersionToAPI(v domain.IPVersion) schema.IPVersion {
+	switch v {
+	case domain.IPVersionIPv4:
+		return schema.IPVersionIPv4
+	case domain.IPVersionIPv6:
+		return schema.IPVersionIPv6
+	default:
+		return ""
+	}
+}
+
+// IPVersionFromAPI maps schema.IPVersion to domain.IPVersion.
+func IPVersionFromAPI(v schema.IPVersion) domain.IPVersion {
+	switch v {
+	case schema.IPVersionIPv4:
+		return domain.IPVersionIPv4
+	case schema.IPVersionIPv6:
+		return domain.IPVersionIPv6
+	default:
+		return ""
+	}
+}
+
 // ConditionsToAPI maps Status.Conditions to a slice of schema.StatusCondition.
 func ConditionsToAPI(conds []domain.StatusCondition) []schema.StatusCondition {
 	conditions := make([]schema.StatusCondition, len(conds))
