@@ -166,10 +166,12 @@ make clean-all                          # tear down
 
 Run `make help` for the full list of targets.
 
-## Authentication & Authorization in e2e
+# Authentication & Authorization in e2e
 
-The gateway deployments ship with the Dummy authenticator and SECA RBAC enabled by default (the defaults changed from the original auth-disabled baseline).
-Auth behaviour is driven by environment variables that are read by the `start-global.sh` / `start-regional.sh` entry-point scripts at startup.
+The gateway deployments ship with the Dummy authenticator and SECA RBAC enabled
+by default (the defaults changed from the original auth-disabled baseline).
+Auth behaviour is driven by environment variables that are read by the
+`start-global.sh` / `start-regional.sh` entry-point scripts at startup.
 
 ### Gateway deployment env vars
 
@@ -210,7 +212,8 @@ RoleAssignment that covers them and the net access they should receive:
 
 ### Running auth tests
 
-Auth tests are automatically included when running the normal test suite against a cluster with `AUTH_ENABLED=true` (the default):
+Auth tests are automatically included when running the normal test suite against
+a cluster with `AUTH_ENABLED=true` (the default):
 
 ```sh
 make kind-test-gateway-global
@@ -227,7 +230,10 @@ E2E_AUTH_ENABLED=false make kind-test-gateway-global
 
 ## Benchmarking the Auth Middleware
 
-The `TestBench` load test fires authenticated requests to populate the Prometheus `ecp_gateway_*_duration_seconds` histograms on the deployed gateway. The `benchreport` tool then scrapes `/metrics`, computes latency statistics, and writes a markdown report.
+The `TestBench` load test fires authenticated requests to populate the Prometheus
+`ecp_gateway_*_duration_seconds` histograms on the deployed gateway. The
+`benchreport` tool then scrapes `/metrics`, computes latency statistics, and
+writes a markdown report.
 
 ### Quick start
 
@@ -241,15 +247,18 @@ make kind-bench                   # E2E_BENCH=1; default 500 requests
 # 3. Scrape metrics and generate the report
 IMPL_TAG=cached make report       # writes report/REPORT.md
 
-# 4. Redeploy with the direct checker
+# 4. Delete the previous deployment with AUTHZ_IMPL=cached
+make kind-clean-gateway-global
+
+# 5. Redeploy with the direct checker
 AUTHZ_IMPL=direct make kind-deploy-gateway-global
 
-# 5. Fire another load workload and save a second snapshot
+# 6. Fire another load workload and save a second snapshot
 E2E_BENCH_REQUESTS=500 make kind-bench
 IMPL_TAG=direct SNAP_FILE=report/snap-direct.txt make report
 
-# 6. Merge both snapshots into one comparison report
-cd test/e2e && go run ./internal/cmd/benchreport \
+# 7. Merge both snapshots into one comparison report
+cd test/e2e && go run ./cmd/benchreport \
     --impl=cached --metrics-file=report/snap.txt \
     --impl=direct --metrics-file=report/snap-direct.txt \
     --out=report/REPORT.md
@@ -257,7 +266,8 @@ cd test/e2e && go run ./internal/cmd/benchreport \
 
 ### Reading the report
 
-`report/REPORT.md` contains three latency tables — one per histogram — with rows for each `impl/label` combination and columns:
+`report/REPORT.md` contains three latency tables — one per histogram — with rows
+for each `impl/label` combination and columns:
 
 | Column | Meaning |
 |--------|---------|
@@ -269,6 +279,8 @@ cd test/e2e && go run ./internal/cmd/benchreport \
 
 Expected comparison pattern:
 
-- `ecp_gateway_rbac_fetch_duration_seconds{impl="cached"}` p99 should be orders of magnitude lower than `impl="direct"` (in-memory read vs K8s List).
+- `ecp_gateway_rbac_fetch_duration_seconds{impl="cached"}` p99 should be
+  orders of magnitude lower than `impl="direct"` (in-memory read vs K8s List).
 - `ecp_gateway_authz_check_duration_seconds` should mirror the fetch delta.
-- `ecp_gateway_auth_middleware_duration_seconds` differences reflect the checker cost amortised over the full request (provider handler is a constant).
+- `ecp_gateway_auth_middleware_duration_seconds` differences reflect the
+  checker cost amortised over the full request (provider handler is a constant).
