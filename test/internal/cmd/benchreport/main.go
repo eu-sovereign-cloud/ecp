@@ -21,7 +21,7 @@ package main
 import (
 	"bufio"
 	"encoding/json"
-	"flag"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -59,29 +59,25 @@ type snapshot struct {
 }
 
 func main() {
-	var (
-		out      = flag.String("out", "report/REPORT.md", "output markdown file")
-		testJSON = flag.String("test-json", "", "go test -json output file (optional)")
-	)
-	flag.Parse()
-
-	// Collect (impl, file/url) pairs from the remaining args.
-	// Supported forms: --impl=cached --metrics-file=snap.txt
-	// or interleaved on the command line.
-	snaps, err := parseSnapshotArgs(os.Args[1:])
+	cfg, err := parseArgs(os.Args[1:])
 	if err != nil {
+		if errors.Is(err, errHelp) {
+			usage(os.Stdout)
+			os.Exit(0)
+		}
 		fmt.Fprintf(os.Stderr, "benchreport: %v\n", err)
+		usage(os.Stderr)
 		os.Exit(1)
 	}
-	if len(snaps) == 0 {
+	if len(cfg.snaps) == 0 {
 		fmt.Fprintln(os.Stderr, "benchreport: at least one --metrics-file or --metrics-url is required")
-		flag.Usage()
+		usage(os.Stderr)
 		os.Exit(1)
 	}
 
 	// Parse each snapshot.
 	var parsed []snapshot
-	for _, s := range snaps {
+	for _, s := range cfg.snaps {
 		fams, err := s.load()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "benchreport: load %q: %v\n", s.src, err)
@@ -95,9 +91,9 @@ func main() {
 	sb.WriteString("# Gateway Auth Latency Benchmark Report\n\n")
 
 	metricDefs := []struct {
-		name      string
-		labelKey  string
-		title     string
+		name     string
+		labelKey string
+		title    string
 	}{
 		{"ecp_gateway_auth_middleware_duration_seconds", "provider", "End-to-end auth middleware latency (`ecp_gateway_auth_middleware_duration_seconds`)"},
 		{"ecp_gateway_authz_check_duration_seconds", "impl", "Authorization check latency (`ecp_gateway_authz_check_duration_seconds`)"},
@@ -105,7 +101,9 @@ func main() {
 	}
 
 	for _, md := range metricDefs {
-		sb.WriteString("## " + md.title + "\n\n")
+		sb.WriteString("## ")
+		sb.WriteString(md.title)
+		sb.WriteString("\n\n")
 		var rows []histStats
 		for _, snap := range parsed {
 			fam, ok := snap.families[md.name]
@@ -141,21 +139,21 @@ func main() {
 		sb.WriteString("\n")
 	}
 
-	if *testJSON != "" {
-		section, err := parseTestJSON(*testJSON)
+	if cfg.testJSON != "" {
+		section, err := parseTestJSON(cfg.testJSON)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "benchreport: parse test-json %q: %v\n", *testJSON, err)
+			fmt.Fprintf(os.Stderr, "benchreport: parse test-json %q: %v\n", cfg.testJSON, err)
 		} else {
 			sb.WriteString("## Test Results\n\n")
 			sb.WriteString(section)
 		}
 	}
 
-	if err := writeReport(*out, sb.String()); err != nil {
+	if err := writeReport(cfg.out, sb.String()); err != nil {
 		fmt.Fprintf(os.Stderr, "benchreport: write report: %v\n", err)
 		os.Exit(1)
 	}
-	fmt.Fprintf(os.Stdout, "benchreport: wrote %s\n", *out)
+	fmt.Fprintf(os.Stdout, "benchreport: wrote %s\n", cfg.out)
 }
 
 // snapArg is a (impl, src) pair where src is a file path or URL.
@@ -185,24 +183,69 @@ func (s snapArg) load() (map[string]*dto.MetricFamily, error) {
 	return p.TextToMetricFamilies(r)
 }
 
-// parseSnapshotArgs extracts (impl, file/url) pairs from argv.
-// The form is: [--impl=<tag>] (--metrics-file=<path> | --metrics-url=<url>)
-func parseSnapshotArgs(argv []string) ([]snapArg, error) {
-	var result []snapArg
+// config holds everything parsed from the command line.
+type config struct {
+	out      string
+	testJSON string
+	snaps    []snapArg
+}
+
+// errHelp is returned by parseArgs when -h/--help is requested.
+var errHelp = errors.New("help requested")
+
+// parseArgs scans argv (without the program name) into a config.
+//
+// Flags use the --key=value form and may be interleaved. Each
+// --metrics-file/--metrics-url is tagged with the most recent --impl
+// (defaulting to "default" and resetting after each snapshot), so several
+// impls can be merged in one invocation:
+//
+//	--impl=cached --metrics-file=a.txt --impl=direct --metrics-file=b.txt
+//
+// We parse by hand rather than with the flag package because that pairing is
+// positional: flag associates repeated values independently and has no way to
+// tie each --metrics-file to the --impl that precedes it.
+func parseArgs(argv []string) (config, error) {
+	cfg := config{out: "report/REPORT.md"}
 	impl := "default"
 	for _, arg := range argv {
 		switch {
+		case arg == "-h" || arg == "--help":
+			return config{}, errHelp
 		case strings.HasPrefix(arg, "--impl="):
 			impl = strings.TrimPrefix(arg, "--impl=")
 		case strings.HasPrefix(arg, "--metrics-file="):
-			result = append(result, snapArg{impl: impl, src: strings.TrimPrefix(arg, "--metrics-file=")})
+			cfg.snaps = append(cfg.snaps, snapArg{impl: impl, src: strings.TrimPrefix(arg, "--metrics-file=")})
 			impl = "default"
 		case strings.HasPrefix(arg, "--metrics-url="):
-			result = append(result, snapArg{impl: impl, src: strings.TrimPrefix(arg, "--metrics-url=")})
+			cfg.snaps = append(cfg.snaps, snapArg{impl: impl, src: strings.TrimPrefix(arg, "--metrics-url=")})
 			impl = "default"
+		case strings.HasPrefix(arg, "--out="):
+			cfg.out = strings.TrimPrefix(arg, "--out=")
+		case strings.HasPrefix(arg, "--test-json="):
+			cfg.testJSON = strings.TrimPrefix(arg, "--test-json=")
+		default:
+			return config{}, fmt.Errorf("unrecognized argument %q", arg)
 		}
 	}
-	return result, nil
+	return cfg, nil
+}
+
+// usage prints the command synopsis to w.
+func usage(w io.Writer) {
+	fmt.Fprint(w, `Usage: benchreport [--impl=<label>] (--metrics-file=<path> | --metrics-url=<url>) [...] [--test-json=<file>] [--out=<file>]
+
+Flags:
+  --impl=<label>         tag the following --metrics-file/--metrics-url (default "default")
+  --metrics-file=<path>  Prometheus text-format metrics snapshot to read
+  --metrics-url=<url>    scrape metrics from an HTTP endpoint instead of a file
+  --test-json=<file>     go test -json output to summarize (optional)
+  --out=<file>           output markdown file (default "report/REPORT.md")
+
+Each --metrics-file/--metrics-url is tagged with the most recent --impl, so
+multiple impls can be merged into one report:
+  benchreport --impl=cached --metrics-file=a.txt --impl=direct --metrics-file=b.txt --out=report/REPORT.md
+`)
 }
 
 // labelValue returns the value of the first label matching key.
