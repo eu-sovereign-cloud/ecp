@@ -22,6 +22,9 @@ COMPONENTS := $(notdir $(wildcard $(CURDIR)/build/*))
 # Discover deployments automatically from the build directory
 DEPLOYMENTS := $(notdir $(wildcard $(CURDIR)/deploy/*))
 
+# Discover components that actually have integration tests
+TEST_COMPONENTS := $(notdir $(wildcard $(CURDIR)/test/integration/*))
+
 # =====================================================================================
 # Main Targets
 # =====================================================================================
@@ -153,10 +156,10 @@ kind-clean-crds: ## Clean all CRDs from the KIND cluster
 # Integration tests
 # =====================================================================================
 .PHONY: test-all
-test-all: $(addprefix test-,$(COMPONENTS)) ## Run all integration tests
+test-all: $(addprefix test-,$(TEST_COMPONENTS)) ## Run all integration tests
 
 .PHONY: kind-test-all
-kind-test-all: $(addprefix kind-test-,$(COMPONENTS)) ## Run all integration tests against KIND clusters
+kind-test-all: $(addprefix kind-test-,$(TEST_COMPONENTS)) ## Run all integration tests against KIND clusters
 
 # --- Generate test targets for each component ---
 define TEST_template
@@ -169,4 +172,4 @@ kind-test-$(1): ## Run $(1) integration tests against a configured KIND cluster
 	@USE_KIND=true ./scripts/run-test.sh $(1)
 endef
 
-$(foreach comp,$(COMPONENTS),$(eval $(call TEST_template,$(comp))))
+$(foreach comp,$(TEST_COMPONENTS),$(eval $(call TEST_template,$(comp))))
