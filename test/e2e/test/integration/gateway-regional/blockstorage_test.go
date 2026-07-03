@@ -194,8 +194,9 @@ func TestBlockStorageAPI(t *testing.T) {
 		_ = updateResp.Body.Close()
 
 		//
-		// Then the resource status should eventually reflect the new size of 2GB
-		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
+		// Then the resource status should eventually reflect the new size of 2GB.
+		// The resize operation simulates roughly twice the base delay, so allow the longer timeout.
+		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, resizeTimeout, true, func(ctx context.Context) (bool, error) {
 			var currentBS bsk8s.BlockStorage
 			ns := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: testTenant, Workspace: testWorkspace})
 			key := client.ObjectKey{Namespace: ns, Name: resourceName}

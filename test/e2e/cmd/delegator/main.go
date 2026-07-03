@@ -24,6 +24,7 @@ import (
 	netk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network/backend/kubernetes"
 	nick8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic/backend/kubernetes"
 	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage/backend/kubernetes"
+	imgk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image/backend/kubernetes"
 	ssk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/storage-sku/backend/kubernetes"
 	wsk8s "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1/backend/kubernetes"
 
@@ -38,6 +39,7 @@ var scheme = runtime.NewScheme()
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(bsk8s.AddToScheme(scheme))
+	utilruntime.Must(imgk8s.AddToScheme(scheme))
 	utilruntime.Must(netk8s.AddToScheme(scheme))
 	utilruntime.Must(nick8s.AddToScheme(scheme))
 	utilruntime.Must(wsk8s.AddToScheme(scheme))
@@ -151,6 +153,7 @@ func loadDummyControllers(logger *slog.Logger, dynClient dynamic.Interface, mgr 
 	logger.Info("Loading 'dummy' plugin set")
 
 	bsPlugin := dummyplugin.NewBlockStorage(logger.With("plugin", "blockstorage"))
+	imgPlugin := dummyplugin.NewImage(logger.With("plugin", "image"))
 	wsPlugin := dummyplugin.NewWorkspace(logger.With("plugin", "workspace"))
 	netPlugin := dummyplugin.NewNetwork(logger.With("plugin", "network"))
 	nicPlugin := dummyplugin.NewNic(logger.With("plugin", "nic"))
@@ -158,6 +161,7 @@ func loadDummyControllers(logger *slog.Logger, dynClient dynamic.Interface, mgr 
 	raPlugin := dummyplugin.NewRoleAssignment(logger.With("plugin", "roleassignment"))
 
 	controllerSet.Add(bsk8s.NewController(mgr.GetClient(), dynClient, bsPlugin, controllerOpts...))
+	controllerSet.Add(imgk8s.NewController(mgr.GetClient(), dynClient, imgPlugin, controllerOpts...))
 	controllerSet.Add(wsk8s.NewController(mgr.GetClient(), dynClient, wsPlugin, controllerOpts...))
 	controllerSet.Add(netk8s.NewController(mgr.GetClient(), dynClient, netPlugin, controllerOpts...))
 	controllerSet.Add(nick8s.NewController(mgr.GetClient(), dynClient, nicPlugin, controllerOpts...))

@@ -31,7 +31,7 @@ func newImageBody(t *testing.T, boot schema.ImageSpecBoot) schema.Image {
 
 	return schema.Image{
 		Spec: schema.ImageSpec{
-			BlockStorageRef: schema.Reference{Resource: "block-storages/source-bs"},
+			BlockStorageRef: schema.Reference{Resource: "block-storages/source-bs", Workspace: testWorkspace},
 			CpuArchitecture: schema.ImageSpecCpuArchitectureAmd64,
 			Boot:            boot,
 			Initializer:     schema.ImageSpecInitializerNone,
