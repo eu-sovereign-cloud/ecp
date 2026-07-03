@@ -19,6 +19,8 @@ import (
 	networkconv "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network/backend/kubernetes"
 	nicdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic"
 	nicconv "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic/backend/kubernetes"
+	publicipdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/public-ip"
+	publicipconv "github.com/eu-sovereign-cloud/ecp/resource/network/v1/public-ip/backend/kubernetes"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage"
 	storageconv "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage/backend/kubernetes"
 	imgdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image"
@@ -171,6 +173,26 @@ func simulateNic(ctx context.Context, op string, resource *nicdom.Nic, delay tim
 				logger,
 				nicconv.NicToCR,
 				nicconv.NicFromCR,
+			)
+			_, err = repo.Update(ctx, resource)
+			return err
+		},
+	)
+}
+
+func simulatePublicIp(ctx context.Context, op string, resource *publicipdom.PublicIp, delay time.Duration, logger *slog.Logger) error {
+	return simulate(ctx, op, &resource.Annotations, resource.GetName(), delay, logger,
+		func(ctx context.Context) error {
+			dynamicClient, err := newDynamicClient()
+			if err != nil {
+				return err
+			}
+			repo := kubernetesadapter.NewRepoAdapter(
+				dynamicClient,
+				publicipconv.PublicIPGVR,
+				logger,
+				publicipconv.PublicIpToCR,
+				publicipconv.PublicIpFromCR,
 			)
 			_, err = repo.Update(ctx, resource)
 			return err

@@ -33,6 +33,8 @@ import (
 	netk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network/backend/kubernetes"
 	nicdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic"
 	nick8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic/backend/kubernetes"
+	publicipdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/public-ip"
+	publicipk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/public-ip/backend/kubernetes"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage"
 	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage/backend/kubernetes"
 	imgdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image"
@@ -59,6 +61,7 @@ var (
 	testLogger         *slog.Logger
 	networkRepo        *k8sadapter.RepoAdapter[*netdom.Network]
 	nicRepo            *k8sadapter.RepoAdapter[*nicdom.Nic]
+	publicIpRepo       *k8sadapter.RepoAdapter[*publicipdom.PublicIp]
 	workspaceRepo      *k8sadapter.RepoAdapter[*wsdom.Workspace]
 	blockStorageRepo   *k8sadapter.RepoAdapter[*bsdom.BlockStorage]
 	imageRepo          *k8sadapter.RepoAdapter[*imgdom.Image]
@@ -77,6 +80,7 @@ func TestMain(m *testing.M) {
 	utilruntime.Must(rolek8s.AddToScheme(s))
 	utilruntime.Must(netk8s.AddToScheme(s))
 	utilruntime.Must(nick8s.AddToScheme(s))
+	utilruntime.Must(publicipk8s.AddToScheme(s))
 	utilruntime.Must(wsk8s.AddToScheme(s))
 	utilruntime.Must(bsk8s.AddToScheme(s))
 	utilruntime.Must(imgk8s.AddToScheme(s))
@@ -119,6 +123,13 @@ func TestMain(m *testing.M) {
 		testLogger,
 		nick8s.NicToCR,
 		nick8s.NicFromCR,
+	)
+	publicIpRepo = k8sadapter.NewRepoAdapter[*publicipdom.PublicIp](
+		dynamicClient,
+		publicipk8s.PublicIPGVR,
+		testLogger,
+		publicipk8s.PublicIpToCR,
+		publicipk8s.PublicIpFromCR,
 	)
 	blockStorageRepo = k8sadapter.NewRepoAdapter[*bsdom.BlockStorage](
 		dynamicClient,
