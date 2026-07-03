@@ -225,10 +225,7 @@ status and diagnostic handling:
 | **Authorization denial** | **403** | Credentials valid but insufficient privileges | Middleware writes sanitised `ErrForbidden`; checker's `DecisionDenied` signals this. |
 | **Technical error** | **500** | Infrastructure failure (e.g. RBAC store unreachable) | Middleware logs the detailed error server-side; writes sanitised `ErrInternal`. |
 
-**Important**: technical failures are **never disguised as denials**. Previously,
-a Kubernetes list error in the RBAC checkers produced HTTP 403 (indistinguishable
-from a genuine policy denial). Now those paths return `DecisionError` and the
-middleware responds with HTTP 500, making infrastructure outages immediately visible.
+**Important**: technical failures are **never disguised as denials**. A Kubernetes list error in the RBAC checkers produces a `DecisionError` and the middleware responds with HTTP 500, making infrastructure outages immediately visible.
 
 ---
 
