@@ -7,6 +7,7 @@ if [ -z "$COMPONENT" ]; then
     echo "Error: Component name must be provided as the first argument." >&2
     exit 1
 fi
+shift # consume the component; forward any remaining args to `go test` (e.g. -run=TestBench)
 
 echo "--- Running Integration Tests for ${COMPONENT} ---"
 
