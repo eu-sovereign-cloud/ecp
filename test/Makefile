@@ -10,6 +10,9 @@ include ../.config.mk
 ifneq (,$(wildcard $(CURDIR)/internal/context/config.env))
 	include $(CURDIR)/internal/context/config.env
 	export
+	# USE_KIND must come only from KIND-specific recipe prefixes; never let a
+	# stray config.env value leak into every target via the blanket export above.
+	unexport USE_KIND
 endif
 
 # Image settings
