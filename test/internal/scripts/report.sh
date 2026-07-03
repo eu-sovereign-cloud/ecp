@@ -27,6 +27,7 @@ SCRIPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 E2E_DIR="$(cd "${SCRIPTS_DIR}/.." && pwd)"
 
 source "${SCRIPTS_DIR}/common.sh"
+setup_env # initialize CONTEXT_DIR so setup_kube_vars can find context/kubeconfig.yaml
 
 SNAP_FILE="${SNAP_FILE:-${E2E_DIR}/report/snap.txt}"
 IMPL_TAG="${IMPL_TAG:-${AUTHZ_IMPL:-default}}"
@@ -44,7 +45,7 @@ else
     kubectl port-forward \
         -n "${NAMESPACE:-e2e-ecp}" \
         service/gateway-global-svc \
-        8089:8080 &>/dev/null &
+        8089:80 &>/dev/null &
     PF_PID=$!
     sleep 2
     METRICS_URL="http://localhost:8089/metrics"
