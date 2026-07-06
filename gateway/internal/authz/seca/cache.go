@@ -55,6 +55,8 @@ func NewCachedChecker(dynClient dynamic.Interface, log *slog.Logger) *CachedChec
 // blocks until both caches are synced. Returns an error if the context is cancelled
 // before sync completes (which means the API server is unreachable at startup).
 func (c *CachedChecker) Start(ctx context.Context) error {
+	c.log.Info("authz cache: starting informer-backed checker")
+
 	// Calling ForResource before Start ensures both informers are registered with the
 	// factory; the factory starts only the informers that have been requested.
 	_ = c.factory.ForResource(rolek8s.RoleGVR)

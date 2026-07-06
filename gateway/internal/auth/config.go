@@ -168,10 +168,13 @@ func ProviderMWs[M ~func(http.Handler) http.Handler](
 // StartChecker starts the checker's background cache goroutines if it implements the
 // optional Starter interface (i.e. it is a CachedChecker). It is a no-op for the
 // plain Checker and when checker is nil (auth disabled).
+//
+// The wrapping InstrumentedChecker forwards Start, so this type-assertion succeeds for
+// both the direct and cached checkers; the actual "starting informer-backed checker"
+// log is emitted by CachedChecker.Start so it only fires when the cache is truly used.
 func StartChecker(ctx context.Context, checker authzport.Checker, log *slog.Logger) error {
 	type starter interface{ Start(context.Context) error }
 	if s, ok := checker.(starter); ok {
-		log.Info("authz cache: starting informer-backed checker")
 		return s.Start(ctx)
 	}
 	return nil

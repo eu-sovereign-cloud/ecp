@@ -27,6 +27,7 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -170,6 +171,9 @@ func (s snapArg) load() (map[string]*dto.MetricFamily, error) {
 			return nil, err
 		}
 		defer resp.Body.Close()
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			return nil, fmt.Errorf("fetch %s: unexpected status %s", s.src, resp.Status)
+		}
 		r = resp.Body
 	} else {
 		f, err := os.Open(s.src) //nolint:gosec
@@ -377,7 +381,7 @@ func parseTestJSON(path string) (string, error) {
 
 // writeReport creates parent directories as needed and writes content to path.
 func writeReport(path, content string) error {
-	dir := path[:strings.LastIndex(path, "/")]
+	dir := filepath.Dir(path)
 	if dir != "" && dir != "." {
 		if err := os.MkdirAll(dir, 0o750); err != nil {
 			return fmt.Errorf("mkdir %s: %w", dir, err)
