@@ -8,6 +8,7 @@ import (
 
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	publicipdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/public-ip"
 )
@@ -19,7 +20,7 @@ func TestPublicIpFromAPIToAPIRoundTrip(t *testing.T) {
 			Version: sdkschema.IPVersionIPv4,
 		},
 	}
-	id := &PublicIpIdentity{name: "ip1", tenant: "t1", workspace: "w1"}
+	id := &resource.Identity{Name: "ip1", Scope: resource.Scope{Tenant: "t1", Workspace: "w1"}}
 
 	dom := publicIpFromAPI(sdk, id, "r1")
 	require.Equal(t, "ip1", dom.Name)

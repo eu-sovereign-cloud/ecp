@@ -9,6 +9,7 @@ import (
 
 	frest "github.com/eu-sovereign-cloud/ecp/framework/frontend/rest"
 	persistencepkg "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	roledom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role"
 )
 
@@ -21,9 +22,9 @@ func (h *Handler) ListRoles(w http.ResponseWriter, r *http.Request, tenant sdksc
 // DeleteRole handles DELETE /v1/tenants/{tenant}/roles/{name}.
 func (h *Handler) DeleteRole(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam, params sdkauth.DeleteRoleParams) {
 	logger := h.Logger.With("provider", "authorization", "resource", "role", "name", name)
-	id := &RoleIdentity{name: name, tenant: tenant}
+	id := &resource.Identity{Name: name, Scope: resource.Scope{Tenant: tenant}}
 	if params.IfUnmodifiedSince != nil {
-		id.resourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
+		id.Version = strconv.Itoa(*params.IfUnmodifiedSince)
 	}
 	frest.HandleDelete(w, r, logger, id, frest.DeleterFromRepo(h.RoleWriter, newRoleWithIdentity))
 }
@@ -31,23 +32,23 @@ func (h *Handler) DeleteRole(w http.ResponseWriter, r *http.Request, tenant sdks
 // GetRole handles GET /v1/tenants/{tenant}/roles/{name}.
 func (h *Handler) GetRole(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam) {
 	logger := h.Logger.With("provider", "authorization", "resource", "role", "name", name)
-	id := &RoleIdentity{name: name, tenant: tenant}
+	id := &resource.Identity{Name: name, Scope: resource.Scope{Tenant: tenant}}
 	frest.HandleGet(w, r, logger, id, frest.GetterFromRepo(h.RoleReader, newRoleWithIdentity), roleToAPIWithVerb(http.MethodGet))
 }
 
 // CreateOrUpdateRole handles PUT /v1/tenants/{tenant}/roles/{name}.
 func (h *Handler) CreateOrUpdateRole(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam, params sdkauth.CreateOrUpdateRoleParams) {
 	logger := h.Logger.With("provider", "authorization", "resource", "role", "name", name)
-	id := &RoleIdentity{name: name, tenant: tenant}
+	id := &resource.Identity{Name: name, Scope: resource.Scope{Tenant: tenant}}
 	if params.IfUnmodifiedSince != nil {
-		id.resourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
+		id.Version = strconv.Itoa(*params.IfUnmodifiedSince)
 	}
 	frest.HandleUpsert(w, r, logger, frest.UpsertOptions[sdkschema.Role, *roledom.Role, *sdkschema.Role]{
 		Params:  id,
 		Creator: frest.CreatorFromRepo(h.RoleWriter),
 		Updater: frest.UpdaterFromRepo(h.RoleWriter),
 		APIToDomain: func(sdk sdkschema.Role, p persistencepkg.IdentifiableResource) *roledom.Role {
-			return roleFromAPI(sdk, p.(*RoleIdentity))
+			return roleFromAPI(sdk, p.(*resource.Identity))
 		},
 		DomainToAPI: roleToAPIWithVerb(http.MethodPut),
 	})

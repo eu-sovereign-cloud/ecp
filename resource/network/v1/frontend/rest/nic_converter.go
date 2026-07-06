@@ -15,21 +15,6 @@ import (
 	nicdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic"
 )
 
-// NicIdentity carries identity for a single NIC resource.
-type NicIdentity struct {
-	name            string
-	tenant          string
-	workspace       string
-	resourceVersion string
-}
-
-func (n *NicIdentity) GetName() string      { return n.name }
-func (n *NicIdentity) GetVersion() string   { return n.resourceVersion }
-func (n *NicIdentity) GetTenant() string    { return n.tenant }
-func (n *NicIdentity) GetWorkspace() string { return n.workspace }
-
-var _ persistence.IdentifiableResource = (*NicIdentity)(nil)
-
 // nicListParamsFromAPI converts SDK ListNicsParams to resource.ListParams.
 func nicListParamsFromAPI(params sdknetwork.ListNicsParams, tenant, workspace string) resource.ListParams {
 	var skipToken string
@@ -144,7 +129,7 @@ func nicIteratorToAPI(ns []*nicdom.Nic, nextSkipToken *string) *sdknetwork.NicIt
 }
 
 // nicFromAPI converts an SDK Nic to a Nic.
-func nicFromAPI(sdk sdkschema.Nic, id *NicIdentity, region string) *nicdom.Nic {
+func nicFromAPI(sdk sdkschema.Nic, id *resource.Identity, region string) *nicdom.Nic {
 	n := &nicdom.Nic{
 		Spec: nicdom.NicSpec{
 			Addresses: sdk.Spec.Addresses,

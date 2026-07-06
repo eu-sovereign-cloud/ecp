@@ -7,7 +7,6 @@ import (
 	sdknetwork "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.network.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
-	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/validation"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
@@ -21,21 +20,6 @@ const (
 	// NetworkResource is the resource name.
 	NetworkResource = netdom.Resource
 )
-
-// NetworkIdentity carries identity for a single network resource.
-type NetworkIdentity struct {
-	name            string
-	tenant          string
-	workspace       string
-	resourceVersion string
-}
-
-func (n *NetworkIdentity) GetName() string      { return n.name }
-func (n *NetworkIdentity) GetVersion() string   { return n.resourceVersion }
-func (n *NetworkIdentity) GetTenant() string    { return n.tenant }
-func (n *NetworkIdentity) GetWorkspace() string { return n.workspace }
-
-var _ persistence.IdentifiableResource = (*NetworkIdentity)(nil)
 
 // networkListParamsFromAPI converts SDK ListNetworksParams to resource.ListParams.
 func networkListParamsFromAPI(params sdknetwork.ListNetworksParams, tenant, workspace string) resource.ListParams {
@@ -152,7 +136,7 @@ func networkIteratorToAPI(ns []*netdom.Network, nextSkipToken *string) *sdknetwo
 }
 
 // networkFromAPI converts an SDK Network to a Network.
-func networkFromAPI(sdk sdkschema.Network, id *NetworkIdentity, region string) *netdom.Network {
+func networkFromAPI(sdk sdkschema.Network, id *resource.Identity, region string) *netdom.Network {
 	n := &netdom.Network{
 		Spec: netdom.NetworkSpec{
 			CIDR:   cidrFromAPI(sdk.Spec.Cidr),

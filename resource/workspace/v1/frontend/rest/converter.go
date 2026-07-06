@@ -9,7 +9,6 @@ import (
 	sdkworkspace "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
-	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/validation"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
@@ -23,20 +22,6 @@ const (
 	// WorkspaceResource is the resource name.
 	WorkspaceResource = wsdom.Resource
 )
-
-// WorkspaceIdentity carries identity for a single workspace resource.
-type WorkspaceIdentity struct {
-	name            string
-	tenant          string
-	resourceVersion string
-}
-
-func (w *WorkspaceIdentity) GetName() string      { return w.name }
-func (w *WorkspaceIdentity) GetVersion() string   { return w.resourceVersion }
-func (w *WorkspaceIdentity) GetTenant() string    { return w.tenant }
-func (w *WorkspaceIdentity) GetWorkspace() string { return "" }
-
-var _ persistence.IdentifiableResource = (*WorkspaceIdentity)(nil)
 
 // listParamsFromAPI converts SDK ListWorkspacesParams to resource.ListParams.
 func listParamsFromAPI(params sdkworkspace.ListWorkspacesParams, tenant string) resource.ListParams {
@@ -136,7 +121,7 @@ func workspaceToAPI(ws wsdom.Workspace, verb string) *sdkschema.Workspace {
 }
 
 // workspaceFromAPI converts an SDK Workspace to a Workspace.
-func workspaceFromAPI(api sdkschema.Workspace, id *WorkspaceIdentity, region string) *wsdom.Workspace {
+func workspaceFromAPI(api sdkschema.Workspace, id *resource.Identity, region string) *wsdom.Workspace {
 	ws := &wsdom.Workspace{
 		Spec: api.Spec,
 	}

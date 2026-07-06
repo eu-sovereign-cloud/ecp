@@ -7,7 +7,6 @@ import (
 	sdkauthz "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.authorization.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
-	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/validation"
 	radom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment"
@@ -21,20 +20,6 @@ const (
 	// RoleAssignmentResource is the resource name.
 	RoleAssignmentResource = radom.Resource
 )
-
-// RoleAssignmentIdentity carries identity for a single role assignment resource.
-type RoleAssignmentIdentity struct {
-	name            string
-	tenant          string
-	resourceVersion string
-}
-
-func (r *RoleAssignmentIdentity) GetName() string      { return r.name }
-func (r *RoleAssignmentIdentity) GetVersion() string   { return r.resourceVersion }
-func (r *RoleAssignmentIdentity) GetTenant() string    { return r.tenant }
-func (r *RoleAssignmentIdentity) GetWorkspace() string { return "" }
-
-var _ persistence.IdentifiableResource = (*RoleAssignmentIdentity)(nil)
 
 // listRoleAssignmentsParamsFromAPI converts SDK ListRoleAssignmentsParams to resource.ListParams.
 func listRoleAssignmentsParamsFromAPI(params sdkauthz.ListRoleAssignmentsParams, tenant string) resource.ListParams {
@@ -144,7 +129,7 @@ func roleAssignmentIteratorToAPI(ras []*radom.RoleAssignment, nextSkipToken *str
 }
 
 // roleAssignmentFromAPI converts an SDK RoleAssignment to a RoleAssignment.
-func roleAssignmentFromAPI(sdk sdkschema.RoleAssignment, id *RoleAssignmentIdentity) *radom.RoleAssignment {
+func roleAssignmentFromAPI(sdk sdkschema.RoleAssignment, id *resource.Identity) *radom.RoleAssignment {
 	ra := &radom.RoleAssignment{
 		Spec: radom.RoleAssignmentSpec{
 			Subs:   sdk.Spec.Subs,

@@ -8,7 +8,6 @@ import (
 	sdkauth "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.authorization.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
-	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/validation"
 	roledom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role"
@@ -22,20 +21,6 @@ const (
 	// RoleResource is the resource name.
 	RoleResource = roledom.Resource
 )
-
-// RoleIdentity carries identity for a single role resource.
-type RoleIdentity struct {
-	name            string
-	tenant          string
-	resourceVersion string
-}
-
-func (ri *RoleIdentity) GetName() string      { return ri.name }
-func (ri *RoleIdentity) GetVersion() string   { return ri.resourceVersion }
-func (ri *RoleIdentity) GetTenant() string    { return ri.tenant }
-func (ri *RoleIdentity) GetWorkspace() string { return "" }
-
-var _ persistence.IdentifiableResource = (*RoleIdentity)(nil)
 
 // listParamsFromAPI converts SDK ListRolesParams to resource.ListParams.
 func listParamsFromAPI(params sdkauth.ListRolesParams, tenant string) resource.ListParams {
@@ -133,7 +118,7 @@ func roleToAPI(r roledom.Role, verb string) *sdkschema.Role {
 }
 
 // roleFromAPI converts an SDK Role to a domain Role.
-func roleFromAPI(api sdkschema.Role, id *RoleIdentity) *roledom.Role {
+func roleFromAPI(api sdkschema.Role, id *resource.Identity) *roledom.Role {
 	r := &roledom.Role{
 		Spec: roleSpecFromAPI(api.Spec),
 	}

@@ -8,6 +8,7 @@ import (
 
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	nicdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic"
 )
@@ -20,7 +21,7 @@ func TestNicFromAPIToAPIRoundTrip(t *testing.T) {
 			SkuRef:    &sdkschema.Reference{Resource: "nic-sku/small"},
 		},
 	}
-	id := &NicIdentity{name: "nic1", tenant: "t1", workspace: "w1"}
+	id := &resource.Identity{Name: "nic1", Scope: resource.Scope{Tenant: "t1", Workspace: "w1"}}
 
 	dom := nicFromAPI(sdk, id, "r1")
 	require.Equal(t, "nic1", dom.Name)
@@ -55,7 +56,7 @@ func TestNicFromAPI_NilSkuRef(t *testing.T) {
 			SubnetRef: sdkschema.Reference{Resource: "subnet/sn1"},
 		},
 	}
-	dom := nicFromAPI(sdk, &NicIdentity{name: "nic1"}, "r1")
+	dom := nicFromAPI(sdk, &resource.Identity{Name: "nic1"}, "r1")
 	require.Equal(t, commondomain.Reference{}, dom.Spec.SkuRef)
 
 	out := nicToAPIWithVerb(http.MethodPut)(dom)
