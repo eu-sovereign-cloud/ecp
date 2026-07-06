@@ -3,6 +3,7 @@ package domain
 import (
 	"time"
 
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 )
 
@@ -26,6 +27,8 @@ type Metadata struct{ CommonMetadata }
 func (m *Metadata) GetTenant() string    { return "" }
 func (m *Metadata) GetWorkspace() string { return "" }
 
+var _ persistence.IdentifiableResource = (*Metadata)(nil)
+
 // RegionalMetadata carries common resource identity and classification data used in regional domain models.
 // It embeds CommonMetadata and resource.Scope to provide tenant and workspace access.
 type RegionalMetadata struct {
@@ -38,6 +41,8 @@ type RegionalMetadata struct {
 	Region      string
 }
 
+var _ persistence.IdentifiableResource = (*RegionalMetadata)(nil)
+
 // GlobalTenantMetadata carries common resource identity and classification data used in global-tenant domain models.
 // It embeds CommonMetadata and resource.Scope to provide tenant access, but has no Region field — these resources
 // are served from a single global control plane and are not tied to a specific region.
@@ -49,3 +54,5 @@ type GlobalTenantMetadata struct {
 	Annotations map[string]string
 	Extensions  map[string]string
 }
+
+var _ persistence.IdentifiableResource = (*GlobalTenantMetadata)(nil)
