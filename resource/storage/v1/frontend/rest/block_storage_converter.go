@@ -7,7 +7,6 @@ import (
 	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
-	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/validation"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
@@ -21,21 +20,6 @@ const (
 	// BlockStorageResource is the resource name.
 	BlockStorageResource = bsdom.Resource
 )
-
-// BlockStorageIdentity carries identity for a single block-storage resource.
-type BlockStorageIdentity struct {
-	name            string
-	tenant          string
-	workspace       string
-	resourceVersion string
-}
-
-func (b *BlockStorageIdentity) GetName() string      { return b.name }
-func (b *BlockStorageIdentity) GetVersion() string   { return b.resourceVersion }
-func (b *BlockStorageIdentity) GetTenant() string    { return b.tenant }
-func (b *BlockStorageIdentity) GetWorkspace() string { return b.workspace }
-
-var _ persistence.IdentifiableResource = (*BlockStorageIdentity)(nil)
 
 // blockStorageListParamsFromAPI converts SDK ListBlockStoragesParams to resource.ListParams.
 func blockStorageListParamsFromAPI(params sdkstorage.ListBlockStoragesParams, tenant, workspace string) resource.ListParams {
@@ -156,7 +140,7 @@ func blockStorageIteratorToAPI(bss []*bsdom.BlockStorage, nextSkipToken *string)
 }
 
 // blockStorageFromAPI converts an SDK BlockStorage to a BlockStorage.
-func blockStorageFromAPI(sdk sdkschema.BlockStorage, id *BlockStorageIdentity, region string) *bsdom.BlockStorage {
+func blockStorageFromAPI(sdk sdkschema.BlockStorage, id *resource.Identity, region string) *bsdom.BlockStorage {
 	bs := &bsdom.BlockStorage{
 		Spec: bsdom.BlockStorageSpec{
 			SizeGB: sdk.Spec.SizeGB,

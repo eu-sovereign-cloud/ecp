@@ -15,21 +15,6 @@ import (
 	publicipdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/public-ip"
 )
 
-// PublicIpIdentity carries identity for a single PublicIp resource.
-type PublicIpIdentity struct {
-	name            string
-	tenant          string
-	workspace       string
-	resourceVersion string
-}
-
-func (p *PublicIpIdentity) GetName() string      { return p.name }
-func (p *PublicIpIdentity) GetVersion() string   { return p.resourceVersion }
-func (p *PublicIpIdentity) GetTenant() string    { return p.tenant }
-func (p *PublicIpIdentity) GetWorkspace() string { return p.workspace }
-
-var _ persistence.IdentifiableResource = (*PublicIpIdentity)(nil)
-
 // publicIpListParamsFromAPI converts SDK ListPublicIpsParams to resource.ListParams.
 func publicIpListParamsFromAPI(params sdknetwork.ListPublicIpsParams, tenant, workspace string) resource.ListParams {
 	var skipToken string
@@ -131,7 +116,7 @@ func publicIpIteratorToAPI(ps []*publicipdom.PublicIp, nextSkipToken *string) *s
 }
 
 // publicIpFromAPI converts an SDK PublicIp to a PublicIp.
-func publicIpFromAPI(sdk sdkschema.PublicIp, id *PublicIpIdentity, region string) *publicipdom.PublicIp {
+func publicIpFromAPI(sdk sdkschema.PublicIp, id *resource.Identity, region string) *publicipdom.PublicIp {
 	p := &publicipdom.PublicIp{
 		Spec: publicipdom.PublicIpSpec{
 			Address: sdk.Spec.Address,

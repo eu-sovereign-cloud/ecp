@@ -11,6 +11,7 @@ import (
 	frameworkconfig "github.com/eu-sovereign-cloud/ecp/framework/frontend/config"
 	frest "github.com/eu-sovereign-cloud/ecp/framework/frontend/rest"
 	persistencepkg "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	wsdom "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1"
 )
 
@@ -33,9 +34,9 @@ func (h *Handler) ListWorkspaces(w http.ResponseWriter, r *http.Request, tenant 
 // DeleteWorkspace handles DELETE /v1/tenants/{tenant}/workspaces/{name}.
 func (h *Handler) DeleteWorkspace(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam, params sdkworkspace.DeleteWorkspaceParams) {
 	logger := h.Logger.With("provider", "workspace", "resource", "workspace", "name", name)
-	id := &WorkspaceIdentity{name: name, tenant: tenant}
+	id := &resource.Identity{Name: name, Scope: resource.Scope{Tenant: tenant}}
 	if params.IfUnmodifiedSince != nil {
-		id.resourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
+		id.Version = strconv.Itoa(*params.IfUnmodifiedSince)
 	}
 	frest.HandleDelete(w, r, logger, id, frest.DeleterFromRepo(h.Writer, newWorkspaceWithIdentity))
 }
@@ -43,16 +44,16 @@ func (h *Handler) DeleteWorkspace(w http.ResponseWriter, r *http.Request, tenant
 // GetWorkspace handles GET /v1/tenants/{tenant}/workspaces/{name}.
 func (h *Handler) GetWorkspace(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam) {
 	logger := h.Logger.With("provider", "workspace", "resource", "workspace", "name", name)
-	ir := &WorkspaceIdentity{name: name, tenant: tenant}
+	ir := &resource.Identity{Name: name, Scope: resource.Scope{Tenant: tenant}}
 	frest.HandleGet(w, r, logger, ir, frest.GetterFromRepo(h.Reader, newWorkspaceWithIdentity), workspaceToAPIWithVerb(http.MethodGet))
 }
 
 // CreateOrUpdateWorkspace handles PUT /v1/tenants/{tenant}/workspaces/{name}.
 func (h *Handler) CreateOrUpdateWorkspace(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam, params sdkworkspace.CreateOrUpdateWorkspaceParams) {
 	logger := h.Logger.With("provider", "workspace", "resource", "workspace", "name", name)
-	id := &WorkspaceIdentity{name: name, tenant: tenant}
+	id := &resource.Identity{Name: name, Scope: resource.Scope{Tenant: tenant}}
 	if params.IfUnmodifiedSince != nil {
-		id.resourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
+		id.Version = strconv.Itoa(*params.IfUnmodifiedSince)
 	}
 	region := frameworkconfig.Singleton().Region()
 	frest.HandleUpsert(w, r, logger, frest.UpsertOptions[sdkschema.Workspace, *wsdom.Workspace, *sdkschema.Workspace]{
@@ -60,7 +61,7 @@ func (h *Handler) CreateOrUpdateWorkspace(w http.ResponseWriter, r *http.Request
 		Creator: frest.CreatorFromRepo(h.Writer),
 		Updater: frest.UpdaterFromRepo(h.Writer),
 		APIToDomain: func(sdk sdkschema.Workspace, p persistencepkg.IdentifiableResource) *wsdom.Workspace {
-			return workspaceFromAPI(sdk, p.(*WorkspaceIdentity), region)
+			return workspaceFromAPI(sdk, p.(*resource.Identity), region)
 		},
 		DomainToAPI: workspaceToAPIWithVerb(http.MethodPut),
 	})

@@ -36,22 +36,9 @@ func (h *Handler) ListSkus(w http.ResponseWriter, r *http.Request, tenant sdksch
 // GetSku handles GET /v1/tenants/{tenant}/skus/{name}.
 func (h *Handler) GetSku(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam) {
 	logger := h.Logger.With("provider", "network", "resource", "sku", "name", name)
-	ir := &networkSKUIdentity{name: name, tenant: tenant}
+	ir := &resource.Identity{Name: name, Scope: resource.Scope{Tenant: tenant}}
 	frest.HandleGet(w, r, logger, ir, frest.GetterFromRepo(h.SKUReader, newNetworkSKUWithIdentity), networkSKUToAPI)
 }
-
-// networkSKUIdentity is a minimal IdentifiableResource for network-SKU get operations.
-type networkSKUIdentity struct {
-	name   string
-	tenant string
-}
-
-func (s *networkSKUIdentity) GetName() string      { return s.name }
-func (s *networkSKUIdentity) GetVersion() string   { return "" }
-func (s *networkSKUIdentity) GetTenant() string    { return s.tenant }
-func (s *networkSKUIdentity) GetWorkspace() string { return "" }
-
-var _ persistencepkg.IdentifiableResource = (*networkSKUIdentity)(nil)
 
 // newNetworkSKUWithIdentity returns a *skudom.NetworkSKU populated with identity fields from ir.
 func newNetworkSKUWithIdentity(ir persistencepkg.IdentifiableResource) *skudom.NetworkSKU {

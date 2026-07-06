@@ -22,20 +22,6 @@ const (
 	ImageResource = imgdom.Resource
 )
 
-// ImageIdentity carries identity for a single image resource.
-type ImageIdentity struct {
-	name            string
-	tenant          string
-	resourceVersion string
-}
-
-func (i *ImageIdentity) GetName() string      { return i.name }
-func (i *ImageIdentity) GetVersion() string   { return i.resourceVersion }
-func (i *ImageIdentity) GetTenant() string    { return i.tenant }
-func (i *ImageIdentity) GetWorkspace() string { return "" }
-
-var _ persistence.IdentifiableResource = (*ImageIdentity)(nil)
-
 // newImageWithIdentity returns a *imgdom.Image populated with identity fields from ir.
 func newImageWithIdentity(ir persistence.IdentifiableResource) *imgdom.Image {
 	img := &imgdom.Image{}
@@ -156,7 +142,7 @@ func imageIteratorToAPI(imgs []*imgdom.Image, nextSkipToken *string) *sdkstorage
 }
 
 // imageFromAPI converts an SDK Image to an Image.
-func imageFromAPI(sdk sdkschema.Image, id *ImageIdentity, region string) *imgdom.Image {
+func imageFromAPI(sdk sdkschema.Image, id *resource.Identity, region string) *imgdom.Image {
 	img := &imgdom.Image{
 		Spec: imgdom.ImageSpec{
 			BlockStorageRef: commonfrontend.ReferenceFromAPI(sdk.Spec.BlockStorageRef),
