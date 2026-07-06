@@ -18,6 +18,7 @@ import (
 	frameworkbuilder "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/builder"
 	rak8s "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment/backend/kubernetes"
 	rolek8s "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role/backend/kubernetes"
+	internetgatewayk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/internet-gateway/backend/kubernetes"
 	netk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network/backend/kubernetes"
 	nick8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic/backend/kubernetes"
 	publicipk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/public-ip/backend/kubernetes"
@@ -37,6 +38,7 @@ func init() {
 	utilruntime.Must(rak8s.AddToScheme(scheme))
 	utilruntime.Must(nick8s.AddToScheme(scheme))
 	utilruntime.Must(publicipk8s.AddToScheme(scheme))
+	utilruntime.Must(internetgatewayk8s.AddToScheme(scheme))
 	utilruntime.Must(wsk8s.AddToScheme(scheme))
 }
 
@@ -69,6 +71,7 @@ func main() {
 	raPlugin := dummyplugin.NewRoleAssignment(logger.With("plugin", "roleassignment"))
 	nicPlugin := dummyplugin.NewNic(logger.With("plugin", "nic"))
 	publicIpPlugin := dummyplugin.NewPublicIp(logger.With("plugin", "publicip"))
+	internetGatewayPlugin := dummyplugin.NewInternetGateway(logger.With("plugin", "internetgateway"))
 
 	controllerOpts := []frameworkbuilder.Option{
 		frameworkbuilder.WithLogger(logger.With("component", "controller-set")),
@@ -83,6 +86,7 @@ func main() {
 	controllerSet.Add(rak8s.NewController(mgr.GetClient(), dynClient, raPlugin, controllerOpts...))
 	controllerSet.Add(nick8s.NewController(mgr.GetClient(), dynClient, nicPlugin, controllerOpts...))
 	controllerSet.Add(publicipk8s.NewController(mgr.GetClient(), dynClient, publicIpPlugin, controllerOpts...))
+	controllerSet.Add(internetgatewayk8s.NewController(mgr.GetClient(), dynClient, internetGatewayPlugin, controllerOpts...))
 	controllerSet.Add(wsk8s.NewController(mgr.GetClient(), dynClient, wsPlugin, controllerOpts...))
 
 	if err := controllerSet.SetupWithManager(mgr); err != nil {

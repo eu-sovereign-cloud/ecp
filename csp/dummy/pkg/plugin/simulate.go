@@ -15,6 +15,8 @@ import (
 	radom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment"
 	roleassignmentconv "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment/backend/kubernetes"
 	roleconv "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role/backend/kubernetes"
+	internetgatewaydom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/internet-gateway"
+	internetgatewayconv "github.com/eu-sovereign-cloud/ecp/resource/network/v1/internet-gateway/backend/kubernetes"
 	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network"
 	networkconv "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network/backend/kubernetes"
 	nicdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic"
@@ -193,6 +195,26 @@ func simulatePublicIp(ctx context.Context, op string, resource *publicipdom.Publ
 				logger,
 				publicipconv.PublicIpToCR,
 				publicipconv.PublicIpFromCR,
+			)
+			_, err = repo.Update(ctx, resource)
+			return err
+		},
+	)
+}
+
+func simulateInternetGateway(ctx context.Context, op string, resource *internetgatewaydom.InternetGateway, delay time.Duration, logger *slog.Logger) error {
+	return simulate(ctx, op, &resource.Annotations, resource.GetName(), delay, logger,
+		func(ctx context.Context) error {
+			dynamicClient, err := newDynamicClient()
+			if err != nil {
+				return err
+			}
+			repo := kubernetesadapter.NewRepoAdapter(
+				dynamicClient,
+				internetgatewayconv.InternetGatewayGVR,
+				logger,
+				internetgatewayconv.InternetGatewayToCR,
+				internetgatewayconv.InternetGatewayFromCR,
 			)
 			_, err = repo.Update(ctx, resource)
 			return err

@@ -68,26 +68,6 @@ func newNetworkWithIdentity(ir persistencepkg.IdentifiableResource) *netdom.Netw
 
 // --- Stubs for unimplemented resources ---
 
-func (h *Handler) ListInternetGateways(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, params sdknetwork.ListInternetGatewaysParams) {
-	h.Logger.DebugContext(r.Context(), "ListInternetGateways not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (h *Handler) DeleteInternetGateway(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdknetwork.DeleteInternetGatewayParams) {
-	h.Logger.DebugContext(r.Context(), "DeleteInternetGateway not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (h *Handler) GetInternetGateway(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam) {
-	h.Logger.DebugContext(r.Context(), "GetInternetGateway not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (h *Handler) CreateOrUpdateInternetGateway(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdknetwork.CreateOrUpdateInternetGatewayParams) {
-	h.Logger.DebugContext(r.Context(), "CreateOrUpdateInternetGateway not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
 func (h *Handler) ListRouteTables(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, network sdkschema.NetworkPathParam, params sdknetwork.ListRouteTablesParams) {
 	h.Logger.DebugContext(r.Context(), "ListRouteTables not implemented")
 	w.WriteHeader(http.StatusNotImplemented)
