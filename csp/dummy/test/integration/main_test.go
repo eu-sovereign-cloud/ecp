@@ -29,6 +29,8 @@ import (
 	radom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment"
 	rak8s "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment/backend/kubernetes"
 	rolek8s "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role/backend/kubernetes"
+	internetgatewaydom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/internet-gateway"
+	internetgatewayk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/internet-gateway/backend/kubernetes"
 	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network"
 	netk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network/backend/kubernetes"
 	nicdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic"
@@ -57,17 +59,18 @@ const (
 )
 
 var (
-	dynamicClient      dynamic.Interface
-	testLogger         *slog.Logger
-	networkRepo        *k8sadapter.RepoAdapter[*netdom.Network]
-	nicRepo            *k8sadapter.RepoAdapter[*nicdom.Nic]
-	publicIpRepo       *k8sadapter.RepoAdapter[*publicipdom.PublicIp]
-	workspaceRepo      *k8sadapter.RepoAdapter[*wsdom.Workspace]
-	blockStorageRepo   *k8sadapter.RepoAdapter[*bsdom.BlockStorage]
-	imageRepo          *k8sadapter.RepoAdapter[*imgdom.Image]
-	roleRepo           *k8sadapter.RepoAdapter[*roledom.Role]
-	roleAssignmentRepo *k8sadapter.RepoAdapter[*radom.RoleAssignment]
-	k8sClient          client.Client
+	dynamicClient       dynamic.Interface
+	testLogger          *slog.Logger
+	networkRepo         *k8sadapter.RepoAdapter[*netdom.Network]
+	nicRepo             *k8sadapter.RepoAdapter[*nicdom.Nic]
+	publicIpRepo        *k8sadapter.RepoAdapter[*publicipdom.PublicIp]
+	internetGatewayRepo *k8sadapter.RepoAdapter[*internetgatewaydom.InternetGateway]
+	workspaceRepo       *k8sadapter.RepoAdapter[*wsdom.Workspace]
+	blockStorageRepo    *k8sadapter.RepoAdapter[*bsdom.BlockStorage]
+	imageRepo           *k8sadapter.RepoAdapter[*imgdom.Image]
+	roleRepo            *k8sadapter.RepoAdapter[*roledom.Role]
+	roleAssignmentRepo  *k8sadapter.RepoAdapter[*radom.RoleAssignment]
+	k8sClient           client.Client
 )
 
 func TestMain(m *testing.M) {
@@ -81,6 +84,7 @@ func TestMain(m *testing.M) {
 	utilruntime.Must(netk8s.AddToScheme(s))
 	utilruntime.Must(nick8s.AddToScheme(s))
 	utilruntime.Must(publicipk8s.AddToScheme(s))
+	utilruntime.Must(internetgatewayk8s.AddToScheme(s))
 	utilruntime.Must(wsk8s.AddToScheme(s))
 	utilruntime.Must(bsk8s.AddToScheme(s))
 	utilruntime.Must(imgk8s.AddToScheme(s))
@@ -130,6 +134,13 @@ func TestMain(m *testing.M) {
 		testLogger,
 		publicipk8s.PublicIpToCR,
 		publicipk8s.PublicIpFromCR,
+	)
+	internetGatewayRepo = k8sadapter.NewRepoAdapter[*internetgatewaydom.InternetGateway](
+		dynamicClient,
+		internetgatewayk8s.InternetGatewayGVR,
+		testLogger,
+		internetgatewayk8s.InternetGatewayToCR,
+		internetgatewayk8s.InternetGatewayFromCR,
 	)
 	blockStorageRepo = k8sadapter.NewRepoAdapter[*bsdom.BlockStorage](
 		dynamicClient,
