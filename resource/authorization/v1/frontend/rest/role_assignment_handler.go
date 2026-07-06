@@ -10,6 +10,7 @@ import (
 	frest "github.com/eu-sovereign-cloud/ecp/framework/frontend/rest"
 	persistencepkg "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	radom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment"
+	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 )
 
 // ListRoleAssignments handles GET /v1/tenants/{tenant}/role-assignments.
@@ -21,33 +22,35 @@ func (h *Handler) ListRoleAssignments(w http.ResponseWriter, r *http.Request, te
 // DeleteRoleAssignment handles DELETE /v1/tenants/{tenant}/role-assignments/{name}.
 func (h *Handler) DeleteRoleAssignment(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam, params sdkauth.DeleteRoleAssignmentParams) {
 	logger := h.Logger.With("provider", "authorization", "resource", "role-assignment", "name", name)
-	id := &RoleAssignmentIdentity{name: name, tenant: tenant}
+	var resourceVersion string
 	if params.IfUnmodifiedSince != nil {
-		id.resourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
+		resourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
 	}
+	id := roleAssignmentIdentity(name, tenant, resourceVersion)
 	frest.HandleDelete(w, r, logger, id, frest.DeleterFromRepo(h.RoleAssignmentWriter, newRoleAssignmentWithIdentity))
 }
 
 // GetRoleAssignment handles GET /v1/tenants/{tenant}/role-assignments/{name}.
 func (h *Handler) GetRoleAssignment(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam) {
 	logger := h.Logger.With("provider", "authorization", "resource", "role-assignment", "name", name)
-	id := &RoleAssignmentIdentity{name: name, tenant: tenant}
+	id := roleAssignmentIdentity(name, tenant, "")
 	frest.HandleGet(w, r, logger, id, frest.GetterFromRepo(h.RoleAssignmentReader, newRoleAssignmentWithIdentity), RoleAssignmentToAPIWithVerb(http.MethodGet))
 }
 
 // CreateOrUpdateRoleAssignment handles PUT /v1/tenants/{tenant}/role-assignments/{name}.
 func (h *Handler) CreateOrUpdateRoleAssignment(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam, params sdkauth.CreateOrUpdateRoleAssignmentParams) {
 	logger := h.Logger.With("provider", "authorization", "resource", "role-assignment", "name", name)
-	id := &RoleAssignmentIdentity{name: name, tenant: tenant}
+	var resourceVersion string
 	if params.IfUnmodifiedSince != nil {
-		id.resourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
+		resourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
 	}
+	id := roleAssignmentIdentity(name, tenant, resourceVersion)
 	frest.HandleUpsert(w, r, logger, frest.UpsertOptions[sdkschema.RoleAssignment, *radom.RoleAssignment, *sdkschema.RoleAssignment]{
 		Params:  id,
 		Creator: frest.CreatorFromRepo(h.RoleAssignmentWriter),
 		Updater: frest.UpdaterFromRepo(h.RoleAssignmentWriter),
 		APIToDomain: func(sdk sdkschema.RoleAssignment, p persistencepkg.IdentifiableResource) *radom.RoleAssignment {
-			return RoleAssignmentFromAPI(sdk, p.(*RoleAssignmentIdentity))
+			return RoleAssignmentFromAPI(sdk, p.(*commondomain.GlobalTenantMetadata))
 		},
 		DomainToAPI: RoleAssignmentToAPIWithVerb(http.MethodPut),
 	})

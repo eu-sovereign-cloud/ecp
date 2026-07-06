@@ -7,9 +7,9 @@ import (
 	sdknetwork "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.network.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
-	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/validation"
+	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	commonfrontend "github.com/eu-sovereign-cloud/ecp/resource/common/frontend"
 	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network"
 )
@@ -21,20 +21,13 @@ const (
 	NetworkResource = netdom.Resource
 )
 
-// NetworkIdentity carries identity for a single network resource.
-type NetworkIdentity struct {
-	name            string
-	tenant          string
-	workspace       string
-	resourceVersion string
+// networkIdentity builds a RegionalMetadata carrying just enough identity to look up or delete a network resource.
+func networkIdentity(name, tenant, workspace, resourceVersion string) *commondomain.RegionalMetadata {
+	return &commondomain.RegionalMetadata{
+		CommonMetadata: commondomain.CommonMetadata{Name: name, ResourceVersion: resourceVersion},
+		Scope:          resource.Scope{Tenant: tenant, Workspace: workspace},
+	}
 }
-
-func (n *NetworkIdentity) GetName() string      { return n.name }
-func (n *NetworkIdentity) GetVersion() string   { return n.resourceVersion }
-func (n *NetworkIdentity) GetTenant() string    { return n.tenant }
-func (n *NetworkIdentity) GetWorkspace() string { return n.workspace }
-
-var _ persistence.IdentifiableResource = (*NetworkIdentity)(nil)
 
 // networkListParamsFromAPI converts SDK ListNetworksParams to resource.ListParams.
 func networkListParamsFromAPI(params sdknetwork.ListNetworksParams, tenant, workspace string) resource.ListParams {
@@ -152,7 +145,7 @@ func NetworkIteratorToAPI(ns []*netdom.Network, nextSkipToken *string) *sdknetwo
 }
 
 // NetworkFromAPI converts an SDK Network to a Network.
-func NetworkFromAPI(sdk sdkschema.Network, id *NetworkIdentity, region string) *netdom.Network {
+func NetworkFromAPI(sdk sdkschema.Network, id *commondomain.RegionalMetadata, region string) *netdom.Network {
 	n := &netdom.Network{
 		Spec: netdom.NetworkSpec{
 			CIDR:          cidrFromAPI(sdk.Spec.Cidr),

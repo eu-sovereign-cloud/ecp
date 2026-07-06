@@ -7,9 +7,9 @@ import (
 	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
-	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/validation"
+	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	commonfrontend "github.com/eu-sovereign-cloud/ecp/resource/common/frontend"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage"
 )
@@ -21,20 +21,13 @@ const (
 	BlockStorageResource = bsdom.Resource
 )
 
-// BlockStorageIdentity carries identity for a single block-storage resource.
-type BlockStorageIdentity struct {
-	name            string
-	tenant          string
-	workspace       string
-	resourceVersion string
+// blockStorageIdentity builds a RegionalMetadata carrying just enough identity to look up or delete a block-storage resource.
+func blockStorageIdentity(name, tenant, workspace, resourceVersion string) *commondomain.RegionalMetadata {
+	return &commondomain.RegionalMetadata{
+		CommonMetadata: commondomain.CommonMetadata{Name: name, ResourceVersion: resourceVersion},
+		Scope:          resource.Scope{Tenant: tenant, Workspace: workspace},
+	}
 }
-
-func (b *BlockStorageIdentity) GetName() string      { return b.name }
-func (b *BlockStorageIdentity) GetVersion() string   { return b.resourceVersion }
-func (b *BlockStorageIdentity) GetTenant() string    { return b.tenant }
-func (b *BlockStorageIdentity) GetWorkspace() string { return b.workspace }
-
-var _ persistence.IdentifiableResource = (*BlockStorageIdentity)(nil)
 
 // blockStorageListParamsFromAPI converts SDK ListBlockStoragesParams to resource.ListParams.
 func blockStorageListParamsFromAPI(params sdkstorage.ListBlockStoragesParams, tenant, workspace string) resource.ListParams {
@@ -155,7 +148,7 @@ func BlockStorageIteratorToAPI(bss []*bsdom.BlockStorage, nextSkipToken *string)
 }
 
 // BlockStorageFromAPI converts an SDK BlockStorage to a BlockStorage.
-func BlockStorageFromAPI(sdk sdkschema.BlockStorage, id *BlockStorageIdentity, region string) *bsdom.BlockStorage {
+func BlockStorageFromAPI(sdk sdkschema.BlockStorage, id *commondomain.RegionalMetadata, region string) *bsdom.BlockStorage {
 	bs := &bsdom.BlockStorage{
 		Spec: bsdom.BlockStorageSpec{
 			SizeGB: sdk.Spec.SizeGB,

@@ -10,6 +10,7 @@ import (
 	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/validation"
+	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	commonfrontend "github.com/eu-sovereign-cloud/ecp/resource/common/frontend"
 	imgdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image"
 )
@@ -21,19 +22,13 @@ const (
 	ImageResource = imgdom.Resource
 )
 
-// ImageIdentity carries identity for a single image resource.
-type ImageIdentity struct {
-	name            string
-	tenant          string
-	resourceVersion string
+// imageIdentity builds a RegionalMetadata carrying just enough identity to look up or delete an image resource.
+func imageIdentity(name, tenant, resourceVersion string) *commondomain.RegionalMetadata {
+	return &commondomain.RegionalMetadata{
+		CommonMetadata: commondomain.CommonMetadata{Name: name, ResourceVersion: resourceVersion},
+		Scope:          resource.Scope{Tenant: tenant},
+	}
 }
-
-func (i *ImageIdentity) GetName() string      { return i.name }
-func (i *ImageIdentity) GetVersion() string   { return i.resourceVersion }
-func (i *ImageIdentity) GetTenant() string    { return i.tenant }
-func (i *ImageIdentity) GetWorkspace() string { return "" }
-
-var _ persistence.IdentifiableResource = (*ImageIdentity)(nil)
 
 // newImageWithIdentity returns a *imgdom.Image populated with identity fields from ir.
 func newImageWithIdentity(ir persistence.IdentifiableResource) *imgdom.Image {
@@ -155,7 +150,7 @@ func ImageIteratorToAPI(imgs []*imgdom.Image, nextSkipToken *string) *sdkstorage
 }
 
 // ImageFromAPI converts an SDK Image to an Image.
-func ImageFromAPI(sdk sdkschema.Image, id *ImageIdentity, region string) *imgdom.Image {
+func ImageFromAPI(sdk sdkschema.Image, id *commondomain.RegionalMetadata, region string) *imgdom.Image {
 	img := &imgdom.Image{
 		Spec: imgdom.ImageSpec{
 			BlockStorageRef: commonfrontend.ReferenceFromAPI(sdk.Spec.BlockStorageRef),

@@ -10,6 +10,7 @@ import (
 	frameworkconfig "github.com/eu-sovereign-cloud/ecp/framework/frontend/config"
 	frest "github.com/eu-sovereign-cloud/ecp/framework/frontend/rest"
 	persistencepkg "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
+	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	imgdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image"
 )
 
@@ -22,34 +23,36 @@ func (h *Handler) ListImages(w http.ResponseWriter, r *http.Request, tenant sdks
 // DeleteImage handles DELETE /v1/tenants/{tenant}/images/{name}.
 func (h *Handler) DeleteImage(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam, params sdkstorage.DeleteImageParams) {
 	logger := h.Logger.With("provider", "storage", "resource", "image", "name", name)
-	id := &ImageIdentity{name: name, tenant: tenant}
+	var resourceVersion string
 	if params.IfUnmodifiedSince != nil {
-		id.resourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
+		resourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
 	}
+	id := imageIdentity(name, tenant, resourceVersion)
 	frest.HandleDelete(w, r, logger, id, frest.DeleterFromRepo(h.ImageWriter, newImageWithIdentity))
 }
 
 // GetImage handles GET /v1/tenants/{tenant}/images/{name}.
 func (h *Handler) GetImage(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam) {
 	logger := h.Logger.With("provider", "storage", "resource", "image", "name", name)
-	ir := &ImageIdentity{name: name, tenant: tenant}
+	ir := imageIdentity(name, tenant, "")
 	frest.HandleGet(w, r, logger, ir, frest.GetterFromRepo(h.ImageReader, newImageWithIdentity), ImageToAPIWithVerb(http.MethodGet))
 }
 
 // CreateOrUpdateImage handles PUT /v1/tenants/{tenant}/images/{name}.
 func (h *Handler) CreateOrUpdateImage(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam, params sdkstorage.CreateOrUpdateImageParams) {
 	logger := h.Logger.With("provider", "storage", "resource", "image", "name", name)
-	id := &ImageIdentity{name: name, tenant: tenant}
+	var resourceVersion string
 	if params.IfUnmodifiedSince != nil {
-		id.resourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
+		resourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
 	}
+	id := imageIdentity(name, tenant, resourceVersion)
 	region := frameworkconfig.Singleton().Region()
 	frest.HandleUpsert(w, r, logger, frest.UpsertOptions[sdkschema.Image, *imgdom.Image, *sdkschema.Image]{
 		Params:  id,
 		Creator: frest.CreatorFromRepo(h.ImageWriter),
 		Updater: frest.UpdaterFromRepo(h.ImageWriter),
 		APIToDomain: func(sdk sdkschema.Image, p persistencepkg.IdentifiableResource) *imgdom.Image {
-			return ImageFromAPI(sdk, p.(*ImageIdentity), region)
+			return ImageFromAPI(sdk, p.(*commondomain.RegionalMetadata), region)
 		},
 		DomainToAPI: ImageToAPIWithVerb(http.MethodPut),
 	})

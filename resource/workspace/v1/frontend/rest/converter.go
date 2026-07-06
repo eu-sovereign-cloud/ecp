@@ -9,9 +9,9 @@ import (
 	sdkworkspace "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
-	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/validation"
+	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	commonfrontend "github.com/eu-sovereign-cloud/ecp/resource/common/frontend"
 	wsdom "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1"
 )
@@ -27,19 +27,13 @@ const (
 	TenantScopedResourceFormat = "tenants/%s/providers/%s/%s"
 )
 
-// WorkspaceIdentity carries identity for a single workspace resource.
-type WorkspaceIdentity struct {
-	name            string
-	tenant          string
-	resourceVersion string
+// workspaceIdentity builds a RegionalMetadata carrying just enough identity to look up or delete a workspace resource.
+func workspaceIdentity(name, tenant, resourceVersion string) *commondomain.RegionalMetadata {
+	return &commondomain.RegionalMetadata{
+		CommonMetadata: commondomain.CommonMetadata{Name: name, ResourceVersion: resourceVersion},
+		Scope:          resource.Scope{Tenant: tenant},
+	}
 }
-
-func (w *WorkspaceIdentity) GetName() string      { return w.name }
-func (w *WorkspaceIdentity) GetVersion() string   { return w.resourceVersion }
-func (w *WorkspaceIdentity) GetTenant() string    { return w.tenant }
-func (w *WorkspaceIdentity) GetWorkspace() string { return "" }
-
-var _ persistence.IdentifiableResource = (*WorkspaceIdentity)(nil)
 
 // ListParamsFromAPI converts SDK ListWorkspacesParams to resource.ListParams.
 func ListParamsFromAPI(params sdkworkspace.ListWorkspacesParams, tenant string) resource.ListParams {
@@ -139,7 +133,7 @@ func workspaceToAPI(ws wsdom.Workspace, verb string) *sdkschema.Workspace {
 }
 
 // WorkspaceFromAPI converts an SDK Workspace to a Workspace.
-func WorkspaceFromAPI(api sdkschema.Workspace, id *WorkspaceIdentity, region string) *wsdom.Workspace {
+func WorkspaceFromAPI(api sdkschema.Workspace, id *commondomain.RegionalMetadata, region string) *wsdom.Workspace {
 	ws := &wsdom.Workspace{
 		Spec: api.Spec,
 	}

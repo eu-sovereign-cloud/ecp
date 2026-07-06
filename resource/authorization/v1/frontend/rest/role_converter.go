@@ -8,10 +8,10 @@ import (
 	sdkauth "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.authorization.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
-	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/validation"
 	roledom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role"
+	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	commonfrontend "github.com/eu-sovereign-cloud/ecp/resource/common/frontend"
 )
 
@@ -26,19 +26,13 @@ const (
 	tenantScopedResourceFormat = "tenants/%s/providers/%s/%s"
 )
 
-// RoleIdentity carries identity for a single role resource.
-type RoleIdentity struct {
-	name            string
-	tenant          string
-	resourceVersion string
+// roleIdentity builds a GlobalTenantMetadata carrying just enough identity to look up or delete a role resource.
+func roleIdentity(name, tenant, resourceVersion string) *commondomain.GlobalTenantMetadata {
+	return &commondomain.GlobalTenantMetadata{
+		CommonMetadata: commondomain.CommonMetadata{Name: name, ResourceVersion: resourceVersion},
+		Scope:          resource.Scope{Tenant: tenant},
+	}
 }
-
-func (ri *RoleIdentity) GetName() string      { return ri.name }
-func (ri *RoleIdentity) GetVersion() string   { return ri.resourceVersion }
-func (ri *RoleIdentity) GetTenant() string    { return ri.tenant }
-func (ri *RoleIdentity) GetWorkspace() string { return "" }
-
-var _ persistence.IdentifiableResource = (*RoleIdentity)(nil)
 
 // ListParamsFromAPI converts SDK ListRolesParams to resource.ListParams.
 func ListParamsFromAPI(params sdkauth.ListRolesParams, tenant string) resource.ListParams {
@@ -136,7 +130,7 @@ func roleToAPI(r roledom.Role, verb string) *sdkschema.Role {
 }
 
 // RoleFromAPI converts an SDK Role to a domain Role.
-func RoleFromAPI(api sdkschema.Role, id *RoleIdentity) *roledom.Role {
+func RoleFromAPI(api sdkschema.Role, id *commondomain.GlobalTenantMetadata) *roledom.Role {
 	r := &roledom.Role{
 		Spec: roleSpecFromAPI(api.Spec),
 	}

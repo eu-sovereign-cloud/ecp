@@ -10,6 +10,7 @@ import (
 	frameworkconfig "github.com/eu-sovereign-cloud/ecp/framework/frontend/config"
 	frest "github.com/eu-sovereign-cloud/ecp/framework/frontend/rest"
 	persistencepkg "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
+	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage"
 )
 
@@ -22,34 +23,36 @@ func (h *Handler) ListBlockStorages(w http.ResponseWriter, r *http.Request, tena
 // DeleteBlockStorage handles DELETE /v1/tenants/{tenant}/workspaces/{workspace}/block-storages/{name}.
 func (h *Handler) DeleteBlockStorage(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdkstorage.DeleteBlockStorageParams) {
 	logger := h.Logger.With("provider", "storage", "resource", "block-storage", "name", name)
-	id := &BlockStorageIdentity{name: name, tenant: tenant, workspace: workspace}
+	var resourceVersion string
 	if params.IfUnmodifiedSince != nil {
-		id.resourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
+		resourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
 	}
+	id := blockStorageIdentity(name, tenant, workspace, resourceVersion)
 	frest.HandleDelete(w, r, logger, id, frest.DeleterFromRepo(h.BlockStorageWriter, newBlockStorageWithIdentity))
 }
 
 // GetBlockStorage handles GET /v1/tenants/{tenant}/workspaces/{workspace}/block-storages/{name}.
 func (h *Handler) GetBlockStorage(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam) {
 	logger := h.Logger.With("provider", "storage", "resource", "block-storage", "name", name)
-	ir := &BlockStorageIdentity{name: name, tenant: tenant, workspace: workspace}
+	ir := blockStorageIdentity(name, tenant, workspace, "")
 	frest.HandleGet(w, r, logger, ir, frest.GetterFromRepo(h.BlockStorageReader, newBlockStorageWithIdentity), BlockStorageToAPIWithVerb(http.MethodGet))
 }
 
 // CreateOrUpdateBlockStorage handles PUT /v1/tenants/{tenant}/workspaces/{workspace}/block-storages/{name}.
 func (h *Handler) CreateOrUpdateBlockStorage(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdkstorage.CreateOrUpdateBlockStorageParams) {
 	logger := h.Logger.With("provider", "storage", "resource", "block-storage", "name", name)
-	id := &BlockStorageIdentity{name: name, tenant: tenant, workspace: workspace}
+	var resourceVersion string
 	if params.IfUnmodifiedSince != nil {
-		id.resourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
+		resourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
 	}
+	id := blockStorageIdentity(name, tenant, workspace, resourceVersion)
 	region := frameworkconfig.Singleton().Region()
 	frest.HandleUpsert(w, r, logger, frest.UpsertOptions[sdkschema.BlockStorage, *bsdom.BlockStorage, *sdkschema.BlockStorage]{
 		Params:  id,
 		Creator: frest.CreatorFromRepo(h.BlockStorageWriter),
 		Updater: frest.UpdaterFromRepo(h.BlockStorageWriter),
 		APIToDomain: func(sdk sdkschema.BlockStorage, p persistencepkg.IdentifiableResource) *bsdom.BlockStorage {
-			return BlockStorageFromAPI(sdk, p.(*BlockStorageIdentity), region)
+			return BlockStorageFromAPI(sdk, p.(*commondomain.RegionalMetadata), region)
 		},
 		DomainToAPI: BlockStorageToAPIWithVerb(http.MethodPut),
 	})
