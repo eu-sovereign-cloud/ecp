@@ -20,7 +20,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
-	kernel "github.com/eu-sovereign-cloud/ecp/framework/kernel"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/validation/filter"
@@ -470,7 +470,7 @@ func (a *WriterAdapter[T]) updateStatusRetry(
 	ctx context.Context,
 	ri dynamic.ResourceInterface,
 	m T,
-	desiredStatus map[string]interface{},
+	desiredStatus map[string]any,
 ) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		currObj, getErr := ri.Get(ctx, m.GetName(), metav1.GetOptions{})

@@ -103,6 +103,30 @@ func ResourceStateFromCR(state schemav1.ResourceState) domain.ResourceState {
 	return out
 }
 
+// IPVersionToCR maps domain.IPVersion to schemav1.IPVersion.
+func IPVersionToCR(v domain.IPVersion) schemav1.IPVersion {
+	switch v {
+	case domain.IPVersionIPv4:
+		return schemav1.IPVersionIPv4
+	case domain.IPVersionIPv6:
+		return schemav1.IPVersionIPv6
+	default:
+		return ""
+	}
+}
+
+// IPVersionFromCR maps schemav1.IPVersion to domain.IPVersion.
+func IPVersionFromCR(v schemav1.IPVersion) domain.IPVersion {
+	switch v {
+	case schemav1.IPVersionIPv4:
+		return domain.IPVersionIPv4
+	case schemav1.IPVersionIPv6:
+		return domain.IPVersionIPv6
+	default:
+		return ""
+	}
+}
+
 // ReferenceFromCR converts a generated schemav1.Reference to a domain.Reference.
 // Tenant and Workspace are embedded into the Resource path so the domain always
 // carries a fully-qualified resource path string (e.g. "seca.storage/v1/tenants/t/skus/s").

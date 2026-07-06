@@ -125,51 +125,57 @@ spec:
                   - Default behavior is to deny all traffic not explicitly allowed
                   - Rules provide granular control over allowed traffic types, sources, and destinations
                 items:
-                  description: SecurityGroupRuleSpec Specification of a security group
-                    rule defining network access permissions.
                   properties:
                     annotations:
                       additionalProperties:
                         type: string
-                      description: Annotations User-defined key/value pairs that are
-                        mutable and can be used to add annotations.
+                      description: |-
+                        Annotations User-defined key/value pairs that are mutable and can be used to add annotations.
+                        The number of annotations is eventually limited by the CSP.
                       type: object
                     direction:
-                      description: Direction Direction of the traffic flow
+                      enum:
+                      - ingress
+                      - egress
+                      maxLength: 7
                       type: string
                     icmp:
-                      description: Icmp ICMP specific rule configuration
                       properties:
                         code:
+                          maximum: 5
+                          minimum: 0
                           type: integer
                         type:
+                          maximum: 8
+                          minimum: 0
                           type: integer
                       required:
                       - code
                       - type
                       type: object
                     ports:
-                      description: Ports Defines a specific port list or port range
-                        for the rule.
                       properties:
                         from:
-                          description: Port A valid network port number.
                           type: integer
                         list:
                           items:
-                            description: Port A valid network port number.
+                            maximum: 65535
+                            minimum: 1
                             type: integer
+                          maxItems: 100
                           type: array
                         to:
-                          description: Port A valid network port number.
                           type: integer
                       type: object
                     protocol:
-                      description: Protocol Network protocol for the rule
+                      enum:
+                      - tcp
+                      - udp
+                      - tcp+udp
+                      - icmp
+                      maxLength: 7
                       type: string
                     sourceRef:
-                      description: SourceRef Reference to a CIDR block, IP address,
-                        gateway, instance or security group
                       items:
                         description: |-
                           Reference A reference to a resource using an object. The object contains the
@@ -213,6 +219,7 @@ spec:
                         required:
                         - resource
                         type: object
+                      maxItems: 32
                       type: array
                     version:
                       description: IPVersion IP version of the address

@@ -32,7 +32,7 @@ func TestImage(t *testing.T) {
 				},
 			},
 			Spec: imgdom.ImageSpec{
-				BlockStorageRef: commondomain.Reference{Resource: "block-storages/source-bs"},
+				BlockStorageRef: commondomain.Reference{Workspace: testWorkspace, Resource: "block-storages/source-bs"},
 				CpuArchitecture: "amd64",
 				Boot:            "UEFI",
 				Initializer:     "none",
@@ -92,7 +92,7 @@ func TestImage(t *testing.T) {
 				},
 			},
 			Spec: imgdom.ImageSpec{
-				BlockStorageRef: commondomain.Reference{Resource: "block-storages/source-bs"},
+				BlockStorageRef: commondomain.Reference{Workspace: testWorkspace, Resource: "block-storages/source-bs"},
 				CpuArchitecture: "amd64",
 				Boot:            "UEFI",
 				Initializer:     "none",

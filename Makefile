@@ -263,6 +263,49 @@ gofmt: $(addsuffix -gofmt,$(GO_MODULES))
 gofmt-check: $(addsuffix -gofmt-check,$(GO_MODULES))
 
 ###############################################################################
+# Per-module modernize (go fix)
+#
+# Usage:
+#   make gateway-modernize              # auto-fix one module
+#   make modernize                                # auto-fix all modules
+#   make gateway-modernize-check        # check one module (fails on diff)
+#   make modernize-check                          # check all modules (CI gate)
+#   make gateway-modernize-ctzd         # via tools container
+#   make gateway-modernize-check-ctzd   # via tools container
+#
+# Uses Go 1.26's `go fix`, which runs the modernize analyzers bundled with the
+# toolchain (rangeint, minmax, slicescontains, stringscut, fmtappendf, ...) and
+# rewrites legacy constructs to their modern equivalents. Pinned by GO_VERSION
+# in .config.mk, so the fixes never drift from the toolchain.
+#
+# %-modernize        applies fixes in place, re-running to a fixpoint: `go fix`
+#                    analyzes the original source each pass, so one fix can
+#                    expose another (stditerators rewrites a loop and leaves a
+#                    redundant `v := v` that forvar only removes next pass).
+#                    modernize-apply.sh loops until nothing is pending.
+# %-modernize-check  runs a single `go fix -diff`: it reports a diff at every
+#                    non-fixpoint state, so it stays a correct gate without
+#                    looping. Prints the pending patch and exits non-zero
+#                    without mutating the tree — this is what CI calls.
+###############################################################################
+
+.PHONY: %-modernize
+%-modernize:
+	@echo "==> modernize: $*"
+	@$(_REPO_ROOT)/ci/scripts/modernize-apply.sh $(_REPO_ROOT)/$*
+
+.PHONY: modernize
+modernize: $(addsuffix -modernize,$(GO_MODULES))
+
+.PHONY: %-modernize-check
+%-modernize-check:
+	@$(_REPO_ROOT)/ci/scripts/verify-run.sh "$*-modernize-check" "Modernize check" -- \
+	  $(_REPO_ROOT)/ci/scripts/modernize-check.sh $(_REPO_ROOT)/$* $*
+
+.PHONY: modernize-check
+modernize-check: $(addsuffix -modernize-check,$(GO_MODULES))
+
+###############################################################################
 # Per-module gosec
 #
 # Usage:
@@ -463,10 +506,10 @@ branch-rebase-verify:
 ###############################################################################
 
 .PHONY: pre-commit
-pre-commit: go-sdk-verify generate-api-verify test vet-integration lint gofmt-check vuln gosec
+pre-commit: go-sdk-verify generate-api-verify test lint gofmt-check modernize-check vuln gosec
 
 .PHONY: pre-merge
-pre-merge: gh-token-ensure branch-rebase-verify workspace-verify go-sdk-verify generate-api-verify test vet-integration lint gofmt-check vuln gosec
+pre-merge: gh-token-ensure branch-rebase-verify workspace-verify go-sdk-verify generate-api-verify test lint gofmt-check vet-integration modernize-check vuln gosec
 
 ###############################################################################
 # Workspace membership: add / remove a module from go.work

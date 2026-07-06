@@ -46,7 +46,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// And a block storage plugin handler
-		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin, 0)
+		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin, 0, nil)
 
 		//
 		// When we reconcile the resource
@@ -88,7 +88,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// And a block storage plugin handler
-		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin, 0)
+		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin, 0, nil)
 
 		//
 		// When we reconcile the resource
@@ -132,7 +132,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// And a block storage plugin handler
-		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin, 0)
+		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin, 0, nil)
 
 		//
 		// When we reconcile the resource
@@ -177,7 +177,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// And a block storage plugin handler
-		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin, 0)
+		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin, 0, nil)
 
 		//
 		// When we reconcile the resource
@@ -221,7 +221,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// And a block storage plugin handler
-		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin, 0)
+		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin, 0, nil)
 
 		//
 		// When we reconcile the resource
@@ -267,7 +267,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// And a block storage plugin handler
-		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin, 0)
+		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin, 0, nil)
 
 		//
 		// When we reconcile the resource
@@ -313,7 +313,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// And a block storage plugin handler
-		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin, 0)
+		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin, 0, nil)
 
 		//
 		// When we reconcile the resource
@@ -361,7 +361,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// And a block storage plugin handler
-		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin, 0)
+		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin, 0, nil)
 
 		//
 		// When we reconcile the resource
@@ -406,7 +406,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// And a block storage plugin handler
-		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin, 0)
+		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin, 0, nil)
 		handler.MaxConditions = 1
 
 		//
@@ -446,7 +446,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// And a block storage plugin handler
-		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin, 0)
+		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin, 0, nil)
 
 		//
 		// When we reconcile the resource
@@ -483,7 +483,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// And a block storage plugin handler
-		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin, 0)
+		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin, 0, nil)
 
 		//
 		// When we reconcile the resource
@@ -523,7 +523,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 			//
 			// And a block storage plugin handler
-			handler := NewBlockStoragePluginHandler(NewMockRepo[*bsdom.BlockStorage](ctrl), mockPlugin, 0)
+			handler := NewBlockStoragePluginHandler(NewMockRepo[*bsdom.BlockStorage](ctrl), mockPlugin, 0, nil)
 
 			//
 			// When we reconcile the resource
@@ -590,7 +590,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// And a block storage plugin handler
-		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin, 0)
+		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin, 0, nil)
 		handler.MaxConditions = 1
 
 		//
@@ -638,7 +638,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// And a block storage plugin handler
-		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin, 0)
+		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin, 0, nil)
 		handler.MaxConditions = 1
 
 		//
@@ -647,6 +647,166 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// Then it should handle the error gracefully and request a requeue
+		require.NoError(t, err)
+		require.True(t, requeue)
+	})
+
+	t.Run("should set state to creating when pending with an active source image", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		//
+		// Given a pending resource created from a source image
+		ref := commondomain.Reference{Resource: "images/src"}
+		resource := &bsdom.BlockStorage{
+			Spec: bsdom.BlockStorageSpec{SizeGB: 10, SourceImageRef: &ref},
+			Status: &bsdom.BlockStorageStatus{
+				Status: commondomain.Status{State: commondomain.ResourceStatePending},
+			},
+		}
+
+		//
+		// And a deps resolver reporting the source image is active
+		mockDeps := NewMockDependencyResolver(ctrl)
+		mockDeps.EXPECT().State(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			Return(true, commondomain.ResourceStateActive, nil).Times(1)
+
+		//
+		// And a repo expected to advance the state to creating
+		mockRepo := NewMockRepo[*bsdom.BlockStorage](ctrl)
+		mockRepo.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).DoAndReturn(
+			func(_ context.Context, res *bsdom.BlockStorage) (*bsdom.BlockStorage, error) {
+				require.Equal(t, commondomain.ResourceStateCreating, res.Status.State)
+				return nil, nil
+			}).Times(1)
+
+		mockPlugin := NewMockBlockStoragePlugin(ctrl)
+
+		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin, 0, mockDeps)
+
+		requeue, err := handler.HandleReconcile(context.Background(), resource)
+
+		require.NoError(t, err)
+		require.True(t, requeue)
+	})
+
+	t.Run("should stay pending when the source image is not yet active", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		//
+		// Given a pending resource whose source image does not exist yet
+		ref := commondomain.Reference{Resource: "images/src"}
+		resource := &bsdom.BlockStorage{
+			Spec: bsdom.BlockStorageSpec{SizeGB: 10, SourceImageRef: &ref},
+			Status: &bsdom.BlockStorageStatus{
+				Status: commondomain.Status{State: commondomain.ResourceStatePending},
+			},
+		}
+
+		mockDeps := NewMockDependencyResolver(ctrl)
+		mockDeps.EXPECT().State(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			Return(false, commondomain.ResourceState(""), nil).Times(1)
+
+		//
+		// And a repo expected to record a dependency-pending condition
+		mockRepo := NewMockRepo[*bsdom.BlockStorage](ctrl)
+		mockRepo.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).DoAndReturn(
+			func(_ context.Context, res *bsdom.BlockStorage) (*bsdom.BlockStorage, error) {
+				require.Equal(t, commondomain.ResourceStatePending, res.Status.State)
+				require.Equal(t, "DependencyPending", res.Status.Conditions[0].Type)
+				return nil, nil
+			}).Times(1)
+
+		mockPlugin := NewMockBlockStoragePlugin(ctrl)
+
+		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin, 0, mockDeps)
+
+		requeue, err := handler.HandleReconcile(context.Background(), resource)
+
+		require.NoError(t, err)
+		require.True(t, requeue)
+	})
+
+	t.Run("should block deletion while an image references the block storage", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		//
+		// Given an active block storage marked for deletion
+		now := time.Now()
+		resource := &bsdom.BlockStorage{
+			RegionalMetadata: commondomain.RegionalMetadata{
+				CommonMetadata: commondomain.CommonMetadata{Name: "bs1", DeletedAt: &now},
+			},
+			Status: &bsdom.BlockStorageStatus{
+				Status: commondomain.Status{State: commondomain.ResourceStateActive},
+			},
+		}
+
+		//
+		// And a deps resolver reporting an image still references it
+		mockDeps := NewMockDependencyResolver(ctrl)
+		mockDeps.EXPECT().Referrers(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			Return([]string{"img-1"}, nil).Times(1)
+
+		//
+		// And a repo expected to record a deletion-blocked condition while keeping the state
+		mockRepo := NewMockRepo[*bsdom.BlockStorage](ctrl)
+		mockRepo.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).DoAndReturn(
+			func(_ context.Context, res *bsdom.BlockStorage) (*bsdom.BlockStorage, error) {
+				require.Equal(t, commondomain.ResourceStateActive, res.Status.State)
+				require.Equal(t, "DeletionBlocked", res.Status.Conditions[0].Type)
+				return nil, nil
+			}).Times(1)
+
+		//
+		// And a plugin whose Delete is not expected to be called
+		mockPlugin := NewMockBlockStoragePlugin(ctrl)
+
+		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin, 0, mockDeps)
+
+		requeue, err := handler.HandleReconcile(context.Background(), resource)
+
+		require.NoError(t, err)
+		require.True(t, requeue)
+	})
+
+	t.Run("should proceed to deleting when no image references the block storage", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		//
+		// Given an active block storage marked for deletion with no referrers
+		now := time.Now()
+		resource := &bsdom.BlockStorage{
+			RegionalMetadata: commondomain.RegionalMetadata{
+				CommonMetadata: commondomain.CommonMetadata{Name: "bs1", DeletedAt: &now},
+			},
+			Status: &bsdom.BlockStorageStatus{
+				Status: commondomain.Status{State: commondomain.ResourceStateActive},
+			},
+		}
+
+		mockDeps := NewMockDependencyResolver(ctrl)
+		mockDeps.EXPECT().Referrers(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			Return(nil, nil).Times(1)
+
+		//
+		// And a repo expected to advance the state to deleting
+		mockRepo := NewMockRepo[*bsdom.BlockStorage](ctrl)
+		mockRepo.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).DoAndReturn(
+			func(_ context.Context, res *bsdom.BlockStorage) (*bsdom.BlockStorage, error) {
+				require.Equal(t, commondomain.ResourceStateDeleting, res.Status.State)
+				return nil, nil
+			}).Times(1)
+
+		mockPlugin := NewMockBlockStoragePlugin(ctrl)
+
+		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin, 0, mockDeps)
+
+		requeue, err := handler.HandleReconcile(context.Background(), resource)
+
 		require.NoError(t, err)
 		require.True(t, requeue)
 	})
@@ -669,7 +829,7 @@ func TestBlockStoragePluginHandler_HandleAdmission(t *testing.T) {
 
 		//
 		// And a block storage plugin handler
-		handler := NewBlockStoragePluginHandler(nil, nil, 0)
+		handler := NewBlockStoragePluginHandler(nil, nil, 0, nil)
 
 		//
 		// When we handle the admission of the resource
@@ -696,7 +856,7 @@ func TestBlockStoragePluginHandler_HandleAdmission(t *testing.T) {
 
 		//
 		// And a block storage plugin handler
-		handler := NewBlockStoragePluginHandler(nil, nil, 0)
+		handler := NewBlockStoragePluginHandler(nil, nil, 0, nil)
 
 		//
 		// When we handle the admission of the resource
@@ -723,7 +883,7 @@ func TestBlockStoragePluginHandler_HandleAdmission(t *testing.T) {
 
 		//
 		// And a block storage plugin handler
-		handler := NewBlockStoragePluginHandler(nil, nil, 0)
+		handler := NewBlockStoragePluginHandler(nil, nil, 0, nil)
 
 		//
 		// When we handle the admission of the resource

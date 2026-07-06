@@ -142,7 +142,6 @@ func TestMatchLabels(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			match, k8sHandled, err := MatchLabels(tc.labels, tc.selector)
 

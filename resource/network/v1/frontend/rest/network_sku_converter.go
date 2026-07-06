@@ -7,8 +7,8 @@ import (
 	skudom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network-sku"
 )
 
-// NetworkSKUToAPI converts a NetworkSKU to its SDK representation.
-func NetworkSKUToAPI(sku *skudom.NetworkSKU) *sdkschema.NetworkSku {
+// networkSKUToAPI converts a NetworkSKU to its SDK representation.
+func networkSKUToAPI(sku *skudom.NetworkSKU) *sdkschema.NetworkSku {
 	return &sdkschema.NetworkSku{
 		Metadata: &sdkschema.SkuResourceMetadata{Name: sku.Name},
 		Spec: &sdkschema.NetworkSkuSpec{
@@ -18,11 +18,11 @@ func NetworkSKUToAPI(sku *skudom.NetworkSKU) *sdkschema.NetworkSku {
 	}
 }
 
-// NetworkSKUIteratorToAPI converts a list of NetworkSKU to an SDK SkuIterator.
-func NetworkSKUIteratorToAPI(skus []*skudom.NetworkSKU, nextSkipToken *string) *sdknetwork.SkuIterator {
+// networkSKUIteratorToAPI converts a list of NetworkSKU to an SDK SkuIterator.
+func networkSKUIteratorToAPI(skus []*skudom.NetworkSKU, nextSkipToken *string) *sdknetwork.SkuIterator {
 	items := make([]sdkschema.NetworkSku, len(skus))
 	for i := range skus {
-		items[i] = *NetworkSKUToAPI(skus[i])
+		items[i] = *networkSKUToAPI(skus[i])
 	}
 
 	iterator := &sdknetwork.SkuIterator{

@@ -4,6 +4,7 @@ package integration
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -33,6 +34,7 @@ import (
 	workspacev1sdk "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1"
 
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
+	kernel "github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	resource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
@@ -47,9 +49,18 @@ import (
 const (
 	pollInterval    = 5 * time.Second
 	timeout         = 3 * time.Minute
+	// resizeTimeout allows for the block storage increase-size operation, which the
+	// dummy plugin simulates at roughly twice the base delay (up to ~178s), so it
+	// needs a longer timeout than the regular create/delete polls.
+	resizeTimeout = 5 * time.Minute
 	systemNamespace = "e2e-ecp"
 	testTenant      = "test-tenant"
 	testWorkspace   = "test-workspace"
+	testRegion      = "ITBG-Bergamo"
+	// sourceBlockStorage is a workspace-scoped block storage that image tests depend
+	// on: images reference "block-storages/source-bs" and stay pending until it is
+	// active.
+	sourceBlockStorage = "source-bs"
 )
 
 var (
@@ -156,10 +167,25 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Failed to create test workspace: %v", err)
 	}
 
+	// Provide the source block storage that Image tests depend on. Images reference
+	// it with a workspace-qualified "block-storages/source-bs" reference and only
+	// become active once it is active, so it must exist and be reconciled before the
+	// suite runs. createTestWorkspace above provisions the workspace namespace it
+	// lives in.
+	if err := createSourceBlockStorage(context.Background(), blockStorageRepo); err != nil {
+		log.Fatalf("Failed to create source block storage: %v", err)
+	}
+	if err := waitForBlockStorageActive(context.Background(), blockStorageRepo, sourceBlockStorage); err != nil {
+		log.Fatalf("Source block storage %q did not become active: %v", sourceBlockStorage, err)
+	}
+
 	// When running the test suite
 	exitCode := m.Run()
 
-	// Cleanup Workspace for BlockStorage tests
+	// Cleanup fixtures. Delete the source block storage before the workspace; its
+	// deletion is blocked while any image still references it, so image tests must
+	// have cleaned up their own images by now.
+	cleanupSourceBlockStorage(context.Background(), blockStorageRepo)
 	cleanupTestWorkspace(context.Background(), workspaceRepo)
 
 	os.Exit(exitCode)
@@ -255,8 +281,12 @@ func createTestWorkspace(ctx context.Context, workspaceRepo persistence.Repo[*ws
 		},
 	}
 
-	_, err := workspaceRepo.Create(ctx, wsDomain)
-	return err
+	// Tolerate a leftover fixture from a previously interrupted run (e.g. a test
+	// timeout that skipped teardown) so the suite is not permanently wedged.
+	if _, err := workspaceRepo.Create(ctx, wsDomain); err != nil && !errors.Is(err, kernel.ErrAlreadyExists) {
+		return err
+	}
+	return nil
 }
 
 func cleanupTestWorkspace(ctx context.Context, workspaceRepo persistence.Repo[*wsdom.Workspace]) error {
@@ -274,4 +304,63 @@ func cleanupTestWorkspace(ctx context.Context, workspaceRepo persistence.Repo[*w
 	err := workspaceRepo.Delete(ctx, wsDomain)
 
 	return err
+}
+
+// newSourceBlockStorage builds the workspace-scoped block storage that image tests
+// depend on. It lives in the test workspace; image resources reference it with a
+// workspace-qualified "block-storages/source-bs" reference.
+func newSourceBlockStorage() *bsdom.BlockStorage {
+	return &bsdom.BlockStorage{
+		RegionalMetadata: commondomain.RegionalMetadata{
+			CommonMetadata: commondomain.CommonMetadata{
+				Name: sourceBlockStorage,
+			},
+			Scope: resource.Scope{
+				Tenant:    testTenant,
+				Workspace: testWorkspace,
+			},
+		},
+		Spec: bsdom.BlockStorageSpec{
+			SizeGB: 1,
+			SkuRef: commondomain.Reference{
+				Region:   testRegion,
+				Resource: "sku-1",
+			},
+		},
+	}
+}
+
+func createSourceBlockStorage(ctx context.Context, repo persistence.Repo[*bsdom.BlockStorage]) error {
+	// Tolerate a leftover fixture from a previously interrupted run so the suite is
+	// not permanently wedged; waitForBlockStorageActive still ensures it is ready.
+	if _, err := repo.Create(ctx, newSourceBlockStorage()); err != nil && !errors.Is(err, kernel.ErrAlreadyExists) {
+		return err
+	}
+	return nil
+}
+
+func cleanupSourceBlockStorage(ctx context.Context, repo persistence.Repo[*bsdom.BlockStorage]) error {
+	return repo.Delete(ctx, newSourceBlockStorage())
+}
+
+// waitForBlockStorageActive polls until the named workspace-scoped block storage
+// reports an active state.
+func waitForBlockStorageActive(ctx context.Context, repo persistence.Repo[*bsdom.BlockStorage], name string) error {
+	return wait.PollUntilContextTimeout(ctx, pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
+		loaded := &bsdom.BlockStorage{
+			RegionalMetadata: commondomain.RegionalMetadata{
+				CommonMetadata: commondomain.CommonMetadata{
+					Name: name,
+				},
+				Scope: resource.Scope{
+					Tenant:    testTenant,
+					Workspace: testWorkspace,
+				},
+			},
+		}
+		if err := repo.Load(ctx, &loaded); err != nil {
+			return false, nil
+		}
+		return loaded.Status != nil && loaded.Status.State == commondomain.ResourceStateActive, nil
+	})
 }

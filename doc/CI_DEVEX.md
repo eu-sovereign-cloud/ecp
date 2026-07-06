@@ -235,15 +235,15 @@ Minimal distroless base (`gcr.io/distroless/static-debian13`) for production dep
 
 ### Image Build Targets
 
-| Target | Description |
-|--------|-------------|
-| `make tools-build` | Build tools image (pulls builder from registry) |
-| `make dev-build` | Build dev image |
-| `make images-build` | Build all 3 images from local sources |
-| `make builder-rebuild` | Force-rebuild builder image (no Docker cache) |
-| `make tools-rebuild` | Force-rebuild tools image (no Docker cache) |
-| `make images-rebuild` | Force-rebuild all 3 images |
-| `make images-clean` | Remove all 3 local images |
+| Target                 | Description                                     |
+|------------------------|-------------------------------------------------|
+| `make tools-build`     | Build tools image (pulls builder from registry) |
+| `make dev-build`       | Build dev image                                 |
+| `make images-build`    | Build all 3 images from local sources           |
+| `make builder-rebuild` | Force-rebuild builder image (no Docker cache)   |
+| `make tools-rebuild`   | Force-rebuild tools image (no Docker cache)     |
+| `make images-rebuild`  | Force-rebuild all 3 images                      |
+| `make images-clean`    | Remove all 3 local images                       |
 
 ## Makefile Architecture
 

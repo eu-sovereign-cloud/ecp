@@ -12,15 +12,6 @@ import (
 	skudom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/storage-sku"
 )
 
-// resourceFormat formats a resource path string.
-const resourceFormat = "%s/%s"
-
-// tenantScopedResourceFormat formats a tenant-scoped resource ref.
-const tenantScopedResourceFormat = "tenants/%s/providers/%s/%s"
-
-// workspaceScopedResourceFormat formats a workspace-scoped resource ref.
-const workspaceScopedResourceFormat = "tenants/%s/workspaces/%s/providers/%s/%s"
-
 // Handler is the HTTP handler for the storage API group.
 // Block-storage methods are in block_storage_handler.go, image methods are in
 // image_handler.go, and SKU methods are in storage_sku_handler.go.

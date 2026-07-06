@@ -157,7 +157,8 @@ func TestBlockStorage(t *testing.T) {
 		_, err = blockStorageRepo.Update(t.Context(), updatedBsDomain)
 		require.NoError(t, err)
 
-		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
+		// The resize operation simulates roughly twice the base delay, so allow the longer timeout.
+		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, dependencyTimeout, true, func(ctx context.Context) (bool, error) {
 			currentBs := &bsdom.BlockStorage{
 				RegionalMetadata: commondomain.RegionalMetadata{
 					CommonMetadata: commondomain.CommonMetadata{Name: resourceName},

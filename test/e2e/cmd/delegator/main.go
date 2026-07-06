@@ -22,13 +22,15 @@ import (
 	rak8s "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment/backend/kubernetes"
 	rolek8s "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role/backend/kubernetes"
 	netk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network/backend/kubernetes"
+	nick8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic/backend/kubernetes"
 	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage/backend/kubernetes"
+	imgk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image/backend/kubernetes"
 	ssk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/storage-sku/backend/kubernetes"
 	wsk8s "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1/backend/kubernetes"
 
-	aruba_converter "github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/converter"
-	aruba_handler "github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/handler"
-	aruba_repository "github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/repository"
+	arubaconverter "github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/converter"
+	arubahandler "github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/handler"
+	arubarepository "github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/repository"
 	dummyplugin "github.com/eu-sovereign-cloud/ecp/csp/dummy/pkg/plugin"
 )
 
@@ -37,7 +39,9 @@ var scheme = runtime.NewScheme()
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(bsk8s.AddToScheme(scheme))
+	utilruntime.Must(imgk8s.AddToScheme(scheme))
 	utilruntime.Must(netk8s.AddToScheme(scheme))
+	utilruntime.Must(nick8s.AddToScheme(scheme))
 	utilruntime.Must(wsk8s.AddToScheme(scheme))
 	utilruntime.Must(ssk8s.AddToScheme(scheme))
 	utilruntime.Must(rolek8s.AddToScheme(scheme))
@@ -128,16 +132,16 @@ func loadArubaControllers(ctx context.Context, dynClient dynamic.Interface, mgr 
 	secaSkuRepo := k8sadapter.NewReaderAdapter(dynClient, ssk8s.StorageSKUGVR, logger, ssk8s.StorageSKUFromCR)
 
 	// Instantiate aruba-specific repositories
-	wr := aruba_repository.NewProjectRepository(ctx, mgr.GetClient(), mgr.GetCache())
-	br := aruba_repository.NewBlockStorageRepository(ctx, mgr.GetClient(), mgr.GetCache())
+	wr := arubarepository.NewProjectRepository(ctx, mgr.GetClient(), mgr.GetCache())
+	br := arubarepository.NewBlockStorageRepository(ctx, mgr.GetClient(), mgr.GetCache())
 
 	// Instantiate aruba-specific converters
-	wc := aruba_converter.NewWorkspaceProjectConverter()
-	bc := aruba_converter.NewBlockStorageConverter()
+	wc := arubaconverter.NewWorkspaceProjectConverter()
+	bc := arubaconverter.NewBlockStorageConverter()
 
 	// Create aruba-specific handlers
-	wsPlugin := aruba_handler.NewWorkspaceHandler(wr, wc)
-	bsPlugin := aruba_handler.NewBlockStorageHandler(secaWsRepo, secaSkuRepo, br, wr, bc, wc)
+	wsPlugin := arubahandler.NewWorkspaceHandler(wr, wc)
+	bsPlugin := arubahandler.NewBlockStorageHandler(secaWsRepo, secaSkuRepo, br, wr, bc, wc)
 
 	controllerSet.Add(bsk8s.NewController(mgr.GetClient(), dynClient, bsPlugin, controllerOpts...))
 	controllerSet.Add(wsk8s.NewController(mgr.GetClient(), dynClient, wsPlugin, controllerOpts...))
@@ -149,14 +153,18 @@ func loadDummyControllers(logger *slog.Logger, dynClient dynamic.Interface, mgr 
 	logger.Info("Loading 'dummy' plugin set")
 
 	bsPlugin := dummyplugin.NewBlockStorage(logger.With("plugin", "blockstorage"))
+	imgPlugin := dummyplugin.NewImage(logger.With("plugin", "image"))
 	wsPlugin := dummyplugin.NewWorkspace(logger.With("plugin", "workspace"))
 	netPlugin := dummyplugin.NewNetwork(logger.With("plugin", "network"))
+	nicPlugin := dummyplugin.NewNic(logger.With("plugin", "nic"))
 	rolePlugin := dummyplugin.NewRole(logger.With("plugin", "role"))
 	raPlugin := dummyplugin.NewRoleAssignment(logger.With("plugin", "roleassignment"))
 
 	controllerSet.Add(bsk8s.NewController(mgr.GetClient(), dynClient, bsPlugin, controllerOpts...))
+	controllerSet.Add(imgk8s.NewController(mgr.GetClient(), dynClient, imgPlugin, controllerOpts...))
 	controllerSet.Add(wsk8s.NewController(mgr.GetClient(), dynClient, wsPlugin, controllerOpts...))
 	controllerSet.Add(netk8s.NewController(mgr.GetClient(), dynClient, netPlugin, controllerOpts...))
+	controllerSet.Add(nick8s.NewController(mgr.GetClient(), dynClient, nicPlugin, controllerOpts...))
 	controllerSet.Add(rolek8s.NewController(mgr.GetClient(), dynClient, rolePlugin, controllerOpts...))
 	controllerSet.Add(rak8s.NewController(mgr.GetClient(), dynClient, raPlugin, controllerOpts...))
 }

@@ -6,6 +6,7 @@ import (
 	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
+	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	skudom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/storage-sku"
 )
 
@@ -16,8 +17,8 @@ const (
 	StorageSKUResource = skudom.Resource
 )
 
-// StorageSKUToAPIWithVerb returns a func that converts a StorageSKU to its SDK representation with the given verb.
-func StorageSKUToAPIWithVerb(verb string) func(sku *skudom.StorageSKU) *sdkschema.StorageSku {
+// storageSKUToAPIWithVerb returns a func that converts a StorageSKU to its SDK representation with the given verb.
+func storageSKUToAPIWithVerb(verb string) func(sku *skudom.StorageSKU) *sdkschema.StorageSku {
 	return func(sku *skudom.StorageSKU) *sdkschema.StorageSku {
 		sdk := storageSKUToAPI(sku)
 		sdk.Metadata.Verb = verb
@@ -35,9 +36,9 @@ func storageSKUToAPI(sku *skudom.StorageSKU) *sdkschema.StorageSku {
 			Provider:   sku.Provider,
 			Region:     sku.Region,
 			Tenant:     sku.Tenant,
-			Resource:   fmt.Sprintf(resourceFormat, sdkschema.SkuResourceMetadataKindResourceKindStorageSku, sku.Name),
+			Resource:   fmt.Sprintf(commondomain.RegionalResourceFormat, sdkschema.SkuResourceMetadataKindResourceKindStorageSku, sku.Name),
 			Ref: fmt.Sprintf(
-				sku.Provider+"/"+tenantScopedResourceFormat,
+				sku.Provider+"/"+commondomain.RegionalTenantScopedResourceFormat,
 				sku.Tenant,
 				sdkschema.SkuResourceMetadataKindResourceKindStorageSku,
 				sku.Name,
@@ -51,8 +52,8 @@ func storageSKUToAPI(sku *skudom.StorageSKU) *sdkschema.StorageSku {
 	}
 }
 
-// StorageSKUIteratorToAPI converts a list of StorageSKU to an SDK SkuIterator.
-func StorageSKUIteratorToAPI(skus []*skudom.StorageSKU, nextSkipToken *string) *sdkstorage.SkuIterator {
+// storageSKUIteratorToAPI converts a list of StorageSKU to an SDK SkuIterator.
+func storageSKUIteratorToAPI(skus []*skudom.StorageSKU, nextSkipToken *string) *sdkstorage.SkuIterator {
 	items := make([]sdkschema.StorageSku, len(skus))
 	for i := range skus {
 		items[i] = *storageSKUToAPI(skus[i])

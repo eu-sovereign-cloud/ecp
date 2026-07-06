@@ -10,6 +10,7 @@ import (
 
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/validation"
+	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	rdom "github.com/eu-sovereign-cloud/ecp/resource/region/v1"
 )
 
@@ -18,13 +19,10 @@ const (
 	RegionResource = rdom.Resource
 	// RegionProviderName is the provider identifier used in response metadata.
 	RegionProviderName = "secapi.cloud/v1"
-	// regionRefBaseURL is the base URL prefix for region refs in the secapi.cloud API.
-	// Distinct from rdom.RegionBaseURL ("/providers/seca.region") which is the domain-layer identifier.
-	regionRefBaseURL = "/providers/secapi.cloud"
 )
 
-// ListParamsFromAPI converts SDK ListRegionsParams to resource.ListParams.
-func ListParamsFromAPI(params regionv1sdk.ListRegionsParams) resource.ListParams {
+// listParamsFromAPI converts SDK ListRegionsParams to resource.ListParams.
+func listParamsFromAPI(params regionv1sdk.ListRegionsParams) resource.ListParams {
 	limit := validation.GetLimit(params.Limit)
 
 	var skipToken string
@@ -44,8 +42,8 @@ func ListParamsFromAPI(params regionv1sdk.ListRegionsParams) resource.ListParams
 	}
 }
 
-// RegionIteratorToAPI converts a list of Region domain objects to an SDK RegionIterator.
-func RegionIteratorToAPI(rs []*rdom.Region, nextSkipToken *string) *regionv1sdk.RegionIterator {
+// regionIteratorToAPI converts a list of Region domain objects to an SDK RegionIterator.
+func regionIteratorToAPI(rs []*rdom.Region, nextSkipToken *string) *regionv1sdk.RegionIterator {
 	items := make([]sdkschema.Region, len(rs))
 	for i, r := range rs {
 		items[i] = regionToAPI(*r, "list")
@@ -67,8 +65,8 @@ func RegionIteratorToAPI(rs []*rdom.Region, nextSkipToken *string) *regionv1sdk.
 	return iterator
 }
 
-// RegionToAPI converts a Region domain object to a schema.Region for Get operations.
-func RegionToAPI(r *rdom.Region) sdkschema.Region {
+// regionToAPIForGet converts a Region domain object to a schema.Region for Get operations.
+func regionToAPIForGet(r *rdom.Region) sdkschema.Region {
 	return regionToAPI(*r, "get")
 }
 
@@ -100,8 +98,8 @@ func regionToAPI(r rdom.Region, verb string) sdkschema.Region {
 			Kind:            sdkschema.GlobalResourceMetadataKindResourceKindRegion,
 			Name:            r.Name,
 			Provider:        RegionProviderName,
-			Resource:        r.Name,
-			Ref:             fmt.Sprintf("%s/%s", regionRefBaseURL, r.Name),
+			Resource:        fmt.Sprintf(commondomain.ResourceFormat, sdkschema.GlobalResourceMetadataKindResourceKindRegion, r.Name),
+			Ref:             fmt.Sprintf(RegionProviderName+"/"+commondomain.ResourceFormat, sdkschema.GlobalResourceMetadataKindResourceKindRegion, r.Name),
 			ResourceVersion: resourceVersion,
 			Verb:            verb,
 		},

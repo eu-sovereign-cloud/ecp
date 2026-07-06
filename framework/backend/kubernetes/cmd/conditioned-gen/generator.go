@@ -388,8 +388,7 @@ func validateStatusStruct(namedStatus *types.Named, pkgPath string) error {
 }
 
 func findField(s *types.Struct, name string) *types.Var {
-	for i := 0; i < s.NumFields(); i++ {
-		f := s.Field(i)
+	for f := range s.Fields() {
 		if f.Name() == name {
 			return f
 		}

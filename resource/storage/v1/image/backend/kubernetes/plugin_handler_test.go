@@ -20,6 +20,7 @@ func TestImagePluginHandler_HandleReconcile(t *testing.T) {
 	var (
 		errPlugin = errors.New("plugin failed")
 		errRepo   = errors.New("repo failed")
+		errDeps   = errors.New("deps failed")
 	)
 
 	t.Run("should do nothing if resource is active and requires no changes", func(t *testing.T) {
@@ -39,13 +40,14 @@ func TestImagePluginHandler_HandleReconcile(t *testing.T) {
 		}
 
 		//
-		// And a repo and plugin that are not expected to be called
+		// And a repo, plugin and deps that are not expected to be called
 		mockRepo := NewMockRepo[*imgdom.Image](ctrl)
 		mockPlugin := NewMockImagePlugin(ctrl)
+		mockDeps := NewMockDependencyResolver(ctrl)
 
 		//
 		// And an image plugin handler
-		handler := NewImagePluginHandler(mockRepo, mockPlugin, 0)
+		handler := NewImagePluginHandler(mockRepo, mockPlugin, 0, mockDeps)
 
 		//
 		// When we reconcile the resource
@@ -57,7 +59,7 @@ func TestImagePluginHandler_HandleReconcile(t *testing.T) {
 		require.False(t, requeue)
 	})
 
-	t.Run("should set state to creating and requeue when resource is pending", func(t *testing.T) {
+	t.Run("should set state to creating and requeue when resource is pending and block storage is active", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
@@ -71,6 +73,12 @@ func TestImagePluginHandler_HandleReconcile(t *testing.T) {
 				},
 			},
 		}
+
+		//
+		// And a deps resolver reporting the block storage is active
+		mockDeps := NewMockDependencyResolver(ctrl)
+		mockDeps.EXPECT().State(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			Return(true, commondomain.ResourceStateActive, nil).Times(1)
 
 		//
 		// And a repo that is expected to be called once to update state
@@ -87,7 +95,7 @@ func TestImagePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// And an image plugin handler
-		handler := NewImagePluginHandler(mockRepo, mockPlugin, 0)
+		handler := NewImagePluginHandler(mockRepo, mockPlugin, 0, mockDeps)
 
 		//
 		// When we reconcile the resource
@@ -95,6 +103,101 @@ func TestImagePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// Then it should succeed and request a requeue
+		require.NoError(t, err)
+		require.True(t, requeue)
+	})
+
+	t.Run("should stay pending and requeue when block storage is not yet active", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		//
+		// Given a resource with pending state
+		resource := &imgdom.Image{
+			Status: &imgdom.ImageStatus{
+				Status: commondomain.Status{
+					State: commondomain.ResourceStatePending,
+				},
+			},
+		}
+
+		//
+		// And a deps resolver reporting the block storage exists but is still creating
+		mockDeps := NewMockDependencyResolver(ctrl)
+		mockDeps.EXPECT().State(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			Return(true, commondomain.ResourceStateCreating, nil).Times(1)
+
+		//
+		// And a repo that is expected to record a dependency-pending condition
+		mockRepo := NewMockRepo[*imgdom.Image](ctrl)
+		mockRepo.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).DoAndReturn(
+			func(_ context.Context, res *imgdom.Image) (*imgdom.Image, error) {
+				require.Equal(t, commondomain.ResourceStatePending, res.Status.State)
+				require.Equal(t, "DependencyPending", res.Status.Conditions[0].Type)
+				return nil, nil
+			}).Times(1)
+
+		//
+		// And a plugin that is not expected to be called
+		mockPlugin := NewMockImagePlugin(ctrl)
+
+		//
+		// And an image plugin handler
+		handler := NewImagePluginHandler(mockRepo, mockPlugin, 0, mockDeps)
+
+		//
+		// When we reconcile the resource
+		requeue, err := handler.HandleReconcile(context.Background(), resource)
+
+		//
+		// Then it should stay pending and request a requeue
+		require.NoError(t, err)
+		require.True(t, requeue)
+	})
+
+	t.Run("should set error state and requeue when dependency resolution fails", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		//
+		// Given a resource with pending state
+		resource := &imgdom.Image{
+			Status: &imgdom.ImageStatus{
+				Status: commondomain.Status{
+					State: commondomain.ResourceStatePending,
+				},
+			},
+		}
+
+		//
+		// And a deps resolver that fails to resolve the block storage
+		mockDeps := NewMockDependencyResolver(ctrl)
+		mockDeps.EXPECT().State(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			Return(false, commondomain.ResourceState(""), errDeps).Times(1)
+
+		//
+		// And a repo that is expected to record an error condition
+		mockRepo := NewMockRepo[*imgdom.Image](ctrl)
+		mockRepo.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).DoAndReturn(
+			func(_ context.Context, res *imgdom.Image) (*imgdom.Image, error) {
+				require.Equal(t, commondomain.ResourceStateError, res.Status.State)
+				return nil, nil
+			}).Times(1)
+
+		//
+		// And a plugin that is not expected to be called
+		mockPlugin := NewMockImagePlugin(ctrl)
+
+		//
+		// And an image plugin handler
+		handler := NewImagePluginHandler(mockRepo, mockPlugin, 0, mockDeps)
+
+		//
+		// When we reconcile the resource
+		requeue, err := handler.HandleReconcile(context.Background(), resource)
+
+		//
+		// Then it should handle the error gracefully and request a requeue
 		require.NoError(t, err)
 		require.True(t, requeue)
 	})
@@ -130,8 +233,12 @@ func TestImagePluginHandler_HandleReconcile(t *testing.T) {
 		mockPlugin.EXPECT().Create(gomock.Any(), resource).Return(nil).Times(1)
 
 		//
+		// And a deps resolver that is not expected to be called
+		mockDeps := NewMockDependencyResolver(ctrl)
+
+		//
 		// And an image plugin handler
-		handler := NewImagePluginHandler(mockRepo, mockPlugin, 0)
+		handler := NewImagePluginHandler(mockRepo, mockPlugin, 0, mockDeps)
 
 		//
 		// When we reconcile the resource
@@ -165,8 +272,9 @@ func TestImagePluginHandler_HandleReconcile(t *testing.T) {
 		}
 
 		//
-		// And a repo that is not expected to be called
+		// And a repo and deps that are not expected to be called
 		mockRepo := NewMockRepo[*imgdom.Image](ctrl)
+		mockDeps := NewMockDependencyResolver(ctrl)
 
 		//
 		// And a plugin that is expected to be called to delete the resource
@@ -175,7 +283,7 @@ func TestImagePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// And an image plugin handler
-		handler := NewImagePluginHandler(mockRepo, mockPlugin, 0)
+		handler := NewImagePluginHandler(mockRepo, mockPlugin, 0, mockDeps)
 
 		//
 		// When we reconcile the resource
@@ -216,12 +324,13 @@ func TestImagePluginHandler_HandleReconcile(t *testing.T) {
 			}).Times(1)
 
 		//
-		// And a plugin that is not expected to be called
+		// And a plugin and deps that are not expected to be called
 		mockPlugin := NewMockImagePlugin(ctrl)
+		mockDeps := NewMockDependencyResolver(ctrl)
 
 		//
 		// And an image plugin handler
-		handler := NewImagePluginHandler(mockRepo, mockPlugin, 0)
+		handler := NewImagePluginHandler(mockRepo, mockPlugin, 0, mockDeps)
 
 		//
 		// When we reconcile the resource
@@ -265,8 +374,12 @@ func TestImagePluginHandler_HandleReconcile(t *testing.T) {
 		mockPlugin.EXPECT().Create(gomock.Any(), resource).Return(errPlugin).Times(1)
 
 		//
+		// And a deps resolver that is not expected to be called
+		mockDeps := NewMockDependencyResolver(ctrl)
+
+		//
 		// And an image plugin handler
-		handler := NewImagePluginHandler(mockRepo, mockPlugin, 0)
+		handler := NewImagePluginHandler(mockRepo, mockPlugin, 0, mockDeps)
 		handler.MaxConditions = 1
 
 		//
@@ -305,8 +418,12 @@ func TestImagePluginHandler_HandleReconcile(t *testing.T) {
 		mockRepo.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).Return(nil, errRepo)
 
 		//
+		// And a deps resolver that is not expected to be called
+		mockDeps := NewMockDependencyResolver(ctrl)
+
+		//
 		// And an image plugin handler
-		handler := NewImagePluginHandler(mockRepo, mockPlugin, 0)
+		handler := NewImagePluginHandler(mockRepo, mockPlugin, 0, mockDeps)
 
 		//
 		// When we reconcile the resource
@@ -333,6 +450,12 @@ func TestImagePluginHandler_HandleReconcile(t *testing.T) {
 		}
 
 		//
+		// And a deps resolver reporting the block storage is active
+		mockDeps := NewMockDependencyResolver(ctrl)
+		mockDeps.EXPECT().State(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			Return(true, commondomain.ResourceStateActive, nil).Times(1)
+
+		//
 		// And a repo that returns an error on update
 		mockRepo := NewMockRepo[*imgdom.Image](ctrl)
 		mockRepo.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).Return(nil, errRepo).Times(1)
@@ -343,7 +466,7 @@ func TestImagePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// And an image plugin handler
-		handler := NewImagePluginHandler(mockRepo, mockPlugin, 0)
+		handler := NewImagePluginHandler(mockRepo, mockPlugin, 0, mockDeps)
 
 		//
 		// When we reconcile the resource
@@ -392,8 +515,12 @@ func TestImagePluginHandler_HandleReconcile(t *testing.T) {
 		mockPlugin.EXPECT().Delete(gomock.Any(), resource).Return(errPlugin).Times(1)
 
 		//
+		// And a deps resolver that is not expected to be called
+		mockDeps := NewMockDependencyResolver(ctrl)
+
+		//
 		// And an image plugin handler
-		handler := NewImagePluginHandler(mockRepo, mockPlugin, 0)
+		handler := NewImagePluginHandler(mockRepo, mockPlugin, 0, mockDeps)
 		handler.MaxConditions = 1
 
 		//
@@ -435,7 +562,7 @@ func TestImagePluginHandler_HandleReconcile(t *testing.T) {
 
 			//
 			// And an image plugin handler
-			handler := NewImagePluginHandler(NewMockRepo[*imgdom.Image](ctrl), mockPlugin, 0)
+			handler := NewImagePluginHandler(NewMockRepo[*imgdom.Image](ctrl), mockPlugin, 0, NewMockDependencyResolver(ctrl))
 
 			//
 			// When we reconcile the resource
