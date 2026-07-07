@@ -101,6 +101,12 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Failed to create dynamic client: %v", err)
 	}
 
+	// Initialise the logger before it is captured by the repo adapters below.
+	// The adapters store the value passed at construction time, so a nil logger
+	// here makes any adapter error path (e.g. a failed Create) panic instead of
+	// reporting the error.
+	testLogger = slog.New(slog.NewTextHandler(os.Stdout, nil))
+
 	// SECA repos setup
 	workspaceRepo = k8sadapter.NewNamespaceManagingRepoAdapter(
 		dynamicClient,
@@ -146,8 +152,6 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("Failed to create storage SDK client: %v", err)
 	}
-
-	testLogger = slog.New(slog.NewTextHandler(os.Stdout, nil))
 
 	// Provide Workspace for BlockStorage tests
 	if err := createTestWorkspace(context.Background(), workspaceRepo); err != nil {
