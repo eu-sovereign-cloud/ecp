@@ -105,27 +105,27 @@ If you have a running cluster with the components deployed, you can run the test
 ### Gateway test suites
 
 Alongside the `delegator` suite, there are two gateway suites, each targeting a
-single gateway. Every suite is independent and only needs the components it talks
-to deployed:
+single gateway. Each `[kind-]deploy-<component>` target also deploys everything that
+component's suite needs, so it is a complete setup for the matching test target:
 
-| Suite | Command | Requires deployed |
-|-------|---------|-------------------|
-| `delegator` | `make kind-test-delegator` | `delegator` |
-| `gateway-regional` | `make kind-test-gateway-regional` | `delegator`, `gateway-regional`, `test-data` |
-| `gateway-global` | `make kind-test-gateway-global` | `gateway-global`, `test-data` |
+| Suite | Deploy + test | Also deploys |
+|-------|---------------|--------------|
+| `delegator` | `make kind-deploy-delegator && make kind-test-delegator` | `test-data` |
+| `gateway-regional` | `make kind-deploy-gateway-regional && make kind-test-gateway-regional` | `delegator`, `test-data` |
+| `gateway-global` | `make kind-deploy-gateway-global && make kind-test-gateway-global` | `test-data` |
+
+`test-data` provides the tenant namespace (where workspace and role CRs are created),
+the storage SKUs, and the regions. The `delegator` reconciles CRs to `Active` with
+its dummy plugin.
 
 The `gateway-regional` suite exercises only the regional gateway (storage, block
-storage, image, workspace). Region listing/lookup is a global concern covered by
-the `gateway-global` suite, so **the regional suite does not require the global
-gateway** — deploy just `delegator`, `gateway-regional`, and `test-data` to run it:
+storage, image, workspace). Region listing/lookup is a global concern covered by the
+`gateway-global` suite, so **the regional suite does not require the global gateway**
+— `kind-deploy-gateway-regional` brings up `delegator`, `test-data`, and
+`gateway-regional`, but not `gateway-global`.
 
-```shell
-make kind-deploy-delegator kind-deploy-gateway-regional kind-deploy-test-data
-make kind-test-gateway-regional
-```
-
-`kind-deploy-all` deploys every component, which is convenient when running more
-than one suite.
+`kind-deploy-all` deploys every component, which is convenient when running more than
+one suite.
 
 ### Cleaning Up
 
