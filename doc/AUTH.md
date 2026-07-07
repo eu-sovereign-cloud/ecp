@@ -26,7 +26,7 @@ HTTP request
 ┌─────────────────────────────────────────────┐
 │  Authorization middleware                   │
 │  builds AuthorizationClaim from request     │
-│  merges Subject + token down-scope in claim │
+│  merges Subject + TokenScope into claim     │
 │  calls Checker.Authorize(ctx, claim)        │
 └─────────┬───────────────────────────────────┘
           │ DecisionAllowed → next handler
@@ -86,6 +86,10 @@ permissions granted by RBAC — it never grants anything:
 
 Down-scoping is useful for issuing narrow tokens (e.g. a CI job limited to one
 region) whose blast radius is smaller than the subject's full entitlements.
+
+In code the `scope` object unmarshals into the shared `resource.TokenScope` type
+(one definition reused by both the authn and authz ports): it is carried as
+`Identity.TokenScope` and copied verbatim into `AuthorizationClaim.TokenScope`.
 
 > ⚠️ **Security caveat**: The Dummy authenticator performs no signature
 > verification. Any caller who knows a valid username+password can impersonate
@@ -148,7 +152,7 @@ all `Role` and `RoleAssignment` resources in the claim's tenant namespace.
 
 ```
 authorized =
-    downScopeCovers(claim.DownScope, claim.Tenant, claim.Region, claim.Workspace)
+    tokenScopeCovers(claim.TokenScope, claim.Tenant, claim.Region, claim.Workspace)
   ∧ ∃ ra ∈ RoleAssignments:
         scopeCovers(ra.Spec.Scopes, claim.Tenant, claim.Region, claim.Workspace)
       ∧ subsGrant(ra.Spec.Subs, claim.Subject)
@@ -161,7 +165,7 @@ authorized =
 ```
 
 Roles are taken solely from the matched `RoleAssignment`; the token never carries
-roles. `claim.DownScope` is the optional token cap applied first — a non-empty
+roles. `claim.TokenScope` is the optional token cap applied first — a non-empty
 dimension must cover the request, or the whole claim is denied.
 
 ### Subject matching

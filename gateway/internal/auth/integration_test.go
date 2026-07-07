@@ -16,6 +16,7 @@ import (
 	kernel "github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	authnport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/authn"
 	authzport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/authz"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	gatewayauthn "github.com/eu-sovereign-cloud/ecp/gateway/internal/authn"
 	seca "github.com/eu-sovereign-cloud/ecp/gateway/internal/authz/seca"
 	roledom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role"
@@ -65,20 +66,14 @@ func discardLog() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }
 
-// scopeJSON is the optional down-scoping section of a Dummy bearer token.
-type scopeJSON struct {
-	Tenants    []string `json:"tenants,omitempty"`
-	Regions    []string `json:"regions,omitempty"`
-	Workspaces []string `json:"workspaces,omitempty"`
-}
-
 // bearerToken encodes a Dummy-auth bearer token from the given credentials and an
-// optional down-scope. Roles are never carried by the token.
-func bearerToken(username, password string, scope *scopeJSON) string {
+// optional token scope (down-scope cap). The wire scope reuses [resource.TokenScope] and
+// its json tags. Roles are never carried by the token.
+func bearerToken(username, password string, scope *resource.TokenScope) string {
 	type payload struct {
-		Username string     `json:"username"`
-		Password string     `json:"password"`
-		Scope    *scopeJSON `json:"scope,omitempty"`
+		Username string               `json:"username"`
+		Password string               `json:"password"`
+		Scope    *resource.TokenScope `json:"scope,omitempty"`
 	}
 	b, err := json.Marshal(payload{Username: username, Password: password, Scope: scope})
 	if err != nil {
@@ -243,7 +238,7 @@ func TestIntegration_DownScopeFromToken(t *testing.T) {
 	authzMW := middleware.NewAuthorization(capturing, fixedExtractor, log)
 	h := authnMW(authzMW(okHandler))
 
-	scope := &scopeJSON{Tenants: []string{"t1"}, Regions: []string{"r1"}}
+	scope := &resource.TokenScope{Tenants: []string{"t1"}, Regions: []string{"r1"}}
 	req := httptest.NewRequest(http.MethodGet, "/instances", nil)
 	req.Header.Set("Authorization", "Bearer "+bearerToken("bob", "p@ss", scope))
 	w := httptest.NewRecorder()
@@ -255,11 +250,11 @@ func TestIntegration_DownScopeFromToken(t *testing.T) {
 	if capturedClaim.Subject != "bob" {
 		t.Errorf("claim.Subject = %q, want %q — subject must be propagated from the bearer token", capturedClaim.Subject, "bob")
 	}
-	if len(capturedClaim.DownScope.Tenants) != 1 || capturedClaim.DownScope.Tenants[0] != "t1" {
-		t.Errorf("claim.DownScope.Tenants = %v, want [t1]", capturedClaim.DownScope.Tenants)
+	if len(capturedClaim.TokenScope.Tenants) != 1 || capturedClaim.TokenScope.Tenants[0] != "t1" {
+		t.Errorf("claim.TokenScope.Tenants = %v, want [t1]", capturedClaim.TokenScope.Tenants)
 	}
-	if len(capturedClaim.DownScope.Regions) != 1 || capturedClaim.DownScope.Regions[0] != "r1" {
-		t.Errorf("claim.DownScope.Regions = %v, want [r1]", capturedClaim.DownScope.Regions)
+	if len(capturedClaim.TokenScope.Regions) != 1 || capturedClaim.TokenScope.Regions[0] != "r1" {
+		t.Errorf("claim.TokenScope.Regions = %v, want [r1]", capturedClaim.TokenScope.Regions)
 	}
 }
 
@@ -295,12 +290,12 @@ func TestIntegration_DownScope_ReducesAccess(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		scope      *scopeJSON
+		scope      *resource.TokenScope
 		wantStatus int
 	}{
 		{name: "no down-scope → admin allowed", scope: nil, wantStatus: http.StatusOK},
-		{name: "down-scope to request tenant → allowed", scope: &scopeJSON{Tenants: []string{"t1"}}, wantStatus: http.StatusOK},
-		{name: "down-scope to other tenant → denied", scope: &scopeJSON{Tenants: []string{"other"}}, wantStatus: http.StatusForbidden},
+		{name: "down-scope to request tenant → allowed", scope: &resource.TokenScope{Tenants: []string{"t1"}}, wantStatus: http.StatusOK},
+		{name: "down-scope to other tenant → denied", scope: &resource.TokenScope{Tenants: []string{"other"}}, wantStatus: http.StatusForbidden},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

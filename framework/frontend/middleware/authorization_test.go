@@ -13,6 +13,7 @@ import (
 	kernel "github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	authnport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/authn"
 	authzport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/authz"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 )
 
 // fakeChecker is a simple in-test Checker.
@@ -108,13 +109,13 @@ func TestNewAuthorization(t *testing.T) {
 	}
 }
 
-func TestNewAuthorization_DownScopeFromIdentity(t *testing.T) {
+func TestNewAuthorization_TokenScopeFromIdentity(t *testing.T) {
 	t.Parallel()
-	// Verify that the authorization middleware copies the identity's Subject and down-scope
+	// Verify that the authorization middleware copies the identity's Subject and token scope
 	// into the claim (and that roles are never sourced from the identity).
 	alice := &authnport.Identity{
 		Subject: "alice",
-		Scope: authnport.Scope{
+		TokenScope: resource.TokenScope{
 			Tenants:    []string{"t1"},
 			Regions:    []string{"r1"},
 			Workspaces: []string{"w1"},
@@ -133,13 +134,13 @@ func TestNewAuthorization_DownScopeFromIdentity(t *testing.T) {
 	r = r.WithContext(contextWithIdentity(r.Context(), alice))
 	mw(okHandler).ServeHTTP(w, r)
 
-	want := authzport.DownScope{
+	want := resource.TokenScope{
 		Tenants:    []string{"t1"},
 		Regions:    []string{"r1"},
 		Workspaces: []string{"w1"},
 	}
-	if !reflect.DeepEqual(gotClaim.DownScope, want) {
-		t.Errorf("down-scope = %+v, want %+v", gotClaim.DownScope, want)
+	if !reflect.DeepEqual(gotClaim.TokenScope, want) {
+		t.Errorf("token scope = %+v, want %+v", gotClaim.TokenScope, want)
 	}
 	if gotClaim.Subject != "alice" {
 		t.Errorf("subject = %q, want %q", gotClaim.Subject, "alice")

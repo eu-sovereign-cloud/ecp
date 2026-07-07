@@ -263,37 +263,37 @@ func TestEvaluate(t *testing.T) {
 		// ── Token down-scoping (caps that only narrow) ────────────────────────
 		{
 			name:        "down-scope tenant covers request",
-			claim:       with(baseClaim, func(c *authzport.AuthorizationClaim) { c.DownScope.Tenants = []string{"t1"} }),
+			claim:       with(baseClaim, func(c *authzport.AuthorizationClaim) { c.TokenScope.Tenants = []string{"t1"} }),
 			assignments: []*radom.RoleAssignment{assign([]string{"viewer"}, allScope)},
 			want:        true,
 		},
 		{
 			name:        "down-scope tenant excludes request → denied",
-			claim:       with(baseClaim, func(c *authzport.AuthorizationClaim) { c.DownScope.Tenants = []string{"t2"} }),
+			claim:       with(baseClaim, func(c *authzport.AuthorizationClaim) { c.TokenScope.Tenants = []string{"t2"} }),
 			assignments: []*radom.RoleAssignment{assign([]string{"viewer"}, allScope)},
 			want:        false,
 		},
 		{
 			name:        "down-scope region covers request",
-			claim:       with(baseClaim, func(c *authzport.AuthorizationClaim) { c.DownScope.Regions = []string{"r1"} }),
+			claim:       with(baseClaim, func(c *authzport.AuthorizationClaim) { c.TokenScope.Regions = []string{"r1"} }),
 			assignments: []*radom.RoleAssignment{assign([]string{"viewer"}, allScope)},
 			want:        true,
 		},
 		{
 			name:        "down-scope region excludes request → denied",
-			claim:       with(baseClaim, func(c *authzport.AuthorizationClaim) { c.DownScope.Regions = []string{"r2"} }),
+			claim:       with(baseClaim, func(c *authzport.AuthorizationClaim) { c.TokenScope.Regions = []string{"r2"} }),
 			assignments: []*radom.RoleAssignment{assign([]string{"viewer"}, allScope)},
 			want:        false,
 		},
 		{
 			name:        "down-scope workspace covers request",
-			claim:       with(baseClaim, func(c *authzport.AuthorizationClaim) { c.DownScope.Workspaces = []string{"w1"} }),
+			claim:       with(baseClaim, func(c *authzport.AuthorizationClaim) { c.TokenScope.Workspaces = []string{"w1"} }),
 			assignments: []*radom.RoleAssignment{assign([]string{"viewer"}, allScope)},
 			want:        true,
 		},
 		{
 			name:        "down-scope workspace excludes request → denied",
-			claim:       with(baseClaim, func(c *authzport.AuthorizationClaim) { c.DownScope.Workspaces = []string{"w2"} }),
+			claim:       with(baseClaim, func(c *authzport.AuthorizationClaim) { c.TokenScope.Workspaces = []string{"w2"} }),
 			assignments: []*radom.RoleAssignment{assign([]string{"viewer"}, allScope)},
 			want:        false,
 		},
@@ -301,7 +301,7 @@ func TestEvaluate(t *testing.T) {
 			name: "down-scope region skipped when request region empty",
 			claim: with(baseClaim, func(c *authzport.AuthorizationClaim) {
 				c.Region = ""
-				c.DownScope.Regions = []string{"r1"}
+				c.TokenScope.Regions = []string{"r1"}
 			}),
 			assignments: []*radom.RoleAssignment{assign([]string{"viewer"}, allScope)},
 			want:        true, // empty request region ⇒ cap not applicable
@@ -310,7 +310,7 @@ func TestEvaluate(t *testing.T) {
 			name: "down-scope denies even when RBAC would allow",
 			claim: with(baseClaim, func(c *authzport.AuthorizationClaim) {
 				c.Subject = "alice"
-				c.DownScope.Tenants = []string{"other"}
+				c.TokenScope.Tenants = []string{"other"}
 			}),
 			assignments: []*radom.RoleAssignment{
 				assignSubs([]string{"alice"}, []string{"admin"}, allScope),
@@ -410,7 +410,7 @@ func TestSliceCovers(t *testing.T) {
 	}
 }
 
-func TestDownScopeCovers(t *testing.T) {
+func TestTokenScopeCovers(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		list  []string
@@ -425,9 +425,9 @@ func TestDownScopeCovers(t *testing.T) {
 		{[]string{"t1", "t2"}, "t2", true},
 	}
 	for _, tc := range tests {
-		got := downScopeCovers(tc.list, tc.value)
+		got := tokenScopeCovers(tc.list, tc.value)
 		if got != tc.want {
-			t.Errorf("downScopeCovers(%v, %q) = %v, want %v", tc.list, tc.value, got, tc.want)
+			t.Errorf("tokenScopeCovers(%v, %q) = %v, want %v", tc.list, tc.value, got, tc.want)
 		}
 	}
 }

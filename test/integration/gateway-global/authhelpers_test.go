@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
+
+	resource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 )
 
 // defaultAuthUser is the username used by the default SDK clients.
@@ -24,22 +26,15 @@ func authEnabled() bool {
 	return os.Getenv("E2E_AUTH_ENABLED") != "false"
 }
 
-// scopeJSON is the optional down-scoping section of a Dummy bearer token. Each dimension is
-// a list of permitted values; an empty or absent list leaves that dimension unconstrained.
-type scopeJSON struct {
-	Tenants    []string `json:"tenants,omitempty"`
-	Regions    []string `json:"regions,omitempty"`
-	Workspaces []string `json:"workspaces,omitempty"`
-}
-
 // makeBearerToken encodes a Dummy authenticator bearer token.
-// The token is base64(JSON{"username":…,"password":…,"scope":…}). Roles are never carried
-// by the token — they are resolved from RoleAssignments in the caller's tenant namespace.
-func makeBearerToken(username, password string, scope *scopeJSON) string {
+// The token is base64(JSON{"username":…,"password":…,"scope":…}); the optional scope reuses
+// [resource.TokenScope] and its json tags. Roles are never carried by the token — they are
+// resolved from RoleAssignments in the caller's tenant namespace.
+func makeBearerToken(username, password string, scope *resource.TokenScope) string {
 	type payload struct {
-		Username string     `json:"username"`
-		Password string     `json:"password"`
-		Scope    *scopeJSON `json:"scope,omitempty"`
+		Username string               `json:"username"`
+		Password string               `json:"password"`
+		Scope    *resource.TokenScope `json:"scope,omitempty"`
 	}
 	b, err := json.Marshal(payload{Username: username, Password: password, Scope: scope})
 	if err != nil {
@@ -73,6 +68,6 @@ func identityEditor(username, password string) func(ctx context.Context, req *ht
 
 // scopedEditor is like identityEditor but attaches a token down-scope: tenant/region/workspace
 // caps that can only narrow the caller's permissions, never grant new ones.
-func scopedEditor(username, password string, scope *scopeJSON) func(ctx context.Context, req *http.Request) error {
+func scopedEditor(username, password string, scope *resource.TokenScope) func(ctx context.Context, req *http.Request) error {
 	return bearerEditor(makeBearerToken(username, password, scope))
 }

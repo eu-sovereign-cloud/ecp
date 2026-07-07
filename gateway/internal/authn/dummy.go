@@ -9,6 +9,7 @@ import (
 
 	kernel "github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	authnport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/authn"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 )
 
 // tokenPayload is the expected JSON structure of a Dummy bearer token.
@@ -16,21 +17,14 @@ import (
 // since the SDK client encodes it verbatim).
 //
 // Only username and password are mandatory. An optional "scope" object down-scopes the
-// caller's permissions. Roles are NOT read from the token: they are resolved entirely from
-// the RoleAssignment/Role resources in the caller's tenant namespace. Any other field
-// (including a client-supplied verification endpoint) is ignored.
+// caller's permissions and unmarshals directly into [resource.TokenScope]. Roles are NOT
+// read from the token: they are resolved entirely from the RoleAssignment/Role resources in
+// the caller's tenant namespace. Any other field (including a client-supplied verification
+// endpoint) is ignored.
 type tokenPayload struct {
-	Username string        `json:"username"`
-	Password string        `json:"password"`
-	Scope    *scopePayload `json:"scope,omitempty"`
-}
-
-// scopePayload is the optional down-scoping section of a Dummy bearer token. Each dimension
-// is a list of permitted values; an empty or absent list leaves that dimension unconstrained.
-type scopePayload struct {
-	Tenants    []string `json:"tenants,omitempty"`
-	Regions    []string `json:"regions,omitempty"`
-	Workspaces []string `json:"workspaces,omitempty"`
+	Username string               `json:"username"`
+	Password string               `json:"password"`
+	Scope    *resource.TokenScope `json:"scope,omitempty"`
 }
 
 // DummyAuthenticator validates bearer tokens using a static user→password map.
@@ -80,17 +74,13 @@ func (d *DummyAuthenticator) Authenticate(_ context.Context, token string) (*aut
 		return nil, fmt.Errorf("%w: invalid credentials", kernel.ErrUnauthorized)
 	}
 
-	var scope authnport.Scope
+	var scope resource.TokenScope
 	if payload.Scope != nil {
-		scope = authnport.Scope{
-			Tenants:    payload.Scope.Tenants,
-			Regions:    payload.Scope.Regions,
-			Workspaces: payload.Scope.Workspaces,
-		}
+		scope = *payload.Scope
 	}
 
 	return &authnport.Identity{
-		Subject: payload.Username,
-		Scope:   scope,
+		Subject:    payload.Username,
+		TokenScope: scope,
 	}, nil
 }

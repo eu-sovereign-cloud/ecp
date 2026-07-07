@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"testing"
 
+	resource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	storagev1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	workspacev1sdk "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1"
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
@@ -46,7 +47,7 @@ func TestRegionalAuthz(t *testing.T) {
 		// bob's RBAC (ra-bob-scoped) allows storage in itbg-bergamo, which is the region
 		// this gateway serves. A token down-scoped to a different region must not authorize
 		// the request even though RBAC would; a token scoped to itbg-bergamo still works.
-		denied := scopedEditor("bob", "bob-pass", &scopeJSON{Regions: []string{"other-region"}})
+		denied := scopedEditor("bob", "bob-pass", &resource.TokenScope{Regions: []string{"other-region"}})
 		client, err := storagev1.NewClientWithResponses(regionalBaseURL+"/providers/seca.storage", storagev1.WithRequestEditorFn(denied))
 		if err != nil {
 			t.Fatalf("create storage client: %v", err)
@@ -59,7 +60,7 @@ func TestRegionalAuthz(t *testing.T) {
 			t.Errorf("bob down-scoped to other-region: want 403, got %d", resp.StatusCode())
 		}
 
-		allowed := scopedEditor("bob", "bob-pass", &scopeJSON{Regions: []string{"itbg-bergamo"}})
+		allowed := scopedEditor("bob", "bob-pass", &resource.TokenScope{Regions: []string{"itbg-bergamo"}})
 		client2, err := storagev1.NewClientWithResponses(regionalBaseURL+"/providers/seca.storage", storagev1.WithRequestEditorFn(allowed))
 		if err != nil {
 			t.Fatalf("create storage client: %v", err)

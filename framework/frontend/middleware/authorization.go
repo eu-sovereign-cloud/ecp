@@ -20,7 +20,7 @@ import (
 // The middleware:
 //  1. Retrieves the [authnport.Identity] injected by [NewAuthentication].
 //  2. Builds an [authzport.AuthorizationClaim] by calling extract(r) and merging
-//     the identity's Subject and down-scope into the claim. A claim-extraction error
+//     the identity's Subject and TokenScope into the claim. A claim-extraction error
 //     is treated as a technical fault and yields HTTP 500.
 //  3. Calls checker.Authorize and branches on the returned [authzport.Decision]:
 //     [authzport.DecisionAllowed] → calls next handler (HTTP 2xx).
@@ -30,10 +30,10 @@ import (
 //     yields HTTP 500 so the middleware fails closed.
 //
 // NewAuthorization MUST be used after NewAuthentication in the middleware chain
-// so that the Identity is already present in the context. The middleware merges
-// the identity's Subject and Scope (as the claim's down-scope) into the claim before
-// invoking the checker. Roles are not taken from the identity — they are resolved by
-// the checker from the RBAC store.
+// so that the Identity is already present in the context. The middleware copies
+// the identity's Subject and TokenScope (the token down-scoping cap) into the claim
+// before invoking the checker. Roles are not taken from the identity — they are resolved
+// by the checker from the RBAC store.
 func NewAuthorization(
 	checker authzport.Checker,
 	extract authzport.ClaimExtractor,
@@ -58,11 +58,7 @@ func NewAuthorization(
 				return
 			}
 			claim.Subject = identity.Subject
-			claim.DownScope = authzport.DownScope{
-				Tenants:    identity.Scope.Tenants,
-				Regions:    identity.Scope.Regions,
-				Workspaces: identity.Scope.Workspaces,
-			}
+			claim.TokenScope = identity.TokenScope
 
 			decision, decErr := checker.Authorize(r.Context(), claim)
 			switch decision {

@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	kernel "github.com/eu-sovereign-cloud/ecp/framework/kernel"
-	authnport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/authn"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 )
 
 func TestDummyAuthenticator(t *testing.T) {
@@ -20,7 +20,7 @@ func TestDummyAuthenticator(t *testing.T) {
 	a := NewDummyAuthenticator(users)
 
 	// Helper to build a valid token from a payload.
-	makeToken := func(username, password string, scope *scopePayload) string {
+	makeToken := func(username, password string, scope *resource.TokenScope) string {
 		p, err := json.Marshal(tokenPayload{Username: username, Password: password, Scope: scope})
 		if err != nil {
 			t.Fatalf("marshal token payload: %v", err)
@@ -32,7 +32,7 @@ func TestDummyAuthenticator(t *testing.T) {
 		name        string
 		token       string
 		wantSubject string
-		wantScope   authnport.Scope
+		wantScope   resource.TokenScope
 		wantErr     bool
 	}{
 		{
@@ -42,13 +42,13 @@ func TestDummyAuthenticator(t *testing.T) {
 		},
 		{
 			name: "valid credentials with down-scope",
-			token: makeToken("bob", "p@ssw0rd", &scopePayload{
+			token: makeToken("bob", "p@ssw0rd", &resource.TokenScope{
 				Tenants:    []string{"t1"},
 				Regions:    []string{"r1"},
 				Workspaces: []string{"w1"},
 			}),
 			wantSubject: "bob",
-			wantScope: authnport.Scope{
+			wantScope: resource.TokenScope{
 				Tenants:    []string{"t1"},
 				Regions:    []string{"r1"},
 				Workspaces: []string{"w1"},
@@ -108,8 +108,8 @@ func TestDummyAuthenticator(t *testing.T) {
 			if id.Subject != tc.wantSubject {
 				t.Errorf("subject = %q, want %q", id.Subject, tc.wantSubject)
 			}
-			if !reflect.DeepEqual(id.Scope, tc.wantScope) {
-				t.Errorf("scope = %+v, want %+v", id.Scope, tc.wantScope)
+			if !reflect.DeepEqual(id.TokenScope, tc.wantScope) {
+				t.Errorf("token scope = %+v, want %+v", id.TokenScope, tc.wantScope)
 			}
 		})
 	}

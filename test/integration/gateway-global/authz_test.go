@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"testing"
 
+	resource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	authv1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.authorization.v1"
 	regionv1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
@@ -105,7 +106,7 @@ func TestAuthz(t *testing.T) {
 	t.Run("admin down-scoped to other-tenant is denied in test-tenant (tenant cap)", func(t *testing.T) {
 		// admin (ra-admin) has all-access, but a token down-scoped to other-tenant must not
 		// authorize operations in test-tenant; a token scoped to test-tenant still works.
-		denied := scopedEditor(defaultAuthUser, defaultAuthPassword, &scopeJSON{Tenants: []string{"other-tenant"}})
+		denied := scopedEditor(defaultAuthUser, defaultAuthPassword, &resource.TokenScope{Tenants: []string{"other-tenant"}})
 		client, err := authv1.NewClientWithResponses(baseURL+"/providers/seca.authorization", authv1.WithRequestEditorFn(denied))
 		if err != nil {
 			t.Fatalf("create client: %v", err)
@@ -118,7 +119,7 @@ func TestAuthz(t *testing.T) {
 			t.Errorf("admin down-scoped to other-tenant: want 403 in test-tenant, got %d", resp.StatusCode())
 		}
 
-		allowed := scopedEditor(defaultAuthUser, defaultAuthPassword, &scopeJSON{Tenants: []string{testTenant}})
+		allowed := scopedEditor(defaultAuthUser, defaultAuthPassword, &resource.TokenScope{Tenants: []string{testTenant}})
 		client2, err := authv1.NewClientWithResponses(baseURL+"/providers/seca.authorization", authv1.WithRequestEditorFn(allowed))
 		if err != nil {
 			t.Fatalf("create client: %v", err)

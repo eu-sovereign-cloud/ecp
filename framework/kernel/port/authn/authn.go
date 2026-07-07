@@ -4,7 +4,11 @@
 // and are injected via constructor arguments so the framework layer stays resource-agnostic.
 package authn
 
-import "context"
+import (
+	"context"
+
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
+)
 
 // Identity carries the authenticated subject and any optional down-scoping the caller
 // asserts in the bearer token.
@@ -16,22 +20,11 @@ type Identity struct {
 	// Subject is the authenticated principal (e.g. a username or JWT sub claim).
 	// The authorization layer matches it against RoleAssignment.Subs.
 	Subject string
-	// Scope is an optional down-scoping cap asserted by the token. When a dimension is
+	// TokenScope is an optional down-scoping cap asserted by the token. When a dimension is
 	// non-empty, the request's corresponding tenant/region/workspace must be listed or the
-	// request is denied. An empty Scope imposes no restriction. Down-scoping can only narrow
-	// the permissions granted by RBAC; it never grants anything.
-	Scope Scope
-}
-
-// Scope is an optional down-scoping cap carried by a bearer token. Each dimension is a list
-// of permitted values; an empty (nil) list leaves that dimension unconstrained.
-type Scope struct {
-	// Tenants restricts the token to the listed tenants; empty means any tenant.
-	Tenants []string
-	// Regions restricts the token to the listed regions; empty means any region.
-	Regions []string
-	// Workspaces restricts the token to the listed workspaces; empty means any workspace.
-	Workspaces []string
+	// request is denied. An empty TokenScope imposes no restriction. Down-scoping can only
+	// narrow the permissions granted by RBAC; it never grants anything.
+	TokenScope resource.TokenScope
 }
 
 // Authenticator validates a raw bearer token and returns the caller's Identity.

@@ -26,7 +26,7 @@ import (
 // Authorization algorithm:
 //
 //	authorized =
-//	    downScopeCovers(claim.DownScope, tenant, region, workspace)
+//	    tokenScopeCovers(claim.TokenScope, tenant, region, workspace)
 //	  ∧ ∃ ra ∈ assignments:
 //	        scopeCovers(ra.Scopes, tenant, region, workspace)
 //	      ∧ subsGrant(ra.Subs, claim.Subject)
@@ -42,16 +42,16 @@ import (
 // RoleAssignment.Subs restrict the grant to named subjects; "*" covers all subjects.
 // An empty Subs grants nobody (fail-closed; unlike scope slices, empty ≠ wildcard).
 //
-// claim.DownScope is an optional token cap applied first: a non-empty dimension must cover
+// claim.TokenScope is an optional token cap applied first: a non-empty dimension must cover
 // the request or the whole claim is denied. It can only narrow access, never grant it.
 func Evaluate(
 	claim authzport.AuthorizationClaim,
 	rolesByName map[string]*roledom.Role,
 	assignments []*radom.RoleAssignment,
 ) bool {
-	if !downScopeCovers(claim.DownScope.Tenants, claim.Tenant) ||
-		!downScopeCovers(claim.DownScope.Regions, claim.Region) ||
-		!downScopeCovers(claim.DownScope.Workspaces, claim.Workspace) {
+	if !tokenScopeCovers(claim.TokenScope.Tenants, claim.Tenant) ||
+		!tokenScopeCovers(claim.TokenScope.Regions, claim.Region) ||
+		!tokenScopeCovers(claim.TokenScope.Workspaces, claim.Workspace) {
 		return false
 	}
 
@@ -79,7 +79,7 @@ func Evaluate(
 	return false
 }
 
-// downScopeCovers reports whether an optional token down-scope cap permits the request's
+// tokenScopeCovers reports whether an optional token-scope cap permits the request's
 // value for one dimension (tenant, region, or workspace).
 //
 // A cap denies only when it is non-empty AND the request's value is present but not listed.
@@ -87,7 +87,7 @@ func Evaluate(
 // apply to this request (e.g. region on the global server, or workspace on a tenant-level
 // resource), so the cap is skipped — an empty dimension only occurs on paths that carry no
 // tenant, so this cannot be used to bypass a tenant cap on hierarchical resources.
-func downScopeCovers(list []string, value string) bool {
+func tokenScopeCovers(list []string, value string) bool {
 	if len(list) == 0 || value == "" {
 		return true
 	}
