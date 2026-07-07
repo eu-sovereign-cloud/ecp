@@ -29,7 +29,6 @@ import (
 	"k8s.io/client-go/transport/spdy"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	regionv1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
 	storagev1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	workspacev1sdk "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1"
 
@@ -68,7 +67,6 @@ var (
 	clientset        *kubernetes.Clientset
 	dynamicClient    dynamic.Interface
 	testLogger       *slog.Logger
-	regionClient     *regionv1.ClientWithResponses
 	storageClient    *storagev1.ClientWithResponses
 	workspaceClient  *workspacev1sdk.ClientWithResponses
 	workspaceRepo    persistence.Repo[*wsdom.Workspace]
@@ -129,14 +127,9 @@ func TestMain(m *testing.M) {
 		imgk8s.ImageFromCR,
 	)
 
-	// Port forward for Global Gateway
-	globalPort, stopGlobalPF, err := startPortForward("gateway-global-svc", "app=gateway-global", restConfig)
-	if err != nil {
-		log.Fatalf("Global gateway port-forward failed: %v", err)
-	}
-	defer close(stopGlobalPF)
-
-	// Port forward for Regional Gateway
+	// Port forward for Regional Gateway. The regional suite talks only to the
+	// regional gateway; region listing/lookup is a global concern covered by the
+	// gateway-global suite, so the global gateway is intentionally not required here.
 	regionalPort, stopRegionalPF, err := startPortForward("gateway-regional-svc", "app=gateway-regional", restConfig)
 	if err != nil {
 		log.Fatalf("Regional gateway port-forward failed: %v", err)
@@ -144,12 +137,6 @@ func TestMain(m *testing.M) {
 	defer close(stopRegionalPF)
 
 	// SECA SDK clients setup
-	globalURL := fmt.Sprintf("http://localhost:%d/providers/seca.region", globalPort)
-	regionClient, err = regionv1.NewClientWithResponses(globalURL)
-	if err != nil {
-		log.Fatalf("Failed to create region SDK client: %v", err)
-	}
-
 	regionalBaseURL := fmt.Sprintf("http://localhost:%d", regionalPort)
 	workspaceClient, err = workspacev1sdk.NewClientWithResponses(regionalBaseURL + "/providers/seca.workspace")
 	if err != nil {
