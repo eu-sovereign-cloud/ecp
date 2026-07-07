@@ -14,19 +14,32 @@ import (
 // tokenPayload is the expected JSON structure of a Dummy bearer token.
 // The token is a standard base64-encoded JSON object (no padding normalization needed
 // since the SDK client encodes it verbatim).
+//
+// Only username and password are mandatory. An optional "scope" object down-scopes the
+// caller's permissions. Roles are NOT read from the token: they are resolved entirely from
+// the RoleAssignment/Role resources in the caller's tenant namespace. Any other field
+// (including a client-supplied verification endpoint) is ignored.
 type tokenPayload struct {
-	Username string   `json:"username"`
-	Password string   `json:"password"`
-	Roles    []string `json:"roles"`
+	Username string        `json:"username"`
+	Password string        `json:"password"`
+	Scope    *scopePayload `json:"scope,omitempty"`
+}
+
+// scopePayload is the optional down-scoping section of a Dummy bearer token. Each dimension
+// is a list of permitted values; an empty or absent list leaves that dimension unconstrained.
+type scopePayload struct {
+	Tenants    []string `json:"tenants,omitempty"`
+	Regions    []string `json:"regions,omitempty"`
+	Workspaces []string `json:"workspaces,omitempty"`
 }
 
 // DummyAuthenticator validates bearer tokens using a static user→password map.
 //
 // WARNING: this authenticator is for development and testing ONLY.
-// There is no cryptographic signature; clients self-assert their roles.
-// Do NOT use in production.
+// There is no cryptographic signature; any caller who knows a valid username+password can
+// impersonate that subject. Do NOT use in production.
 //
-// Token format: base64(JSON{"username":"alice","password":"s3cr3t","roles":["role1","role2"]})
+// Token format: base64(JSON{"username":"alice","password":"s3cr3t","scope":{"tenants":["t1"]}})
 type DummyAuthenticator struct {
 	// users maps username → expected password.
 	users map[string]string
@@ -40,7 +53,8 @@ func NewDummyAuthenticator(users map[string]string) *DummyAuthenticator {
 
 // Authenticate implements authnport.Authenticator.
 // It decodes the base64 token, parses the JSON payload, and validates the
-// username+password pair against the configured map.
+// username+password pair against the configured map. On success it returns an Identity
+// carrying the subject and any optional down-scoping asserted by the token.
 // Returns kernel.ErrUnauthorized when the token is malformed or credentials are invalid.
 func (d *DummyAuthenticator) Authenticate(_ context.Context, token string) (*authnport.Identity, error) {
 	raw, err := base64.StdEncoding.DecodeString(token)
@@ -66,12 +80,17 @@ func (d *DummyAuthenticator) Authenticate(_ context.Context, token string) (*aut
 		return nil, fmt.Errorf("%w: invalid credentials", kernel.ErrUnauthorized)
 	}
 
-	if payload.Roles == nil {
-		payload.Roles = []string{}
+	var scope authnport.Scope
+	if payload.Scope != nil {
+		scope = authnport.Scope{
+			Tenants:    payload.Scope.Tenants,
+			Regions:    payload.Scope.Regions,
+			Workspaces: payload.Scope.Workspaces,
+		}
 	}
 
 	return &authnport.Identity{
 		Subject: payload.Username,
-		Roles:   payload.Roles,
+		Scope:   scope,
 	}, nil
 }

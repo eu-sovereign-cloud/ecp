@@ -40,7 +40,7 @@ func TestNewAuthentication(t *testing.T) {
 	const validToken = "valid-token"
 	authn := &fakeAuthenticator{
 		valid:    validToken,
-		identity: &authnport.Identity{Subject: "alice", Roles: []string{"admin"}},
+		identity: &authnport.Identity{Subject: "alice"},
 	}
 	mw := NewAuthentication(authn, discardLog)
 

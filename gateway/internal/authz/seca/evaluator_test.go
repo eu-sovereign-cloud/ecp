@@ -126,14 +126,8 @@ func TestEvaluate(t *testing.T) {
 			want:        true, // Resources ["*"] with glob matches "instances/inst1"
 		},
 		{
-			name:        "no matching role name in claim",
-			claim:       with(baseClaim, func(c *authzport.AuthorizationClaim) { c.Roles = []string{"other-role"} }),
-			assignments: []*radom.RoleAssignment{assign([]string{"viewer"}, allScope)},
-			want:        false,
-		},
-		{
-			name:        "claim has role but role not in rolesByName",
-			claim:       with(baseClaim, func(c *authzport.AuthorizationClaim) { c.Roles = []string{"nonexistent"} }),
+			name:        "assignment role not defined in rolesByName → denied",
+			claim:       baseClaim,
 			assignments: []*radom.RoleAssignment{assign([]string{"nonexistent"}, allScope)},
 			want:        false,
 		},
@@ -218,7 +212,7 @@ func TestEvaluate(t *testing.T) {
 		// ── Multiple assignments (OR semantics) ───────────────────────────────
 		{
 			name:  "second assignment covers when first does not",
-			claim: with(baseClaim, func(c *authzport.AuthorizationClaim) { c.Roles = []string{"viewer"} }),
+			claim: baseClaim,
 			assignments: []*radom.RoleAssignment{
 				assign([]string{"viewer"}, tenantScope("t2")), // wrong tenant
 				assign([]string{"viewer"}, tenantScope("t1")), // correct tenant
@@ -266,22 +260,70 @@ func TestEvaluate(t *testing.T) {
 			},
 			want: true,
 		},
+		// ── Token down-scoping (caps that only narrow) ────────────────────────
+		{
+			name:        "down-scope tenant covers request",
+			claim:       with(baseClaim, func(c *authzport.AuthorizationClaim) { c.DownScope.Tenants = []string{"t1"} }),
+			assignments: []*radom.RoleAssignment{assign([]string{"viewer"}, allScope)},
+			want:        true,
+		},
+		{
+			name:        "down-scope tenant excludes request → denied",
+			claim:       with(baseClaim, func(c *authzport.AuthorizationClaim) { c.DownScope.Tenants = []string{"t2"} }),
+			assignments: []*radom.RoleAssignment{assign([]string{"viewer"}, allScope)},
+			want:        false,
+		},
+		{
+			name:        "down-scope region covers request",
+			claim:       with(baseClaim, func(c *authzport.AuthorizationClaim) { c.DownScope.Regions = []string{"r1"} }),
+			assignments: []*radom.RoleAssignment{assign([]string{"viewer"}, allScope)},
+			want:        true,
+		},
+		{
+			name:        "down-scope region excludes request → denied",
+			claim:       with(baseClaim, func(c *authzport.AuthorizationClaim) { c.DownScope.Regions = []string{"r2"} }),
+			assignments: []*radom.RoleAssignment{assign([]string{"viewer"}, allScope)},
+			want:        false,
+		},
+		{
+			name:        "down-scope workspace covers request",
+			claim:       with(baseClaim, func(c *authzport.AuthorizationClaim) { c.DownScope.Workspaces = []string{"w1"} }),
+			assignments: []*radom.RoleAssignment{assign([]string{"viewer"}, allScope)},
+			want:        true,
+		},
+		{
+			name:        "down-scope workspace excludes request → denied",
+			claim:       with(baseClaim, func(c *authzport.AuthorizationClaim) { c.DownScope.Workspaces = []string{"w2"} }),
+			assignments: []*radom.RoleAssignment{assign([]string{"viewer"}, allScope)},
+			want:        false,
+		},
+		{
+			name: "down-scope region skipped when request region empty",
+			claim: with(baseClaim, func(c *authzport.AuthorizationClaim) {
+				c.Region = ""
+				c.DownScope.Regions = []string{"r1"}
+			}),
+			assignments: []*radom.RoleAssignment{assign([]string{"viewer"}, allScope)},
+			want:        true, // empty request region ⇒ cap not applicable
+		},
+		{
+			name: "down-scope denies even when RBAC would allow",
+			claim: with(baseClaim, func(c *authzport.AuthorizationClaim) {
+				c.Subject = "alice"
+				c.DownScope.Tenants = []string{"other"}
+			}),
+			assignments: []*radom.RoleAssignment{
+				assignSubs([]string{"alice"}, []string{"admin"}, allScope),
+			},
+			want: false, // admin grants everything, but the token cap excludes t1
+		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			// Inject roles into claim if not already set by with().
-			claim := tc.claim
-			if len(claim.Roles) == 0 {
-				// Default to roles that appear in the first assignment (for convenience).
-				if len(tc.assignments) > 0 {
-					claim.Roles = tc.assignments[0].Spec.Roles
-				}
-			}
-
-			got := Evaluate(claim, rolesByName, tc.assignments)
+			got := Evaluate(tc.claim, rolesByName, tc.assignments)
 			if got != tc.want {
 				t.Errorf("Evaluate() = %v, want %v", got, tc.want)
 			}
@@ -364,6 +406,28 @@ func TestSliceCovers(t *testing.T) {
 		got := sliceCovers(tc.list, tc.value)
 		if got != tc.want {
 			t.Errorf("sliceCovers(%v, %q) = %v, want %v", tc.list, tc.value, got, tc.want)
+		}
+	}
+}
+
+func TestDownScopeCovers(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		list  []string
+		value string
+		want  bool
+	}{
+		{nil, "t1", true},             // no cap ⇒ unconstrained
+		{[]string{}, "t1", true},      // empty cap ⇒ unconstrained
+		{[]string{"t1"}, "t1", true},  // listed ⇒ allowed
+		{[]string{"t1"}, "t2", false}, // not listed ⇒ denied
+		{[]string{"t1"}, "", true},    // empty request value ⇒ dimension not applicable
+		{[]string{"t1", "t2"}, "t2", true},
+	}
+	for _, tc := range tests {
+		got := downScopeCovers(tc.list, tc.value)
+		if got != tc.want {
+			t.Errorf("downScopeCovers(%v, %q) = %v, want %v", tc.list, tc.value, got, tc.want)
 		}
 	}
 }

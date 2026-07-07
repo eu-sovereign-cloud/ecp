@@ -77,7 +77,6 @@ func TestChecker_Authorize(t *testing.T) {
 		Resource: "instances",
 		Verb:     "list",
 		Tenant:   "t1",
-		Roles:    []string{"viewer"},
 	}
 
 	apiServerUnavailable := errors.New("api server unavailable")

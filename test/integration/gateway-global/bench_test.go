@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"testing"
 
+	authv1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.authorization.v1"
 	regionv1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
 )
 
@@ -38,18 +39,21 @@ func TestBench(t *testing.T) {
 		}
 	}
 
-	serverURL := fmt.Sprintf("http://localhost:%d/providers/seca.region", globalLocalPort)
+	regionURL := fmt.Sprintf("http://localhost:%d/providers/seca.region", globalLocalPort)
+	authURL := fmt.Sprintf("http://localhost:%d/providers/seca.authorization", globalLocalPort)
 
-	// Mix of allow (admin) and deny (nobody) requests to exercise both paths.
-	allowClient, err := regionv1.NewClientWithResponses(serverURL, regionv1.WithRequestEditorFn(adminEditor()))
+	// Mix of allow (admin lists regions) and deny (nobody lists roles) requests to exercise
+	// both authorization branches.
+	allowClient, err := regionv1.NewClientWithResponses(regionURL, regionv1.WithRequestEditorFn(adminEditor()))
 	if err != nil {
 		t.Fatalf("create allow client: %v", err)
 	}
 
-	// nobody has valid credentials but no RoleAssignment → always 403 (deny path).
-	denyClient, err := regionv1.NewClientWithResponses(
-		serverURL,
-		regionv1.WithRequestEditorFn(identityEditor("nobody", "nobody-pass", []string{"e2e-admin"})),
+	// nobody has valid credentials but no grant for seca.authorization → always 403 (deny path).
+	// (ra-wildcard now grants region-viewer to everyone, so a region read is no longer a deny.)
+	denyClient, err := authv1.NewClientWithResponses(
+		authURL,
+		authv1.WithRequestEditorFn(identityEditor("nobody", "nobody-pass")),
 	)
 	if err != nil {
 		t.Fatalf("create deny client: %v", err)
@@ -59,7 +63,7 @@ func TestBench(t *testing.T) {
 	for i := range n {
 		if i%4 == 0 {
 			// 1 in 4 requests exercises the deny path.
-			resp, err := denyClient.ListRegionsWithResponse(context.Background(), &regionv1.ListRegionsParams{})
+			resp, err := denyClient.ListRolesWithResponse(context.Background(), testTenant, &authv1.ListRolesParams{})
 			if err != nil {
 				t.Fatalf("deny request %d: %v", i, err)
 			}

@@ -17,6 +17,10 @@ import (
 	authnport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/authn"
 	authzport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/authz"
 	gatewayauthn "github.com/eu-sovereign-cloud/ecp/gateway/internal/authn"
+	seca "github.com/eu-sovereign-cloud/ecp/gateway/internal/authz/seca"
+	roledom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role"
+	radom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment"
+	commondom "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 )
 
 // ── test doubles ─────────────────────────────────────────────────────────────
@@ -44,20 +48,39 @@ var errorChecker checkerFunc = func(_ context.Context, _ authzport.Authorization
 	return authzport.DecisionError, kernel.ErrInternal
 }
 
+// rbacChecker delegates to the real seca.Evaluate so tests exercise the actual
+// authorization algorithm (including the token down-scope gate) end-to-end.
+func rbacChecker(roles map[string]*roledom.Role, assignments []*radom.RoleAssignment) checkerFunc {
+	return func(_ context.Context, claim authzport.AuthorizationClaim) (authzport.Decision, error) {
+		if seca.Evaluate(claim, roles, assignments) {
+			return authzport.DecisionAllowed, nil
+		}
+		return authzport.DecisionDenied, kernel.ErrForbidden
+	}
+}
+
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 func discardLog() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }
 
-// bearerToken encodes a Dummy-auth bearer token from the given credentials.
-func bearerToken(username, password string, roles []string) string {
+// scopeJSON is the optional down-scoping section of a Dummy bearer token.
+type scopeJSON struct {
+	Tenants    []string `json:"tenants,omitempty"`
+	Regions    []string `json:"regions,omitempty"`
+	Workspaces []string `json:"workspaces,omitempty"`
+}
+
+// bearerToken encodes a Dummy-auth bearer token from the given credentials and an
+// optional down-scope. Roles are never carried by the token.
+func bearerToken(username, password string, scope *scopeJSON) string {
 	type payload struct {
-		Username string   `json:"username"`
-		Password string   `json:"password"`
-		Roles    []string `json:"roles"`
+		Username string     `json:"username"`
+		Password string     `json:"password"`
+		Scope    *scopeJSON `json:"scope,omitempty"`
 	}
-	b, err := json.Marshal(payload{Username: username, Password: password, Roles: roles})
+	b, err := json.Marshal(payload{Username: username, Password: password, Scope: scope})
 	if err != nil {
 		panic(err)
 	}
@@ -100,7 +123,7 @@ func TestIntegration_ValidToken_Allowed(t *testing.T) {
 	h := buildChain(a, allowChecker)
 
 	req := httptest.NewRequest(http.MethodGet, "/instances", nil)
-	req.Header.Set("Authorization", "Bearer "+bearerToken("alice", "s3cr3t", []string{"viewer"}))
+	req.Header.Set("Authorization", "Bearer "+bearerToken("alice", "s3cr3t", nil))
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, req)
 
@@ -134,7 +157,7 @@ func TestIntegration_WrongPassword(t *testing.T) {
 	h := buildChain(a, allowChecker)
 
 	req := httptest.NewRequest(http.MethodGet, "/instances", nil)
-	req.Header.Set("Authorization", "Bearer "+bearerToken("alice", "wrongpass", []string{}))
+	req.Header.Set("Authorization", "Bearer "+bearerToken("alice", "wrongpass", nil))
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, req)
 
@@ -151,7 +174,7 @@ func TestIntegration_ValidToken_Denied(t *testing.T) {
 	h := buildChain(a, denyChecker)
 
 	req := httptest.NewRequest(http.MethodGet, "/instances", nil)
-	req.Header.Set("Authorization", "Bearer "+bearerToken("alice", "s3cr3t", []string{"admin"}))
+	req.Header.Set("Authorization", "Bearer "+bearerToken("alice", "s3cr3t", nil))
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, req)
 
@@ -170,7 +193,7 @@ func TestIntegration_CheckerTechnicalError(t *testing.T) {
 	h := buildChain(a, errorChecker)
 
 	req := httptest.NewRequest(http.MethodGet, "/instances", nil)
-	req.Header.Set("Authorization", "Bearer "+bearerToken("alice", "s3cr3t", []string{"admin"}))
+	req.Header.Set("Authorization", "Bearer "+bearerToken("alice", "s3cr3t", nil))
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, req)
 
@@ -192,7 +215,7 @@ func TestIntegration_AuthnOnly(t *testing.T) {
 	h := authnMW(okHandler)
 
 	req := httptest.NewRequest(http.MethodGet, "/instances", nil)
-	req.Header.Set("Authorization", "Bearer "+bearerToken("alice", "s3cr3t", []string{"viewer"}))
+	req.Header.Set("Authorization", "Bearer "+bearerToken("alice", "s3cr3t", nil))
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, req)
 
@@ -201,10 +224,10 @@ func TestIntegration_AuthnOnly(t *testing.T) {
 	}
 }
 
-// TestIntegration_RolesFromToken verifies that the identity's roles (decoded from
-// the bearer token) are propagated into the AuthorizationClaim by the authorization
-// middleware — covering the key contract between authn and authz.
-func TestIntegration_RolesFromToken(t *testing.T) {
+// TestIntegration_DownScopeFromToken verifies that the token's optional scope is
+// decoded and propagated into the AuthorizationClaim as the down-scope — covering the
+// contract between authn and authz. Roles are never propagated from the token.
+func TestIntegration_DownScopeFromToken(t *testing.T) {
 	t.Parallel()
 
 	a := gatewayauthn.NewDummyAuthenticator(map[string]string{"bob": "p@ss"})
@@ -220,8 +243,9 @@ func TestIntegration_RolesFromToken(t *testing.T) {
 	authzMW := middleware.NewAuthorization(capturing, fixedExtractor, log)
 	h := authnMW(authzMW(okHandler))
 
+	scope := &scopeJSON{Tenants: []string{"t1"}, Regions: []string{"r1"}}
 	req := httptest.NewRequest(http.MethodGet, "/instances", nil)
-	req.Header.Set("Authorization", "Bearer "+bearerToken("bob", "p@ss", []string{"admin", "viewer"}))
+	req.Header.Set("Authorization", "Bearer "+bearerToken("bob", "p@ss", scope))
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, req)
 
@@ -231,10 +255,64 @@ func TestIntegration_RolesFromToken(t *testing.T) {
 	if capturedClaim.Subject != "bob" {
 		t.Errorf("claim.Subject = %q, want %q — subject must be propagated from the bearer token", capturedClaim.Subject, "bob")
 	}
-	if len(capturedClaim.Roles) != 2 {
-		t.Fatalf("want 2 roles, got %d: %v", len(capturedClaim.Roles), capturedClaim.Roles)
+	if len(capturedClaim.DownScope.Tenants) != 1 || capturedClaim.DownScope.Tenants[0] != "t1" {
+		t.Errorf("claim.DownScope.Tenants = %v, want [t1]", capturedClaim.DownScope.Tenants)
 	}
-	if capturedClaim.Roles[0] != "admin" || capturedClaim.Roles[1] != "viewer" {
-		t.Errorf("claim.Roles = %v, want [admin viewer]", capturedClaim.Roles)
+	if len(capturedClaim.DownScope.Regions) != 1 || capturedClaim.DownScope.Regions[0] != "r1" {
+		t.Errorf("claim.DownScope.Regions = %v, want [r1]", capturedClaim.DownScope.Regions)
+	}
+}
+
+// TestIntegration_DownScope_ReducesAccess drives the real seca.Evaluate end-to-end:
+// bob holds an all-access admin assignment, but a token that down-scopes to a different
+// tenant is denied, while a token scoped to the request's tenant is allowed. This proves
+// the token cap can only narrow — never grant — the permissions RBAC would otherwise give.
+func TestIntegration_DownScope_ReducesAccess(t *testing.T) {
+	t.Parallel()
+
+	adminRole := &roledom.Role{
+		GlobalTenantMetadata: commondom.GlobalTenantMetadata{
+			CommonMetadata: commondom.CommonMetadata{Name: "admin"},
+		},
+		Spec: roledom.RoleSpec{Permissions: []roledom.Permission{
+			{Provider: "seca.compute", Resources: []string{"*"}, Verb: []string{"*"}},
+		}},
+	}
+	adminAssignment := &radom.RoleAssignment{
+		Spec: radom.RoleAssignmentSpec{
+			Subs:   []string{"bob"},
+			Roles:  []string{"admin"},
+			Scopes: []radom.RoleAssignmentScope{{}}, // all tenants/regions/workspaces
+		},
+	}
+	checker := rbacChecker(
+		map[string]*roledom.Role{"admin": adminRole},
+		[]*radom.RoleAssignment{adminAssignment},
+	)
+
+	a := gatewayauthn.NewDummyAuthenticator(map[string]string{"bob": "p@ss"})
+	h := buildChain(a, checker) // fixedExtractor targets tenant "t1"
+
+	tests := []struct {
+		name       string
+		scope      *scopeJSON
+		wantStatus int
+	}{
+		{name: "no down-scope → admin allowed", scope: nil, wantStatus: http.StatusOK},
+		{name: "down-scope to request tenant → allowed", scope: &scopeJSON{Tenants: []string{"t1"}}, wantStatus: http.StatusOK},
+		{name: "down-scope to other tenant → denied", scope: &scopeJSON{Tenants: []string{"other"}}, wantStatus: http.StatusForbidden},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			req := httptest.NewRequest(http.MethodGet, "/instances", nil)
+			req.Header.Set("Authorization", "Bearer "+bearerToken("bob", "p@ss", tc.scope))
+			w := httptest.NewRecorder()
+			h.ServeHTTP(w, req)
+
+			if w.Code != tc.wantStatus {
+				t.Errorf("status = %d, want %d", w.Code, tc.wantStatus)
+			}
+		})
 	}
 }

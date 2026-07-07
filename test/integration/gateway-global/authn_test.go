@@ -18,7 +18,7 @@ func TestAuthn(t *testing.T) {
 	listRegionsURL := fmt.Sprintf("http://localhost:%d/providers/seca.region/v1/regions", globalLocalPort)
 
 	t.Run("valid token returns 200", func(t *testing.T) {
-		token := makeBearerToken(defaultAuthUser, defaultAuthPassword, defaultAuthRoles)
+		token := makeBearerToken(defaultAuthUser, defaultAuthPassword, nil)
 		req, _ := http.NewRequest(http.MethodGet, listRegionsURL, nil)
 		req.Header.Set("Authorization", "Bearer "+token)
 		resp, err := http.DefaultClient.Do(req)
@@ -44,7 +44,7 @@ func TestAuthn(t *testing.T) {
 	})
 
 	t.Run("wrong password returns 401", func(t *testing.T) {
-		token := makeBearerToken(defaultAuthUser, "wrong-password", defaultAuthRoles)
+		token := makeBearerToken(defaultAuthUser, "wrong-password", nil)
 		req, _ := http.NewRequest(http.MethodGet, listRegionsURL, nil)
 		req.Header.Set("Authorization", "Bearer "+token)
 		resp, err := http.DefaultClient.Do(req)

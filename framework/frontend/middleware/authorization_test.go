@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 
 	kernel "github.com/eu-sovereign-cloud/ecp/framework/kernel"
@@ -37,7 +38,7 @@ func fixedExtractor(claim authzport.AuthorizationClaim) authzport.ClaimExtractor
 func TestNewAuthorization(t *testing.T) {
 	t.Parallel()
 
-	alice := &authnport.Identity{Subject: "alice", Roles: []string{"viewer"}}
+	alice := &authnport.Identity{Subject: "alice"}
 	claim := authzport.AuthorizationClaim{Provider: "seca.compute", Resource: "instances", Verb: "get"}
 	okExtract := fixedExtractor(claim)
 
@@ -107,11 +108,18 @@ func TestNewAuthorization(t *testing.T) {
 	}
 }
 
-func TestNewAuthorization_RolesFromIdentity(t *testing.T) {
+func TestNewAuthorization_DownScopeFromIdentity(t *testing.T) {
 	t.Parallel()
-	// Verify that the authorization middleware copies the identity's roles into the claim.
-	wantRoles := []string{"admin", "viewer"}
-	alice := &authnport.Identity{Subject: "alice", Roles: wantRoles}
+	// Verify that the authorization middleware copies the identity's Subject and down-scope
+	// into the claim (and that roles are never sourced from the identity).
+	alice := &authnport.Identity{
+		Subject: "alice",
+		Scope: authnport.Scope{
+			Tenants:    []string{"t1"},
+			Regions:    []string{"r1"},
+			Workspaces: []string{"w1"},
+		},
+	}
 
 	var gotClaim authzport.AuthorizationClaim
 	checker := authzport.Checker(checkerFunc(func(_ context.Context, c authzport.AuthorizationClaim) (authzport.Decision, error) {
@@ -125,8 +133,16 @@ func TestNewAuthorization_RolesFromIdentity(t *testing.T) {
 	r = r.WithContext(contextWithIdentity(r.Context(), alice))
 	mw(okHandler).ServeHTTP(w, r)
 
-	if len(gotClaim.Roles) != len(wantRoles) {
-		t.Errorf("roles = %v, want %v", gotClaim.Roles, wantRoles)
+	want := authzport.DownScope{
+		Tenants:    []string{"t1"},
+		Regions:    []string{"r1"},
+		Workspaces: []string{"w1"},
+	}
+	if !reflect.DeepEqual(gotClaim.DownScope, want) {
+		t.Errorf("down-scope = %+v, want %+v", gotClaim.DownScope, want)
+	}
+	if gotClaim.Subject != "alice" {
+		t.Errorf("subject = %q, want %q", gotClaim.Subject, "alice")
 	}
 }
 

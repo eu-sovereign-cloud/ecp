@@ -25,13 +25,12 @@ func TestAuthz(t *testing.T) {
 
 	baseURL := fmt.Sprintf("http://localhost:%d", globalLocalPort)
 
-	t.Run("ra-wildcard: any caller with region-viewer role can list regions", func(t *testing.T) {
-		// ra-wildcard has Subs=["*"] and Roles=["e2e-region-viewer"] in scope all.
-		// erin also has ra-wrong-tenant (scope other-tenant) with e2e-admin, which does
-		// not help here. The request hits /v1/regions (resource "v1/regions") with no
-		// tenant — ra-wildcard's empty scope covers it; e2e-region-viewer resource
-		// pattern "v1/regions" matches.
-		editor := identityEditor("erin", "erin-pass", []string{"e2e-region-viewer"})
+	t.Run("ra-wildcard: any authenticated caller can list regions", func(t *testing.T) {
+		// ra-wildcard has Subs=["*"] and Roles=["e2e-region-viewer"] in scope all, so every
+		// authenticated caller inherits e2e-region-viewer regardless of the token. The request
+		// hits /v1/regions (resource "v1/regions") with no tenant — ra-wildcard's empty scope
+		// covers it; the e2e-region-viewer resource pattern "v1/regions" matches.
+		editor := identityEditor("erin", "erin-pass")
 		client, err := regionv1.NewClientWithResponses(baseURL+"/providers/seca.region", regionv1.WithRequestEditorFn(editor))
 		if err != nil {
 			t.Fatalf("create client: %v", err)
@@ -46,8 +45,8 @@ func TestAuthz(t *testing.T) {
 	})
 
 	t.Run("alice cannot create a role (provider mismatch: seca.authorization)", func(t *testing.T) {
-		// alice only has e2e-region-viewer which covers seca.region, not seca.authorization.
-		editor := identityEditor("alice", "alice-pass", []string{"e2e-region-viewer"})
+		// alice's assignment grants only e2e-region-viewer (seca.region), not seca.authorization.
+		editor := identityEditor("alice", "alice-pass")
 		client, err := authv1.NewClientWithResponses(baseURL+"/providers/seca.authorization", authv1.WithRequestEditorFn(editor))
 		if err != nil {
 			t.Fatalf("create client: %v", err)
@@ -67,29 +66,11 @@ func TestAuthz(t *testing.T) {
 		}
 	})
 
-	t.Run("nobody gets 403 (valid creds, no RoleAssignment)", func(t *testing.T) {
-		// "nobody" exists in users-configmap.yaml but has no RoleAssignment.
-		// ra-wildcard gives e2e-region-viewer to everyone, but nobody's token carries
-		// e2e-admin (not e2e-region-viewer), so the intersection is empty → 403.
-		editor := identityEditor("nobody", "nobody-pass", []string{"e2e-admin"})
-		client, err := regionv1.NewClientWithResponses(baseURL+"/providers/seca.region", regionv1.WithRequestEditorFn(editor))
-		if err != nil {
-			t.Fatalf("create client: %v", err)
-		}
-		resp, err := client.ListRegionsWithResponse(context.Background(), &regionv1.ListRegionsParams{})
-		if err != nil {
-			t.Fatalf("list regions: %v", err)
-		}
-		if resp.StatusCode() != http.StatusForbidden {
-			t.Errorf("nobody list regions: want 403, got %d", resp.StatusCode())
-		}
-	})
-
-	t.Run("erin is denied admin ops in test-tenant (ra-wrong-tenant scoped to other-tenant)", func(t *testing.T) {
-		// erin has ra-wrong-tenant whose scope is Tenants=["other-tenant"].
-		// Even with e2e-admin role in the token, test-tenant is out of scope.
-		// ra-wildcard gives e2e-region-viewer but erin's token carries e2e-admin → no intersection.
-		editor := identityEditor("erin", "erin-pass", []string{"e2e-admin"})
+	t.Run("nobody gets 403 (valid creds, no RoleAssignment grants seca.authorization)", func(t *testing.T) {
+		// "nobody" exists in users-configmap.yaml but has no dedicated RoleAssignment.
+		// ra-wildcard (Subs=["*"]) grants e2e-region-viewer to every caller, but that role
+		// only covers seca.region — so nobody has no grant for seca.authorization → 403.
+		editor := identityEditor("nobody", "nobody-pass")
 		client, err := authv1.NewClientWithResponses(baseURL+"/providers/seca.authorization", authv1.WithRequestEditorFn(editor))
 		if err != nil {
 			t.Fatalf("create client: %v", err)
@@ -98,10 +79,56 @@ func TestAuthz(t *testing.T) {
 		if err != nil {
 			t.Fatalf("list roles: %v", err)
 		}
-		// ra-wildcard gives e2e-region-viewer but not e2e-admin; ra-wrong-tenant
-		// gives e2e-admin but scope excludes test-tenant → net result: 403.
+		if resp.StatusCode() != http.StatusForbidden {
+			t.Errorf("nobody list roles: want 403, got %d", resp.StatusCode())
+		}
+	})
+
+	t.Run("erin is denied admin ops in test-tenant (ra-wrong-tenant scoped to other-tenant)", func(t *testing.T) {
+		// erin has ra-wrong-tenant granting e2e-admin, but scoped to Tenants=["other-tenant"],
+		// so test-tenant is out of scope. ra-wildcard grants e2e-region-viewer everywhere, but
+		// that role does not cover seca.authorization → net result: 403.
+		editor := identityEditor("erin", "erin-pass")
+		client, err := authv1.NewClientWithResponses(baseURL+"/providers/seca.authorization", authv1.WithRequestEditorFn(editor))
+		if err != nil {
+			t.Fatalf("create client: %v", err)
+		}
+		resp, err := client.ListRolesWithResponse(context.Background(), testTenant, &authv1.ListRolesParams{})
+		if err != nil {
+			t.Fatalf("list roles: %v", err)
+		}
 		if resp.StatusCode() != http.StatusForbidden {
 			t.Errorf("erin list roles in test-tenant: want 403, got %d", resp.StatusCode())
+		}
+	})
+
+	t.Run("admin down-scoped to other-tenant is denied in test-tenant (tenant cap)", func(t *testing.T) {
+		// admin (ra-admin) has all-access, but a token down-scoped to other-tenant must not
+		// authorize operations in test-tenant; a token scoped to test-tenant still works.
+		denied := scopedEditor(defaultAuthUser, defaultAuthPassword, &scopeJSON{Tenants: []string{"other-tenant"}})
+		client, err := authv1.NewClientWithResponses(baseURL+"/providers/seca.authorization", authv1.WithRequestEditorFn(denied))
+		if err != nil {
+			t.Fatalf("create client: %v", err)
+		}
+		resp, err := client.ListRolesWithResponse(context.Background(), testTenant, &authv1.ListRolesParams{})
+		if err != nil {
+			t.Fatalf("list roles (down-scoped): %v", err)
+		}
+		if resp.StatusCode() != http.StatusForbidden {
+			t.Errorf("admin down-scoped to other-tenant: want 403 in test-tenant, got %d", resp.StatusCode())
+		}
+
+		allowed := scopedEditor(defaultAuthUser, defaultAuthPassword, &scopeJSON{Tenants: []string{testTenant}})
+		client2, err := authv1.NewClientWithResponses(baseURL+"/providers/seca.authorization", authv1.WithRequestEditorFn(allowed))
+		if err != nil {
+			t.Fatalf("create client: %v", err)
+		}
+		resp2, err := client2.ListRolesWithResponse(context.Background(), testTenant, &authv1.ListRolesParams{})
+		if err != nil {
+			t.Fatalf("list roles (in-scope): %v", err)
+		}
+		if resp2.StatusCode() != http.StatusOK {
+			t.Errorf("admin down-scoped to test-tenant: want 200, got %d", resp2.StatusCode())
 		}
 	})
 }

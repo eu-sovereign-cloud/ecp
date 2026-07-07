@@ -28,7 +28,7 @@ func TestRegionalAuthz(t *testing.T) {
 	t.Run("bob can list block-storages (e2e-storage-viewer scoped to itbg-bergamo)", func(t *testing.T) {
 		// bob has ra-bob-scoped: seca.storage viewer scoped to itbg-bergamo region.
 		// The regional gateway runs in itbg-bergamo so the scope matches.
-		editor := identityEditor("bob", "bob-pass", []string{"e2e-storage-viewer"})
+		editor := identityEditor("bob", "bob-pass")
 		client, err := storagev1.NewClientWithResponses(regionalBaseURL+"/providers/seca.storage", storagev1.WithRequestEditorFn(editor))
 		if err != nil {
 			t.Fatalf("create storage client: %v", err)
@@ -42,9 +42,40 @@ func TestRegionalAuthz(t *testing.T) {
 		}
 	})
 
+	t.Run("bob down-scoped to another region is denied (region cap)", func(t *testing.T) {
+		// bob's RBAC (ra-bob-scoped) allows storage in itbg-bergamo, which is the region
+		// this gateway serves. A token down-scoped to a different region must not authorize
+		// the request even though RBAC would; a token scoped to itbg-bergamo still works.
+		denied := scopedEditor("bob", "bob-pass", &scopeJSON{Regions: []string{"other-region"}})
+		client, err := storagev1.NewClientWithResponses(regionalBaseURL+"/providers/seca.storage", storagev1.WithRequestEditorFn(denied))
+		if err != nil {
+			t.Fatalf("create storage client: %v", err)
+		}
+		resp, err := client.ListBlockStoragesWithResponse(context.Background(), testTenant, testWorkspace, &storagev1.ListBlockStoragesParams{})
+		if err != nil {
+			t.Fatalf("list block storages (down-scoped): %v", err)
+		}
+		if resp.StatusCode() != http.StatusForbidden {
+			t.Errorf("bob down-scoped to other-region: want 403, got %d", resp.StatusCode())
+		}
+
+		allowed := scopedEditor("bob", "bob-pass", &scopeJSON{Regions: []string{"itbg-bergamo"}})
+		client2, err := storagev1.NewClientWithResponses(regionalBaseURL+"/providers/seca.storage", storagev1.WithRequestEditorFn(allowed))
+		if err != nil {
+			t.Fatalf("create storage client: %v", err)
+		}
+		resp2, err := client2.ListBlockStoragesWithResponse(context.Background(), testTenant, testWorkspace, &storagev1.ListBlockStoragesParams{})
+		if err != nil {
+			t.Fatalf("list block storages (in-scope): %v", err)
+		}
+		if resp2.StatusCode() != http.StatusOK {
+			t.Errorf("bob down-scoped to itbg-bergamo: want 200, got %d", resp2.StatusCode())
+		}
+	})
+
 	t.Run("carol can list workspaces (e2e-workspace-editor multi-subject)", func(t *testing.T) {
 		// carol is in ra-multi-subject with dave; both have workspace-editor role.
-		editor := identityEditor("carol", "carol-pass", []string{"e2e-workspace-editor"})
+		editor := identityEditor("carol", "carol-pass")
 		client, err := workspacev1sdk.NewClientWithResponses(regionalBaseURL+"/providers/seca.workspace", workspacev1sdk.WithRequestEditorFn(editor))
 		if err != nil {
 			t.Fatalf("create workspace client: %v", err)
@@ -60,7 +91,7 @@ func TestRegionalAuthz(t *testing.T) {
 
 	t.Run("dave can list workspaces (e2e-workspace-editor multi-subject)", func(t *testing.T) {
 		// dave is in the same multi-subject assignment as carol.
-		editor := identityEditor("dave", "dave-pass", []string{"e2e-workspace-editor"})
+		editor := identityEditor("dave", "dave-pass")
 		client, err := workspacev1sdk.NewClientWithResponses(regionalBaseURL+"/providers/seca.workspace", workspacev1sdk.WithRequestEditorFn(editor))
 		if err != nil {
 			t.Fatalf("create workspace client: %v", err)
@@ -75,8 +106,8 @@ func TestRegionalAuthz(t *testing.T) {
 	})
 
 	t.Run("storage viewer denied workspace write (wrong provider)", func(t *testing.T) {
-		// alice has e2e-region-viewer, not e2e-workspace-editor. Denied writing workspace.
-		editor := identityEditor("alice", "alice-pass", []string{"e2e-region-viewer"})
+		// alice's assignment grants only e2e-region-viewer, not e2e-workspace-editor. Denied writing workspace.
+		editor := identityEditor("alice", "alice-pass")
 		client, err := workspacev1sdk.NewClientWithResponses(regionalBaseURL+"/providers/seca.workspace", workspacev1sdk.WithRequestEditorFn(editor))
 		if err != nil {
 			t.Fatalf("create workspace client: %v", err)

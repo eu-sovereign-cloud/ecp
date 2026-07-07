@@ -23,26 +23,38 @@ import (
 // Evaluate checks whether the AuthorizationClaim is permitted by the supplied
 // roles and assignments.
 //
-// Authorization algorithm (locked in design review):
+// Authorization algorithm:
 //
-//	authorized = ∃ ra ∈ assignments:
-//	    scopeCovers(ra.Scopes, tenant, region, workspace)
-//	  ∧ subsGrant(ra.Subs, claim.Subject)
-//	  ∧ ∃ roleName ∈ (ra.Roles ∩ claim.Roles):
-//	        role := rolesByName[roleName]
-//	        ∃ p ∈ role.Permissions:
-//	            p.Provider == claim.Provider
-//	          ∧ matchResource(p.Resources, claim.Resource, claim.Name)
-//	          ∧ matchVerb(p.Verb, claim.Verb)
+//	authorized =
+//	    downScopeCovers(claim.DownScope, tenant, region, workspace)
+//	  ∧ ∃ ra ∈ assignments:
+//	        scopeCovers(ra.Scopes, tenant, region, workspace)
+//	      ∧ subsGrant(ra.Subs, claim.Subject)
+//	      ∧ ∃ roleName ∈ ra.Roles:
+//	            role := rolesByName[roleName]
+//	            ∃ p ∈ role.Permissions:
+//	                p.Provider == claim.Provider
+//	              ∧ matchResource(p.Resources, claim.Resource, claim.Name)
+//	              ∧ matchVerb(p.Verb, claim.Verb)
 //
+// Roles are taken solely from the matched RoleAssignment; the token never carries roles.
 // RoleAssignment.Scopes scope the grant; empty Tenants/Regions/Workspaces = wildcard.
 // RoleAssignment.Subs restrict the grant to named subjects; "*" covers all subjects.
 // An empty Subs grants nobody (fail-closed; unlike scope slices, empty ≠ wildcard).
+//
+// claim.DownScope is an optional token cap applied first: a non-empty dimension must cover
+// the request or the whole claim is denied. It can only narrow access, never grant it.
 func Evaluate(
 	claim authzport.AuthorizationClaim,
 	rolesByName map[string]*roledom.Role,
 	assignments []*radom.RoleAssignment,
 ) bool {
+	if !downScopeCovers(claim.DownScope.Tenants, claim.Tenant) ||
+		!downScopeCovers(claim.DownScope.Regions, claim.Region) ||
+		!downScopeCovers(claim.DownScope.Workspaces, claim.Workspace) {
+		return false
+	}
+
 	for _, ra := range assignments {
 		if !assignmentCoversScope(ra, claim.Tenant, claim.Region, claim.Workspace) {
 			continue
@@ -51,9 +63,6 @@ func Evaluate(
 			continue
 		}
 		for _, roleName := range ra.Spec.Roles {
-			if !claimHasRole(claim.Roles, roleName) {
-				continue
-			}
 			role, ok := rolesByName[roleName]
 			if !ok {
 				continue
@@ -70,9 +79,19 @@ func Evaluate(
 	return false
 }
 
-// claimHasRole reports whether the claim carries the named SECA Role.
-func claimHasRole(claimRoles []string, roleName string) bool {
-	return slices.Contains(claimRoles, roleName)
+// downScopeCovers reports whether an optional token down-scope cap permits the request's
+// value for one dimension (tenant, region, or workspace).
+//
+// A cap denies only when it is non-empty AND the request's value is present but not listed.
+// An empty cap imposes no restriction. An empty request value means the dimension does not
+// apply to this request (e.g. region on the global server, or workspace on a tenant-level
+// resource), so the cap is skipped — an empty dimension only occurs on paths that carry no
+// tenant, so this cannot be used to bypass a tenant cap on hierarchical resources.
+func downScopeCovers(list []string, value string) bool {
+	if len(list) == 0 || value == "" {
+		return true
+	}
+	return slices.Contains(list, value)
 }
 
 // assignmentCoversScope reports whether any of the RoleAssignment's scopes

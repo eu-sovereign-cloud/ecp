@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"reflect"
 	"testing"
 
 	kernel "github.com/eu-sovereign-cloud/ecp/framework/kernel"
+	authnport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/authn"
 )
 
 func TestDummyAuthenticator(t *testing.T) {
@@ -18,8 +20,8 @@ func TestDummyAuthenticator(t *testing.T) {
 	a := NewDummyAuthenticator(users)
 
 	// Helper to build a valid token from a payload.
-	makeToken := func(username, password string, roles []string) string {
-		p, err := json.Marshal(tokenPayload{Username: username, Password: password, Roles: roles})
+	makeToken := func(username, password string, scope *scopePayload) string {
+		p, err := json.Marshal(tokenPayload{Username: username, Password: password, Scope: scope})
 		if err != nil {
 			t.Fatalf("marshal token payload: %v", err)
 		}
@@ -30,26 +32,33 @@ func TestDummyAuthenticator(t *testing.T) {
 		name        string
 		token       string
 		wantSubject string
-		wantRoles   []string
+		wantScope   authnport.Scope
 		wantErr     bool
 	}{
 		{
-			name:        "valid credentials with roles",
-			token:       makeToken("alice", "s3cr3t", []string{"admin", "viewer"}),
-			wantSubject: "alice",
-			wantRoles:   []string{"admin", "viewer"},
-		},
-		{
-			name:        "valid credentials with empty roles",
-			token:       makeToken("bob", "p@ssw0rd", []string{}),
-			wantSubject: "bob",
-			wantRoles:   []string{},
-		},
-		{
-			name:        "valid credentials with nil roles normalized to empty",
+			name:        "valid credentials without scope",
 			token:       makeToken("alice", "s3cr3t", nil),
 			wantSubject: "alice",
-			wantRoles:   []string{},
+		},
+		{
+			name: "valid credentials with down-scope",
+			token: makeToken("bob", "p@ssw0rd", &scopePayload{
+				Tenants:    []string{"t1"},
+				Regions:    []string{"r1"},
+				Workspaces: []string{"w1"},
+			}),
+			wantSubject: "bob",
+			wantScope: authnport.Scope{
+				Tenants:    []string{"t1"},
+				Regions:    []string{"r1"},
+				Workspaces: []string{"w1"},
+			},
+		},
+		{
+			// Roles are never read from the token; a stray "roles" field must be ignored.
+			name:        "roles field in token is ignored",
+			token:       base64.StdEncoding.EncodeToString([]byte(`{"username":"alice","password":"s3cr3t","roles":["admin"]}`)),
+			wantSubject: "alice",
 		},
 		{
 			name:    "wrong password",
@@ -73,7 +82,7 @@ func TestDummyAuthenticator(t *testing.T) {
 		},
 		{
 			name:    "missing username",
-			token:   base64.StdEncoding.EncodeToString([]byte(`{"password":"s3cr3t","roles":[]}`)),
+			token:   base64.StdEncoding.EncodeToString([]byte(`{"password":"s3cr3t"}`)),
 			wantErr: true,
 		},
 	}
@@ -99,8 +108,8 @@ func TestDummyAuthenticator(t *testing.T) {
 			if id.Subject != tc.wantSubject {
 				t.Errorf("subject = %q, want %q", id.Subject, tc.wantSubject)
 			}
-			if len(id.Roles) != len(tc.wantRoles) {
-				t.Errorf("roles = %v, want %v", id.Roles, tc.wantRoles)
+			if !reflect.DeepEqual(id.Scope, tc.wantScope) {
+				t.Errorf("scope = %+v, want %+v", id.Scope, tc.wantScope)
 			}
 		})
 	}

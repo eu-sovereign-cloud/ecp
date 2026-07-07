@@ -39,9 +39,10 @@ type AuthorizationClaim struct {
 	// (e.g. a username or JWT sub claim). The evaluator matches this against
 	// RoleAssignment.Subs to restrict which role assignments apply to the caller.
 	Subject string
-	// Roles is the list of SECA Role names carried by the authenticated identity.
-	// The checker intersects this with RoleAssignment.Roles to find applicable grants.
-	Roles []string
+	// DownScope is the optional token down-scoping cap copied from the authenticated
+	// identity. When a dimension is non-empty the request's tenant/region/workspace must
+	// be listed; it can only narrow the permissions granted by RBAC, never grant them.
+	DownScope DownScope
 
 	// Provider identifies the SECA provider being accessed (e.g. "seca.compute").
 	Provider string
@@ -64,6 +65,19 @@ type AuthorizationClaim struct {
 	// Workspace is the workspace identifier extracted from the request path, or
 	// empty for tenant-scoped (non-workspace) resources.
 	Workspace string
+}
+
+// DownScope is the optional per-request down-scoping cap derived from the caller's token.
+// Each dimension is a list of permitted values; an empty list leaves that dimension
+// unconstrained. It mirrors [authnport.Scope] but is declared here so the authz port stays
+// decoupled from the authn port — the middleware copies the fields across.
+type DownScope struct {
+	// Tenants restricts the request to the listed tenants; empty means any tenant.
+	Tenants []string
+	// Regions restricts the request to the listed regions; empty means any region.
+	Regions []string
+	// Workspaces restricts the request to the listed workspaces; empty means any workspace.
+	Workspaces []string
 }
 
 // Checker evaluates whether an AuthorizationClaim is permitted.

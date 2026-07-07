@@ -92,7 +92,6 @@ func TestCachedChecker_Authorize_EmptyCache(t *testing.T) {
 		Tenant:    "test-tenant",
 		Region:    "us-west-1",
 		Workspace: "ws1",
-		Roles:     []string{"admin"},
 	}
 
 	decision, err := checker.Authorize(context.Background(), claim)
