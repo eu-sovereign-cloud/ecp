@@ -102,6 +102,31 @@ If you have a running cluster with the components deployed, you can run the test
     make test-delegator
     ```
 
+### Gateway test suites
+
+Alongside the `delegator` suite, there are two gateway suites, each targeting a
+single gateway. Every suite is independent and only needs the components it talks
+to deployed:
+
+| Suite | Command | Requires deployed |
+|-------|---------|-------------------|
+| `delegator` | `make kind-test-delegator` | `delegator` |
+| `gateway-regional` | `make kind-test-gateway-regional` | `delegator`, `gateway-regional`, `test-data` |
+| `gateway-global` | `make kind-test-gateway-global` | `gateway-global`, `test-data` |
+
+The `gateway-regional` suite exercises only the regional gateway (storage, block
+storage, image, workspace). Region listing/lookup is a global concern covered by
+the `gateway-global` suite, so **the regional suite does not require the global
+gateway** — deploy just `delegator`, `gateway-regional`, and `test-data` to run it:
+
+```shell
+make kind-deploy-delegator kind-deploy-gateway-regional kind-deploy-test-data
+make kind-test-gateway-regional
+```
+
+`kind-deploy-all` deploys every component, which is convenient when running more
+than one suite.
+
 ### Cleaning Up
 
 To clean up resources from the KIND cluster without destroying the cluster itself:
