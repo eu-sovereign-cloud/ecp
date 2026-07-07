@@ -93,7 +93,9 @@ Cluster-scoped resources are stored in the `seca` namespace and carry no tenant 
 The gateway enforces an opt-in bearer-token authn + SECA RBAC authz middleware
 chain. When enabled (`--auth-enabled`), every request must carry a valid
 `Authorization: Bearer <token>` header and the decoded identity must be
-authorised by the RBAC policy before the request reaches the handler.
+authorised by the RBAC policy before the request reaches the handler. A caller's
+roles are resolved from `RoleAssignment`/`Role` in the tenant namespace — never
+from the token, which carries only the subject and an optional down-scope.
 
 ```
 HTTP request
@@ -117,8 +119,8 @@ All framework-layer types (`Authenticator`, `Checker`, `ClaimExtractor`,
 resource-agnostic. Concrete implementations (`DummyAuthenticator`, SECA RBAC
 `Checker`, `CachedChecker`) live in `gateway/` and may import `resource/`.
 
-See [doc/AUTH.md](AUTH.md) for the full reference — bearer-token format, config
-flags, the locked RBAC algorithm, and a code layout map.
+See [doc/AUTH.md](AUTH.md) for the full reference — bearer-token format, token
+down-scoping, config flags, the RBAC algorithm, and a code layout map.
 
 ## Cascaded Deletion
 

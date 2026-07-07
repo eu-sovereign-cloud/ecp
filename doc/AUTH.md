@@ -26,7 +26,7 @@ HTTP request
 ┌─────────────────────────────────────────────┐
 │  Authorization middleware                   │
 │  builds AuthorizationClaim from request     │
-│  merges Identity.Subject and Roles          │
+│  merges Subject + token down-scope in claim │
 │  calls Checker.Authorize(ctx, claim)        │
 └─────────┬───────────────────────────────────┘
           │ DecisionAllowed → next handler
@@ -48,19 +48,15 @@ The only authenticator currently shipped is the **Dummy authenticator**, intende
 for development and testing. Production deployments will replace it with a real
 OIDC/JWT authenticator when that is implemented.
 
-The token is a **Base64-encoded JSON payload**:
+The token is a **Base64-encoded JSON payload**. Only `username` and `password` are
+mandatory; the optional `scope` object down-scopes the caller (see below):
 
 ```json
 {
   "username": "alice",
   "password": "s3cr3t",
-  "roles": ["seca-admin", "compute-viewer"]
+  "scope": { "tenants": ["my-tenant"], "regions": ["itbg-bergamo"] }
 }
-```
-
-Encoded:
-```
-eyJ1c2VybmFtZSI6ImFsaWNlIiwicGFzc3dvcmQiOiJzM2NyM3QiLCJyb2xlcyI6WyJzZWNhLWFkbWluIiwiY29tcHV0ZS12aWV3ZXIiXX0=
 ```
 
 Clients send it in the standard HTTP header:
@@ -72,12 +68,28 @@ The `username` field becomes `Identity.Subject` after authentication. The
 authorization layer matches it against `RoleAssignment.Spec.Subs` to restrict
 which role assignments apply to the caller.
 
-The `roles` array carries **SECA Role names** (not subjects). These names are
-intersected with the `RoleAssignment.Spec.Roles` field during authorization.
+**Roles are never carried by the token.** A caller's roles are resolved entirely
+from the `Role` and `RoleAssignment` resources in the caller's tenant namespace,
+which are managed by the gateway operator. Any `roles` field in the token is ignored.
+
+### Token down-scoping
+
+The optional `scope` object caps what the token may exercise, per SECA scope
+dimension (`tenants`, `regions`, `workspaces`). It can only **narrow** the
+permissions granted by RBAC — it never grants anything:
+
+- A dimension that is **absent or empty** imposes no restriction.
+- A **non-empty** dimension requires the request's tenant/region/workspace to be
+  listed, otherwise the request is denied (403).
+- A dimension is skipped when the request has no value for it (e.g. `regions` on the
+  global server, or `workspaces` on a tenant-level resource).
+
+Down-scoping is useful for issuing narrow tokens (e.g. a CI job limited to one
+region) whose blast radius is smaller than the subject's full entitlements.
 
 > ⚠️ **Security caveat**: The Dummy authenticator performs no signature
-> verification. Any caller who knows a valid username+password can claim
-> arbitrary roles. It must never be used in production.
+> verification. Any caller who knows a valid username+password can impersonate
+> that subject. It must never be used in production.
 
 ---
 
@@ -120,8 +132,8 @@ echo '{"alice":"s3cr3t"}' > /tmp/users.json
     --auth-enabled \
     --dummy-auth-users /tmp/users.json
 
-# request with a valid bearer token
-TOKEN=$(echo '{"username":"alice","password":"s3cr3t","roles":["seca-admin"]}' | base64 -w0)
+# request with a valid bearer token (roles come from RoleAssignments, not the token)
+TOKEN=$(echo '{"username":"alice","password":"s3cr3t"}' | base64 -w0)
 curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/providers/seca.region/v1/tenants/my-tenant/regions
 ```
 
@@ -132,20 +144,25 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/providers/seca.regi
 The authorization decision is made by evaluating an `AuthorizationClaim` against
 all `Role` and `RoleAssignment` resources in the claim's tenant namespace.
 
-### Locked algorithm
+### Algorithm
 
 ```
 authorized =
-    ∃ ra ∈ RoleAssignments:
+    downScopeCovers(claim.DownScope, claim.Tenant, claim.Region, claim.Workspace)
+  ∧ ∃ ra ∈ RoleAssignments:
         scopeCovers(ra.Spec.Scopes, claim.Tenant, claim.Region, claim.Workspace)
       ∧ subsGrant(ra.Spec.Subs, claim.Subject)
-      ∧ ∃ roleName ∈ (ra.Spec.Roles ∩ claim.Roles):
+      ∧ ∃ roleName ∈ ra.Spec.Roles:
             role := rolesByName[roleName]
             ∃ p ∈ role.Spec.Permissions:
                 p.Provider == claim.Provider
               ∧ matchResource(p.Resources, claim.Resource, claim.Name)
               ∧ matchVerb(p.Verb, claim.Verb)
 ```
+
+Roles are taken solely from the matched `RoleAssignment`; the token never carries
+roles. `claim.DownScope` is the optional token cap applied first — a non-empty
+dimension must cover the request, or the whole claim is denied.
 
 ### Subject matching
 

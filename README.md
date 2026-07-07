@@ -95,7 +95,7 @@ For containerized development, persistent dev containers, and the full Makefile 
 | Document | Description |
 |----------|-------------|
 | [doc/ARCHITECTURE.md](doc/ARCHITECTURE.md) | DDD/hexagonal design, two-axis module topology, module DAG |
-| [doc/AUTH.md](doc/AUTH.md) | Authentication & authorization — bearer-token format, SECA RBAC algorithm, config flags |
+| [doc/AUTH.md](doc/AUTH.md) | Authentication & authorization — bearer-token format, token down-scoping, SECA RBAC algorithm, config flags |
 | [doc/CI_DEVEX.md](doc/CI_DEVEX.md) | Developer environment setup, Makefile targets, CI pipeline |
 | [doc/CODEGEN.md](doc/CODEGEN.md) | Code generation pipeline (OpenAPI types, CRDs, controller-gen) |
 | [doc/PLUGINS.md](doc/PLUGINS.md) | Plugin system: interface, builder inversion, writing a new CSP plugin |

@@ -193,21 +193,29 @@ Auth behaviour is driven by environment variables that are read by the
 ### Test fixtures: subjects, users, and assignments
 
 The files in `deploy/test-data/` define the RBAC state used by the auth tests.
-The table below maps the token subject (`username`) used in tests to the
-RoleAssignment that covers them and the net access they should receive:
+Roles are **not** carried by the token — each subject's roles come entirely from the
+RoleAssignment named below (the token carries only the subject and an optional
+down-scope). The table maps the token subject (`username`) to the RoleAssignment that
+covers them and the net access they should receive:
 
-| Subject | Password | RoleAssignment | Roles | Scope | Expected result |
-|---------|----------|----------------|-------|-------|-----------------|
+| Subject | Password | RoleAssignment | Roles (from assignment) | Scope | Expected result |
+|---------|----------|----------------|-------------------------|-------|-----------------|
 | `admin` | `e2e-admin-pass` | `ra-admin` | `e2e-admin` (all providers, all resources) | all | ✅ All operations |
-| `alice` | `alice-pass` | `ra-alice-region-viewer` | `e2e-region-viewer` (`seca.region` `v1/regions`) | `test-tenant` | ✅ List regions (tenant-scoped); ❌ cross-provider ops |
-| `bob` | `bob-pass` | `ra-bob-scoped` | `e2e-storage-viewer` (`seca.storage` `block-storages`) | `test-tenant` + region `itbg-bergamo` | ✅ List block-storages in that region; ❌ other regions |
+| `alice` | `alice-pass` | `ra-alice-region-viewer` (+ `ra-wildcard`) | `e2e-region-viewer` (`seca.region`) | `test-tenant` | ✅ List regions; ❌ cross-provider ops |
+| `bob` | `bob-pass` | `ra-bob-scoped` | `e2e-storage-viewer` (`seca.storage` `block-storages`) | `test-tenant` + region `itbg-bergamo` | ✅ List block-storages in that region; ❌ other regions (incl. token down-scoped elsewhere) |
 | `carol` | `carol-pass` | `ra-multi-subject` | `e2e-workspace-editor` | `test-tenant` | ✅ Workspace CRUD |
 | `dave` | `dave-pass` | `ra-multi-subject` | `e2e-workspace-editor` | `test-tenant` | ✅ Workspace CRUD |
-| `erin` | `erin-pass` | `ra-wildcard` (via `*`) + `ra-wrong-tenant` | `e2e-region-viewer` via wildcard; `e2e-admin` scoped to `other-tenant` | `*` / `other-tenant` | ✅ List regions (wildcard scope); ❌ admin ops in `test-tenant` |
-| `nobody` | `nobody-pass` | _(none)_ | — | — | ❌ All operations (403) |
+| `erin` | `erin-pass` | `ra-wildcard` (via `*`) + `ra-wrong-tenant` | `e2e-region-viewer` via wildcard; `e2e-admin` scoped to `other-tenant` | `*` / `other-tenant` | ✅ List regions (wildcard); ❌ admin ops in `test-tenant` |
+| `nobody` | `nobody-pass` | _(none; only `ra-wildcard` via `*`)_ | `e2e-region-viewer` via wildcard only | `*` | ✅ List regions (wildcard); ❌ everything else (e.g. `seca.authorization` → 403) |
+
+Because `ra-wildcard` has `subs: ["*"]`, **every** authenticated caller — including
+`nobody` — inherits `e2e-region-viewer`. A genuine 403 therefore requires an operation
+that role does not cover (the tests use `seca.authorization`). Down-scoping tests present
+a broad identity (e.g. `admin`, or `bob` in-region) with a narrow token `scope` and assert
+the request is denied outside the cap.
 
 > ⚠️ The Dummy authenticator performs no signature verification — any caller who
-> knows a valid username+password can claim arbitrary roles. These credentials
+> knows a valid username+password can impersonate that subject. These credentials
 > must never be used in production.
 
 ### Running auth tests
