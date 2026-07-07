@@ -119,17 +119,18 @@ $(foreach comp,$(DEPLOYMENTS),$(eval $(call kind_deploy_rule,$(comp))))
 #   * test-data        — tenant namespace + storage SKUs + regions (leaf fixture);
 #                        the tenant namespace is where workspace/role CRs are created.
 #   * delegator        — reconciles CRs to Active (dummy plugin); needs test-data.
-#   * gateway-regional — needs the delegator (reconcile) and test-data (tenant
-#                        namespace + SKUs). It does NOT need the global gateway.
+#   * gateway-regional — a pure REST↔CR gateway suite; needs only test-data (tenant
+#                        namespace + SKUs). It never waits for reconciliation, so it
+#                        needs neither the delegator nor the global gateway.
 #   * gateway-global   — needs test-data (regions to list, tenant namespace for roles).
 # These add-only prerequisite lines augment the recipes generated above; make merges
 # duplicate prerequisites, so test-data is applied once per invocation.
 deploy-delegator: deploy-test-data
-deploy-gateway-regional: deploy-delegator deploy-test-data
+deploy-gateway-regional: deploy-test-data
 deploy-gateway-global: deploy-test-data
 
 kind-deploy-delegator: kind-deploy-test-data
-kind-deploy-gateway-regional: kind-deploy-delegator kind-deploy-test-data
+kind-deploy-gateway-regional: kind-deploy-test-data
 kind-deploy-gateway-global: kind-deploy-test-data
 
 # =====================================================================================

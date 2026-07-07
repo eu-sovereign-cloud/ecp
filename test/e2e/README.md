@@ -111,18 +111,20 @@ component's suite needs, so it is a complete setup for the matching test target:
 | Suite | Deploy + test | Also deploys |
 |-------|---------------|--------------|
 | `delegator` | `make kind-deploy-delegator && make kind-test-delegator` | `test-data` |
-| `gateway-regional` | `make kind-deploy-gateway-regional && make kind-test-gateway-regional` | `delegator`, `test-data` |
+| `gateway-regional` | `make kind-deploy-gateway-regional && make kind-test-gateway-regional` | `test-data` |
 | `gateway-global` | `make kind-deploy-gateway-global && make kind-test-gateway-global` | `test-data` |
 
-`test-data` provides the tenant namespace (where workspace and role CRs are created),
-the storage SKUs, and the regions. The `delegator` reconciles CRs to `Active` with
-its dummy plugin.
+`test-data` provides the tenant namespace (where workspace/role/storage CRs are
+created), the storage SKUs, and the regions. The `delegator` reconciles CRs to
+`Active` with its dummy plugin.
 
-The `gateway-regional` suite exercises only the regional gateway (storage, block
-storage, image, workspace). Region listing/lookup is a global concern covered by the
-`gateway-global` suite, so **the regional suite does not require the global gateway**
-— `kind-deploy-gateway-regional` brings up `delegator`, `test-data`, and
-`gateway-regional`, but not `gateway-global`.
+The two gateway suites test only the REST↔CR translation of their gateway: they
+create/read/update/delete resources through the API and assert the HTTP responses,
+never the reconciled status. Reconciliation to `Active` is exercised separately by
+the `delegator` suite. Because of that, **the gateway suites need neither each other
+nor the delegator** — each runs against just its own gateway plus `test-data`. In
+particular, the `gateway-regional` suite does not require the global gateway or the
+delegator.
 
 `kind-deploy-all` deploys every component, which is convenient when running more than
 one suite.
