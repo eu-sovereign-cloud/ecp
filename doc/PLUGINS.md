@@ -98,16 +98,19 @@ make -C csp/ionos/deploy install-on-regional
 See `csp/ionos/README.md` for full deployment instructions, including token secret setup and provider configuration.
 
 **Conformance** — the conformance suite (`secatest`) is plugin-generic and lives in
-the test harness. Run it against the dummy plugin on KIND, or the aruba plugin on a
-configured cluster:
+the test harness. The delegator can load any of the plugin sets (`dummy`, `aruba`,
+`ionos`) via `PLUGIN`/`CONFORMANCE_PLUGIN`, so the same flow targets any of them —
+though, like aruba, `ionos` only reconciles once its backend (Crossplane + the IONOS
+provider, see `csp/ionos/deploy`) is installed in the cluster:
 ```bash
 make -C test kind-conformance                          # dummy plugin
 make -C test conformance CONFORMANCE_PLUGIN=aruba       # aruba plugin
+make -C test conformance CONFORMANCE_PLUGIN=ionos       # ionos plugin (needs its backend)
 ```
 
-Because the IONOS plugin is Crossplane-based (not a delegator plugin), it keeps its
-own secatest flow against the multi-cluster demo, in `test/ionos-e2e/` and delegated
-from the single Makefile:
+The IONOS plugin additionally keeps a standalone secatest flow for the full,
+realistic split global/regional demo (separate clusters, Crossplane provider,
+NodePort), in `test/ionos-e2e/` and delegated from the single Makefile:
 ```bash
 make -C test conformance-ionos-scaffolding   # build images, create demo clusters, install plugin
 make -C test conformance-ionos               # run secatest via NodePort

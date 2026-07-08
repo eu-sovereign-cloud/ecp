@@ -114,7 +114,10 @@ make clean-all                          # tear down
 ## Choosing the plugin
 
 Both the e2e and conformance stacks reconcile with a delegator plugin, selected via
-make variables that default to `dummy`:
+make variables that default to `dummy`. Valid values are `dummy`, `aruba` and
+`ionos` — the plugin sets the delegator compiles in. `aruba` and `ionos` load and
+run, but only reconcile once their backend is provisioned (the Aruba API, or
+Crossplane + the IONOS provider from `csp/ionos/deploy`).
 
 - `E2E_PLUGIN` — plugin for `make [kind-]e2e[-deploy]`.
 - `CONFORMANCE_PLUGIN` — plugin for `make [kind-]conformance[-deploy]`.

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
+	ionosapis "github.com/ionos-cloud/provider-upjet-ionoscloud/apis/namespaced/compute/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/dynamic"
@@ -32,6 +33,7 @@ import (
 	arubahandler "github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/handler"
 	arubarepository "github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/repository"
 	dummyplugin "github.com/eu-sovereign-cloud/ecp/csp/dummy/pkg/plugin"
+	ionoscontrollers "github.com/eu-sovereign-cloud/ecp/csp/ionos/pkg/controllerset"
 )
 
 var scheme = runtime.NewScheme()
@@ -47,6 +49,7 @@ func init() {
 	utilruntime.Must(rolek8s.AddToScheme(scheme))
 	utilruntime.Must(rak8s.AddToScheme(scheme))
 	utilruntime.Must(v1alpha1.AddToScheme(scheme))
+	utilruntime.Must(ionosapis.AddToScheme(scheme))
 }
 
 func main() {
@@ -94,10 +97,12 @@ func main() {
 			logger.Error("failed to load aruba controllers", "error", err)
 			os.Exit(1)
 		}
+	case "ionos":
+		loadIonosControllers(dynClient, mgr, logger, controllerSet, controllerOpts)
 	case "dummy":
 		loadDummyControllers(logger, dynClient, mgr, controllerSet, controllerOpts)
 	default:
-		fmt.Fprintf(os.Stderr, "Error: Invalid plugin type specified. Got '%s', expected 'aruba' or 'dummy'.\n", pluginType)
+		fmt.Fprintf(os.Stderr, "Error: Invalid plugin type specified. Got '%s', expected 'aruba', 'ionos' or 'dummy'.\n", pluginType)
 		os.Exit(1)
 	}
 
@@ -147,6 +152,15 @@ func loadArubaControllers(ctx context.Context, dynClient dynamic.Interface, mgr 
 	controllerSet.Add(wsk8s.NewController(mgr.GetClient(), dynClient, wsPlugin, controllerOpts...))
 
 	return nil
+}
+
+// loadIonosControllers wires the IONOS (Crossplane-backed) plugin set. Like the
+// aruba set it is compiled in but assumes its backend is provisioned separately:
+// the controllers start, but reconciliation only succeeds once Crossplane and the
+// IONOS provider (see csp/ionos/deploy) are installed in the cluster.
+func loadIonosControllers(dynClient dynamic.Interface, mgr ctrl.Manager, logger *slog.Logger, controllerSet *frameworkbuilder.ControllerSet, controllerOpts []frameworkbuilder.Option) {
+	logger.Info("Loading 'ionos' plugin set")
+	ionoscontrollers.Add(controllerSet, mgr, dynClient, logger, controllerOpts...)
 }
 
 func loadDummyControllers(logger *slog.Logger, dynClient dynamic.Interface, mgr ctrl.Manager, controllerSet *frameworkbuilder.ControllerSet, controllerOpts []frameworkbuilder.Option) {
