@@ -39,7 +39,7 @@ import (
 )
 
 const (
-	pollInterval  = 10 * time.Second
+	pollInterval  = 2 * time.Second
 	timeout       = 5 * time.Minute
 	testTenant    = "test-tenant"
 	testWorkspace = "test-workspace"

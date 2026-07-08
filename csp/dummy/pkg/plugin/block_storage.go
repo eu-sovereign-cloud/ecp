@@ -29,10 +29,14 @@ func (b *BlockStorage) IncreaseSize(ctx context.Context, resource *bsdom.BlockSt
 	return simulateBS(ctx, "increase-size", resource, 2*blockStorageDelay(), b.logger)
 }
 
+// blockStorageDelay returns the simulated latency of a block storage operation.
+// The values are deliberately small: they only need to outlast a reconcile requeue
+// (1s in the e2e delegator) so the pending→active lifecycle is exercised, while
+// keeping the integration suites fast. IncreaseSize doubles this.
 func blockStorageDelay() time.Duration {
-	const base int = 30
+	const base int = 3
 
-	variation := rand.IntN(60) //#nosec G404 -- math/rand/v2 is fine here: delay jitter is not security-sensitive
+	variation := rand.IntN(4) //#nosec G404 -- math/rand/v2 is fine here: delay jitter is not security-sensitive
 
 	return time.Duration(base+variation) * time.Second
 }

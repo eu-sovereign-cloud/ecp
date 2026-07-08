@@ -47,7 +47,7 @@ import (
 
 const (
 	testNamespace = "ecp-dummy-delegator"
-	pollInterval  = 5 * time.Second
+	pollInterval  = 2 * time.Second
 	timeout       = 2 * time.Minute
 	// dependencyTimeout allows for resources that must wait on a dependency to
 	// become active before they themselves can be reconciled (two sequential
