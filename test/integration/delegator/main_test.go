@@ -18,7 +18,6 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
@@ -36,6 +35,8 @@ import (
 	imgk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image/backend/kubernetes"
 	wsdom "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1"
 	wsk8s "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1/backend/kubernetes"
+
+	"github.com/eu-sovereign-cloud/ecp/test/internal/testenv"
 )
 
 const (
@@ -72,11 +73,7 @@ func TestMain(m *testing.M) {
 	utilruntime.Must(imgk8s.AddToScheme(s))
 	utilruntime.Must(corev1.AddToScheme(s))
 
-	kubeconfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-		clientcmd.NewDefaultClientConfigLoadingRules(),
-		&clientcmd.ConfigOverrides{},
-	)
-	restConfig, err := kubeconfig.ClientConfig()
+	restConfig, err := testenv.RestConfig()
 	if err != nil {
 		log.Fatalf("Failed to get kubeconfig: %v", err)
 	}
