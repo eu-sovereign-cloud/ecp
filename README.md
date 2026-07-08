@@ -26,7 +26,8 @@ csp/
 test/                 # Test harness: integration, e2e and conformance suites
 ├── integration/      # Per-component suites (delegator, gateway-global/-regional)
 ├── e2e/              # Single end-to-end suite (API → delegator plugin)
-└── internal/         # Shared infra: build, deploy, scripts, cmd, testenv, context, ionos-e2e
+├── conformance/      # secatest conformance harnesses (ionos, aruba)
+└── internal/         # Shared infra: build, deploy, scripts, cmd, testenv, context
 ci/
 ├── container/        # Dockerfile layers: builder, tools, dev, runner
 ├── scripts/          # CI and dev automation scripts

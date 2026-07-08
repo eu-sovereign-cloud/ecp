@@ -214,7 +214,7 @@ $(foreach comp,$(TEST_COMPONENTS),$(eval $(call TEST_template,$(comp))))
 #   make conformance-deploy CONFORMANCE_PLUGIN=aruba   # deploy stack + aruba plugin
 #   <install the aruba operator + credentials>
 #   make conformance                                   # run secatest
-# For a full real-backend IONOS run see conformance-ionos* (ionos-e2e/).
+# For a full real-backend IONOS run see conformance-ionos* (conformance/ionos/).
 E2E_PLUGIN         ?= dummy
 CONFORMANCE_PLUGIN ?= dummy
 
@@ -262,14 +262,14 @@ kind-conformance: ## One-shot (dummy plugin only): build, load, deploy stack + r
 # The IONOS plugin can run in the delegator (CONFORMANCE_PLUGIN=ionos), but that
 # only loads the controllers. This flow is the full real-backend run: it stands up
 # the IONOS multi-cluster demo, installs Crossplane + the IONOS provider, and runs
-# secatest against it. It lives standalone in internal/ionos-e2e/ and is delegated
+# secatest against it. It lives standalone in conformance/ionos/ and is delegated
 # to here so it is reachable from this single Makefile.
 .PHONY: conformance-ionos conformance-ionos-scaffolding conformance-ionos-clean
 conformance-ionos: ## Run the IONOS secatest conformance against the multi-cluster demo
-	@$(MAKE) -C internal/ionos-e2e secatest
+	@$(MAKE) -C conformance/ionos secatest
 
 conformance-ionos-scaffolding: ## Build images, create the demo clusters and install the IONOS plugin
-	@$(MAKE) -C internal/ionos-e2e secatest-scaffolding
+	@$(MAKE) -C conformance/ionos secatest-scaffolding
 
 conformance-ionos-clean: ## Tear down the IONOS conformance demo clusters
-	@$(MAKE) -C internal/ionos-e2e secatest-clean
+	@$(MAKE) -C conformance/ionos secatest-clean

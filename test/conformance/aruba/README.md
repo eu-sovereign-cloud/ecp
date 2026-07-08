@@ -5,7 +5,7 @@ doesn't need one to run. The aruba plugin is a delegator plugin set (loaded with
 `PLUGIN=aruba`), so its conformance is the **generic two-phase flow**. This folder
 is a placeholder that documents that flow and the one missing piece.
 
-Why there's no `Makefile` here (yet), in contrast to [`../ionos-e2e/`](../ionos-e2e/):
+Why there's no `Makefile` here (yet), in contrast to [`../ionos/`](../ionos/):
 
 - Aruba has **no standalone plugin binary** — it only runs inside the delegator
   (`../cmd/delegator`, `PLUGIN=aruba`). There is nothing separate to deploy.
@@ -35,7 +35,7 @@ make conformance                                     # or: make e2e
 
 When aruba gains backend deploy tooling — a `csp/aruba/deploy` mirroring
 `csp/ionos/deploy` — add a `Makefile` here analogous to
-[`../ionos-e2e/Makefile`](../ionos-e2e/Makefile) that:
+[`../ionos/Makefile`](../ionos/Makefile) that:
 
 1. creates the demo cluster(s),
 2. installs the `arubacloud-resource-operator` (+ credentials),

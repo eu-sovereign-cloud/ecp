@@ -19,6 +19,9 @@ test/
   Makefile  README.md  go.mod  go.sum
   integration/          # isolated component suites (build tag `integration`)
   e2e/                  # single end-to-end suite (build tag `e2e`)
+  conformance/
+    ionos/              # IONOS real-backend conformance (multi-cluster demo)
+    aruba/              # placeholder for an aruba real-backend harness
   internal/
     testenv/            # shared kubeconfig + port-forward helpers (Go)
     cmd/                # entrypoints: delegator + gateway start scripts
@@ -26,8 +29,6 @@ test/
     deploy/             # Kustomize manifests per component + test-data
     scripts/            # helper scripts orchestrated by the Makefile
     context/            # LOCAL-ONLY settings (git-ignored, ships empty)
-    ionos-e2e/          # IONOS real-backend conformance (multi-cluster demo)
-    aruba-e2e/          # placeholder for an aruba real-backend harness
 ```
 
 ## The plugin model: one-shot vs multi-phase
@@ -41,7 +42,7 @@ delegator compiles in three plugin sets — `dummy`, `aruba`, `ionos` — select
 |--------|---------|------------|
 | **dummy** | none (logs actions) | **one-shot** — fully self-contained on KIND |
 | **aruba** | `arubacloud-resource-operator` + Aruba creds | **multi-phase** — deploy → install backend → run |
-| **ionos** | Crossplane + IONOS provider + token | **multi-phase**, or the bespoke `ionos-e2e` real-backend run |
+| **ionos** | Crossplane + IONOS provider + token | **multi-phase**, or the bespoke `conformance/ionos` real-backend run |
 
 Only **dummy** is self-contained, so the one-shot targets (`kind-e2e`,
 `kind-conformance`) always use dummy. aruba/ionos can't run in one command — their
@@ -137,10 +138,10 @@ make conformance
 ```
 
 Swap `conformance-deploy`/`conformance` for `e2e-deploy`/`e2e` to run the e2e suite
-instead. See [`internal/aruba-e2e/`](internal/aruba-e2e/) for the aruba backend
+instead. See [`conformance/aruba/`](conformance/aruba/) for the aruba backend
 caveats.
 
-### IONOS real-backend run (`ionos-e2e`)
+### IONOS real-backend run (`conformance/ionos`)
 
 IONOS also has a fully-bundled path that stands up the multi-cluster demo, installs
 Crossplane + the provider, and runs `secatest` — reachable from this Makefile:
