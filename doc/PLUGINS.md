@@ -105,6 +105,15 @@ make -C test kind-conformance                          # dummy plugin
 make -C test conformance CONFORMANCE_PLUGIN=aruba       # aruba plugin
 ```
 
+Because the IONOS plugin is Crossplane-based (not a delegator plugin), it keeps its
+own secatest flow against the multi-cluster demo, in `test/ionos-e2e/` and delegated
+from the single Makefile:
+```bash
+make -C test conformance-ionos-scaffolding   # build images, create demo clusters, install plugin
+make -C test conformance-ionos               # run secatest via NodePort
+make -C test conformance-ionos-clean         # tear down
+```
+
 ### Aruba Plugin (`csp/aruba/`)
 
 Direct CSP adapter for Aruba Cloud, without a Crossplane layer.

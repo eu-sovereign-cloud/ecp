@@ -249,3 +249,18 @@ kind-conformance: ## One-shot: build, load and deploy the stack + runner into KI
 	@$(MAKE) kind-load-all
 	@$(MAKE) kind-conformance-deploy
 	@USE_KIND=true ./scripts/conformance.sh
+
+# --- IONOS conformance -------------------------------------------------------
+# The IONOS plugin is Crossplane-based (not a delegator plugin), so it has its own
+# conformance flow: secatest against the IONOS multi-cluster demo. It is kept
+# standalone in ionos-e2e/ (see that Makefile) and delegated to here so it is
+# reachable from this single Makefile alongside the generic conformance target.
+.PHONY: conformance-ionos conformance-ionos-scaffolding conformance-ionos-clean
+conformance-ionos: ## Run the IONOS secatest conformance against the multi-cluster demo
+	@$(MAKE) -C ionos-e2e secatest
+
+conformance-ionos-scaffolding: ## Build images, create the demo clusters and install the IONOS plugin
+	@$(MAKE) -C ionos-e2e secatest-scaffolding
+
+conformance-ionos-clean: ## Tear down the IONOS conformance demo clusters
+	@$(MAKE) -C ionos-e2e secatest-clean

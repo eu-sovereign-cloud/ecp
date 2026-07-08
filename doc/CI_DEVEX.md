@@ -310,8 +310,9 @@ Any target `FOO` defined at the root can be run as `FOO-ctzd`. The wrapper:
 | Makefile | Key Targets |
 |----------|-------------|
 | `csp/dummy/Makefile` | `build`, `deploy`, `kind-start`, `kind-stop`, `test-integration` |
-| `test/Makefile` | `integration`, `e2e`, `conformance` (+ `kind-*` variants), `build-all`, `push-all`, `deploy-all`, `kind-start`, `kind-stop`, `kind-load-all` |
+| `test/Makefile` | `integration`, `e2e`, `conformance`, `conformance-ionos` (+ `kind-*` variants), `build-all`, `push-all`, `deploy-all`, `kind-start`, `kind-stop`, `kind-load-all` |
 | `csp/ionos/deploy/Makefile` | `install-crossplane`, `install-provider`, `install-all`, `install-on-regional` |
+| `test/ionos-e2e/Makefile` | `secatest-scaffolding`, `secatest`, `secatest-all`, `secatest-clean` |
 
 ## CI Pipeline (GitHub Actions)
 
