@@ -165,6 +165,23 @@ func ComputeNamespace(obj persistence.Scope) string {
 	return fmt.Sprintf("%x", hasher.Sum(nil))
 }
 
+// NetworkScope is implemented by domain models (and ListParams) scoped under tenant/workspace/network.
+type NetworkScope interface {
+	GetTenant() string
+	GetWorkspace() string
+	GetNetwork() string
+}
+
+// ComputeNetworkNamespace computes the Kubernetes namespace for a network-scoped resource,
+// hashing tenant/workspace/network so each network gets its own namespace. This gives
+// network-scoped resources (e.g. RouteTable name uniqueness) isolation per network, unlike
+// ComputeNamespace's per-workspace sharing used by every other (non-network-scoped) resource.
+func ComputeNetworkNamespace(obj NetworkScope) string {
+	hasher := sha3.New224()
+	_, _ = fmt.Fprintf(hasher, "%s/%s/%s", obj.GetTenant(), obj.GetWorkspace(), obj.GetNetwork())
+	return fmt.Sprintf("%x", hasher.Sum(nil))
+}
+
 // CreateNamespace creates a Kubernetes Namespace.
 func CreateNamespace(ctx context.Context, clientSet kubernetes.Interface, name string, ownerLabels map[string]string) (created bool, err error) {
 	if name == "" {
@@ -214,24 +231,33 @@ func DeleteNamespace(ctx context.Context, clientSet kubernetes.Interface, name s
 	return nil
 }
 
-// List implements the persistence.ReaderRepo interface.
-func (a *ReaderAdapter[T]) List(ctx context.Context, params resource.ListParams, list *[]T) (*string, error) {
+// List implements the persistence.ReaderRepo interface. params only needs to satisfy
+// resource.ListFilter, so a resource with an extra scoping dimension (e.g. Network) can carry
+// it on its own local params type and have it picked up here via the NetworkScope assertion,
+// without that dimension living on the shared resource.ListParams struct.
+func (a *ReaderAdapter[T]) List(ctx context.Context, params resource.ListFilter, list *[]T) (*string, error) {
 	lo := metav1.ListOptions{}
 
-	if params.Limit > 0 {
-		lo.Limit = int64(params.Limit)
+	if limit := params.GetLimit(); limit > 0 {
+		lo.Limit = int64(limit)
 	}
 
-	if params.SkipToken != "" {
-		lo.Continue = params.SkipToken
+	if skipToken := params.GetSkipToken(); skipToken != "" {
+		lo.Continue = skipToken
 	}
+
+	selector := params.GetSelector()
 
 	// Separate server-side and client-side selectors
-	if params.Selector != "" {
-		lo.LabelSelector = filter.K8sSelectorForAPI(params.Selector)
+	if selector != "" {
+		lo.LabelSelector = filter.K8sSelectorForAPI(selector)
 	}
 
-	ri := a.client.Resource(a.gvr).Namespace(ComputeNamespace(&params))
+	ns := ComputeNamespace(params)
+	if networkScope, ok := params.(NetworkScope); ok && networkScope.GetNetwork() != "" {
+		ns = ComputeNetworkNamespace(networkScope)
+	}
+	ri := a.client.Resource(a.gvr).Namespace(ns)
 
 	ulist, err := ri.List(ctx, lo)
 	if err != nil {
@@ -241,9 +267,9 @@ func (a *ReaderAdapter[T]) List(ctx context.Context, params resource.ListParams,
 
 	// Apply client-side filtering for selectors not handled by the API
 	var filteredItems []unstructured.Unstructured
-	if params.Selector != "" {
+	if selector != "" {
 		for _, item := range ulist.Items {
-			matched, k8sHandled, err := filter.MatchLabels(item.GetLabels(), params.Selector)
+			matched, k8sHandled, err := filter.MatchLabels(item.GetLabels(), selector)
 			if err != nil {
 				a.logger.ErrorContext(ctx, "label filter evaluation failed", "resource", a.gvr.Resource, "item", item.GetName(), "error", err)
 

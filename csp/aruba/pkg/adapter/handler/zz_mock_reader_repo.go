@@ -43,7 +43,7 @@ func (m *MockReaderRepo[T]) EXPECT() *MockReaderRepoMockRecorder[T] {
 }
 
 // List mocks base method.
-func (m *MockReaderRepo[T]) List(ctx context.Context, params resource.ListParams, list *[]T) (*string, error) {
+func (m *MockReaderRepo[T]) List(ctx context.Context, params resource.ListFilter, list *[]T) (*string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "List", ctx, params, list)
 	ret0, _ := ret[0].(*string)

@@ -68,26 +68,6 @@ func newNetworkWithIdentity(ir persistencepkg.IdentifiableResource) *netdom.Netw
 
 // --- Stubs for unimplemented resources ---
 
-func (h *Handler) ListRouteTables(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, network sdkschema.NetworkPathParam, params sdknetwork.ListRouteTablesParams) {
-	h.Logger.DebugContext(r.Context(), "ListRouteTables not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (h *Handler) DeleteRouteTable(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, network sdkschema.NetworkPathParam, name sdkschema.ResourcePathParam, params sdknetwork.DeleteRouteTableParams) {
-	h.Logger.DebugContext(r.Context(), "DeleteRouteTable not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (h *Handler) GetRouteTable(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, network sdkschema.NetworkPathParam, name sdkschema.ResourcePathParam) {
-	h.Logger.DebugContext(r.Context(), "GetRouteTable not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (h *Handler) CreateOrUpdateRouteTable(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, network sdkschema.NetworkPathParam, name sdkschema.ResourcePathParam, params sdknetwork.CreateOrUpdateRouteTableParams) {
-	h.Logger.DebugContext(r.Context(), "CreateOrUpdateRouteTable not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
 func (h *Handler) ListSubnets(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, network sdkschema.NetworkPathParam, params sdknetwork.ListSubnetsParams) {
 	h.Logger.DebugContext(r.Context(), "ListSubnets not implemented")
 	w.WriteHeader(http.StatusNotImplemented)

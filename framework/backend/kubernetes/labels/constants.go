@@ -8,4 +8,5 @@ const (
 	InternalRegionLabel    = InternalLabelPrefix + "region"
 	InternalTenantLabel    = InternalLabelPrefix + "tenant"
 	InternalWorkspaceLabel = InternalLabelPrefix + "workspace"
+	InternalNetworkLabel   = InternalLabelPrefix + "network"
 )

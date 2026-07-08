@@ -14,7 +14,7 @@ import (
 
 // Lister defines the interface for controller List operations.
 type Lister[T any] interface {
-	Do(ctx context.Context, params resource.ListParams) ([]T, *string, error)
+	Do(ctx context.Context, params resource.ListFilter) ([]T, *string, error)
 }
 
 // DomainToAPIList defines the function type for mapping a list of domain objects to an API object.
@@ -29,7 +29,7 @@ func HandleList[D any, Out any](
 	w http.ResponseWriter,
 	r *http.Request,
 	logger *slog.Logger,
-	params resource.ListParams,
+	params resource.ListFilter,
 	lister Lister[D],
 	mapper DomainToAPIList[D, Out],
 ) {

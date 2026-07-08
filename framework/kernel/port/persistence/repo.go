@@ -43,6 +43,6 @@ type WatcherRepo[T any] interface {
 
 // ReaderRepo is the read-side repository interface.
 type ReaderRepo[T IdentifiableResource] interface {
-	List(ctx context.Context, params resource.ListParams, list *[]T) (*string, error)
+	List(ctx context.Context, params resource.ListFilter, list *[]T) (*string, error)
 	Load(ctx context.Context, m *T) error
 }
