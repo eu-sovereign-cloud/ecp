@@ -32,8 +32,10 @@ ci/tools/bin/
 scripts/common-template/dist/
 /gateway/gateway
 
-# Ignore local e2e context
-/test/e2e/context/
+# Ignore local test context (registry creds, kubeconfigs, settings).
+# Keep the directory (via its own .gitignore) but never track its contents.
+/test/context/*
+!/test/context/.gitignore
 
 # Devcontainer generated files (host-specific, written by devcontainer-init.sh)
 /.devcontainer/.env
