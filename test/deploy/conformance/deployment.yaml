@@ -23,17 +23,28 @@ spec:
       - image: "##IMAGE_NAME##"
         name: e2e-ecp-conformance
         imagePullPolicy: Always
+        # Values are rendered by scripts/conformance.sh from CONFORMANCE_* settings
+        # so the same image can be pointed at any gateway/plugin and scenario set.
         env:
           - name: PROVIDER_REGION_V1
-            value: http://gateway-global-svc:80/providers/seca.region
+            value: "##PROVIDER_REGION_V1##"
+          - name: PROVIDER_AUTHORIZATION_V1
+            value: "##PROVIDER_AUTHORIZATION_V1##"
           - name: CLIENT_AUTH_TOKEN
-            value: test-token
+            value: "##CLIENT_AUTH_TOKEN##"
           - name: CLIENT_TENANT
-            value: test-tenant
+            value: "##CLIENT_TENANT##"
           - name: CLIENT_REGION
-            value: itbg-bergamo
+            value: "##CLIENT_REGION##"
           - name: SCENARIOS_FILTER
-            value: Workspace.V1.List
+            value: "##SCENARIOS_FILTER##"
+          - name: SCENARIOS_USERS
+            value: "##SCENARIOS_USERS##"
+          - name: SCENARIOS_CIDR
+            value: "##SCENARIOS_CIDR##"
+          - name: SCENARIOS_PUBLIC_IPS
+            value: "##SCENARIOS_PUBLIC_IPS##"
+        # Stay alive so scripts/conformance.sh can exec run-conformance.sh on demand.
         command: [ "sleep", "infinity" ]
         resources: {}
 status: {}
