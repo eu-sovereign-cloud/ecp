@@ -65,7 +65,7 @@ echo "<PAT>" | docker login ghcr.io -u <github-username> --password-stdin
 | `csp/dummy` | `./csp/dummy` | Reference plugin (no real backend) |
 | `csp/ionos` | `./csp/ionos` | IONOS CSP adapter via Crossplane |
 | `csp/aruba` | `./csp/aruba` | Aruba CSP adapter |
-| `test/e2e` | `./test/e2e` | End-to-end test harness |
+| `test` | `./test` | Test harness (integration, e2e, conformance) |
 | `ci/tools/go` | `./ci/tools/go` | Pinned versions of Go development tools |
 
 The `framework-isolation` CI lane runs `cd framework && GOWORK=off go build ./... && go test ./...` to prove no `framework/*` package imports `resource`. See [ARCHITECTURE.md](ARCHITECTURE.md) for the full module DAG.
@@ -310,9 +310,8 @@ Any target `FOO` defined at the root can be run as `FOO-ctzd`. The wrapper:
 | Makefile | Key Targets |
 |----------|-------------|
 | `csp/dummy/Makefile` | `build`, `deploy`, `kind-start`, `kind-stop`, `test-integration` |
-| `test/e2e/Makefile` | `build-all`, `push-all`, `deploy-all`, `kind-start`, `kind-stop`, `kind-load-all`, `test-all` |
+| `test/Makefile` | `integration`, `e2e`, `conformance` (+ `kind-*` variants), `build-all`, `push-all`, `deploy-all`, `kind-start`, `kind-stop`, `kind-load-all` |
 | `csp/ionos/deploy/Makefile` | `install-crossplane`, `install-provider`, `install-all`, `install-on-regional` |
-| `test/ionos-e2e/Makefile` | `secatest-scaffolding`, `secatest`, `secatest-all`, `secatest-clean` |
 
 ## CI Pipeline (GitHub Actions)
 

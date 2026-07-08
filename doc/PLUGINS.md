@@ -97,39 +97,51 @@ make -C csp/ionos/deploy install-on-regional
 
 See `csp/ionos/README.md` for full deployment instructions, including token secret setup and provider configuration.
 
-**IONOS E2E tests** (`test/ionos-e2e/`):
+**Conformance** — the conformance suite (`secatest`) is plugin-generic and lives in
+the test harness. Run it against the dummy plugin on KIND, or the aruba plugin on a
+configured cluster:
 ```bash
-make -C test/ionos-e2e secatest-all
+make -C test kind-conformance                          # dummy plugin
+make -C test conformance CONFORMANCE_PLUGIN=aruba       # aruba plugin
 ```
 
 ### Aruba Plugin (`csp/aruba/`)
 
 Direct CSP adapter for Aruba Cloud, without a Crossplane layer.
 
-## E2E Test Harness (`test/e2e/`)
+## Test Harness (`test/`)
 
-A multi-component test harness that tests the full ECP stack (gateway + plugin) end-to-end on a KIND cluster. Components are auto-discovered from the `build/` directory.
+The `test/` module tests the full ECP stack on a KIND cluster. It has three kinds of
+suite, all driven from one `Makefile`. Components are auto-discovered from the
+`build/` directory.
 
-There are three integration suites, each self-contained. Every `kind-deploy-<component>` target also deploys the fixtures/components its suite needs, so it is a complete setup for the matching `kind-test-<component>` target:
-
-- **`gateway-regional`** and **`gateway-global`** test only the gateway's REST↔CR translation (create/read/update/delete through the API, asserting HTTP responses — never reconciled status). Each needs only its own gateway plus `test-data`; not the other gateway, and not the delegator.
-- **`delegator`** tests reconciliation: the dummy-plugin controllers drive CRs to `Active`. It needs `test-data`.
+- **integration** (`test/integration/`) — each component in isolation. Every
+  `kind-deploy-<component>` also deploys the fixtures its suite needs, so it is a
+  complete setup for the matching `kind-test-<component>`:
+  - **`gateway-regional`** / **`gateway-global`** test only REST↔CR translation
+    (asserting HTTP responses — never reconciled status). Each needs only its own
+    gateway plus `test-data`.
+  - **`delegator`** tests reconciliation: the dummy-plugin controllers drive CRs to
+    `Active`. It needs `test-data`.
+- **e2e** (`test/e2e/`) — the whole stack in one run: it drives the SECA API and
+  asserts resources reconcile down to the delegator plugin.
+- **conformance** — runs `secatest` against the stack, generic across plugins.
 
 ```bash
-# Start the KIND cluster and build + load the images
-make -C test/e2e kind-start
-make -C test/e2e build-all
-make -C test/e2e kind-load-all
+# Integration: deploy a suite's components and run it
+make -C test kind-start
+make -C test kind-deploy-gateway-regional
+make -C test kind-test-gateway-regional
 
-# Deploy a suite's components and run it (deploy pulls in the fixtures it needs)
-make -C test/e2e kind-deploy-gateway-regional
-make -C test/e2e kind-test-gateway-regional
+# End-to-end (one shot: build, load, deploy the dummy stack, run the suite)
+make -C test kind-e2e
 
 # Tear down
-make -C test/e2e kind-stop
+make -C test kind-stop
 ```
 
-See `test/e2e/README.md` for the full per-suite dependency table. The e2e module (`test/e2e`) is excluded from the standard per-module CI checks (`GO_MODULES_EXCLUDE` in `.common.mk`).
+See `test/README.md` for the full workflow. The test module (`test`) is excluded from
+the standard per-module CI checks (see the exclude list in `ci/scripts/go-modules.sh`).
 
 ## Writing a New Plugin
 

@@ -23,9 +23,11 @@ csp/
 ├── dummy/            # Reference plugin (no real backend)
 ├── ionos/            # IONOS CSP plugin (Crossplane-based)
 └── aruba/            # Aruba CSP plugin
-test/
-├── e2e/              # End-to-end test harness
-└── ionos-e2e/        # IONOS-specific integration tests
+test/                 # Test harness: integration, e2e and conformance suites
+├── integration/      # Per-component suites (delegator, gateway-global/-regional)
+├── e2e/              # Single end-to-end suite (API → delegator plugin)
+├── build/ deploy/ scripts/ cmd/  # Shared Dockerfiles, manifests, tooling, entrypoints
+└── context/          # Local-only settings, git-ignored (kubeconfig, registry creds)
 ci/
 ├── container/        # Dockerfile layers: builder, tools, dev, runner
 ├── scripts/          # CI and dev automation scripts
@@ -49,7 +51,7 @@ This is a Go monorepo managed with `go.work`. The workspace contains 8 first-par
 | `csp/dummy` | `./csp/dummy` | Reference plugin (no real backend) |
 | `csp/ionos` | `./csp/ionos` | IONOS CSP adapter via Crossplane |
 | `csp/aruba` | `./csp/aruba` | Aruba CSP adapter |
-| `test/e2e` | `./test/e2e` | End-to-end test harness |
+| `test` | `./test` | Test harness (integration, e2e, conformance) |
 | `ci/tools/go` | `./ci/tools/go` | Pinned versions of Go development tools |
 
 **Module boundary**: `framework ↛ resource` is compiler-enforced. `resource` and `gateway` depend on `framework`. CSP plugins depend on both `framework` and `resource`. See [doc/ARCHITECTURE.md](doc/ARCHITECTURE.md).

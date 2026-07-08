@@ -87,9 +87,6 @@ make kind-e2e
 # Against the dummy plugin (default):
 make kind-conformance
 
-# Against the aruba plugin:
-make kind-conformance CONFORMANCE_PLUGIN=aruba
-
 # Pick scenarios (see scripts/conformance.sh for all CONFORMANCE_* knobs):
 make kind-conformance CONFORMANCE_SCENARIOS=Storage.V1.BlockStorageLifeCycle
 ```
@@ -109,7 +106,8 @@ non-`kind-` targets:
 ```shell
 make build-all && make push-all         # build and push images
 make e2e-deploy && make e2e             # deploy the stack, run e2e
-make conformance                        # run conformance
+make conformance                        # run conformance (dummy plugin)
+make conformance CONFORMANCE_PLUGIN=aruba  # conform-test the aruba plugin
 make clean-all                          # tear down
 ```
 

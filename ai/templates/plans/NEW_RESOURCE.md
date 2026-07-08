@@ -178,9 +178,9 @@ A few sentences per directory you will touch:
   manifests + RBAC; `test/integration/` holds plugin integration tests (build-tagged, Kind).
   **Only extend `dummy`** — `ionos`/`aruba` need custom implementations against their own
   operators; leave them alone.
-- **`test/e2e/`** — full-stack harness, split by component:
-  `test/e2e/test/integration/{delegator,gateway-regional,gateway-global}/` and
-  `test/e2e/deploy/{delegator,gateway-regional,gateway-global,...}/` manifests.
+- **`test/`** — full-stack harness: `test/integration/{delegator,gateway-regional,gateway-global}/`
+  isolated suites, `test/e2e/` the single end-to-end suite, and
+  `test/deploy/{delegator,gateway-regional,gateway-global,...}/` manifests.
 - **`doc/`** — `CONVENTIONS.md` (mandatory coding standards), `CODEGEN.md`, `PLUGINS.md`,
   `ARCHITECTURE.md`, `CI_DEVEX.md`.
 
@@ -324,14 +324,14 @@ CRDs install automatically from `chart/crd/`. Add API-group rules to **every** r
 ClusterRole — these drift, so add your resource wherever its peers appear and verify each role:
 - **read-write:** two rules (`<plural>` and `<plural>/status`) on the **dummy delegator**
   ([csp/dummy/deploy/clusterrole.yaml](../../../csp/dummy/deploy/clusterrole.yaml)) and the
-  **e2e delegator** ([test/e2e/deploy/delegator/clusterrole.yaml](../../../test/e2e/deploy/delegator/clusterrole.yaml))
+  **e2e delegator** ([test/deploy/delegator/clusterrole.yaml](../../../test/deploy/delegator/clusterrole.yaml))
   with full verbs; on the **e2e gateway-regional**
-  ([test/e2e/deploy/gateway-regional/clusterrole.yaml](../../../test/e2e/deploy/gateway-regional/clusterrole.yaml))
+  ([test/deploy/gateway-regional/clusterrole.yaml](../../../test/deploy/gateway-regional/clusterrole.yaml))
   split read/write (`<plural>` full verbs, `<plural>/status` read-only).
 - **read-only, regional:** read-only verbs on `<plural>` (no `/status`) in the e2e delegator and
   e2e gateway-regional roles; **no dummy delegator rule** (no controller).
 - **read-only, global:** read-only verbs on `<plural>` in the e2e gateway-global role
-  ([test/e2e/deploy/gateway-global/clusterrole.yaml](../../../test/e2e/deploy/gateway-global/clusterrole.yaml)).
+  ([test/deploy/gateway-global/clusterrole.yaml](../../../test/deploy/gateway-global/clusterrole.yaml)).
 
 ### 4.14 Tests
 Follow existing conventions; **examples are inline fixtures inside the tests — there is no
@@ -345,15 +345,15 @@ extra mutating verb deserves its own test).
   `//go:build integration`; create via the repo adapter; poll with
   `wait.PollUntilContextTimeout` for the expected `ResourceState`. Wire the repo + scheme in
   `main_test.go`. Ref: `csp/dummy/test/integration/blockstorage_test.go` + `main_test.go`.
-- **E2E** (`test/e2e/test/integration/…`): `delegator/` (controller behavior, read-write),
+- **Integration** (`test/integration/…`): `delegator/` (controller behavior, read-write),
   `gateway-regional/` (regional REST), `gateway-global/` (global REST). Read-only resources get
-  a gateway read test only (mirror `test/e2e/test/integration/gateway-regional/storage_sku_test.go` /
+  a gateway read test only (mirror `test/integration/gateway-regional/storage_sku_test.go` /
   `gateway-global/regions_test.go`).
 
 ### 4.15 Documentation (avoid doc rot — this is critical)
 - [README.md](../../../README.md) — update the layout/CRD-count if your change affects it (directory structure uses `<group>/vN/<resource>/`).
 - Per-folder READMEs you touched — e.g. [csp/dummy/README.md](../../../csp/dummy/README.md),
-  [test/e2e/README.md](../../../test/e2e/README.md) — update any resource list/behavior prose
+  [test/README.md](../../../test/README.md) — update any resource list/behavior prose
   that mentions the resources by name.
 - [doc/CODEGEN.md](../../../doc/CODEGEN.md) / [doc/PLUGINS.md](../../../doc/PLUGINS.md) — update
   only if you changed the generation pipeline or plugin contract (normally you don't).

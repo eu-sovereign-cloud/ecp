@@ -58,7 +58,7 @@ Each resource slice at `resource/{group}/vN/{resource}/` contains:
 ```
 framework   ← resource ← gateway
                       ↖ csp/{dummy,ionos,aruba}
-                      ↖ test/e2e
+                      ↖ test
 ```
 
 No back-edges. `framework` has zero dependency on `resource`. `resource` has zero dependency on `gateway` or any CSP.
