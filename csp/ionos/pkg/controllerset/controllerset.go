@@ -1,6 +1,6 @@
 // Package controllerset exposes the IONOS plugin's controller wiring so it can be
 // shared between the standalone IONOS plugin binary (csp/ionos/cmd) and the e2e
-// delegator (test/cmd/delegator), which loads it under PLUGIN=ionos.
+// delegator (test/internal/cmd/delegator), which loads it under PLUGIN=ionos.
 //
 // The concrete plugin/service/controller types live in csp/ionos/internal and are
 // therefore not importable from other modules; this package is the public seam.

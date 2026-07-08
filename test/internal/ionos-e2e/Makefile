@@ -35,18 +35,18 @@ SECATEST_RESULTS_PATH        ?= ./results
 # Usage:
 #   make secatest-scaffolding
 secatest-scaffolding:
-	$(MAKE) -C ../../gateway docker-build-images
-	$(MAKE) -C ../../gateway create-dev-clusters
-	$(MAKE) -C ../../csp/ionos/deploy install-all
+	$(MAKE) -C ../../../gateway docker-build-images
+	$(MAKE) -C ../../../gateway create-dev-clusters
+	$(MAKE) -C ../../../csp/ionos/deploy install-all
 	$(MAKE) secatest-install-plugin
 
 # Tear down the environment
 secatest-clean:
-	$(MAKE) -C ../../gateway clean-dev-clusters
+	$(MAKE) -C ../../../gateway clean-dev-clusters
 
 # Build the ionos plugin Docker image and install it on the regional cluster
 secatest-install-plugin:
-	$(MAKE) -C ../../csp/ionos/deploy install-plugin-on-regional \
+	$(MAKE) -C ../../../csp/ionos/deploy install-plugin-on-regional \
 		PLUGIN_IMAGE=$(PLUGIN_IMAGE) \
 		REGIONAL_CLUSTER_NAME=$(REGIONAL_CLUSTER_NAME) \
 		REGIONAL_KUBECONFIG=$(REGIONAL_KUBECONFIG)

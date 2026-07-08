@@ -26,8 +26,7 @@ csp/
 test/                 # Test harness: integration, e2e and conformance suites
 ├── integration/      # Per-component suites (delegator, gateway-global/-regional)
 ├── e2e/              # Single end-to-end suite (API → delegator plugin)
-├── build/ deploy/ scripts/ cmd/  # Shared Dockerfiles, manifests, tooling, entrypoints
-└── context/          # Local-only settings, git-ignored (kubeconfig, registry creds)
+└── internal/         # Shared infra: build, deploy, scripts, cmd, testenv, context, ionos-e2e
 ci/
 ├── container/        # Dockerfile layers: builder, tools, dev, runner
 ├── scripts/          # CI and dev automation scripts

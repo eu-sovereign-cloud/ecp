@@ -33,7 +33,7 @@ WORKDIR /app
 COPY --from=builder /workspace/ecp .
 
 # Copy the start script and make it executable
-COPY ./test/cmd/gateway-regional/start-regional.sh .
+COPY ./test/internal/cmd/gateway-regional/start-regional.sh .
 RUN chmod +x /app/start-regional.sh
 
 # Copy dlv (Delve debugger) for debugging. Assume dlv is in /go/bin in the builder image.

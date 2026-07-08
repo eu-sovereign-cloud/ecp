@@ -7,8 +7,8 @@ include ../.config.mk
 # =====================================================================================
 
 # Load environment variables from config.env if it exists
-ifneq (,$(wildcard $(CURDIR)/context/config.env))
-	include $(CURDIR)/context/config.env
+ifneq (,$(wildcard $(CURDIR)/internal/context/config.env))
+	include $(CURDIR)/internal/context/config.env
 	export
 endif
 
@@ -17,10 +17,10 @@ VERSION ?= latest
 REGISTRY_URL ?= "default-registry"
 
 # Discover components automatically from the build directory
-COMPONENTS := $(notdir $(wildcard $(CURDIR)/build/*))
+COMPONENTS := $(notdir $(wildcard $(CURDIR)/internal/build/*))
 
-# Discover deployments automatically from the build directory
-DEPLOYMENTS := $(notdir $(wildcard $(CURDIR)/deploy/*))
+# Discover deployments automatically from the deploy directory
+DEPLOYMENTS := $(notdir $(wildcard $(CURDIR)/internal/deploy/*))
 
 # Discover components that actually have integration tests
 TEST_COMPONENTS := $(notdir $(wildcard $(CURDIR)/integration/*))
@@ -45,7 +45,7 @@ define build_rule
 .PHONY: build-$(1)
 build-$(1): ## Build the docker image for $(1)
 	@echo "Building image for $(1)..."
-	@DLV_VERSION=$(DLV_VERSION) ./scripts/build.sh $(1)
+	@DLV_VERSION=$(DLV_VERSION) ./internal/scripts/build.sh $(1)
 endef
 $(foreach comp,$(COMPONENTS),$(eval $(call build_rule,$(comp))))
 
@@ -59,7 +59,7 @@ define push_rule
 .PHONY: push-$(1)
 push-$(1): ## Push a specific component image to the registry (e.g., make push-$(1))
 	@echo "Pushing image for $(1)..."
-	@./scripts/push.sh $(1)
+	@./internal/scripts/push.sh $(1)
 endef
 $(foreach comp,$(COMPONENTS),$(eval $(call push_rule,$(comp))))
 
@@ -73,7 +73,7 @@ define deploy_rule
 .PHONY: deploy-$(1)
 deploy-$(1): ## Deploy a specific deployment to the configured Kubernetes cluster (e.g., make deploy-$(1))
 	@echo "Deploying $(1) to Kubernetes cluster..."
-	@./scripts/deploy.sh $(1)
+	@./internal/scripts/deploy.sh $(1)
 endef
 $(foreach comp,$(DEPLOYMENTS),$(eval $(call deploy_rule,$(comp))))
 
@@ -83,12 +83,12 @@ $(foreach comp,$(DEPLOYMENTS),$(eval $(call deploy_rule,$(comp))))
 .PHONY: kind-start
 kind-start: ## Start a KIND cluster
 	@echo "Starting KIND cluster..."
-	@./scripts/kind-start.sh
+	@./internal/scripts/kind-start.sh
 
 .PHONY: kind-stop
 kind-stop: ## Stop the KIND cluster
 	@echo "Stopping KIND cluster..."
-	@./scripts/kind-stop.sh
+	@./internal/scripts/kind-stop.sh
 
 .PHONY: kind-load-all
 kind-load-all: $(addprefix kind-load-,$(COMPONENTS)) ## Load all component images into the KIND cluster
@@ -97,7 +97,7 @@ define kind_load_rule
 .PHONY: kind-load-$(1)
 kind-load-$(1): ## Load a specific component image into the KIND cluster (e.g., make kind-load-$(1))
 	@echo "Loading $(1) image into KIND cluster..."
-	@./scripts/kind-load.sh $(1)
+	@./internal/scripts/kind-load.sh $(1)
 endef
 $(foreach comp,$(COMPONENTS),$(eval $(call kind_load_rule,$(comp))))
 
@@ -108,7 +108,7 @@ define kind_deploy_rule
 .PHONY: kind-deploy-$(1)
 kind-deploy-$(1): ## Deploy a specific deployment to the KIND cluster (e.g., make kind-deploy-$(1))
 	@echo "Deploying $(1) to KIND cluster..."
-	@USE_KIND=true ./scripts/deploy.sh $(1)
+	@USE_KIND=true ./internal/scripts/deploy.sh $(1)
 endef
 $(foreach comp,$(DEPLOYMENTS),$(eval $(call kind_deploy_rule,$(comp))))
 
@@ -145,7 +145,7 @@ define clean_rule
 .PHONY: clean-$(1)
 clean-$(1): ## Clean a specific deployment from the configured Kubernetes cluster (e.g., make clean-$(1))
 	@echo "Cleaning $(1) from Kubernetes cluster..."
-	@./scripts/clean.sh $(1)
+	@./internal/scripts/clean.sh $(1)
 endef
 $(foreach comp,$(DEPLOYMENTS),$(eval $(call clean_rule,$(comp))))
 
@@ -158,19 +158,19 @@ define kind_clean_rule
 .PHONY: kind-clean-$(1)
 kind-clean-$(1): ## Clean a specific deployment from the KIND cluster (e.g., make kind-clean-$(1))
 	@echo "Cleaning $(1) from KIND cluster..."
-	@USE_KIND=true ./scripts/clean.sh $(1)
+	@USE_KIND=true ./internal/scripts/clean.sh $(1)
 endef
 $(foreach comp,$(DEPLOYMENTS),$(eval $(call kind_clean_rule,$(comp))))
 
 .PHONY: clean-crds
 clean-crds: ## Clean all CRDs from the configured Kubernetes cluster
 	@echo "Cleaning CRDs..."
-	@./scripts/clean-crds.sh
+	@./internal/scripts/clean-crds.sh
 
 .PHONY: kind-clean-crds
 kind-clean-crds: ## Clean all CRDs from the KIND cluster
 	@echo "Cleaning CRDs from KIND cluster..."
-	@USE_KIND=true ./scripts/clean-crds.sh
+	@USE_KIND=true ./internal/scripts/clean-crds.sh
 
 
 # =====================================================================================
@@ -191,11 +191,11 @@ kind-test-all: $(addprefix kind-test-,$(TEST_COMPONENTS)) ## Run all integration
 define TEST_template
 .PHONY: test-$(1)
 test-$(1): ## Run $(1) integration tests against a configured cluster
-	@./scripts/run-test.sh $(1)
+	@./internal/scripts/run-test.sh $(1)
 
 .PHONY: kind-test-$(1)
 kind-test-$(1): ## Run $(1) integration tests against a configured KIND cluster
-	@USE_KIND=true ./scripts/run-test.sh $(1)
+	@USE_KIND=true ./internal/scripts/run-test.sh $(1)
 endef
 
 $(foreach comp,$(TEST_COMPONENTS),$(eval $(call TEST_template,$(comp))))
@@ -206,7 +206,15 @@ $(foreach comp,$(TEST_COMPONENTS),$(eval $(call TEST_template,$(comp))))
 # See test/e2e/. The default plugin is the dummy plugin.
 # =====================================================================================
 
-# Which delegator plugin the e2e / conformance stack reconciles with.
+# Which delegator plugin the e2e / conformance stack reconciles with. Only the
+# dummy plugin is self-contained (no external backend), so the one-shot
+# `kind-e2e` / `kind-conformance` targets always use dummy. The aruba and ionos
+# plugins need their backend stood up first, so they are two-phase — set these on
+# the `*-deploy` targets, provision the backend, then run `e2e` / `conformance`:
+#   make conformance-deploy CONFORMANCE_PLUGIN=aruba   # deploy stack + aruba plugin
+#   <install the aruba operator + credentials>
+#   make conformance                                   # run secatest
+# For a full real-backend IONOS run see conformance-ionos* (ionos-e2e/).
 E2E_PLUGIN         ?= dummy
 CONFORMANCE_PLUGIN ?= dummy
 
@@ -219,19 +227,19 @@ kind-e2e-deploy: ## Deploy the full e2e stack into KIND with E2E_PLUGIN (default
 
 .PHONY: e2e kind-e2e
 e2e: ## Run the e2e suite against an already-deployed stack (configured cluster)
-	@./scripts/run-e2e.sh
+	@./internal/scripts/run-e2e.sh
 
-kind-e2e: ## One-shot: build, load and deploy the stack into KIND, then run the e2e suite
+kind-e2e: ## One-shot (dummy plugin only): build, load, deploy the stack into KIND and run the e2e suite
 	@$(MAKE) build-delegator build-gateway-global build-gateway-regional
 	@$(MAKE) kind-load-delegator kind-load-gateway-global kind-load-gateway-regional
-	@$(MAKE) kind-e2e-deploy
-	@USE_KIND=true ./scripts/run-e2e.sh
+	@$(MAKE) kind-e2e-deploy E2E_PLUGIN=dummy
+	@USE_KIND=true ./internal/scripts/run-e2e.sh
 
 # =====================================================================================
 # Conformance test — runs the SECA conformance suite (secatest) against the stack.
 # Generic across plugins: set CONFORMANCE_PLUGIN=aruba to conform-test the aruba
 # plugin. Scenarios and client settings are configurable via CONFORMANCE_* vars
-# (see scripts/conformance.sh). See test/build/conformance and test/deploy/conformance.
+# (see internal/scripts/conformance.sh, internal/build/conformance, internal/deploy/conformance).
 # =====================================================================================
 .PHONY: conformance-deploy kind-conformance-deploy
 conformance-deploy: ## Deploy the stack for conformance with CONFORMANCE_PLUGIN (default: dummy)
@@ -242,25 +250,26 @@ kind-conformance-deploy: ## Deploy the stack for conformance into KIND with CONF
 
 .PHONY: conformance kind-conformance
 conformance: ## Run conformance (secatest) against an already-deployed stack (configured cluster)
-	@./scripts/conformance.sh
+	@./internal/scripts/conformance.sh
 
-kind-conformance: ## One-shot: build, load and deploy the stack + runner into KIND, then run conformance
+kind-conformance: ## One-shot (dummy plugin only): build, load, deploy stack + runner into KIND and run conformance
 	@$(MAKE) build-all
 	@$(MAKE) kind-load-all
-	@$(MAKE) kind-conformance-deploy
-	@USE_KIND=true ./scripts/conformance.sh
+	@$(MAKE) kind-conformance-deploy CONFORMANCE_PLUGIN=dummy
+	@USE_KIND=true ./internal/scripts/conformance.sh
 
-# --- IONOS conformance -------------------------------------------------------
-# The IONOS plugin is Crossplane-based (not a delegator plugin), so it has its own
-# conformance flow: secatest against the IONOS multi-cluster demo. It is kept
-# standalone in ionos-e2e/ (see that Makefile) and delegated to here so it is
-# reachable from this single Makefile alongside the generic conformance target.
+# --- IONOS conformance (real backend) ----------------------------------------
+# The IONOS plugin can run in the delegator (CONFORMANCE_PLUGIN=ionos), but that
+# only loads the controllers. This flow is the full real-backend run: it stands up
+# the IONOS multi-cluster demo, installs Crossplane + the IONOS provider, and runs
+# secatest against it. It lives standalone in internal/ionos-e2e/ and is delegated
+# to here so it is reachable from this single Makefile.
 .PHONY: conformance-ionos conformance-ionos-scaffolding conformance-ionos-clean
 conformance-ionos: ## Run the IONOS secatest conformance against the multi-cluster demo
-	@$(MAKE) -C ionos-e2e secatest
+	@$(MAKE) -C internal/ionos-e2e secatest
 
 conformance-ionos-scaffolding: ## Build images, create the demo clusters and install the IONOS plugin
-	@$(MAKE) -C ionos-e2e secatest-scaffolding
+	@$(MAKE) -C internal/ionos-e2e secatest-scaffolding
 
 conformance-ionos-clean: ## Tear down the IONOS conformance demo clusters
-	@$(MAKE) -C ionos-e2e secatest-clean
+	@$(MAKE) -C internal/ionos-e2e secatest-clean

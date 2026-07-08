@@ -180,7 +180,7 @@ A few sentences per directory you will touch:
   operators; leave them alone.
 - **`test/`** — full-stack harness: `test/integration/{delegator,gateway-regional,gateway-global}/`
   isolated suites, `test/e2e/` the single end-to-end suite, and
-  `test/deploy/{delegator,gateway-regional,gateway-global,...}/` manifests.
+  `test/internal/deploy/{delegator,gateway-regional,gateway-global,...}/` manifests.
 - **`doc/`** — `CONVENTIONS.md` (mandatory coding standards), `CODEGEN.md`, `PLUGINS.md`,
   `ARCHITECTURE.md`, `CI_DEVEX.md`.
 
@@ -324,14 +324,14 @@ CRDs install automatically from `chart/crd/`. Add API-group rules to **every** r
 ClusterRole — these drift, so add your resource wherever its peers appear and verify each role:
 - **read-write:** two rules (`<plural>` and `<plural>/status`) on the **dummy delegator**
   ([csp/dummy/deploy/clusterrole.yaml](../../../csp/dummy/deploy/clusterrole.yaml)) and the
-  **e2e delegator** ([test/deploy/delegator/clusterrole.yaml](../../../test/deploy/delegator/clusterrole.yaml))
+  **e2e delegator** ([test/internal/deploy/delegator/clusterrole.yaml](../../../test/internal/deploy/delegator/clusterrole.yaml))
   with full verbs; on the **e2e gateway-regional**
-  ([test/deploy/gateway-regional/clusterrole.yaml](../../../test/deploy/gateway-regional/clusterrole.yaml))
+  ([test/internal/deploy/gateway-regional/clusterrole.yaml](../../../test/internal/deploy/gateway-regional/clusterrole.yaml))
   split read/write (`<plural>` full verbs, `<plural>/status` read-only).
 - **read-only, regional:** read-only verbs on `<plural>` (no `/status`) in the e2e delegator and
   e2e gateway-regional roles; **no dummy delegator rule** (no controller).
 - **read-only, global:** read-only verbs on `<plural>` in the e2e gateway-global role
-  ([test/deploy/gateway-global/clusterrole.yaml](../../../test/deploy/gateway-global/clusterrole.yaml)).
+  ([test/internal/deploy/gateway-global/clusterrole.yaml](../../../test/internal/deploy/gateway-global/clusterrole.yaml)).
 
 ### 4.14 Tests
 Follow existing conventions; **examples are inline fixtures inside the tests — there is no

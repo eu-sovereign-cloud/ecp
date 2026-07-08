@@ -110,7 +110,7 @@ make -C test conformance CONFORMANCE_PLUGIN=ionos       # ionos plugin (needs it
 
 The IONOS plugin additionally keeps a standalone secatest flow for the full,
 realistic split global/regional demo (separate clusters, Crossplane provider,
-NodePort), in `test/ionos-e2e/` and delegated from the single Makefile:
+NodePort), in `test/internal/ionos-e2e/` and delegated from the single Makefile:
 ```bash
 make -C test conformance-ionos-scaffolding   # build images, create demo clusters, install plugin
 make -C test conformance-ionos               # run secatest via NodePort

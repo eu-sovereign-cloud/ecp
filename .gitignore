@@ -34,8 +34,8 @@ scripts/common-template/dist/
 
 # Ignore local test context (registry creds, kubeconfigs, settings).
 # Keep the directory (via its own .gitignore) but never track its contents.
-/test/context/*
-!/test/context/.gitignore
+/test/internal/context/*
+!/test/internal/context/.gitignore
 
 # Devcontainer generated files (host-specific, written by devcontainer-init.sh)
 /.devcontainer/.env
