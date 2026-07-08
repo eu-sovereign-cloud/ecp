@@ -25,11 +25,12 @@ func (ra *RoleAssignment) Delete(ctx context.Context, resource *radom.RoleAssign
 	return simulateRA(ctx, "delete", resource, roleAssignmentDelay(), ra.logger)
 }
 
-// roleAssignmentDelay returns the simulated latency of a role assignment operation.
+// roleAssignmentDelay returns the (short) simulated latency of a role assignment
+// operation. See blockStorageDelay for why the values are kept small.
 func roleAssignmentDelay() time.Duration {
-	const base int = 30
+	const base int = 3
 
-	variation := rand.IntN(60) //#nosec G404 -- math/rand/v2 is fine here: delay jitter is not security-sensitive
+	variation := rand.IntN(4) //#nosec G404 -- math/rand/v2 is fine here: delay jitter is not security-sensitive
 
 	return time.Duration(base+variation) * time.Second
 }

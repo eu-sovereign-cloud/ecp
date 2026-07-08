@@ -25,11 +25,12 @@ func (i *Image) Delete(ctx context.Context, resource *imgdom.Image) error {
 	return simulateImage(ctx, "delete", resource, imageDelay(), i.logger)
 }
 
-// imageDelay returns the simulated latency of an image operation.
+// imageDelay returns the (short) simulated latency of an image operation. See
+// blockStorageDelay for why the values are kept small.
 func imageDelay() time.Duration {
-	const base int = 30
+	const base int = 3
 
-	variation := rand.IntN(60) //#nosec G404 -- math/rand/v2 is fine here: delay jitter is not security-sensitive
+	variation := rand.IntN(4) //#nosec G404 -- math/rand/v2 is fine here: delay jitter is not security-sensitive
 
 	return time.Duration(base+variation) * time.Second
 }

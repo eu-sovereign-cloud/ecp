@@ -29,11 +29,12 @@ func (ro *Role) Delete(ctx context.Context, resource *roledom.Role) error {
 	return simulateRole(ctx, "delete", resource, roleDelay(), ro.logger)
 }
 
-// roleDelay returns the simulated latency of a role operation.
+// roleDelay returns the (short) simulated latency of a role operation. See
+// blockStorageDelay for why the values are kept small.
 func roleDelay() time.Duration {
-	const base int = 5
+	const base int = 1
 
-	variation := rand.IntN(10) //#nosec G404 -- math/rand/v2 is fine here: delay jitter is not security-sensitive
+	variation := rand.IntN(2) //#nosec G404 -- math/rand/v2 is fine here: delay jitter is not security-sensitive
 
 	return time.Duration(base+variation) * time.Second
 }
