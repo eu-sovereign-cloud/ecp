@@ -1,4 +1,4 @@
-# Makefile for e2e Plugin
+# Makefile for the ECP test harness: integration, e2e and conformance suites.
 
 include ../.config.mk
 
@@ -174,8 +174,13 @@ kind-clean-crds: ## Clean all CRDs from the KIND cluster
 
 
 # =====================================================================================
-# Integration tests
+# Integration tests — each component (delegator, gateway-global, gateway-regional)
+# exercised in isolation. See test/integration/.
 # =====================================================================================
+.PHONY: integration kind-integration
+integration: test-all           ## Run all integration suites against a configured cluster
+kind-integration: kind-test-all ## Run all integration suites against a KIND cluster
+
 .PHONY: test-all
 test-all: $(addprefix test-,$(TEST_COMPONENTS)) ## Run all integration tests
 
@@ -194,3 +199,53 @@ kind-test-$(1): ## Run $(1) integration tests against a configured KIND cluster
 endef
 
 $(foreach comp,$(TEST_COMPONENTS),$(eval $(call TEST_template,$(comp))))
+
+# =====================================================================================
+# End-to-end test — the whole stack (both gateways + delegator) in a single run,
+# driving the SECA API and asserting reconciliation down to the delegator plugin.
+# See test/e2e/. The default plugin is the dummy plugin.
+# =====================================================================================
+
+# Which delegator plugin the e2e / conformance stack reconciles with.
+E2E_PLUGIN         ?= dummy
+CONFORMANCE_PLUGIN ?= dummy
+
+.PHONY: e2e-deploy kind-e2e-deploy
+e2e-deploy: ## Deploy the full e2e stack (gateways + delegator) with E2E_PLUGIN (default: dummy)
+	@PLUGIN_TYPE=$(E2E_PLUGIN) $(MAKE) deploy-gateway-global deploy-gateway-regional deploy-delegator
+
+kind-e2e-deploy: ## Deploy the full e2e stack into KIND with E2E_PLUGIN (default: dummy)
+	@PLUGIN_TYPE=$(E2E_PLUGIN) $(MAKE) kind-deploy-gateway-global kind-deploy-gateway-regional kind-deploy-delegator
+
+.PHONY: e2e kind-e2e
+e2e: ## Run the e2e suite against an already-deployed stack (configured cluster)
+	@./scripts/run-e2e.sh
+
+kind-e2e: ## One-shot: build, load and deploy the stack into KIND, then run the e2e suite
+	@$(MAKE) build-delegator build-gateway-global build-gateway-regional
+	@$(MAKE) kind-load-delegator kind-load-gateway-global kind-load-gateway-regional
+	@$(MAKE) kind-e2e-deploy
+	@USE_KIND=true ./scripts/run-e2e.sh
+
+# =====================================================================================
+# Conformance test — runs the SECA conformance suite (secatest) against the stack.
+# Generic across plugins: set CONFORMANCE_PLUGIN=aruba to conform-test the aruba
+# plugin. Scenarios and client settings are configurable via CONFORMANCE_* vars
+# (see scripts/conformance.sh). See test/build/conformance and test/deploy/conformance.
+# =====================================================================================
+.PHONY: conformance-deploy kind-conformance-deploy
+conformance-deploy: ## Deploy the stack for conformance with CONFORMANCE_PLUGIN (default: dummy)
+	@PLUGIN_TYPE=$(CONFORMANCE_PLUGIN) $(MAKE) deploy-gateway-global deploy-gateway-regional deploy-delegator
+
+kind-conformance-deploy: ## Deploy the stack for conformance into KIND with CONFORMANCE_PLUGIN
+	@PLUGIN_TYPE=$(CONFORMANCE_PLUGIN) $(MAKE) kind-deploy-gateway-global kind-deploy-gateway-regional kind-deploy-delegator
+
+.PHONY: conformance kind-conformance
+conformance: ## Run conformance (secatest) against an already-deployed stack (configured cluster)
+	@./scripts/conformance.sh
+
+kind-conformance: ## One-shot: build, load and deploy the stack + runner into KIND, then run conformance
+	@$(MAKE) build-all
+	@$(MAKE) kind-load-all
+	@$(MAKE) kind-conformance-deploy
+	@USE_KIND=true ./scripts/conformance.sh

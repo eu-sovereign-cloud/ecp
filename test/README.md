@@ -1,175 +1,124 @@
-# ECP e2e Plugin
+# ECP test harness
 
-This directory contains an end-to-end testing suite for ECP (Euro-Cloud-Platform) components. It provides a reference implementation and a comprehensive testing environment for ECP plugins and other components like gateways.
+This module bundles the cluster-backed test suites for ECP and the tooling to run
+them. There are three kinds of test, all driven from a single `Makefile`:
 
-By running this e2e implementation, you can observe the entire lifecycle of custom resources (`BlockStorage`, `Role`, `RoleAssignment`, `Workspace`, etc.) as they are processed by the controller. The included `delegator` with its dummy plugins logs the actions it performs (like `Create`, `Delete`) without interacting with a real cloud provider, making it an excellent tool for understanding the resource handling flow.
+| Suite | What it covers | Directory |
+|-------|----------------|-----------|
+| **integration** | Each component (delegator, gateway-global, gateway-regional) in **isolation**. The gateway suites test only REST↔CR translation; the delegator suite tests reconciliation. | [`integration/`](integration/) |
+| **e2e** | The **whole stack in one run** — drives the SECA API on both gateways and asserts resources reconcile all the way to the delegator plugin. | [`e2e/`](e2e/) |
+| **conformance** | Runs the SECA conformance suite (`secatest`) against the stack. **Plugin-generic**: point it at the dummy, aruba or ionos plugin. | [`build/conformance/`](build/conformance/), [`deploy/conformance/`](deploy/conformance/) |
 
-## Directory Content
+The **default plugin** for the e2e and conformance stacks is the **dummy** plugin,
+which logs actions instead of talking to a real cloud, so everything runs locally
+on KIND.
 
--   `cmd/`: Contains the main application entrypoints for the various components (e.g., `delegator`).
--   `pkg/`: Contains the dummy plugin implementations, which log actions but perform no real operations.
--   `build/`: Contains the `Dockerfile` for each component (e.g., `delegator`, `gateway-global`).
--   `deploy/`: Contains Kubernetes manifests (Kustomize) for deploying each component and its necessary RBAC roles.
--   `scripts/`: Provides a suite of helper scripts for building, deploying, testing, and managing the environment, all orchestrated by the `Makefile`.
--   `test/`: Includes integration tests that run against a live Kubernetes cluster to verify the end-to-end flow.
+## Directory layout
 
-## Getting Started
+- `integration/` — the three isolated component suites (build tag `integration`).
+- `e2e/` — the single end-to-end suite (build tag `e2e`).
+- `internal/testenv/` — shared setup helpers (kubeconfig loading, port-forwarding)
+  used by both the integration and e2e suites.
+- `cmd/` — entrypoints: the `delegator` (loads the dummy or aruba plugin set) and
+  the gateway start scripts.
+- `build/` — a `Dockerfile` per component (delegator, gateway-global,
+  gateway-regional, conformance).
+- `deploy/` — Kustomize manifests per component plus `test-data` (tenant namespace,
+  regions, storage SKUs).
+- `scripts/` — helper scripts orchestrated by the `Makefile`.
+- `context/` — **local-only** settings (kubeconfig, registry credentials). Ships
+  empty and is git-ignored; see below.
 
-### Prerequisites
+## Prerequisites
 
--   [Docker](https://docs.docker.com/get-docker/) (or a compatible container runtime like Podman)
--   [KIND](https://kind.sigs.k8s.io/docs/user/quick-start/#installation)
--   [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
--   [make](https://www.gnu.org/software/make/)
+[Docker](https://docs.docker.com/get-docker/),
+[KIND](https://kind.sigs.k8s.io/),
+[kubectl](https://kubernetes.io/docs/tasks/tools/),
+[kustomize](https://kubectl.docs.kubernetes.io/installation/kustomize/) and
+[make](https://www.gnu.org/software/make/).
 
-## Configuration for Remote Clusters
+## The `context/` directory
 
-The `context/` directory (ignored by git) is used to configure the scripts for use with a remote (non-KIND) Kubernetes cluster and container registry.
+`context/` is ignored by git and ships empty. Populate it locally to target a
+remote cluster / registry instead of KIND:
 
--   **`context/kubeconfig.yaml`**: If this file is present, `make` recipes like `deploy-all`, `clean-all`, and `test-delegator` will target the cluster defined in this file instead of the default or KIND cluster.
+- `context/kubeconfig.yaml` — if present, `deploy`/`clean`/`test`/`e2e`/`conformance`
+  recipes (the non-`kind-` variants) target this cluster.
+- `context/config.env` — shell exports for a remote registry, used by `make push-*`:
 
--   **`context/config.env`**: This file can be created to provide credentials for a remote container registry. It is used by the `make push-all` command. It should contain shell variable exports:
-    ```shell
-    export REGISTRY_URL="my.registry.com"
-    export REGISTRY_PROJECT="my-project"
-    export REGISTRY_USER="my-user"
-    export REGISTRY_PASSWORD="my-password"
-    ```
+  ```shell
+  export REGISTRY_URL="my.registry.com"
+  export REGISTRY_PROJECT="my-project"
+  export REGISTRY_USER="my-user"
+  export REGISTRY_PASSWORD="my-password"
+  ```
 
-## Local Development & Testing with KIND
-
-The `Makefile` provides a set of powerful and flexible recipes to manage the entire development and testing lifecycle using a local KIND cluster.
-
-### Automated End-to-End Testing (Recommended)
-
-For most development, the `kind-test-delegator` recipe is all you need. It performs the entire test lifecycle in a single command:
-
-```shell
-make kind-test-delegator
-```
-
-This command will automatically:
-1.  Create a new KIND cluster named `e2e-cluster`.
-2.  Build the `delegator` container image.
-3.  Load the image into the KIND cluster.
-4.  Apply the necessary CRDs and deploy the `delegator` manager to the `e2e-ecp` namespace.
-5.  Run the Go integration tests against the `delegator`.
-6.  Tear down and delete the KIND cluster after the tests complete.
-
-### Manual Lifecycle Management
-
-For debugging or more advanced scenarios, you can use the granular `make` recipes to control each step of the process.
-
-1.  **Start the Cluster:**
-    ```shell
-    make kind-start
-    ```
-
-2.  **Build All Component Images:** The build script now creates tags for both remote and local/KIND registries automatically.
-    ```shell
-    make build-all
-    ```
-
-3.  **Load Images into KIND:**
-    ```shell
-    make kind-load-all
-    ```
-
-4.  **Deploy Components to KIND:**
-    ```shell
-    make kind-deploy-all
-    ```
-
-### Monitoring Resource Handling
-
-Once the components are running, you can watch the logs to see the resource handling cycles in real-time.
-
-To stream the logs for the delegator, run the following command in a separate terminal:
-```shell
-kubectl logs -f -n e2e-ecp deploy/delegator-depl -c manager
-```
-
-### Running Tests Manually
-
-If you have a running cluster with the components deployed, you can run the tests directly:
-
--   **Against a KIND cluster:**
-    ```shell
-    make kind-test-delegator
-    ```
--   **Against an external cluster:** (Requires `context/kubeconfig.yaml` to be present and configured)
-    ```shell
-    make test-delegator
-    ```
-
-### Gateway test suites
-
-Alongside the `delegator` suite, there are two gateway suites, each targeting a
-single gateway. Each `[kind-]deploy-<component>` target also deploys everything that
-component's suite needs, so it is a complete setup for the matching test target:
-
-| Suite | Deploy + test | Also deploys |
-|-------|---------------|--------------|
-| `delegator` | `make kind-deploy-delegator && make kind-test-delegator` | `test-data` |
-| `gateway-regional` | `make kind-deploy-gateway-regional && make kind-test-gateway-regional` | `test-data` |
-| `gateway-global` | `make kind-deploy-gateway-global && make kind-test-gateway-global` | `test-data` |
-
-`test-data` provides the tenant namespace (where workspace/role/storage CRs are
-created), the storage SKUs, and the regions. The `delegator` reconciles CRs to
-`Active` with its dummy plugin.
-
-The two gateway suites test only the REST↔CR translation of their gateway: they
-create/read/update/delete resources through the API and assert the HTTP responses,
-never the reconciled status. Reconciliation to `Active` is exercised separately by
-the `delegator` suite. Because of that, **the gateway suites need neither each other
-nor the delegator** — each runs against just its own gateway plus `test-data`. In
-particular, the `gateway-regional` suite does not require the global gateway or the
-delegator.
-
-`kind-deploy-all` deploys every component, which is convenient when running more than
-one suite.
-
-### Cleaning Up
-
-To clean up resources from the KIND cluster without destroying the cluster itself:
+## Running on KIND (recommended)
 
 ```shell
-make kind-clean-all
+make kind-start        # create the KIND cluster (once)
 ```
-This will remove all deployments, services, and CRDs.
 
-To destroy the KIND cluster completely:
+### Integration
 
 ```shell
-make kind-stop
+# One component: deploy its dependencies, then run its suite.
+make kind-deploy-delegator        && make kind-test-delegator
+make kind-deploy-gateway-regional && make kind-test-gateway-regional
+make kind-deploy-gateway-global   && make kind-test-gateway-global
+
+# Or everything (deploy the full stack, then every suite):
+make kind-deploy-all
+make kind-integration
 ```
 
-## Working with a Remote Cluster
+### End-to-end (one shot)
 
-To deploy and test against a remote Kubernetes cluster, ensure you have configured your `context/kubeconfig.yaml` and `context/config.env` files as described above.
+Builds the images, loads them into KIND, deploys the full stack with the dummy
+plugin and runs the e2e suite:
 
-1.  **Build All Images:**
-    ```shell
-    make build-all
-    ```
+```shell
+make kind-e2e
+```
 
-2.  **Push Images to Remote Registry:**
-    ```shell
-    make push-all
-    ```
+### Conformance
 
-3.  **Deploy Components to Remote Cluster:**
-    ```shell
-    make deploy-all
-    ```
+```shell
+# Against the dummy plugin (default):
+make kind-conformance
 
-4.  **Run Tests Against Remote Cluster:**
-    ```shell
-    make test-delegator
-    ```
+# Against the aruba plugin:
+make kind-conformance CONFORMANCE_PLUGIN=aruba
 
-5.  **Clean Up Remote Cluster:**
-    ```shell
-    make clean-all
-    ```
-This will remove all deployments, services, and CRDs that were created.
+# Pick scenarios (see scripts/conformance.sh for all CONFORMANCE_* knobs):
+make kind-conformance CONFORMANCE_SCENARIOS=Storage.V1.BlockStorageLifeCycle
+```
+
+### Cleanup
+
+```shell
+make kind-clean-all    # remove deployments + CRDs, keep the cluster
+make kind-stop         # delete the KIND cluster
+```
+
+## Running against a remote cluster
+
+With `context/kubeconfig.yaml` and `context/config.env` in place, use the
+non-`kind-` targets:
+
+```shell
+make build-all && make push-all         # build and push images
+make e2e-deploy && make e2e             # deploy the stack, run e2e
+make conformance                        # run conformance
+make clean-all                          # tear down
+```
+
+## Choosing the plugin
+
+Both the e2e and conformance stacks reconcile with a delegator plugin, selected via
+make variables that default to `dummy`:
+
+- `E2E_PLUGIN` — plugin for `make [kind-]e2e[-deploy]`.
+- `CONFORMANCE_PLUGIN` — plugin for `make [kind-]conformance[-deploy]`.
+
+Run `make help` for the full list of targets.
