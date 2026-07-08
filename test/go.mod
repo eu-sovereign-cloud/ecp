@@ -1,4 +1,4 @@
-module github.com/eu-sovereign-cloud/ecp/test/e2e
+module github.com/eu-sovereign-cloud/ecp/test
 
 go 1.26.5
 

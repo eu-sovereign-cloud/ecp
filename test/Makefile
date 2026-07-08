@@ -1,6 +1,6 @@
 # Makefile for e2e Plugin
 
-include ../../.config.mk
+include ../.config.mk
 
 # =====================================================================================
 # Variables
@@ -23,7 +23,7 @@ COMPONENTS := $(notdir $(wildcard $(CURDIR)/build/*))
 DEPLOYMENTS := $(notdir $(wildcard $(CURDIR)/deploy/*))
 
 # Discover components that actually have integration tests
-TEST_COMPONENTS := $(notdir $(wildcard $(CURDIR)/test/integration/*))
+TEST_COMPONENTS := $(notdir $(wildcard $(CURDIR)/integration/*))
 
 # =====================================================================================
 # Main Targets

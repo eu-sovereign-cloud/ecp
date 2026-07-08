@@ -33,7 +33,7 @@ WORKDIR /app
 COPY --from=builder /workspace/ecp .
 
 # Copy the start script and make it executable
-COPY ./test/e2e/cmd/gateway-global/start-global.sh .
+COPY ./test/cmd/gateway-global/start-global.sh .
 RUN chmod +x /app/start-global.sh
 
 # Copy dlv (Delve debugger) for debugging. Assume dlv is in /go/bin in the builder image.
