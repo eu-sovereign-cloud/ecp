@@ -6,19 +6,21 @@ import (
 	"fmt"
 	"net/http"
 	"testing"
+
+	authhelper "github.com/eu-sovereign-cloud/ecp/test/internal/authhelper"
 )
 
 // TestAuthn exercises the bearer-token authentication middleware on the global gateway.
 // These tests are skipped when E2E_AUTH_ENABLED=false (unauthenticated mode).
 func TestAuthn(t *testing.T) {
-	if !authEnabled() {
+	if !authhelper.AuthEnabled() {
 		t.Skip("E2E_AUTH_ENABLED=false: skipping authn tests")
 	}
 
 	listRegionsURL := fmt.Sprintf("http://localhost:%d/providers/seca.region/v1/regions", globalLocalPort)
 
 	t.Run("valid token returns 200", func(t *testing.T) {
-		token := makeBearerToken(defaultAuthUser, defaultAuthPassword, nil)
+		token := authhelper.MakeBearerToken(authhelper.DefaultAuthUser, authhelper.DefaultAuthPassword, nil)
 		req, _ := http.NewRequest(http.MethodGet, listRegionsURL, nil)
 		req.Header.Set("Authorization", "Bearer "+token)
 		resp, err := http.DefaultClient.Do(req)
@@ -44,7 +46,7 @@ func TestAuthn(t *testing.T) {
 	})
 
 	t.Run("wrong password returns 401", func(t *testing.T) {
-		token := makeBearerToken(defaultAuthUser, "wrong-password", nil)
+		token := authhelper.MakeBearerToken(authhelper.DefaultAuthUser, "wrong-password", nil)
 		req, _ := http.NewRequest(http.MethodGet, listRegionsURL, nil)
 		req.Header.Set("Authorization", "Bearer "+token)
 		resp, err := http.DefaultClient.Do(req)

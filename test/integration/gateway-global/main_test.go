@@ -8,6 +8,8 @@ import (
 	"os"
 	"testing"
 
+	authhelper "github.com/eu-sovereign-cloud/ecp/test/internal/authhelper"
+
 	authv1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.authorization.v1"
 	regionv1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
 
@@ -22,6 +24,8 @@ const (
 var (
 	regionClient *regionv1.ClientWithResponses
 	authClient   *authv1.ClientWithResponses
+
+	globalLocalPort uint16
 )
 
 // TestMain wires the suite to the global gateway alone. It exercises the
@@ -38,13 +42,17 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("Failed to port-forward to global gateway: %v", err)
 	}
+	globalLocalPort = pf.LocalPort
+
+	editor := authhelper.AdminEditor()
 
 	baseURL := fmt.Sprintf("http://localhost:%d", pf.LocalPort)
-	regionClient, err = regionv1.NewClientWithResponses(baseURL + "/providers/seca.region")
+	regionClient, err = regionv1.NewClientWithResponses(baseURL+"/providers/seca.region", regionv1.WithRequestEditorFn(editor))
 	if err != nil {
 		log.Fatalf("Failed to create region SDK client: %v", err)
 	}
-	authClient, err = authv1.NewClientWithResponses(baseURL + "/providers/seca.authorization")
+
+	authClient, err = authv1.NewClientWithResponses(baseURL+"/providers/seca.authorization", authv1.WithRequestEditorFn(editor))
 	if err != nil {
 		log.Fatalf("Failed to create authorization SDK client: %v", err)
 	}

@@ -10,8 +10,10 @@ import (
 	"os"
 	"testing"
 
+	authhelper "github.com/eu-sovereign-cloud/ecp/test/internal/authhelper"
+
 	storagev1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
-	workspacev1sdk "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1"
+	workspacev1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1"
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
 	"github.com/eu-sovereign-cloud/ecp/test/internal/testenv"
@@ -30,7 +32,9 @@ const (
 
 var (
 	storageClient   *storagev1.ClientWithResponses
-	workspaceClient *workspacev1sdk.ClientWithResponses
+	workspaceClient *workspacev1.ClientWithResponses
+
+	regionalLocalPort uint16
 )
 
 // TestMain wires the suite to the regional gateway alone. The regional suite
@@ -50,14 +54,17 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("Regional gateway port-forward failed: %v", err)
 	}
+	regionalLocalPort = pf.LocalPort
+
+	editor := authhelper.AdminEditor()
 
 	// SECA SDK clients, both pointing at the regional gateway.
 	baseURL := fmt.Sprintf("http://localhost:%d", pf.LocalPort)
-	workspaceClient, err = workspacev1sdk.NewClientWithResponses(baseURL + "/providers/seca.workspace")
+	workspaceClient, err = workspacev1.NewClientWithResponses(baseURL+"/providers/seca.workspace", workspacev1.WithRequestEditorFn(editor))
 	if err != nil {
 		log.Fatalf("Failed to create workspace SDK client: %v", err)
 	}
-	storageClient, err = storagev1.NewClientWithResponses(baseURL + "/providers/seca.storage")
+	storageClient, err = storagev1.NewClientWithResponses(baseURL+"/providers/seca.storage", storagev1.WithRequestEditorFn(editor))
 	if err != nil {
 		log.Fatalf("Failed to create storage SDK client: %v", err)
 	}

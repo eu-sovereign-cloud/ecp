@@ -19,6 +19,8 @@ import (
 	storagev1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	workspacev1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1"
 
+	authhelper "github.com/eu-sovereign-cloud/ecp/test/internal/authhelper"
+
 	"github.com/eu-sovereign-cloud/ecp/test/internal/testenv"
 )
 
@@ -59,19 +61,21 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Failed to port-forward to global gateway: %v", err)
 	}
 
+	editor := authhelper.AdminEditor()
+
 	regionalURL := fmt.Sprintf("http://localhost:%d", regionalPF.LocalPort)
 	globalURL := fmt.Sprintf("http://localhost:%d", globalPF.LocalPort)
 
-	if storageClient, err = storagev1.NewClientWithResponses(regionalURL + "/providers/seca.storage"); err != nil {
+	if storageClient, err = storagev1.NewClientWithResponses(regionalURL+"/providers/seca.storage", storagev1.WithRequestEditorFn(editor)); err != nil {
 		log.Fatalf("Failed to create storage SDK client: %v", err)
 	}
-	if workspaceClient, err = workspacev1.NewClientWithResponses(regionalURL + "/providers/seca.workspace"); err != nil {
+	if workspaceClient, err = workspacev1.NewClientWithResponses(regionalURL+"/providers/seca.workspace", workspacev1.WithRequestEditorFn(editor)); err != nil {
 		log.Fatalf("Failed to create workspace SDK client: %v", err)
 	}
-	if regionClient, err = regionv1.NewClientWithResponses(globalURL + "/providers/seca.region"); err != nil {
+	if regionClient, err = regionv1.NewClientWithResponses(globalURL+"/providers/seca.region", regionv1.WithRequestEditorFn(editor)); err != nil {
 		log.Fatalf("Failed to create region SDK client: %v", err)
 	}
-	if authClient, err = authv1.NewClientWithResponses(globalURL + "/providers/seca.authorization"); err != nil {
+	if authClient, err = authv1.NewClientWithResponses(globalURL+"/providers/seca.authorization", authv1.WithRequestEditorFn(editor)); err != nil {
 		log.Fatalf("Failed to create authorization SDK client: %v", err)
 	}
 

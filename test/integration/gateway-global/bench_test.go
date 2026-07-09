@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	authv1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.authorization.v1"
+
+	authhelper "github.com/eu-sovereign-cloud/ecp/test/internal/authhelper"
 )
 
 // TestBench fires a configurable number of authenticated requests against the
@@ -27,7 +29,7 @@ func TestBench(t *testing.T) {
 	if os.Getenv("E2E_BENCH") != "1" {
 		t.Skip("E2E_BENCH=1 required; set to run the load workload")
 	}
-	if !authEnabled() {
+	if !authhelper.AuthEnabled() {
 		t.Skip("E2E_AUTH_ENABLED=false: benchmark requires auth middleware to be active")
 	}
 
@@ -43,7 +45,7 @@ func TestBench(t *testing.T) {
 	// Mix of allow (admin lists roles) and deny (nobody lists roles) requests to exercise
 	// both authorization branches. seca.authorization is used for both because seca.region
 	// skips the authorization middleware entirely (a region read would only exercise authn).
-	allowClient, err := authv1.NewClientWithResponses(authURL, authv1.WithRequestEditorFn(adminEditor()))
+	allowClient, err := authv1.NewClientWithResponses(authURL, authv1.WithRequestEditorFn(authhelper.AdminEditor()))
 	if err != nil {
 		t.Fatalf("create allow client: %v", err)
 	}
@@ -51,7 +53,7 @@ func TestBench(t *testing.T) {
 	// nobody has valid credentials but no RoleAssignment → always 403 (deny path).
 	denyClient, err := authv1.NewClientWithResponses(
 		authURL,
-		authv1.WithRequestEditorFn(identityEditor("nobody", "nobody-pass")),
+		authv1.WithRequestEditorFn(authhelper.IdentityEditor("nobody", "nobody-pass")),
 	)
 	if err != nil {
 		t.Fatalf("create deny client: %v", err)

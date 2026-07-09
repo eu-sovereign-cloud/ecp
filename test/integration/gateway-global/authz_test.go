@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"testing"
 
+	authhelper "github.com/eu-sovereign-cloud/ecp/test/internal/authhelper"
+
 	resource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	authv1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.authorization.v1"
 	regionv1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
@@ -20,7 +22,7 @@ import (
 // Dummy authenticator being enabled with the users from users-configmap.yaml.
 // Skipped when E2E_AUTH_ENABLED=false.
 func TestAuthz(t *testing.T) {
-	if !authEnabled() {
+	if !authhelper.AuthEnabled() {
 		t.Skip("E2E_AUTH_ENABLED=false: skipping authz tests")
 	}
 
@@ -32,7 +34,7 @@ func TestAuthz(t *testing.T) {
 		// (--authz-skip-providers, default "seca.region"). "nobody" has valid credentials
 		// but no RoleAssignment at all, yet listing regions succeeds — authentication
 		// alone is required (the 401 cases are covered by TestAuthn).
-		editor := identityEditor("nobody", "nobody-pass")
+		editor := authhelper.IdentityEditor("nobody", "nobody-pass")
 		client, err := regionv1.NewClientWithResponses(baseURL+"/providers/seca.region", regionv1.WithRequestEditorFn(editor))
 		if err != nil {
 			t.Fatalf("create client: %v", err)
@@ -48,7 +50,7 @@ func TestAuthz(t *testing.T) {
 
 	t.Run("alice cannot create a role (provider mismatch: seca.authorization)", func(t *testing.T) {
 		// alice's assignment grants only e2e-region-viewer (seca.region), not seca.authorization.
-		editor := identityEditor("alice", "alice-pass")
+		editor := authhelper.IdentityEditor("alice", "alice-pass")
 		client, err := authv1.NewClientWithResponses(baseURL+"/providers/seca.authorization", authv1.WithRequestEditorFn(editor))
 		if err != nil {
 			t.Fatalf("create client: %v", err)
@@ -71,7 +73,7 @@ func TestAuthz(t *testing.T) {
 	t.Run("nobody gets 403 (valid creds, no RoleAssignment grants seca.authorization)", func(t *testing.T) {
 		// "nobody" exists in users-configmap.yaml but has no RoleAssignment, so every
 		// RBAC-governed provider denies them: no grant for seca.authorization → 403.
-		editor := identityEditor("nobody", "nobody-pass")
+		editor := authhelper.IdentityEditor("nobody", "nobody-pass")
 		client, err := authv1.NewClientWithResponses(baseURL+"/providers/seca.authorization", authv1.WithRequestEditorFn(editor))
 		if err != nil {
 			t.Fatalf("create client: %v", err)
@@ -88,7 +90,7 @@ func TestAuthz(t *testing.T) {
 	t.Run("erin is denied admin ops in test-tenant (ra-wrong-tenant scoped to other-tenant)", func(t *testing.T) {
 		// erin has ra-wrong-tenant granting e2e-admin, but scoped to Tenants=["other-tenant"],
 		// so test-tenant is out of scope and no other assignment covers her → 403.
-		editor := identityEditor("erin", "erin-pass")
+		editor := authhelper.IdentityEditor("erin", "erin-pass")
 		client, err := authv1.NewClientWithResponses(baseURL+"/providers/seca.authorization", authv1.WithRequestEditorFn(editor))
 		if err != nil {
 			t.Fatalf("create client: %v", err)
@@ -105,7 +107,7 @@ func TestAuthz(t *testing.T) {
 	t.Run("admin down-scoped to other-tenant is denied in test-tenant (tenant cap)", func(t *testing.T) {
 		// admin (ra-admin) has all-access, but a token down-scoped to other-tenant must not
 		// authorize operations in test-tenant; a token scoped to test-tenant still works.
-		denied := scopedEditor(defaultAuthUser, defaultAuthPassword, &resource.TokenScope{Tenants: []string{"other-tenant"}})
+		denied := authhelper.ScopedEditor(authhelper.DefaultAuthUser, authhelper.DefaultAuthPassword, &resource.TokenScope{Tenants: []string{"other-tenant"}})
 		client, err := authv1.NewClientWithResponses(baseURL+"/providers/seca.authorization", authv1.WithRequestEditorFn(denied))
 		if err != nil {
 			t.Fatalf("create client: %v", err)
@@ -118,7 +120,7 @@ func TestAuthz(t *testing.T) {
 			t.Errorf("admin down-scoped to other-tenant: want 403 in test-tenant, got %d", resp.StatusCode())
 		}
 
-		allowed := scopedEditor(defaultAuthUser, defaultAuthPassword, &resource.TokenScope{Tenants: []string{testTenant}})
+		allowed := authhelper.ScopedEditor(authhelper.DefaultAuthUser, authhelper.DefaultAuthPassword, &resource.TokenScope{Tenants: []string{testTenant}})
 		client2, err := authv1.NewClientWithResponses(baseURL+"/providers/seca.authorization", authv1.WithRequestEditorFn(allowed))
 		if err != nil {
 			t.Fatalf("create client: %v", err)
