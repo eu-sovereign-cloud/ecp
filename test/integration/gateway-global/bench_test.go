@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	authv1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.authorization.v1"
-	regionv1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
 )
 
 // TestBench fires a configurable number of authenticated requests against the
@@ -39,18 +38,17 @@ func TestBench(t *testing.T) {
 		}
 	}
 
-	regionURL := fmt.Sprintf("http://localhost:%d/providers/seca.region", globalLocalPort)
 	authURL := fmt.Sprintf("http://localhost:%d/providers/seca.authorization", globalLocalPort)
 
-	// Mix of allow (admin lists regions) and deny (nobody lists roles) requests to exercise
-	// both authorization branches.
-	allowClient, err := regionv1.NewClientWithResponses(regionURL, regionv1.WithRequestEditorFn(adminEditor()))
+	// Mix of allow (admin lists roles) and deny (nobody lists roles) requests to exercise
+	// both authorization branches. seca.authorization is used for both because seca.region
+	// skips the authorization middleware entirely (a region read would only exercise authn).
+	allowClient, err := authv1.NewClientWithResponses(authURL, authv1.WithRequestEditorFn(adminEditor()))
 	if err != nil {
 		t.Fatalf("create allow client: %v", err)
 	}
 
-	// nobody has valid credentials but no grant for seca.authorization → always 403 (deny path).
-	// (ra-wildcard now grants region-viewer to everyone, so a region read is no longer a deny.)
+	// nobody has valid credentials but no RoleAssignment → always 403 (deny path).
 	denyClient, err := authv1.NewClientWithResponses(
 		authURL,
 		authv1.WithRequestEditorFn(identityEditor("nobody", "nobody-pass")),
@@ -70,7 +68,7 @@ func TestBench(t *testing.T) {
 			_ = resp
 			denies++
 		} else {
-			resp, err := allowClient.ListRegionsWithResponse(context.Background(), &regionv1.ListRegionsParams{})
+			resp, err := allowClient.ListRolesWithResponse(context.Background(), testTenant, &authv1.ListRolesParams{})
 			if err != nil {
 				t.Fatalf("allow request %d: %v", i, err)
 			}

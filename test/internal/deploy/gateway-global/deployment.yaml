@@ -28,6 +28,10 @@ spec:
           value: "true"
         - name: AUTHZ_IMPL
           value: "cached"
+        # Providers served authn-only (mirrors the binary default): the region
+        # catalog is tenant-less by spec, so SECA RBAC does not apply to it.
+        - name: AUTHZ_SKIP_PROVIDERS
+          value: "seca.region"
         - name: DUMMY_AUTH_USERS
           value: "/app/users.json"
         ports:

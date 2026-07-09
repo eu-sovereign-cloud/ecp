@@ -20,6 +20,8 @@ fi
 #   AUTHZ_ENABLED=false         — authn-only (identity checked, no RBAC)
 #   AUTHZ_IMPL=direct           — use per-request RBAC checker instead of cached
 #   DUMMY_AUTH_USERS=/path      — path to username→password JSON (default /app/users.json)
+#   AUTHZ_SKIP_PROVIDERS=...    — comma-separated provider IDs served authn-only
+#                                 (binary default: seca.region — the tenant-less region catalog)
 : "${AUTH_ENABLED:=true}"
 : "${AUTHZ_ENABLED:=true}"
 : "${AUTHZ_IMPL:=cached}"
@@ -31,6 +33,7 @@ if [ "$AUTH_ENABLED" = "true" ]; then
   if [ "$AUTHZ_ENABLED" = "true" ]; then
     AUTH_FLAGS="$AUTH_FLAGS --authz-enabled"
     [ "$AUTHZ_IMPL" = "cached" ] && AUTH_FLAGS="$AUTH_FLAGS --authz-cache"
+    [ -n "$AUTHZ_SKIP_PROVIDERS" ] && AUTH_FLAGS="$AUTH_FLAGS --authz-skip-providers=$AUTHZ_SKIP_PROVIDERS"
   else
     AUTH_FLAGS="$AUTH_FLAGS --authz-enabled=false"
   fi

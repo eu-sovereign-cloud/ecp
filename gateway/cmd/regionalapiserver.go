@@ -185,7 +185,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		sdkcomputeapi.StdHTTPServerOptions{
 			BaseURL:          "/providers/seca.compute",
 			BaseRouter:       mux,
-			Middlewares:      auth.ProviderMWs[sdkcomputeapi.MiddlewareFunc](authenticator, checker, "seca.compute", "/providers/seca.compute", logger),
+			Middlewares:      auth.ProviderMWs[sdkcomputeapi.MiddlewareFunc](&regionalAuthFlags, authenticator, checker, "seca.compute", "/providers/seca.compute", logger),
 			ErrorHandlerFunc: nil,
 		},
 	)
@@ -298,7 +298,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		sdknetworkapi.StdHTTPServerOptions{
 			BaseURL:          "/providers/seca.network",
 			BaseRouter:       mux,
-			Middlewares:      auth.ProviderMWs[sdknetworkapi.MiddlewareFunc](authenticator, checker, "seca.network", "/providers/seca.network", logger),
+			Middlewares:      auth.ProviderMWs[sdknetworkapi.MiddlewareFunc](&regionalAuthFlags, authenticator, checker, "seca.network", "/providers/seca.network", logger),
 			ErrorHandlerFunc: nil,
 		},
 	)
@@ -349,7 +349,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		sdkstorageapi.StdHTTPServerOptions{
 			BaseURL:          "/providers/seca.storage",
 			BaseRouter:       mux,
-			Middlewares:      auth.ProviderMWs[sdkstorageapi.MiddlewareFunc](authenticator, checker, "seca.storage", "/providers/seca.storage", logger),
+			Middlewares:      auth.ProviderMWs[sdkstorageapi.MiddlewareFunc](&regionalAuthFlags, authenticator, checker, "seca.storage", "/providers/seca.storage", logger),
 			ErrorHandlerFunc: nil,
 		},
 	)
@@ -380,7 +380,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		sdkworkspaceapi.StdHTTPServerOptions{
 			BaseURL:          "/providers/seca.workspace",
 			BaseRouter:       mux,
-			Middlewares:      auth.ProviderMWs[sdkworkspaceapi.MiddlewareFunc](authenticator, checker, "seca.workspace", "/providers/seca.workspace", logger),
+			Middlewares:      auth.ProviderMWs[sdkworkspaceapi.MiddlewareFunc](&regionalAuthFlags, authenticator, checker, "seca.workspace", "/providers/seca.workspace", logger),
 			ErrorHandlerFunc: nil,
 		},
 	)

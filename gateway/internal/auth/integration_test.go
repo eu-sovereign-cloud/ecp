@@ -12,11 +12,14 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/spf13/cobra"
+
 	"github.com/eu-sovereign-cloud/ecp/framework/frontend/middleware"
 	kernel "github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	authnport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/authn"
 	authzport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/authz"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
+	"github.com/eu-sovereign-cloud/ecp/gateway/internal/auth"
 	gatewayauthn "github.com/eu-sovereign-cloud/ecp/gateway/internal/authn"
 	seca "github.com/eu-sovereign-cloud/ecp/gateway/internal/authz/seca"
 	roledom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role"
@@ -216,6 +219,81 @@ func TestIntegration_AuthnOnly(t *testing.T) {
 
 	if w.Code != http.StatusOK {
 		t.Errorf("want 200 in authn-only mode, got %d", w.Code)
+	}
+}
+
+// wrapMWs applies a ProviderMWs slice the way oapi-codegen does: wrapping from the
+// start of the slice inward, so the LAST element ends up outermost (runs first).
+func wrapMWs[M ~func(http.Handler) http.Handler](mws []M, h http.Handler) http.Handler {
+	for _, mw := range mws {
+		h = mw(h)
+	}
+	return h
+}
+
+// TestIntegration_AuthzSkipProviders verifies the per-provider authorization skip
+// (--authz-skip-providers): a listed provider is authenticated but never authorized —
+// a checker that would deny everything cannot block it — while an unlisted provider
+// keeps the full authn+authz chain. Authentication is still enforced on the skipped
+// provider (missing token → 401).
+func TestIntegration_AuthzSkipProviders(t *testing.T) {
+	t.Parallel()
+
+	a := gatewayauthn.NewDummyAuthenticator(map[string]string{"alice": "s3cr3t"})
+	flags := &auth.Flags{Enabled: true, AuthzEnabled: true, AuthzSkipProviders: []string{"seca.region"}}
+	log := discardLog()
+
+	skippedMWs := auth.ProviderMWs[func(http.Handler) http.Handler](
+		flags, a, denyChecker, "seca.region", "/providers/seca.region", log)
+	enforcedMWs := auth.ProviderMWs[func(http.Handler) http.Handler](
+		flags, a, denyChecker, "seca.compute", "/providers/seca.compute", log)
+
+	// Route through a real mux so r.Pattern is set for the claim extractor.
+	mux := http.NewServeMux()
+	mux.Handle("GET /providers/seca.region/v1/regions", wrapMWs(skippedMWs, okHandler))
+	mux.Handle("GET /providers/seca.compute/v1/tenants/{tenant}/instances", wrapMWs(enforcedMWs, okHandler))
+
+	tests := []struct {
+		name       string
+		path       string
+		withToken  bool
+		wantStatus int
+	}{
+		{name: "skipped provider: denying checker cannot block", path: "/providers/seca.region/v1/regions", withToken: true, wantStatus: http.StatusOK},
+		{name: "skipped provider: authn still enforced", path: "/providers/seca.region/v1/regions", withToken: false, wantStatus: http.StatusUnauthorized},
+		{name: "unlisted provider: authz still enforced", path: "/providers/seca.compute/v1/tenants/t1/instances", withToken: true, wantStatus: http.StatusForbidden},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			req := httptest.NewRequest(http.MethodGet, tc.path, nil)
+			if tc.withToken {
+				req.Header.Set("Authorization", "Bearer "+bearerToken("alice", "s3cr3t", nil))
+			}
+			w := httptest.NewRecorder()
+			mux.ServeHTTP(w, req)
+
+			if w.Code != tc.wantStatus {
+				t.Errorf("status = %d, want %d — body: %s", w.Code, tc.wantStatus, w.Body.String())
+			}
+		})
+	}
+}
+
+// TestRegisterFlags_AuthzSkipProvidersDefault pins the default skip list: the region
+// catalog is tenant-less by spec, so seca.region must skip authorization out of the box.
+func TestRegisterFlags_AuthzSkipProvidersDefault(t *testing.T) {
+	t.Parallel()
+
+	cmd := &cobra.Command{}
+	var flags auth.Flags
+	auth.RegisterFlags(cmd, &flags)
+	if err := cmd.ParseFlags(nil); err != nil {
+		t.Fatalf("parse flags: %v", err)
+	}
+
+	if len(flags.AuthzSkipProviders) != 1 || flags.AuthzSkipProviders[0] != "seca.region" {
+		t.Errorf("AuthzSkipProviders default = %v, want [seca.region]", flags.AuthzSkipProviders)
 	}
 }
 

@@ -13,6 +13,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"slices"
 
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/dynamic"
@@ -45,6 +46,12 @@ type Flags struct {
 	// pass through authn only (authn-only mode); authorization is skipped entirely.
 	// Default true when auth is enabled.
 	AuthzEnabled bool
+	// AuthzSkipProviders lists provider IDs (e.g. "seca.region") whose routes skip the
+	// authorization middleware even when AuthzEnabled is true: callers must still
+	// authenticate, but no RBAC check or token down-scoping is applied. Meant for
+	// resources that tenant-scoped RBAC cannot govern — by default the region catalog,
+	// which is tenant-less by spec.
+	AuthzSkipProviders []string
 }
 
 // RegisterFlags adds auth-related flags to the given cobra command.
@@ -60,6 +67,10 @@ func RegisterFlags(cmd *cobra.Command, f *Flags) {
 	cmd.Flags().BoolVar(&f.AuthzEnabled, "authz-enabled", true,
 		"Install the authorization middleware; requires --auth-enabled; "+
 			"set false for authn-only mode (identity is verified but no RBAC check is performed)")
+	cmd.Flags().StringSliceVar(&f.AuthzSkipProviders, "authz-skip-providers", []string{"seca.region"},
+		"Comma-separated provider IDs whose routes skip the authorization middleware "+
+			"(authn-only; no RBAC check or token down-scoping); the region catalog is "+
+			"tenant-less by spec, so seca.region is skipped by default")
 }
 
 // Build constructs the Authenticator and Checker from the provided flags and readers.
@@ -137,15 +148,19 @@ func AuthzMiddleware(checker authzport.Checker, provider, baseURL string, log *s
 //
 //	authv1.HandlerWithOptions(handler, authv1.StdHTTPServerOptions{
 //	    Middlewares: auth.ProviderMWs[authv1.MiddlewareFunc](
-//	        authenticator, checker,
+//	        flags, authenticator, checker,
 //	        "seca.authorization", roledom.AuthorizationBaseURL,
 //	        log,
 //	    ),
 //	})
 //
+// A provider listed in flags.AuthzSkipProviders gets the authn-only chain even when
+// the checker is non-nil: its routes are authenticated but never authorized.
+//
 // Returning nil preserves the existing behavior (no-op mux, no bearer check) when
 // --auth-enabled is not set.
 func ProviderMWs[M ~func(http.Handler) http.Handler](
+	flags *Flags,
 	authenticator authnport.Authenticator,
 	checker authzport.Checker,
 	provider, baseURL string,
@@ -160,9 +175,19 @@ func ProviderMWs[M ~func(http.Handler) http.Handler](
 		// Authn-only mode: skip authorization middleware.
 		return middleware.Chain[M](metricsMW, authnMW)
 	}
+	if flags.authzSkipped(provider) {
+		log.Info("authorization middleware skipped for provider by configuration",
+			slog.String("provider", provider))
+		return middleware.Chain[M](metricsMW, authnMW)
+	}
 	authzMW := middleware.NewAuthorization(checker, middleware.SECAClaimExtractor(provider, baseURL), log)
 	// metrics.Middleware is the first argument so Chain places it outermost (Chain reverses).
 	return middleware.Chain[M](metricsMW, authnMW, authzMW)
+}
+
+// authzSkipped reports whether the provider is listed in AuthzSkipProviders.
+func (f *Flags) authzSkipped(provider string) bool {
+	return f != nil && slices.Contains(f.AuthzSkipProviders, provider)
 }
 
 // StartChecker starts the checker's background cache goroutines if it implements the

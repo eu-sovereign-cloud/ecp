@@ -26,12 +26,13 @@ func TestAuthz(t *testing.T) {
 
 	baseURL := fmt.Sprintf("http://localhost:%d", globalLocalPort)
 
-	t.Run("ra-wildcard: any authenticated caller can list regions", func(t *testing.T) {
-		// ra-wildcard has Subs=["*"] and Roles=["e2e-region-viewer"] in scope all, so every
-		// authenticated caller inherits e2e-region-viewer regardless of the token. The request
-		// hits /v1/regions (resource "v1/regions") with no tenant — ra-wildcard's empty scope
-		// covers it; the e2e-region-viewer resource pattern "v1/regions" matches.
-		editor := identityEditor("erin", "erin-pass")
+	t.Run("regions are authn-only (seca.region skips authorization)", func(t *testing.T) {
+		// The region catalog is tenant-less by spec, so tenant-scoped RBAC cannot govern
+		// it: the gateway serves seca.region without the authorization middleware
+		// (--authz-skip-providers, default "seca.region"). "nobody" has valid credentials
+		// but no RoleAssignment at all, yet listing regions succeeds — authentication
+		// alone is required (the 401 cases are covered by TestAuthn).
+		editor := identityEditor("nobody", "nobody-pass")
 		client, err := regionv1.NewClientWithResponses(baseURL+"/providers/seca.region", regionv1.WithRequestEditorFn(editor))
 		if err != nil {
 			t.Fatalf("create client: %v", err)
@@ -41,7 +42,7 @@ func TestAuthz(t *testing.T) {
 			t.Fatalf("list regions: %v", err)
 		}
 		if resp.StatusCode() != http.StatusOK {
-			t.Errorf("erin via ra-wildcard: want 200, got %d", resp.StatusCode())
+			t.Errorf("nobody list regions (authn-only): want 200, got %d", resp.StatusCode())
 		}
 	})
 
@@ -68,9 +69,8 @@ func TestAuthz(t *testing.T) {
 	})
 
 	t.Run("nobody gets 403 (valid creds, no RoleAssignment grants seca.authorization)", func(t *testing.T) {
-		// "nobody" exists in users-configmap.yaml but has no dedicated RoleAssignment.
-		// ra-wildcard (Subs=["*"]) grants e2e-region-viewer to every caller, but that role
-		// only covers seca.region — so nobody has no grant for seca.authorization → 403.
+		// "nobody" exists in users-configmap.yaml but has no RoleAssignment, so every
+		// RBAC-governed provider denies them: no grant for seca.authorization → 403.
 		editor := identityEditor("nobody", "nobody-pass")
 		client, err := authv1.NewClientWithResponses(baseURL+"/providers/seca.authorization", authv1.WithRequestEditorFn(editor))
 		if err != nil {
@@ -87,8 +87,7 @@ func TestAuthz(t *testing.T) {
 
 	t.Run("erin is denied admin ops in test-tenant (ra-wrong-tenant scoped to other-tenant)", func(t *testing.T) {
 		// erin has ra-wrong-tenant granting e2e-admin, but scoped to Tenants=["other-tenant"],
-		// so test-tenant is out of scope. ra-wildcard grants e2e-region-viewer everywhere, but
-		// that role does not cover seca.authorization → net result: 403.
+		// so test-tenant is out of scope and no other assignment covers her → 403.
 		editor := identityEditor("erin", "erin-pass")
 		client, err := authv1.NewClientWithResponses(baseURL+"/providers/seca.authorization", authv1.WithRequestEditorFn(editor))
 		if err != nil {

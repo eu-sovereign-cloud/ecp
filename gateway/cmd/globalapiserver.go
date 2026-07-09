@@ -137,7 +137,7 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
 		regionv1.StdHTTPServerOptions{
 			BaseURL:          rdom.RegionBaseURL,
 			BaseRouter:       mux,
-			Middlewares:      auth.ProviderMWs[regionv1.MiddlewareFunc](authenticator, checker, "seca.region", rdom.RegionBaseURL, logger),
+			Middlewares:      auth.ProviderMWs[regionv1.MiddlewareFunc](&globalAuthFlags, authenticator, checker, "seca.region", rdom.RegionBaseURL, logger),
 			ErrorHandlerFunc: nil,
 		},
 	)
@@ -154,7 +154,7 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
 		authv1.StdHTTPServerOptions{
 			BaseURL:          roledom.AuthorizationBaseURL,
 			BaseRouter:       mux,
-			Middlewares:      auth.ProviderMWs[authv1.MiddlewareFunc](authenticator, checker, "seca.authorization", roledom.AuthorizationBaseURL, logger),
+			Middlewares:      auth.ProviderMWs[authv1.MiddlewareFunc](&globalAuthFlags, authenticator, checker, "seca.authorization", roledom.AuthorizationBaseURL, logger),
 			ErrorHandlerFunc: nil,
 		},
 	)
