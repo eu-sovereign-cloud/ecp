@@ -187,12 +187,14 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		logger,
 		netk8s.NetworkFromCR,
 	)
-	netWriterAdapter := k8sadapter.NewWriterAdapter[*netdom.Network](
+	netWriterAdapter := k8sadapter.NewNamespaceManagingWriterAdapter[*netdom.Network](
 		client.Client,
+		client.ClientSet,
 		netk8s.NetworkGVR,
 		logger,
 		netk8s.NetworkToCR,
 		netk8s.NetworkFromCR,
+		k8sadapter.NetworkChildren,
 	)
 	netSKUReaderAdapter := k8sadapter.NewReaderAdapter[*netskudom.NetworkSKU](
 		client.Client,
@@ -335,6 +337,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		logger,
 		wsk8s.WorkspaceToCR,
 		wsk8s.WorkspaceFromCR,
+		k8sadapter.WorkspaceChildren,
 	)
 	wsReaderAdapter := k8sadapter.NewReaderAdapter[*wsdom.Workspace](
 		client.Client,

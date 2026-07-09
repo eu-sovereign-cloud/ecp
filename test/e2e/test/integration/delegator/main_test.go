@@ -22,9 +22,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
-	kernel "github.com/eu-sovereign-cloud/ecp/framework/kernel"
-	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
-	resource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	roledom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role"
 	radom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment"
 	rak8s "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment/backend/kubernetes"
@@ -143,6 +143,7 @@ func TestMain(m *testing.M) {
 		testLogger,
 		wsk8s.WorkspaceToCR,
 		wsk8s.WorkspaceFromCR,
+		k8sadapter.WorkspaceChildren,
 	)
 
 	// Provide Workspace for BlockStorage tests

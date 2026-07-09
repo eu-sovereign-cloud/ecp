@@ -13,6 +13,7 @@ import (
 	"k8s.io/client-go/dynamic/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
 	kernelresource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 )
 
@@ -116,4 +117,123 @@ func TestReaderAdapter_List_NetworkScopeFallback(t *testing.T) {
 		require.Len(t, out, 1)
 		require.Equal(t, "in-network-ns", out[0].name)
 	})
+}
+
+// testNetworkIdentifiable is a network-scoped domain stand-in (mirroring
+// RegionalNetworkMetadata's GetTenant/GetWorkspace/GetNetwork shape) used to prove that every
+// adapter method — not just List — resolves the network-scoped namespace.
+type testNetworkIdentifiable struct {
+	name, tenant, workspace, network string
+}
+
+func (t *testNetworkIdentifiable) GetName() string      { return t.name }
+func (t *testNetworkIdentifiable) GetVersion() string   { return "" }
+func (t *testNetworkIdentifiable) GetTenant() string    { return t.tenant }
+func (t *testNetworkIdentifiable) GetWorkspace() string { return t.workspace }
+func (t *testNetworkIdentifiable) GetNetwork() string   { return t.network }
+
+// networkDomainToK8s mirrors RouteTableToCR: it stamps the object's own namespace via
+// ComputeNetworkNamespace, exactly like the real conversion does.
+func networkDomainToK8s(m *testNetworkIdentifiable) (client.Object, error) {
+	return &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "network.test/v1",
+		"kind":       "RouteTable",
+		"metadata": map[string]any{
+			"namespace": ComputeNetworkNamespace(m),
+			"name":      m.name,
+		},
+	}}, nil
+}
+
+func networkK8sToDomain(obj client.Object) (*testNetworkIdentifiable, error) {
+	return &testNetworkIdentifiable{name: obj.GetName()}, nil
+}
+
+// TestAdapter_NetworkIsolation_AcrossAllOperations is a regression test proving that
+// Create/Load (and by the same ComputeNamespace code path, Update/UpdateStatus/Delete) resolve
+// the network-scoped namespace, not just List. Two resources sharing the same tenant/workspace
+// but different networks must not collide: before this fix, both would have been addressed via
+// the workspace-only hash, so the second Create below would have failed with AlreadyExists
+// (same name, same — wrong — namespace).
+func TestAdapter_NetworkIsolation_AcrossAllOperations(t *testing.T) {
+	dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), testListKinds())
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	writer := NewWriterAdapter[*testNetworkIdentifiable](dynFake, testGVR, logger, networkDomainToK8s, networkK8sToDomain)
+	reader := NewReaderAdapter[*testNetworkIdentifiable](dynFake, testGVR, logger, networkK8sToDomain)
+
+	inN1 := &testNetworkIdentifiable{name: "rt1", tenant: "t1", workspace: "w1", network: "n1"}
+	inN2 := &testNetworkIdentifiable{name: "rt1", tenant: "t1", workspace: "w1", network: "n2"}
+
+	_, err := writer.Create(context.Background(), inN1)
+	require.NoError(t, err, "creating rt1 in network n1 must succeed")
+
+	_, err = writer.Create(context.Background(), inN2)
+	require.NoError(t, err, "creating the same-named rt1 in a different network (n2) must not collide with n1's namespace")
+
+	loadedN1 := &testNetworkIdentifiable{name: "rt1", tenant: "t1", workspace: "w1", network: "n1"}
+	require.NoError(t, reader.Load(context.Background(), &loadedN1))
+	require.Equal(t, "rt1", loadedN1.name)
+
+	loadedN2 := &testNetworkIdentifiable{name: "rt1", tenant: "t1", workspace: "w1", network: "n2"}
+	require.NoError(t, reader.Load(context.Background(), &loadedN2))
+	require.Equal(t, "rt1", loadedN2.name)
+
+	require.NoError(t, writer.Delete(context.Background(), inN1), "deleting rt1 in network n1 must target n1's namespace")
+
+	// n2's rt1 must survive n1's deletion — proving Delete is also network-scoped.
+	stillThere := &testNetworkIdentifiable{name: "rt1", tenant: "t1", workspace: "w1", network: "n2"}
+	require.NoError(t, reader.Load(context.Background(), &stillThere))
+	require.Equal(t, "rt1", stillThere.name)
+}
+
+// testWorkspaceScopedIdentifiable mirrors Network's domain shape: tenant+workspace scoped,
+// with no Network field of its own — its own name becomes the network segment for its
+// children (RouteTable, Subnet), the same relationship Workspace's own name has to the
+// workspace segment for its children.
+type testWorkspaceScopedIdentifiable struct {
+	name, tenant, workspace string
+}
+
+func (t *testWorkspaceScopedIdentifiable) GetName() string      { return t.name }
+func (t *testWorkspaceScopedIdentifiable) GetVersion() string   { return "" }
+func (t *testWorkspaceScopedIdentifiable) GetTenant() string    { return t.tenant }
+func (t *testWorkspaceScopedIdentifiable) GetWorkspace() string { return t.workspace }
+
+func TestChildNamespaceFor_WorkspaceChildren(t *testing.T) {
+	net := &testWorkspaceScopedIdentifiable{name: "net1", tenant: "t1", workspace: "w1"}
+
+	namespace, ownerLabels := childNamespaceFor(WorkspaceChildren, net)
+
+	require.Equal(t, ComputeNamespace(&kernelresource.Scope{Tenant: "t1", Workspace: "net1"}), namespace,
+		"WorkspaceChildren must provision the namespace hashing tenant + the resource's own name as the workspace segment")
+	require.Equal(t, map[string]string{
+		labels.InternalTenantLabel:    "t1",
+		labels.InternalWorkspaceLabel: "net1",
+	}, ownerLabels)
+}
+
+func TestChildNamespaceFor_NetworkChildren(t *testing.T) {
+	net := &testWorkspaceScopedIdentifiable{name: "net1", tenant: "t1", workspace: "w1"}
+
+	namespace, ownerLabels := childNamespaceFor(NetworkChildren, net)
+
+	require.Equal(t, ComputeNetworkNamespace(fakeNetworkScope{tenant: "t1", workspace: "w1", network: "net1"}), namespace,
+		"NetworkChildren must provision the namespace hashing tenant/workspace + the resource's own name as the network segment")
+	require.NotEqual(t, ComputeNamespace(&kernelresource.Scope{Tenant: "t1", Workspace: "w1"}), namespace,
+		"the provisioned namespace must be distinct from the Network's own (workspace-level) namespace")
+	require.Equal(t, map[string]string{
+		labels.InternalTenantLabel:    "t1",
+		labels.InternalWorkspaceLabel: "w1",
+		labels.InternalNetworkLabel:   "net1",
+	}, ownerLabels)
+}
+
+func TestChildNamespaceFor_NoChildNamespace(t *testing.T) {
+	net := &testWorkspaceScopedIdentifiable{name: "net1", tenant: "t1", workspace: "w1"}
+
+	namespace, ownerLabels := childNamespaceFor(NoChildNamespace, net)
+
+	require.Empty(t, namespace)
+	require.Nil(t, ownerLabels)
 }
