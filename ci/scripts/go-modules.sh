@@ -12,8 +12,8 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 go_work="${repo_root}/go.work"
 
-# Workspace modules excluded from product CI (tool module, e2e harness).
-exclude=" ci/tools/go test/e2e "
+# Workspace modules excluded from product CI (tool module, test harness).
+exclude=" ci/tools/go test "
 
 modules=()
 if [ -r "${go_work}" ]; then
