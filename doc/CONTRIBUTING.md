@@ -76,7 +76,7 @@ framework/frontend              → kernel
 **Rules:**
 - No `framework/*` package may import `resource`. This is a Go build error under `GOWORK=off` and is caught by the `framework-isolation` CI lane.
 - Within `framework/`, layers may only import packages at the same or lower level in the DAG above.
-- `resource` may freely import `framework`. Nothing except `gateway`, `csp/*`, and `test/e2e` may import `resource`.
+- `resource` may freely import `framework`. Nothing except `gateway`, `csp/*`, and `test` may import `resource`.
 
 ## Adding a New Go Module
 
