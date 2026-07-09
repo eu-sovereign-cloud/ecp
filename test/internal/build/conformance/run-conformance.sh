@@ -9,6 +9,12 @@ set -eo pipefail
 
 SCENARIO="${1:-$SCENARIOS_FILTER}"
 
+# secatest groups [provider.region.v1 client.auth.token client.region client.tenant
+# report.results.path] as all-or-none, so report.results.path is mandatory whenever
+# we set the others. Default to a writable path in the pod (the image runs as a
+# non-root user, so /test is read-only); the deployment can override via RESULTS_PATH.
+RESULTS_PATH="${RESULTS_PATH:-/tmp/conformance-results}"
+
 args=(
     run
     --scenarios.filter="$SCENARIO"
@@ -16,6 +22,7 @@ args=(
     --client.auth.token="$CLIENT_AUTH_TOKEN"
     --client.region="$CLIENT_REGION"
     --client.tenant="$CLIENT_TENANT"
+    --report.results.path="$RESULTS_PATH"
 )
 
 # Optional settings — appended only when provided, so simple scenarios stay simple
@@ -27,7 +34,6 @@ args=(
 [[ -n "$RETRY_BASE_DELAY" ]]         && args+=(--retry.base.delay="$RETRY_BASE_DELAY")
 [[ -n "$RETRY_BASE_INTERVAL" ]]      && args+=(--retry.base.interval="$RETRY_BASE_INTERVAL")
 [[ -n "$RETRY_MAX_ATTEMPTS" ]]       && args+=(--retry.max.attempts="$RETRY_MAX_ATTEMPTS")
-[[ -n "$RESULTS_PATH" ]]             && args+=(--report.results.path="$RESULTS_PATH")
 
 echo "Running: secatest ${args[*]}"
 ./secatest "${args[@]}"
