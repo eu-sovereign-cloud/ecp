@@ -1,6 +1,6 @@
 module github.com/eu-sovereign-cloud/ecp/ci/tools/go
 
-go 1.26.4
+go 1.26.5
 
 tool (
 	github.com/golangci/golangci-lint/v2/cmd/golangci-lint
