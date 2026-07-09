@@ -12,11 +12,13 @@ implementation diverges from the spec.
 > The `scope` object can only *narrow* what a token may exercise (see [AUTH.md](AUTH.md)
 > § Token down-scoping). Authentication verifies token authenticity against a **fixed,
 > operator-configured endpoint** — any endpoint named inside the token is ignored; the
-> shipped Dummy authenticator validates username/password. **Region is treated as an
-> ordinary tenant-scoped resource**; the special-case path correction comes upstream in
-> the SECA spec, so it is intentionally not handled here. The sections below record the
-> analysis that led to this model; where an older subsection weighs alternatives, this
-> banner is the decision that was taken.
+> shipped Dummy authenticator validates username/password. **Region is a tenant-less
+> catalog resource by design** — upstream confirmed the current path shape is correct,
+> so no spec-side correction is coming. Tenant-scoped RBAC cannot govern it: the gateway
+> serves `seca.region` authn-only via the configurable `--authz-skip-providers` list
+> (see [AUTH.md](AUTH.md) § Per-provider authorization skip). The sections below record
+> the analysis that led to this model; where an older subsection weighs alternatives,
+> this banner is the decision that was taken.
 
 Spec sources (under `modules/go-sdk/spec/`):
 
@@ -179,13 +181,15 @@ still shrink its own blast radius without the IdP ever needing to know a caller'
   down-scope is *caller-asserted*, so it does **not** constrain the wildcard — a wildcard
   assignment genuinely grants everyone. A real membership gate would have to come from a
   signed, IdP-asserted tenant claim in the future authenticator; until then `*` is a
-  footgun on a shared issuer. (This is why the e2e "nobody is denied" fixtures had to
-  target a provider the wildcard role does not cover, once token roles were removed.)
+  footgun on a shared issuer. (The e2e fixtures used to need a wildcard assignment so
+  every caller could list regions; serving `seca.region` authn-only removed that need,
+  and the `ra-wildcard` fixture with it.)
 - **Tenant-less routes**: an empty tenant makes `ComputeNamespace` return `""`, which
   would list RoleAssignments across **all namespaces**. The only current tenant-less path
-  is the region catalog, which is the special case being corrected upstream (region
-  becomes an ordinary `[tenant]` resource). Keep this in mind before wrapping any other
-  tenant-less endpoint in the authz middleware.
+  is the region catalog, whose shape upstream confirmed as correct — it no longer reaches
+  the authz middleware at all (`--authz-skip-providers`, default `seca.region`). Keep this
+  hazard in mind before wrapping any other tenant-less endpoint in the authz middleware
+  instead of adding its provider to the skip list.
 - **Global server vs region-scoped assignments**: the global server has an empty region,
   so an assignment restricted to specific `regions` never covers global-server requests;
   only region-unrestricted assignments do. The same holds for the token down-scope, which
@@ -207,6 +211,8 @@ Done on `feat/gateway-auth-middleware`:
       `RoleAssignment` (`gateway/internal/authz/seca/evaluator.go`).
 - [x] Define the token `scope` down-scope over the SECA dimensions
       (`tenants`/`regions`/`workspaces`) and enforce it in `Evaluate`.
+- [x] Serve the tenant-less region catalog authn-only — authorization layer skipped per
+      provider via the configurable `--authz-skip-providers` (default `seca.region`).
 
 Remaining for the real (signature-verifying) authenticator:
 

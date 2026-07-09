@@ -40,6 +40,10 @@ The chain is **opt-in** (default off). Operators enable it per-server with
 `--auth-enabled`. Existing deployments are completely unaffected until they set
 this flag.
 
+Providers listed in `--authz-skip-providers` (default `seca.region`) install only
+the authentication stage: their routes never reach the authorization middleware.
+See [Per-provider authorization skip](#per-provider-authorization-skip).
+
 ---
 
 ## Bearer-Token Format (Dummy Authenticator)
@@ -106,6 +110,7 @@ In code the `scope` object unmarshals into the shared `resource.TokenScope` type
 | `--auth-enabled` | `false` | Enable bearer-token authn + RBAC authz. |
 | `--dummy-auth-users <file>` | `""` | Path to a JSON file mapping `username→password`. Required when `--auth-enabled` is set. |
 | `--authz-enabled` | `true` | Install the RBAC authorization middleware. Requires `--auth-enabled`. Set to `false` for authn-only mode (every authenticated caller is let through without a RBAC check). |
+| `--authz-skip-providers` | `seca.region` | Comma-separated provider IDs whose routes skip the authorization middleware (authn-only). Neither RBAC nor token down-scoping applies to these providers. |
 | `--authz-cache` | `false` | Use the informer-backed `CachedChecker` instead of the per-request `Checker`. |
 
 #### Auth modes
@@ -115,6 +120,31 @@ In code the `scope` object unmarshals into the shared `resource.TokenScope` type
 | `false` | _(irrelevant)_ | No auth. All requests pass through unauthenticated. |
 | `true` | `true` (default) | Full authn + authz. Invalid credentials → 401; policy denial → 403. |
 | `true` | `false` | Authn-only. Valid credentials → handler; no RBAC check is performed. |
+
+Whatever the mode, a provider listed in `--authz-skip-providers` is served
+authn-only even when `--authz-enabled` is true.
+
+### Per-provider authorization skip
+
+SECA RBAC is tenant-scoped: `Role` and `RoleAssignment` objects live in the
+tenant's namespace and are evaluated against the tenant/workspace addressed by
+the request path. The **region catalog** (`GET /v1/regions[/{name}]`, provider
+`seca.region`) is **tenant-less by spec** — upstream confirmed this is the
+intended behaviour, not a path shape awaiting correction — so there is no tenant
+namespace to load policy from and nothing for RBAC to evaluate.
+
+Providers like this are listed in `--authz-skip-providers` (default:
+`seca.region`). Their routes keep the authentication middleware — callers still
+need a valid bearer token — but the authorization middleware is never installed
+for them:
+
+- **No RBAC check**: any authenticated caller can read the region catalog.
+- **No token down-scoping**: the `scope` cap is enforced by the RBAC evaluator,
+  so it does not apply to skipped providers either.
+- All other providers are unaffected and keep the full authn + authz chain.
+
+The list is configuration, not code: add a provider ID to the flag to move its
+routes to the authn-only flow should another catalog-style resource appear.
 
 ### Users file format
 
@@ -136,9 +166,10 @@ echo '{"alice":"s3cr3t"}' > /tmp/users.json
     --auth-enabled \
     --dummy-auth-users /tmp/users.json
 
-# request with a valid bearer token (roles come from RoleAssignments, not the token)
+# request with a valid bearer token (roles come from RoleAssignments, not the token);
+# the region catalog is authn-only by default (--authz-skip-providers=seca.region)
 TOKEN=$(echo '{"username":"alice","password":"s3cr3t"}' | base64 -w0)
-curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/providers/seca.region/v1/tenants/my-tenant/regions
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/providers/seca.region/v1/regions
 ```
 
 ---

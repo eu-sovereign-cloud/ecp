@@ -114,6 +114,11 @@ The middleware chain is assembled once at startup in `gateway/internal/auth/conf
 via `ProviderMWs[M]`, which returns the correctly reversed slice required by
 oapi-codegen's `StdHTTPServerOptions.Middlewares`.
 
+Not every provider gets both stages: providers listed in `--authz-skip-providers`
+(default `seca.region` — the region catalog is tenant-less by spec, so tenant-scoped
+RBAC cannot govern it) are served authn-only, i.e. the authorization middleware is
+never installed for their routes.
+
 All framework-layer types (`Authenticator`, `Checker`, `ClaimExtractor`,
 `AuthorizationClaim`) live under `framework/kernel/port/{authn,authz}` and are
 resource-agnostic. Concrete implementations (`DummyAuthenticator`, SECA RBAC

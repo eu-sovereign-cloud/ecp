@@ -166,7 +166,7 @@ make clean-all                          # tear down
 
 Run `make help` for the full list of targets.
 
-# Authentication & Authorization in e2e
+## Authentication & Authorization in e2e
 
 The gateway deployments ship with the Dummy authenticator and SECA RBAC enabled
 by default (the defaults changed from the original auth-disabled baseline).
@@ -180,6 +180,7 @@ Auth behaviour is driven by environment variables that are read by the
 | `AUTH_ENABLED` | `true` | Set to `false` to run the gateway without any auth (unauthenticated mode). |
 | `AUTHZ_ENABLED` | `true` | Set to `false` for authn-only (auth check but no RBAC). Requires `AUTH_ENABLED=true`. |
 | `AUTHZ_IMPL` | `cached` | `cached` uses the informer-backed checker (zero K8s round-trips on hot path); `direct` uses the per-request reader (2 K8s List calls per request). |
+| `AUTHZ_SKIP_PROVIDERS` | `seca.region` | Comma-separated provider IDs served authn-only (no RBAC check, no token down-scoping). The region catalog is tenant-less by spec, so it skips authorization by default. |
 | `DUMMY_AUTH_USERS` | `/app/users.json` | Path inside the container to the user→password JSON file (mounted from `e2e-dummy-users` ConfigMap). |
 
 ### Test-side env vars
@@ -201,18 +202,20 @@ covers them and the net access they should receive:
 | Subject | Password | RoleAssignment | Roles (from assignment) | Scope | Expected result |
 |---------|----------|----------------|-------------------------|-------|-----------------|
 | `admin` | `e2e-admin-pass` | `ra-admin` | `e2e-admin` (all providers, all resources) | all | ✅ All operations |
-| `alice` | `alice-pass` | `ra-alice-region-viewer` (+ `ra-wildcard`) | `e2e-region-viewer` (`seca.region`) | `test-tenant` | ✅ List regions; ❌ cross-provider ops |
+| `alice` | `alice-pass` | `ra-alice-region-viewer` | `e2e-region-viewer` (`seca.region`) | `test-tenant` | ❌ cross-provider ops (her only role covers `seca.region`, which is authn-only anyway) |
 | `bob` | `bob-pass` | `ra-bob-scoped` | `e2e-storage-viewer` (`seca.storage` `block-storages`) | `test-tenant` + region `itbg-bergamo` | ✅ List block-storages in that region; ❌ other regions (incl. token down-scoped elsewhere) |
 | `carol` | `carol-pass` | `ra-multi-subject` | `e2e-workspace-editor` | `test-tenant` | ✅ Workspace CRUD |
 | `dave` | `dave-pass` | `ra-multi-subject` | `e2e-workspace-editor` | `test-tenant` | ✅ Workspace CRUD |
-| `erin` | `erin-pass` | `ra-wildcard` (via `*`) + `ra-wrong-tenant` | `e2e-region-viewer` via wildcard; `e2e-admin` scoped to `other-tenant` | `*` / `other-tenant` | ✅ List regions (wildcard); ❌ admin ops in `test-tenant` |
-| `nobody` | `nobody-pass` | _(none; only `ra-wildcard` via `*`)_ | `e2e-region-viewer` via wildcard only | `*` | ✅ List regions (wildcard); ❌ everything else (e.g. `seca.authorization` → 403) |
+| `erin` | `erin-pass` | `ra-wrong-tenant` | `e2e-admin` scoped to `other-tenant` | `other-tenant` | ❌ admin ops in `test-tenant` (out of scope) |
+| `nobody` | `nobody-pass` | _(none)_ | _(none)_ | — | ✅ List regions (authn-only provider); ❌ everything RBAC-governed (e.g. `seca.authorization` → 403) |
 
-Because `ra-wildcard` has `subs: ["*"]`, **every** authenticated caller — including
-`nobody` — inherits `e2e-region-viewer`. A genuine 403 therefore requires an operation
-that role does not cover (the tests use `seca.authorization`). Down-scoping tests present
-a broad identity (e.g. `admin`, or `bob` in-region) with a narrow token `scope` and assert
-the request is denied outside the cap.
+The region catalog (`seca.region`) is served **authn-only**: `--authz-skip-providers`
+defaults to `seca.region` because the region resource is tenant-less by spec, so
+tenant-scoped RBAC cannot govern it. Every authenticated caller — including `nobody`,
+who has no RoleAssignment at all — can list regions. A genuine 403 therefore requires
+an RBAC-governed provider (the tests use `seca.authorization`). Down-scoping tests
+present a broad identity (e.g. `admin`, or `bob` in-region) with a narrow token `scope`
+and assert the request is denied outside the cap.
 
 > ⚠️ The Dummy authenticator performs no signature verification — any caller who
 > knows a valid username+password can impersonate that subject. These credentials
