@@ -29,6 +29,7 @@ import (
 	radom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment"
 	rak8s "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment/backend/kubernetes"
 	rolek8s "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role/backend/kubernetes"
+	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	internetgatewaydom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/internet-gateway"
 	internetgatewayk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/internet-gateway/backend/kubernetes"
 	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network"
@@ -37,6 +38,8 @@ import (
 	nick8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic/backend/kubernetes"
 	publicipdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/public-ip"
 	publicipk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/public-ip/backend/kubernetes"
+	routetabledom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/route-table"
+	routetablek8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/route-table/backend/kubernetes"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage"
 	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage/backend/kubernetes"
 	imgdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image"
@@ -65,6 +68,7 @@ var (
 	nicRepo             *k8sadapter.RepoAdapter[*nicdom.Nic]
 	publicIpRepo        *k8sadapter.RepoAdapter[*publicipdom.PublicIp]
 	internetGatewayRepo *k8sadapter.RepoAdapter[*internetgatewaydom.InternetGateway]
+	routeTableRepo      *k8sadapter.RepoAdapter[*routetabledom.RouteTable]
 	workspaceRepo       *k8sadapter.RepoAdapter[*wsdom.Workspace]
 	blockStorageRepo    *k8sadapter.RepoAdapter[*bsdom.BlockStorage]
 	imageRepo           *k8sadapter.RepoAdapter[*imgdom.Image]
@@ -85,6 +89,7 @@ func TestMain(m *testing.M) {
 	utilruntime.Must(nick8s.AddToScheme(s))
 	utilruntime.Must(publicipk8s.AddToScheme(s))
 	utilruntime.Must(internetgatewayk8s.AddToScheme(s))
+	utilruntime.Must(routetablek8s.AddToScheme(s))
 	utilruntime.Must(wsk8s.AddToScheme(s))
 	utilruntime.Must(bsk8s.AddToScheme(s))
 	utilruntime.Must(imgk8s.AddToScheme(s))
@@ -141,6 +146,13 @@ func TestMain(m *testing.M) {
 		testLogger,
 		internetgatewayk8s.InternetGatewayToCR,
 		internetgatewayk8s.InternetGatewayFromCR,
+	)
+	routeTableRepo = k8sadapter.NewRepoAdapter[*routetabledom.RouteTable](
+		dynamicClient,
+		routetablek8s.RouteTableGVR,
+		testLogger,
+		routetablek8s.RouteTableToCR,
+		routetablek8s.RouteTableFromCR,
 	)
 	blockStorageRepo = k8sadapter.NewRepoAdapter[*bsdom.BlockStorage](
 		dynamicClient,
@@ -229,9 +241,16 @@ func waitForNamespace(ctx context.Context, namespace string) error {
 
 func createTestNamespaces(ctx context.Context) error {
 	log.Println("Creating test namespaces...")
+	networkScopedRouteTable := &routetabledom.RouteTable{
+		RegionalNetworkMetadata: commondomain.RegionalNetworkMetadata{Network: testNetwork},
+	}
+	networkScopedRouteTable.Tenant = testTenant
+	networkScopedRouteTable.Workspace = testWorkspace
+
 	nsToCreate := []string{
 		k8sadapter.ComputeNamespace(&kernelresource.Scope{Tenant: "test-tenant"}),
 		k8sadapter.ComputeNamespace(&kernelresource.Scope{Tenant: "test-tenant", Workspace: "test-workspace"}),
+		k8sadapter.ComputeNetworkNamespace(networkScopedRouteTable),
 	}
 
 	for _, nsName := range nsToCreate {

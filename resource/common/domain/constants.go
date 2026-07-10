@@ -24,4 +24,9 @@ const (
 	// RegionalResourceFormat defines the short-form path for regional resources within a provider namespace.
 	// Example: {resource_type}/{resource_name}
 	RegionalResourceFormat = "%s/%s"
+
+	// RegionalNetworkScopedResourceFormat defines the format for regional resources scoped under a
+	// network, backed by a provider.
+	// Example: tenants/{tenant_name}/workspaces/{workspace_name}/networks/{network_name}/providers/{resource_type}/{resource_name}
+	RegionalNetworkScopedResourceFormat = "tenants/%s/workspaces/%s/networks/%s/providers/%s/%s"
 )

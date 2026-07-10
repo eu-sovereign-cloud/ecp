@@ -42,7 +42,7 @@ func ListerFromRepo[D persistence.IdentifiableResource](repo persistence.ReaderR
 	return &listerFromRepo[D]{repo: repo}
 }
 
-func (a *listerFromRepo[D]) Do(ctx context.Context, params resource.ListParams) ([]D, *string, error) {
+func (a *listerFromRepo[D]) Do(ctx context.Context, params resource.ListFilter) ([]D, *string, error) {
 	var items []D
 	nextToken, err := a.repo.List(ctx, params, &items)
 	if err != nil {

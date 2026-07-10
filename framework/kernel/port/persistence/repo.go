@@ -14,6 +14,13 @@ type Scope interface {
 	GetWorkspace() string
 }
 
+// NetworkScope extends Scope with a network dimension, for resources scoped under
+// tenant/workspace/network (e.g. RouteTable).
+type NetworkScope interface {
+	Scope
+	GetNetwork() string
+}
+
 // IdentifiableResource defines the interface for objects that can be identified by name, tenant, and workspace.
 type IdentifiableResource interface {
 	GetName() string
@@ -43,6 +50,6 @@ type WatcherRepo[T any] interface {
 
 // ReaderRepo is the read-side repository interface.
 type ReaderRepo[T IdentifiableResource] interface {
-	List(ctx context.Context, params resource.ListParams, list *[]T) (*string, error)
+	List(ctx context.Context, params resource.ListFilter, list *[]T) (*string, error)
 	Load(ctx context.Context, m *T) error
 }

@@ -18,7 +18,7 @@ import (
 	kernelresource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
-	testutil "github.com/eu-sovereign-cloud/ecp/resource/common/frontend/testutil"
+	"github.com/eu-sovereign-cloud/ecp/resource/common/frontend/testutil"
 	wsdom "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1"
 	. "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1/backend/kubernetes"
 )
@@ -53,6 +53,7 @@ func TestWorkspaceBackend(t *testing.T) {
 		slog.Default(),
 		WorkspaceToCR,
 		WorkspaceFromCR,
+		k8sadapter.WorkspaceChildren,
 	)
 
 	readerRepo := k8sadapter.NewReaderAdapter[*wsdom.Workspace](

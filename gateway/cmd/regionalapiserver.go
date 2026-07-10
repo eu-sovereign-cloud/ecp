@@ -35,6 +35,8 @@ import (
 	nick8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic/backend/kubernetes"
 	publicipdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/public-ip"
 	publicipk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/public-ip/backend/kubernetes"
+	routetabledom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/route-table"
+	routetablek8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/route-table/backend/kubernetes"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage"
 	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage/backend/kubernetes"
 	storagerest "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/frontend/rest"
@@ -185,12 +187,14 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		logger,
 		netk8s.NetworkFromCR,
 	)
-	netWriterAdapter := k8sadapter.NewWriterAdapter[*netdom.Network](
+	netWriterAdapter := k8sadapter.NewNamespaceManagingWriterAdapter[*netdom.Network](
 		client.Client,
+		client.ClientSet,
 		netk8s.NetworkGVR,
 		logger,
 		netk8s.NetworkToCR,
 		netk8s.NetworkFromCR,
+		k8sadapter.NetworkChildren,
 	)
 	netSKUReaderAdapter := k8sadapter.NewReaderAdapter[*netskudom.NetworkSKU](
 		client.Client,
@@ -237,6 +241,19 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		internetgatewayk8s.InternetGatewayToCR,
 		internetgatewayk8s.InternetGatewayFromCR,
 	)
+	routeTableReaderAdapter := k8sadapter.NewReaderAdapter[*routetabledom.RouteTable](
+		client.Client,
+		routetablek8s.RouteTableGVR,
+		logger,
+		routetablek8s.RouteTableFromCR,
+	)
+	routeTableWriterAdapter := k8sadapter.NewWriterAdapter[*routetabledom.RouteTable](
+		client.Client,
+		routetablek8s.RouteTableGVR,
+		logger,
+		routetablek8s.RouteTableToCR,
+		routetablek8s.RouteTableFromCR,
+	)
 
 	sdknetworkapi.HandlerWithOptions(
 		&netrest.Handler{
@@ -249,6 +266,8 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 			PublicIpWriter:        publicIpWriterAdapter,
 			InternetGatewayReader: internetGatewayReaderAdapter,
 			InternetGatewayWriter: internetGatewayWriterAdapter,
+			RouteTableReader:      routeTableReaderAdapter,
+			RouteTableWriter:      routeTableWriterAdapter,
 			Logger:                logger,
 		},
 		sdknetworkapi.StdHTTPServerOptions{
@@ -318,6 +337,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		logger,
 		wsk8s.WorkspaceToCR,
 		wsk8s.WorkspaceFromCR,
+		k8sadapter.WorkspaceChildren,
 	)
 	wsReaderAdapter := k8sadapter.NewReaderAdapter[*wsdom.Workspace](
 		client.Client,

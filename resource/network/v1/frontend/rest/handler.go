@@ -12,6 +12,7 @@ import (
 	skudom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network-sku"
 	nicdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic"
 	publicipdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/public-ip"
+	routetabledom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/route-table"
 )
 
 // Handler is the HTTP handler for the network API group.
@@ -19,8 +20,9 @@ import (
 // NIC methods are in nic_handler.go.
 // PublicIp methods are in public_ip_handler.go.
 // InternetGateway methods are in internet_gateway_handler.go.
-// Stubs for unimplemented resources (route-table, subnet,
-// security-group, security-group-rule) are in network_handler.go.
+// RouteTable methods are in route_table_handler.go.
+// Stubs for unimplemented resources (subnet, security-group,
+// security-group-rule) are in network_handler.go.
 type Handler struct {
 	NetworkReader         persistencepkg.ReaderRepo[*netdom.Network]
 	NetworkWriter         persistencepkg.WriterRepo[*netdom.Network]
@@ -31,6 +33,8 @@ type Handler struct {
 	InternetGatewayWriter persistencepkg.WriterRepo[*internetgatewaydom.InternetGateway]
 	PublicIpReader        persistencepkg.ReaderRepo[*publicipdom.PublicIp]
 	PublicIpWriter        persistencepkg.WriterRepo[*publicipdom.PublicIp]
+	RouteTableReader      persistencepkg.ReaderRepo[*routetabledom.RouteTable]
+	RouteTableWriter      persistencepkg.WriterRepo[*routetabledom.RouteTable]
 	Logger                *slog.Logger
 }
 
