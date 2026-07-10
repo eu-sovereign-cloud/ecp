@@ -14,6 +14,13 @@ type Scope interface {
 	GetWorkspace() string
 }
 
+// NetworkScope extends Scope with a network dimension, for resources scoped under
+// tenant/workspace/network (e.g. RouteTable).
+type NetworkScope interface {
+	Scope
+	GetNetwork() string
+}
+
 // IdentifiableResource defines the interface for objects that can be identified by name, tenant, and workspace.
 type IdentifiableResource interface {
 	GetName() string

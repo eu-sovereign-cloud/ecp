@@ -149,14 +149,6 @@ func NewWatcherAdapter[T persistence.IdentifiableResource](
 	}
 }
 
-// NetworkScope is implemented by domain models (and list-params types) scoped under
-// tenant/workspace/network.
-type NetworkScope interface {
-	GetTenant() string
-	GetWorkspace() string
-	GetNetwork() string
-}
-
 // ComputeNamespace computes the Kubernetes namespace based on tenant and workspace. It never
 // looks at anything beyond persistence.Scope — for resolving the right namespace rule for a
 // given resource (which may be network-scoped instead), see resolveNamespace.
@@ -179,22 +171,26 @@ func ComputeNamespace(obj persistence.Scope) string {
 // hashing tenant/workspace/network so each network gets its own namespace. This gives
 // network-scoped resources (e.g. RouteTable name uniqueness) isolation per network, unlike
 // ComputeNamespace's per-workspace sharing used by every other (non-network-scoped) resource.
-func ComputeNetworkNamespace(obj NetworkScope) string {
+func ComputeNetworkNamespace(obj persistence.NetworkScope) string {
 	hasher := sha3.New224()
 	_, _ = fmt.Fprintf(hasher, "%s/%s/%s", obj.GetTenant(), obj.GetWorkspace(), obj.GetNetwork())
 	return fmt.Sprintf("%x", hasher.Sum(nil))
 }
 
 // resolveNamespace picks the right namespace rule for obj: ComputeNetworkNamespace when obj
-// also implements NetworkScope with a non-empty network, ComputeNamespace otherwise. This is
-// where "which formula applies to this resource" is decided — ComputeNamespace and
-// ComputeNetworkNamespace themselves stay dumb, explicit hash formulas with no branching on the
-// caller's shape
-func resolveNamespace(obj persistence.Scope) string {
-	if networkScope, ok := obj.(NetworkScope); ok && networkScope.GetNetwork() != "" {
-		return ComputeNetworkNamespace(networkScope)
+// also implements NetworkScope, ComputeNamespace otherwise. This is where "which formula applies
+// to this resource" is decided — ComputeNamespace and ComputeNetworkNamespace themselves stay
+// dumb, explicit hash formulas with no branching on the caller's shape. A NetworkScope object
+// with an empty network is a caller bug, not a fallback case, so it errors instead of silently
+// resolving to the workspace-level namespace.
+func resolveNamespace(obj persistence.Scope) (string, error) {
+	if networkScope, ok := obj.(persistence.NetworkScope); ok {
+		if networkScope.GetNetwork() == "" {
+			return "", kernel.NewError(kernel.KindValidation, fmt.Errorf("network-scoped resource has empty network"))
+		}
+		return ComputeNetworkNamespace(networkScope), nil
 	}
-	return ComputeNamespace(obj)
+	return ComputeNamespace(obj), nil
 }
 
 // CreateNamespace creates a Kubernetes Namespace.
@@ -268,7 +264,11 @@ func (a *ReaderAdapter[T]) List(ctx context.Context, params resource.ListFilter,
 		lo.LabelSelector = filter.K8sSelectorForAPI(selector)
 	}
 
-	ri := a.client.Resource(a.gvr).Namespace(resolveNamespace(params))
+	namespace, err := resolveNamespace(params)
+	if err != nil {
+		return nil, err
+	}
+	ri := a.client.Resource(a.gvr).Namespace(namespace)
 
 	ulist, err := ri.List(ctx, lo)
 	if err != nil {
@@ -324,7 +324,11 @@ func (a *ReaderAdapter[T]) List(ctx context.Context, params resource.ListFilter,
 // Load implements the persistence.ReaderRepo interface.
 func (a *ReaderAdapter[T]) Load(ctx context.Context, obj *T) error {
 	v := *obj
-	ri := a.client.Resource(a.gvr).Namespace(resolveNamespace(v))
+	namespace, err := resolveNamespace(v)
+	if err != nil {
+		return err
+	}
+	ri := a.client.Resource(a.gvr).Namespace(namespace)
 
 	uobj, err := ri.Get(ctx, v.GetName(), metav1.GetOptions{})
 	if err != nil {
@@ -347,7 +351,11 @@ func (a *ReaderAdapter[T]) Load(ctx context.Context, obj *T) error {
 
 // Create implements the persistence.WriterRepo interface.
 func (a *WriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
-	ri := a.client.Resource(a.gvr).Namespace(resolveNamespace(m))
+	namespace, err := resolveNamespace(m)
+	if err != nil {
+		return nil, err
+	}
+	ri := a.client.Resource(a.gvr).Namespace(namespace)
 
 	uobj, err := a.toUnstructured(m)
 	if err != nil {
@@ -380,7 +388,11 @@ func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
 		return nil, kernel.NewError(kernel.KindValidation, fmt.Errorf("failed to convert %s to unstructured: %w", a.gvr.Resource, err))
 	}
 
-	resourceInterface := a.client.Resource(a.gvr).Namespace(resolveNamespace(m))
+	namespace, err := resolveNamespace(m)
+	if err != nil {
+		return nil, err
+	}
+	resourceInterface := a.client.Resource(a.gvr).Namespace(namespace)
 
 	if m.GetVersion() == "" {
 		if err := a.updateMetadataAndSpecRetry(ctx, resourceInterface, m.GetName(), uobj); err != nil {
@@ -424,7 +436,11 @@ func (a *WriterAdapter[T]) UpdateStatus(ctx context.Context, m T) (*T, error) {
 		return nil, kernel.NewError(kernel.KindValidation, fmt.Errorf("no status data provided for %s '%s'", a.gvr.Resource, m.GetName()))
 	}
 
-	resourceInterface := a.client.Resource(a.gvr).Namespace(resolveNamespace(m))
+	namespace, err := resolveNamespace(m)
+	if err != nil {
+		return nil, err
+	}
+	resourceInterface := a.client.Resource(a.gvr).Namespace(namespace)
 
 	if err := a.updateStatusRetry(ctx, resourceInterface, m, desiredStatus); err != nil {
 		a.logger.ErrorContext(ctx, "failed to update status", "resource", a.gvr.Resource, "error", err)
@@ -536,7 +552,11 @@ func (a *WriterAdapter[T]) updateStatusRetry(
 
 // Delete implements the persistence.WriterRepo interface.
 func (a *WriterAdapter[T]) Delete(ctx context.Context, m T) error {
-	ri := a.client.Resource(a.gvr).Namespace(resolveNamespace(m))
+	namespace, err := resolveNamespace(m)
+	if err != nil {
+		return err
+	}
+	ri := a.client.Resource(a.gvr).Namespace(namespace)
 
 	deleteOptions := metav1.DeleteOptions{}
 	if m.GetVersion() != "" {
@@ -545,8 +565,7 @@ func (a *WriterAdapter[T]) Delete(ctx context.Context, m T) error {
 		}
 	}
 
-	err := ri.Delete(ctx, m.GetName(), deleteOptions)
-	if err != nil {
+	if err := ri.Delete(ctx, m.GetName(), deleteOptions); err != nil {
 		a.logger.ErrorContext(ctx, "failed to delete resource", "name", m.GetName(), "resource", a.gvr.Resource, "error", err, slog.Any("m", m))
 		return kubeToDomainError(fmt.Errorf("failed to delete %s '%s': %w", a.gvr.Resource, m.GetName(), err))
 	}

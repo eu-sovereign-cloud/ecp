@@ -33,7 +33,7 @@ func (rt *RouteTableIdentity) GetNetwork() string   { return rt.network }
 var _ persistence.IdentifiableResource = (*RouteTableIdentity)(nil)
 
 // routeTableListParams extends resource.ListParams with the network dimension. It satisfies
-// resource.ListFilter via the embedded ListParams, and k8sadapter.NetworkScope via GetNetwork,
+// resource.ListFilter via the embedded ListParams, and persistence.NetworkScope via GetNetwork,
 // so ReaderAdapter[T].List resolves the per-network namespace for route-table without the
 // Network field living on the shared ListParams struct every other resource also uses.
 type routeTableListParams struct {
