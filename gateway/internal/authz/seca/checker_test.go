@@ -24,7 +24,7 @@ type stubRoleReader struct {
 	err   error
 }
 
-func (s *stubRoleReader) List(_ context.Context, _ resource.ListParams, list *[]*roledom.Role) (*string, error) {
+func (s *stubRoleReader) List(_ context.Context, _ resource.ListFilter, list *[]*roledom.Role) (*string, error) {
 	if s.err != nil {
 		return nil, s.err
 	}
@@ -42,7 +42,7 @@ type stubAssignmentReader struct {
 	err         error
 }
 
-func (s *stubAssignmentReader) List(_ context.Context, _ resource.ListParams, list *[]*radom.RoleAssignment) (*string, error) {
+func (s *stubAssignmentReader) List(_ context.Context, _ resource.ListFilter, list *[]*radom.RoleAssignment) (*string, error) {
 	if s.err != nil {
 		return nil, s.err
 	}
