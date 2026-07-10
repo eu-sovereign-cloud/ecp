@@ -18,7 +18,7 @@ import (
 
 // TestAuthz exercises SECA RBAC authorization on the global gateway.
 // These tests rely on the Role and RoleAssignment fixtures from
-// test/e2e/deploy/test-data/roles.yaml and role-assignments.yaml, and on the
+// test/internal/deploy/test-data/roles.yaml and role-assignments.yaml, and on the
 // Dummy authenticator being enabled with the users from users-configmap.yaml.
 // Skipped when E2E_AUTH_ENABLED=false.
 func TestAuthz(t *testing.T) {

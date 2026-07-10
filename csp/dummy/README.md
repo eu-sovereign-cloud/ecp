@@ -50,7 +50,7 @@ You will see logs from the controller as it reconciles resources, and messages f
 
 ### Running Integration Tests
 
-The integration tests create, update, and delete `BlockStorage`, `Image`, `Role`, `RoleAssignment`, and `Workspace` resources in the running KIND cluster and assert that they reach the expected states.
+The integration tests create, update, and delete `BlockStorage`, `Image`, `InternetGateway`, `Network`, `NIC`, `PublicIP`, `Role`, `RoleAssignment`, and `Workspace` resources in the running KIND cluster and assert that they reach the expected states. A dedicated dependency test also asserts cross-resource ordering (an image stays pending until its source block storage exists, and a referenced block storage cannot be deleted).
 
 To run the tests, use the following command:
 

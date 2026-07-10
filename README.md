@@ -32,7 +32,7 @@ test/                 # Test harness: integration, e2e and conformance suites
 ├── integration/      # Per-component suites (delegator, gateway-global/-regional)
 ├── e2e/              # Single end-to-end suite (API → delegator plugin)
 ├── conformance/      # secatest conformance harnesses (ionos, aruba)
-└── internal/         # Shared infra: build, deploy, scripts, cmd, testenv, context
+└── internal/         # Shared infra: build, deploy, scripts, cmd, testenv, authhelper, context
 ci/
 ├── container/        # Dockerfile layers: builder, tools, dev, runner
 ├── scripts/          # CI and dev automation scripts
@@ -100,6 +100,8 @@ For containerized development, persistent dev containers, and the full Makefile 
 | [doc/CODEGEN.md](doc/CODEGEN.md) | Code generation pipeline (OpenAPI types, CRDs, controller-gen) |
 | [doc/PLUGINS.md](doc/PLUGINS.md) | Plugin system: interface, builder inversion, writing a new CSP plugin |
 | [doc/CONTRIBUTING.md](doc/CONTRIBUTING.md) | Contribution guidelines, import alias convention, PR conventions |
+| [doc/CONVENTIONS.md](doc/CONVENTIONS.md) | Go style conventions — naming, initialisms, conversion functions, structural symmetry |
+| [doc/AUTH-SPEC-REVIEW.md](doc/AUTH-SPEC-REVIEW.md) | Auth findings — token model and SECA spec alignment review (record) |
 
 ## Current Version
 

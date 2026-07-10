@@ -5,22 +5,22 @@
 #   AUTHZ_IMPL=cached  make bench  # runs the load workload
 #   AUTHZ_IMPL=cached  make report # scrapes /metrics and generates REPORT.md
 #
-# To compare two implementations:
+# To compare two implementations (paths relative to test/, where make runs):
 #   AUTHZ_IMPL=cached  make bench
-#   AUTHZ_IMPL=cached  make report SNAP_FILE=report/snap-cached.txt
+#   AUTHZ_IMPL=cached  make report SNAP_FILE=internal/report/snap-cached.txt
 #   # redeploy with AUTHZ_IMPL=direct (e.g. restart the gateway pod with AUTHZ_IMPL=direct)
 #   AUTHZ_IMPL=direct  make bench
-#   AUTHZ_IMPL=direct  make report SNAP_FILE=report/snap-direct.txt
-#   go run ./cmd/benchreport \
-#       --impl=cached --metrics-file=report/snap-cached.txt \
-#       --impl=direct --metrics-file=report/snap-direct.txt \
-#       --out=report/REPORT.md
+#   AUTHZ_IMPL=direct  make report SNAP_FILE=internal/report/snap-direct.txt
+#   go run ./internal/cmd/benchreport \
+#       --impl=cached --metrics-file=internal/report/snap-cached.txt \
+#       --impl=direct --metrics-file=internal/report/snap-direct.txt \
+#       --out=internal/report/REPORT.md
 #
 # Environment variables:
 #   GATEWAY_GLOBAL_PORT  — local port where gateway-global /metrics is reachable (default: auto via kubectl port-forward)
-#   SNAP_FILE            — output file for the metrics snapshot (default: report/snap.txt)
+#   SNAP_FILE            — output file for the metrics snapshot (default: internal/report/snap.txt)
 #   IMPL_TAG             — implementation label in the report (default: value of AUTHZ_IMPL or "default")
-#   OUT_FILE             — final report markdown file (default: report/REPORT.md)
+#   OUT_FILE             — final report markdown file (default: internal/report/REPORT.md)
 set -euo pipefail
 
 SCRIPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

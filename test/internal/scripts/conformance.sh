@@ -2,9 +2,10 @@
 # Deploy the SECA conformance runner and execute secatest against a gateway.
 #
 # This is plugin-generic: whatever plugin the delegator was deployed with (dummy,
-# aruba, ionos, ...) is what the conformance run exercises. The Makefile
-# `conformance` target deploys the stack (with CONFORMANCE_PLUGIN) before calling
-# this script; here we only stand up the conformance pod and run secatest in it.
+# aruba, ionos, ...) is what the conformance run exercises. Deploying the stack is
+# `conformance-deploy`'s job (honouring CONFORMANCE_PLUGIN); the `conformance`
+# target only runs this script, which stands up the conformance pod and runs
+# secatest in it.
 #
 # Configuration comes from CONFORMANCE_* environment variables (see the Makefile
 # defaults); all have sensible fallbacks for the in-cluster dummy setup.

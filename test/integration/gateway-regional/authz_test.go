@@ -18,7 +18,7 @@ import (
 
 // TestRegionalAuthz exercises SECA RBAC authorization on the regional gateway.
 // These tests rely on the Role and RoleAssignment fixtures from
-// test/e2e/deploy/test-data/roles.yaml and role-assignments.yaml, and on the
+// test/internal/deploy/test-data/roles.yaml and role-assignments.yaml, and on the
 // Dummy authenticator being enabled with the users from users-configmap.yaml.
 // Skipped when E2E_AUTH_ENABLED=false.
 func TestRegionalAuthz(t *testing.T) {
@@ -108,7 +108,7 @@ func TestRegionalAuthz(t *testing.T) {
 		}
 	})
 
-	t.Run("storage viewer denied workspace write (wrong provider)", func(t *testing.T) {
+	t.Run("region viewer denied workspace write (wrong provider)", func(t *testing.T) {
 		// alice's assignment grants only e2e-region-viewer, not e2e-workspace-editor. Denied writing workspace.
 		editor := authhelper.IdentityEditor("alice", "alice-pass")
 		client, err := workspacev1sdk.NewClientWithResponses(regionalBaseURL+"/providers/seca.workspace", workspacev1sdk.WithRequestEditorFn(editor))

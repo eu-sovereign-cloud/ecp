@@ -23,7 +23,7 @@ import (
 //
 // Typical use:
 //
-//	E2E_BENCH=1 E2E_BENCH_REQUESTS=500 go test -v -tags=integration \
+//	E2E_BENCH=1 E2E_BENCH_REQUESTS=500 go test -v -tags=integration,authhelper \
 //	    -run=TestBench ./test/integration/gateway-global/
 func TestBench(t *testing.T) {
 	if os.Getenv("E2E_BENCH") != "1" {

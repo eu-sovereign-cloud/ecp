@@ -65,28 +65,26 @@ No back-edges. `framework` has zero dependency on `resource`. `resource` has zer
 
 ## Resource Model
 
-### Cluster-Scoped Resources
+The control plane manages 18 resource slices — one CRD each, generated into `chart/crd/` (see [CODEGEN.md](CODEGEN.md)) — organized by SECA API group:
 
-| Resource | Description |
-|----------|-------------|
-| `Region` | Available regions (read-only) |
+| API group | Resources |
+|-----------|-----------|
+| `v1.secapi.cloud` (`seca.region`) | `Region` — region catalog (read-only, cluster-scoped) |
+| `workspace.v1.secapi.cloud` | `Workspace` — logical grouping of resources within a tenant |
+| `authorization.v1.secapi.cloud` | `Role`, `RoleAssignment` — SECA RBAC policy (see [AUTH.md](AUTH.md)) |
+| `storage.v1.secapi.cloud` | `BlockStorage`, `Image`, `StorageSKU` (read-only catalog) |
+| `network.v1.secapi.cloud` | `Network`, `Subnet`, `NIC`, `PublicIP`, `RouteTable`, `InternetGateway`, `SecurityGroup`, `SecurityGroupRule`, `NetworkSKU` (read-only catalog) |
+| `compute.v1.secapi.cloud` | `Instance`, `InstanceSKU` (read-only catalog) |
 
-Cluster-scoped resources are stored in the `seca` namespace and carry no tenant or workspace qualifier.
-
-### Tenant-Scoped Resources
-
-| Resource | Description |
-|----------|-------------|
-| `Workspace` | Logical grouping of resources within a tenant |
-| `BlockStorage` | Block storage volume |
-| `Network` | Network resource |
-| `StorageSKU` / `NetworkSKU` | Available SKU options (read-only) |
+`Region` is the only cluster-scoped CRD: it carries no tenant or workspace qualifier (tenant-less by spec — the gateway serves it authn-only, see [AUTH.md](AUTH.md)). Every other resource is namespaced.
 
 ### Namespacing Strategy
 
-- The `seca` namespace groups cluster-scoped and shared resources.
-- Each `Tenant` CR triggers the creation of a dedicated tenant namespace; all tenant-scoped resources owned by that tenant live there.
-- `Workspace` CRs are placed in the tenant namespace and labeled with their parent tenant.
+There is no `Tenant` CRD. Namespaces are derived deterministically from the resource's SECA scope by `ComputeNamespace` (`framework/backend/kubernetes/adapter.go`): the SHA3-224 hash of `<tenant>` for tenant-scoped resources, or of `<tenant>/<workspace>` for workspace-scoped ones.
+
+- Tenant-scoped resources (`Workspace`, `Role`, `RoleAssignment`, SKU catalogs) live in the tenant namespace `sha3-224(tenant)`.
+- Creating a `Workspace` also creates the namespace `sha3-224(tenant/workspace)` that holds the workspace's resources (e.g. `BlockStorage`), labeled with internal tenant/workspace owner labels; the namespace is rolled back if the workspace create fails.
+- An empty scope yields no namespace — that is the cluster-scoped `Region` case.
 
 ## Authentication & Authorization
 
@@ -129,7 +127,7 @@ down-scoping, config flags, the RBAC algorithm, and a code layout map.
 
 ## Cascaded Deletion
 
-ECP enforces owner-reference–based cascaded deletion:
+The SECA resource organization is hierarchical — Tenants 1—\* Workspaces 1—\* resources — and deletion is intended to cascade down this hierarchy. The building block for this is namespace ownership rather than Kubernetes owner references (none are set today):
 
-- Deleting a **Tenant** cascades to all its Workspaces and all resources within them.
-- Deleting a **Workspace** cascades to all resources within that workspace.
+- A `Workspace`'s resources live in the workspace's dedicated namespace (see [Namespacing Strategy](#namespacing-strategy)), so deleting that namespace removes everything in the workspace at once.
+- Automatic cascade is not fully wired yet: deleting a `Workspace` CR does not yet delete its namespace (`NamespaceManagingWriterAdapter.Delete` deletes only the CR), and with no `Tenant` entity there is no tenant-level deletion to cascade from.

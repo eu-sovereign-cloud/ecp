@@ -22,7 +22,8 @@ test/
     aruba/              # placeholder for an aruba real-backend harness
   internal/
     testenv/            # shared kubeconfig + port-forward helpers (Go)
-    cmd/                # entrypoints: delegator + gateway start scripts
+    authhelper/         # shared auth test helpers (build tag `authhelper`)
+    cmd/                # entrypoints: delegator + gateway start scripts + benchreport
     build/              # a Dockerfile per component (incl. conformance runner)
     deploy/             # Kustomize manifests per component + test-data
     scripts/            # helper scripts orchestrated by the Makefile
@@ -174,13 +175,13 @@ The gateway deployments ship with the Dummy authenticator and SECA RBAC enabled 
 
 ### Test fixtures: subjects, users, and assignments
 
-The files in `deploy/test-data/` define the RBAC state used by the auth tests. Roles are **not** carried by the token — each subject's roles come entirely from the RoleAssignment named below (the token carries only the subject and an optional down-scope). The table maps the token subject (`username`) to the RoleAssignment that covers them and the net access they should receive:
+The files in `internal/deploy/test-data/` define the RBAC state used by the auth tests. Roles are **not** carried by the token — each subject's roles come entirely from the RoleAssignment named below (the token carries only the subject and an optional down-scope). The table maps the token subject (`username`) to the RoleAssignment that covers them and the net access they should receive:
 
 | Subject | Password | RoleAssignment | Roles (from assignment) | Scope | Expected result |
 |---------|----------|----------------|-------------------------|-------|-----------------|
 | `admin` | `e2e-admin-pass` | `ra-admin` | `e2e-admin` (all providers, all resources) | all | ✅ All operations |
 | `alice` | `alice-pass` | `ra-alice-region-viewer` | `e2e-region-viewer` (`seca.region`) | `test-tenant` | ❌ cross-provider ops (her only role covers `seca.region`, which is authn-only anyway) |
-| `bob` | `bob-pass` | `ra-bob-scoped` | `e2e-storage-viewer` (`seca.storage` `block-storages`) | `test-tenant` + region `itbg-bergamo` | ✅ List block-storages in that region; ❌ other regions (incl. token down-scoped elsewhere) |
+| `bob` | `bob-pass` | `ra-bob-scoped` | `e2e-storage-viewer` (`seca.storage` get/list: `block-storages`, `images`, `storage-skus`) | `test-tenant` + region `itbg-bergamo` | ✅ List block-storages in that region; ❌ other regions (incl. token down-scoped elsewhere) |
 | `carol` | `carol-pass` | `ra-multi-subject` | `e2e-workspace-editor` | `test-tenant` | ✅ Workspace CRUD |
 | `dave` | `dave-pass` | `ra-multi-subject` | `e2e-workspace-editor` | `test-tenant` | ✅ Workspace CRUD |
 | `erin` | `erin-pass` | `ra-wrong-tenant` | `e2e-admin` scoped to `other-tenant` | `other-tenant` | ❌ admin ops in `test-tenant` (out of scope) |
@@ -221,7 +222,7 @@ make kind-deploy-gateway-global   # AUTHZ_IMPL=cached by default
 make kind-bench                   # E2E_BENCH=1; default 500 requests
 
 # 3. Scrape metrics and generate the report
-IMPL_TAG=cached make report       # writes report/REPORT.md
+IMPL_TAG=cached make report       # writes internal/report/REPORT.md
 
 # 4. Delete the previous deployment with AUTHZ_IMPL=cached
 make kind-clean-gateway-global
@@ -231,18 +232,18 @@ AUTHZ_IMPL=direct make kind-deploy-gateway-global
 
 # 6. Fire another load workload and save a second snapshot
 E2E_BENCH_REQUESTS=500 make kind-bench
-IMPL_TAG=direct SNAP_FILE=report/snap-direct.txt make report
+IMPL_TAG=direct SNAP_FILE=internal/report/snap-direct.txt make report
 
 # 7. Merge both snapshots into one comparison report
-cd test/e2e && go run ./cmd/benchreport \
-    --impl=cached --metrics-file=report/snap.txt \
-    --impl=direct --metrics-file=report/snap-direct.txt \
-    --out=report/REPORT.md
+go run ./internal/cmd/benchreport \
+    --impl=cached --metrics-file=internal/report/snap.txt \
+    --impl=direct --metrics-file=internal/report/snap-direct.txt \
+    --out=internal/report/REPORT.md
 ```
 
 ### Reading the report
 
-`report/REPORT.md` contains three latency tables — one per histogram — with rows for each `impl/label` combination and columns:
+`internal/report/REPORT.md` contains three latency tables — one per histogram — with rows for each `impl/label` combination and columns:
 
 | Column | Meaning |
 |--------|---------|

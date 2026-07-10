@@ -18,7 +18,7 @@ ECP uses a **container-first** development model:
 | Docker or Podman | Container runtime | Auto-detected; both are fully supported |
 | `kubectl` | Kubernetes CLI | Required for cluster operations |
 | KIND | Local Kubernetes clusters | Required for integration tests |
-| Go 1.26.4+ | Build/test on host | Required only for bare-metal workflow |
+| Go 1.26.5+ | Build/test on host | Required only for bare-metal workflow |
 
 > **Podman users:** The Makefile handles SELinux volume labels (`:Z`), cgroupv2 delegation, rootless userns mapping, and KIND preflight automatically. See `.common.mk` for details.
 
@@ -29,7 +29,7 @@ The builder image is published to `ghcr.io/eu-sovereign-cloud/ecp-builder` and p
 The toolchain pulls from `docker.io` (builder base image) and `ghcr.io` (published builder image). Authenticating to both avoids rate-limit failures on first build.
 
 **`docker.io`** — Docker Hub enforces anonymous-pull rate limits. The builder
-base image (`golang:1.26.4-trixie`) is fetched from Docker Hub on a local
+base image (`golang:1.26.5-trixie`) is fetched from Docker Hub on a local
 builder build (`make builder-rebuild`):
 
 ```bash
@@ -68,13 +68,13 @@ echo "<PAT>" | docker login ghcr.io -u <github-username> --password-stdin
 | `test` | `./test` | Test harness (integration, e2e, conformance) |
 | `ci/tools/go` | `./ci/tools/go` | Pinned versions of Go development tools |
 
-The `framework-isolation` CI lane runs `cd framework && GOWORK=off go build ./... && go test ./...` to prove no `framework/*` package imports `resource`. See [ARCHITECTURE.md](ARCHITECTURE.md) for the full module DAG.
+The `framework ↛ resource` boundary is compiler-enforced: `framework` and `resource` are separate modules, so a `framework/*` package importing `resource` fails to build under `GOWORK=off`. The intra-framework layer DAG is enforced by `depguard` in `.golangci.yml`. See [ARCHITECTURE.md](ARCHITECTURE.md) for the full module DAG.
 
 ## Development Workflows
 
 ### Bare-Metal Development
 
-Running directly on the host requires Go 1.26.4+ and the dev tools installed locally.
+Running directly on the host requires Go 1.26.5+ and the dev tools installed locally.
 
 ```bash
 # Install pinned dev tools to ci/tools/bin/ (golangci-lint, controller-gen, etc.)
@@ -195,7 +195,7 @@ The 3 images form a layered chain. Each layer adds tooling on top of the previou
 
 | Attribute | Value |
 |-----------|-------|
-| Base | `golang:1.26.4-trixie` |
+| Base | `golang:1.26.5-trixie` |
 | Contains | Go toolchain, all codegen/lint/security tools (pinned versions) |
 | Published by | CI (`builder-publish.yaml`) to `ghcr.io/eu-sovereign-cloud/ecp-builder` |
 | Pinned at | `.builder-digest` (committed to git) |
@@ -215,7 +215,7 @@ make tools-build       # propagate downstream (auto on next -ctzd)
 |-----------|-------|
 | Base | `builder` |
 | Adds | Docker CLI (static binary), KIND, kubectl, GitHub CLI, bash completion, coloring |
-| Tag | `localhost/ecp/tools:<version>-trixie-go-v1.26.4` |
+| Tag | `localhost/ecp/tools:<version>-trixie-go-v1.26.5` |
 | Built by | `make tools-build` (auto-triggered by `-ctzd` targets if missing) |
 
 This image is what the `-ctzd` targets and the devcontainer use.
@@ -226,7 +226,7 @@ This image is what the `-ctzd` targets and the devcontainer use.
 |-----------|-------|
 | Base | `tools` |
 | Adds | OpenSSH server, neovim, gopls, sudo |
-| Tag | `localhost/ecp/dev:<version>-trixie-go-v1.26.4` |
+| Tag | `localhost/ecp/dev:<version>-trixie-go-v1.26.5` |
 | Built by | `make dev-build` (auto-triggered by `ctzdev-start` if missing) |
 
 ### Runner Image (`ci/container/runner/`)
@@ -260,9 +260,12 @@ Minimal distroless base (`gcr.io/distroless/static-debian13`) for production dep
 | Category | Target(s) | Description |
 |----------|-----------|-------------|
 | **Verification** | `test`, `<module>-test` | Unit tests with race detector (`-race`). Optional `RUN=<regex>` filter. |
+| | `test-envtest` | Integration tests requiring a real kube-apiserver (envtest; `resource` module) |
 | | `lint`, `<module>-lint` | golangci-lint with `.golangci.yml` config |
 | | `gofmt`, `<module>-gofmt` | Auto-fix formatting via `golangci-lint fmt` |
 | | `gofmt-check`, `<module>-gofmt-check` | Format check only (non-zero exit on diff; used by CI) |
+| | `modernize`, `<module>-modernize` | Auto-fix legacy constructs via Go 1.26 `go fix` (loops to a fixpoint) |
+| | `modernize-check`, `<module>-modernize-check` | Modernize check only (`go fix -diff`; non-zero exit on pending fixes; used by CI) |
 | | `vuln`, `<module>-vuln` | govulncheck vulnerability scan (single-module mode) |
 | | `gosec`, `<module>-gosec` | gosec security scan |
 | **Code Generation** | `generate-api` | Generate CRDs + typed models from OpenAPI spec |
@@ -271,9 +274,11 @@ Minimal distroless base (`gcr.io/distroless/static-debian13`) for production dep
 | | `go-get`, `<module>-go-get PKG=<pkg>` | `go get <pkg>` per module + tidy |
 | | `workspace-sync` | `go work sync` |
 | | `workspace-verify` | `workspace-sync` + git-cleanliness gate (CI gate) |
-| **CI Gates** | `pre-commit` | `go-sdk-verify generate-api-verify test vet-integration lint gofmt-check vuln gosec` |
-| | `pre-merge` | Same, plus `gh-token-ensure branch-rebase-verify workspace-verify` |
-| | `vet-integration`, `<module>-vet-integration` | `go vet -tags integration ./...` per module — compile-checks `//go:build integration` test files without running them (no KIND needed) |
+| | `go-sdk-update VERSION=<tag>` | Bump the go-sdk submodule and every dependent `go.mod` together |
+| | `go-sdk-verify` | Verify go-sdk submodule and `go.mod` pins agree (CI gate) |
+| **CI Gates** | `pre-commit` | `go-sdk-verify generate-api-verify test lint gofmt-check modernize-check vuln gosec` |
+| | `pre-merge` | Same, plus `gh-token-ensure branch-rebase-verify workspace-verify vet-integration` |
+| | `vet-integration`, `<module>-vet-integration` | `go vet -tags integration,envtest ./...` per module — compile-checks `//go:build integration` and `//go:build envtest` test files without running them (no KIND or envtest binaries needed) |
 | | `branch-rebase-verify` | Verify current branch is rebased onto its PR target |
 | **Container Images** | `tools-build`, `dev-build`, `images-build` | Build image(s) |
 | | `builder-rebuild`, `tools-rebuild`, `images-rebuild` | Force-rebuild (bypass cache) |
@@ -310,7 +315,7 @@ Any target `FOO` defined at the root can be run as `FOO-ctzd`. The wrapper:
 | Makefile | Key Targets |
 |----------|-------------|
 | `csp/dummy/Makefile` | `build`, `deploy`, `kind-start`, `kind-stop`, `test-integration` |
-| `test/Makefile` | `integration`, `e2e`, `conformance`, `conformance-ionos` (+ `kind-*` variants), `build-all`, `push-all`, `deploy-all`, `kind-start`, `kind-stop`, `kind-load-all` |
+| `test/Makefile` | `integration`, `e2e`, `conformance`, `conformance-ionos` (+ `kind-*` variants), `build-all`, `push-all`, `deploy-all`, `kind-start`, `kind-stop`, `kind-load-all`, `bench`, `report` |
 | `csp/ionos/deploy/Makefile` | `install-crossplane`, `install-provider`, `install-all`, `install-on-regional` |
 | `test/conformance/ionos/Makefile` | `secatest-scaffolding`, `secatest`, `secatest-all`, `secatest-clean` |
 
@@ -325,6 +330,7 @@ Stage 1 — cheap gates, run in parallel
   pr-title         Validate PR title (conventional commits via amannn/action-semantic-pull-request)
   module-diff      Detect which Go modules changed (dorny/paths-filter, config derived from go.work)
   branch-rebase    Verify branch is rebased onto its target (make branch-rebase-verify)
+  go-sdk-verify    Verify go-sdk submodule and go.mod pins agree (make go-sdk-verify)
 
 Stage 2 — depends on Stage 1
   builder-publish-pr   Ensure a builder image exists for this PR:
@@ -332,15 +338,14 @@ Stage 2 — depends on Stage 1
                          - If inputs changed → full rebuild, push as :pr-<N>
 
 Stage 3 — parallel, per changed module, inside the builder container
-  framework-isolation  cd framework && GOWORK=off go build ./... && go test ./...
-                         (proves no framework/* package imports resource)
   workspace-verify     make workspace-verify
   generate-api         make generate-api-verify
-  test                 make <module>-test        (matrix over changed modules)
-  lint                 make <module>-lint         (matrix)
-  gofmt                make <module>-gofmt-check  (matrix)
-  vuln                 make <module>-vuln         (matrix)
-  gosec                make <module>-gosec        (matrix)
+  test                 make <module>-test              (matrix over changed modules)
+  lint                 make <module>-lint               (matrix)
+  gofmt                make <module>-gofmt-check        (matrix)
+  modernize            make <module>-modernize-check    (matrix)
+  vuln                 make <module>-vuln               (matrix)
+  gosec                make <module>-gosec              (matrix)
 
 Cleanup — on PR close
   builder-cleanup   Delete :pr-<N> and :pr-<N>-buildcache tags from GHCR
