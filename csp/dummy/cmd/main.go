@@ -18,6 +18,7 @@ import (
 	frameworkbuilder "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/builder"
 	rak8s "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment/backend/kubernetes"
 	rolek8s "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role/backend/kubernetes"
+	instancek8s "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/instance/backend/kubernetes"
 	internetgatewayk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/internet-gateway/backend/kubernetes"
 	netk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network/backend/kubernetes"
 	nick8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic/backend/kubernetes"
@@ -43,6 +44,7 @@ func init() {
 	utilruntime.Must(internetgatewayk8s.AddToScheme(scheme))
 	utilruntime.Must(routetablek8s.AddToScheme(scheme))
 	utilruntime.Must(subnetk8s.AddToScheme(scheme))
+	utilruntime.Must(instancek8s.AddToScheme(scheme))
 	utilruntime.Must(wsk8s.AddToScheme(scheme))
 }
 
@@ -78,6 +80,7 @@ func main() {
 	internetGatewayPlugin := dummyplugin.NewInternetGateway(logger.With("plugin", "internetgateway"))
 	routeTablePlugin := dummyplugin.NewRouteTable(logger.With("plugin", "routetable"))
 	subnetPlugin := dummyplugin.NewSubnet(logger.With("plugin", "subnet"))
+	instancePlugin := dummyplugin.NewInstance(logger.With("plugin", "instance"))
 
 	controllerOpts := []frameworkbuilder.Option{
 		frameworkbuilder.WithLogger(logger.With("component", "controller-set")),
@@ -95,6 +98,7 @@ func main() {
 	controllerSet.Add(internetgatewayk8s.NewController(mgr.GetClient(), dynClient, internetGatewayPlugin, controllerOpts...))
 	controllerSet.Add(routetablek8s.NewController(mgr.GetClient(), dynClient, routeTablePlugin, controllerOpts...))
 	controllerSet.Add(subnetk8s.NewController(mgr.GetClient(), dynClient, subnetPlugin, controllerOpts...))
+	controllerSet.Add(instancek8s.NewController(mgr.GetClient(), dynClient, instancePlugin, controllerOpts...))
 	controllerSet.Add(wsk8s.NewController(mgr.GetClient(), dynClient, wsPlugin, controllerOpts...))
 
 	if err := controllerSet.SetupWithManager(mgr); err != nil {

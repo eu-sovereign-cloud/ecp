@@ -15,6 +15,8 @@ import (
 	radom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment"
 	roleassignmentconv "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment/backend/kubernetes"
 	roleconv "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role/backend/kubernetes"
+	instancedom "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/instance"
+	instanceconv "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/instance/backend/kubernetes"
 	internetgatewaydom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/internet-gateway"
 	internetgatewayconv "github.com/eu-sovereign-cloud/ecp/resource/network/v1/internet-gateway/backend/kubernetes"
 	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network"
@@ -159,6 +161,26 @@ func simulateWS(ctx context.Context, op string, resource *wsdom.Workspace, delay
 				logger,
 				workspaceconv.WorkspaceToCR,
 				workspaceconv.WorkspaceFromCR,
+			)
+			_, err = repo.Update(ctx, resource)
+			return err
+		},
+	)
+}
+
+func simulateInstance(ctx context.Context, op string, resource *instancedom.Instance, delay time.Duration, logger *slog.Logger) error {
+	return simulate(ctx, op, &resource.Annotations, resource.GetName(), delay, logger,
+		func(ctx context.Context) error {
+			dynamicClient, err := newDynamicClient()
+			if err != nil {
+				return err
+			}
+			repo := kubernetesadapter.NewRepoAdapter(
+				dynamicClient,
+				instanceconv.InstanceGVR,
+				logger,
+				instanceconv.InstanceToCR,
+				instanceconv.InstanceFromCR,
 			)
 			_, err = repo.Update(ctx, resource)
 			return err
