@@ -10,6 +10,8 @@ import (
 	. "github.com/eu-sovereign-cloud/ecp/resource/network/v1/subnet/backend/kubernetes"
 )
 
+const sn1 = "sn1"
+
 func TestSubnetConversionRoundTrip(t *testing.T) {
 	in := &subnetdom.Subnet{
 		Spec: subnetdom.SubnetSpec{
@@ -19,7 +21,7 @@ func TestSubnetConversionRoundTrip(t *testing.T) {
 			Zone:          "zone-a",
 		},
 	}
-	in.Name = "sn1"
+	in.Name = sn1
 	in.Tenant = "t1"
 	in.Workspace = "w1"
 	in.Network = "n1"
@@ -61,7 +63,7 @@ func TestSubnetToCR_DefaultPendingCondition(t *testing.T) {
 			Zone: "zone-a",
 		},
 	}
-	in.Name = "sn1"
+	in.Name = sn1
 
 	cr, err := SubnetToCR(in)
 	require.NoError(t, err)
@@ -73,7 +75,7 @@ func TestSubnetToCR_DefaultPendingCondition(t *testing.T) {
 
 func TestSubnetToCR_UsesNetworkNamespace(t *testing.T) {
 	withNetwork := &subnetdom.Subnet{}
-	withNetwork.Name = "sn1"
+	withNetwork.Name = sn1
 	withNetwork.Tenant = "t1"
 	withNetwork.Workspace = "w1"
 	withNetwork.Network = "n1"
@@ -83,7 +85,7 @@ func TestSubnetToCR_UsesNetworkNamespace(t *testing.T) {
 	require.NotEmpty(t, cr.GetNamespace())
 
 	other := &subnetdom.Subnet{}
-	other.Name = "sn1"
+	other.Name = sn1
 	other.Tenant = "t1"
 	other.Workspace = "w1"
 	other.Network = "n2"
@@ -102,7 +104,7 @@ func TestSubnetConversion_SkuRefOptional(t *testing.T) {
 			Zone:          "zone-a",
 		},
 	}
-	in.Name = "sn1"
+	in.Name = sn1
 
 	cr, err := SubnetToCR(in)
 	require.NoError(t, err)
