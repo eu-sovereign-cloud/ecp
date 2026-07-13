@@ -174,6 +174,7 @@ func ComputeNamespace(obj persistence.Scope) string {
 func ComputeNetworkNamespace(obj persistence.NetworkScope) string {
 	hasher := sha3.New224()
 	_, _ = fmt.Fprintf(hasher, "%s/%s/%s", obj.GetTenant(), obj.GetWorkspace(), obj.GetNetwork())
+
 	return fmt.Sprintf("%x", hasher.Sum(nil))
 }
 

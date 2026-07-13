@@ -37,6 +37,8 @@ import (
 	publicipk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/public-ip/backend/kubernetes"
 	routetabledom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/route-table"
 	routetablek8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/route-table/backend/kubernetes"
+	subnetdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/subnet"
+	subnetk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/subnet/backend/kubernetes"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage"
 	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage/backend/kubernetes"
 	storagerest "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/frontend/rest"
@@ -254,6 +256,19 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		routetablek8s.RouteTableToCR,
 		routetablek8s.RouteTableFromCR,
 	)
+	subnetReaderAdapter := k8sadapter.NewReaderAdapter[*subnetdom.Subnet](
+		client.Client,
+		subnetk8s.SubnetGVR,
+		logger,
+		subnetk8s.SubnetFromCR,
+	)
+	subnetWriterAdapter := k8sadapter.NewWriterAdapter[*subnetdom.Subnet](
+		client.Client,
+		subnetk8s.SubnetGVR,
+		logger,
+		subnetk8s.SubnetToCR,
+		subnetk8s.SubnetFromCR,
+	)
 
 	sdknetworkapi.HandlerWithOptions(
 		&netrest.Handler{
@@ -268,6 +283,8 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 			InternetGatewayWriter: internetGatewayWriterAdapter,
 			RouteTableReader:      routeTableReaderAdapter,
 			RouteTableWriter:      routeTableWriterAdapter,
+			SubnetReader:          subnetReaderAdapter,
+			SubnetWriter:          subnetWriterAdapter,
 			Logger:                logger,
 		},
 		sdknetworkapi.StdHTTPServerOptions{
