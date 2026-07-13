@@ -161,6 +161,8 @@ func ComputeNamespace(obj persistence.Scope) string {
 	if obj.GetTenant() != "" && obj.GetWorkspace() == "" {
 		_, _ = fmt.Fprintf(hasher, "%s", obj.GetTenant())
 	} else {
+		// _, _ = fmt.Fprintf(hasher, "%s", obj.GetTenant())
+
 		_, _ = fmt.Fprintf(hasher, "%s/%s", obj.GetTenant(), obj.GetWorkspace())
 	}
 
@@ -174,6 +176,8 @@ func ComputeNamespace(obj persistence.Scope) string {
 func ComputeNetworkNamespace(obj persistence.NetworkScope) string {
 	hasher := sha3.New224()
 	_, _ = fmt.Fprintf(hasher, "%s/%s/%s", obj.GetTenant(), obj.GetWorkspace(), obj.GetNetwork())
+	// _, _ = fmt.Fprintf(hasher, "%s", obj.GetTenant())
+
 	return fmt.Sprintf("%x", hasher.Sum(nil))
 }
 

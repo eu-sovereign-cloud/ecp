@@ -25,6 +25,8 @@ import (
 	publicipconv "github.com/eu-sovereign-cloud/ecp/resource/network/v1/public-ip/backend/kubernetes"
 	routetabledom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/route-table"
 	routetableconv "github.com/eu-sovereign-cloud/ecp/resource/network/v1/route-table/backend/kubernetes"
+	subnetdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/subnet"
+	subnetconv "github.com/eu-sovereign-cloud/ecp/resource/network/v1/subnet/backend/kubernetes"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage"
 	storageconv "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage/backend/kubernetes"
 	imgdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image"
@@ -257,6 +259,26 @@ func simulateRouteTable(ctx context.Context, op string, resource *routetabledom.
 				logger,
 				routetableconv.RouteTableToCR,
 				routetableconv.RouteTableFromCR,
+			)
+			_, err = repo.Update(ctx, resource)
+			return err
+		},
+	)
+}
+
+func simulateSubnet(ctx context.Context, op string, resource *subnetdom.Subnet, delay time.Duration, logger *slog.Logger) error {
+	return simulate(ctx, op, &resource.Annotations, resource.GetName(), delay, logger,
+		func(ctx context.Context) error {
+			dynamicClient, err := newDynamicClient()
+			if err != nil {
+				return err
+			}
+			repo := kubernetesadapter.NewRepoAdapter(
+				dynamicClient,
+				subnetconv.SubnetGVR,
+				logger,
+				subnetconv.SubnetToCR,
+				subnetconv.SubnetFromCR,
 			)
 			_, err = repo.Update(ctx, resource)
 			return err

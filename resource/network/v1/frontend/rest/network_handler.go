@@ -68,26 +68,6 @@ func newNetworkWithIdentity(ir persistencepkg.IdentifiableResource) *netdom.Netw
 
 // --- Stubs for unimplemented resources ---
 
-func (h *Handler) ListSubnets(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, network sdkschema.NetworkPathParam, params sdknetwork.ListSubnetsParams) {
-	h.Logger.DebugContext(r.Context(), "ListSubnets not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (h *Handler) DeleteSubnet(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, network sdkschema.NetworkPathParam, name sdkschema.ResourcePathParam, params sdknetwork.DeleteSubnetParams) {
-	h.Logger.DebugContext(r.Context(), "DeleteSubnet not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (h *Handler) GetSubnet(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, network sdkschema.NetworkPathParam, name sdkschema.ResourcePathParam) {
-	h.Logger.DebugContext(r.Context(), "GetSubnet not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (h *Handler) CreateOrUpdateSubnet(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, network sdkschema.NetworkPathParam, name sdkschema.ResourcePathParam, params sdknetwork.CreateOrUpdateSubnetParams) {
-	h.Logger.DebugContext(r.Context(), "CreateOrUpdateSubnet not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
 func (h *Handler) ListSecurityGroupRules(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, params sdknetwork.ListSecurityGroupRulesParams) {
 	h.Logger.DebugContext(r.Context(), "ListSecurityGroupRules not implemented")
 	w.WriteHeader(http.StatusNotImplemented)
