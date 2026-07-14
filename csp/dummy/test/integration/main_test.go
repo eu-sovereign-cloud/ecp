@@ -30,6 +30,8 @@ import (
 	rak8s "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment/backend/kubernetes"
 	rolek8s "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role/backend/kubernetes"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
+	instancedom "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/instance"
+	instancek8s "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/instance/backend/kubernetes"
 	internetgatewaydom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/internet-gateway"
 	internetgatewayk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/internet-gateway/backend/kubernetes"
 	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network"
@@ -69,6 +71,7 @@ var (
 	publicIpRepo        *k8sadapter.RepoAdapter[*publicipdom.PublicIp]
 	internetGatewayRepo *k8sadapter.RepoAdapter[*internetgatewaydom.InternetGateway]
 	routeTableRepo      *k8sadapter.RepoAdapter[*routetabledom.RouteTable]
+	instanceRepo        *k8sadapter.RepoAdapter[*instancedom.Instance]
 	workspaceRepo       *k8sadapter.RepoAdapter[*wsdom.Workspace]
 	blockStorageRepo    *k8sadapter.RepoAdapter[*bsdom.BlockStorage]
 	imageRepo           *k8sadapter.RepoAdapter[*imgdom.Image]
@@ -90,6 +93,7 @@ func TestMain(m *testing.M) {
 	utilruntime.Must(publicipk8s.AddToScheme(s))
 	utilruntime.Must(internetgatewayk8s.AddToScheme(s))
 	utilruntime.Must(routetablek8s.AddToScheme(s))
+	utilruntime.Must(instancek8s.AddToScheme(s))
 	utilruntime.Must(wsk8s.AddToScheme(s))
 	utilruntime.Must(bsk8s.AddToScheme(s))
 	utilruntime.Must(imgk8s.AddToScheme(s))
@@ -153,6 +157,13 @@ func TestMain(m *testing.M) {
 		testLogger,
 		routetablek8s.RouteTableToCR,
 		routetablek8s.RouteTableFromCR,
+	)
+	instanceRepo = k8sadapter.NewRepoAdapter[*instancedom.Instance](
+		dynamicClient,
+		instancek8s.InstanceGVR,
+		testLogger,
+		instancek8s.InstanceToCR,
+		instancek8s.InstanceFromCR,
 	)
 	blockStorageRepo = k8sadapter.NewRepoAdapter[*bsdom.BlockStorage](
 		dynamicClient,
