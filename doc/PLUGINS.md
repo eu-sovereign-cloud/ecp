@@ -99,13 +99,19 @@ See `csp/ionos/README.md` for full deployment instructions, including token secr
 
 **Conformance** — the conformance suite (`secatest`) is plugin-generic and lives in
 the test harness. The delegator can load any of the plugin sets (`dummy`, `aruba`,
-`ionos`) via `PLUGIN`/`CONFORMANCE_PLUGIN`, so the same flow targets any of them —
-though, like aruba, `ionos` only reconciles once its backend (Crossplane + the IONOS
-provider, see `csp/ionos/deploy`) is installed in the cluster:
+`ionos`), selected with `CONFORMANCE_PLUGIN` on the `conformance-deploy` target
+(templated into the delegator's `PLUGIN` env var at deploy time). Only `dummy` is
+self-contained; like aruba, `ionos` only reconciles once its backend (Crossplane +
+the IONOS provider, see `csp/ionos/deploy`) is installed in the cluster, so those
+two run as a two-phase flow:
 ```bash
-make -C test kind-conformance                          # dummy plugin
-make -C test conformance CONFORMANCE_PLUGIN=aruba       # aruba plugin
-make -C test conformance CONFORMANCE_PLUGIN=ionos       # ionos plugin (needs its backend)
+# dummy plugin — self-contained one-shot on KIND
+make -C test kind-conformance
+
+# aruba / ionos — deploy the stack with the plugin, provision its backend, then run
+make -C test conformance-deploy CONFORMANCE_PLUGIN=aruba   # or CONFORMANCE_PLUGIN=ionos
+#   ... install the plugin's backend (aruba operator / Crossplane + IONOS provider) ...
+make -C test conformance
 ```
 
 The IONOS plugin additionally keeps a standalone secatest flow for the full,
@@ -125,7 +131,7 @@ Direct CSP adapter for Aruba Cloud, without a Crossplane layer.
 
 The `test/` module tests the full ECP stack on a KIND cluster. It has three kinds of
 suite, all driven from one `Makefile`. Components are auto-discovered from the
-`build/` directory.
+`internal/build/` directory.
 
 - **integration** (`test/integration/`) — each component in isolation. Every
   `kind-deploy-<component>` also deploys the fixtures its suite needs, so it is a

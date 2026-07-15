@@ -94,6 +94,8 @@ func convertDomainError(domainErr *kernel.Error, requestPath string) schema.Erro
 // mapKindToHTTP maps kernel error kinds to HTTP status, title, and RFC 7807 type.
 func mapKindToHTTP(kind kernel.ErrKind) (int, string, schema.ErrorType) {
 	switch kind {
+	case kernel.KindUnauthorized:
+		return http.StatusUnauthorized, kernel.KindUnauthorized.String(), schema.ErrorTypeUnauthorized
 	case kernel.KindForbidden:
 		return http.StatusForbidden, kernel.KindForbidden.String(), schema.ErrorTypeForbidden
 	case kernel.KindNotFound:
@@ -106,6 +108,8 @@ func mapKindToHTTP(kind kernel.ErrKind) (int, string, schema.ErrorType) {
 		return http.StatusUnprocessableEntity, kernel.KindValidation.String(), schema.ErrorTypeValidationError
 	case kernel.KindUnavailable:
 		return http.StatusInternalServerError, kernel.KindUnavailable.String(), schema.ErrorTypeInternalServerError
+	case kernel.KindInternal:
+		return http.StatusInternalServerError, kernel.KindInternal.String(), schema.ErrorTypeInternalServerError
 	default:
 		return http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), schema.ErrorTypeInternalServerError
 	}

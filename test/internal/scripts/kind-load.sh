@@ -1,7 +1,9 @@
 #!/bin/bash
 source "$(dirname "$0")/common.sh"
 
+setup_env
 check_component_arg "$1"
+source_config
 
 export USE_KIND=true
 setup_kube_vars

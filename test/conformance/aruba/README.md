@@ -8,7 +8,7 @@ is a placeholder that documents that flow and the one missing piece.
 Why there's no `Makefile` here (yet), in contrast to [`../ionos/`](../ionos/):
 
 - Aruba has **no standalone plugin binary** — it only runs inside the delegator
-  (`../cmd/delegator`, `PLUGIN=aruba`). There is nothing separate to deploy.
+  (`../../internal/cmd/delegator`, `PLUGIN=aruba`). There is nothing separate to deploy.
 - Aruba has **no in-repo backend deploy tooling**. Its backend is the third-party
   [`arubacloud-resource-operator`](https://github.com/Arubacloud/arubacloud-resource-operator)
   (the plugin writes its CRs); that operator plus Aruba credentials must be

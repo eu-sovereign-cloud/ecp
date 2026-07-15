@@ -28,13 +28,13 @@ CI runs per-module: only modules with changed files are tested and linted. Unrel
 
 Before committing:
 ```bash
-make pre-commit          # generate-api-verify + test + lint + gofmt-check + vuln + gosec
+make pre-commit          # go-sdk-verify + generate-api-verify + test + lint + gofmt-check + modernize-check + vuln + gosec
 make pre-commit-ctzd     # same, inside the tools container
 ```
 
 Before pushing / opening a PR:
 ```bash
-make pre-merge           # same as pre-commit, plus branch-rebase-verify + workspace-verify
+make pre-merge           # same as pre-commit, plus gh-token-ensure + branch-rebase-verify + workspace-verify + vet-integration
 make pre-merge-ctzd      # same, inside the tools container
 ```
 
@@ -44,7 +44,7 @@ make pre-merge-ctzd      # same, inside the tools container
 
 - **Naming and structure:** see [CONVENTIONS.md](CONVENTIONS.md) for the authoritative naming, initialism, conversion-function, and structural-symmetry rules.
 - **Linting:** `golangci-lint` with the configuration in `.golangci.yml`.
-- **Formatting:** `gofumpt` (applied via `golangci-lint fmt`). Run `make gofmt` to fix formatting in place; `make gofmt-check` to check without modifying (what CI runs).
+- **Formatting:** `gofmt` (with simplify) + `goimports`, applied via `golangci-lint fmt`. Run `make gofmt` to fix formatting in place; `make gofmt-check` to check without modifying (what CI runs).
 - Keep `make lint` and `make gofmt` green before pushing.
 
 ## Import Alias Convention
@@ -57,6 +57,17 @@ import (
     bsk8s  "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage/backend/kubernetes"
     bsrest "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/frontend/rest"
     netdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network"
+
+    // auth subsystem
+    authnport   "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/authn"
+    authzport   "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/authz"
+    middleware   "github.com/eu-sovereign-cloud/ecp/framework/frontend/middleware"
+    gatewayauthn "github.com/eu-sovereign-cloud/ecp/gateway/internal/authn"
+    seca         "github.com/eu-sovereign-cloud/ecp/gateway/internal/authz/seca"
+    roledom      "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role"
+    radom        "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment"
+    rolek8s      "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role/backend/kubernetes"
+    rak8s        "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment/backend/kubernetes"
 )
 ```
 
@@ -64,7 +75,7 @@ The alias convention keeps deep slice paths out of the readable code. See [CODEG
 
 ## Module Boundaries
 
-The repo enforces a strict import DAG. Violations fail both `golangci-lint depguard` and the `framework-isolation` CI lane:
+The repo enforces a strict import DAG. Intra-framework layering violations fail `golangci-lint depguard`; the framework↛resource boundary is compiler-enforced (separate Go modules):
 
 ```
 framework/kernel                ← pure leaf (no other framework/* imports)
@@ -74,7 +85,7 @@ framework/frontend              → kernel
 ```
 
 **Rules:**
-- No `framework/*` package may import `resource`. This is a Go build error under `GOWORK=off` and is caught by the `framework-isolation` CI lane.
+- No `framework/*` package may import `resource`. The modules are separate, so this is a Go build error under `GOWORK=off` — the import cannot resolve.
 - Within `framework/`, layers may only import packages at the same or lower level in the DAG above.
 - `resource` may freely import `framework`. Nothing except `gateway`, `csp/*`, and `test` may import `resource`.
 
@@ -92,7 +103,7 @@ framework/frontend              → kernel
 
 CI auto-discovers the module via `print-paths-filter` — no workflow changes are needed.
 
-To exclude a module from standard product CI checks (e.g., test harnesses, tool modules), add it to `GO_MODULES_EXCLUDE` in `.common.mk`.
+To exclude a module from standard product CI checks (e.g., test harnesses, tool modules), add it to the `exclude` list in `ci/scripts/go-modules.sh` — the single source of truth for `GO_MODULES` and the CI paths filter.
 
 ## Adding a New Resource Slice
 
