@@ -4,10 +4,14 @@ package authhelper
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"os"
+	"time"
+
+	jwt "github.com/golang-jwt/jwt/v5"
 
 	resource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 )
@@ -70,4 +74,67 @@ func IdentityEditor(username, password string) func(ctx context.Context, req *ht
 // caps that can only narrow the caller's permissions, never grant new ones.
 func ScopedEditor(username, password string, scope *resource.TokenScope) func(ctx context.Context, req *http.Request) error {
 	return bearerEditor(MakeBearerToken(username, password, scope))
+}
+
+// --- JWT authenticator (global gateway) --------------------------------------
+//
+// The global gateway is deployed with --auth-plugin=jwt while the regional one
+// keeps the dummy plugin, so one e2e run covers both authenticators. The helpers
+// below mint the tokens the global gateway accepts.
+
+// jwtPrivateKeyPEM is the ES256 private key the suite signs e2e JWTs with. Its
+// public half is deployed in internal/deploy/gateway-global/jwt-key-secret.yaml
+// and passed to the gateway via --jwt-secret.
+//
+// WARNING: a published test fixture, not a secret. Never use it in production.
+const jwtPrivateKeyPEM = `-----BEGIN PRIVATE KEY-----
+MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg4HzjtpKtnZr+3LTU
+D79whZ+HfRp0q9ij/bkoo7q2YUqhRANCAAQAI2LTL/6j720JbMDsfo350lmbvgwm
+0TVJaWuk2T0qcpwrOcD1sRZ/3r/gdkgaE3vERf0v3EQ7GhzMo03mVTVh
+-----END PRIVATE KEY-----`
+
+// JWTSigningMethod is the algorithm the global gateway is deployed with
+// (JWT_SIGNING_METHOD / --jwt-signing-method). Tokens signed with any other
+// method are rejected by jwt.WithValidMethods.
+var JWTSigningMethod = jwt.SigningMethodES256
+
+// JWTKey parses the fixture signing key. Panics on failure: the key is a
+// compile-time constant, so a parse error is a bug, not a test condition.
+func JWTKey() *ecdsa.PrivateKey {
+	key, err := jwt.ParseECPrivateKeyFromPEM([]byte(jwtPrivateKeyPEM))
+	if err != nil {
+		panic("JWTKey: parse fixture key failed: " + err.Error())
+	}
+	return key
+}
+
+// SignJWT builds a standard signed JWT for the given subject. The subject becomes
+// Identity.Subject and is matched against RoleAssignment.Spec.Subs, exactly as the
+// dummy token's username is; the optional scope down-scopes the caller. Pass a key
+// other than JWTKey() to forge a token the gateway must reject.
+func SignJWT(key *ecdsa.PrivateKey, subject string, scope *resource.TokenScope, exp time.Time) string {
+	claims := jwt.MapClaims{"sub": subject, "exp": exp.Unix()}
+	if scope != nil {
+		claims["scope"] = scope
+	}
+	signed, err := jwt.NewWithClaims(JWTSigningMethod, claims).SignedString(key)
+	if err != nil {
+		panic("SignJWT: signing failed: " + err.Error())
+	}
+	return signed
+}
+
+// JWTEditor returns a request editor carrying a valid, one-hour JWT for subject.
+func JWTEditor(subject string, scope *resource.TokenScope) func(ctx context.Context, req *http.Request) error {
+	return bearerEditor(SignJWT(JWTKey(), subject, scope, time.Now().Add(time.Hour)))
+}
+
+// AdminJWTEditor is the JWT counterpart of AdminEditor: the default admin identity
+// for clients talking to the JWT-backed global gateway. When E2E_AUTH_ENABLED=false
+// it returns a no-op editor so clients work unchanged.
+func AdminJWTEditor() func(ctx context.Context, req *http.Request) error {
+	if !AuthEnabled() {
+		return func(_ context.Context, _ *http.Request) error { return nil }
+	}
+	return JWTEditor(DefaultAuthUser, nil)
 }

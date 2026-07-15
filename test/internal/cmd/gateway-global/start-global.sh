@@ -17,19 +17,30 @@ fi
 # Auth defaults: dummy authn + cached authz enabled.
 # Override via env vars before calling this script:
 #   AUTH_ENABLED=false          — no auth (unauthenticated mode)
+#   AUTH_PLUGIN=jwt             — verify standard signed JWTs instead of dummy tokens
 #   AUTHZ_ENABLED=false         — authn-only (identity checked, no RBAC)
 #   AUTHZ_IMPL=direct           — use per-request RBAC checker instead of cached
 #   DUMMY_AUTH_USERS=/path      — path to username→password JSON (default /app/users.json)
+#   JWT_SIGNING_METHOD=...      — expected JWT alg when AUTH_PLUGIN=jwt (default ES256)
+#   JWT_SECRET=/path            — key file when AUTH_PLUGIN=jwt: the raw HMAC secret for
+#                                 HS*, a PEM public key otherwise (default /app/jwt.pub)
 #   AUTHZ_SKIP_PROVIDERS=...    — comma-separated provider IDs served authn-only
 #                                 (binary default: seca.region — the tenant-less region catalog)
 : "${AUTH_ENABLED:=true}"
+: "${AUTH_PLUGIN:=dummy}"
 : "${AUTHZ_ENABLED:=true}"
 : "${AUTHZ_IMPL:=cached}"
 : "${DUMMY_AUTH_USERS:=/app/users.json}"
+: "${JWT_SIGNING_METHOD:=ES256}"
+: "${JWT_SECRET:=/app/jwt.pub}"
 
 AUTH_FLAGS=""
 if [ "$AUTH_ENABLED" = "true" ]; then
-  AUTH_FLAGS="--auth-enabled --dummy-auth-users=$DUMMY_AUTH_USERS"
+  if [ "$AUTH_PLUGIN" = "jwt" ]; then
+    AUTH_FLAGS="--auth-enabled --auth-plugin=jwt --jwt-signing-method=$JWT_SIGNING_METHOD --jwt-secret=$JWT_SECRET"
+  else
+    AUTH_FLAGS="--auth-enabled --auth-plugin=dummy --dummy-auth-users=$DUMMY_AUTH_USERS"
+  fi
   if [ "$AUTHZ_ENABLED" = "true" ]; then
     AUTH_FLAGS="$AUTH_FLAGS --authz-enabled"
     [ "$AUTHZ_IMPL" = "cached" ] && AUTH_FLAGS="$AUTH_FLAGS --authz-cache"

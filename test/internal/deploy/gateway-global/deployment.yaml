@@ -24,6 +24,14 @@ spec:
         # Override at deploy time to change behaviour without rebuilding the image.
         - name: AUTH_ENABLED
           value: "true"
+        # Which authenticator to run: "dummy" (default) or "jwt". Substituted at
+        # deploy time from the AUTH_PLUGIN env var; the e2e stack sets it to "jwt"
+        # for this gateway and leaves the regional one on dummy, so a single e2e
+        # run exercises both plugins. The integration suites keep the default.
+        - name: AUTH_PLUGIN
+          value: "##AUTH_PLUGIN##"
+        - name: JWT_SECRET
+          value: "/app/jwt.pub"
         - name: AUTHZ_ENABLED
           value: "true"
         - name: AUTHZ_IMPL
@@ -50,7 +58,16 @@ spec:
           mountPath: /app/users.json
           subPath: users.json
           readOnly: true
+        - name: jwt-key
+          mountPath: /app/jwt.pub
+          subPath: jwt.pub
+          readOnly: true
       volumes:
       - name: users
         configMap:
           name: e2e-dummy-users
+      # A Secret, not a ConfigMap: with JWT_SIGNING_METHOD=HS* this file is the
+      # shared HMAC secret that mints tokens, not a public key. See jwt-key-secret.yaml.
+      - name: jwt-key
+        secret:
+          secretName: e2e-jwt-key

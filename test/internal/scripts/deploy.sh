@@ -27,6 +27,14 @@ if [[ -n "$USE_KIND" && "$USE_KIND" == "true" ]]; then
     YAML_STREAM=$(echo "${YAML_STREAM}" | sed "s|imagePullPolicy: Always|imagePullPolicy: IfNotPresent|g")
 fi
 
+# The global gateway picks its authentication plugin at deploy time: dummy by
+# default (what the integration suites sign tokens for), jwt when the e2e stack
+# deploys it. Only this component's manifest carries the placeholder.
+if [ "$COMPONENT" == "gateway-global" ]; then
+    echo "Deploying gateway-global with auth plugin: ${AUTH_PLUGIN:=dummy}"
+    YAML_STREAM=$(echo "${YAML_STREAM}" | sed "s|##AUTH_PLUGIN##|${AUTH_PLUGIN}|g")
+fi
+
 # If the component is the delegator, handle the plugin type.
 # PLUGIN_TYPE may be overridden via the environment; otherwise default to
 # aruba, except on KIND where the dummy plugin is the default.
