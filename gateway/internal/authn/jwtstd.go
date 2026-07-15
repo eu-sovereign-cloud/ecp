@@ -66,7 +66,7 @@ func (j *JwtAuthenticator) Authenticate(_ context.Context, tokenString string) (
 		return j.secret, nil
 	}, jwt.WithValidMethods([]string{j.signingMethod}), jwt.WithExpirationRequired())
 	if err != nil {
-		return nil, fmt.Errorf("%w: token is not valid JWT: %v", kernel.ErrUnauthorized, err)
+		return nil, fmt.Errorf("%w: token is not valid JWT: %w", kernel.ErrUnauthorized, err)
 	}
 
 	if claims.Subject == "" {
