@@ -24,6 +24,14 @@ func (i *Instance) Delete(ctx context.Context, resource *instancedom.Instance) e
 	return simulateInstance(ctx, "delete", resource, instanceDelay(), i.logger)
 }
 
+func (i *Instance) PowerOn(ctx context.Context, resource *instancedom.Instance) error {
+	return simulateInstance(ctx, "power-on", resource, instanceDelay(), i.logger)
+}
+
+func (i *Instance) PowerOff(ctx context.Context, resource *instancedom.Instance) error {
+	return simulateInstance(ctx, "power-off", resource, instanceDelay(), i.logger)
+}
+
 func instanceDelay() time.Duration {
 	return networkDelay()
 }
