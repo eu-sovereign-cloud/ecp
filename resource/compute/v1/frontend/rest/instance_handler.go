@@ -108,7 +108,7 @@ func (h *Handler) StartInstance(w http.ResponseWriter, r *http.Request, tenant s
 		return
 	}
 	inst.DesiredPowerState = instancedom.PowerStateOn
-	h.applyPowerIntent(w, r, logger, inst, ifUnmodifiedSinceVersion(params.IfUnmodifiedSince))
+	h.applyPowerIntent(w, r, logger, inst, instancedom.PowerStateOff, ifUnmodifiedSinceVersion(params.IfUnmodifiedSince))
 }
 
 // StopInstance handles POST /v1/tenants/{tenant}/workspaces/{workspace}/instances/{name}/stop.
@@ -123,7 +123,7 @@ func (h *Handler) StopInstance(w http.ResponseWriter, r *http.Request, tenant sd
 		return
 	}
 	inst.DesiredPowerState = instancedom.PowerStateOff
-	h.applyPowerIntent(w, r, logger, inst, ifUnmodifiedSinceVersion(params.IfUnmodifiedSince))
+	h.applyPowerIntent(w, r, logger, inst, instancedom.PowerStateOn, ifUnmodifiedSinceVersion(params.IfUnmodifiedSince))
 }
 
 // RestartInstance handles POST /v1/tenants/{tenant}/workspaces/{workspace}/instances/{name}/restart.
@@ -138,8 +138,8 @@ func (h *Handler) RestartInstance(w http.ResponseWriter, r *http.Request, tenant
 	if !h.requirePowerState(w, r, logger, inst, instancedom.PowerStateOn) {
 		return
 	}
-	// Start a durable restart: a fresh id plus the initial phase. Both annotations are written
-	// in a single update; the delegator advances the phase and clears them when the cycle completes.
+	// Start a durable restart: a fresh id plus the initial phase (stable across any retries). The
+	// delegator advances the phase and clears them when the cycle completes.
 	restartID, err := newRestartID()
 	if err != nil {
 		frest.WriteErrorResponse(w, r, logger, err)
@@ -147,8 +147,11 @@ func (h *Handler) RestartInstance(w http.ResponseWriter, r *http.Request, tenant
 	}
 	inst.RestartID = restartID
 	inst.RestartPhase = instancedom.RestartPhasePowerOff
-	h.applyPowerIntent(w, r, logger, inst, ifUnmodifiedSinceVersion(params.IfUnmodifiedSince))
+	h.applyPowerIntent(w, r, logger, inst, instancedom.PowerStateOn, ifUnmodifiedSinceVersion(params.IfUnmodifiedSince))
 }
+
+// maxPowerIntentAttempts bounds the read-modify-write retry loop for fire-and-forget power ops.
+const maxPowerIntentAttempts = 5
 
 // currentPowerState returns the instance's power state, treating an unset value as off.
 func currentPowerState(inst *instancedom.Instance) instancedom.PowerState {
@@ -156,6 +159,16 @@ func currentPowerState(inst *instancedom.Instance) instancedom.PowerState {
 		return instancedom.PowerStateOff
 	}
 	return inst.Status.PowerState
+}
+
+// requireActive writes a 409 Conflict and returns false when the instance is not in the active state.
+func (h *Handler) requireActive(w http.ResponseWriter, r *http.Request, logger *slog.Logger, inst *instancedom.Instance) bool {
+	if inst.Status == nil || inst.Status.State != commondomain.ResourceStateActive {
+		frest.WriteErrorResponse(w, r, logger, kernel.NewError(kernel.KindConflict,
+			fmt.Errorf("instance %q is not active", inst.GetName())))
+		return false
+	}
+	return true
 }
 
 // requirePowerState writes a 409 Conflict and returns false when the instance is not in the
@@ -169,9 +182,8 @@ func (h *Handler) requirePowerState(w http.ResponseWriter, r *http.Request, logg
 	return true
 }
 
-// loadActiveInstance loads the instance and verifies it is in the active state, which is a
-// precondition for any power operation. It writes the appropriate error response and returns
-// ok=false when the instance is missing or not active.
+// loadActiveInstance loads the instance and verifies it is active, a precondition for any power
+// operation. It writes the error response and returns ok=false when the instance is missing or not active.
 func (h *Handler) loadActiveInstance(w http.ResponseWriter, r *http.Request, logger *slog.Logger, tenant, workspace, name string) (*instancedom.Instance, bool) {
 	id := &resource.Identity{Name: name, Scope: resource.Scope{Tenant: tenant, Workspace: workspace}}
 	inst := newInstanceWithIdentity(id)
@@ -179,12 +191,72 @@ func (h *Handler) loadActiveInstance(w http.ResponseWriter, r *http.Request, log
 		frest.WriteErrorResponse(w, r, logger, err)
 		return nil, false
 	}
-	if inst.Status == nil || inst.Status.State != commondomain.ResourceStateActive {
-		frest.WriteErrorResponse(w, r, logger, kernel.NewError(kernel.KindConflict,
-			fmt.Errorf("instance %q is not active", name)))
+	if !h.requireActive(w, r, logger, inst) {
 		return nil, false
 	}
 	return inst, true
+}
+
+// applyPowerIntent persists the power intent stamped on inst and returns 202 Accepted, writing only
+// the internal power-intent metadata.
+//
+//   - With an If-Unmodified-Since precondition (version set), it is a single-shot update that enforces
+//     the client's version; a conflict is the client's 412.
+//   - Otherwise it is a conflict-retrying read-modify-write: reload the latest, re-validate the
+//     preconditions, overlay only the power-intent fields, and update optimistically on the freshly
+//     loaded version. A concurrent spec/label change causes a retry, never a silent revert.
+func (h *Handler) applyPowerIntent(w http.ResponseWriter, r *http.Request, logger *slog.Logger, inst *instancedom.Instance, requiredPower instancedom.PowerState, version string) {
+	ctx := r.Context()
+
+	if version != "" {
+		inst.ResourceVersion = version
+		if _, err := h.InstanceWriter.Update(ctx, inst); err != nil {
+			frest.WriteErrorResponse(w, r, logger, err)
+			return
+		}
+		w.WriteHeader(http.StatusAccepted)
+		return
+	}
+
+	var lastErr error
+	for range maxPowerIntentAttempts {
+		latest := newInstanceWithIdentity(inst)
+		if err := h.InstanceReader.Load(ctx, &latest); err != nil {
+			frest.WriteErrorResponse(w, r, logger, err)
+			return
+		}
+		if !h.requireActive(w, r, logger, latest) || !h.requirePowerState(w, r, logger, latest, requiredPower) {
+			return
+		}
+		latest.DesiredPowerState = inst.DesiredPowerState
+		latest.RestartID = inst.RestartID
+		latest.RestartPhase = inst.RestartPhase
+
+		if _, err := h.InstanceWriter.Update(ctx, latest); err != nil {
+			lastErr = err
+			if isVersionConflict(err) {
+				continue // concurrent change; reload and retry so we never overwrite it.
+			}
+			frest.WriteErrorResponse(w, r, logger, err)
+			return
+		}
+		w.WriteHeader(http.StatusAccepted)
+		return
+	}
+
+	if lastErr == nil {
+		lastErr = kernel.NewError(kernel.KindConflict,
+			fmt.Errorf("instance %q could not be updated after %d attempts", inst.GetName(), maxPowerIntentAttempts))
+	}
+	frest.WriteErrorResponse(w, r, logger, lastErr)
+}
+
+// isVersionConflict reports whether err is an optimistic-concurrency failure worth retrying.
+func isVersionConflict(err error) bool {
+	if domainErr := kernel.AsError(err); domainErr != nil {
+		return domainErr.Kind == kernel.KindPreconditionFailed || domainErr.Kind == kernel.KindConflict
+	}
+	return false
 }
 
 // newRestartID returns a random opaque identifier for a restart request.
@@ -203,17 +275,4 @@ func ifUnmodifiedSinceVersion(v *sdkschema.IfUnmodifiedSince) string {
 		return ""
 	}
 	return strconv.Itoa(*v)
-}
-
-// applyPowerIntent persists the power intent carried on inst and returns 202 Accepted. version is
-// the optimistic-concurrency precondition from If-Unmodified-Since: when set, the update enforces
-// it (a mismatch fails the request, consistent with create/update/delete); when empty, the update
-// takes the conflict-retrying metadata path (fire-and-forget).
-func (h *Handler) applyPowerIntent(w http.ResponseWriter, r *http.Request, logger *slog.Logger, inst *instancedom.Instance, version string) {
-	inst.ResourceVersion = version
-	if _, err := h.InstanceWriter.Update(r.Context(), inst); err != nil {
-		frest.WriteErrorResponse(w, r, logger, err)
-		return
-	}
-	w.WriteHeader(http.StatusAccepted)
 }

@@ -25,10 +25,14 @@ import (
 // fakeInstanceRepo is a hand-rolled ReaderRepo+WriterRepo for exercising the compute Handler over
 // HTTP. Load returns a copy of loadResult (or loadErr); Create/Update capture the written domain.
 type fakeInstanceRepo struct {
-	loadResult *instancedom.Instance
-	loadErr    error
-	writeErr   error
-	written    *instancedom.Instance // captured by Create/Update
+	loadResult  *instancedom.Instance
+	loadErr     error
+	writeErr    error
+	written     *instancedom.Instance // captured by Create/Update
+	updateCalls int
+	// conflictsBeforeSuccess makes the first N Update calls return a version conflict, to exercise
+	// the read-modify-write retry loop.
+	conflictsBeforeSuccess int
 }
 
 var (
@@ -60,6 +64,11 @@ func (f *fakeInstanceRepo) Create(_ context.Context, m *instancedom.Instance) (*
 }
 
 func (f *fakeInstanceRepo) Update(_ context.Context, m *instancedom.Instance) (**instancedom.Instance, error) {
+	f.updateCalls++
+	if f.conflictsBeforeSuccess > 0 {
+		f.conflictsBeforeSuccess--
+		return nil, kernel.NewError(kernel.KindPreconditionFailed, errors.New("resource version conflict"))
+	}
 	f.written = m
 	if f.writeErr != nil {
 		return nil, f.writeErr
@@ -212,16 +221,60 @@ func TestHandler_PowerIntentPersisted(t *testing.T) {
 		require.Equal(t, "7", repo.written.ResourceVersion, "the update must carry the precondition version")
 	})
 
-	t.Run("without If-Unmodified-Since the update is fire-and-forget (no version)", func(t *testing.T) {
+	t.Run("without If-Unmodified-Since the update is optimistic on the freshly loaded version", func(t *testing.T) {
 		loaded := activeInstance(instancedom.PowerStateOff)
-		loaded.ResourceVersion = "99" // the loaded object has a current version...
+		loaded.ResourceVersion = "99" // the loaded object's current version...
 		repo := &fakeInstanceRepo{loadResult: loaded}
 		h := newTestHandler(repo)
 		rec := httptest.NewRecorder()
 		h.StartInstance(rec, httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/", nil), testTenant, testWorkspace, testName, sdkcompute.StartInstanceParams{})
 
 		require.Equal(t, http.StatusAccepted, rec.Code)
-		require.Empty(t, repo.written.ResourceVersion, "...but it is cleared so the write is fire-and-forget")
+		require.Equal(t, "99", repo.written.ResourceVersion, "...is used for the optimistic write so a concurrent spec change can't be reverted")
+	})
+}
+
+func TestHandler_PowerIntentConcurrency(t *testing.T) {
+	t.Run("fire-and-forget retries on a version conflict", func(t *testing.T) {
+		repo := &fakeInstanceRepo{
+			loadResult:             activeInstance(instancedom.PowerStateOff),
+			conflictsBeforeSuccess: 2,
+		}
+		h := newTestHandler(repo)
+		rec := httptest.NewRecorder()
+		h.StartInstance(rec, httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/", nil), testTenant, testWorkspace, testName, sdkcompute.StartInstanceParams{})
+
+		require.Equal(t, http.StatusAccepted, rec.Code)
+		require.Equal(t, 3, repo.updateCalls, "should reload and retry until the optimistic write succeeds")
+		require.NotNil(t, repo.written)
+	})
+
+	t.Run("fire-and-forget gives up after the retry budget", func(t *testing.T) {
+		repo := &fakeInstanceRepo{
+			loadResult:             activeInstance(instancedom.PowerStateOff),
+			conflictsBeforeSuccess: 99,
+		}
+		h := newTestHandler(repo)
+		rec := httptest.NewRecorder()
+		h.StartInstance(rec, httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/", nil), testTenant, testWorkspace, testName, sdkcompute.StartInstanceParams{})
+
+		require.Equal(t, http.StatusPreconditionFailed, rec.Code)
+		require.Equal(t, 5, repo.updateCalls, "bounded by maxPowerIntentAttempts")
+	})
+
+	t.Run("If-Unmodified-Since does not retry a conflict (strict precondition)", func(t *testing.T) {
+		repo := &fakeInstanceRepo{
+			loadResult:             activeInstance(instancedom.PowerStateOff),
+			conflictsBeforeSuccess: 1,
+		}
+		h := newTestHandler(repo)
+		version := sdkschema.IfUnmodifiedSince(5)
+		rec := httptest.NewRecorder()
+		h.StartInstance(rec, httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/", nil), testTenant, testWorkspace, testName,
+			sdkcompute.StartInstanceParams{IfUnmodifiedSince: &version})
+
+		require.Equal(t, http.StatusPreconditionFailed, rec.Code)
+		require.Equal(t, 1, repo.updateCalls, "a strict precondition must fail, not retry")
 	})
 }
 
