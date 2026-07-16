@@ -94,6 +94,7 @@ func init() {
 		&regionalKubeconfig, "kubeconfig", filepath.Join(homedir.HomeDir(), ".kube", "config"),
 		"Path to regional kubeconfig",
 	)
+	auth.RegisterFlags(regionalApiServerCMD, &regionalAuthFlags)
 	rootCmd.AddCommand(regionalApiServerCMD)
 }
 
