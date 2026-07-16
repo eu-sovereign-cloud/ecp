@@ -21,6 +21,7 @@ type Handler struct {
 	Logger         *slog.Logger
 }
 
+var _ sdkcompute.ServerInterface = (*Handler)(nil)
 // ListSkus returns HTTP 501: compute SKU listing is not yet implemented.
 func (h *Handler) ListSkus(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, params sdkcompute.ListSkusParams) {
 	h.Logger.DebugContext(r.Context(), "ListSkus not implemented")
