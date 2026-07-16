@@ -288,3 +288,36 @@ func TestHandler_CreateOrUpdatePreservesPowerIntent(t *testing.T) {
 	require.Equal(t, "rid-1", repo.written.RestartID, "restart id must be preserved")
 	require.Equal(t, instancedom.RestartPhasePowerOff, repo.written.RestartPhase, "restart phase must be preserved")
 }
+
+func TestHandler_CreateOrUpdateLoadFailures(t *testing.T) {
+	putBody := func() string {
+		b, err := json.Marshal(sdkschema.Instance{Spec: sdkschema.InstanceSpec{Zone: "zone-a"}})
+		require.NoError(t, err)
+		return string(b)
+	}
+
+	t.Run("transient load error fails the request without writing", func(t *testing.T) {
+		// A non-not-found load error must not be swallowed: proceeding would erase in-flight power
+		// intent by writing empty internal fields.
+		repo := &fakeInstanceRepo{loadErr: kernel.NewError(kernel.KindUnavailable, errors.New("backend down"))}
+		h := newTestHandler(repo)
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/", strings.NewReader(putBody()))
+		h.CreateOrUpdateInstance(rec, req, testTenant, testWorkspace, testName, sdkcompute.CreateOrUpdateInstanceParams{})
+
+		require.Equal(t, http.StatusInternalServerError, rec.Code)
+		require.Nil(t, repo.written, "the update must not run when the existing instance cannot be loaded")
+	})
+
+	t.Run("not found proceeds as a create", func(t *testing.T) {
+		repo := &fakeInstanceRepo{loadErr: kernel.ErrNotFound}
+		h := newTestHandler(repo)
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/", strings.NewReader(putBody()))
+		h.CreateOrUpdateInstance(rec, req, testTenant, testWorkspace, testName, sdkcompute.CreateOrUpdateInstanceParams{})
+
+		require.Equal(t, http.StatusOK, rec.Code)
+		require.NotNil(t, repo.written)
+		require.Empty(t, repo.written.RestartID, "a create has no prior power intent to preserve")
+	})
+}

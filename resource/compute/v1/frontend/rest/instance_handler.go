@@ -1,6 +1,7 @@
 package rest
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
@@ -51,26 +52,48 @@ func (h *Handler) CreateOrUpdateInstance(w http.ResponseWriter, r *http.Request,
 		id.Version = strconv.Itoa(*params.IfUnmodifiedSince)
 	}
 	region := frameworkconfig.Singleton().Region()
+
+	// Power intent (desired power state, in-flight restart) is controller-managed internal state,
+	// not part of the API body. Load the existing instance first so an ordinary spec/label update
+	// carries it forward rather than erasing a pending power op or restart phase. A not-found is a
+	// create (nothing to preserve); any other load error must fail the request, so a transient
+	// backend issue can never silently drop in-flight power intent.
+	existing := newInstanceWithIdentity(id)
+	preserve, err := h.loadForPreserve(r.Context(), &existing)
+	if err != nil {
+		frest.WriteErrorResponse(w, r, logger, err)
+		return
+	}
+
 	frest.HandleUpsert(w, r, logger, frest.UpsertOptions[sdkschema.Instance, *instancedom.Instance, *sdkschema.Instance]{
 		Params:  id,
 		Creator: frest.CreatorFromRepo(h.InstanceWriter),
 		Updater: frest.UpdaterFromRepo(h.InstanceWriter),
 		APIToDomain: func(sdk sdkschema.Instance, p persistencepkg.IdentifiableResource) *instancedom.Instance {
 			dom := instanceFromAPI(sdk, p.(*resource.Identity), region)
-			// Power intent (desired power state, in-flight restart) is controller-managed
-			// internal state, not part of the API body. Carry it forward from the existing
-			// object so an ordinary spec/label update does not erase a pending power op or
-			// restart phase. (On create, Load returns not-found and the fields stay empty.)
-			existing := newInstanceWithIdentity(p)
-			if err := h.InstanceReader.Load(r.Context(), &existing); err == nil {
-				dom.DesiredPowerState = existing.DesiredPowerState
-				dom.RestartID = existing.RestartID
-				dom.RestartPhase = existing.RestartPhase
+			if preserve != nil {
+				dom.DesiredPowerState = preserve.DesiredPowerState
+				dom.RestartID = preserve.RestartID
+				dom.RestartPhase = preserve.RestartPhase
 			}
 			return dom
 		},
 		DomainToAPI: instanceToAPIWithVerb(http.MethodPut),
 	})
+}
+
+// loadForPreserve loads the existing instance so its controller-managed power intent can be carried
+// across an update. It returns (nil, nil) when the instance does not yet exist (a create), the
+// loaded instance when it exists, and a non-nil error for any other load failure — which the caller
+// must surface rather than proceed with empty internal control state.
+func (h *Handler) loadForPreserve(ctx context.Context, existing **instancedom.Instance) (*instancedom.Instance, error) {
+	if err := h.InstanceReader.Load(ctx, existing); err != nil {
+		if domainErr := kernel.AsError(err); domainErr != nil && domainErr.Kind == kernel.KindNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return *existing, nil
 }
 
 // StartInstance handles POST /v1/tenants/{tenant}/workspaces/{workspace}/instances/{name}/start.
