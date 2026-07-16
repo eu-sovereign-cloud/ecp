@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"log"
 	"log/slog"
@@ -20,9 +21,15 @@ import (
 
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	"github.com/eu-sovereign-cloud/ecp/framework/frontend/config"
+	"github.com/eu-sovereign-cloud/ecp/gateway/internal/auth"
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/httpserver"
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/kubeclient"
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/logger"
+	"github.com/eu-sovereign-cloud/ecp/gateway/internal/metrics"
+	roledom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role"
+	radom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment"
+	rak8s "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment/backend/kubernetes"
+	rolek8s "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role/backend/kubernetes"
 	computerest "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/frontend/rest"
 	instancedom "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/instance"
 	instancek8s "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/instance/backend/kubernetes"
@@ -58,6 +65,8 @@ var (
 	regionalHost       string
 	regionalPort       string
 	regionalKubeconfig string
+
+	regionalAuthFlags auth.Flags
 )
 
 var regionalApiServerCMD = &cobra.Command{
@@ -135,6 +144,35 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		instancek8s.InstanceToCR,
 		instancek8s.InstanceFromCR,
 	)
+	// Metrics endpoint — unauthenticated, mounted outside provider HandlerWithOptions.
+	mux.Handle("/metrics", metrics.Handler())
+
+	// RBAC reader adapters used by the authorization checker.
+	roleReaderAdapter := k8sadapter.NewReaderAdapter[*roledom.Role](
+		client.Client,
+		rolek8s.RoleGVR,
+		logger,
+		rolek8s.RoleFromCR,
+	)
+	roleAssignmentReaderAdapter := k8sadapter.NewReaderAdapter[*radom.RoleAssignment](
+		client.Client,
+		rak8s.RoleAssignmentGVR,
+		logger,
+		rak8s.RoleAssignmentFromCR,
+	)
+
+	// Build the authenticator and RBAC checker (both nil when --auth-enabled is not set).
+	authenticator, checker, err := auth.Build(&regionalAuthFlags, client.Client, roleReaderAdapter, roleAssignmentReaderAdapter, logger)
+	if err != nil {
+		logger.Error("failed to build auth chain", slog.Any("error", err))
+		log.Fatal(err, " - failed to build auth chain")
+	}
+
+	// Start the informer-backed checker when --authz-cache is enabled.
+	if err := auth.StartChecker(context.Background(), checker, logger); err != nil {
+		logger.Error("failed to start authz cache", slog.Any("error", err))
+		log.Fatal(err, " - failed to start authz cache")
+	}
 
 	sdkcomputeapi.HandlerWithOptions(
 		&computerest.Handler{
@@ -143,9 +181,10 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 			Logger:         logger,
 		},
 		sdkcomputeapi.StdHTTPServerOptions{
-			BaseURL:          "/providers/seca.compute",
-			BaseRouter:       mux,
-			Middlewares:      nil,
+			BaseURL:    "/providers/seca.compute",
+			BaseRouter: mux,
+			Middlewares: auth.ProviderMWs[sdkcomputeapi.MiddlewareFunc](&regionalAuthFlags, authenticator, checker, "seca.compute",
+				"/providers/seca.compute", logger),
 			ErrorHandlerFunc: nil,
 		},
 	)
@@ -258,7 +297,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		sdknetworkapi.StdHTTPServerOptions{
 			BaseURL:          "/providers/seca.network",
 			BaseRouter:       mux,
-			Middlewares:      nil,
+			Middlewares:      auth.ProviderMWs[sdknetworkapi.MiddlewareFunc](&regionalAuthFlags, authenticator, checker, "seca.network", "/providers/seca.network", logger),
 			ErrorHandlerFunc: nil,
 		},
 	)
@@ -307,9 +346,10 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 			Logger:             logger,
 		},
 		sdkstorageapi.StdHTTPServerOptions{
-			BaseURL:          "/providers/seca.storage",
-			BaseRouter:       mux,
-			Middlewares:      nil,
+			BaseURL:    "/providers/seca.storage",
+			BaseRouter: mux,
+			Middlewares: auth.ProviderMWs[sdkstorageapi.MiddlewareFunc](&regionalAuthFlags, authenticator, checker, "seca.storage",
+				"/providers/seca.storage", logger),
 			ErrorHandlerFunc: nil,
 		},
 	)
@@ -338,9 +378,10 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 			Logger: logger,
 		},
 		sdkworkspaceapi.StdHTTPServerOptions{
-			BaseURL:          "/providers/seca.workspace",
-			BaseRouter:       mux,
-			Middlewares:      nil,
+			BaseURL:    "/providers/seca.workspace",
+			BaseRouter: mux,
+			Middlewares: auth.ProviderMWs[sdkworkspaceapi.MiddlewareFunc](&regionalAuthFlags, authenticator, checker, "seca.workspace",
+				"/providers/seca.workspace", logger),
 			ErrorHandlerFunc: nil,
 		},
 	)
