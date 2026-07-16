@@ -1,7 +1,6 @@
 # ECP test harness
 
-This module bundles the cluster-backed test suites for ECP and the tooling to run
-them, all driven from a single `Makefile`. There are three kinds of test:
+This module bundles the cluster-backed test suites for ECP and the tooling to run them, all driven from a single `Makefile`. There are three kinds of test:
 
 | Suite | What it covers | Where |
 |-------|----------------|-------|
@@ -11,8 +10,7 @@ them, all driven from a single `Makefile`. There are three kinds of test:
 
 ## Layout
 
-Only the test suites live at the top level; everything they build on sits under
-`internal/` (nothing here is imported by other modules).
+Only the test suites live at the top level; everything they build on sits under `internal/` (nothing here is imported by other modules).
 
 ```
 test/
@@ -24,7 +22,8 @@ test/
     aruba/              # placeholder for an aruba real-backend harness
   internal/
     testenv/            # shared kubeconfig + port-forward helpers (Go)
-    cmd/                # entrypoints: delegator + gateway start scripts
+    authhelper/         # shared auth test helpers (build tag `authhelper`)
+    cmd/                # entrypoints: delegator + gateway start scripts + benchreport
     build/              # a Dockerfile per component (incl. conformance runner)
     deploy/             # Kustomize manifests per component + test-data
     scripts/            # helper scripts orchestrated by the Makefile
@@ -33,10 +32,7 @@ test/
 
 ## The plugin model: one-shot vs multi-phase
 
-Both the e2e and conformance stacks reconcile with a **delegator plugin**. The
-delegator compiles in three plugin sets — `dummy`, `aruba`, `ionos` — selected by
-`E2E_PLUGIN` / `CONFORMANCE_PLUGIN` (default `dummy`). What differs is the
-**backend** each needs, and that dictates how you run it:
+Both the e2e and conformance stacks reconcile with a **delegator plugin**. The delegator compiles in three plugin sets — `dummy`, `aruba`, `ionos` — selected by `E2E_PLUGIN` / `CONFORMANCE_PLUGIN` (default `dummy`). What differs is the **backend** each needs, and that dictates how you run it:
 
 | Plugin | Backend | How to run |
 |--------|---------|------------|
@@ -44,12 +40,7 @@ delegator compiles in three plugin sets — `dummy`, `aruba`, `ionos` — select
 | **aruba** | `arubacloud-resource-operator` + Aruba creds | **multi-phase** — deploy → install backend → run |
 | **ionos** | Crossplane + IONOS provider + token | **multi-phase**, or the bespoke `conformance/ionos` real-backend run |
 
-Only **dummy** is self-contained, so the one-shot targets (`kind-e2e`,
-`kind-conformance`) always use dummy. aruba/ionos can't run in one command — their
-resources never reconcile until their backend exists — so they use the two-phase
-`*-deploy` → (provision backend) → run flow described below. This is why
-`E2E_PLUGIN` / `CONFORMANCE_PLUGIN` are honoured on the `*-deploy` targets but not
-on the one-shot targets.
+Only **dummy** is self-contained, so the one-shot targets (`kind-e2e`, `kind-conformance`) always use dummy. aruba/ionos can't run in one command — their resources never reconcile until their backend exists — so they use the two-phase `*-deploy` → (provision backend) → run flow described below. This is why `E2E_PLUGIN` / `CONFORMANCE_PLUGIN` are honoured on the `*-deploy` targets but not on the one-shot targets.
 
 ## Prerequisites
 
@@ -97,8 +88,7 @@ make kind-integration
 
 ### End-to-end (one shot)
 
-Builds the images, loads them into KIND, deploys the full stack with the dummy
-plugin and runs the e2e suite:
+Builds the images, loads them into KIND, deploys the full stack with the dummy plugin and runs the e2e suite:
 
 ```shell
 make kind-e2e
@@ -122,8 +112,7 @@ make kind-stop         # delete the KIND cluster
 
 ## Running the aruba / ionos plugins (multi-phase)
 
-These need their backend, so the run is three steps: **deploy the stack with the
-plugin → provision the backend → run the suite.**
+These need their backend, so the run is three steps: **deploy the stack with the plugin → provision the backend → run the suite.**
 
 ```shell
 # aruba
@@ -137,14 +126,11 @@ make conformance-deploy CONFORMANCE_PLUGIN=ionos
 make conformance
 ```
 
-Swap `conformance-deploy`/`conformance` for `e2e-deploy`/`e2e` to run the e2e suite
-instead. See [`conformance/aruba/`](conformance/aruba/) for the aruba backend
-caveats.
+Swap `conformance-deploy`/`conformance` for `e2e-deploy`/`e2e` to run the e2e suite instead. See [`conformance/aruba/`](conformance/aruba/) for the aruba backend caveats.
 
 ### IONOS real-backend run (`conformance/ionos`)
 
-IONOS also has a fully-bundled path that stands up the multi-cluster demo, installs
-Crossplane + the provider, and runs `secatest` — reachable from this Makefile:
+IONOS also has a fully-bundled path that stands up the multi-cluster demo, installs Crossplane + the provider, and runs `secatest` — reachable from this Makefile:
 
 ```shell
 make conformance-ionos-scaffolding   # build images, create demo clusters, install plugin
@@ -154,8 +140,7 @@ make conformance-ionos-clean         # tear down
 
 ## Running against a remote cluster
 
-With `internal/context/kubeconfig.yaml` and `internal/context/config.env` in place,
-use the non-`kind-` targets:
+With `internal/context/kubeconfig.yaml` and `internal/context/config.env` in place, use the non-`kind-` targets:
 
 ```shell
 make build-all && make push-all         # build and push images
@@ -165,3 +150,111 @@ make clean-all                          # tear down
 ```
 
 Run `make help` for the full list of targets.
+
+## Authentication & Authorization in e2e
+
+The gateway deployments ship with the Dummy authenticator and SECA RBAC enabled by default (the defaults changed from the original auth-disabled baseline). Auth behaviour is driven by environment variables that are read by the `start-global.sh` / `start-regional.sh` entry-point scripts at startup.
+
+### Gateway deployment env vars
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `AUTH_ENABLED` | `true` | Set to `false` to run the gateway without any auth (unauthenticated mode). |
+| `AUTHZ_ENABLED` | `true` | Set to `false` for authn-only (auth check but no RBAC). Requires `AUTH_ENABLED=true`. |
+| `AUTHZ_IMPL` | `cached` | `cached` uses the informer-backed checker (zero K8s round-trips on hot path); `direct` uses the per-request reader (2 K8s List calls per request). |
+| `AUTHZ_SKIP_PROVIDERS` | `seca.region` | Comma-separated provider IDs served authn-only (no RBAC check, no token down-scoping). The region catalog is tenant-less by spec, so it skips authorization by default. |
+| `DUMMY_AUTH_USERS` | `/app/users.json` | Path inside the container to the user→password JSON file (mounted from `e2e-dummy-users` ConfigMap). |
+
+### Test-side env vars
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `E2E_AUTH_ENABLED` | `true` (implicit) | Set to `false` to skip all auth-specific test assertions; useful when running against a gateway deployed with `AUTH_ENABLED=false`. |
+| `E2E_BENCH` | _(unset)_ | Set to `1` to run the `TestBench` load workload (skipped by default). |
+| `E2E_BENCH_REQUESTS` | `500` | Number of requests fired by `TestBench`. |
+
+### Test fixtures: subjects, users, and assignments
+
+The files in `internal/deploy/test-data/` define the RBAC state used by the auth tests. Roles are **not** carried by the token — each subject's roles come entirely from the RoleAssignment named below (the token carries only the subject and an optional down-scope). The table maps the token subject (`username`) to the RoleAssignment that covers them and the net access they should receive:
+
+| Subject | Password | RoleAssignment | Roles (from assignment) | Scope | Expected result |
+|---------|----------|----------------|-------------------------|-------|-----------------|
+| `admin` | `e2e-admin-pass` | `ra-admin` | `e2e-admin` (all providers, all resources) | all | ✅ All operations |
+| `alice` | `alice-pass` | `ra-alice-region-viewer` | `e2e-region-viewer` (`seca.region`) | `test-tenant` | ❌ cross-provider ops (her only role covers `seca.region`, which is authn-only anyway) |
+| `bob` | `bob-pass` | `ra-bob-scoped` | `e2e-storage-viewer` (`seca.storage` get/list: `block-storages`, `images`, `storage-skus`) | `test-tenant` + region `itbg-bergamo` | ✅ List block-storages in that region; ❌ other regions (incl. token down-scoped elsewhere) |
+| `carol` | `carol-pass` | `ra-multi-subject` | `e2e-workspace-editor` | `test-tenant` | ✅ Workspace CRUD |
+| `dave` | `dave-pass` | `ra-multi-subject` | `e2e-workspace-editor` | `test-tenant` | ✅ Workspace CRUD |
+| `erin` | `erin-pass` | `ra-wrong-tenant` | `e2e-admin` scoped to `other-tenant` | `other-tenant` | ❌ admin ops in `test-tenant` (out of scope) |
+| `nobody` | `nobody-pass` | _(none)_ | _(none)_ | — | ✅ List regions (authn-only provider); ❌ everything RBAC-governed (e.g. `seca.authorization` → 403) |
+
+The region catalog (`seca.region`) is served **authn-only**: `--authz-skip-providers` defaults to `seca.region` because the region resource is tenant-less by spec, so tenant-scoped RBAC cannot govern it. Every authenticated caller — including `nobody`, who has no RoleAssignment at all — can list regions. A genuine 403 therefore requires an RBAC-governed provider (the tests use `seca.authorization`). Down-scoping tests present a broad identity (e.g. `admin`, or `bob` in-region) with a narrow token `scope` and assert the request is denied outside the cap.
+
+> ⚠️ The Dummy authenticator performs no signature verification — any caller who knows a valid username+password can impersonate that subject. These credentials must never be used in production.
+
+### Running auth tests
+
+Auth tests are automatically included when running the normal test suite against a cluster with `AUTH_ENABLED=true` (the default):
+
+```sh
+make kind-test-gateway-global
+make kind-test-gateway-regional
+```
+
+To skip auth assertions (e.g. against an auth-disabled gateway):
+
+```sh
+E2E_AUTH_ENABLED=false make kind-test-gateway-global
+```
+
+---
+
+## Benchmarking the Auth Middleware
+
+The `TestBench` load test fires authenticated requests to populate the Prometheus `ecp_gateway_*_duration_seconds` histograms on the deployed gateway. The `benchreport` tool then scrapes `/metrics`, computes latency statistics, and writes a markdown report.
+
+### Quick start
+
+```sh
+# 1. Deploy with cached checker (the default)
+make kind-deploy-gateway-global   # AUTHZ_IMPL=cached by default
+
+# 2. Fire the load workload
+make kind-bench                   # E2E_BENCH=1; default 500 requests
+
+# 3. Scrape metrics and generate the report
+IMPL_TAG=cached make report       # writes internal/report/REPORT.md
+
+# 4. Delete the previous deployment with AUTHZ_IMPL=cached
+make kind-clean-gateway-global
+
+# 5. Redeploy with the direct checker
+AUTHZ_IMPL=direct make kind-deploy-gateway-global
+
+# 6. Fire another load workload and save a second snapshot
+E2E_BENCH_REQUESTS=500 make kind-bench
+IMPL_TAG=direct SNAP_FILE=internal/report/snap-direct.txt make report
+
+# 7. Merge both snapshots into one comparison report
+go run ./internal/cmd/benchreport \
+    --impl=cached --metrics-file=internal/report/snap.txt \
+    --impl=direct --metrics-file=internal/report/snap-direct.txt \
+    --out=internal/report/REPORT.md
+```
+
+### Reading the report
+
+`internal/report/REPORT.md` contains three latency tables — one per histogram — with rows for each `impl/label` combination and columns:
+
+| Column | Meaning |
+|--------|---------|
+| `count` | Total number of observations. |
+| `avg (ms)` | Arithmetic mean latency in milliseconds. |
+| `p50 (ms)` | Median latency (50th percentile), interpolated from buckets. |
+| `p90 (ms)` | 90th-percentile latency. |
+| `p99 (ms)` | 99th-percentile latency. |
+
+Expected comparison pattern:
+
+- `ecp_gateway_rbac_fetch_duration_seconds{impl="cached"}` p99 should be orders of magnitude lower than `impl="direct"` (in-memory read vs K8s List).
+- `ecp_gateway_authz_check_duration_seconds` should mirror the fetch delta.
+- `ecp_gateway_auth_middleware_duration_seconds` differences reflect the checker cost amortised over the full request (provider handler is a constant).

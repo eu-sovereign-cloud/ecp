@@ -10,6 +10,9 @@ include ../.config.mk
 ifneq (,$(wildcard $(CURDIR)/internal/context/config.env))
 	include $(CURDIR)/internal/context/config.env
 	export
+	# USE_KIND must come only from KIND-specific recipe prefixes; never let a
+	# stray config.env value leak into every target via the blanket export above.
+	unexport USE_KIND
 endif
 
 # Image settings
@@ -273,3 +276,30 @@ conformance-ionos-scaffolding: ## Build images, create the demo clusters and ins
 
 conformance-ionos-clean: ## Tear down the IONOS conformance demo clusters
 	@$(MAKE) -C conformance/ionos secatest-clean
+# Benchmark & report
+# =====================================================================================
+# bench — fire the load workload against the deployed gateway to populate metrics.
+# Requires a running cluster with auth enabled (the e2e default).
+#
+#   make bench                        # 500 requests (default)
+#   E2E_BENCH_REQUESTS=1000 make bench
+#   USE_KIND=true make bench
+#
+.PHONY: bench
+bench: ## Run the benchmark load workload against the deployed gateway (E2E_BENCH=1)
+	@E2E_BENCH=1 ./internal/scripts/run-test.sh gateway-global -run=TestBench
+
+.PHONY: kind-bench
+kind-bench: ## Run the benchmark load workload against the KIND gateway (E2E_BENCH=1)
+	@E2E_BENCH=1 USE_KIND=true ./internal/scripts/run-test.sh gateway-global -run=TestBench
+
+# report — scrape /metrics from the deployed gateway and emit report/REPORT.md.
+# Set SNAP_FILE to save the raw snapshot; set IMPL_TAG to label the series.
+#
+#   make report                                  # snap to report/snap.txt, tag=default
+#   IMPL_TAG=cached make report                  # tag the series as "cached"
+#   SNAP_FILE=report/snap-direct.txt make report # save to a named file
+#
+.PHONY: report
+report: ## Scrape gateway /metrics and generate report/REPORT.md via benchreport
+	@./internal/scripts/report.sh
