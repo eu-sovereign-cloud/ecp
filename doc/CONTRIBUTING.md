@@ -122,7 +122,7 @@ Several files are generated and must not be edited by hand:
 
 - `resource/{group}/vN/{resource}/backend/kubernetes/zz_generated_schema.go` — Go types from go-sdk schema (per-slice; run `go generate ./...` in `resource/`)
 - `framework/backend/kubernetes/schema/v1/` — shared CR envelope types (run `make generate-api`)
-- `chart/crd/*.yaml` — CRD YAML from controller-gen (run `make generate-api`)
+- `chart/crds/*.yaml` — CRD YAML from controller-gen (run `make generate-api`)
 - `**/zz_generated.deepcopy.go`, `**/zz_generated.conditions.go` — controller-gen and conditioned-gen output
 
 After changing the OpenAPI specs in `modules/go-sdk`, regenerate:
