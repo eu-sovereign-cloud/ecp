@@ -33,6 +33,8 @@ import (
 	computerest "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/frontend/rest"
 	instancedom "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/instance"
 	instancek8s "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/instance/backend/kubernetes"
+	computeskudom "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/sku"
+	computeskuk8s "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/sku/backend/kubernetes"
 	netrest "github.com/eu-sovereign-cloud/ecp/resource/network/v1/frontend/rest"
 	internetgatewaydom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/internet-gateway"
 	internetgatewayk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/internet-gateway/backend/kubernetes"
@@ -149,6 +151,12 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		instancek8s.InstanceToCR,
 		instancek8s.InstanceFromCR,
 	)
+	instanceSKUReaderAdapter := k8sadapter.NewReaderAdapter[*computeskudom.InstanceSKU](
+		client.Client,
+		computeskuk8s.InstanceSKUGVR,
+		logger,
+		computeskuk8s.InstanceSKUFromCR,
+	)
 	// Metrics endpoint — unauthenticated, mounted outside provider HandlerWithOptions.
 	mux.Handle("/metrics", metrics.Handler())
 
@@ -183,6 +191,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		&computerest.Handler{
 			InstanceReader: instanceReaderAdapter,
 			InstanceWriter: instanceWriterAdapter,
+			SKUReader:      instanceSKUReaderAdapter,
 			Logger:         logger,
 		},
 		sdkcomputeapi.StdHTTPServerOptions{
