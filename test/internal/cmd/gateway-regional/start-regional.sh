@@ -36,7 +36,10 @@ fi
 
 AUTH_FLAGS=""
 if [ "$AUTH_ENABLED" = "true" ]; then
+<<<<<<< HEAD
   AUTH_FLAGS="--auth-enabled --dummy-auth-users=$DUMMY_AUTH_USERS"
+=======
+>>>>>>> aed12f59 (feat: support jwt auth plugin in regional gateway start script)
   if [ "$AUTH_PLUGIN" = "jwt" ]; then
     AUTH_FLAGS="--auth-enabled --auth-plugin=jwt --jwt-signing-method=$JWT_SIGNING_METHOD --jwt-secret=$JWT_SECRET"
   else
