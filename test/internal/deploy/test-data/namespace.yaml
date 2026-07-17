@@ -1,3 +1,9 @@
+# The namespace name is the ECP-computed namespace for tenant "test-tenant":
+# ComputeNamespace(Scope{Tenant: "test-tenant"}) = hex(sha3-224("test-tenant")).
+# For tenant-only scope the hash input is just the tenant; with a workspace it is
+# "<tenant>/<workspace>". See framework/backend/kubernetes/adapter.go.
+# Every namespaced catalog CR (SKUs, images) below lives in this namespace so the
+# gateway/plugin, which derive it the same way, can find them.
 apiVersion: v1
 kind: Namespace
 metadata:
