@@ -1,0 +1,43 @@
+{{- if .Values.rbac.create }}
+# Scoped to the aruba plugin set (see loadArubaControllers in
+# test/internal/cmd/delegator): the workspace and block-storage controllers,
+# their read-only SECA lookups, and the arubacloud.com CRs the plugin writes
+# for the arubacloud-resource-operator.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "ecp-delegator-aruba.fullname" . }}
+  labels:
+    {{- include "ecp-delegator-aruba.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["workspace.v1.secapi.cloud"]
+    resources: ["workspaces", "workspaces/status"]
+    verbs: ["get", "list", "watch", "update", "patch", "create", "delete"]
+  - apiGroups: ["storage.v1.secapi.cloud"]
+    resources: ["block-storages", "block-storages/status"]
+    verbs: ["get", "list", "watch", "update", "patch", "create", "delete"]
+  - apiGroups: ["storage.v1.secapi.cloud"]
+    resources: ["skus"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["arubacloud.com"]
+    resources: ["projects", "projects/status"]
+    verbs: ["get", "list", "watch", "update", "patch", "create", "delete"]
+  - apiGroups: ["arubacloud.com"]
+    resources: ["blockstorages", "blockstorages/status"]
+    verbs: ["get", "list", "watch", "update", "patch", "create", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "ecp-delegator-aruba.fullname" . }}
+  labels:
+    {{- include "ecp-delegator-aruba.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "ecp-delegator-aruba.fullname" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "ecp-delegator-aruba.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}

@@ -1,0 +1,59 @@
+# Default values for the ecp-delegator-aruba chart.
+# This chart is the csp/aruba specialization of the delegator: the PLUGIN is
+# pinned to "aruba" (other CSPs ship their own deploy tooling).
+
+nameOverride: ""
+fullnameOverride: ""
+
+# Names of pre-existing image pull secrets.
+# e.g. imagePullSecrets: [{name: my-registry-secret}]
+imagePullSecrets: []
+
+# Keep this at 1: the delegator runs without leader election, so extra
+# replicas would reconcile the same resources concurrently.
+replicaCount: 1
+
+image:
+  # No public ECP images are published yet — point this at the registry your
+  # images are pushed to.
+  repository: ghcr.io/eu-sovereign-cloud/ecp/delegator
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  # If not set and create is true, a name is generated from the fullname.
+  name: ""
+
+rbac:
+  create: true
+
+podAnnotations: {}
+podLabels: {}
+podSecurityContext: {}
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: healthz
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: healthz
+
+resources: {}
+# Extra environment variables for the delegator container.
+extraEnv: []
+nodeSelector: {}
+tolerations: []
+affinity: {}
