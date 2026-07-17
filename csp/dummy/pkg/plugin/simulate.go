@@ -27,6 +27,10 @@ import (
 	publicipconv "github.com/eu-sovereign-cloud/ecp/resource/network/v1/public-ip/backend/kubernetes"
 	routetabledom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/route-table"
 	routetableconv "github.com/eu-sovereign-cloud/ecp/resource/network/v1/route-table/backend/kubernetes"
+	securitygroupdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group"
+	securitygroupruledom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group-rule"
+	securitygroupruleconv "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group-rule/backend/kubernetes"
+	securitygroupconv "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group/backend/kubernetes"
 	subnetdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/subnet"
 	subnetconv "github.com/eu-sovereign-cloud/ecp/resource/network/v1/subnet/backend/kubernetes"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage"
@@ -301,6 +305,46 @@ func simulateSubnet(ctx context.Context, op string, resource *subnetdom.Subnet, 
 				logger,
 				subnetconv.SubnetToCR,
 				subnetconv.SubnetFromCR,
+			)
+			_, err = repo.Update(ctx, resource)
+			return err
+		},
+	)
+}
+
+func simulateSecurityGroup(ctx context.Context, op string, resource *securitygroupdom.SecurityGroup, delay time.Duration, logger *slog.Logger) error {
+	return simulate(ctx, op, &resource.Annotations, resource.GetName(), delay, logger,
+		func(ctx context.Context) error {
+			dynamicClient, err := newDynamicClient()
+			if err != nil {
+				return err
+			}
+			repo := kubernetesadapter.NewRepoAdapter(
+				dynamicClient,
+				securitygroupconv.SecurityGroupGVR,
+				logger,
+				securitygroupconv.SecurityGroupToCR,
+				securitygroupconv.SecurityGroupFromCR,
+			)
+			_, err = repo.Update(ctx, resource)
+			return err
+		},
+	)
+}
+
+func simulateSecurityGroupRule(ctx context.Context, op string, resource *securitygroupruledom.SecurityGroupRule, delay time.Duration, logger *slog.Logger) error {
+	return simulate(ctx, op, &resource.Annotations, resource.GetName(), delay, logger,
+		func(ctx context.Context) error {
+			dynamicClient, err := newDynamicClient()
+			if err != nil {
+				return err
+			}
+			repo := kubernetesadapter.NewRepoAdapter(
+				dynamicClient,
+				securitygroupruleconv.SecurityGroupRuleGVR,
+				logger,
+				securitygroupruleconv.SecurityGroupRuleToCR,
+				securitygroupruleconv.SecurityGroupRuleFromCR,
 			)
 			_, err = repo.Update(ctx, resource)
 			return err

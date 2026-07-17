@@ -42,6 +42,12 @@ import (
 	publicipk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/public-ip/backend/kubernetes"
 	routetabledom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/route-table"
 	routetablek8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/route-table/backend/kubernetes"
+	securitygroupdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group"
+	securitygroupruledom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group-rule"
+	securitygrouprulek8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group-rule/backend/kubernetes"
+	securitygroupk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group/backend/kubernetes"
+	subnetdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/subnet"
+	subnetk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/subnet/backend/kubernetes"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage"
 	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage/backend/kubernetes"
 	imgdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image"
@@ -64,20 +70,23 @@ const (
 )
 
 var (
-	dynamicClient       dynamic.Interface
-	testLogger          *slog.Logger
-	networkRepo         *k8sadapter.RepoAdapter[*netdom.Network]
-	nicRepo             *k8sadapter.RepoAdapter[*nicdom.Nic]
-	publicIpRepo        *k8sadapter.RepoAdapter[*publicipdom.PublicIp]
-	internetGatewayRepo *k8sadapter.RepoAdapter[*internetgatewaydom.InternetGateway]
-	routeTableRepo      *k8sadapter.RepoAdapter[*routetabledom.RouteTable]
-	instanceRepo        *k8sadapter.RepoAdapter[*instancedom.Instance]
-	workspaceRepo       *k8sadapter.RepoAdapter[*wsdom.Workspace]
-	blockStorageRepo    *k8sadapter.RepoAdapter[*bsdom.BlockStorage]
-	imageRepo           *k8sadapter.RepoAdapter[*imgdom.Image]
-	roleRepo            *k8sadapter.RepoAdapter[*roledom.Role]
-	roleAssignmentRepo  *k8sadapter.RepoAdapter[*radom.RoleAssignment]
-	k8sClient           client.Client
+	dynamicClient         dynamic.Interface
+	testLogger            *slog.Logger
+	networkRepo           *k8sadapter.RepoAdapter[*netdom.Network]
+	nicRepo               *k8sadapter.RepoAdapter[*nicdom.Nic]
+	publicIpRepo          *k8sadapter.RepoAdapter[*publicipdom.PublicIp]
+	internetGatewayRepo   *k8sadapter.RepoAdapter[*internetgatewaydom.InternetGateway]
+	routeTableRepo        *k8sadapter.RepoAdapter[*routetabledom.RouteTable]
+	securityGroupRepo     *k8sadapter.RepoAdapter[*securitygroupdom.SecurityGroup]
+	securityGroupRuleRepo *k8sadapter.RepoAdapter[*securitygroupruledom.SecurityGroupRule]
+	subnetRepo            *k8sadapter.RepoAdapter[*subnetdom.Subnet]
+	instanceRepo          *k8sadapter.RepoAdapter[*instancedom.Instance]
+	workspaceRepo         *k8sadapter.RepoAdapter[*wsdom.Workspace]
+	blockStorageRepo      *k8sadapter.RepoAdapter[*bsdom.BlockStorage]
+	imageRepo             *k8sadapter.RepoAdapter[*imgdom.Image]
+	roleRepo              *k8sadapter.RepoAdapter[*roledom.Role]
+	roleAssignmentRepo    *k8sadapter.RepoAdapter[*radom.RoleAssignment]
+	k8sClient             client.Client
 )
 
 func TestMain(m *testing.M) {
@@ -93,6 +102,9 @@ func TestMain(m *testing.M) {
 	utilruntime.Must(publicipk8s.AddToScheme(s))
 	utilruntime.Must(internetgatewayk8s.AddToScheme(s))
 	utilruntime.Must(routetablek8s.AddToScheme(s))
+	utilruntime.Must(securitygroupk8s.AddToScheme(s))
+	utilruntime.Must(securitygrouprulek8s.AddToScheme(s))
+	utilruntime.Must(subnetk8s.AddToScheme(s))
 	utilruntime.Must(instancek8s.AddToScheme(s))
 	utilruntime.Must(wsk8s.AddToScheme(s))
 	utilruntime.Must(bsk8s.AddToScheme(s))
@@ -157,6 +169,27 @@ func TestMain(m *testing.M) {
 		testLogger,
 		routetablek8s.RouteTableToCR,
 		routetablek8s.RouteTableFromCR,
+	)
+	securityGroupRepo = k8sadapter.NewRepoAdapter[*securitygroupdom.SecurityGroup](
+		dynamicClient,
+		securitygroupk8s.SecurityGroupGVR,
+		testLogger,
+		securitygroupk8s.SecurityGroupToCR,
+		securitygroupk8s.SecurityGroupFromCR,
+	)
+	securityGroupRuleRepo = k8sadapter.NewRepoAdapter[*securitygroupruledom.SecurityGroupRule](
+		dynamicClient,
+		securitygrouprulek8s.SecurityGroupRuleGVR,
+		testLogger,
+		securitygrouprulek8s.SecurityGroupRuleToCR,
+		securitygrouprulek8s.SecurityGroupRuleFromCR,
+	)
+	subnetRepo = k8sadapter.NewRepoAdapter[*subnetdom.Subnet](
+		dynamicClient,
+		subnetk8s.SubnetGVR,
+		testLogger,
+		subnetk8s.SubnetToCR,
+		subnetk8s.SubnetFromCR,
 	)
 	instanceRepo = k8sadapter.NewRepoAdapter[*instancedom.Instance](
 		dynamicClient,

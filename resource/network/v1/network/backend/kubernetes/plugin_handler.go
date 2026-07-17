@@ -5,9 +5,9 @@ import (
 	"errors"
 	"log"
 
-	kernel "github.com/eu-sovereign-cloud/ecp/framework/kernel"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	backendport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
-	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 
 	frameworkbackend "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	commonbackend "github.com/eu-sovereign-cloud/ecp/resource/common/backend"
@@ -182,5 +182,5 @@ func wantNetworkRetryCreate(resource *netdom.Network) bool {
 	return resource.DeletedAt == nil && resource.Status != nil &&
 		resource.Status.State == commondomain.ResourceStateError &&
 		len(resource.Status.Conditions) > 1 &&
-		resource.Status.Conditions[len(resource.Status.Conditions)-2].State == commondomain.ResourceStateCreating
+		resource.Status.Conditions[1].State == commondomain.ResourceStateCreating
 }

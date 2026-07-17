@@ -12,25 +12,25 @@ import (
 	frameworkbackend "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	commonbackend "github.com/eu-sovereign-cloud/ecp/resource/common/backend"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
-	internetgatewaydom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/internet-gateway"
+	securitygroupdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group"
 )
 
-// InternetGatewayPluginHandler drives the InternetGateway reconciliation state machine.
-type InternetGatewayPluginHandler struct {
-	frameworkbackend.GenericPluginHandler[*internetgatewaydom.InternetGateway]
-	repo   persistence.Repo[*internetgatewaydom.InternetGateway]
-	plugin InternetGatewayPlugin
+// SecurityGroupPluginHandler drives the SecurityGroup reconciliation state machine.
+type SecurityGroupPluginHandler struct {
+	frameworkbackend.GenericPluginHandler[*securitygroupdom.SecurityGroup]
+	repo   persistence.Repo[*securitygroupdom.SecurityGroup]
+	plugin SecurityGroupPlugin
 }
 
-var _ backendport.PluginHandler[*internetgatewaydom.InternetGateway] = (*InternetGatewayPluginHandler)(nil)
+var _ backendport.PluginHandler[*securitygroupdom.SecurityGroup] = (*SecurityGroupPluginHandler)(nil)
 
-// NewInternetGatewayPluginHandler creates a new InternetGatewayPluginHandler.
-func NewInternetGatewayPluginHandler(
-	repo persistence.Repo[*internetgatewaydom.InternetGateway],
-	plugin InternetGatewayPlugin,
+// NewSecurityGroupPluginHandler creates a new SecurityGroupPluginHandler.
+func NewSecurityGroupPluginHandler(
+	repo persistence.Repo[*securitygroupdom.SecurityGroup],
+	plugin SecurityGroupPlugin,
 	maxConditions int,
-) *InternetGatewayPluginHandler {
-	handler := &InternetGatewayPluginHandler{
+) *SecurityGroupPluginHandler {
+	handler := &SecurityGroupPluginHandler{
 		repo:   repo,
 		plugin: plugin,
 	}
@@ -39,22 +39,22 @@ func NewInternetGatewayPluginHandler(
 	return handler
 }
 
-func (h *InternetGatewayPluginHandler) HandleReconcile(ctx context.Context, resource *internetgatewaydom.InternetGateway) (bool, error) {
-	var delegate backendport.DelegatedFunc[*internetgatewaydom.InternetGateway]
+func (h *SecurityGroupPluginHandler) HandleReconcile(ctx context.Context, resource *securitygroupdom.SecurityGroup) (bool, error) {
+	var delegate backendport.DelegatedFunc[*securitygroupdom.SecurityGroup]
 
 	switch {
-	case isInternetGatewayAccepted(resource):
-		delegate = frameworkbackend.BypassDelegated[*internetgatewaydom.InternetGateway]
-	case isInternetGatewayPending(resource):
-		delegate = frameworkbackend.BypassDelegated[*internetgatewaydom.InternetGateway]
-	case isInternetGatewayCreating(resource):
+	case isSecurityGroupAccepted(resource):
+		delegate = frameworkbackend.BypassDelegated[*securitygroupdom.SecurityGroup]
+	case isSecurityGroupPending(resource):
+		delegate = frameworkbackend.BypassDelegated[*securitygroupdom.SecurityGroup]
+	case isSecurityGroupCreating(resource):
 		delegate = h.plugin.Create
-	case wantInternetGatewayDelete(resource):
-		delegate = frameworkbackend.BypassDelegated[*internetgatewaydom.InternetGateway]
-	case isInternetGatewayDeleting(resource):
+	case wantSecurityGroupDelete(resource):
+		delegate = frameworkbackend.BypassDelegated[*securitygroupdom.SecurityGroup]
+	case isSecurityGroupDeleting(resource):
 		delegate = h.plugin.Delete
-	case wantInternetGatewayRetryCreate(resource):
-		delegate = frameworkbackend.BypassDelegated[*internetgatewaydom.InternetGateway]
+	case wantSecurityGroupRetryCreate(resource):
+		delegate = frameworkbackend.BypassDelegated[*securitygroupdom.SecurityGroup]
 	default:
 		return false, nil // Nothing to do.
 	}
@@ -70,17 +70,17 @@ func (h *InternetGatewayPluginHandler) HandleReconcile(ctx context.Context, reso
 	}
 
 	switch {
-	case isInternetGatewayAccepted(resource):
+	case isSecurityGroupAccepted(resource):
 		return h.setResourceState(ctx, resource, commondomain.ResourceStatePending, false)
-	case isInternetGatewayPending(resource):
+	case isSecurityGroupPending(resource):
 		return h.setResourceState(ctx, resource, commondomain.ResourceStateCreating, true)
-	case isInternetGatewayCreating(resource):
+	case isSecurityGroupCreating(resource):
 		return h.setResourceState(ctx, resource, commondomain.ResourceStateActive, false)
-	case wantInternetGatewayDelete(resource):
+	case wantSecurityGroupDelete(resource):
 		return h.setResourceState(ctx, resource, commondomain.ResourceStateDeleting, true)
-	case isInternetGatewayDeleting(resource):
+	case isSecurityGroupDeleting(resource):
 		return false, nil
-	case wantInternetGatewayRetryCreate(resource):
+	case wantSecurityGroupRetryCreate(resource):
 		return h.setResourceState(ctx, resource, commondomain.ResourceStateCreating, true)
 	default:
 		log.Fatal("must never achieve that condition")
@@ -89,9 +89,9 @@ func (h *InternetGatewayPluginHandler) HandleReconcile(ctx context.Context, reso
 	return false, nil
 }
 
-func (h *InternetGatewayPluginHandler) setResourceState(ctx context.Context, resource *internetgatewaydom.InternetGateway, state commondomain.ResourceState, requeue bool) (bool, error) {
+func (h *SecurityGroupPluginHandler) setResourceState(ctx context.Context, resource *securitygroupdom.SecurityGroup, state commondomain.ResourceState, requeue bool) (bool, error) {
 	if resource.Status == nil {
-		resource.Status = &internetgatewaydom.InternetGatewayStatus{}
+		resource.Status = &securitygroupdom.SecurityGroupStatus{}
 	}
 
 	resource.Status.PushCondition(commonbackend.ConditionFromState(state))
@@ -109,9 +109,9 @@ func (h *InternetGatewayPluginHandler) setResourceState(ctx context.Context, res
 	return requeue, nil
 }
 
-func (h *InternetGatewayPluginHandler) setResourceErrorState(ctx context.Context, resource *internetgatewaydom.InternetGateway, err error, requeue bool) (bool, error) {
+func (h *SecurityGroupPluginHandler) setResourceErrorState(ctx context.Context, resource *securitygroupdom.SecurityGroup, err error, requeue bool) (bool, error) {
 	if resource.Status == nil {
-		resource.Status = &internetgatewaydom.InternetGatewayStatus{}
+		resource.Status = &securitygroupdom.SecurityGroupStatus{}
 	}
 
 	resource.Status.PushCondition(commonbackend.ConditionFromError(err))
@@ -129,37 +129,37 @@ func (h *InternetGatewayPluginHandler) setResourceErrorState(ctx context.Context
 	return requeue, nil
 }
 
-func isInternetGatewayAccepted(resource *internetgatewaydom.InternetGateway) bool {
+func isSecurityGroupAccepted(resource *securitygroupdom.SecurityGroup) bool {
 	return resource.Status == nil
 }
 
-func isInternetGatewayPending(resource *internetgatewaydom.InternetGateway) bool {
+func isSecurityGroupPending(resource *securitygroupdom.SecurityGroup) bool {
 	return resource.DeletedAt == nil && (resource.Status == nil ||
 		resource.Status.State == commondomain.ResourceStatePending)
 }
 
-func isInternetGatewayCreating(resource *internetgatewaydom.InternetGateway) bool {
+func isSecurityGroupCreating(resource *securitygroupdom.SecurityGroup) bool {
 	return resource.DeletedAt == nil &&
 		resource.Status != nil &&
 		resource.Status.State == commondomain.ResourceStateCreating
 }
 
-func internetGatewayIsNotDeleting(resource *internetgatewaydom.InternetGateway) bool {
+func securityGroupIsNotDeleting(resource *securitygroupdom.SecurityGroup) bool {
 	return resource.Status == nil ||
 		resource.Status.State != commondomain.ResourceStateDeleting
 }
 
-func wantInternetGatewayDelete(resource *internetgatewaydom.InternetGateway) bool {
-	return resource.DeletedAt != nil && internetGatewayIsNotDeleting(resource)
+func wantSecurityGroupDelete(resource *securitygroupdom.SecurityGroup) bool {
+	return resource.DeletedAt != nil && securityGroupIsNotDeleting(resource)
 }
 
-func isInternetGatewayDeleting(resource *internetgatewaydom.InternetGateway) bool {
+func isSecurityGroupDeleting(resource *securitygroupdom.SecurityGroup) bool {
 	return resource.DeletedAt != nil &&
 		resource.Status != nil &&
 		resource.Status.State == commondomain.ResourceStateDeleting
 }
 
-func wantInternetGatewayRetryCreate(resource *internetgatewaydom.InternetGateway) bool {
+func wantSecurityGroupRetryCreate(resource *securitygroupdom.SecurityGroup) bool {
 	return resource.DeletedAt == nil && resource.Status != nil &&
 		resource.Status.State == commondomain.ResourceStateError &&
 		len(resource.Status.Conditions) > 1 &&
