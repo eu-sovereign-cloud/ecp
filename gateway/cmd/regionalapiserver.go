@@ -46,6 +46,10 @@ import (
 	publicipk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/public-ip/backend/kubernetes"
 	routetabledom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/route-table"
 	routetablek8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/route-table/backend/kubernetes"
+	securitygroupdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group"
+	securitygroupruledom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group-rule"
+	securitygrouprulek8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group-rule/backend/kubernetes"
+	securitygroupk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group/backend/kubernetes"
 	subnetdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/subnet"
 	subnetk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/subnet/backend/kubernetes"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage"
@@ -277,23 +281,53 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		subnetk8s.SubnetToCR,
 		subnetk8s.SubnetFromCR,
 	)
+	securityGroupReaderAdapter := k8sadapter.NewReaderAdapter[*securitygroupdom.SecurityGroup](
+		client.Client,
+		securitygroupk8s.SecurityGroupGVR,
+		logger,
+		securitygroupk8s.SecurityGroupFromCR,
+	)
+	securityGroupWriterAdapter := k8sadapter.NewWriterAdapter[*securitygroupdom.SecurityGroup](
+		client.Client,
+		securitygroupk8s.SecurityGroupGVR,
+		logger,
+		securitygroupk8s.SecurityGroupToCR,
+		securitygroupk8s.SecurityGroupFromCR,
+	)
+	securityGroupRuleReaderAdapter := k8sadapter.NewReaderAdapter[*securitygroupruledom.SecurityGroupRule](
+		client.Client,
+		securitygrouprulek8s.SecurityGroupRuleGVR,
+		logger,
+		securitygrouprulek8s.SecurityGroupRuleFromCR,
+	)
+	securityGroupRuleWriterAdapter := k8sadapter.NewWriterAdapter[*securitygroupruledom.SecurityGroupRule](
+		client.Client,
+		securitygrouprulek8s.SecurityGroupRuleGVR,
+		logger,
+		securitygrouprulek8s.SecurityGroupRuleToCR,
+		securitygrouprulek8s.SecurityGroupRuleFromCR,
+	)
 
 	sdknetworkapi.HandlerWithOptions(
 		&netrest.Handler{
-			NetworkReader:         netReaderAdapter,
-			NetworkWriter:         netWriterAdapter,
-			SKUReader:             netSKUReaderAdapter,
-			NicReader:             nicReaderAdapter,
-			NicWriter:             nicWriterAdapter,
-			PublicIpReader:        publicIpReaderAdapter,
-			PublicIpWriter:        publicIpWriterAdapter,
-			InternetGatewayReader: internetGatewayReaderAdapter,
-			InternetGatewayWriter: internetGatewayWriterAdapter,
-			RouteTableReader:      routeTableReaderAdapter,
-			RouteTableWriter:      routeTableWriterAdapter,
-			SubnetReader:          subnetReaderAdapter,
-			SubnetWriter:          subnetWriterAdapter,
-			Logger:                logger,
+			NetworkReader:           netReaderAdapter,
+			NetworkWriter:           netWriterAdapter,
+			SKUReader:               netSKUReaderAdapter,
+			NicReader:               nicReaderAdapter,
+			NicWriter:               nicWriterAdapter,
+			PublicIpReader:          publicIpReaderAdapter,
+			PublicIpWriter:          publicIpWriterAdapter,
+			InternetGatewayReader:   internetGatewayReaderAdapter,
+			InternetGatewayWriter:   internetGatewayWriterAdapter,
+			RouteTableReader:        routeTableReaderAdapter,
+			RouteTableWriter:        routeTableWriterAdapter,
+			SubnetReader:            subnetReaderAdapter,
+			SubnetWriter:            subnetWriterAdapter,
+			SecurityGroupReader:     securityGroupReaderAdapter,
+			SecurityGroupWriter:     securityGroupWriterAdapter,
+			SecurityGroupRuleReader: securityGroupRuleReaderAdapter,
+			SecurityGroupRuleWriter: securityGroupRuleWriterAdapter,
+			Logger:                  logger,
 		},
 		sdknetworkapi.StdHTTPServerOptions{
 			BaseURL:          "/providers/seca.network",
