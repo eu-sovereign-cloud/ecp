@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 
 	backendport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
@@ -316,7 +317,7 @@ func wantBlockStorageRetryCreate(resource *bsdom.BlockStorage) bool {
 		resource.Status != nil &&
 		resource.Status.State == commondomain.ResourceStateError &&
 		len(resource.Status.Conditions) > 1 &&
-		resource.Status.Conditions[len(resource.Status.Conditions)-2].State == commondomain.ResourceStateCreating
+		resource.Status.Conditions[1].State == commondomain.ResourceStateCreating
 }
 
 func wantBlockStorageRetryIncreaseSize(resource *bsdom.BlockStorage) bool {
@@ -324,6 +325,6 @@ func wantBlockStorageRetryIncreaseSize(resource *bsdom.BlockStorage) bool {
 		resource.Status != nil &&
 		resource.Status.State == commondomain.ResourceStateError &&
 		len(resource.Status.Conditions) > 1 &&
-		resource.Status.Conditions[len(resource.Status.Conditions)-2].State == commondomain.ResourceStateUpdating &&
+		resource.Status.Conditions[1].State == commondomain.ResourceStateUpdating &&
 		resource.Spec.SizeGB > resource.Status.SizeGB
 }

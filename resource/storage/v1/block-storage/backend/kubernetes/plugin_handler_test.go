@@ -291,8 +291,8 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 				Status: commondomain.Status{
 					State: errorState,
 					Conditions: []commondomain.StatusCondition{
-						{State: commondomain.ResourceStateCreating},
 						{State: commondomain.ResourceStateError},
+						{State: commondomain.ResourceStateCreating},
 					},
 				},
 			},
@@ -338,8 +338,8 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 				Status: commondomain.Status{
 					State: errorState,
 					Conditions: []commondomain.StatusCondition{
-						{State: commondomain.ResourceStateUpdating},
 						{State: commondomain.ResourceStateError},
+						{State: commondomain.ResourceStateUpdating},
 					},
 				},
 				SizeGB: 10,

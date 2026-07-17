@@ -24,6 +24,8 @@ import (
 	nick8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic/backend/kubernetes"
 	publicipk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/public-ip/backend/kubernetes"
 	routetablek8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/route-table/backend/kubernetes"
+	securitygrouprulek8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group-rule/backend/kubernetes"
+	securitygroupk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group/backend/kubernetes"
 	subnetk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/subnet/backend/kubernetes"
 	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage/backend/kubernetes"
 	imgk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image/backend/kubernetes"
@@ -44,6 +46,8 @@ func init() {
 	utilruntime.Must(internetgatewayk8s.AddToScheme(scheme))
 	utilruntime.Must(routetablek8s.AddToScheme(scheme))
 	utilruntime.Must(subnetk8s.AddToScheme(scheme))
+	utilruntime.Must(securitygroupk8s.AddToScheme(scheme))
+	utilruntime.Must(securitygrouprulek8s.AddToScheme(scheme))
 	utilruntime.Must(instancek8s.AddToScheme(scheme))
 	utilruntime.Must(wsk8s.AddToScheme(scheme))
 }
@@ -80,6 +84,8 @@ func main() {
 	internetGatewayPlugin := dummyplugin.NewInternetGateway(logger.With("plugin", "internetgateway"))
 	routeTablePlugin := dummyplugin.NewRouteTable(logger.With("plugin", "routetable"))
 	subnetPlugin := dummyplugin.NewSubnet(logger.With("plugin", "subnet"))
+	securityGroupPlugin := dummyplugin.NewSecurityGroup(logger.With("plugin", "securitygroup"))
+	securityGroupRulePlugin := dummyplugin.NewSecurityGroupRule(logger.With("plugin", "securitygrouprule"))
 	instancePlugin := dummyplugin.NewInstance(logger.With("plugin", "instance"))
 
 	controllerOpts := []frameworkbuilder.Option{
@@ -98,6 +104,8 @@ func main() {
 	controllerSet.Add(internetgatewayk8s.NewController(mgr.GetClient(), dynClient, internetGatewayPlugin, controllerOpts...))
 	controllerSet.Add(routetablek8s.NewController(mgr.GetClient(), dynClient, routeTablePlugin, controllerOpts...))
 	controllerSet.Add(subnetk8s.NewController(mgr.GetClient(), dynClient, subnetPlugin, controllerOpts...))
+	controllerSet.Add(securitygroupk8s.NewController(mgr.GetClient(), dynClient, securityGroupPlugin, controllerOpts...))
+	controllerSet.Add(securitygrouprulek8s.NewController(mgr.GetClient(), dynClient, securityGroupRulePlugin, controllerOpts...))
 	controllerSet.Add(instancek8s.NewController(mgr.GetClient(), dynClient, instancePlugin, controllerOpts...))
 	controllerSet.Add(wsk8s.NewController(mgr.GetClient(), dynClient, wsPlugin, controllerOpts...))
 
