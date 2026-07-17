@@ -15,14 +15,18 @@ import (
 	blockstoragectrl "github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/controller/block_storage"
 	instancectrl "github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/controller/instance"
 	networkctrl "github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/controller/network"
+	nicctrl "github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/controller/nic"
 	publicipctrl "github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/controller/public_ip"
+	subnetctrl "github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/controller/subnet"
 	workspacectrl "github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/controller/workspace"
 	"github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/service"
 	"github.com/eu-sovereign-cloud/ecp/csp/ionos/pkg/adapter/crossplane"
 	frameworkbuilder "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/builder"
 	instancek8s "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/instance/backend/kubernetes"
 	netk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network/backend/kubernetes"
+	nick8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic/backend/kubernetes"
 	publicipk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/public-ip/backend/kubernetes"
+	subnetk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/subnet/backend/kubernetes"
 	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage/backend/kubernetes"
 	wsk8s "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1/backend/kubernetes"
 )
@@ -36,6 +40,8 @@ func Add(cs *frameworkbuilder.ControllerSet, mgr ctrl.Manager, dynClient dynamic
 	bsAdapter := crossplane.NewBlockStorageStore(mgr.GetClient(), logger.With("adapter", "block-storage"))
 	netAdapter := crossplane.NewNetworkStore(mgr.GetClient(), logger.With("adapter", "network"))
 	publicIPAdapter := crossplane.NewPublicIPStore(mgr.GetClient(), logger.With("adapter", "public-ip"))
+	nicAdapter := crossplane.NewNicStore(mgr.GetClient(), logger.With("adapter", "nic"))
+	subnetAdapter := crossplane.NewSubnetStore(mgr.GetClient(), logger.With("adapter", "subnet"))
 	instanceAdapter := crossplane.NewInstanceStore(mgr.GetClient(), logger.With("adapter", "instance"))
 
 	wsPlugin := &service.Workspace{
@@ -55,6 +61,14 @@ func Add(cs *frameworkbuilder.ControllerSet, mgr ctrl.Manager, dynClient dynamic
 		Creator: &publicipctrl.CreatePublicIP{Store: publicIPAdapter},
 		Deleter: &publicipctrl.DeletePublicIP{Store: publicIPAdapter},
 	}
+	nicPlugin := &service.Nic{
+		Creator: &nicctrl.CreateNic{Store: nicAdapter},
+		Deleter: &nicctrl.DeleteNic{Store: nicAdapter},
+	}
+	subnetPlugin := &service.Subnet{
+		Creator: &subnetctrl.CreateSubnet{Store: subnetAdapter},
+		Deleter: &subnetctrl.DeleteSubnet{Store: subnetAdapter},
+	}
 	instancePlugin := &service.Instance{
 		Creator:    &instancectrl.CreateInstance{Store: instanceAdapter},
 		Deleter:    &instancectrl.DeleteInstance{Store: instanceAdapter},
@@ -66,5 +80,7 @@ func Add(cs *frameworkbuilder.ControllerSet, mgr ctrl.Manager, dynClient dynamic
 	cs.Add(netk8s.NewController(mgr.GetClient(), dynClient, netPlugin, opts...))
 	cs.Add(wsk8s.NewController(mgr.GetClient(), dynClient, wsPlugin, opts...))
 	cs.Add(publicipk8s.NewController(mgr.GetClient(), dynClient, publicIPPlugin, opts...))
+	cs.Add(nick8s.NewController(mgr.GetClient(), dynClient, nicPlugin, opts...))
+	cs.Add(subnetk8s.NewController(mgr.GetClient(), dynClient, subnetPlugin, opts...))
 	cs.Add(instancek8s.NewController(mgr.GetClient(), dynClient, instancePlugin, opts...))
 }

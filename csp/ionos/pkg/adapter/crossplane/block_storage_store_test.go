@@ -2,7 +2,6 @@ package crossplane
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	ionosv1alpha1 "github.com/ionos-cloud/provider-upjet-ionoscloud/apis/namespaced/compute/v1alpha1"
@@ -10,7 +9,6 @@ import (
 	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
-	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage"
@@ -30,7 +28,7 @@ func TestBlockStorageImageBackedIsObserver(t *testing.T) {
 	c := fakeclient.NewClientBuilder().WithScheme(ionosScheme(t)).Build()
 	store := NewBlockStorageStore(c, testLogger())
 
-	if err := store.Create(context.Background(), bootBlockStorage()); !errors.Is(err, backend.ErrStillProcessing) {
+	if err := store.Create(context.Background(), bootBlockStorage()); err != nil {
 		t.Fatalf("Create = %v, want ErrStillProcessing (waiting for instance)", err)
 	}
 

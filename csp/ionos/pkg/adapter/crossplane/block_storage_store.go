@@ -14,7 +14,6 @@ import (
 
 	"github.com/eu-sovereign-cloud/ecp/csp/ionos/pkg/port"
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
-	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage"
 )
@@ -32,8 +31,11 @@ func NewBlockStorageStore(c client.Client, logger *slog.Logger) *BlockStorageSto
 func (a *BlockStorageStore) Create(ctx context.Context, domain *bsdom.BlockStorage) error {
 	namespace := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: domain.GetTenant()})
 
-	// Image-backed volumes need SSH keys + user-data (only the Instance has them),
-	// so the Instance plugin creates them at PowerOn. Here we only observe.
+	// Image-backed volumes need SSH keys + user-data (only the Instance has them), so the
+	// real IONOS Volume is created by the Instance plugin at PowerOn. This CR is therefore an
+	// observer/declaration: if the Volume already exists (instance powered on) we observe its
+	// real state; otherwise the declaration is itself "ready" so the Instance — which depends
+	// on the boot volume — can be created. Provisioning is deferred to start.
 	if domain.Spec.SourceImageRef != nil {
 		vol := &ionosv1alpha1.Volume{
 			TypeMeta:   metav1.TypeMeta{Kind: ionosv1alpha1.Volume_Kind},
@@ -41,9 +43,9 @@ func (a *BlockStorageStore) Create(ctx context.Context, domain *bsdom.BlockStora
 		}
 		if err := a.client.Get(ctx, client.ObjectKeyFromObject(vol), vol); err != nil {
 			if apierrors.IsNotFound(err) {
-				a.logger.Info("image-backed volume not provisioned yet, waiting for instance",
+				a.logger.Info("image-backed volume: ready as declaration, provisioned at instance power-on",
 					"namespace", namespace, "volume", domain.GetName())
-				return backend.ErrStillProcessing
+				return nil
 			}
 			return err
 		}
