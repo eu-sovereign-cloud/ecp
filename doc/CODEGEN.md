@@ -8,7 +8,7 @@ ECP's type layer is built by two generation steps:
 
 1. **Shared schema types** (`make generate-api`) — reads the go-sdk `resource.go` schema, emits `framework/backend/kubernetes/schema/v1/zz_generated_resource.go` (CRD-envelope types shared by all slices, aliased as `schemav1`), applies kubebuilder markers, and runs controller-gen to produce `DeepCopy` methods.
 2. **Per-slice types** (`go generate ./...` in `resource/`) — each resource slice declares an explicit `//go:generate` directive in `backend/kubernetes/generate.go`; `model-gen` extracts the slice-specific types from the go-sdk schema and emits `zz_generated_schema.go` in that slice's `backend/kubernetes/` package.
-3. **CRD YAML** (`make generate-api`) — injects `+kubebuilder:validation:*` markers into every slice's generated schema and runs controller-gen `crd` over all 18 resource slices, emitting CRD YAML files into `chart/crd/`.
+3. **CRD YAML** (`make generate-api`) — injects `+kubebuilder:validation:*` markers into every slice's generated schema and runs controller-gen `crd` over all 18 resource slices, emitting CRD YAML files into `chart/crds/`.
 
 Generated files must never be edited by hand. CI enforces this with `make generate-api-verify`.
 
@@ -41,7 +41,7 @@ schema that defines CRD-envelope types shared by all resource slices.
 - `framework/backend/kubernetes/schema/v1/zz_generated.deepcopy.go`
 
 **Outputs (generate-crds):**
-- `chart/crd/*.yaml` — 18 CRD YAML files (one per resource slice; see [CRD Generation](#crd-generation))
+- `chart/crds/*.yaml` — 18 CRD YAML files (one per resource slice; see [CRD Generation](#crd-generation))
 
 All importers alias this package as **`schemav1`**.
 
@@ -93,12 +93,12 @@ Run per-slice generation from the repo root:
    `paths="github.com/eu-sovereign-cloud/ecp/resource/..."` from the `framework/backend/kubernetes/`
    directory. The Go workspace (`go.work`) is active, so the cross-module shared types (`schemav1.CommonData`,
    etc.) resolve correctly. controller-gen v0.20.0 emits one YAML file per resource group+plural into
-   `chart/crd/` (the repo-root CRD output directory).
+   `chart/crds/` (the repo-root CRD output directory).
 
-**Output:** `chart/crd/*.yaml` — 18 flat CRD YAML files named `<group>_<plural>.yaml`:
+**Output:** `chart/crds/*.yaml` — 18 flat CRD YAML files named `<group>_<plural>.yaml`:
 
 ```
-chart/crd/
+chart/crds/
 ├── authorization.v1.secapi.cloud_role-assignments.yaml
 ├── authorization.v1.secapi.cloud_roles.yaml
 ├── compute.v1.secapi.cloud_instances.yaml
