@@ -13,3 +13,4 @@ resources:
   - service.yaml
   - deployment.yaml
   - users-configmap.yaml
+  - jwt-key-secret.yaml

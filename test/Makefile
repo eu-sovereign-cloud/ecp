@@ -221,12 +221,19 @@ $(foreach comp,$(TEST_COMPONENTS),$(eval $(call TEST_template,$(comp))))
 E2E_PLUGIN         ?= dummy
 CONFORMANCE_PLUGIN ?= dummy
 
+# The e2e stack deploys its GLOBAL gateway with the jwt authenticator and leaves
+# the regional one on dummy, so one e2e run covers both: the suite signs real
+# JWTs for the global gateway and dummy tokens for the regional one. The
+# integration suites deploy the same gateway without AUTH_PLUGIN and get dummy.
+# The e2e suite assumes this split, so pair `e2e` with `e2e-deploy`.
 .PHONY: e2e-deploy kind-e2e-deploy
 e2e-deploy: ## Deploy the full e2e stack (gateways + delegator) with E2E_PLUGIN (default: dummy)
-	@PLUGIN_TYPE=$(E2E_PLUGIN) $(MAKE) deploy-gateway-global deploy-gateway-regional deploy-delegator
+	@AUTH_PLUGIN=jwt $(MAKE) deploy-gateway-global
+	@PLUGIN_TYPE=$(E2E_PLUGIN) $(MAKE) deploy-gateway-regional deploy-delegator
 
 kind-e2e-deploy: ## Deploy the full e2e stack into KIND with E2E_PLUGIN (default: dummy)
-	@PLUGIN_TYPE=$(E2E_PLUGIN) $(MAKE) kind-deploy-gateway-global kind-deploy-gateway-regional kind-deploy-delegator
+	@AUTH_PLUGIN=jwt $(MAKE) kind-deploy-gateway-global
+	@PLUGIN_TYPE=$(E2E_PLUGIN) $(MAKE) kind-deploy-gateway-regional kind-deploy-delegator
 
 .PHONY: e2e kind-e2e
 e2e: ## Run the e2e suite against an already-deployed stack (configured cluster)

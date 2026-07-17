@@ -46,11 +46,22 @@ See [Per-provider authorization skip](#per-provider-authorization-skip).
 
 ---
 
-## Bearer-Token Format (Dummy Authenticator)
+## Bearer-Token Format
 
-The only authenticator currently shipped is the **Dummy authenticator**, intended
-for development and testing. Production deployments will replace it with a real
-OIDC/JWT authenticator when that is implemented.
+Two authentication plugins ship today, selected with `--auth-plugin`:
+
+| `--auth-plugin` | Token | Use |
+|---|---|---|
+| `dummy` (default) | Base64-encoded JSON with `username` + `password` | Development and testing only — **no signature verification**. |
+| `jwt` | A standard signed JWT (compact `header.payload.signature`) | Verifies the signature against a configured key; the shape a real issuer produces. |
+
+Whichever plugin is active, the rest of the chain is identical: the authenticator
+produces an `Identity` carrying a **subject** and an optional **token scope**, and
+the authorization layer consumes only those. The two sections below cover just the
+token each plugin accepts; [Token down-scoping](#token-down-scoping) and everything
+after it apply to both.
+
+### Dummy authenticator (`--auth-plugin=dummy`)
 
 The token is a **Base64-encoded JSON payload**. Only `username` and `password` are
 mandatory; the optional `scope` object down-scopes the caller (see below):
@@ -75,6 +86,79 @@ which role assignments apply to the caller.
 **Roles are never carried by the token.** A caller's roles are resolved entirely
 from the `Role` and `RoleAssignment` resources in the caller's tenant namespace,
 which are managed by the gateway operator. Any `roles` field in the token is ignored.
+
+### JWT authenticator (`--auth-plugin=jwt`)
+
+The token is a **standard signed JWT** in compact form, sent verbatim — no extra
+encoding wraps it:
+
+```
+Authorization: Bearer <header>.<payload>.<signature>
+```
+
+The payload uses registered claims plus the same optional `scope` object:
+
+```json
+{
+  "sub": "alice",
+  "exp": 1893456000,
+  "scope": { "tenants": ["my-tenant"], "regions": ["itbg-bergamo"] }
+}
+```
+
+| Claim | Required | Meaning |
+|-------|----------|---------|
+| `sub` | yes | Becomes `Identity.Subject` — the same role of the dummy token's `username`. A token without it is rejected. |
+| `exp` | yes | Expiry. Enforced with `jwt.WithExpirationRequired`, so a token that never expires is rejected rather than honoured forever. |
+| `scope` | no | Token down-scope, identical to the dummy token's (see below). |
+
+A token is accepted only when its signature verifies **and** its `alg` header
+matches `--jwt-signing-method` exactly (`jwt.WithValidMethods`). Pinning the
+algorithm is what defeats *algorithm confusion*: without it, an attacker could
+re-sign a token as `HS256` using the gateway's own public key as the HMAC secret
+and have it verify. Any algorithm `golang-jwt` supports may be configured.
+
+As with the dummy plugin, **roles are never carried by the token** — a `roles`
+claim is ignored, and entitlements come only from RoleAssignments.
+
+#### Verification key (`--jwt-secret`)
+
+`--jwt-secret` is a **path to a file**, not the key itself: a key belongs in a
+mounted volume (the same pattern as TLS certs and kubeconfigs), and passing it as a
+flag value would leak it into `ps` output, shell history, and pod specs. Because the
+gateway only opens a path, a Secret and a ConfigMap mount identically — no code
+depends on which you choose.
+
+**Which to choose is a security decision, not a preference:**
+
+| Method | Key is | Store in |
+|---|---|---|
+| `HS256` / `HS384` / `HS512` | the **shared HMAC secret** — it *signs* as well as verifies | a **Secret**. Anyone who can read it can mint a token for any subject, so a ConfigMap here is an auth bypass: ConfigMaps are readable by anything with `get configmap` in the namespace and are not encrypted at rest. |
+| `ES*` / `RS*` / `PS*` / `EdDSA` | a **public key** — verification only, the private half never reaches the gateway | either. A public key is not confidential, so a ConfigMap is fine and idiomatic; a Secret is harmless. |
+
+Asymmetric methods are the better default for exactly this reason: the gateway
+cannot mint tokens even if fully compromised. Prefer them over `HS*` unless a
+shared secret is forced on you.
+
+What the file must contain also depends on the method, because `golang-jwt` requires
+the key as a typed Go value rather than raw bytes:
+
+| `--jwt-signing-method` | File content | Parsed to |
+|---|---|---|
+| `HS256` / `HS384` / `HS512` | The raw HMAC secret, used verbatim | `[]byte` |
+| everything else (`ES*`, `RS*`, `PS*`, `EdDSA`) | A PEM-encoded PKIX public key (`-----BEGIN PUBLIC KEY-----`) | `*ecdsa.PublicKey`, `*rsa.PublicKey`, `ed25519.PublicKey` |
+
+`gatewayauthn.ParseVerifyKey` does this conversion at startup: one
+`x509.ParsePKIXPublicKey` call returns whichever concrete type the method needs, so
+no per-algorithm branching is involved. An unreadable file, an unparseable key, or
+an unknown signing method **fails the server at startup** rather than rejecting
+every request at runtime.
+
+> Generate a key pair with:
+> ```sh
+> openssl ecparam -name prime256v1 -genkey -noout -out jwt-key.pem   # ES256 private key
+> openssl ec -in jwt-key.pem -pubout -out jwt-key.pub                # public key for --jwt-secret
+> ```
 
 ### Token down-scoping
 
@@ -108,7 +192,10 @@ In code the `scope` object unmarshals into the shared `resource.TokenScope` type
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--auth-enabled` | `false` | Enable bearer-token authn + RBAC authz. |
-| `--dummy-auth-users <file>` | `""` | Path to a JSON file mapping `username→password`. Required when `--auth-enabled` is set. |
+| `--auth-plugin` | `dummy` | Authenticator to install: `dummy` or `jwt`. |
+| `--dummy-auth-users <file>` | `""` | Path to a JSON file mapping `username→password`. Required when `--auth-plugin=dummy`. |
+| `--jwt-signing-method` | `ES256` | Expected JWT `alg`; tokens signed with anything else are rejected. Any `golang-jwt` method is accepted. Required when `--auth-plugin=jwt`. |
+| `--jwt-secret <file>` | `""` | Path to the verification key file: the raw HMAC secret for `HS*`, a PEM public key otherwise. Required when `--auth-plugin=jwt`. |
 | `--authz-enabled` | `true` | Install the RBAC authorization middleware. Requires `--auth-enabled`. Set to `false` for authn-only mode (every authenticated caller is let through without a RBAC check). |
 | `--authz-skip-providers` | `seca.region` | Comma-separated provider IDs whose routes skip the authorization middleware (authn-only). Neither RBAC nor token down-scoping applies to these providers. |
 | `--authz-cache` | `false` | Use the informer-backed `CachedChecker` instead of the per-request `Checker`. |
@@ -155,7 +242,7 @@ routes to the authn-only flow should another catalog-style resource appear.
 }
 ```
 
-### Example (development)
+### Example: dummy plugin (development)
 
 ```sh
 # users.json
@@ -170,6 +257,23 @@ echo '{"alice":"s3cr3t"}' > /tmp/users.json
 # the region catalog is authn-only by default (--authz-skip-providers=seca.region)
 TOKEN=$(echo '{"username":"alice","password":"s3cr3t"}' | base64 -w0)
 curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/providers/seca.region/v1/regions
+```
+
+### Example: jwt plugin
+
+```sh
+# an ES256 key pair; the server only ever sees the public half
+openssl ecparam -name prime256v1 -genkey -noout -out /tmp/jwt-key.pem
+openssl ec -in /tmp/jwt-key.pem -pubout -out /tmp/jwt-key.pub
+
+./ecp-gateway globalapiserver \
+    --auth-enabled \
+    --auth-plugin jwt \
+    --jwt-signing-method ES256 \
+    --jwt-secret /tmp/jwt-key.pub
+
+# mint a token with your issuer (or the e2e helper, authhelper.SignJWT) and send it as-is
+curl -H "Authorization: Bearer $JWT" http://localhost:8080/providers/seca.region/v1/regions
 ```
 
 ---
@@ -371,6 +475,7 @@ framework/frontend/middleware/
     context.go                             IdentityFromContext
 
 gateway/internal/authn/dummy.go            DummyAuthenticator (dev/test only)
+gateway/internal/authn/jwtstd.go           JwtAuthenticator + ParseVerifyKey (key file → typed key)
 gateway/internal/authz/seca/
     evaluator.go                           Evaluate — pure RBAC evaluation + helpers
     checker.go                             Checker — per-request reader-backed

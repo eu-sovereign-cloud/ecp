@@ -155,11 +155,33 @@ Run `make help` for the full list of targets.
 
 The gateway deployments ship with the Dummy authenticator and SECA RBAC enabled by default (the defaults changed from the original auth-disabled baseline). Auth behaviour is driven by environment variables that are read by the `start-global.sh` / `start-regional.sh` entry-point scripts at startup.
 
+### Which authenticator runs where
+
+The gateway serves one authentication plugin at a time (`--auth-plugin`), so the e2e stack runs a **different plugin per gateway** to cover both in a single `make kind-e2e`:
+
+| Deployed by | Global gateway | Regional gateway |
+|---|---|---|
+| `e2e-deploy` / `kind-e2e-deploy` / `kind-e2e` | **jwt** — verifies real signed JWTs | **dummy** |
+| everything else (`deploy-gateway-global`, `kind-deploy-all`, conformance, …) | dummy | dummy |
+
+`e2e-deploy` sets `AUTH_PLUGIN=jwt` for the global gateway only; `deploy.sh` substitutes it into that manifest. The integration suites deploy the same gateway without the variable and get the dummy default, so they are unaffected.
+
+The e2e suite assumes this split (JWTs to the global gateway, dummy tokens to the regional one), so **pair `make e2e` with `make e2e-deploy`** — running it against a stack deployed some other way makes the global gateway reject the suite's tokens with 401.
+
+> ⚠️ Switching the global gateway between plugins on a live cluster (e.g. `make kind-e2e`, then `make kind-deploy-gateway-global` for the integration suite) leaves a window where the **terminating pod still serves the previous plugin**, and a suite starting immediately port-forwards to it and gets 401s on every valid token. `deploy.sh` does not wait for rollouts. Wait for a single Ready pod before testing:
+>
+> ```sh
+> kubectl -n e2e-ecp rollout status deploy/gateway-global-depl
+> ```
+
 ### Gateway deployment env vars
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `AUTH_ENABLED` | `true` | Set to `false` to run the gateway without any auth (unauthenticated mode). |
+| `AUTH_PLUGIN` | `dummy` | Authenticator to run: `dummy` or `jwt`. Only the global gateway's manifest is substitutable; `e2e-deploy` sets it to `jwt`. |
+| `JWT_SIGNING_METHOD` | `ES256` | Expected JWT `alg` when `AUTH_PLUGIN=jwt`. Must match what the suite signs with (`authhelper.JWTSigningMethod`). |
+| `JWT_SECRET` | `/app/jwt.pub` | Path inside the container to the verification key when `AUTH_PLUGIN=jwt` (mounted from the `e2e-jwt-key` Secret). |
 | `AUTHZ_ENABLED` | `true` | Set to `false` for authn-only (auth check but no RBAC). Requires `AUTH_ENABLED=true`. |
 | `AUTHZ_IMPL` | `cached` | `cached` uses the informer-backed checker (zero K8s round-trips on hot path); `direct` uses the per-request reader (2 K8s List calls per request). |
 | `AUTHZ_SKIP_PROVIDERS` | `seca.region` | Comma-separated provider IDs served authn-only (no RBAC check, no token down-scoping). The region catalog is tenant-less by spec, so it skips authorization by default. |
@@ -175,7 +197,9 @@ The gateway deployments ship with the Dummy authenticator and SECA RBAC enabled 
 
 ### Test fixtures: subjects, users, and assignments
 
-The files in `internal/deploy/test-data/` define the RBAC state used by the auth tests. Roles are **not** carried by the token — each subject's roles come entirely from the RoleAssignment named below (the token carries only the subject and an optional down-scope). The table maps the token subject (`username`) to the RoleAssignment that covers them and the net access they should receive:
+The files in `internal/deploy/test-data/` define the RBAC state used by the auth tests. Roles are **not** carried by the token — each subject's roles come entirely from the RoleAssignment named below (the token carries only the subject and an optional down-scope). The table maps the token subject to the RoleAssignment that covers them and the net access they should receive.
+
+The subject is the dummy token's `username` or the JWT's `sub` claim; both plugins feed the same `Identity.Subject`, so **every row applies unchanged to either plugin** — the password column is simply unused for JWTs, which are trusted by signature instead.
 
 | Subject | Password | RoleAssignment | Roles (from assignment) | Scope | Expected result |
 |---------|----------|----------------|-------------------------|-------|-----------------|
@@ -191,14 +215,37 @@ The region catalog (`seca.region`) is served **authn-only**: `--authz-skip-provi
 
 > ⚠️ The Dummy authenticator performs no signature verification — any caller who knows a valid username+password can impersonate that subject. These credentials must never be used in production.
 
+### JWT test fixtures
+
+`internal/authhelper` mints the tokens the JWT-backed global gateway accepts:
+
+| Helper | Use |
+|--------|-----|
+| `JWTKey()` | The fixture ES256 private key. Pass a freshly generated key instead to forge a token the gateway must reject. |
+| `SignJWT(key, subject, scope, exp)` | Sign a token for a subject, with an optional down-scope and an explicit expiry (pass a past time for an expired token). |
+| `JWTEditor(subject, scope)` / `AdminJWTEditor()` | SDK request editors carrying a valid one-hour token — the JWT counterparts of `IdentityEditor` / `AdminEditor`. |
+
+The key pair is a committed fixture: the private half is a constant in `authhelper`, the public half is `internal/deploy/gateway-global/jwt-key-secret.yaml`, mounted at `/app/jwt.pub` and passed to the gateway as `--jwt-secret`. It is a Secret rather than a ConfigMap because the same manifest serves `JWT_SIGNING_METHOD=HS*`, where that file is the shared HMAC secret that mints tokens — see [Verification key](../doc/AUTH.md#verification-key---jwt-secret). To rotate it, regenerate both halves and update both files:
+
+```sh
+openssl ecparam -name prime256v1 -genkey -noout -out jwt-key.pem
+openssl pkcs8 -topk8 -nocrypt -in jwt-key.pem   # private half → authhelper constant
+openssl ec -in jwt-key.pem -pubout              # public half  → jwt-key-secret.yaml
+```
+
+> ⚠️ This key pair is a test fixture whose private half is published in this repository — anyone can mint a token the e2e gateway accepts. Like the dummy credentials, it must never be used in production.
+
 ### Running auth tests
 
 Auth tests are automatically included when running the normal test suite against a cluster with `AUTH_ENABLED=true` (the default):
 
 ```sh
-make kind-test-gateway-global
-make kind-test-gateway-regional
+make kind-test-gateway-global      # dummy authn (integration suite deploys dummy)
+make kind-test-gateway-regional    # dummy authn
+make kind-e2e                      # both: JWT on the global gateway, dummy on the regional one
 ```
+
+`TestJWTAuthn` (`e2e/jwt_test.go`) is the JWT-specific suite: valid/expired/unsigned-by-us tokens, algorithm-confusion attempts, dummy tokens rejected by the JWT gateway, and the `sub`/`scope` claims driving RBAC. It is the only test that covers the `--jwt-secret` file → `ParseVerifyKey` → authenticator wiring, since the unit tests build the authenticator from an already-parsed key.
 
 To skip auth assertions (e.g. against an auth-disabled gateway):
 
