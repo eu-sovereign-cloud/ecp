@@ -128,6 +128,25 @@ func TestDeleteRemovesServer(t *testing.T) {
 	}
 }
 
+// TestNewNicIpsOmittedWithoutPublicIP verifies newNic leaves Ips unset (nil) when no
+// public IP was reserved (DHCP fallback), and sets it to a single-element slice when one
+// was resolved by readNicNetworking.
+func TestNewNicIpsOmittedWithoutPublicIP(t *testing.T) {
+	ns := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: "tenant-1"})
+	store := NewInstanceStore(nil, testLogger())
+	domainInst := testInstance()
+
+	nic := store.newNic(domainInst, ns, "nic-1", "lan-1", "")
+	if nic.Spec.ForProvider.Ips != nil {
+		t.Fatalf("newNic Ips = %v, want nil (DHCP fallback)", nic.Spec.ForProvider.Ips)
+	}
+
+	nicWithIP := store.newNic(domainInst, ns, "nic-1", "lan-1", "203.0.113.10")
+	if len(nicWithIP.Spec.ForProvider.Ips) != 1 || nicWithIP.Spec.ForProvider.Ips[0] == nil || *nicWithIP.Spec.ForProvider.Ips[0] != "203.0.113.10" {
+		t.Fatalf("newNic Ips = %v, want [203.0.113.10]", nicWithIP.Spec.ForProvider.Ips)
+	}
+}
+
 // TestDeleteTearsDownNicVolumeThenServer verifies ordering: while the Nic
 // still has a pending finalizer (deletion in progress, mirroring a real
 // provider), Delete must return ErrStillProcessing and must NOT touch the

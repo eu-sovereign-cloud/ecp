@@ -80,8 +80,7 @@ func (a *InstanceStore) PowerOn(ctx context.Context, domain *instancedom.Instanc
 	}
 
 	// 2. SKU -> cores/RAM.
-	skuName := commonbackend.ParseReference(domain.Spec.SkuRef, "").Name
-	cores, ramMB, err := a.readSKU(ctx, ns, skuName)
+	cores, ramMB, err := a.readSKU(ctx, domain.Spec.SkuRef, domain.GetTenant())
 	if err != nil {
 		return err
 	}
@@ -92,8 +91,8 @@ func (a *InstanceStore) PowerOn(ctx context.Context, domain *instancedom.Instanc
 	}
 
 	// 4. Boot volume attached to the server (image + SSH keys + user-data).
-	bootVolName := commonbackend.ParseReference(domain.Spec.BootVolume.DeviceRef, "").Name
-	alias, sizeGB, err := a.readBootImageAlias(ctx, ns, bootVolName)
+	bootVolName := commonbackend.ParseReference(domain.Spec.BootVolume.DeviceRef, domain.GetTenant()).Name
+	alias, sizeGB, err := a.readBootImageAlias(ctx, domain.Spec.BootVolume.DeviceRef, domain.GetTenant())
 	if err != nil {
 		return err
 	}
@@ -105,8 +104,8 @@ func (a *InstanceStore) PowerOn(ctx context.Context, domain *instancedom.Instanc
 	if domain.Spec.PrimaryNicRef == nil {
 		return nil
 	}
-	nicName := commonbackend.ParseReference(*domain.Spec.PrimaryNicRef, "").Name
-	lanName, publicIP, err := a.readNicNetworking(ctx, ns, nicName)
+	nicName := commonbackend.ParseReference(*domain.Spec.PrimaryNicRef, domain.GetTenant()).Name
+	lanName, publicIP, err := a.readNicNetworking(ctx, *domain.Spec.PrimaryNicRef, domain.GetTenant())
 	if err != nil {
 		return err
 	}
@@ -175,7 +174,7 @@ func (a *InstanceStore) newBootVolume(domain *instancedom.Instance, ns, name, al
 }
 
 func (a *InstanceStore) newNic(domain *instancedom.Instance, ns, name, lanName, publicIP string) *ionosv1alpha1.Nic {
-	return &ionosv1alpha1.Nic{
+	nic := &ionosv1alpha1.Nic{
 		TypeMeta:   metav1.TypeMeta{APIVersion: ionosv1alpha1.CRDGroupVersion.String(), Kind: ionosv1alpha1.Nic_Kind},
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: ns},
 		Spec: ionosv1alpha1.NicSpec{
@@ -186,11 +185,16 @@ func (a *InstanceStore) newNic(domain *instancedom.Instance, ns, name, lanName, 
 				LanRef:          &v1.NamespacedReference{Name: lanName, Namespace: ns},
 				DHCP:            new(true),
 				FirewallActive:  new(false),
-				Ips:             []*string{new(publicIP)},
 			},
 			ManagedResourceSpec: providerConfig(),
 		},
 	}
+	// Only pin an explicit public IP when one was reserved. When empty, leave Ips
+	// unset so IONOS DHCP auto-assigns a public IPv4 on the public LAN.
+	if publicIP != "" {
+		nic.Spec.ForProvider.Ips = []*string{new(publicIP)}
+	}
+	return nic
 }
 
 func providerConfig() v2.ManagedResourceSpec {
