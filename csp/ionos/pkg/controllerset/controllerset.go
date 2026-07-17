@@ -13,12 +13,16 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	blockstoragectrl "github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/controller/block_storage"
+	instancectrl "github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/controller/instance"
 	networkctrl "github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/controller/network"
+	publicipctrl "github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/controller/public_ip"
 	workspacectrl "github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/controller/workspace"
 	"github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/service"
 	"github.com/eu-sovereign-cloud/ecp/csp/ionos/pkg/adapter/crossplane"
 	frameworkbuilder "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/builder"
+	instancek8s "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/instance/backend/kubernetes"
 	netk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network/backend/kubernetes"
+	publicipk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/public-ip/backend/kubernetes"
 	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage/backend/kubernetes"
 	wsk8s "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1/backend/kubernetes"
 )
@@ -31,6 +35,8 @@ func Add(cs *frameworkbuilder.ControllerSet, mgr ctrl.Manager, dynClient dynamic
 	wsAdapter := crossplane.NewWorkspaceStore(mgr.GetClient(), logger.With("adapter", "workspace"))
 	bsAdapter := crossplane.NewBlockStorageStore(mgr.GetClient(), logger.With("adapter", "block-storage"))
 	netAdapter := crossplane.NewNetworkStore(mgr.GetClient(), logger.With("adapter", "network"))
+	publicIPAdapter := crossplane.NewPublicIPStore(mgr.GetClient(), logger.With("adapter", "public-ip"))
+	instanceAdapter := crossplane.NewInstanceStore(mgr.GetClient(), logger.With("adapter", "instance"))
 
 	wsPlugin := &service.Workspace{
 		Creator: &workspacectrl.CreateWorkspace{Store: wsAdapter},
@@ -45,8 +51,20 @@ func Add(cs *frameworkbuilder.ControllerSet, mgr ctrl.Manager, dynClient dynamic
 		Creator: &networkctrl.CreateNetwork{Store: netAdapter},
 		Deleter: &networkctrl.DeleteNetwork{Store: netAdapter},
 	}
+	publicIPPlugin := &service.PublicIP{
+		Creator: &publicipctrl.CreatePublicIP{Store: publicIPAdapter},
+		Deleter: &publicipctrl.DeletePublicIP{Store: publicIPAdapter},
+	}
+	instancePlugin := &service.Instance{
+		Creator:    &instancectrl.CreateInstance{Store: instanceAdapter},
+		Deleter:    &instancectrl.DeleteInstance{Store: instanceAdapter},
+		PowerOner:  &instancectrl.PowerOnInstance{Store: instanceAdapter},
+		PowerOffer: &instancectrl.PowerOffInstance{Store: instanceAdapter},
+	}
 
 	cs.Add(bsk8s.NewController(mgr.GetClient(), dynClient, bsPlugin, opts...))
 	cs.Add(netk8s.NewController(mgr.GetClient(), dynClient, netPlugin, opts...))
 	cs.Add(wsk8s.NewController(mgr.GetClient(), dynClient, wsPlugin, opts...))
+	cs.Add(publicipk8s.NewController(mgr.GetClient(), dynClient, publicIPPlugin, opts...))
+	cs.Add(instancek8s.NewController(mgr.GetClient(), dynClient, instancePlugin, opts...))
 }

@@ -2,18 +2,19 @@ package crossplane
 
 import (
 	"context"
-	"crypto/rand"
 	"fmt"
 	"log/slog"
 
 	v1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	v2 "github.com/crossplane/crossplane-runtime/v2/apis/common/v2"
 	ionosv1alpha1 "github.com/ionos-cloud/provider-upjet-ionoscloud/apis/namespaced/compute/v1alpha1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/eu-sovereign-cloud/ecp/csp/ionos/pkg/port"
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage"
 )
@@ -30,6 +31,26 @@ func NewBlockStorageStore(c client.Client, logger *slog.Logger) *BlockStorageSto
 
 func (a *BlockStorageStore) Create(ctx context.Context, domain *bsdom.BlockStorage) error {
 	namespace := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: domain.GetTenant()})
+
+	// Image-backed volumes need SSH keys + user-data (only the Instance has them),
+	// so the Instance plugin creates them at PowerOn. Here we only observe.
+	if domain.Spec.SourceImageRef != nil {
+		vol := &ionosv1alpha1.Volume{
+			TypeMeta:   metav1.TypeMeta{Kind: ionosv1alpha1.Volume_Kind},
+			ObjectMeta: metav1.ObjectMeta{Name: domain.GetName(), Namespace: namespace},
+		}
+		if err := a.client.Get(ctx, client.ObjectKeyFromObject(vol), vol); err != nil {
+			if apierrors.IsNotFound(err) {
+				a.logger.Info("image-backed volume not provisioned yet, waiting for instance",
+					"namespace", namespace, "volume", domain.GetName())
+				return backend.ErrStillProcessing
+			}
+			return err
+		}
+		return a.checkExisting(ctx, vol)
+	}
+
+	// Data volume: create it independently (no image, no SSH keys).
 	datacenter := &ionosv1alpha1.Datacenter{
 		TypeMeta:   metav1.TypeMeta{Kind: ionosv1alpha1.Datacenter_Kind},
 		ObjectMeta: metav1.ObjectMeta{Name: domain.GetWorkspace(), Namespace: namespace},
@@ -81,8 +102,6 @@ func newVolume(domain *bsdom.BlockStorage) *ionosv1alpha1.Volume {
 				Size:             new(float64(domain.Spec.SizeGB)),
 				DiskType:         new("SSD"),
 				AvailabilityZone: new("AUTO"),
-				ImageName:        new("ubuntu:22.04"),
-				ImagePassword:    new(randomPassword()),
 			},
 			ManagedResourceSpec: v2.ManagedResourceSpec{
 				ProviderConfigReference: &v1.ProviderConfigReference{
@@ -92,15 +111,4 @@ func newVolume(domain *bsdom.BlockStorage) *ionosv1alpha1.Volume {
 			},
 		},
 	}
-}
-
-const passwordCharset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-
-func randomPassword() string {
-	b := make([]byte, 24)
-	_, _ = rand.Read(b)
-	for i := range b {
-		b[i] = passwordCharset[int(b[i])%len(passwordCharset)]
-	}
-	return string(b)
 }

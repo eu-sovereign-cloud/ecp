@@ -1,0 +1,167 @@
+package crossplane
+
+import (
+	"context"
+	"errors"
+	"testing"
+
+	v1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	ionosv1alpha1 "github.com/ionos-cloud/provider-upjet-ionoscloud/apis/namespaced/compute/v1alpha1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
+
+	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
+	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
+	instancedom "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/instance"
+	skuk8s "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/sku/backend/kubernetes"
+)
+
+func instanceScheme(t *testing.T) *runtime.Scheme {
+	t.Helper()
+	s := runtime.NewScheme()
+	if err := ionosv1alpha1.AddToScheme(s); err != nil {
+		t.Fatal(err)
+	}
+	if err := skuk8s.AddToScheme(s); err != nil {
+		t.Fatal(err)
+	}
+	return s
+}
+
+func readyDatacenter(ns string) *ionosv1alpha1.Datacenter {
+	dc := &ionosv1alpha1.Datacenter{
+		ObjectMeta: metav1.ObjectMeta{Name: "workspace-1", Namespace: ns, Generation: 1},
+	}
+	dc.SetConditions(v1.Available().WithObservedGeneration(1))
+	return dc
+}
+
+func testInstance() *instancedom.Instance {
+	i := &instancedom.Instance{}
+	i.Name = "instance-1"
+	i.Scope = resource.Scope{Tenant: "tenant-1", Workspace: "workspace-1"}
+	i.Spec.Zone = "a"
+	i.Spec.SkuRef = commondomain.Reference{Resource: "sku/DXS"}
+	i.Spec.SshKeys = []string{"ssh-ed25519 AAAA... example@secapi.cloud"}
+	i.Spec.BootVolume = instancedom.VolumeReference{DeviceRef: commondomain.Reference{Resource: "block-storage/block-storage-1"}}
+	i.Spec.PrimaryNicRef = &commondomain.Reference{Resource: "nic/nic-1"}
+	return i
+}
+
+// First PowerOn creates the Server (VMState=RUNNING) and waits.
+func TestPowerOnCreatesServerFirst(t *testing.T) {
+	ns := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: "tenant-1"})
+
+	sku := &skuk8s.InstanceSKU{
+		ObjectMeta: metav1.ObjectMeta{Name: "DXS", Namespace: ns},
+		Spec:       skuk8s.InstanceSkuSpec{VCPU: 2, Ram: 4},
+	}
+	c := fakeclient.NewClientBuilder().
+		WithScheme(instanceScheme(t)).
+		WithObjects(readyDatacenter(ns), sku).
+		Build()
+	store := NewInstanceStore(c, testLogger())
+
+	if err := store.PowerOn(context.Background(), testInstance()); !errors.Is(err, backend.ErrStillProcessing) {
+		t.Fatalf("PowerOn = %v, want ErrStillProcessing", err)
+	}
+
+	srv := &ionosv1alpha1.Server{}
+	if err := c.Get(context.Background(), client.ObjectKey{Namespace: ns, Name: "instance-1"}, srv); err != nil {
+		t.Fatalf("server not created: %v", err)
+	}
+	if srv.Spec.ForProvider.Type == nil || *srv.Spec.ForProvider.Type != "ENTERPRISE" {
+		t.Fatalf("server type = %v, want ENTERPRISE", srv.Spec.ForProvider.Type)
+	}
+	if srv.Spec.ForProvider.Cores == nil || *srv.Spec.ForProvider.Cores != 2 {
+		t.Fatalf("server cores = %v, want 2", srv.Spec.ForProvider.Cores)
+	}
+	if srv.Spec.ForProvider.RAM == nil || *srv.Spec.ForProvider.RAM != 4096 {
+		t.Fatalf("server ram = %v, want 4096", srv.Spec.ForProvider.RAM)
+	}
+	if srv.Spec.ForProvider.VMState == nil || *srv.Spec.ForProvider.VMState != "RUNNING" {
+		t.Fatalf("server vmState = %v, want RUNNING", srv.Spec.ForProvider.VMState)
+	}
+}
+
+func TestPowerOffSetsShutoff(t *testing.T) {
+	ns := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: "tenant-1"})
+
+	srv := &ionosv1alpha1.Server{
+		ObjectMeta: metav1.ObjectMeta{Name: "instance-1", Namespace: ns, Generation: 1},
+		Spec: ionosv1alpha1.ServerSpec{
+			ForProvider: ionosv1alpha1.ServerParameters{VMState: new("RUNNING")},
+		},
+	}
+	c := fakeclient.NewClientBuilder().WithScheme(instanceScheme(t)).WithObjects(srv).Build()
+	store := NewInstanceStore(c, testLogger())
+
+	_ = store.PowerOff(context.Background(), testInstance()) // returns ErrStillProcessing while applying
+
+	got := &ionosv1alpha1.Server{}
+	if err := c.Get(context.Background(), client.ObjectKey{Namespace: ns, Name: "instance-1"}, got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Spec.ForProvider.VMState == nil || *got.Spec.ForProvider.VMState != "SHUTOFF" {
+		t.Fatalf("vmState = %v, want SHUTOFF", got.Spec.ForProvider.VMState)
+	}
+}
+
+func TestDeleteRemovesServer(t *testing.T) {
+	ns := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: "tenant-1"})
+
+	srv := &ionosv1alpha1.Server{ObjectMeta: metav1.ObjectMeta{Name: "instance-1", Namespace: ns}}
+	c := fakeclient.NewClientBuilder().WithScheme(instanceScheme(t)).WithObjects(srv).Build()
+	store := NewInstanceStore(c, testLogger())
+
+	// Nic and Volume are already gone (not created); Delete should progress to the server.
+	_ = store.Delete(context.Background(), testInstance())
+
+	got := &ionosv1alpha1.Server{}
+	err := c.Get(context.Background(), client.ObjectKey{Namespace: ns, Name: "instance-1"}, got)
+	if err == nil && got.GetDeletionTimestamp().IsZero() {
+		t.Fatal("server was not deleted")
+	}
+}
+
+// TestDeleteTearsDownNicVolumeThenServer verifies ordering: while the Nic
+// still has a pending finalizer (deletion in progress, mirroring a real
+// provider), Delete must return ErrStillProcessing and must NOT touch the
+// boot Volume or Server yet.
+func TestDeleteTearsDownNicVolumeThenServer(t *testing.T) {
+	ns := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: "tenant-1"})
+
+	nic := &ionosv1alpha1.Nic{
+		ObjectMeta: metav1.ObjectMeta{Name: "nic-1", Namespace: ns, Finalizers: []string{"test.finalizer/keep"}},
+	}
+	vol := &ionosv1alpha1.Volume{ObjectMeta: metav1.ObjectMeta{Name: "block-storage-1", Namespace: ns}}
+	srv := &ionosv1alpha1.Server{ObjectMeta: metav1.ObjectMeta{Name: "instance-1", Namespace: ns}}
+	c := fakeclient.NewClientBuilder().WithScheme(instanceScheme(t)).WithObjects(nic, vol, srv).Build()
+	store := NewInstanceStore(c, testLogger())
+
+	if err := store.Delete(context.Background(), testInstance()); !errors.Is(err, backend.ErrStillProcessing) {
+		t.Fatalf("Delete = %v, want ErrStillProcessing (nic deletion in progress)", err)
+	}
+
+	gotNic := &ionosv1alpha1.Nic{}
+	if err := c.Get(context.Background(), client.ObjectKey{Namespace: ns, Name: "nic-1"}, gotNic); err != nil {
+		t.Fatalf("nic should still be present (pending finalizer): %v", err)
+	}
+	if gotNic.GetDeletionTimestamp().IsZero() {
+		t.Fatal("nic deletion was not requested")
+	}
+
+	// Volume and Server must be untouched since Nic teardown returned early.
+	gotVol := &ionosv1alpha1.Volume{}
+	if err := c.Get(context.Background(), client.ObjectKey{Namespace: ns, Name: "block-storage-1"}, gotVol); err != nil {
+		t.Fatalf("volume should still exist while nic teardown pending: %v", err)
+	}
+	gotSrv := &ionosv1alpha1.Server{}
+	if err := c.Get(context.Background(), client.ObjectKey{Namespace: ns, Name: "instance-1"}, gotSrv); err != nil {
+		t.Fatalf("server should still exist while nic teardown pending: %v", err)
+	}
+}
