@@ -14,9 +14,12 @@ COPY ci/tools/go/ ci/tools/go/
 COPY framework/go.mod framework/go.mod
 COPY framework/go.sum framework/go.sum
 COPY resource/go.mod resource/go.mod
+COPY csp/aruba/go.mod csp/aruba/go.mod
+COPY csp/dummy/go.mod csp/dummy/go.mod
 COPY csp/ionos/go.mod csp/ionos/go.mod
 COPY csp/ionos/go.sum csp/ionos/go.sum
-COPY modules/go-sdk/ modules/go-sdk/
+COPY test/go.mod test/go.mod
+COPY gateway/go.mod gateway/go.mod
 
 WORKDIR /app/csp/ionos
 RUN go mod download
@@ -26,7 +29,6 @@ WORKDIR /app
 COPY framework/ framework/
 COPY resource/ resource/
 COPY csp/ionos/ csp/ionos/
-COPY modules/go-sdk/ modules/go-sdk/
 
 WORKDIR /app/csp/ionos
 ARG BUILD_SKIP_TESTS=""
