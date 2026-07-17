@@ -1,0 +1,19 @@
+{{- if .Values.gatewayGlobal.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "ecp.gatewayGlobal.fullname" . }}
+  labels:
+    {{- include "ecp.labels" . | nindent 4 }}
+    app.kubernetes.io/component: gateway-global
+spec:
+  type: {{ .Values.gatewayGlobal.service.type }}
+  ports:
+    - name: http
+      port: {{ .Values.gatewayGlobal.service.port }}
+      targetPort: http
+      protocol: TCP
+  selector:
+    {{- include "ecp.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: gateway-global
+{{- end }}
