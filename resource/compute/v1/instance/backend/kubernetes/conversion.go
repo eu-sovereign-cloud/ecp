@@ -20,6 +20,18 @@ import (
 	instancedom "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/instance"
 )
 
+const (
+	// desiredPowerStateAnnotation carries the power state requested via start/stop.
+	// It lives on the CR's metadata.annotations (not the user-facing commonData.annotations)
+	// and is never exposed through the API.
+	desiredPowerStateAnnotation = k8slabels.InternalLabelPrefix + "desired-power-state"
+	// restartIDAnnotation identifies an in-flight restart. It is cleared by the delegator
+	// once the restart cycle completes.
+	restartIDAnnotation = k8slabels.InternalLabelPrefix + "restart-id"
+	// restartPhaseAnnotation carries the durable restart phase (power-off|power-on).
+	restartPhaseAnnotation = k8slabels.InternalLabelPrefix + "restart-phase"
+)
+
 // volumeReferenceFromCR converts a schemav1.VolumeReference into an instancedom.VolumeReference.
 func volumeReferenceFromCR(ref schemav1.VolumeReference) instancedom.VolumeReference {
 	return instancedom.VolumeReference{
@@ -95,6 +107,11 @@ func InstanceFromCR(obj client.Object) (*instancedom.Instance, error) {
 		inst.DeletedAt = &ts.Time
 	}
 
+	crAnnotations := cr.GetAnnotations()
+	inst.DesiredPowerState = instancedom.PowerState(crAnnotations[desiredPowerStateAnnotation])
+	inst.RestartID = crAnnotations[restartIDAnnotation]
+	inst.RestartPhase = instancedom.RestartPhase(crAnnotations[restartPhaseAnnotation])
+
 	inst.Status = &instancedom.InstanceStatus{}
 	if cr.Status != nil {
 		inst.Status.State = commonbackend.ResourceStateFromCR(cr.Status.State)
@@ -150,11 +167,26 @@ func InstanceToCR(inst *instancedom.Instance) (client.Object, error) {
 		spec.SecurityGroupRef = &ref
 	}
 
+	var crAnnotations map[string]string
+	setAnnotation := func(key, value string) {
+		if value == "" {
+			return
+		}
+		if crAnnotations == nil {
+			crAnnotations = make(map[string]string)
+		}
+		crAnnotations[key] = value
+	}
+	setAnnotation(desiredPowerStateAnnotation, string(inst.DesiredPowerState))
+	setAnnotation(restartIDAnnotation, inst.RestartID)
+	setAnnotation(restartPhaseAnnotation, string(inst.RestartPhase))
+
 	cr := &Instance{
 		ObjectMeta: v1.ObjectMeta{
 			Name:            inst.Name,
 			Namespace:       k8sadapter.ComputeNamespace(inst),
 			Labels:          crLabels,
+			Annotations:     crAnnotations,
 			ResourceVersion: inst.ResourceVersion,
 		},
 		CommonData: schemav1.CommonData{

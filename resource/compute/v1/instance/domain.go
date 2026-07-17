@@ -25,11 +25,36 @@ const (
 	PowerStateOff PowerState = "off"
 )
 
+// RestartPhase is a durable, monotonically-advancing phase of a restart cycle. A restart
+// progresses power-off -> power-on -> (cleared). The phase is persisted on the CR so the
+// delegator can resume mid-cycle after a crash, rather than inferring progress from the
+// current power state.
+type RestartPhase string
+
+// Restart phases.
+const (
+	RestartPhasePowerOff RestartPhase = "power-off"
+	RestartPhasePowerOn  RestartPhase = "power-on"
+)
+
 // Instance represents the domain model for a compute instance.
 type Instance struct {
 	domain.RegionalMetadata
 	Spec   InstanceSpec
 	Status *InstanceStatus
+
+	// DesiredPowerState is the power state requested via start/stop. It is internal
+	// control state carried on the CR (not exposed through the API) and is consumed
+	// by the delegator to drive Status.PowerState. Empty means no explicit request.
+	DesiredPowerState PowerState
+	// RestartID identifies an in-flight restart. The gateway sets a fresh value per
+	// restart request; the delegator clears it (together with RestartPhase) once the
+	// cycle completes. It also lets the delegator detect a superseding restart so it
+	// does not clobber a newer request during cleanup. Internal, not exposed via the API.
+	RestartID string
+	// RestartPhase is the durable phase of the in-flight restart (empty when none).
+	// Internal control state carried on the CR, not exposed through the API.
+	RestartPhase RestartPhase
 }
 
 // VolumeReference represents a connection between a block storage and a user of the block storage.

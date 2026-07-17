@@ -128,7 +128,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		log.Fatal(err, " - failed to create kubeclient")
 	}
 
-	// Create a shared mux for all regional handlers.
+	// Create a shared mux for all regional handlers
 	mux := http.NewServeMux()
 
 	// Compute adapters
@@ -175,7 +175,6 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		log.Fatal(err, " - failed to start authz cache")
 	}
 
-	// Compute (stub — not yet implemented)
 	sdkcomputeapi.HandlerWithOptions(
 		&computerest.Handler{
 			InstanceReader: instanceReaderAdapter,
@@ -183,9 +182,10 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 			Logger:         logger,
 		},
 		sdkcomputeapi.StdHTTPServerOptions{
-			BaseURL:          "/providers/seca.compute",
-			BaseRouter:       mux,
-			Middlewares:      auth.ProviderMWs[sdkcomputeapi.MiddlewareFunc](&regionalAuthFlags, authenticator, checker, "seca.compute", "/providers/seca.compute", logger),
+			BaseURL:    "/providers/seca.compute",
+			BaseRouter: mux,
+			Middlewares: auth.ProviderMWs[sdkcomputeapi.MiddlewareFunc](&regionalAuthFlags, authenticator, checker, "seca.compute",
+				"/providers/seca.compute", logger),
 			ErrorHandlerFunc: nil,
 		},
 	)
@@ -347,9 +347,10 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 			Logger:             logger,
 		},
 		sdkstorageapi.StdHTTPServerOptions{
-			BaseURL:          "/providers/seca.storage",
-			BaseRouter:       mux,
-			Middlewares:      auth.ProviderMWs[sdkstorageapi.MiddlewareFunc](&regionalAuthFlags, authenticator, checker, "seca.storage", "/providers/seca.storage", logger),
+			BaseURL:    "/providers/seca.storage",
+			BaseRouter: mux,
+			Middlewares: auth.ProviderMWs[sdkstorageapi.MiddlewareFunc](&regionalAuthFlags, authenticator, checker, "seca.storage",
+				"/providers/seca.storage", logger),
 			ErrorHandlerFunc: nil,
 		},
 	)
@@ -378,9 +379,10 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 			Logger: logger,
 		},
 		sdkworkspaceapi.StdHTTPServerOptions{
-			BaseURL:          "/providers/seca.workspace",
-			BaseRouter:       mux,
-			Middlewares:      auth.ProviderMWs[sdkworkspaceapi.MiddlewareFunc](&regionalAuthFlags, authenticator, checker, "seca.workspace", "/providers/seca.workspace", logger),
+			BaseURL:    "/providers/seca.workspace",
+			BaseRouter: mux,
+			Middlewares: auth.ProviderMWs[sdkworkspaceapi.MiddlewareFunc](&regionalAuthFlags, authenticator, checker, "seca.workspace",
+				"/providers/seca.workspace", logger),
 			ErrorHandlerFunc: nil,
 		},
 	)

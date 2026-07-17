@@ -68,3 +68,31 @@ func (mr *MockInstancePluginMockRecorder) Delete(ctx, resource any) *gomock.Call
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockInstancePlugin)(nil).Delete), ctx, resource)
 }
+
+// PowerOff mocks base method.
+func (m *MockInstancePlugin) PowerOff(ctx context.Context, resource *instance.Instance) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PowerOff", ctx, resource)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// PowerOff indicates an expected call of PowerOff.
+func (mr *MockInstancePluginMockRecorder) PowerOff(ctx, resource any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PowerOff", reflect.TypeOf((*MockInstancePlugin)(nil).PowerOff), ctx, resource)
+}
+
+// PowerOn mocks base method.
+func (m *MockInstancePlugin) PowerOn(ctx context.Context, resource *instance.Instance) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PowerOn", ctx, resource)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// PowerOn indicates an expected call of PowerOn.
+func (mr *MockInstancePluginMockRecorder) PowerOn(ctx, resource any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PowerOn", reflect.TypeOf((*MockInstancePlugin)(nil).PowerOn), ctx, resource)
+}

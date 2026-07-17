@@ -89,4 +89,86 @@ func TestInstance(t *testing.T) {
 		})
 		require.NoError(t, err, "instance resource should be deleted")
 	})
+
+	t.Run("should power an instance on, off, and restart", func(t *testing.T) {
+		t.Parallel()
+
+		resourceName := "test-instance-power-" + uuid.New().String()[:8]
+		instanceDomain := newTestInstance(resourceName)
+
+		_, err := instanceRepo.Create(t.Context(), instanceDomain)
+		require.NoError(t, err)
+		waitForInstancePowerState(t, resourceName, instancedom.PowerStateOff) // starts powered off
+		waitForInstanceState(t, resourceName, commondomain.ResourceStateActive)
+
+		// Start.
+		setInstancePowerIntent(t, resourceName, func(inst *instancedom.Instance) {
+			inst.DesiredPowerState = instancedom.PowerStateOn
+		})
+		waitForInstancePowerState(t, resourceName, instancedom.PowerStateOn)
+
+		// Stop.
+		setInstancePowerIntent(t, resourceName, func(inst *instancedom.Instance) {
+			inst.DesiredPowerState = instancedom.PowerStateOff
+		})
+		waitForInstancePowerState(t, resourceName, instancedom.PowerStateOff)
+
+		// Start again so we can restart.
+		setInstancePowerIntent(t, resourceName, func(inst *instancedom.Instance) {
+			inst.DesiredPowerState = instancedom.PowerStateOn
+		})
+		waitForInstancePowerState(t, resourceName, instancedom.PowerStateOn)
+
+		// Restart: the phased power-off -> power-on cycle ends powered on and clears the
+		// restart annotations.
+		setInstancePowerIntent(t, resourceName, func(inst *instancedom.Instance) {
+			inst.RestartID = "restart-1"
+			inst.RestartPhase = instancedom.RestartPhasePowerOff
+		})
+		waitForInstancePowerState(t, resourceName, instancedom.PowerStateOn)
+
+		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
+			loaded := newTestInstance(resourceName)
+			if err := instanceRepo.Load(ctx, &loaded); err != nil {
+				return false, err
+			}
+			return loaded.RestartID == "" && loaded.RestartPhase == "", nil
+		})
+		require.NoError(t, err, "restart annotations should be cleared after the cycle completes")
+	})
+}
+
+// setInstancePowerIntent loads the instance, applies mutate (setting a power intent field),
+// and persists it via Update.
+func setInstancePowerIntent(t *testing.T, name string, mutate func(*instancedom.Instance)) {
+	t.Helper()
+	loaded := newTestInstance(name)
+	require.NoError(t, instanceRepo.Load(t.Context(), &loaded))
+	mutate(loaded)
+	_, err := instanceRepo.Update(t.Context(), loaded)
+	require.NoError(t, err)
+}
+
+func waitForInstancePowerState(t *testing.T, name string, want instancedom.PowerState) {
+	t.Helper()
+	err := wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
+		loaded := newTestInstance(name)
+		if err := instanceRepo.Load(ctx, &loaded); err != nil {
+			return false, err
+		}
+		return loaded.Status != nil && loaded.Status.PowerState == want, nil
+	})
+	require.NoErrorf(t, err, "instance should reach power state %q", want)
+}
+
+func waitForInstanceState(t *testing.T, name string, want commondomain.ResourceState) {
+	t.Helper()
+	err := wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
+		loaded := newTestInstance(name)
+		if err := instanceRepo.Load(ctx, &loaded); err != nil {
+			return false, err
+		}
+		return loaded.Status != nil && loaded.Status.State == want, nil
+	})
+	require.NoErrorf(t, err, "instance should reach state %q", want)
 }

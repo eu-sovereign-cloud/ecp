@@ -10,6 +10,13 @@ import (
 	. "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/instance/backend/kubernetes"
 )
 
+const (
+	testInstanceName = "inst1"
+	testBootDevice   = "block-storage/boot"
+	testSku          = "sku/small"
+	testZone         = "zone-a"
+)
+
 func TestInstanceConversionRoundTrip(t *testing.T) {
 	primaryNic := commondomain.Reference{Resource: "nic/nic1"}
 	securityGroup := commondomain.Reference{Resource: "security-group/sg1"}
@@ -17,7 +24,7 @@ func TestInstanceConversionRoundTrip(t *testing.T) {
 		Spec: instancedom.InstanceSpec{
 			AntiAffinityGroup: "aag1",
 			BootVolume: instancedom.VolumeReference{
-				DeviceRef: commondomain.Reference{Resource: "block-storage/boot"},
+				DeviceRef: commondomain.Reference{Resource: testBootDevice},
 				Type:      "virtio",
 			},
 			DataVolumes: []instancedom.VolumeReference{
@@ -26,13 +33,13 @@ func TestInstanceConversionRoundTrip(t *testing.T) {
 			AdditionalNicRefs: []commondomain.Reference{{Resource: "nic/nic2"}},
 			PrimaryNicRef:     &primaryNic,
 			SecurityGroupRef:  &securityGroup,
-			SkuRef:            commondomain.Reference{Resource: "sku/small"},
+			SkuRef:            commondomain.Reference{Resource: testSku},
 			SshKeys:           []string{"key-ref-1"},
 			UserData:          "#cloud-config",
-			Zone:              "zone-a",
+			Zone:              testZone,
 		},
 	}
-	in.Name = "inst1"
+	in.Name = testInstanceName
 	in.Tenant = "t1"
 	in.Workspace = "w1"
 	in.Provider = instancedom.ProviderID
@@ -73,13 +80,13 @@ func TestInstanceToCR_OptionalFieldsUnset(t *testing.T) {
 	in := &instancedom.Instance{
 		Spec: instancedom.InstanceSpec{
 			BootVolume: instancedom.VolumeReference{
-				DeviceRef: commondomain.Reference{Resource: "block-storage/boot"},
+				DeviceRef: commondomain.Reference{Resource: testBootDevice},
 			},
-			SkuRef: commondomain.Reference{Resource: "sku/small"},
-			Zone:   "zone-a",
+			SkuRef: commondomain.Reference{Resource: testSku},
+			Zone:   testZone,
 		},
 	}
-	in.Name = "inst1"
+	in.Name = testInstanceName
 
 	cr, err := InstanceToCR(in)
 	require.NoError(t, err)
@@ -97,15 +104,58 @@ func TestInstanceToCR_Nil(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestInstancePowerIntentRoundTrip(t *testing.T) {
+	in := &instancedom.Instance{
+		Spec: instancedom.InstanceSpec{
+			BootVolume: instancedom.VolumeReference{DeviceRef: commondomain.Reference{Resource: testBootDevice}},
+			SkuRef:     commondomain.Reference{Resource: testSku},
+			Zone:       testZone,
+		},
+		DesiredPowerState: instancedom.PowerStateOn,
+		RestartID:         "abc123",
+		RestartPhase:      instancedom.RestartPhasePowerOff,
+	}
+	in.Name = testInstanceName
+
+	cr, err := InstanceToCR(in)
+	require.NoError(t, err)
+
+	out, err := InstanceFromCR(cr)
+	require.NoError(t, err)
+	require.Equal(t, instancedom.PowerStateOn, out.DesiredPowerState)
+	require.Equal(t, "abc123", out.RestartID)
+	require.Equal(t, instancedom.RestartPhasePowerOff, out.RestartPhase)
+}
+
+func TestInstanceToCR_NoPowerIntentByDefault(t *testing.T) {
+	in := &instancedom.Instance{
+		Spec: instancedom.InstanceSpec{
+			BootVolume: instancedom.VolumeReference{DeviceRef: commondomain.Reference{Resource: testBootDevice}},
+			SkuRef:     commondomain.Reference{Resource: testSku},
+			Zone:       testZone,
+		},
+	}
+	in.Name = testInstanceName
+
+	cr, err := InstanceToCR(in)
+	require.NoError(t, err)
+
+	out, err := InstanceFromCR(cr)
+	require.NoError(t, err)
+	require.Empty(t, out.DesiredPowerState)
+	require.Empty(t, out.RestartID)
+	require.Empty(t, out.RestartPhase)
+}
+
 func TestInstanceToCR_PowerStateDefaultsOff(t *testing.T) {
 	in := &instancedom.Instance{
 		Spec: instancedom.InstanceSpec{
-			BootVolume: instancedom.VolumeReference{DeviceRef: commondomain.Reference{Resource: "block-storage/boot"}},
-			SkuRef:     commondomain.Reference{Resource: "sku/small"},
-			Zone:       "zone-a",
+			BootVolume: instancedom.VolumeReference{DeviceRef: commondomain.Reference{Resource: testBootDevice}},
+			SkuRef:     commondomain.Reference{Resource: testSku},
+			Zone:       testZone,
 		},
 	}
-	in.Name = "inst1"
+	in.Name = testInstanceName
 	// Status with a condition but no explicit power state.
 	in.Status = &instancedom.InstanceStatus{Status: commondomain.Status{State: commondomain.ResourceStateActive}}
 	in.Status.PushCondition(commondomain.StatusCondition{State: commondomain.ResourceStateActive})
