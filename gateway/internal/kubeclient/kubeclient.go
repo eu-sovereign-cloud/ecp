@@ -12,6 +12,14 @@ import (
 	"k8s.io/client-go/util/homedir"
 )
 
+// Default client-go rate limits for the gateway HTTP path. client-go defaults
+// (QPS=5, Burst=10) throttle multi-tenant parallel traffic into latency cliffs.
+const (
+	DefaultQPS       = 100
+	DefaultBurst     = 200
+	DefaultUserAgent = "ecp-gateway"
+)
+
 type KubeClient struct {
 	Client    dynamic.Interface
 	ClientSet kubernetes.Interface
@@ -28,10 +36,14 @@ func New() (*KubeClient, error) {
 }
 
 // NewFromConfig creates a KubeClient using the provided rest.Config.
+// When QPS, Burst, or UserAgent are unset (zero/empty), gateway production
+// defaults are applied. Explicit non-zero caller values are preserved.
 func NewFromConfig(cfg *rest.Config) (*KubeClient, error) {
 	if cfg == nil {
 		return nil, fmt.Errorf("rest.Config cannot be nil")
 	}
+	applyClientDefaults(cfg)
+
 	c := &KubeClient{}
 	client, err := dynamic.NewForConfig(cfg)
 	if err != nil {
@@ -44,6 +56,20 @@ func NewFromConfig(cfg *rest.Config) (*KubeClient, error) {
 	c.Client = client
 	c.ClientSet = cs
 	return c, nil
+}
+
+// applyClientDefaults sets gateway QPS/Burst/UserAgent when the caller left
+// them at the rest.Config zero value (client-go would otherwise use 5/10).
+func applyClientDefaults(cfg *rest.Config) {
+	if cfg.QPS == 0 {
+		cfg.QPS = DefaultQPS
+	}
+	if cfg.Burst == 0 {
+		cfg.Burst = DefaultBurst
+	}
+	if cfg.UserAgent == "" {
+		cfg.UserAgent = DefaultUserAgent
+	}
 }
 
 // CheckAPIServer probes apiserver reachability for readiness (discovery /version).
