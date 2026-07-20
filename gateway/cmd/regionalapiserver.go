@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	"github.com/spf13/cobra"
@@ -112,6 +113,13 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 
 	if region == "" {
 		region = os.Getenv("REGION")
+	}
+	region = strings.TrimSpace(region)
+	// Fail fast: empty region freezes into the config singleton and mis-scopes
+	// every regional request (authz region, resource placement) for the process life.
+	if region == "" {
+		logger.Error("region is required: set --region or the REGION environment variable")
+		log.Fatal("region is required: set --region or the REGION environment variable")
 	}
 	config.Singleton().SetRegion(region)
 
