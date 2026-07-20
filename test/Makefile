@@ -19,6 +19,18 @@ endif
 VERSION ?= latest
 REGISTRY_URL ?= "default-registry"
 
+# --- e2e / deploy customization --------------------------------------------------
+# Override to target a custom deployment. Threaded (via export below) to deploy.sh
+# and the e2e suite, so pass the SAME values to *-deploy and e2e:
+#   make e2e-deploy SYSTEM_NAMESPACE=my-ecp E2E_TENANT=my-tenant
+#   make e2e        SYSTEM_NAMESPACE=my-ecp E2E_TENANT=my-tenant
+# CLUSTER: export KUBECONFIG (or drop internal/context/kubeconfig.yaml) to pick it.
+#   SYSTEM_NAMESPACE — namespace the components (gateways + delegator) deploy into.
+#   E2E_TENANT       — fixture tenant; its data lands in hex(sha3-224(tenant)).
+SYSTEM_NAMESPACE ?= e2e-ecp
+E2E_TENANT       ?= test-tenant
+export SYSTEM_NAMESPACE E2E_TENANT
+
 # Discover components automatically from the build directory
 COMPONENTS := $(notdir $(wildcard $(CURDIR)/internal/build/*))
 

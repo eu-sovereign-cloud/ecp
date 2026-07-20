@@ -74,8 +74,7 @@ setup_kube_vars() {
         return
     fi
 
-    # 3. Handle default case
-    unset KUBECONFIG
+    # 3. Default: honour an exported KUBECONFIG (custom cluster) or ~/.kube/config.
     KUBECONFIG_ARG=""
     local current_context
     current_context=$(kubectl config current-context)
