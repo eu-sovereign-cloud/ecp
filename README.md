@@ -87,7 +87,7 @@ make -C csp/dummy kind-start
 
 # Run the API servers (in separate terminals)
 go run ./gateway globalapiserver
-go run ./gateway regionalapiserver
+go run ./gateway regionalapiserver --region local -p 8081
 
 # Run all tests
 make test
