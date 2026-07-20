@@ -45,8 +45,8 @@ func (h *Handler) CreateOrUpdateRole(w http.ResponseWriter, r *http.Request, ten
 	}
 	frest.HandleUpsert(w, r, logger, frest.UpsertOptions[sdkschema.Role, *roledom.Role, *sdkschema.Role]{
 		Params:  id,
-		Creator: frest.CreatorFromRepo(h.RoleWriter),
-		Updater: frest.UpdaterFromRepo(h.RoleWriter),
+		Creator: activeCreator(h.RoleWriter, markRoleActive),
+		Updater: activeUpdater(h.RoleWriter, markRoleActive),
 		APIToDomain: func(sdk sdkschema.Role, p persistencepkg.IdentifiableResource) *roledom.Role {
 			return roleFromAPI(sdk, p.(*resource.Identity))
 		},
