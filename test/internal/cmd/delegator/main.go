@@ -20,8 +20,6 @@ import (
 
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	frameworkbuilder "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/builder"
-	rak8s "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment/backend/kubernetes"
-	rolek8s "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role/backend/kubernetes"
 	netk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network/backend/kubernetes"
 	nick8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic/backend/kubernetes"
 	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage/backend/kubernetes"
@@ -46,8 +44,6 @@ func init() {
 	utilruntime.Must(nick8s.AddToScheme(scheme))
 	utilruntime.Must(wsk8s.AddToScheme(scheme))
 	utilruntime.Must(ssk8s.AddToScheme(scheme))
-	utilruntime.Must(rolek8s.AddToScheme(scheme))
-	utilruntime.Must(rak8s.AddToScheme(scheme))
 	utilruntime.Must(v1alpha1.AddToScheme(scheme))
 	utilruntime.Must(ionosapis.AddToScheme(scheme))
 }
@@ -171,14 +167,10 @@ func loadDummyControllers(logger *slog.Logger, dynClient dynamic.Interface, mgr 
 	wsPlugin := dummyplugin.NewWorkspace(logger.With("plugin", "workspace"))
 	netPlugin := dummyplugin.NewNetwork(logger.With("plugin", "network"))
 	nicPlugin := dummyplugin.NewNic(logger.With("plugin", "nic"))
-	rolePlugin := dummyplugin.NewRole(logger.With("plugin", "role"))
-	raPlugin := dummyplugin.NewRoleAssignment(logger.With("plugin", "roleassignment"))
 
 	controllerSet.Add(bsk8s.NewController(mgr.GetClient(), dynClient, bsPlugin, controllerOpts...))
 	controllerSet.Add(imgk8s.NewController(mgr.GetClient(), dynClient, imgPlugin, controllerOpts...))
 	controllerSet.Add(wsk8s.NewController(mgr.GetClient(), dynClient, wsPlugin, controllerOpts...))
 	controllerSet.Add(netk8s.NewController(mgr.GetClient(), dynClient, netPlugin, controllerOpts...))
 	controllerSet.Add(nick8s.NewController(mgr.GetClient(), dynClient, nicPlugin, controllerOpts...))
-	controllerSet.Add(rolek8s.NewController(mgr.GetClient(), dynClient, rolePlugin, controllerOpts...))
-	controllerSet.Add(rak8s.NewController(mgr.GetClient(), dynClient, raPlugin, controllerOpts...))
 }
