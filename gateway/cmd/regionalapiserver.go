@@ -2,12 +2,13 @@ package cmd
 
 import (
 	"context"
-	"errors"
 	"log"
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"syscall"
 
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/rest"
@@ -106,6 +107,9 @@ func init() {
 
 // startRegional starts the backend HTTP server on the given address.
 func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
 	if region == "" {
 		region = os.Getenv("REGION")
 	}
@@ -182,7 +186,8 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 	}
 
 	// Start the informer-backed checker when --authz-cache is enabled.
-	if err := auth.StartChecker(context.Background(), checker, logger); err != nil {
+	// Same ctx as Serve so SIGTERM cancels informers during drain.
+	if err := auth.StartChecker(ctx, checker, logger); err != nil {
 		logger.Error("failed to start authz cache", slog.Any("error", err))
 		log.Fatal(err, " - failed to start authz cache")
 	}
@@ -437,8 +442,10 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 			Logger:  logger,
 		},
 	)
-	if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		logger.Error("failed to start regional API server", "error", err)
-		log.Fatal(err, " - failed to start regional API server")
+	logger.Info("Regional API server started successfully")
+	if err := httpserver.Serve(ctx, httpServer, logger); err != nil {
+		logger.Error("regional API server stopped with error", "error", err)
+		log.Fatal(err, " - regional API server stopped with error")
 	}
+	logger.Info("Regional API server shut down gracefully")
 }

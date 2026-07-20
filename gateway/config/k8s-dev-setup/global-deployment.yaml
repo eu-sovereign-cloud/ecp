@@ -15,6 +15,8 @@ spec:
       labels:
         app: global-api
     spec:
+      # Allow 30s for SIGTERM → httpserver.Serve drain (25s) + process exit.
+      terminationGracePeriodSeconds: 30
       containers:
         - name: global-server
           image: registry.secapi.cloud/global-server:latest

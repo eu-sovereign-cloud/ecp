@@ -1,10 +1,19 @@
 package httpserver
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"time"
 )
+
+// DefaultShutdownTimeout is the drain budget for graceful Shutdown after the
+// serve context is cancelled (SIGINT/SIGTERM). Keep below Kubernetes
+// terminationGracePeriodSeconds (deployments use 30s).
+const DefaultShutdownTimeout = 25 * time.Second
 
 // Options defines the configuration for a new HTTP server.
 type Options struct {
@@ -49,5 +58,53 @@ func New(opts Options) *http.Server {
 		ReadHeaderTimeout: opts.HeaderTimeout,
 		MaxHeaderBytes:    opts.MaxHeaderBytes,
 		ErrorLog:          httpLogger,
+	}
+}
+
+// Serve binds srv.Addr, serves until ctx is cancelled or Serve fails, then
+// drains in-flight requests via Shutdown with DefaultShutdownTimeout.
+//
+// The listener is opened before the serve loop so Shutdown cannot race a still-
+// unbound ListenAndServe (which would leave the process serving after "shutdown").
+func Serve(ctx context.Context, srv *http.Server, log *slog.Logger) error {
+	if srv == nil {
+		return fmt.Errorf("http server is nil")
+	}
+	if log == nil {
+		log = slog.Default()
+	}
+
+	ln, err := net.Listen("tcp", srv.Addr)
+	if err != nil {
+		return fmt.Errorf("listen %s: %w", srv.Addr, err)
+	}
+
+	errCh := make(chan error, 1)
+	go func() {
+		// Serve always closes ln; Shutdown makes it return ErrServerClosed.
+		errCh <- srv.Serve(ln)
+	}()
+
+	select {
+	case err := <-errCh:
+		if errors.Is(err, http.ErrServerClosed) {
+			return nil
+		}
+		return err
+	case <-ctx.Done():
+		log.Info("shutting down HTTP server", slog.Duration("timeout", DefaultShutdownTimeout))
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), DefaultShutdownTimeout)
+		defer cancel()
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			// Force-close if drain budget is exhausted so Serve returns.
+			_ = srv.Close()
+			<-errCh
+			return fmt.Errorf("HTTP server shutdown: %w", err)
+		}
+		err := <-errCh
+		if errors.Is(err, http.ErrServerClosed) {
+			return nil
+		}
+		return err
 	}
 }

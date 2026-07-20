@@ -12,6 +12,8 @@ spec:
       labels:
         app: regional-server
     spec:
+      # Allow 30s for SIGTERM → httpserver.Serve drain (25s) + process exit.
+      terminationGracePeriodSeconds: 30
       containers:
         - name: server
           image: registry.secapi.cloud/regional-server:latest

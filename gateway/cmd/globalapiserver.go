@@ -2,12 +2,13 @@ package cmd
 
 import (
 	"context"
-	"errors"
 	"log"
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"syscall"
 
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/rest"
@@ -63,6 +64,9 @@ func init() {
 
 // startGlobal starts the backend HTTP server on the given address.
 func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
 	logger.Info("Starting global API server on", slog.Any("addr", addr))
 
 	config, err := rest.InClusterConfig()
@@ -123,7 +127,8 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
 	}
 
 	// Start the informer-backed checker when --authz-cache is enabled.
-	if err := auth.StartChecker(context.Background(), checker, logger); err != nil {
+	// Same ctx as Serve so SIGTERM cancels informers during drain.
+	if err := auth.StartChecker(ctx, checker, logger); err != nil {
 		logger.Error("failed to start authz cache", slog.Any("error", err))
 		log.Fatal(err, " - failed to start authz cache")
 	}
@@ -166,8 +171,9 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
 	})
 
 	logger.Info("Global API server started successfully")
-	if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		logger.Error("failed to start global API server", slog.Any("error", err))
-		log.Fatal(err, " - failed to start global API server")
+	if err := httpserver.Serve(ctx, httpServer, logger); err != nil {
+		logger.Error("global API server stopped with error", slog.Any("error", err))
+		log.Fatal(err, " - global API server stopped with error")
 	}
+	logger.Info("Global API server shut down gracefully")
 }
