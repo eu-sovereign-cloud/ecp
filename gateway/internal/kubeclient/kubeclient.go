@@ -1,6 +1,7 @@
 package kubeclient
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 
@@ -43,4 +44,12 @@ func NewFromConfig(cfg *rest.Config) (*KubeClient, error) {
 	c.Client = client
 	c.ClientSet = cs
 	return c, nil
+}
+
+// CheckAPIServer probes apiserver reachability for readiness (discovery /version).
+func (c *KubeClient) CheckAPIServer(ctx context.Context) error {
+	if c == nil || c.ClientSet == nil {
+		return fmt.Errorf("kubernetes client is not configured")
+	}
+	return c.ClientSet.Discovery().RESTClient().Get().AbsPath("/version").Do(ctx).Error()
 }

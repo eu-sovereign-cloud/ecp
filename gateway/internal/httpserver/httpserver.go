@@ -66,7 +66,11 @@ func New(opts Options) *http.Server {
 //
 // The listener is opened before the serve loop so Shutdown cannot race a still-
 // unbound ListenAndServe (which would leave the process serving after "shutdown").
-func Serve(ctx context.Context, srv *http.Server, log *slog.Logger) error {
+//
+// When readiness is non-nil it is marked not-ready as soon as shutdown starts so
+// kubelet readiness probes fail and the Service stops routing new traffic during
+// the drain window.
+func Serve(ctx context.Context, srv *http.Server, log *slog.Logger, readiness *Readiness) error {
 	if srv == nil {
 		return fmt.Errorf("http server is nil")
 	}
@@ -87,11 +91,18 @@ func Serve(ctx context.Context, srv *http.Server, log *slog.Logger) error {
 
 	select {
 	case err := <-errCh:
+		if readiness != nil {
+			readiness.Set(false)
+		}
 		if errors.Is(err, http.ErrServerClosed) {
 			return nil
 		}
 		return err
 	case <-ctx.Done():
+		// Fail readiness before drain so load balancers stop sending work.
+		if readiness != nil {
+			readiness.Set(false)
+		}
 		log.Info("shutting down HTTP server", slog.Duration("timeout", DefaultShutdownTimeout))
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), DefaultShutdownTimeout)
 		defer cancel()

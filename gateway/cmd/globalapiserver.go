@@ -87,6 +87,10 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
 
 	// Create a shared mux for all global handlers.
 	mux := http.NewServeMux()
+	readiness := httpserver.NewReadiness()
+	// Probes are unauthenticated and registered before provider routes so kubelet
+	// can hit them while the process is still wiring (readyz stays 503 until Set).
+	httpserver.RegisterProbes(mux, readiness, client.CheckAPIServer)
 
 	// Metrics endpoint — unauthenticated, mounted outside provider HandlerWithOptions.
 	mux.Handle("/metrics", metrics.Handler())
@@ -170,8 +174,10 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
 		Logger:  logger,
 	})
 
+	// Open the readiness gate only after full wiring; Serve clears it on SIGTERM.
+	readiness.Set(true)
 	logger.Info("Global API server started successfully")
-	if err := httpserver.Serve(ctx, httpServer, logger); err != nil {
+	if err := httpserver.Serve(ctx, httpServer, logger, readiness); err != nil {
 		logger.Error("global API server stopped with error", slog.Any("error", err))
 		log.Fatal(err, " - global API server stopped with error")
 	}

@@ -25,6 +25,22 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080 # The port your application listens on inside the container
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8080
+            initialDelaySeconds: 2
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 2
 
 ---
 # --- Service to expose the Global API Server ---

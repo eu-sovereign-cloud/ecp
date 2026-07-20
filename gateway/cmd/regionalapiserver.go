@@ -140,6 +140,10 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 
 	// Create a shared mux for all regional handlers
 	mux := http.NewServeMux()
+	readiness := httpserver.NewReadiness()
+	// Probes are unauthenticated and registered before provider routes so kubelet
+	// can hit them while the process is still wiring (readyz stays 503 until Set).
+	httpserver.RegisterProbes(mux, readiness, client.CheckAPIServer)
 
 	// Compute adapters
 	instanceReaderAdapter := k8sadapter.NewReaderAdapter[*instancedom.Instance](
@@ -442,8 +446,10 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 			Logger:  logger,
 		},
 	)
+	// Open the readiness gate only after full wiring; Serve clears it on SIGTERM.
+	readiness.Set(true)
 	logger.Info("Regional API server started successfully")
-	if err := httpserver.Serve(ctx, httpServer, logger); err != nil {
+	if err := httpserver.Serve(ctx, httpServer, logger, readiness); err != nil {
 		logger.Error("regional API server stopped with error", "error", err)
 		log.Fatal(err, " - regional API server stopped with error")
 	}
