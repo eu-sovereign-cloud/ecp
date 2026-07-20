@@ -25,16 +25,30 @@ import (
 )
 
 const (
-	systemNamespace = "e2e-ecp"
-	regionalLabel   = "app=gateway-regional"
-	globalLabel     = "app=gateway-global"
+	regionalLabel = "app=gateway-regional"
+	globalLabel   = "app=gateway-global"
 
-	testTenant    = "test-tenant"
 	testWorkspace = "e2e-workspace"
 	// testRegion is one of the regions provisioned by the test-data fixture and
 	// the region the regional gateway is configured for.
 	testRegion = "itbg-bergamo"
 )
+
+// systemNamespace (where the components run) and testTenant are overridable so the
+// suite can run against a custom deployment. Defaults match the fixtures; keep
+// SYSTEM_NAMESPACE / E2E_TENANT in sync with what the stack was deployed with (see
+// test/Makefile).
+var (
+	systemNamespace = envOr("SYSTEM_NAMESPACE", "e2e-ecp")
+	testTenant      = envOr("E2E_TENANT", "test-tenant")
+)
+
+func envOr(key, def string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return def
+}
 
 var (
 	// Regional gateway (dummy authenticator) clients.

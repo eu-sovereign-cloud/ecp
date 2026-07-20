@@ -27,6 +27,27 @@ if [[ -n "$USE_KIND" && "$USE_KIND" == "true" ]]; then
     YAML_STREAM=$(echo "${YAML_STREAM}" | sed "s|imagePullPolicy: Always|imagePullPolicy: IfNotPresent|g")
 fi
 
+# Retarget the component namespace (default e2e-ecp). Anchored to end-of-line so
+# only namespace values are rewritten, not the e2e-ecp-conformance resource name.
+SYSTEM_NAMESPACE="${SYSTEM_NAMESPACE:-e2e-ecp}"
+if [ "$SYSTEM_NAMESPACE" != "e2e-ecp" ]; then
+    echo "Retargeting namespace to ${SYSTEM_NAMESPACE}"
+    YAML_STREAM=$(echo "${YAML_STREAM}" | sed -E "s/e2e-ecp[[:space:]]*$/${SYSTEM_NAMESPACE}/")
+fi
+
+# Retarget the fixture tenant (default test-tenant). Its CRs live in the ECP tenant
+# namespace hex(sha3-224(tenant)) (framework/backend/kubernetes/adapter.go
+# ComputeNamespace), so rewrite both the tenant string and its hashed namespace.
+if [ "$COMPONENT" == "test-data" ]; then
+    E2E_TENANT="${E2E_TENANT:-test-tenant}"
+    if [ "$E2E_TENANT" != "test-tenant" ]; then
+        echo "Retargeting tenant to ${E2E_TENANT}"
+        old_ns=$(printf %s "test-tenant" | openssl dgst -sha3-224 | awk '{print $NF}')
+        new_ns=$(printf %s "$E2E_TENANT"  | openssl dgst -sha3-224 | awk '{print $NF}')
+        YAML_STREAM=$(echo "${YAML_STREAM}" | sed -e "s/${old_ns}/${new_ns}/g" -e "s/test-tenant/${E2E_TENANT}/g")
+    fi
+fi
+
 # The global gateway picks its authentication plugin at deploy time: dummy by
 # default (what the integration suites sign tokens for), jwt when the e2e stack
 # deploys it. Only this component's manifest carries the placeholder.
