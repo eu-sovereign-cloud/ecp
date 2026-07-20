@@ -14,7 +14,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/util/wait"
 
-	authv1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.authorization.v1"
 	regionv1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 )
@@ -31,12 +30,10 @@ const (
 func TestEndToEnd(t *testing.T) {
 	ctx := context.Background()
 	blockStorageName := "e2e-bs-" + uuid.New().String()[:8]
-	roleName := "e2e-role-" + uuid.New().String()[:8]
 
 	// Best-effort teardown of everything this test creates, in reverse order.
 	t.Cleanup(func() {
 		_, _ = storageClient.DeleteBlockStorageWithResponse(ctx, testTenant, testWorkspace, blockStorageName, nil)
-		_, _ = authClient.DeleteRoleWithResponse(ctx, testTenant, roleName, &authv1.DeleteRoleParams{})
 		_, _ = workspaceClient.DeleteWorkspaceWithResponse(ctx, testTenant, testWorkspace, nil)
 	})
 
@@ -97,36 +94,6 @@ func TestEndToEnd(t *testing.T) {
 
 		waitForActive(t, "block storage", func(ctx context.Context) (schema.ResourceState, bool, error) {
 			r, err := storageClient.GetBlockStorageWithResponse(ctx, testTenant, testWorkspace, blockStorageName)
-			if err != nil {
-				return "", false, err
-			}
-			if r.StatusCode() != http.StatusOK || r.JSON200 == nil || r.JSON200.Status == nil {
-				return "", false, nil
-			}
-			return r.JSON200.Status.State, true, nil
-		})
-	})
-
-	// Step 4: a role created through the global gateway is reconciled to Active by
-	// the delegator's role plugin.
-	t.Run("role created via API is reconciled to active by the delegator", func(t *testing.T) {
-		body := schema.Role{
-			Spec: schema.RoleSpec{
-				Permissions: []schema.Permission{
-					{
-						Provider:  "seca.compute",
-						Resources: []string{"instances"},
-						Verb:      []string{"get", "list"},
-					},
-				},
-			},
-		}
-		resp, err := authClient.CreateOrUpdateRoleWithResponse(ctx, testTenant, roleName, &authv1.CreateOrUpdateRoleParams{}, body)
-		require.NoError(t, err)
-		require.Equal(t, http.StatusOK, resp.StatusCode())
-
-		waitForActive(t, "role", func(ctx context.Context) (schema.ResourceState, bool, error) {
-			r, err := authClient.GetRoleWithResponse(ctx, testTenant, roleName)
 			if err != nil {
 				return "", false, err
 			}

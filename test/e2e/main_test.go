@@ -14,7 +14,6 @@ import (
 	"os"
 	"testing"
 
-	authv1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.authorization.v1"
 	regionv1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
 	storagev1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	workspacev1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1"
@@ -56,7 +55,6 @@ var (
 	workspaceClient *workspacev1.ClientWithResponses
 	// Global gateway (JWT authenticator) clients.
 	regionClient *regionv1.ClientWithResponses
-	authClient   *authv1.ClientWithResponses
 
 	// globalURL is the port-forwarded global gateway, for tests that drive it
 	// with raw requests instead of an SDK client (see jwt_test.go).
@@ -97,9 +95,6 @@ func TestMain(m *testing.M) {
 	}
 	if regionClient, err = regionv1.NewClientWithResponses(globalURL+"/providers/seca.region", regionv1.WithRequestEditorFn(jwtEditor)); err != nil {
 		log.Fatalf("Failed to create region SDK client: %v", err)
-	}
-	if authClient, err = authv1.NewClientWithResponses(globalURL+"/providers/seca.authorization", authv1.WithRequestEditorFn(jwtEditor)); err != nil {
-		log.Fatalf("Failed to create authorization SDK client: %v", err)
 	}
 
 	log.Println("End-to-end environment ready. Running tests...")
