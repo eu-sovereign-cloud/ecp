@@ -11,10 +11,6 @@ import (
 
 	kubernetesadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	backendport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
-	roledom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role"
-	radom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment"
-	roleassignmentconv "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment/backend/kubernetes"
-	roleconv "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role/backend/kubernetes"
 	instancedom "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/instance"
 	instanceconv "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/instance/backend/kubernetes"
 	internetgatewaydom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/internet-gateway"
@@ -125,26 +121,6 @@ func simulateImage(ctx context.Context, op string, resource *imgdom.Image, delay
 				logger,
 				imageconv.ImageToCR,
 				imageconv.ImageFromCR,
-			)
-			_, err = repo.Update(ctx, resource)
-			return err
-		},
-	)
-}
-
-func simulateRA(ctx context.Context, op string, resource *radom.RoleAssignment, delay time.Duration, logger *slog.Logger) error {
-	return simulate(ctx, op, &resource.Annotations, resource.GetName(), delay, logger,
-		func(ctx context.Context) error {
-			dynamicClient, err := newDynamicClient()
-			if err != nil {
-				return err
-			}
-			repo := kubernetesadapter.NewRepoAdapter(
-				dynamicClient,
-				roleassignmentconv.RoleAssignmentGVR,
-				logger,
-				roleassignmentconv.RoleAssignmentToCR,
-				roleassignmentconv.RoleAssignmentFromCR,
 			)
 			_, err = repo.Update(ctx, resource)
 			return err
@@ -345,26 +321,6 @@ func simulateSecurityGroupRule(ctx context.Context, op string, resource *securit
 				logger,
 				securitygroupruleconv.SecurityGroupRuleToCR,
 				securitygroupruleconv.SecurityGroupRuleFromCR,
-			)
-			_, err = repo.Update(ctx, resource)
-			return err
-		},
-	)
-}
-
-func simulateRole(ctx context.Context, op string, resource *roledom.Role, delay time.Duration, logger *slog.Logger) error {
-	return simulate(ctx, op, &resource.Annotations, resource.GetName(), delay, logger,
-		func(ctx context.Context) error {
-			dynamicClient, err := newDynamicClient()
-			if err != nil {
-				return err
-			}
-			repo := kubernetesadapter.NewRepoAdapter(
-				dynamicClient,
-				roleconv.RoleGVR,
-				logger,
-				roleconv.RoleToCR,
-				roleconv.RoleFromCR,
 			)
 			_, err = repo.Update(ctx, resource)
 			return err
