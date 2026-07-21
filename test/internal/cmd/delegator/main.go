@@ -20,8 +20,11 @@ import (
 
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	frameworkbuilder "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/builder"
+	instancek8s "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/instance/backend/kubernetes"
 	netk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network/backend/kubernetes"
 	nick8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic/backend/kubernetes"
+	routetablek8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/route-table/backend/kubernetes"
+	subnetk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/subnet/backend/kubernetes"
 	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage/backend/kubernetes"
 	imgk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image/backend/kubernetes"
 	ssk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/storage-sku/backend/kubernetes"
@@ -42,6 +45,9 @@ func init() {
 	utilruntime.Must(imgk8s.AddToScheme(scheme))
 	utilruntime.Must(netk8s.AddToScheme(scheme))
 	utilruntime.Must(nick8s.AddToScheme(scheme))
+	utilruntime.Must(routetablek8s.AddToScheme(scheme))
+	utilruntime.Must(subnetk8s.AddToScheme(scheme))
+	utilruntime.Must(instancek8s.AddToScheme(scheme))
 	utilruntime.Must(wsk8s.AddToScheme(scheme))
 	utilruntime.Must(ssk8s.AddToScheme(scheme))
 	utilruntime.Must(v1alpha1.AddToScheme(scheme))
@@ -167,10 +173,16 @@ func loadDummyControllers(logger *slog.Logger, dynClient dynamic.Interface, mgr 
 	wsPlugin := dummyplugin.NewWorkspace(logger.With("plugin", "workspace"))
 	netPlugin := dummyplugin.NewNetwork(logger.With("plugin", "network"))
 	nicPlugin := dummyplugin.NewNic(logger.With("plugin", "nic"))
+	routeTablePlugin := dummyplugin.NewRouteTable(logger.With("plugin", "routetable"))
+	subnetPlugin := dummyplugin.NewSubnet(logger.With("plugin", "subnet"))
+	instancePlugin := dummyplugin.NewInstance(logger.With("plugin", "instance"))
 
 	controllerSet.Add(bsk8s.NewController(mgr.GetClient(), dynClient, bsPlugin, controllerOpts...))
 	controllerSet.Add(imgk8s.NewController(mgr.GetClient(), dynClient, imgPlugin, controllerOpts...))
 	controllerSet.Add(wsk8s.NewController(mgr.GetClient(), dynClient, wsPlugin, controllerOpts...))
 	controllerSet.Add(netk8s.NewController(mgr.GetClient(), dynClient, netPlugin, controllerOpts...))
 	controllerSet.Add(nick8s.NewController(mgr.GetClient(), dynClient, nicPlugin, controllerOpts...))
+	controllerSet.Add(routetablek8s.NewController(mgr.GetClient(), dynClient, routeTablePlugin, controllerOpts...))
+	controllerSet.Add(subnetk8s.NewController(mgr.GetClient(), dynClient, subnetPlugin, controllerOpts...))
+	controllerSet.Add(instancek8s.NewController(mgr.GetClient(), dynClient, instancePlugin, controllerOpts...))
 }
