@@ -14,8 +14,9 @@ imagePullSecrets: []
 replicaCount: 1
 
 image:
-  # No public ECP images are published yet — point this at the registry your
-  # images are pushed to.
+  # Published on every v* tag by .github/workflows/image-release.yaml. One
+  # image serves every CSP; this chart pins PLUGIN=aruba.
+  # Override only to pull from a mirror of your own.
   repository: ghcr.io/eu-sovereign-cloud/ecp/delegator
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.

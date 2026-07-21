@@ -53,8 +53,8 @@ gatewayGlobal:
   enabled: true
   replicaCount: 1
   image:
-    # No public ECP images are published yet — point this at the registry your
-    # images are pushed to.
+    # Published on every v* tag by .github/workflows/image-release.yaml.
+    # Override only to pull from a mirror of your own.
     repository: ghcr.io/eu-sovereign-cloud/ecp/gateway-global
     pullPolicy: IfNotPresent
     # Overrides the image tag whose default is the chart appVersion.
@@ -119,8 +119,8 @@ gatewayRegional:
   region: ""
   replicaCount: 1
   image:
-    # No public ECP images are published yet — point this at the registry your
-    # images are pushed to.
+    # Published on every v* tag by .github/workflows/image-release.yaml.
+    # Override only to pull from a mirror of your own.
     repository: ghcr.io/eu-sovereign-cloud/ecp/gateway-regional
     pullPolicy: IfNotPresent
     # Overrides the image tag whose default is the chart appVersion.
