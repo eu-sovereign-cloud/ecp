@@ -38,6 +38,7 @@ name: Pre-Merge
 #     module-diff     Detect Changed Modules
 #     branch-rebase   Verify Branch Is Rebased
 #     go-sdk-verify   Ensure go-sdk Versions Are In Sync
+#     chart-lint      Lint Helm Charts
 #
 #   Stage 2 — build builder image (gated by stage 1)
 #     builder-publish-pr   Provide PR Builder Image
@@ -117,6 +118,34 @@ jobs:
         run: git -C modules/go-sdk fetch --tags --no-recurse-submodules
       - name: Run go-sdk-verify
         run: make go-sdk-verify
+
+  # ===========================================================================
+  # Stage 1: Lint and render the Helm charts
+  #
+  # Guards the charts published by helm-release-*.yaml: a template that only
+  # breaks at render time would otherwise not surface until someone installs
+  # the released chart, since `helm package` never evaluates templates.
+  #
+  # The ecp chart has values with no universal default (gatewayRegional.region)
+  # and fails to render without them — chart/ci/default-values.yaml supplies
+  # them, following the chart-testing convention.
+  # ===========================================================================
+  chart-lint:
+    name: Lint Helm Charts
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: azure/setup-helm@v4
+      - name: Lint and render charts
+        run: |
+          set -euo pipefail
+          helm lint chart -f chart/ci/default-values.yaml
+          helm template ecp chart -f chart/ci/default-values.yaml > /dev/null
+          helm lint csp/aruba/chart
+          helm template ecp-delegator-aruba csp/aruba/chart > /dev/null
 
   # ===========================================================================
   # Stage 1: Detect changed modules and resolve the check matrix
