@@ -14,6 +14,8 @@ import (
 	"os"
 	"testing"
 
+	computev1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.compute.v1"
+	networkv1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.network.v1"
 	regionv1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
 	storagev1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	workspacev1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1"
@@ -53,6 +55,8 @@ var (
 	// Regional gateway (dummy authenticator) clients.
 	storageClient   *storagev1.ClientWithResponses
 	workspaceClient *workspacev1.ClientWithResponses
+	networkClient   *networkv1.ClientWithResponses
+	computeClient   *computev1.ClientWithResponses
 	// Global gateway (JWT authenticator) clients.
 	regionClient *regionv1.ClientWithResponses
 
@@ -92,6 +96,12 @@ func TestMain(m *testing.M) {
 	}
 	if workspaceClient, err = workspacev1.NewClientWithResponses(regionalURL+"/providers/seca.workspace", workspacev1.WithRequestEditorFn(dummyEditor)); err != nil {
 		log.Fatalf("Failed to create workspace SDK client: %v", err)
+	}
+	if networkClient, err = networkv1.NewClientWithResponses(regionalURL+"/providers/seca.network", networkv1.WithRequestEditorFn(dummyEditor)); err != nil {
+		log.Fatalf("Failed to create network SDK client: %v", err)
+	}
+	if computeClient, err = computev1.NewClientWithResponses(regionalURL+"/providers/seca.compute", computev1.WithRequestEditorFn(dummyEditor)); err != nil {
+		log.Fatalf("Failed to create compute SDK client: %v", err)
 	}
 	if regionClient, err = regionv1.NewClientWithResponses(globalURL+"/providers/seca.region", regionv1.WithRequestEditorFn(jwtEditor)); err != nil {
 		log.Fatalf("Failed to create region SDK client: %v", err)
