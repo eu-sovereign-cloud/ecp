@@ -26,8 +26,9 @@ binary) and the chart supports either layout via the `enabled` toggles:
 
 ## Installing
 
-No public ECP images are published yet: build and push the images (see
-`test/internal/build/`) and point `*.image.repository` at your registry.
+Images are published to `ghcr.io/eu-sovereign-cloud/ecp/` on every `v*` tag
+(see `.github/workflows/image-release.yaml`), and `*.image.tag` defaults to
+the chart's appVersion — so the defaults resolve with no override.
 
 ```bash
 # All-in-one
@@ -109,7 +110,7 @@ See [values.yaml](values.yaml) for the full commented list. The notable ones:
 | `auth.jwt.key` | `""` | PEM public key / raw HS\* secret (required for `jwt` unless `auth.jwt.existingSecret`) |
 | `auth.authz.impl` | `cached` | `cached` (informer) or `direct` (per-request) checker |
 | `auth.dummyUsers.users` | `{}` | username → password map (required when `auth.plugin=dummy`) |
-| `*.image.repository` | `ghcr.io/eu-sovereign-cloud/ecp/...` | No public images yet — set to your registry |
+| `*.image.repository` | `ghcr.io/eu-sovereign-cloud/ecp/...` | Override only to mirror the images into your own registry |
 | `*.service.type` / `*.ingress.enabled` | `ClusterIP` / `false` | How to expose each gateway |
 
 `helm lint`/CI note: because `gatewayRegional.region` has no sane default,

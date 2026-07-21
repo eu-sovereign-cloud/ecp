@@ -25,9 +25,9 @@ deploy tooling (e.g. `csp/ionos/deploy`).
 
 ## Installing
 
-No public ECP images are published yet: build and push the delegator image
-(see `test/internal/build/delegator/`) and point `image.repository` at your
-registry.
+The delegator image is published to `ghcr.io/eu-sovereign-cloud/ecp/delegator`
+on every `v*` tag (see `.github/workflows/image-release.yaml`). One image
+serves every CSP; this chart pins `PLUGIN=aruba`.
 
 ```bash
 helm install ecp-delegator-aruba csp/aruba/chart \
@@ -40,6 +40,6 @@ See [values.yaml](values.yaml) for the full commented list. The notable ones:
 
 | Key | Default | Notes |
 |-----|---------|-------|
-| `image.repository` | `ghcr.io/eu-sovereign-cloud/ecp/delegator` | No public images yet — set to your registry |
+| `image.repository` | `ghcr.io/eu-sovereign-cloud/ecp/delegator` | Override only to mirror the image into your own registry |
 | `replicaCount` | `1` | Keep at 1: the delegator runs without leader election |
 | `rbac.create` | `true` | ClusterRole scoped to the aruba plugin's controller set |
