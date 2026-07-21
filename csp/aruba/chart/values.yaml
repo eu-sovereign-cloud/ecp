@@ -51,7 +51,19 @@ readinessProbe:
     path: /readyz
     port: healthz
 
-resources: {}
+# Memory is dominated by the controller-runtime informer caches, which hold every
+# object of each watched type cluster-wide. Measured on KIND against the aruba
+# plugin: RSS ~= 56 MiB + 26 KiB per SECA resource, but that sweep cached only 3
+# of the 4 object classes (no aruba BlockStorage). Correcting by measured object
+# size (6005 B/set vs 4075 B) gives ~37 KiB per resource:
+#   memory ~= 56 MiB + 0.037 MiB * <expected resource count>, then add headroom.
+# The 256Mi below therefore covers ~5000 resources; raise it beyond that.
+# Note Go does not return freed arenas to the OS, so RSS holds at its high-water
+# mark — size for peak cardinality ever reached, not current.
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
 # Extra environment variables for the delegator container.
 extraEnv: []
 nodeSelector: {}
