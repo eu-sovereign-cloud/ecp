@@ -3,7 +3,7 @@ name: Release Helm Chart
 # Reusable workflow: packages ONE chart, publishes it to the Helm repository
 # hosted on the gh-pages branch, and attaches the .tgz to the GitHub release
 # for the pushed tag. Called once per chart — see helm-release-ecp.yaml and
-# helm-release-aruba.yaml.
+# helm-release-delegator.yaml.
 #
 # Chart version comes from the git tag, not from Chart.yaml: tag `v0.1.0` is
 # packaged as chart version `0.1.0` with appVersion `v0.1.0`. The `version:`

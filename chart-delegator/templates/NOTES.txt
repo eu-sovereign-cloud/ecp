@@ -1,0 +1,21 @@
+ECP delegator ({{ .Values.plugin }} plugin) deployed to namespace {{ .Release.Namespace }}.
+
+Check it:
+  kubectl -n {{ .Release.Namespace }} rollout status deploy/{{ include "ecp-delegator.fullname" . }}
+
+{{ if eq .Values.plugin "aruba" -}}
+The aruba plugin writes arubacloud.com CRs: resources stay pending until the
+arubacloud-resource-operator (and its Aruba credentials) is installed in this
+cluster. See https://github.com/Arubacloud/arubacloud-resource-operator
+{{- else if eq .Values.plugin "ionos" -}}
+The ionos plugin writes crossplane managed resources: resources stay pending
+until Crossplane and the IONOS provider (csp/ionos/deploy) are installed in
+this cluster. See doc/PLUGINS.md.
+{{- else -}}
+WARNING: the dummy plugin reconciles in-process against no backend at all —
+resources go Active without anything being provisioned. Development and
+testing only, never production.
+{{- end }}
+
+The delegator requires the ECP CRDs (installed by the ecp chart, or apply
+chart/crds/ from the repository).

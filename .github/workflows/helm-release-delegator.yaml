@@ -1,0 +1,20 @@
+name: Release ecp-delegator Chart
+
+# Publishes the delegator chart (chart-delegator/) on every v* tag. One chart
+# serves every CSP — the required `plugin` value selects the controller set and
+# the RBAC granted for it.
+#
+# To give this chart a release cadence independent of the repository's product
+# tags, change the filter to a chart-specific prefix (e.g. `delegator-chart-v*`).
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  release:
+    uses: ./.github/workflows/helm-release.yaml
+    with:
+      chart-dir: chart-delegator
+    permissions:
+      contents: write

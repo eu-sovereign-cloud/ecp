@@ -126,9 +126,11 @@ jobs:
   # breaks at render time would otherwise not surface until someone installs
   # the released chart, since `helm package` never evaluates templates.
   #
-  # The ecp chart has values with no universal default (gatewayRegional.region)
-  # and fails to render without them — chart/ci/default-values.yaml supplies
-  # them, following the chart-testing convention.
+  # Both charts have values with no universal default (gatewayRegional.region,
+  # the delegator's plugin) and fail to render without them — each chart's
+  # ci/default-values.yaml supplies them, following the chart-testing
+  # convention. The delegator chart renders one RBAC set per plugin, so every
+  # plugin is rendered rather than just the CI default.
   # ===========================================================================
   chart-lint:
     name: Lint Helm Charts
@@ -144,8 +146,10 @@ jobs:
           set -euo pipefail
           helm lint chart -f chart/ci/default-values.yaml
           helm template ecp chart -f chart/ci/default-values.yaml > /dev/null
-          helm lint csp/aruba/chart
-          helm template ecp-delegator-aruba csp/aruba/chart > /dev/null
+          helm lint chart-delegator -f chart-delegator/ci/default-values.yaml
+          for plugin in aruba dummy ionos; do
+            helm template ecp-delegator chart-delegator --set "plugin=$plugin" > /dev/null
+          done
 
   # ===========================================================================
   # Stage 1: Detect changed modules and resolve the check matrix

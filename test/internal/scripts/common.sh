@@ -81,6 +81,8 @@ setup_chart_vars() {
             CHART_DIR="${root}/chart"; HELM_RELEASE="ecp-global"; IMAGE_VALUE_PATH="gatewayGlobal.image" ;;
         gateway-regional)
             CHART_DIR="${root}/chart"; HELM_RELEASE="ecp-regional"; IMAGE_VALUE_PATH="gatewayRegional.image" ;;
+        delegator)
+            CHART_DIR="${root}/chart-delegator"; HELM_RELEASE="ecp-delegator"; IMAGE_VALUE_PATH="image" ;;
         *)
             return 1 ;;
     esac

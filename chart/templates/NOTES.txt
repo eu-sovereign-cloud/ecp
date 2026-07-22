@@ -29,5 +29,5 @@ is unauthenticated — do not expose it beyond the cluster in this mode.
 {{- end }}
 
 To reconcile resources you also need a delegator running in this cluster,
-e.g. the Aruba one:
-  helm install ecp-delegator-aruba <repo>/csp/aruba/chart
+with the plugin for your CSP:
+  helm install ecp-delegator <repo>/ecp-delegator --set plugin=aruba
