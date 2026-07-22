@@ -60,13 +60,22 @@ func RegionToCR(r *rdom.Region) (client.Object, error) {
 		return nil, fmt.Errorf("region is nil")
 	}
 
-	cr := &Region{}
+	cr := &Region{
+		Spec: RegionSpec{
+			Providers:      make([]Provider, 0, len(r.Providers)),
+			AvailableZones: make([]string, 0, len(r.Zones)),
+		},
+	}
+	for _, p := range r.Providers {
+		cr.Spec.Providers = append(cr.Spec.Providers, Provider{Name: p.Name, Url: p.URL, Version: p.Version})
+	}
+	for _, z := range r.Zones {
+		cr.Spec.AvailableZones = append(cr.Spec.AvailableZones, string(z))
+	}
+
 	cr.SetName(r.Name)
 	cr.SetResourceVersion(r.ResourceVersion)
 	cr.SetGroupVersionKind(RegionGVK)
-
-	// Spec fields are populated by the platform — return minimal CR for round-trip.
-	// TODO: populate cr.Spec from r.Providers and r.Zones when schemav1.RegionSpec is available.
 
 	return cr, nil
 }
