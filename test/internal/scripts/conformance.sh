@@ -21,7 +21,7 @@ NAMESPACE="${CONFORMANCE_NAMESPACE:-e2e-ecp}"
 DEPLOY_DIR="${SCRIPT_DIR}/../deploy/conformance"
 
 # Defaults target the in-cluster global gateway with the dummy test-data tenant.
-: "${CONFORMANCE_PROVIDER_REGION_V1:=http://gateway-global-svc:80/providers/seca.region}"
+: "${CONFORMANCE_PROVIDER_REGION_V1:=http://${GATEWAY_GLOBAL_SVC}:80/providers/seca.region}"
 : "${CONFORMANCE_PROVIDER_AUTHORIZATION_V1:=}"
 : "${CONFORMANCE_AUTH_TOKEN:=test-token}"
 : "${CONFORMANCE_TENANT:=test-tenant}"

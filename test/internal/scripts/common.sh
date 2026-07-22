@@ -52,6 +52,40 @@ setup_registry_vars() {
     export IMAGE_NAME="${image_name}"
 }
 
+# Service names the gateway chart renders, "<release>-<component>". Anything
+# dialling a gateway by DNS rather than by port-forward needs them: the
+# conformance runner, the benchmark scraper, and test-data/regions.yaml, which
+# publishes them in the region catalog for clients to follow. Keep the YAML in
+# step with these.
+GATEWAY_GLOBAL_SVC="ecp-global-gateway-global"
+GATEWAY_REGIONAL_SVC="ecp-regional-gateway-regional"
+
+# setup_chart_vars maps a component to the Helm chart that deploys it, setting
+# CHART_DIR, HELM_RELEASE and IMAGE_VALUE_PATH (the values key holding the image
+# coordinates, which differs between the two charts). Returns 1 for components
+# that are not chart-deployed — test-data is fixture CRs and conformance is the
+# secatest runner, neither of which is something anyone installs — so callers
+# can branch on it:
+#
+#     if setup_chart_vars "$COMPONENT"; then helm ...; else kubectl kustomize ...; fi
+#
+# Two releases share the gateway chart, each disabling the other gateway, so a
+# component can still be deployed on its own. Their names must contain the chart
+# name ("ecp") for the fullname helper to use them verbatim.
+setup_chart_vars() {
+    local component=${1:?component is required}
+    local root="${SCRIPT_DIR}/../../.."
+
+    case "${component}" in
+        gateway-global)
+            CHART_DIR="${root}/chart"; HELM_RELEASE="ecp-global"; IMAGE_VALUE_PATH="gatewayGlobal.image" ;;
+        gateway-regional)
+            CHART_DIR="${root}/chart"; HELM_RELEASE="ecp-regional"; IMAGE_VALUE_PATH="gatewayRegional.image" ;;
+        *)
+            return 1 ;;
+    esac
+}
+
 # setup_kube_vars sets the KUBECONFIG_ARG, KUBECONFIG, and CLUSTER_NAME environment variables.
 setup_kube_vars() {
     # 1. Handle KIND case

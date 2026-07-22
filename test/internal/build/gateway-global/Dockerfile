@@ -32,10 +32,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 COPY --from=builder /workspace/ecp .
 
-# Copy the start script and make it executable
-COPY ./test/internal/cmd/gateway-global/start-global.sh .
-RUN chmod +x /app/start-global.sh
-
 # Copy dlv (Delve debugger) for debugging. Assume dlv is in /go/bin in the builder image.
 COPY --from=builder /go/bin/dlv /usr/local/bin/dlv
 
@@ -46,4 +42,9 @@ EXPOSE 40000
 RUN groupadd -r -g 1001 appuser && useradd -r -u 1001 -g appuser appuser
 USER 1001
 
-ENTRYPOINT ["/app/start-global.sh"]
+# Same entrypoint contract as the published image (gateway/build/Dockerfile.global):
+# the binary, configured by flags the chart passes as args. There is deliberately
+# no wrapper script translating env vars — a second contract that only this image
+# understood is how the chart's auth values ended up doing nothing.
+ENTRYPOINT ["/app/ecp"]
+CMD ["globalapiserver"]

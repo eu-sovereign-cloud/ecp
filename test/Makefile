@@ -34,7 +34,7 @@ export SYSTEM_NAMESPACE E2E_TENANT
 # --- Authentication plugin -------------------------------------------------------
 # Which authenticator BOTH gateways are deployed with — dummy (static
 # username→password tokens) or jwt (standard signed JWTs). Exported, so the same
-# value reaches deploy.sh (substituted into the manifests) and the test binaries
+# value reaches deploy.sh (passed to helm as auth.plugin) and the test binaries
 # (internal/authhelper mints the matching token format). One stack therefore
 # serves every suite; deploy and test with the same value or every valid token
 # comes back 401:
@@ -48,8 +48,10 @@ export AUTH_PLUGIN
 # Discover components automatically from the build directory
 COMPONENTS := $(notdir $(wildcard $(CURDIR)/internal/build/*))
 
-# Discover deployments automatically from the deploy directory
-DEPLOYMENTS := $(notdir $(wildcard $(CURDIR)/internal/deploy/*))
+# Discover deployments automatically from the deploy directory. Directories only:
+# deploy/ also holds files shared by several components (registry-secret.yaml,
+# gateway-values.yaml), which are not deployments of their own.
+DEPLOYMENTS := $(notdir $(patsubst %/,%,$(wildcard $(CURDIR)/internal/deploy/*/)))
 
 # Discover components that actually have integration tests
 TEST_COMPONENTS := $(notdir $(wildcard $(CURDIR)/integration/*))
