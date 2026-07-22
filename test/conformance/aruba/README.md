@@ -22,7 +22,7 @@ backend → run:
 
 ```shell
 # 1. Deploy the stack (gateways + delegator) with the aruba plugin.
-make conformance-deploy CONFORMANCE_PLUGIN=aruba     # or: make e2e-deploy E2E_PLUGIN=aruba
+make conformance-deploy CONFORMANCE_PLUGIN=aruba     # or: make deploy-stack E2E_PLUGIN=aruba
 
 # 2. Install the arubacloud-resource-operator and its Aruba credentials in the
 #    target cluster. (No tooling for this lives in the repo yet — see below.)

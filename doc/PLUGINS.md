@@ -135,7 +135,7 @@ suite, all driven from one `Makefile`. Components are auto-discovered from the
 
 - **integration** (`test/integration/`) — each component in isolation. Every
   `kind-deploy-<component>` also deploys the fixtures its suite needs, so it is a
-  complete setup for the matching `kind-test-<component>`:
+  complete setup for the matching `kind-integration-<component>`:
   - **`gateway-regional`** / **`gateway-global`** test only REST↔CR translation
     (asserting HTTP responses — never reconciled status). Each needs only its own
     gateway plus `test-data`.
@@ -149,14 +149,20 @@ suite, all driven from one `Makefile`. Components are auto-discovered from the
 # Integration: deploy a suite's components and run it
 make -C test kind-start
 make -C test kind-deploy-gateway-regional
-make -C test kind-test-gateway-regional
+make -C test kind-integration-gateway-regional
 
-# End-to-end (one shot: build, load, deploy the dummy stack, run the suite)
-make -C test kind-e2e
+# One shot (build, load, deploy the dummy stack, run the suite)
+make -C test kind-e2e            # e2e only
+make -C test kind-integration    # every integration suite
+make -C test kind-test-all       # both
 
 # Tear down
 make -C test kind-stop
 ```
+
+All suites run against the same stack, deployed with one authenticator
+(`AUTH_PLUGIN=dummy|jwt`, default `dummy`) — `make -C test kind-test-all AUTH_PLUGIN=jwt`
+runs everything against signed JWTs instead.
 
 See `test/README.md` for the full workflow. The test module (`test`) is excluded from
 the standard per-module CI checks (see the exclude list in `ci/scripts/go-modules.sh`).

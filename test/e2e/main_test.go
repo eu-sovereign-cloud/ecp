@@ -52,12 +52,12 @@ func envOr(key, def string) string {
 }
 
 var (
-	// Regional gateway (dummy authenticator) clients.
+	// Regional gateway clients.
 	storageClient   *storagev1.ClientWithResponses
 	workspaceClient *workspacev1.ClientWithResponses
 	networkClient   *networkv1.ClientWithResponses
 	computeClient   *computev1.ClientWithResponses
-	// Global gateway (JWT authenticator) clients.
+	// Global gateway clients.
 	regionClient *regionv1.ClientWithResponses
 
 	// globalURL is the port-forwarded global gateway, for tests that drive it
@@ -81,29 +81,27 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Failed to port-forward to global gateway: %v", err)
 	}
 
-	// The two gateways are deployed with different authentication plugins, so a
-	// single run exercises both: the regional one verifies dummy tokens, the
-	// global one verifies standard signed JWTs. Same admin subject either way —
-	// RBAC resolves roles from the subject, not from the token format.
-	dummyEditor := authhelper.AdminEditor()
-	jwtEditor := authhelper.AdminJWTEditor()
+	// Both gateways run the plugin named by AUTH_PLUGIN, so one admin editor
+	// serves both: it mints whichever token format was deployed. RBAC resolves
+	// roles from the subject, not from the token format.
+	editor := authhelper.AdminEditor()
 
 	regionalURL := fmt.Sprintf("http://localhost:%d", regionalPF.LocalPort)
 	globalURL = fmt.Sprintf("http://localhost:%d", globalPF.LocalPort)
 
-	if storageClient, err = storagev1.NewClientWithResponses(regionalURL+"/providers/seca.storage", storagev1.WithRequestEditorFn(dummyEditor)); err != nil {
+	if storageClient, err = storagev1.NewClientWithResponses(regionalURL+"/providers/seca.storage", storagev1.WithRequestEditorFn(editor)); err != nil {
 		log.Fatalf("Failed to create storage SDK client: %v", err)
 	}
-	if workspaceClient, err = workspacev1.NewClientWithResponses(regionalURL+"/providers/seca.workspace", workspacev1.WithRequestEditorFn(dummyEditor)); err != nil {
+	if workspaceClient, err = workspacev1.NewClientWithResponses(regionalURL+"/providers/seca.workspace", workspacev1.WithRequestEditorFn(editor)); err != nil {
 		log.Fatalf("Failed to create workspace SDK client: %v", err)
 	}
-	if networkClient, err = networkv1.NewClientWithResponses(regionalURL+"/providers/seca.network", networkv1.WithRequestEditorFn(dummyEditor)); err != nil {
+	if networkClient, err = networkv1.NewClientWithResponses(regionalURL+"/providers/seca.network", networkv1.WithRequestEditorFn(editor)); err != nil {
 		log.Fatalf("Failed to create network SDK client: %v", err)
 	}
-	if computeClient, err = computev1.NewClientWithResponses(regionalURL+"/providers/seca.compute", computev1.WithRequestEditorFn(dummyEditor)); err != nil {
+	if computeClient, err = computev1.NewClientWithResponses(regionalURL+"/providers/seca.compute", computev1.WithRequestEditorFn(editor)); err != nil {
 		log.Fatalf("Failed to create compute SDK client: %v", err)
 	}
-	if regionClient, err = regionv1.NewClientWithResponses(globalURL+"/providers/seca.region", regionv1.WithRequestEditorFn(jwtEditor)); err != nil {
+	if regionClient, err = regionv1.NewClientWithResponses(globalURL+"/providers/seca.region", regionv1.WithRequestEditorFn(editor)); err != nil {
 		log.Fatalf("Failed to create region SDK client: %v", err)
 	}
 

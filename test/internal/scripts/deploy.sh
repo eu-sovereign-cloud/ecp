@@ -48,11 +48,11 @@ if [ "$COMPONENT" == "test-data" ]; then
     fi
 fi
 
-# The global gateway picks its authentication plugin at deploy time: dummy by
-# default (what the integration suites sign tokens for), jwt when the e2e stack
-# deploys it. Only this component's manifest carries the placeholder.
-if [ "$COMPONENT" == "gateway-global" ]; then
-    echo "Deploying gateway-global with auth plugin: ${AUTH_PLUGIN:=dummy}"
+# Both gateways pick their authentication plugin at deploy time: dummy (default)
+# or jwt. The suites read the same AUTH_PLUGIN to mint matching tokens, so deploy
+# and test with the same value (see test/Makefile).
+if [[ "$COMPONENT" == gateway-* ]]; then
+    echo "Deploying ${COMPONENT} with auth plugin: ${AUTH_PLUGIN:=dummy}"
     YAML_STREAM=$(echo "${YAML_STREAM}" | sed "s|##AUTH_PLUGIN##|${AUTH_PLUGIN}|g")
 fi
 
@@ -72,6 +72,14 @@ fi
 
 # Apply the processed YAML stream
 echo "${YAML_STREAM}" | kubectl ${KUBECONFIG_ARG} apply -f -
+
+# Wait for the rollout, otherwise a suite starting right after can port-forward to
+# the terminating pod, which still serves the previous config (e.g. the previous
+# auth plugin) and 401s every valid token. Components without a Deployment
+# (test-data) skip this.
+if kubectl ${KUBECONFIG_ARG} -n "${SYSTEM_NAMESPACE}" get deployment "${COMPONENT}-depl" >/dev/null 2>&1; then
+    kubectl ${KUBECONFIG_ARG} -n "${SYSTEM_NAMESPACE}" rollout status "deployment/${COMPONENT}-depl" --timeout=180s
+fi
 
 echo "Deployment of ${COMPONENT} complete."
 

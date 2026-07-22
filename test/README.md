@@ -40,7 +40,20 @@ Both the e2e and conformance stacks reconcile with a **delegator plugin**. The d
 | **aruba** | `arubacloud-resource-operator` + Aruba creds | **multi-phase** — deploy → install backend → run |
 | **ionos** | Crossplane + IONOS provider + token | **multi-phase**, or the bespoke `conformance/ionos` real-backend run |
 
-Only **dummy** is self-contained, so the one-shot targets (`kind-e2e`, `kind-conformance`) always use dummy. aruba/ionos can't run in one command — their resources never reconcile until their backend exists — so they use the two-phase `*-deploy` → (provision backend) → run flow described below. This is why `E2E_PLUGIN` / `CONFORMANCE_PLUGIN` are honoured on the `*-deploy` targets but not on the one-shot targets.
+Only **dummy** is self-contained, so the one-shot targets (`kind-integration`, `kind-e2e`, `kind-test-all`, `kind-conformance`) always use dummy. aruba/ionos can't run in one command — their resources never reconcile until their backend exists — so they use the two-phase `*-deploy` → (provision backend) → run flow described below. This is why `E2E_PLUGIN` / `CONFORMANCE_PLUGIN` are honoured on the `*-deploy` targets but not on the one-shot targets.
+
+## One stack, every suite
+
+Integration and e2e run against the **same deployment**: `test-data`, both gateways and the delegator, all with the same authentication plugin (`AUTH_PLUGIN`, default `dummy`). `deploy-stack` / `kind-deploy-stack` is that deployment; the one-shot targets build, load and deploy it for you.
+
+| Target | Runs |
+|--------|------|
+| `[kind-]integration` | every integration suite |
+| `[kind-]integration-<component>` | one integration suite (`delegator`, `gateway-global`, `gateway-regional`) |
+| `[kind-]e2e` | the e2e suite |
+| `[kind-]test-all` | **everything** — integration + e2e |
+
+The `kind-` variants are one-shot (build → load → deploy → run); the plain ones run the suite against an already-deployed cluster.
 
 ## Prerequisites
 
@@ -77,12 +90,11 @@ make kind-start        # create the KIND cluster (once)
 
 ```shell
 # One component: deploy its dependencies, then run its suite.
-make kind-deploy-delegator        && make kind-test-delegator
-make kind-deploy-gateway-regional && make kind-test-gateway-regional
-make kind-deploy-gateway-global   && make kind-test-gateway-global
+make kind-deploy-delegator        && make kind-integration-delegator
+make kind-deploy-gateway-regional && make kind-integration-gateway-regional
+make kind-deploy-gateway-global   && make kind-integration-gateway-global
 
-# Or everything (deploy the full stack, then every suite):
-make kind-deploy-all
+# Or one shot (build, load, deploy the full stack, then every integration suite):
 make kind-integration
 ```
 
@@ -92,6 +104,15 @@ Builds the images, loads them into KIND, deploys the full stack with the dummy p
 
 ```shell
 make kind-e2e
+```
+
+### Everything (one shot)
+
+Same stack, both suites — integration and e2e:
+
+```shell
+make kind-test-all
+make kind-test-all AUTH_PLUGIN=jwt   # …with the gateways verifying signed JWTs
 ```
 
 ### Conformance (one shot)
@@ -126,7 +147,7 @@ make conformance-deploy CONFORMANCE_PLUGIN=ionos
 make conformance
 ```
 
-Swap `conformance-deploy`/`conformance` for `e2e-deploy`/`e2e` to run the e2e suite instead. See [`conformance/aruba/`](conformance/aruba/) for the aruba backend caveats.
+Swap `conformance-deploy`/`conformance` for `deploy-stack E2E_PLUGIN=<plugin>`/`e2e` to run the e2e suite instead. See [`conformance/aruba/`](conformance/aruba/) for the aruba backend caveats.
 
 ### IONOS real-backend run (`conformance/ionos`)
 
@@ -144,7 +165,7 @@ With `internal/context/kubeconfig.yaml` and `internal/context/config.env` in pla
 
 ```shell
 make build-all && make push-all         # build and push images
-make e2e-deploy && make e2e             # deploy the dummy stack, run e2e
+make deploy-stack && make test-all      # deploy the dummy stack, run integration + e2e
 make conformance                        # run conformance
 make clean-all                          # tear down
 ```
@@ -157,29 +178,23 @@ The gateway deployments ship with the Dummy authenticator and SECA RBAC enabled 
 
 ### Which authenticator runs where
 
-The gateway serves one authentication plugin at a time (`--auth-plugin`), so the e2e stack runs a **different plugin per gateway** to cover both in a single `make kind-e2e`:
+A gateway serves one authentication plugin at a time (`--auth-plugin`), and **both gateways are deployed with the same one** — the value of `AUTH_PLUGIN` (`dummy`, the default, or `jwt`). `deploy.sh` substitutes it into both manifests, and the suites read the same variable (`authhelper.Token`) to mint matching tokens, so any suite runs against any stack:
 
-| Deployed by | Global gateway | Regional gateway |
-|---|---|---|
-| `e2e-deploy` / `kind-e2e-deploy` / `kind-e2e` | **jwt** — verifies real signed JWTs | **dummy** |
-| everything else (`deploy-gateway-global`, `kind-deploy-all`, conformance, …) | dummy | dummy |
+```sh
+make kind-test-all                   # every suite against dummy tokens
+make kind-test-all AUTH_PLUGIN=jwt   # every suite against signed JWTs
+```
 
-`e2e-deploy` sets `AUTH_PLUGIN=jwt` for the global gateway only; `deploy.sh` substitutes it into that manifest. The integration suites deploy the same gateway without the variable and get the dummy default, so they are unaffected.
+Deploy and test with the **same** value: a dummy token sent to a jwt-backed gateway (or the reverse) is a 401 on every request. Plugin-specific cases skip themselves under the other plugin — `TestJWTAuthn` (e2e) needs `jwt`, the wrong-password case of `TestAuthn` needs `dummy`.
 
-The e2e suite assumes this split (JWTs to the global gateway, dummy tokens to the regional one), so **pair `make e2e` with `make e2e-deploy`** — running it against a stack deployed some other way makes the global gateway reject the suite's tokens with 401.
-
-> ⚠️ Switching the global gateway between plugins on a live cluster (e.g. `make kind-e2e`, then `make kind-deploy-gateway-global` for the integration suite) leaves a window where the **terminating pod still serves the previous plugin**, and a suite starting immediately port-forwards to it and gets 401s on every valid token. `deploy.sh` does not wait for rollouts. Wait for a single Ready pod before testing:
->
-> ```sh
-> kubectl -n e2e-ecp rollout status deploy/gateway-global-depl
-> ```
+`deploy.sh` waits for each Deployment's rollout, so a suite started right after a redeploy never port-forwards to a terminating pod still serving the previous plugin.
 
 ### Gateway deployment env vars
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `AUTH_ENABLED` | `true` | Set to `false` to run the gateway without any auth (unauthenticated mode). |
-| `AUTH_PLUGIN` | `dummy` | Authenticator to run: `dummy` or `jwt`. Only the global gateway's manifest is substitutable; `e2e-deploy` sets it to `jwt`. |
+| `AUTH_PLUGIN` | `dummy` | Authenticator to run: `dummy` or `jwt`. Substituted into **both** gateway manifests at deploy time and read by the suites, so it is a single setting for the whole stack. |
 | `JWT_SIGNING_METHOD` | `ES256` | Expected JWT `alg` when `AUTH_PLUGIN=jwt`. Must match what the suite signs with (`authhelper.JWTSigningMethod`). |
 | `JWT_SECRET` | `/app/jwt.pub` | Path inside the container to the verification key when `AUTH_PLUGIN=jwt` (mounted from the `e2e-jwt-key` Secret). |
 | `AUTHZ_ENABLED` | `true` | Set to `false` for authn-only (auth check but no RBAC). Requires `AUTH_ENABLED=true`. |
@@ -191,6 +206,7 @@ The e2e suite assumes this split (JWTs to the global gateway, dummy tokens to th
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `AUTH_PLUGIN` | `dummy` | Token format the suites mint — the same variable the stack is deployed with, exported by the Makefile so the two cannot drift. |
 | `E2E_AUTH_ENABLED` | `true` (implicit) | Set to `false` to skip all auth-specific test assertions; useful when running against a gateway deployed with `AUTH_ENABLED=false`. |
 | `E2E_BENCH` | _(unset)_ | Set to `1` to run the `TestBench` load workload (skipped by default). |
 | `E2E_BENCH_REQUESTS` | `500` | Number of requests fired by `TestBench`. |
@@ -217,20 +233,21 @@ The region catalog (`seca.region`) is served **authn-only**: `--authz-skip-provi
 
 ### JWT test fixtures
 
-`internal/authhelper` mints the tokens the JWT-backed global gateway accepts:
+`internal/authhelper` mints the tokens the JWT-backed gateways accept:
 
 | Helper | Use |
 |--------|-----|
+| `Token(user, password, scope)` | The token for the **deployed** plugin — a signed JWT under `AUTH_PLUGIN=jwt`, a dummy token otherwise. Backs `AdminEditor` / `IdentityEditor` / `ScopedEditor`, so the suites are plugin-agnostic. |
+| `JWTAuth()` | Whether the stack runs the jwt plugin; plugin-specific tests skip on it. |
 | `JWTKey()` | The fixture ES256 private key. Pass a freshly generated key instead to forge a token the gateway must reject. |
 | `SignJWT(key, subject, scope, exp)` | Sign a token for a subject, with an optional down-scope and an explicit expiry (pass a past time for an expired token). |
-| `JWTEditor(subject, scope)` / `AdminJWTEditor()` | SDK request editors carrying a valid one-hour token — the JWT counterparts of `IdentityEditor` / `AdminEditor`. |
 
-The key pair is a committed fixture: the private half is a constant in `authhelper`, the public half is `internal/deploy/gateway-global/jwt-key-secret.yaml`, mounted at `/app/jwt.pub` and passed to the gateway as `--jwt-secret`. It is a Secret rather than a ConfigMap because the same manifest serves `JWT_SIGNING_METHOD=HS*`, where that file is the shared HMAC secret that mints tokens — see [Verification key](../doc/AUTH.md#verification-key---jwt-secret). To rotate it, regenerate both halves and update both files:
+The key pair is a committed fixture: the private half is a constant in `authhelper`, the public half is `internal/deploy/gateway-{global,regional}/jwt-key-secret.yaml` (identical copies, like `users-configmap.yaml`, so either gateway can be deployed alone), mounted at `/app/jwt.pub` and passed to the gateway as `--jwt-secret`. It is a Secret rather than a ConfigMap because the same manifest serves `JWT_SIGNING_METHOD=HS*`, where that file is the shared HMAC secret that mints tokens — see [Verification key](../doc/AUTH.md#verification-key---jwt-secret). To rotate it, regenerate both halves and update both files:
 
 ```sh
 openssl ecparam -name prime256v1 -genkey -noout -out jwt-key.pem
 openssl pkcs8 -topk8 -nocrypt -in jwt-key.pem   # private half → authhelper constant
-openssl ec -in jwt-key.pem -pubout              # public half  → jwt-key-secret.yaml
+openssl ec -in jwt-key.pem -pubout              # public half  → both jwt-key-secret.yaml
 ```
 
 > ⚠️ This key pair is a test fixture whose private half is published in this repository — anyone can mint a token the e2e gateway accepts. Like the dummy credentials, it must never be used in production.
@@ -240,17 +257,16 @@ openssl ec -in jwt-key.pem -pubout              # public half  → jwt-key-secre
 Auth tests are automatically included when running the normal test suite against a cluster with `AUTH_ENABLED=true` (the default):
 
 ```sh
-make kind-test-gateway-global      # dummy authn (integration suite deploys dummy)
-make kind-test-gateway-regional    # dummy authn
-make kind-e2e                      # both: JWT on the global gateway, dummy on the regional one
+make kind-integration-gateway-global    # dummy tokens (the default)
+make kind-test-all AUTH_PLUGIN=jwt      # the same suites, signed JWTs
 ```
 
-`TestJWTAuthn` (`e2e/jwt_test.go`) is the JWT-specific suite: valid/expired/unsigned-by-us tokens, algorithm-confusion attempts, dummy tokens rejected by the JWT gateway, and the `sub`/`scope` claims driving RBAC. It is the only test that covers the `--jwt-secret` file → `ParseVerifyKey` → authenticator wiring, since the unit tests build the authenticator from an already-parsed key.
+`TestJWTAuthn` (`e2e/jwt_test.go`) is the JWT-specific suite: valid/expired/unsigned-by-us tokens, algorithm-confusion attempts, dummy tokens rejected by the JWT gateway, and the `sub`/`scope` claims driving RBAC. It runs only under `AUTH_PLUGIN=jwt` and is the only test that covers the `--jwt-secret` file → `ParseVerifyKey` → authenticator wiring, since the unit tests build the authenticator from an already-parsed key.
 
 To skip auth assertions (e.g. against an auth-disabled gateway):
 
 ```sh
-E2E_AUTH_ENABLED=false make kind-test-gateway-global
+E2E_AUTH_ENABLED=false make kind-integration-gateway-global
 ```
 
 ---
