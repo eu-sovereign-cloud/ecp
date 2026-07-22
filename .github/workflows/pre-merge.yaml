@@ -152,6 +152,35 @@ jobs:
           done
 
   # ===========================================================================
+  # Stage 1: Install both charts for real and check the gateway is configured
+  #
+  # chart-lint proves the templates render; this proves what they render works.
+  # The charts configure the gateways entirely through container args, and the
+  # released images are the bare binary, so a values key that reaches no flag
+  # yields a healthy pod serving the wrong configuration — no amount of
+  # rendering catches that, only a request does. Runs against the images built
+  # from the published Dockerfiles, not the debug ones the e2e stack uses.
+  #
+  # This is the only job that starts the software; the integration, e2e and
+  # conformance suites are run out of test/ by hand.
+  # ===========================================================================
+  chart-smoke:
+    name: Smoke Test Helm Charts
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: azure/setup-helm@v4
+      - uses: helm/kind-action@v1
+        with:
+          install_only: true
+      - name: Install charts and probe the gateway
+        run: ci/scripts/chart-smoke.sh
+
+  # ===========================================================================
   # Stage 1: Detect changed modules and resolve the check matrix
   # ===========================================================================
   module-diff:
