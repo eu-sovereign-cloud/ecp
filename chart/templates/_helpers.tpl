@@ -99,31 +99,33 @@ Validated auth plugin name. A typo must not silently fall back to dummy.
 {{- end }}
 
 {{/*
-Auth environment variables, consumed identically by both gateways' start
-scripts: the plugin (dummy or jwt) and its config, plus the authz toggles.
+Auth command-line arguments, identical for both gateways: the plugin (dummy or
+jwt) and its config, plus the authz toggles.
+
+Flags, not environment variables: the gateway images' ENTRYPOINT is the binary
+itself, and the binary reads nothing but APP_ENV from the environment
+(gateway/internal/auth/config.go RegisterFlags). Anything the chart configures
+has to arrive as an argument or it is silently ignored.
+
+Flags left at their binary default are omitted — --authz-skip-providers already
+defaults to seca.region.
 */}}
-{{- define "ecp.authEnv" -}}
-- name: AUTH_ENABLED
-  value: {{ .Values.auth.enabled | quote }}
+{{- define "ecp.authArgs" -}}
 {{- if .Values.auth.enabled }}
-- name: AUTH_PLUGIN
-  value: {{ include "ecp.authPlugin" . | quote }}
+- --auth-enabled
+- --auth-plugin={{ include "ecp.authPlugin" . }}
 {{- if eq .Values.auth.plugin "jwt" }}
-- name: JWT_SIGNING_METHOD
-  value: {{ .Values.auth.jwt.signingMethod | quote }}
-- name: JWT_SECRET
-  value: /etc/ecp/jwt/jwt.pub
+- --jwt-signing-method={{ .Values.auth.jwt.signingMethod }}
+- --jwt-secret=/etc/ecp/jwt/jwt.pub
 {{- else }}
-- name: DUMMY_AUTH_USERS
-  value: /etc/ecp/auth/users.json
+- --dummy-auth-users=/etc/ecp/auth/users.json
 {{- end }}
-- name: AUTHZ_ENABLED
-  value: {{ .Values.auth.authz.enabled | quote }}
-- name: AUTHZ_IMPL
-  value: {{ .Values.auth.authz.impl | quote }}
+- --authz-enabled={{ .Values.auth.authz.enabled }}
+{{- if and .Values.auth.authz.enabled (eq .Values.auth.authz.impl "cached") }}
+- --authz-cache
+{{- end }}
 {{- with .Values.auth.authz.skipProviders }}
-- name: AUTHZ_SKIP_PROVIDERS
-  value: {{ . | quote }}
+- --authz-skip-providers={{ . }}
 {{- end }}
 {{- end }}
 {{- end }}
