@@ -36,7 +36,6 @@ fi
 
 AUTH_FLAGS=""
 if [ "$AUTH_ENABLED" = "true" ]; then
-  AUTH_FLAGS="--auth-enabled --dummy-auth-users=$DUMMY_AUTH_USERS"
   if [ "$AUTH_PLUGIN" = "jwt" ]; then
     AUTH_FLAGS="--auth-enabled --auth-plugin=jwt --jwt-signing-method=$JWT_SIGNING_METHOD --jwt-secret=$JWT_SECRET"
   else
