@@ -27,9 +27,10 @@ test/
   internal/
     testenv/            # shared kubeconfig + port-forward helpers (Go)
     authhelper/         # shared auth test helpers (build tag `authhelper`)
-    cmd/                # entrypoints: delegator + gateway start scripts + benchreport
+    cmd/                # entrypoints: delegator + benchreport
     build/              # a Dockerfile per component (incl. conformance runner)
-    deploy/             # Kustomize manifests per component + test-data
+    deploy/             # per-component deployment inputs: chart values, or
+                        # Kustomize manifests for what no chart deploys
     kind-config/        # KIND cluster configs (multicluster regional port mapping)
     scripts/            # helper scripts orchestrated by the Makefile
     context/            # LOCAL-ONLY settings (git-ignored, ships empty)
@@ -62,11 +63,34 @@ The `kind-` variants are one-shot (build → load → deploy → run); the plain
 
 The multicluster suite is **not** part of `test-all`: it needs its own pair of clusters, so it has a separate target set (see [Multicluster e2e](#multicluster-e2e-two-clusters)).
 
+## How components are deployed
+
+The gateways and the delegator are deployed from the Helm charts this repository publishes — [`chart/`](../chart) and [`chart-delegator/`](../chart-delegator) — not from test-only manifests. `internal/deploy/<component>/values.yaml` holds what the test stack pins; `deploy.sh` supplies the rest (image, pull policy, auth plugin, delegator plugin) with `--set` and runs `helm upgrade --install --wait`.
+
+The point is that there is one deployment path, not two: a template that breaks, an RBAC rule that goes missing, or a value that reaches no flag fails a test run here rather than a user's first `helm install`. Keeping the charts correct is therefore part of keeping the suites green.
+
+| Component | Deployed by | Release |
+|-----------|-------------|---------|
+| `gateway-global` | `chart/`, other gateway disabled | `ecp-global` |
+| `gateway-regional` | `chart/`, other gateway disabled | `ecp-regional` |
+| `delegator` | `chart-delegator/`, `plugin` from `PLUGIN_TYPE` | `ecp-delegator` |
+| `test-data` | kustomize — fixture CRs, nothing anyone installs | — |
+| `conformance` | kustomize — the secatest runner | — |
+
+Two consequences worth knowing:
+
+- **Names come from the chart.** The Deployments and Services are `ecp-global-gateway-global`, `ecp-regional-gateway-regional` and `ecp-delegator`, not the old `*-depl` / `*-svc`. The suites port-forward by pod label (`app=gateway-global`), which the chart still sets, so they are unaffected; anything dialling a gateway by DNS is not, and `internal/scripts/common.sh` holds the service names for it (`test-data/regions.yaml` carries the same ones).
+- **The delegator's RBAC follows its plugin.** `chart-delegator` grants exactly the controller set `plugin` loads, so adding a resource to a plugin means adding its rules to that plugin's branch in `chart-delegator/templates/rbac.yaml`.
+
+To deploy the same stack by hand, or to install it anywhere real, use the charts directly — see [`chart/README.md`](../chart/README.md).
+>>>>>>> 7dacd62c (docs: describe the chart-based test deployment and refresh stale manifest references)
+
 ## Prerequisites
 
 [Docker](https://docs.docker.com/get-docker/),
 [KIND](https://kind.sigs.k8s.io/),
 [kubectl](https://kubernetes.io/docs/tasks/tools/),
+[Helm](https://helm.sh/docs/intro/install/),
 [kustomize](https://kubectl.docs.kubernetes.io/installation/kustomize/) and
 [make](https://www.gnu.org/software/make/).
 
@@ -238,11 +262,11 @@ Run `make help` for the full list of targets.
 
 ## Authentication & Authorization in e2e
 
-The gateway deployments ship with the Dummy authenticator and SECA RBAC enabled by default (the defaults changed from the original auth-disabled baseline). Auth behaviour is driven by environment variables that are read by the `start-global.sh` / `start-regional.sh` entry-point scripts at startup.
+The test stack deploys the gateways with the Dummy authenticator and SECA RBAC enabled (the chart's own default is auth **off**, mirroring the binary; `internal/deploy/gateway-values.yaml` turns it on). Auth behaviour is configured by the chart, which passes every setting to the binary as a command-line flag — see [Gateway auth values](#gateway-auth-values).
 
 ### Which authenticator runs where
 
-A gateway serves one authentication plugin at a time (`--auth-plugin`), and **both gateways are deployed with the same one** — the value of `AUTH_PLUGIN` (`dummy`, the default, or `jwt`). `deploy.sh` substitutes it into both manifests, and the suites read the same variable (`authhelper.Token`) to mint matching tokens, so any suite runs against any stack:
+A gateway serves one authentication plugin at a time (`--auth-plugin`), and **both gateways are deployed with the same one** — the value of `AUTH_PLUGIN` (`dummy`, the default, or `jwt`). `deploy.sh` passes it to both releases as `auth.plugin`, and the suites read the same variable (`authhelper.Token`) to mint matching tokens, so any suite runs against any stack:
 
 ```sh
 make kind-test-all                   # every suite against dummy tokens
@@ -251,20 +275,22 @@ make kind-test-all AUTH_PLUGIN=jwt   # every suite against signed JWTs
 
 Deploy and test with the **same** value: a dummy token sent to a jwt-backed gateway (or the reverse) is a 401 on every request. Plugin-specific cases skip themselves under the other plugin — `TestJWTAuthn` (e2e) needs `jwt`, the wrong-password case of `TestAuthn` needs `dummy`.
 
-`deploy.sh` waits for each Deployment's rollout, so a suite started right after a redeploy never port-forwards to a terminating pod still serving the previous plugin.
+`deploy.sh` runs `helm upgrade --install --wait`, so a suite started right after a redeploy never port-forwards to a terminating pod still serving the previous plugin.
 
-### Gateway deployment env vars
+### Gateway auth values
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `AUTH_ENABLED` | `true` | Set to `false` to run the gateway without any auth (unauthenticated mode). |
-| `AUTH_PLUGIN` | `dummy` | Authenticator to run: `dummy` or `jwt`. Substituted into **both** gateway manifests at deploy time and read by the suites, so it is a single setting for the whole stack. |
-| `JWT_SIGNING_METHOD` | `ES256` | Expected JWT `alg` when `AUTH_PLUGIN=jwt`. Must match what the suite signs with (`authhelper.JWTSigningMethod`). |
-| `JWT_SECRET` | `/app/jwt.pub` | Path inside the container to the verification key when `AUTH_PLUGIN=jwt` (mounted from the `e2e-jwt-key` Secret). |
-| `AUTHZ_ENABLED` | `true` | Set to `false` for authn-only (auth check but no RBAC). Requires `AUTH_ENABLED=true`. |
-| `AUTHZ_IMPL` | `cached` | `cached` uses the informer-backed checker (zero K8s round-trips on hot path); `direct` uses the per-request reader (2 K8s List calls per request). |
-| `AUTHZ_SKIP_PROVIDERS` | `seca.region` | Comma-separated provider IDs served authn-only (no RBAC check, no token down-scoping). The region catalog is tenant-less by spec, so it skips authorization by default. |
-| `DUMMY_AUTH_USERS` | `/app/users.json` | Path inside the container to the user→password JSON file (mounted from `e2e-dummy-users` ConfigMap). |
+Set in [`internal/deploy/gateway-values.yaml`](internal/deploy/gateway-values.yaml), shared by both gateway releases. The chart renders each one into a flag on the container's `args` — there is no env-var path, so overriding any of these means editing the values file (or adding a `--set` in `deploy.sh`), not setting a variable in your shell. `AUTH_PLUGIN` is the exception: it is a Makefile variable precisely because the suites need to agree with it.
+
+| Value | Test setting | Flag | Description |
+|-------|--------------|------|-------------|
+| `auth.enabled` | `true` | `--auth-enabled` | Set to `false` to run the gateways without any auth (unauthenticated mode). |
+| `auth.plugin` | `dummy` | `--auth-plugin` | Authenticator to run: `dummy` or `jwt`. Overridden per deployment from `AUTH_PLUGIN` and read by the suites, so it is a single setting for the whole stack. |
+| `auth.jwt.signingMethod` | `ES256` | `--jwt-signing-method` | Expected JWT `alg` when the plugin is `jwt`. Must match what the suite signs with (`authhelper.JWTSigningMethod`). |
+| `auth.jwt.key` | committed fixture | `--jwt-secret` | Verification key, rendered into a Secret and mounted at `/etc/ecp/jwt/jwt.pub`. |
+| `auth.authz.enabled` | `true` | `--authz-enabled` | Set to `false` for authn-only (identity checked, no RBAC). Requires `auth.enabled`. |
+| `auth.authz.impl` | `cached` | `--authz-cache` | `cached` uses the informer-backed checker (zero K8s round-trips on hot path); `direct` uses the per-request reader (2 K8s List calls per request). |
+| `auth.authz.skipProviders` | `seca.region` | `--authz-skip-providers` | Comma-separated provider IDs served authn-only (no RBAC check, no token down-scoping). The region catalog is tenant-less by spec. |
+| `auth.dummyUsers.users` | 7 fixture users | `--dummy-auth-users` | username → password map, rendered into a Secret and mounted at `/etc/ecp/auth/users.json`. |
 
 ### Test-side env vars
 
@@ -306,12 +332,12 @@ The region catalog (`seca.region`) is served **authn-only**: `--authz-skip-provi
 | `JWTKey()` | The fixture ES256 private key. Pass a freshly generated key instead to forge a token the gateway must reject. |
 | `SignJWT(key, subject, scope, exp)` | Sign a token for a subject, with an optional down-scope and an explicit expiry (pass a past time for an expired token). |
 
-The key pair is a committed fixture: the private half is a constant in `authhelper`, the public half is `internal/deploy/gateway-{global,regional}/jwt-key-secret.yaml` (identical copies, like `users-configmap.yaml`, so either gateway can be deployed alone), mounted at `/app/jwt.pub` and passed to the gateway as `--jwt-secret`. It is a Secret rather than a ConfigMap because the same manifest serves `JWT_SIGNING_METHOD=HS*`, where that file is the shared HMAC secret that mints tokens — see [Verification key](../doc/AUTH.md#verification-key---jwt-secret). To rotate it, regenerate both halves and update both files:
+The key pair is a committed fixture: the private half is a constant in `authhelper`, the public half is `auth.jwt.key` in `internal/deploy/gateway-values.yaml`. The chart renders it into a Secret, mounts it at `/etc/ecp/jwt/jwt.pub` and passes that path as `--jwt-secret`. It is a Secret rather than a ConfigMap because the same value serves `signingMethod: HS*`, where the file is the shared HMAC secret that mints tokens — see [Verification key](../doc/AUTH.md#verification-key---jwt-secret). To rotate it, regenerate both halves and update both places:
 
 ```sh
 openssl ecparam -name prime256v1 -genkey -noout -out jwt-key.pem
 openssl pkcs8 -topk8 -nocrypt -in jwt-key.pem   # private half → authhelper constant
-openssl ec -in jwt-key.pem -pubout              # public half  → both jwt-key-secret.yaml
+openssl ec -in jwt-key.pem -pubout              # public half  → gateway-values.yaml
 ```
 
 > ⚠️ This key pair is a test fixture whose private half is published in this repository — anyone can mint a token the e2e gateway accepts. Like the dummy credentials, it must never be used in production.
@@ -351,17 +377,15 @@ make kind-bench                   # E2E_BENCH=1; default 500 requests
 # 3. Scrape metrics and generate the report
 IMPL_TAG=cached make report       # writes internal/report/REPORT.md
 
-# 4. Delete the previous deployment with AUTHZ_IMPL=cached
-make kind-clean-gateway-global
-
-# 5. Redeploy with the direct checker
+# 4. Redeploy with the direct checker (helm upgrades the release in place —
+#    no need to clean first)
 AUTHZ_IMPL=direct make kind-deploy-gateway-global
 
-# 6. Fire another load workload and save a second snapshot
+# 5. Fire another load workload and save a second snapshot
 E2E_BENCH_REQUESTS=500 make kind-bench
 IMPL_TAG=direct SNAP_FILE=internal/report/snap-direct.txt make report
 
-# 7. Merge both snapshots into one comparison report
+# 6. Merge both snapshots into one comparison report
 go run ./internal/cmd/benchreport \
     --impl=cached --metrics-file=internal/report/snap.txt \
     --impl=direct --metrics-file=internal/report/snap-direct.txt \

@@ -20,7 +20,7 @@ import (
 
 // TestJWTAuthn exercises the JWT authenticator on the deployed global gateway,
 // which AUTH_PLUGIN=jwt configures with --auth-plugin=jwt
-// --jwt-signing-method=ES256 and the public key in jwt-key-secret.yaml. Run the
+// --jwt-signing-method=ES256 and the public key in internal/deploy/gateway-values.yaml. Run the
 // stack with AUTH_PLUGIN=jwt to cover it; under the dummy plugin (the default)
 // these cases do not apply and the suite skips them.
 //

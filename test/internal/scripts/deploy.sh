@@ -52,6 +52,12 @@ if setup_chart_vars "${COMPONENT}"; then
             --values "${SCRIPT_DIR}/../deploy/gateway-values.yaml"
             --set "auth.plugin=${AUTH_PLUGIN}"
         )
+        # The RBAC checker to benchmark: the report workflow deploys the same
+        # gateway twice, cached and direct, and diffs the two metric snapshots
+        # (see README, "Benchmarking the Auth Middleware").
+        if [ -n "${AUTHZ_IMPL:-}" ]; then
+            HELM_ARGS+=(--set "auth.authz.impl=${AUTHZ_IMPL}")
+        fi
     fi
 
     # The delegator's CSP plugin set. PLUGIN_TYPE may be overridden via the

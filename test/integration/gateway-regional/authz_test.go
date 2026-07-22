@@ -19,7 +19,7 @@ import (
 // TestRegionalAuthz exercises SECA RBAC authorization on the regional gateway.
 // These tests rely on the Role and RoleAssignment fixtures from
 // test/internal/deploy/test-data/roles.yaml and role-assignments.yaml, and on the
-// Dummy authenticator being enabled with the users from users-configmap.yaml.
+// Dummy authenticator being enabled with the users from internal/deploy/gateway-values.yaml.
 // Skipped when E2E_AUTH_ENABLED=false.
 func TestRegionalAuthz(t *testing.T) {
 	if !authhelper.AuthEnabled() {

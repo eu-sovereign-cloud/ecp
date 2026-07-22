@@ -322,16 +322,21 @@ resource (GVR + `FromCR`/`ToCR`), and either add them to the existing group hand
 ### 4.13 Deployment & RBAC (permissions)
 CRDs install automatically from `chart/crds/`. Add API-group rules to **every** relevant
 ClusterRole — these drift, so add your resource wherever its peers appear and verify each role:
-- **read-write:** two rules (`<plural>` and `<plural>/status`) on the **dummy delegator**
-  ([csp/dummy/deploy/clusterrole.yaml](../../../csp/dummy/deploy/clusterrole.yaml)) and the
-  **e2e delegator** ([test/internal/deploy/delegator/clusterrole.yaml](../../../test/internal/deploy/delegator/clusterrole.yaml))
-  with full verbs; on the **e2e gateway-regional**
-  ([test/internal/deploy/gateway-regional/clusterrole.yaml](../../../test/internal/deploy/gateway-regional/clusterrole.yaml))
-  split read/write (`<plural>` full verbs, `<plural>/status` read-only).
-- **read-only, regional:** read-only verbs on `<plural>` (no `/status`) in the e2e delegator and
-  e2e gateway-regional roles; **no dummy delegator rule** (no controller).
-- **read-only, global:** read-only verbs on `<plural>` in the e2e gateway-global role
-  ([test/internal/deploy/gateway-global/clusterrole.yaml](../../../test/internal/deploy/gateway-global/clusterrole.yaml)).
+The e2e stack deploys from the charts, so the chart roles below are the ones the suites run
+with — a missing rule fails the tests **and** ships broken.
+- **read-write:** two rules (`<plural>` and `<plural>/status`) on the **standalone dummy
+  delegator** ([csp/dummy/deploy/clusterrole.yaml](../../../csp/dummy/deploy/clusterrole.yaml))
+  and in the **`dummy` branch of the delegator chart**
+  ([chart-delegator/templates/rbac.yaml](../../../chart-delegator/templates/rbac.yaml)) with full
+  verbs; on the **gateway-regional role**
+  ([chart/templates/gateway-regional/rbac.yaml](../../../chart/templates/gateway-regional/rbac.yaml))
+  split read/write (`<plural>` full verbs, `<plural>/status` read-only). Add the rule to the
+  `aruba` / `ionos` branches too if their plugin reconciles the resource.
+- **read-only, regional:** read-only verbs on `<plural>` (no `/status`) in the delegator chart's
+  `dummy` branch and the gateway-regional role; **no standalone dummy delegator rule** (no
+  controller).
+- **read-only, global:** read-only verbs on `<plural>` in the gateway-global role
+  ([chart/templates/gateway-global/rbac.yaml](../../../chart/templates/gateway-global/rbac.yaml)).
 
 ### 4.14 Tests
 Follow existing conventions; **examples are inline fixtures inside the tests — there is no
