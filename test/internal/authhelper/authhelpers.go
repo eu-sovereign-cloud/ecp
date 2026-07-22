@@ -20,7 +20,7 @@ import (
 // It must match a Subs entry in ra-admin (role-assignments.yaml).
 const DefaultAuthUser = "admin"
 
-// DefaultAuthPassword is the password for DefaultAuthUser (matches users-configmap.yaml).
+// DefaultAuthPassword is the password for DefaultAuthUser (matches auth.dummyUsers.users in internal/deploy/gateway-values.yaml).
 const DefaultAuthPassword = "e2e-admin-pass"
 
 // AuthEnabled reports whether auth is expected to be active in the deployed gateway.
@@ -101,7 +101,7 @@ func ScopedEditor(username, password string, scope *resource.TokenScope) func(ct
 // below mint (or deliberately forge) the tokens the jwt plugin accepts.
 
 // jwtPrivateKeyPEM is the ES256 private key the suite signs e2e JWTs with. Its
-// public half is deployed in internal/deploy/gateway-*/jwt-key-secret.yaml
+// public half is auth.jwt.key in internal/deploy/gateway-values.yaml
 // and passed to the gateways via --jwt-secret.
 //
 // WARNING: a published test fixture, not a secret. Never use it in production.

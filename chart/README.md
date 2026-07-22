@@ -93,6 +93,13 @@ cluster in that mode. Two authentication plugins exist (`auth.plugin`):
   too). The plugin applies to **both** gateways — the binary registers the
   same auth flags on the global and the regional server.
 
+Every auth value becomes a **command-line flag** on the gateway container: the
+images are the bare binary, and it reads only `APP_ENV` from the environment.
+Adding a knob to this chart therefore means adding it to `ecp.authArgs` in
+[_helpers.tpl](templates/_helpers.tpl) — a value that renders into an env var
+reaches nothing. `ci/scripts/chart-smoke.sh` guards that in CI by installing the
+chart with `auth.enabled=true` and asserting an anonymous request is rejected.
+
 See `doc/AUTH.md` for the token formats, down-scoping and the RBAC model.
 
 ## Values

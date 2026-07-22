@@ -37,8 +37,10 @@ ci/
 ├── container/        # Dockerfile layers: builder, tools, dev, runner
 ├── scripts/          # CI and dev automation scripts
 └── tools/            # Pinned Go dev tool dependencies
-chart/
-└── crd/              # Generated Kubernetes CRD YAML (all 18 resource slices)
+chart/                # Helm chart: the global and regional gateways
+├── crds/             # Generated Kubernetes CRD YAML (all 18 resource slices)
+└── templates/        # Gateway Deployments, Services, RBAC, ingress
+chart-delegator/      # Helm chart: the delegator, one plugin set per install
 modules/
 └── go-sdk/           # Git submodule: shared OpenAPI specs and client SDK
 doc/                  # Documentation
