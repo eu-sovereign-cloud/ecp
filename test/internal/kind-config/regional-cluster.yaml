@@ -1,0 +1,19 @@
+# KIND config for the regional cluster of the multicluster e2e topology.
+#
+# The suite reaches the regional gateway at whatever address the Region CR
+# advertises, which means that address has to be reachable from the machine
+# running the tests. A KIND node's own IP (172.18.x.x on the Docker bridge) is
+# reachable from a native Linux host but NOT from a WSL2 distro talking to
+# Docker Desktop, where the containers sit in a separate VM network namespace.
+#
+# Publishing the NodePort to the host removes that difference: 127.0.0.1:30080
+# works the same everywhere. Keep this port in sync with
+# MULTICLUSTER_REGIONAL_NODE_PORT in internal/scripts/register-region.sh.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      - containerPort: 30080
+        hostPort: 30080
+        protocol: TCP

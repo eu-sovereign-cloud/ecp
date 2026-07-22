@@ -22,7 +22,7 @@ fi
 
 echo "Creating KIND cluster '${CLUSTER_NAME}'..."
 # KIND_CONFIG is optional: the multicluster regional cluster needs a config to
-# publish its NodePort to the host (see internal/kind/regional-cluster.yaml).
+# publish its NodePort to the host (see internal/kind-config/regional-cluster.yaml).
 if [ -n "${KIND_CONFIG:-}" ]; then
     echo "Using KIND config ${KIND_CONFIG}"
     kind create cluster --name "${CLUSTER_NAME}" --config "${KIND_CONFIG}"

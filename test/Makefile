@@ -301,7 +301,7 @@ export MULTICLUSTER_GLOBAL_CONTEXT MULTICLUSTER_REGIONAL_CONTEXT
 kind-multicluster-start: ## Create the global and regional KIND clusters
 	@KIND_CLUSTER=$(MULTICLUSTER_GLOBAL_CLUSTER)   ./internal/scripts/kind-start.sh
 	@KIND_CLUSTER=$(MULTICLUSTER_REGIONAL_CLUSTER) \
-		KIND_CONFIG=$(CURDIR)/internal/kind/regional-cluster.yaml \
+		KIND_CONFIG=$(CURDIR)/internal/kind-config/regional-cluster.yaml \
 		./internal/scripts/kind-start.sh
 
 .PHONY: kind-multicluster-stop

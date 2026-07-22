@@ -20,7 +20,7 @@ SYSTEM_NAMESPACE="${SYSTEM_NAMESPACE:-e2e-ecp}"
 REGION_NAME="${MULTICLUSTER_REGION:-itbg-bergamo}"
 GLOBAL_CONTEXT="${MULTICLUSTER_GLOBAL_CONTEXT:-kind-e2e-global}"
 REGIONAL_CONTEXT="${MULTICLUSTER_REGIONAL_CONTEXT:-kind-e2e-regional}"
-# Must match the extraPortMappings entry in internal/kind/regional-cluster.yaml,
+# Must match the extraPortMappings entry in internal/kind-config/regional-cluster.yaml,
 # which is what makes this port reachable from the host.
 REGIONAL_NODE_PORT="${MULTICLUSTER_REGIONAL_NODE_PORT:-30080}"
 # The advertised host. A KIND node's own bridge IP works on a native Linux host
@@ -44,7 +44,7 @@ GOT_PORT=$(kubectl --context "${REGIONAL_CONTEXT}" -n "${SYSTEM_NAMESPACE}" \
     get svc gateway-regional-svc -o jsonpath='{.spec.ports[0].nodePort}')
 if [ "${GOT_PORT}" != "${REGIONAL_NODE_PORT}" ]; then
     echo "Error: gateway-regional-svc nodePort is ${GOT_PORT}, expected ${REGIONAL_NODE_PORT}" >&2
-    echo "The regional cluster must be created with internal/kind/regional-cluster.yaml." >&2
+    echo "The regional cluster must be created with internal/kind-config/regional-cluster.yaml." >&2
     exit 1
 fi
 

@@ -30,7 +30,7 @@ csp/
 └── aruba/            # Aruba CSP plugin
 test/                 # Test harness: integration, e2e and conformance suites
 ├── integration/      # Per-component suites (delegator, gateway-global/-regional)
-├── e2e/              # Single end-to-end suite (API → delegator plugin)
+├── e2e/              # End-to-end suites: single-cluster, plus multicluster/ (split topology)
 ├── conformance/      # secatest conformance harnesses (ionos, aruba)
 └── internal/         # Shared infra: build, deploy, scripts, cmd, testenv, authhelper, context
 ci/

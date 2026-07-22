@@ -1,11 +1,12 @@
 # ECP test harness
 
-This module bundles the cluster-backed test suites for ECP and the tooling to run them, all driven from a single `Makefile`. There are three kinds of test:
+This module bundles the cluster-backed test suites for ECP and the tooling to run them, all driven from a single `Makefile`. There are four kinds of test:
 
 | Suite | What it covers | Where |
 |-------|----------------|-------|
 | **integration** | Each component (delegator, gateway-global, gateway-regional) in **isolation**. The gateway suites test only REST↔CR translation; the delegator suite tests reconciliation. | [`integration/`](integration/) |
-| **e2e** | The **whole stack in one run** — drives the SECA API on both gateways and asserts resources reconcile all the way to the delegator plugin. | [`e2e/`](e2e/) |
+| **e2e** | The **whole stack in one run** — drives the SECA API on both gateways and asserts resources reconcile all the way to the delegator plugin. Single cluster. | [`e2e/`](e2e/) |
+| **multicluster e2e** | The **split topology** — global gateway in one cluster, regional gateway + delegator in another, joined only by the Region CR the global gateway advertises. | [`e2e/multicluster/`](e2e/multicluster/) |
 | **conformance** | Runs the SECA conformance suite (`secatest`) against the stack. | [`internal/build/conformance/`](internal/build/conformance/), [`internal/deploy/conformance/`](internal/deploy/conformance/) |
 
 ## Layout
@@ -17,8 +18,11 @@ test/
   Makefile  README.md  go.mod  go.sum
   integration/          # isolated component suites (build tag `integration`)
   e2e/                  # single end-to-end suite (build tag `e2e`)
+    multicluster/       # two-cluster suite (build tag `multicluster`)
   conformance/
-    ionos/              # IONOS real-backend conformance (multi-cluster demo)
+    ionos/              # IONOS real-backend conformance (split global/regional demo)
+      cluster/          #   manifests for the demo's two clusters
+      scripts/          #   cluster setup / teardown for the demo
     aruba/              # placeholder for an aruba real-backend harness
   internal/
     testenv/            # shared kubeconfig + port-forward helpers (Go)
@@ -26,6 +30,7 @@ test/
     cmd/                # entrypoints: delegator + gateway start scripts + benchreport
     build/              # a Dockerfile per component (incl. conformance runner)
     deploy/             # Kustomize manifests per component + test-data
+    kind-config/        # KIND cluster configs (multicluster regional port mapping)
     scripts/            # helper scripts orchestrated by the Makefile
     context/            # LOCAL-ONLY settings (git-ignored, ships empty)
 ```
@@ -54,6 +59,8 @@ Integration and e2e run against the **same deployment**: `test-data`, both gatew
 | `[kind-]test-all` | **everything** — integration + e2e |
 
 The `kind-` variants are one-shot (build → load → deploy → run); the plain ones run the suite against an already-deployed cluster.
+
+The multicluster suite is **not** part of `test-all`: it needs its own pair of clusters, so it has a separate target set (see [Multicluster e2e](#multicluster-e2e-two-clusters)).
 
 ## Prerequisites
 
@@ -124,6 +131,57 @@ make kind-conformance
 make kind-conformance CONFORMANCE_SCENARIOS=Storage.V1.BlockStorageLifeCycle
 ```
 
+## Multicluster e2e (two clusters)
+
+Everything above runs both gateways in **one** cluster, where the region catalog's
+provider URLs are an unasserted fixture pointing at in-cluster DNS. This suite runs the
+real split topology instead: the global gateway in `e2e-global`, the regional gateway
+and delegator in `e2e-regional`.
+
+The suite is handed **only** the global endpoint plus a kubeconfig context per cluster.
+It discovers the regional API by reading the provider URLs off the Region CR, so a
+broken registration fails the run instead of passing on a fixture. It then asserts the
+workspace CR it creates lands in the regional cluster and **not** the global one — the
+resource genuinely crossed a cluster boundary.
+
+```shell
+make kind-multicluster-e2e                   # one-shot: create both clusters, deploy, run
+make kind-multicluster-e2e AUTH_PLUGIN=jwt   # …with the gateways verifying signed JWTs
+
+# Or step by step:
+make kind-multicluster-start                 # create both clusters
+make kind-multicluster-stack                 # deploy the split stack + register the region
+make multicluster-e2e                        # run the suite against an already-deployed pair
+make kind-multicluster-stop                  # delete both clusters
+```
+
+`register-region.sh` performs the join: it pins the regional gateway's Service to a
+NodePort, then writes a Region CR advertising that address into the *global* cluster,
+overwriting the static `test-data` fixture of the same name.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MULTICLUSTER_GLOBAL_CLUSTER` | `e2e-global` | KIND cluster for the global gateway. |
+| `MULTICLUSTER_REGIONAL_CLUSTER` | `e2e-regional` | KIND cluster for the regional gateway + delegator. |
+| `MULTICLUSTER_GLOBAL_CONTEXT` | `kind-$(MULTICLUSTER_GLOBAL_CLUSTER)` | Context the scripts and suite use for the global cluster. |
+| `MULTICLUSTER_REGIONAL_CONTEXT` | `kind-$(MULTICLUSTER_REGIONAL_CLUSTER)` | Context for the regional cluster. |
+| `MULTICLUSTER_REGION` | `itbg-bergamo` | Region name registered. Must match the regional gateway's `REGION` env. |
+| `MULTICLUSTER_REGIONAL_NODE_PORT` | `30080` | Regional gateway NodePort. Must match the `extraPortMappings` entry in `internal/kind-config/regional-cluster.yaml`. |
+| `MULTICLUSTER_ADVERTISE_HOST` | `127.0.0.1` | Host advertised in the Region CR. |
+
+> **Why a published host port rather than the KIND node IP.** The suite reaches the
+> regional gateway at whatever address the Region CR advertises, so that address must be
+> reachable from the machine running the tests. A KIND node's own bridge IP
+> (`172.18.x.x`) works on a native Linux host but **not** from a WSL2 distro against
+> Docker Desktop, where the containers live in a separate VM network namespace.
+> `internal/kind-config/regional-cluster.yaml` publishes the NodePort to the host so
+> `127.0.0.1:30080` behaves the same everywhere. Set `MULTICLUSTER_ADVERTISE_HOST` to the
+> node IP if you would rather exercise the bridge path on native Linux.
+
+Because two clusters roughly double the wall time for a topology that changes rarely,
+this suite is best run nightly or on changes under `internal/deploy/` rather than on
+every PR.
+
 ### Cleanup
 
 ```shell
@@ -158,6 +216,12 @@ make conformance-ionos-scaffolding   # build images, create demo clusters, insta
 make conformance-ionos               # run secatest via NodePort
 make conformance-ionos-clean         # tear down
 ```
+
+Its clusters are **not** the multicluster e2e pair above: the demo stands up its own
+`global` / `regional` clusters (kubeconfigs under `~/.kube/multi-cluster-demo/`) with an
+auth-disabled, `seca`-tenant topology that `secatest` expects. The manifests and setup
+scripts for it live in [`conformance/ionos/cluster/`](conformance/ionos/cluster/) and
+[`conformance/ionos/scripts/`](conformance/ionos/scripts/).
 
 ## Running against a remote cluster
 
