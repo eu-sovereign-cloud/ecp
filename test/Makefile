@@ -272,6 +272,61 @@ kind-e2e: ## One-shot: build, load, deploy the stack into KIND and run the e2e s
 	@USE_KIND=true ./internal/scripts/run-e2e.sh
 
 # =====================================================================================
+# Multicluster e2e — the split topology: the global gateway in one cluster, the
+# regional gateway + delegator in another, joined only by the Region CR the global
+# gateway advertises. The suite is given the global endpoint and nothing else; it
+# has to discover the regional API from the region catalog, so a broken
+# registration fails the run. See test/e2e/multicluster/.
+#
+# Deliberately separate from kind-e2e: two clusters roughly double the wall time
+# for a topology that changes rarely, so run this nightly or on deploy/ changes
+# rather than per-PR.
+#
+#   make kind-multicluster-e2e                    # one-shot, dummy plugin
+#   make kind-multicluster-start                  # just the clusters
+#   make kind-multicluster-stack                  # deploy + register into existing clusters
+#   make multicluster-e2e                         # just the suite
+#   make kind-multicluster-stop                   # tear both down
+# =====================================================================================
+MULTICLUSTER_GLOBAL_CLUSTER   ?= e2e-global
+MULTICLUSTER_REGIONAL_CLUSTER ?= e2e-regional
+# Contexts are how both the scripts and the Go suite address the two clusters:
+# `kind create cluster` leaves the ambient current-context on whichever cluster it
+# made last, so nothing here may rely on it.
+MULTICLUSTER_GLOBAL_CONTEXT   ?= kind-$(MULTICLUSTER_GLOBAL_CLUSTER)
+MULTICLUSTER_REGIONAL_CONTEXT ?= kind-$(MULTICLUSTER_REGIONAL_CLUSTER)
+export MULTICLUSTER_GLOBAL_CONTEXT MULTICLUSTER_REGIONAL_CONTEXT
+
+.PHONY: kind-multicluster-start
+kind-multicluster-start: ## Create the global and regional KIND clusters
+	@KIND_CLUSTER=$(MULTICLUSTER_GLOBAL_CLUSTER)   ./internal/scripts/kind-start.sh
+	@KIND_CLUSTER=$(MULTICLUSTER_REGIONAL_CLUSTER) \
+		KIND_CONFIG=$(CURDIR)/internal/kind/regional-cluster.yaml \
+		./internal/scripts/kind-start.sh
+
+.PHONY: kind-multicluster-stop
+kind-multicluster-stop: ## Delete both multicluster KIND clusters
+	@KIND_CLUSTER=$(MULTICLUSTER_GLOBAL_CLUSTER)   ./internal/scripts/kind-stop.sh
+	@KIND_CLUSTER=$(MULTICLUSTER_REGIONAL_CLUSTER) ./internal/scripts/kind-stop.sh
+
+.PHONY: kind-multicluster-stack
+kind-multicluster-stack: ## Deploy the split stack across both KIND clusters and register the region
+	@$(MAKE) build-gateway-global build-gateway-regional build-delegator
+	@KIND_CLUSTER=$(MULTICLUSTER_GLOBAL_CLUSTER) $(MAKE) kind-load-gateway-global kind-deploy-gateway-global
+	@KIND_CLUSTER=$(MULTICLUSTER_REGIONAL_CLUSTER) PLUGIN_TYPE=$(E2E_PLUGIN) $(MAKE) \
+		kind-load-gateway-regional kind-load-delegator kind-deploy-gateway-regional kind-deploy-delegator
+	@./internal/scripts/register-region.sh
+
+.PHONY: multicluster-e2e kind-multicluster-e2e
+multicluster-e2e: ## Run the multicluster suite against an already-deployed cluster pair
+	@./internal/scripts/run-multicluster-e2e.sh
+
+kind-multicluster-e2e: ## One-shot: create both KIND clusters, deploy the split stack and run the multicluster suite
+	@$(MAKE) kind-multicluster-start
+	@$(MAKE) kind-multicluster-stack E2E_PLUGIN=dummy
+	@$(MAKE) multicluster-e2e
+
+# =====================================================================================
 # Everything — integration + e2e, one stack, one run
 # =====================================================================================
 .PHONY: test-all kind-test-all

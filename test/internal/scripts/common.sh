@@ -57,8 +57,20 @@ setup_kube_vars() {
     # 1. Handle KIND case
     if [[ -n "$USE_KIND" && "$USE_KIND" == "true" ]]; then
         unset KUBECONFIG
-        KUBECONFIG_ARG=""
-        export CLUSTER_NAME="e2e-cluster" # Hardcoded for KIND
+        # KIND_CLUSTER selects which KIND cluster to act on; the single-cluster
+        # flows leave it unset and get e2e-cluster. The multicluster flow sets it
+        # per invocation to drive two clusters from the same scripts.
+        export CLUSTER_NAME="${KIND_CLUSTER:-e2e-cluster}"
+        # Only address the cluster by context when one was explicitly selected.
+        # `kind create cluster` points the ambient current-context at whichever
+        # cluster it made last, so with two clusters ambient targeting silently
+        # picks one — but the single-cluster flows have always relied on ambient
+        # targeting, so leave their behaviour byte-identical.
+        if [ -n "${KIND_CLUSTER}" ]; then
+            KUBECONFIG_ARG="--context kind-${CLUSTER_NAME}"
+        else
+            KUBECONFIG_ARG=""
+        fi
         return
     fi
 
