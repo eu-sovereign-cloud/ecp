@@ -43,15 +43,19 @@ spec:
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+          args:
+            - globalapiserver
+            {{- with (include "ecp.authArgs" . | trim) }}
+            {{- . | nindent 12 }}
+            {{- end }}
           ports:
             - name: http
               containerPort: 8080
               protocol: TCP
+          {{- with .Values.gatewayGlobal.extraEnv }}
           env:
-            {{- include "ecp.authEnv" . | nindent 12 }}
-            {{- with .Values.gatewayGlobal.extraEnv }}
             {{- toYaml . | nindent 12 }}
-            {{- end }}
+          {{- end }}
           {{- with .Values.gatewayGlobal.livenessProbe }}
           livenessProbe:
             {{- toYaml . | nindent 12 }}

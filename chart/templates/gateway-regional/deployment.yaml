@@ -43,17 +43,20 @@ spec:
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+          args:
+            - regionalapiserver
+            - --region={{ required "gatewayRegional.region is required when gatewayRegional.enabled is true" .Values.gatewayRegional.region }}
+            {{- with (include "ecp.authArgs" . | trim) }}
+            {{- . | nindent 12 }}
+            {{- end }}
           ports:
             - name: http
               containerPort: 8080
               protocol: TCP
+          {{- with .Values.gatewayRegional.extraEnv }}
           env:
-            - name: REGION
-              value: {{ required "gatewayRegional.region is required when gatewayRegional.enabled is true" .Values.gatewayRegional.region | quote }}
-            {{- include "ecp.authEnv" . | nindent 12 }}
-            {{- with .Values.gatewayRegional.extraEnv }}
             {{- toYaml . | nindent 12 }}
-            {{- end }}
+          {{- end }}
           {{- with .Values.gatewayRegional.livenessProbe }}
           livenessProbe:
             {{- toYaml . | nindent 12 }}
