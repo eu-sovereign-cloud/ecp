@@ -54,6 +54,20 @@ if setup_chart_vars "${COMPONENT}"; then
         )
     fi
 
+    # The delegator's CSP plugin set. PLUGIN_TYPE may be overridden via the
+    # environment; otherwise default to aruba, except on KIND where the dummy
+    # plugin is the only self-contained one.
+    if [ "$COMPONENT" == "delegator" ]; then
+        if [ -z "$PLUGIN_TYPE" ]; then
+            PLUGIN_TYPE="aruba"
+            if [[ "$USE_KIND" == "true" ]]; then
+                PLUGIN_TYPE="dummy"
+            fi
+        fi
+        echo "Deploying delegator with plugin: ${PLUGIN_TYPE}"
+        HELM_ARGS+=(--set "plugin=${PLUGIN_TYPE}")
+    fi
+
     # --wait replaces the explicit rollout wait: a suite starting right after
     # would otherwise port-forward to the terminating pod, which still serves
     # the previous config (e.g. the previous auth plugin) and 401s every valid
@@ -82,20 +96,6 @@ fi
 if [ "$SYSTEM_NAMESPACE" != "e2e-ecp" ]; then
     echo "Retargeting namespace to ${SYSTEM_NAMESPACE}"
     YAML_STREAM=$(echo "${YAML_STREAM}" | sed -E "s/e2e-ecp[[:space:]]*$/${SYSTEM_NAMESPACE}/")
-fi
-
-# If the component is the delegator, handle the plugin type.
-# PLUGIN_TYPE may be overridden via the environment; otherwise default to
-# aruba, except on KIND where the dummy plugin is the default.
-if [ "$COMPONENT" == "delegator" ]; then
-    if [ -z "$PLUGIN_TYPE" ]; then
-        PLUGIN_TYPE="aruba" # Default to aruba
-        if [[ -n "$USE_KIND" && "$USE_KIND" == "true" ]]; then
-            PLUGIN_TYPE="dummy"
-        fi
-    fi
-    echo "Deploying delegator with plugin: ${PLUGIN_TYPE}"
-    YAML_STREAM=$(echo "${YAML_STREAM}" | sed "s|##PLUGIN_TYPE##|${PLUGIN_TYPE}|g")
 fi
 
 # Retarget the fixture tenant (default test-tenant). Its CRs live in the ECP tenant

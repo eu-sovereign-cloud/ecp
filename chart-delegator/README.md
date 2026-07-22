@@ -1,4 +1,4 @@
-# ecp-delegator-aruba
+# ecp-delegator
 
 Helm chart for the ECP **delegator with the Aruba Cloud plugin** — the
 controller that watches the ECP Custom Resources (written by the regional
@@ -30,7 +30,7 @@ on every `v*` tag (see `.github/workflows/image-release.yaml`). One image
 serves every CSP; this chart pins `PLUGIN=aruba`.
 
 ```bash
-helm install ecp-delegator-aruba csp/aruba/chart \
+helm install ecp-delegator chart-delegator \
   --namespace ecp --create-namespace
 ```
 

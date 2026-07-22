@@ -7,9 +7,9 @@ Helm chart for the European Control Plane (ECP) API servers:
 - **gateway-regional** — serves the regional SECA providers (`seca.workspace`,
   `seca.storage`, `seca.network`, `seca.compute`) for one region.
 
-Reconciliation is not part of this chart: install a delegator chart alongside
-the regional gateway — for Aruba Cloud that is
-[`csp/aruba/chart`](../csp/aruba/chart).
+Reconciliation is not part of this chart: install
+[`chart-delegator`](../chart-delegator) alongside the regional gateway, with
+`plugin` set to the CSP you run.
 
 ## Topology: together or split?
 
