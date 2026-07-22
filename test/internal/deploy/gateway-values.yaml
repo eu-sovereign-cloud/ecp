@@ -1,0 +1,50 @@
+# Auth configuration shared by both gateways in the test stack.
+#
+# Passed to `helm upgrade` ahead of the per-gateway values file, so the two
+# releases authenticate identically: one stack serves every suite, and a token
+# minted by internal/authhelper is accepted by whichever gateway a suite talks
+# to. See internal/scripts/deploy.sh.
+
+imagePullSecrets:
+  - name: ecp-test-registry
+
+auth:
+  enabled: true
+  # Which authenticator BOTH gateways run. Overridden per deployment from
+  # AUTH_PLUGIN (see test/Makefile) — deploy and test with the same value or
+  # every valid token comes back 401.
+  plugin: dummy
+  authz:
+    enabled: true
+    impl: cached
+    # The region catalog is tenant-less by spec, so SECA RBAC does not apply.
+    skipProviders: seca.region
+  dummyUsers:
+    # Each entry matches a Subs value in test-data/role-assignments.yaml.
+    # "nobody" has valid credentials but no RoleAssignment, so every
+    # RBAC-governed provider denies it with 403 (authn-only providers such as
+    # seca.region still respond).
+    #
+    # WARNING: the dummy authenticator performs no signature verification.
+    # Development and testing only, never production.
+    users:
+      admin: e2e-admin-pass
+      alice: alice-pass
+      bob: bob-pass
+      carol: carol-pass
+      dave: dave-pass
+      erin: erin-pass
+      nobody: nobody-pass
+  jwt:
+    # Read only when plugin is "jwt". The matching private key is a constant in
+    # internal/authhelper/authhelpers.go so the suites can sign tokens; both
+    # halves are throw-away fixtures generated for this repository.
+    #
+    # WARNING: the private half is published in this repository, so anyone can
+    # mint a token these gateways accept. Never use this key pair in production.
+    signingMethod: ES256
+    key: |
+      -----BEGIN PUBLIC KEY-----
+      MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEACNi0y/+o+9tCWzA7H6N+dJZm74M
+      JtE1SWlrpNk9KnKcKznA9bEWf96/4HZIGhN7xEX9L9xEOxoczKNN5lU1YQ==
+      -----END PUBLIC KEY-----

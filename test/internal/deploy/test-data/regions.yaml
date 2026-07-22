@@ -8,16 +8,16 @@ spec:
     - "itbg-2"
   providers:
     - name: "seca.storage"
-      url: "http://gateway-regional-svc:80/providers/seca.storage"
+      url: "http://ecp-regional-gateway-regional:80/providers/seca.storage"
       version: "v1"
     - name: "seca.workspace"
-      url: "http://gateway-regional-svc:80/providers/seca.workspace"
+      url: "http://ecp-regional-gateway-regional:80/providers/seca.workspace"
       version: "v1"
     - name: "seca.network"
-      url: "http://gateway-regional-svc:80/providers/seca.network"
+      url: "http://ecp-regional-gateway-regional:80/providers/seca.network"
       version: "v1"
     - name: "seca.compute"
-      url: "http://gateway-regional-svc:80/providers/seca.compute"
+      url: "http://ecp-regional-gateway-regional:80/providers/seca.compute"
       version: "v1"
 ---
 apiVersion: v1.secapi.cloud/v1

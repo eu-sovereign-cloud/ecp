@@ -44,7 +44,7 @@ else
     setup_kube_vars 2>/dev/null || true
     kubectl port-forward \
         -n "${NAMESPACE:-e2e-ecp}" \
-        service/gateway-global-svc \
+        "service/${GATEWAY_GLOBAL_SVC}" \
         8089:80 &>/dev/null &
     PF_PID=$!
     sleep 2
