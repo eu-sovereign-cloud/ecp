@@ -104,7 +104,9 @@ func Serve(ctx context.Context, srv *http.Server, log *slog.Logger, readiness *R
 			readiness.Set(false)
 		}
 		log.Info("shutting down HTTP server", slog.Duration("timeout", DefaultShutdownTimeout))
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), DefaultShutdownTimeout)
+		// WithoutCancel keeps ctx values but not cancellation — Shutdown needs its own budget
+		// after the serve context is already done.
+		shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), DefaultShutdownTimeout)
 		defer cancel()
 		if err := srv.Shutdown(shutdownCtx); err != nil {
 			// Force-close if drain budget is exhausted so Serve returns.

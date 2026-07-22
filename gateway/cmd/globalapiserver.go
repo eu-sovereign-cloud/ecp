@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"context"
-	"log"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -50,7 +50,10 @@ var globalAPIServerCMD = &cobra.Command{
 	Long:    `The API server command starts the global server for the ECP application`,
 	Run: func(cmd *cobra.Command, args []string) {
 		logger := logger.New(os.Getenv("APP_ENV"))
-		startGlobal(logger, host+":"+port, kubeconfig)
+		if err := startGlobal(logger, host+":"+port, kubeconfig); err != nil {
+			logger.Error("global API server failed", slog.Any("error", err))
+			os.Exit(1)
+		}
 	},
 }
 
@@ -63,10 +66,7 @@ func init() {
 }
 
 // startGlobal starts the backend HTTP server on the given address.
-func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-
+func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) error {
 	logger.Info("Starting global API server on", slog.Any("addr", addr))
 
 	config, err := rest.InClusterConfig()
@@ -74,15 +74,13 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
 		logger.Warn("could not get in-cluster config, falling back to kubeconfig file", slog.Any("error", err))
 		config, err = clientcmd.BuildConfigFromFlags("", kubeconfigPath)
 		if err != nil {
-			logger.Error("failed to build kubeconfig", "path", kubeconfigPath, slog.Any("error", err))
-			log.Fatal(err, " - failed to build kubeconfig")
+			return fmt.Errorf("build kubeconfig %s: %w", kubeconfigPath, err)
 		}
 	}
 
 	client, err := kubeclient.NewFromConfig(config)
 	if err != nil {
-		logger.Error("failed to create kubeclient", slog.Any("error", err))
-		log.Fatal(err, " - failed to create kubeclient")
+		return fmt.Errorf("create kubeclient: %w", err)
 	}
 
 	// Create a shared mux for all global handlers.
@@ -126,15 +124,16 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
 	// Build the authenticator and RBAC checker (both nil when --auth-enabled is not set).
 	authenticator, checker, err := auth.Build(&globalAuthFlags, client.Client, roleReaderAdapter, roleAssignmentReaderAdapter, logger)
 	if err != nil {
-		logger.Error("failed to build auth chain", slog.Any("error", err))
-		log.Fatal(err, " - failed to build auth chain")
+		return fmt.Errorf("build auth chain: %w", err)
 	}
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
 	// Start the informer-backed checker when --authz-cache is enabled.
 	// Same ctx as Serve so SIGTERM cancels informers during drain.
 	if err := auth.StartChecker(ctx, checker, logger); err != nil {
-		logger.Error("failed to start authz cache", slog.Any("error", err))
-		log.Fatal(err, " - failed to start authz cache")
+		return fmt.Errorf("start authz cache: %w", err)
 	}
 
 	// Region adapters and handler.
@@ -178,8 +177,8 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
 	readiness.Set(true)
 	logger.Info("Global API server started successfully")
 	if err := httpserver.Serve(ctx, httpServer, logger, readiness); err != nil {
-		logger.Error("global API server stopped with error", slog.Any("error", err))
-		log.Fatal(err, " - global API server stopped with error")
+		return fmt.Errorf("serve: %w", err)
 	}
 	logger.Info("Global API server shut down gracefully")
+	return nil
 }
