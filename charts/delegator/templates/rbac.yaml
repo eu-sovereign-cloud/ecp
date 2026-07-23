@@ -34,6 +34,22 @@ rules:
   - apiGroups: ["arubacloud.com"]
     resources: ["blockstorages", "blockstorages/status"]
     verbs: ["get", "list", "watch", "update", "patch", "create", "delete"]
+  # Network and compute inputs the plugin reconciles: networks, subnets and public
+  # IPs map to arubacloud.com CRs; route tables, internet gateways, nics and
+  # security groups are accepted as-is, with the real security groups materialised
+  # per VPC when an instance attaches them.
+  - apiGroups: ["network.v1.secapi.cloud"]
+    resources: ["networks", "networks/status", "subnets", "subnets/status", "public-ips", "public-ips/status", "route-tables", "route-tables/status", "internet-gateways", "internet-gateways/status", "security-groups", "security-groups/status", "security-group-rules", "security-group-rules/status", "nics", "nics/status"]
+    verbs: ["get", "list", "watch", "update", "patch", "create", "delete"]
+  - apiGroups: ["compute.v1.secapi.cloud"]
+    resources: ["instances", "instances/status"]
+    verbs: ["get", "list", "watch", "update", "patch", "create", "delete"]
+  # The remaining arubacloud.com CRs the plugin writes for the operator: a VPC,
+  # subnet and elastic IP directly, and a cloud server (with its key pair, security
+  # groups and rules) for an instance.
+  - apiGroups: ["arubacloud.com"]
+    resources: ["vpcs", "vpcs/status", "subnets", "subnets/status", "elasticips", "elasticips/status", "securitygroups", "securitygroups/status", "securityrules", "securityrules/status", "keypairs", "keypairs/status", "cloudservers", "cloudservers/status"]
+    verbs: ["get", "list", "watch", "update", "patch", "create", "delete"]
 {{- else if eq $plugin "dummy" }}
   # The widest set: the dummy plugin reconciles every vertical in-process, with
   # no backend CRs to write.
