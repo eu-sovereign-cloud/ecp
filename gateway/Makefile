@@ -28,16 +28,6 @@ build-gateway:
 	@mkdir -p ../bin
 	@$(GO) build -o ../bin/gateway .
 
-.PHONY: create-dev-clusters
-create-dev-clusters:
-	@echo "Setting up development clusters..."
-	@./scripts/setup-dev-clusters.sh
-
-.PHONY: clean-dev-clusters
-clean-dev-clusters:
-	@echo "Executing development cluster cleanup script..."
-	@./scripts/remove-dev-clusters.sh
-
 .PHONY: lint
 lint:
 	@GOWORK=$$(cd .. && pwd)/go.work golangci-lint run ./...
@@ -49,6 +39,4 @@ help:
 	@echo "  run-regional-server     Run the regional API server locally"
 	@echo "  docker-build-images     Build Docker images for the gateway"
 	@echo "  build-gateway           Build the gateway binary"
-	@echo "  create-dev-clusters     Set up development clusters"
-	@echo "  clean-dev-clusters      Tear down development clusters"
 	@echo "  lint                    Run linters for the gateway module"
