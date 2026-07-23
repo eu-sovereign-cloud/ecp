@@ -25,9 +25,8 @@ spec:
         - name: AUTH_ENABLED
           value: "true"
         # Which authenticator to run: "dummy" (default) or "jwt". Substituted at
-        # deploy time from the AUTH_PLUGIN env var; the e2e stack sets it to "jwt"
-        # for this gateway and leaves the regional one on dummy, so a single e2e
-        # run exercises both plugins. The integration suites keep the default.
+        # deploy time from the AUTH_PLUGIN env var; both gateways get the same
+        # value so a single stack serves every suite (see test/Makefile).
         - name: AUTH_PLUGIN
           value: "##AUTH_PLUGIN##"
         - name: JWT_SECRET

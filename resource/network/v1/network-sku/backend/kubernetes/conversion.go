@@ -58,12 +58,15 @@ func NetworkSKUToCR(sku *skudom.NetworkSKU) (client.Object, error) {
 		return nil, fmt.Errorf("network SKU is nil")
 	}
 
-	cr := &NetworkSKU{}
+	cr := &NetworkSKU{
+		Spec: NetworkSkuSpec{
+			Bandwidth: sku.Spec.Bandwidth,
+			Packets:   sku.Spec.Packets,
+		},
+	}
 	cr.SetName(sku.Name)
 	cr.SetResourceVersion(sku.ResourceVersion)
 	cr.SetGroupVersionKind(NetworkSKUGVK)
-
-	// TODO: populate cr.Spec from sku.Spec when schemav1.NetworkSkuSpec fields are available
 
 	return cr, nil
 }

@@ -21,7 +21,14 @@ fi
 "${SCRIPT_DIR}/../../../ci/scripts/kind-cgroup-preflight.sh"
 
 echo "Creating KIND cluster '${CLUSTER_NAME}'..."
-kind create cluster --name "${CLUSTER_NAME}"
+# KIND_CONFIG is optional: the multicluster regional cluster needs a config to
+# publish its NodePort to the host (see internal/kind-config/regional-cluster.yaml).
+if [ -n "${KIND_CONFIG:-}" ]; then
+    echo "Using KIND config ${KIND_CONFIG}"
+    kind create cluster --name "${CLUSTER_NAME}" --config "${KIND_CONFIG}"
+else
+    kind create cluster --name "${CLUSTER_NAME}"
+fi
 
 echo "KIND cluster '${CLUSTER_NAME}' started."
 

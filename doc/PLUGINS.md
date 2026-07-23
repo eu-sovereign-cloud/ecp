@@ -129,7 +129,7 @@ Direct CSP adapter for Aruba Cloud, without a Crossplane layer.
 
 ## Test Harness (`test/`)
 
-The `test/` module tests the full ECP stack on a KIND cluster. It has three kinds of
+The `test/` module tests the full ECP stack on KIND. It has four kinds of
 suite, all driven from one `Makefile`. Components are auto-discovered from the
 `internal/build/` directory.
 
@@ -142,7 +142,12 @@ suite, all driven from one `Makefile`. Components are auto-discovered from the
   - **`delegator`** tests reconciliation: the dummy-plugin controllers drive CRs to
     `Active`. It needs `test-data`.
 - **e2e** (`test/e2e/`) — the whole stack in one run: it drives the SECA API and
-  asserts resources reconcile down to the delegator plugin.
+  asserts resources reconcile down to the delegator plugin. Single cluster.
+- **multicluster e2e** (`test/e2e/multicluster/`) — the split topology: global gateway
+  in one cluster, regional gateway + delegator in another, joined only by the Region CR
+  the global gateway advertises. The suite gets only the global endpoint and must
+  discover the regional API from the region catalog. Needs its own cluster pair, so it
+  is not part of `test-all`.
 - **conformance** — runs `secatest` against the stack, generic across plugins.
 
 ```bash
@@ -155,6 +160,10 @@ make -C test kind-integration-gateway-regional
 make -C test kind-e2e            # e2e only
 make -C test kind-integration    # every integration suite
 make -C test kind-test-all       # both
+
+# Split global/regional topology (its own cluster pair)
+make -C test kind-multicluster-e2e
+make -C test kind-multicluster-stop
 
 # Tear down
 make -C test kind-stop
