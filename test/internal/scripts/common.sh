@@ -52,6 +52,27 @@ setup_registry_vars() {
     export IMAGE_NAME="${image_name}"
 }
 
+# Name of the image-pull secret ensure_pull_secret mints.
+PULL_SECRET_NAME="ecp-test-registry"
+
+# ensure_pull_secret creates a docker-registry pull secret in the given namespace
+# from the registry credentials in the local context (internal/context/config.env
+# — the same REGISTRY_* vars push.sh logs in with) and echoes its name. It creates
+# nothing and echoes nothing when those are unset: KIND side-loads images and the
+# published GHCR packages are public, so neither path needs a secret. No registry
+# credential is committed to the repository — the caller wires the echoed name into
+# the deployment only when there is one.
+ensure_pull_secret() {
+    local namespace=${1:?namespace is required}
+    [ -n "${REGISTRY_USER:-}" ] && [ -n "${REGISTRY_PASSWORD:-}" ] || return 0
+    kubectl ${KUBECONFIG_ARG} -n "${namespace}" create secret docker-registry "${PULL_SECRET_NAME}" \
+        --docker-server="${REGISTRY_URL:-}" \
+        --docker-username="${REGISTRY_USER}" \
+        --docker-password="${REGISTRY_PASSWORD}" \
+        --dry-run=client -o yaml | kubectl ${KUBECONFIG_ARG} apply -f - >/dev/null
+    echo "${PULL_SECRET_NAME}"
+}
+
 # Service names the gateway chart renders, "<release>-<component>". Anything
 # dialling a gateway by DNS rather than by port-forward needs them: the
 # conformance runner, the benchmark scraper, and test-data/regions.yaml, which

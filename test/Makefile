@@ -49,8 +49,8 @@ export AUTH_PLUGIN
 COMPONENTS := $(notdir $(wildcard $(CURDIR)/internal/build/*))
 
 # Discover deployments automatically from the deploy directory. Directories only:
-# deploy/ also holds files shared by several components (registry-secret.yaml,
-# gateway-values.yaml), which are not deployments of their own.
+# deploy/ also holds files shared by several components (gateway-values.yaml),
+# which are not deployments of their own.
 DEPLOYMENTS := $(notdir $(patsubst %/,%,$(wildcard $(CURDIR)/internal/deploy/*/)))
 
 # Discover components that actually have integration tests
