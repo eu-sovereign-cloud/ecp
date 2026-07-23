@@ -1,4 +1,4 @@
-# ECP — European Control Plane
+# ECP — European Control Plane 
 
 A Kubernetes-native distributed control plane for managing cloud resources across multiple cloud service providers (CSPs).
 
