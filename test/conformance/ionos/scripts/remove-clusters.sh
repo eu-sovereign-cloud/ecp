@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-# --- Configuration (should match setup-dev-clusters.sh) ---
+# --- Configuration (should match setup-clusters.sh) ---
 GLOBAL_CLUSTER_NAME="global"
 REGIONAL_CLUSTER_NAME="regional"
 KUBECONFIG_DIR="${HOME}/.kube/multi-cluster-demo"

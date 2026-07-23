@@ -124,8 +124,8 @@ in-cluster Service DNS on other Region CRs, and runs `ensure-tenant`.
 
 Every journey target has a `-dev` variant (`smoke-dev`, `create-workspace-dev`,
 `stepwise-dev`, `stress-dev`, `throughput-dev`, `tf-stress-dev`,
-`tf-net-storage-dev`) that runs against the **`gateway create-dev-clusters`**
-setup — two standalone KIND clusters named `global`/`regional`, distinct from
+`tf-net-storage-dev`) that runs against the **ionos conformance suite's
+dev-cluster setup** — two standalone KIND clusters named `global`/`regional`, distinct from
 `test`'s single `e2e-cluster` — with zero manual setup:
 
 ```bash
@@ -136,7 +136,7 @@ Each `-dev` target:
 
 1. Runs `ensure-dev-clusters` — if the `global`/`regional` KIND clusters don't
    already exist, builds the gateway images and bootstraps them
-   (`gateway/scripts/setup-dev-clusters.sh`; first run takes a few minutes,
+   (`test/conformance/ionos/scripts/setup-clusters.sh`; first run takes a few minutes,
    later runs no-op).
 2. Discovers `BASE_URL_GLOBAL`/`BASE_URL_REGIONAL` from each cluster's
    NodePort Service directly (`gateway/scripts/dev-url.sh`) — both services
@@ -145,13 +145,13 @@ Each `-dev` target:
 3. Points `KUBECONFIG` at the **regional** cluster (where tenant/workspace CRs
    live) and sets `E2E_TENANT=seca` — the tenant these dev clusters seed a
    namespace + `StorageSKU`/`InstanceSKU` fixtures for
-   (`gateway/config/k8s-dev-setup/regional/`), **not** the GKE/e2e-cluster
+   (`test/conformance/ionos/cluster/regional/`), **not** the GKE/e2e-cluster
    default `test-tenant`.
 4. Re-invokes the plain target (e.g. `smoke`) with those as environment
    overrides.
 
 `DEV_KUBECONFIG_DIR` (`~/.kube/multi-cluster-demo`) is fixed to match what
-`setup-dev-clusters.sh` itself hardcodes — it is **not** meant to be
+`setup-clusters.sh` itself hardcodes — it is **not** meant to be
 overridden independently.
 
 ```bash
@@ -495,8 +495,10 @@ test/load/
   options/        # smoke.json, stepwise.json, stress.json, tf-*.json
   observability/  # Grafana dashboards for load-test Prometheus
 
-gateway/scripts/  # dev-url.sh, ensure-dev-clusters.sh, setup-dev-clusters.sh
+gateway/scripts/  # dev-url.sh, ensure-dev-clusters.sh
                   # — the *-dev targets' cluster/URL discovery, outside test/load
+test/conformance/ionos/scripts/setup-clusters.sh
+                  # — the dev clusters themselves (called by ensure-dev-clusters.sh)
 ```
 
 ## Grafana dashboards

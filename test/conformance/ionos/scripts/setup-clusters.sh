@@ -15,12 +15,13 @@ KUBECONFIG_DIR="${HOME}/.kube/multi-cluster-demo"
 GLOBAL_KUBECONFIG_PATH="${KUBECONFIG_DIR}/global-config"
 REGIONAL_KUBECONFIG_PATH="${KUBECONFIG_DIR}/regional-config"
 
-# Resolve repository-relative paths (so script can be run from any cwd)
+# Resolve repository-relative paths (so script can be run from any cwd).
+# Lives at test/conformance/ionos/scripts/, so the repo root is four levels up.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-GATEWAY_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-API_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+IONOS_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+API_ROOT="$(cd "${SCRIPT_DIR}/../../../.." && pwd)"
 API_CRDS_DIR="${API_ROOT}/charts/ecp/crds"
-CONFIG_SETUP_DIR="${GATEWAY_ROOT}/config/k8s-dev-setup"
+CONFIG_SETUP_DIR="${IONOS_ROOT}/cluster"
 REGIONAL_CONFIG_DIR="${CONFIG_SETUP_DIR}/regional"
 
 # Docker Images
@@ -106,7 +107,7 @@ check_command "kubectl"
 check_command "docker"
 check_command "curl"
 
-"${SCRIPT_DIR}/../../ci/scripts/kind-cgroup-preflight.sh"
+"${API_ROOT}/ci/scripts/kind-cgroup-preflight.sh"
 
 # 2. Create clusters with kind
 echo "--- Step 1: Creating 'global' and 'regional' clusters with kind ---"

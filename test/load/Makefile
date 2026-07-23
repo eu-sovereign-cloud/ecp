@@ -3,8 +3,8 @@
 LOAD_DIR := $(CURDIR)
 SCRIPTS  := $(LOAD_DIR)/scripts
 
-# Local gateway dev clusters (gateway/scripts/setup-dev-clusters.sh): 'global'
-# and 'regional' KIND clusters. setup-dev-clusters.sh hardcodes its
+# Local dev clusters (test/conformance/ionos/scripts/setup-clusters.sh):
+# 'global' and 'regional' KIND clusters. setup-clusters.sh hardcodes its
 # KUBECONFIG_DIR to ~/.kube/multi-cluster-demo, so this must match exactly —
 # not independently overridable, or the *-dev targets look in the wrong place.
 GATEWAY_SCRIPTS    := $(LOAD_DIR)/../../gateway/scripts
@@ -88,13 +88,13 @@ smoke: k6-start ## Run smoke journey (healthz, regions, list workspaces)
 	@$(SCRIPTS)/run-k6.sh run journeys/smoke.js --config options/smoke.json
 
 .PHONY: ensure-dev-clusters
-ensure-dev-clusters: ## Create local 'global'/'regional' gateway dev clusters if missing (build images + create-dev-clusters)
+ensure-dev-clusters: ## Create local 'global'/'regional' dev clusters if missing (build images + setup-clusters.sh)
 	@$(GATEWAY_SCRIPTS)/ensure-dev-clusters.sh
 
 # Discover BASE_URL_GLOBAL/REGIONAL from the dev clusters' NodePorts, point
 # KUBECONFIG at the regional cluster (ensure-tenant and journeys' tenant CRs
 # live there, not on the host's ambient/default context), and use tenant
-# "seca" — the tenant setup-dev-clusters.sh's regional fixtures actually seed
+# "seca" — the tenant setup-clusters.sh's regional fixtures actually seed
 # (namespace + StorageSKU), not the GKE/e2e-cluster default "test-tenant".
 # Re-invoke $(MAKE) with these as environment overrides (env wins over the
 # `?=` defaults above).

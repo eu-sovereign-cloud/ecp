@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Print the NodePort URL for a service in a 'gateway create-dev-clusters' KIND
-# cluster (see setup-dev-clusters.sh) — reachable directly, no port-forward.
+# Print the NodePort URL for a service in a 'global'/'regional' KIND dev cluster
+# (see test/conformance/ionos/scripts/setup-clusters.sh) — reachable directly,
+# no port-forward.
 #
 # Usage: dev-url.sh <cluster-name> <kubeconfig-path> <service-name>
 set -euo pipefail
@@ -15,7 +16,7 @@ KUBECONFIG_PATH="$2"
 SERVICE_NAME="$3"
 
 if [[ ! -f "${KUBECONFIG_PATH}" ]]; then
-	echo "dev-url: kubeconfig not found: ${KUBECONFIG_PATH} (run: make -C gateway create-dev-clusters)" >&2
+	echo "dev-url: kubeconfig not found: ${KUBECONFIG_PATH} (run: make -C test/load ensure-dev-clusters)" >&2
 	exit 1
 fi
 

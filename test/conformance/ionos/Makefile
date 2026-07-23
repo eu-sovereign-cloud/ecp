@@ -36,13 +36,13 @@ SECATEST_RESULTS_PATH        ?= ./results
 #   make secatest-scaffolding
 secatest-scaffolding:
 	$(MAKE) -C ../../../gateway docker-build-images
-	$(MAKE) -C ../../../gateway create-dev-clusters
+	./scripts/setup-clusters.sh
 	$(MAKE) -C ../../../csp/ionos install-all
 	$(MAKE) secatest-install-plugin
 
 # Tear down the environment
 secatest-clean:
-	$(MAKE) -C ../../../gateway clean-dev-clusters
+	./scripts/remove-clusters.sh
 
 # Build the ionos plugin Docker image and install it on the regional cluster
 secatest-install-plugin:
