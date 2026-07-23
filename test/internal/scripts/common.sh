@@ -109,7 +109,9 @@ setup_chart_vars() {
     esac
 }
 
-# setup_kube_vars sets the KUBECONFIG_ARG, KUBECONFIG, and CLUSTER_NAME environment variables.
+# setup_kube_vars sets KUBECONFIG_ARG (for kubectl), HELM_KUBECONFIG_ARG (for
+# helm — the two tools spell the context flag differently: kubectl --context vs
+# helm --kube-context), KUBECONFIG, and CLUSTER_NAME.
 setup_kube_vars() {
     # 1. Handle KIND case
     if [[ -n "$USE_KIND" && "$USE_KIND" == "true" ]]; then
@@ -125,8 +127,10 @@ setup_kube_vars() {
         # targeting, so leave their behaviour byte-identical.
         if [ -n "${KIND_CLUSTER}" ]; then
             KUBECONFIG_ARG="--context kind-${CLUSTER_NAME}"
+            HELM_KUBECONFIG_ARG="--kube-context kind-${CLUSTER_NAME}"
         else
             KUBECONFIG_ARG=""
+            HELM_KUBECONFIG_ARG=""
         fi
         return
     fi
@@ -135,7 +139,9 @@ setup_kube_vars() {
     local context_kubeconfig="${CONTEXT_DIR}/kubeconfig.yaml"
     if [ -f "${context_kubeconfig}" ]; then
         export KUBECONFIG="${context_kubeconfig}"
+        # Both tools accept --kubeconfig with the same spelling.
         KUBECONFIG_ARG="--kubeconfig ${context_kubeconfig}"
+        HELM_KUBECONFIG_ARG="--kubeconfig ${context_kubeconfig}"
         local current_context
         current_context=$(kubectl config current-context --kubeconfig "${context_kubeconfig}")
         export CLUSTER_NAME
@@ -145,6 +151,7 @@ setup_kube_vars() {
 
     # 3. Default: honour an exported KUBECONFIG (custom cluster) or ~/.kube/config.
     KUBECONFIG_ARG=""
+    HELM_KUBECONFIG_ARG=""
     local current_context
     current_context=$(kubectl config current-context)
     export CLUSTER_NAME

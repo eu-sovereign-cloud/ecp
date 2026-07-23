@@ -81,12 +81,20 @@ if setup_chart_vars "${COMPONENT}"; then
         HELM_ARGS+=(--set "plugin=${PLUGIN_TYPE}")
     fi
 
+    # Per-component values, then an optional overlay (DEPLOY_VALUES) layered last
+    # so it wins — e.g. the multicluster topology exposes the regional gateway on
+    # a NodePort (see the kind-multicluster-stack target).
+    VALUES_ARGS=(--values "${DEPLOY_DIR}/values.yaml")
+    if [ -n "${DEPLOY_VALUES:-}" ]; then
+        VALUES_ARGS+=(--values "${DEPLOY_VALUES}")
+    fi
+
     # --wait replaces the explicit rollout wait: a suite starting right after
     # would otherwise port-forward to the terminating pod, which still serves
     # the previous config (e.g. the previous auth plugin) and 401s every valid
     # token.
-    helm ${KUBECONFIG_ARG} upgrade --install "${HELM_RELEASE}" "${CHART_DIR}" \
-        "${HELM_ARGS[@]}" --values "${DEPLOY_DIR}/values.yaml" --wait --timeout 3m
+    helm ${HELM_KUBECONFIG_ARG} upgrade --install "${HELM_RELEASE}" "${CHART_DIR}" \
+        "${HELM_ARGS[@]}" "${VALUES_ARGS[@]}" --wait --timeout 3m
 
     echo "Deployment of ${COMPONENT} complete."
     exit 0

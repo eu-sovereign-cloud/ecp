@@ -32,19 +32,18 @@ echo "--- Registering region '${REGION_NAME}' (${REGIONAL_CONTEXT} -> ${GLOBAL_C
 
 # The suite reaches the regional gateway at whatever the Region CR advertises, so
 # that address has to be routable from outside the regional cluster. ClusterIP —
-# what the single-cluster stack deploys — is not. Patching rather than shipping a
-# second manifest keeps the single-cluster deployment untouched. The nodePort is
-# pinned rather than auto-assigned so it lines up with the published host port.
-kubectl --context "${REGIONAL_CONTEXT}" -n "${SYSTEM_NAMESPACE}" patch svc gateway-regional-svc \
-    --type merge \
-    -p "{\"spec\":{\"type\":\"NodePort\",\"ports\":[{\"port\":80,\"targetPort\":8080,\"protocol\":\"TCP\",\"nodePort\":${REGIONAL_NODE_PORT}}]}}" >/dev/null
-
-# Confirm the pin took: an auto-assigned port would not be published to the host.
+# what the single-cluster stack deploys — is not, so the multicluster overlay
+# deploys the regional gateway as a NodePort with a pinned port (see the
+# kind-multicluster-stack target and gateway-regional/multicluster-values.yaml).
+# Here we only read that port back and confirm the pin, so the advertised host
+# port lines up with what the chart exposed and what regional-cluster.yaml
+# publishes — an auto-assigned port would not be reachable from the host.
 GOT_PORT=$(kubectl --context "${REGIONAL_CONTEXT}" -n "${SYSTEM_NAMESPACE}" \
-    get svc gateway-regional-svc -o jsonpath='{.spec.ports[0].nodePort}')
+    get svc "${GATEWAY_REGIONAL_SVC}" -o jsonpath='{.spec.ports[0].nodePort}' 2>/dev/null || true)
 if [ "${GOT_PORT}" != "${REGIONAL_NODE_PORT}" ]; then
-    echo "Error: gateway-regional-svc nodePort is ${GOT_PORT}, expected ${REGIONAL_NODE_PORT}" >&2
-    echo "The regional cluster must be created with internal/kind-config/regional-cluster.yaml." >&2
+    echo "Error: ${GATEWAY_REGIONAL_SVC} nodePort is '${GOT_PORT}', expected ${REGIONAL_NODE_PORT}." >&2
+    echo "Deploy the regional gateway with the multicluster overlay (make kind-multicluster-stack)," >&2
+    echo "and create the regional cluster with internal/kind-config/regional-cluster.yaml." >&2
     exit 1
 fi
 

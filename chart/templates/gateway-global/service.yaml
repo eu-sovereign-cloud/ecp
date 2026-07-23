@@ -13,6 +13,9 @@ spec:
       port: {{ .Values.gatewayGlobal.service.port }}
       targetPort: http
       protocol: TCP
+      {{- if and (eq .Values.gatewayGlobal.service.type "NodePort") .Values.gatewayGlobal.service.nodePort }}
+      nodePort: {{ .Values.gatewayGlobal.service.nodePort }}
+      {{- end }}
   selector:
     {{- include "ecp.selectorLabels" . | nindent 4 }}
     app.kubernetes.io/component: gateway-global

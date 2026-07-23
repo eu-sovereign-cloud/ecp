@@ -315,8 +315,14 @@ kind-multicluster-stop: ## Delete both multicluster KIND clusters
 kind-multicluster-stack: ## Deploy the split stack across both KIND clusters and register the region
 	@$(MAKE) build-gateway-global build-gateway-regional build-delegator
 	@KIND_CLUSTER=$(MULTICLUSTER_GLOBAL_CLUSTER) $(MAKE) kind-load-gateway-global kind-deploy-gateway-global
-	@KIND_CLUSTER=$(MULTICLUSTER_REGIONAL_CLUSTER) PLUGIN_TYPE=$(E2E_PLUGIN) $(MAKE) \
-		kind-load-gateway-regional kind-load-delegator kind-deploy-gateway-regional kind-deploy-delegator
+	@KIND_CLUSTER=$(MULTICLUSTER_REGIONAL_CLUSTER) $(MAKE) kind-load-gateway-regional kind-load-delegator
+	@KIND_CLUSTER=$(MULTICLUSTER_REGIONAL_CLUSTER) PLUGIN_TYPE=$(E2E_PLUGIN) $(MAKE) kind-deploy-delegator
+	# The regional gateway is exposed on a NodePort so the global cluster and the
+	# suite can reach it across the cluster boundary — the chart does it via the
+	# multicluster overlay, not an out-of-band kubectl patch.
+	@KIND_CLUSTER=$(MULTICLUSTER_REGIONAL_CLUSTER) \
+		DEPLOY_VALUES=$(CURDIR)/internal/deploy/gateway-regional/multicluster-values.yaml \
+		$(MAKE) kind-deploy-gateway-regional
 	@./internal/scripts/register-region.sh
 
 .PHONY: multicluster-e2e kind-multicluster-e2e

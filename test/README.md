@@ -183,9 +183,14 @@ make multicluster-e2e                        # run the suite against an already-
 make kind-multicluster-stop                  # delete both clusters
 ```
 
-`register-region.sh` performs the join: it pins the regional gateway's Service to a
-NodePort, then writes a Region CR advertising that address into the *global* cluster,
-overwriting the static `test-data` fixture of the same name.
+The regional gateway is exposed for cross-cluster reach the same way everything else is
+deployed — through the chart. `kind-multicluster-stack` layers
+[`gateway-regional/multicluster-values.yaml`](internal/deploy/gateway-regional/multicluster-values.yaml)
+onto the deploy (via `DEPLOY_VALUES`), which sets `service.type=NodePort` and pins
+`service.nodePort`. `register-region.sh` then performs the join: it reads that NodePort
+back off the chart-created Service, confirms the pin, and writes a Region CR advertising
+the address into the *global* cluster, overwriting the static `test-data` fixture of the
+same name.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
