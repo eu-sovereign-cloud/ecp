@@ -83,7 +83,6 @@ Two consequences worth knowing:
 - **The delegator's RBAC follows its plugin.** `chart-delegator` grants exactly the controller set `plugin` loads, so adding a resource to a plugin means adding its rules to that plugin's branch in `chart-delegator/templates/rbac.yaml`.
 
 To deploy the same stack by hand, or to install it anywhere real, use the charts directly — see [`chart/README.md`](../chart/README.md).
->>>>>>> 7dacd62c (docs: describe the chart-based test deployment and refresh stale manifest references)
 
 ## Prerequisites
 
@@ -101,8 +100,7 @@ remote cluster / registry instead of KIND:
 
 - `internal/context/kubeconfig.yaml` — if present, the non-`kind-` recipes
   (`deploy`/`clean`/`test`/`e2e`/`conformance`) target this cluster.
-- `internal/context/config.env` — shell exports for a remote registry, used by
-  `make push-*`:
+- `internal/context/config.env` — shell exports for a remote registry:
 
   ```shell
   export REGISTRY_URL="my.registry.com"
@@ -110,6 +108,12 @@ remote cluster / registry instead of KIND:
   export REGISTRY_USER="my-user"
   export REGISTRY_PASSWORD="my-password"
   ```
+
+  `make push-*` logs in with these. `deploy`/`conformance` also mint an
+  image-pull secret from `REGISTRY_USER`/`REGISTRY_PASSWORD`/`REGISTRY_URL` and
+  attach it to the pods, so a remote cluster can pull from a private registry.
+  No credential is committed to the repo; leave these unset for KIND (images are
+  side-loaded) or a public registry (nothing to authenticate).
 
 ## Running on KIND (dummy plugin)
 

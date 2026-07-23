@@ -17,8 +17,6 @@ spec:
         app: conformance
     spec:
       serviceAccountName: conformance-sa
-      imagePullSecrets:
-      - name: conformance-registry-secret
       containers:
       - image: "##IMAGE_NAME##"
         name: e2e-ecp-conformance

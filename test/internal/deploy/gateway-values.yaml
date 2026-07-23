@@ -4,9 +4,9 @@
 # releases authenticate identically: one stack serves every suite, and a token
 # minted by internal/authhelper is accepted by whichever gateway a suite talks
 # to. See internal/scripts/deploy.sh.
-
-imagePullSecrets:
-  - name: ecp-test-registry
+#
+# imagePullSecrets is not set here: deploy.sh adds one only when the local
+# context carries registry credentials (KIND and public GHCR need none).
 
 auth:
   enabled: true

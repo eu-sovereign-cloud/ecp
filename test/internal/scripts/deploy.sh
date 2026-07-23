@@ -27,7 +27,6 @@ echo "Deploying ${COMPONENT} with image ${IMAGE_NAME}..."
 if setup_chart_vars "${COMPONENT}"; then
     kubectl ${KUBECONFIG_ARG} create namespace "${SYSTEM_NAMESPACE}" --dry-run=client -o yaml |
         kubectl ${KUBECONFIG_ARG} apply -f -
-    kubectl ${KUBECONFIG_ARG} -n "${SYSTEM_NAMESPACE}" apply -f "${SCRIPT_DIR}/../deploy/registry-secret.yaml"
 
     # IMAGE_NAME is repository:tag; the charts take the halves separately.
     HELM_ARGS=(
@@ -35,6 +34,14 @@ if setup_chart_vars "${COMPONENT}"; then
         --set "${IMAGE_VALUE_PATH}.repository=${IMAGE_NAME%:*}"
         --set "${IMAGE_VALUE_PATH}.tag=${IMAGE_NAME##*:}"
     )
+
+    # A private registry needs a pull secret; KIND and public GHCR do not. When
+    # the local context carries registry credentials, mint it and point the chart
+    # at it — both charts take imagePullSecrets by name.
+    pull_secret=$(ensure_pull_secret "${SYSTEM_NAMESPACE}")
+    if [ -n "${pull_secret}" ]; then
+        HELM_ARGS+=(--set "imagePullSecrets[0].name=${pull_secret}")
+    fi
 
     # Locally built images are side-loaded into KIND and never pullable.
     if [[ "$USE_KIND" == "true" ]]; then
