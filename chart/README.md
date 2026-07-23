@@ -119,6 +119,7 @@ See [values.yaml](values.yaml) for the full commented list. The notable ones:
 | `auth.dummyUsers.users` | `{}` | username → password map (required when `auth.plugin=dummy`) |
 | `*.image.repository` | `ghcr.io/eu-sovereign-cloud/ecp/...` | Override only to mirror the images into your own registry |
 | `*.service.type` / `*.ingress.enabled` | `ClusterIP` / `false` | How to expose each gateway |
+| `*.service.nodePort` | `""` | Fixed node port, honoured only when `service.type=NodePort` (else auto-assigned) |
 
 `helm lint`/CI note: because `gatewayRegional.region` has no sane default,
 lint with the CI values: `helm lint chart -f chart/ci/default-values.yaml`.

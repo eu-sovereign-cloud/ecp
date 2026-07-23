@@ -65,7 +65,7 @@ func TestMultiClusterRegistration(t *testing.T) {
 			// gives a clearer failure than the connection error it would cause
 			// in the next subtest — which is the real reachability proof.
 			require.NotContainsf(t, host, ".svc", "provider %q advertises cluster-local DNS %q", name, raw)
-			require.NotEqualf(t, "gateway-regional-svc", host,
+			require.NotEqualf(t, "ecp-regional-gateway-regional", host,
 				"provider %q advertises the in-cluster service name %q", name, raw)
 			require.NotEmptyf(t, u.Port(), "provider %q advertises no port in %q", name, raw)
 		}

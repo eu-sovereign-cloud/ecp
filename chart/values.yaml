@@ -69,6 +69,10 @@ gatewayGlobal:
   service:
     type: ClusterIP
     port: 80
+    # Fixed node port, honoured only when type is NodePort (else Kubernetes
+    # auto-assigns). Empty leaves it dynamic. Pin it to expose the gateway at a
+    # known host port, as the multicluster test does for the regional gateway.
+    nodePort: ""
   ingress:
     enabled: false
     className: ""
@@ -135,6 +139,10 @@ gatewayRegional:
   service:
     type: ClusterIP
     port: 80
+    # Fixed node port, honoured only when type is NodePort (else Kubernetes
+    # auto-assigns). Empty leaves it dynamic. Pin it to expose the gateway at a
+    # known host port, as the multicluster test does for the regional gateway.
+    nodePort: ""
   ingress:
     enabled: false
     className: ""
