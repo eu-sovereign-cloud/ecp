@@ -1,9 +1,9 @@
 {{- if .Values.rbac.create }}
 {{- $plugin := include "ecp-delegator.plugin" . }}
-# Scoped to the controller set the selected plugin loads — see the
-# load{Aruba,Dummy,Ionos}Controllers functions in test/internal/cmd/delegator.
-# Granting the union across plugins would hand every install write access to
-# CRDs its plugin never touches, so each set is listed separately.
+# Scoped to the controller set the selected plugin loads — see the loadControllers
+# function in each plugin's cmd (csp/<plugin>/cmd). Granting the union across
+# plugins would hand every install write access to CRDs its plugin never touches,
+# so each set is listed separately.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:

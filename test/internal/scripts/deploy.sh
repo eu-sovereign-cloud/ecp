@@ -67,16 +67,12 @@ if setup_chart_vars "${COMPONENT}"; then
         fi
     fi
 
-    # The delegator's CSP plugin set. PLUGIN_TYPE may be overridden via the
-    # environment; otherwise default to aruba, except on KIND where the dummy
-    # plugin is the only self-contained one.
+    # The delegator's CSP plugin. resolve_plugin_type defaults it (aruba, or dummy
+    # on KIND); the image built for that plugin must match, so the Makefile threads
+    # the same PLUGIN_TYPE into build.sh. The chart derives delegator-<plugin> from
+    # it, but IMAGE_VALUE_PATH.repository above already pins the locally built image.
     if [ "$COMPONENT" == "delegator" ]; then
-        if [ -z "$PLUGIN_TYPE" ]; then
-            PLUGIN_TYPE="aruba"
-            if [[ "$USE_KIND" == "true" ]]; then
-                PLUGIN_TYPE="dummy"
-            fi
-        fi
+        resolve_plugin_type
         echo "Deploying delegator with plugin: ${PLUGIN_TYPE}"
         HELM_ARGS+=(--set "plugin=${PLUGIN_TYPE}")
     fi

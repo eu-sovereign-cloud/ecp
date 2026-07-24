@@ -13,7 +13,16 @@ USE_KIND=true setup_registry_vars "$1"
 LOCAL_IMAGE_NAME=$IMAGE_NAME
 
 DOCKER_BUILD_CONTEXT="${SCRIPT_DIR}/../../.."
-DOCKERFILE_PATH="${SCRIPT_DIR}/../build/${COMPONENT}/Dockerfile"
+
+# The delegator is one single-plugin image per CSP, built from csp/<plugin>/build;
+# every other component keeps its Dockerfile under internal/build/<component>.
+if [ "${COMPONENT}" == "delegator" ]; then
+    resolve_plugin_type
+    echo "Building delegator image for plugin: ${PLUGIN_TYPE}"
+    DOCKERFILE_PATH="${DOCKER_BUILD_CONTEXT}/csp/${PLUGIN_TYPE}/build/Dockerfile"
+else
+    DOCKERFILE_PATH="${SCRIPT_DIR}/../build/${COMPONENT}/Dockerfile"
+fi
 
 # Build with the full name
 docker build --build-arg DLV_VERSION="${DLV_VERSION}" -t "${FULL_IMAGE_NAME}" -f "${DOCKERFILE_PATH}" "${DOCKER_BUILD_CONTEXT}"

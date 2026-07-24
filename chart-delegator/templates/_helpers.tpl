@@ -49,9 +49,10 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
-Validated plugin name. A typo must not silently start a delegator that watches
-nothing: the binary rejects an unknown PLUGIN, but an empty one falls back to
-aruba, which would reconcile the wrong resources with the wrong RBAC.
+Validated plugin name. It selects both the image (delegator-<plugin>) and the
+RBAC, so a typo or an empty value must fail loudly rather than deploy a mismatched
+pair — reconciling the wrong resources with the wrong RBAC, or pulling a
+nonexistent image.
 */}}
 {{- define "ecp-delegator.plugin" -}}
 {{- if not (has .Values.plugin (list "aruba" "dummy" "ionos")) }}

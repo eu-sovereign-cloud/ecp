@@ -98,9 +98,10 @@ make -C csp/ionos/deploy install-on-regional
 See `csp/ionos/README.md` for full deployment instructions, including token secret setup and provider configuration.
 
 **Conformance** — the conformance suite (`secatest`) is plugin-generic and lives in
-the test harness. The delegator can load any of the plugin sets (`dummy`, `aruba`,
-`ionos`), selected with `CONFORMANCE_PLUGIN` on the `conformance-deploy` target
-(templated into the delegator's `PLUGIN` env var at deploy time). Only `dummy` is
+the test harness. Each plugin ships its own single-plugin delegator image
+(`delegator-<plugin>`, built from `csp/<plugin>/cmd`); `CONFORMANCE_PLUGIN` on the
+`conformance-deploy` target selects which one to build and deploy (the chart picks
+the matching image and RBAC from its `plugin` value). Only `dummy` is
 self-contained; like aruba, `ionos` only reconciles once its backend (Crossplane +
 the IONOS provider, see `csp/ionos/deploy`) is installed in the cluster, so those
 two run as a two-phase flow:

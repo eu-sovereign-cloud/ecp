@@ -10,8 +10,10 @@
 # assertion that catches that class of bug is a request: with auth.enabled=true
 # an anonymous call must be rejected, and an authenticated one must succeed.
 #
-# Deliberately built from gateway/build/Dockerfile.* and Dockerfile.release —
-# the images `helm install` pulls — not the debug images the e2e stack uses.
+# The gateways are built from gateway/build/Dockerfile.* — the images `helm
+# install` pulls. The delegator here runs the dummy plugin (the only self-
+# contained one), built from csp/dummy/build/Dockerfile; dummy is dev/test-only
+# and unpublished, so this is its debug image side-loaded like the e2e stack's.
 #
 # Usage: ci/scripts/chart-smoke.sh [cluster-name]
 set -euo pipefail
@@ -35,13 +37,13 @@ cd "${REPO_ROOT}"
 echo "==> Building the published images"
 docker build -q -f gateway/build/Dockerfile.global   -t "ecp/gateway-global:${TAG}"   . >/dev/null
 docker build -q -f gateway/build/Dockerfile.regional -t "ecp/gateway-regional:${TAG}" . >/dev/null
-docker build -q -f test/internal/build/delegator/Dockerfile.release -t "ecp/delegator:${TAG}" . >/dev/null
+docker build -q -f csp/dummy/build/Dockerfile -t "ecp/delegator-dummy:${TAG}" . >/dev/null
 
 echo "==> Creating KIND cluster ${CLUSTER}"
 ci/scripts/kind-cgroup-preflight.sh
 kind create cluster --name "${CLUSTER}"
 kind load docker-image --name "${CLUSTER}" \
-    "ecp/gateway-global:${TAG}" "ecp/gateway-regional:${TAG}" "ecp/delegator:${TAG}"
+    "ecp/gateway-global:${TAG}" "ecp/gateway-regional:${TAG}" "ecp/delegator-dummy:${TAG}"
 
 echo "==> helm install ecp"
 helm install ecp chart \
@@ -59,7 +61,7 @@ echo "==> helm install ecp-delegator"
 helm install ecp-delegator chart-delegator \
     --namespace "${NAMESPACE}" \
     --set plugin=dummy \
-    --set "image.repository=ecp/delegator" \
+    --set "image.repository=ecp/delegator-dummy" \
     --set "image.tag=${TAG}" \
     --wait --timeout 5m
 
