@@ -331,8 +331,7 @@ kind-multicluster-stack: ## Deploy the split stack across both KIND clusters and
 multicluster-e2e: ## Run the multicluster suite against an already-deployed cluster pair
 	@./internal/scripts/run-multicluster-e2e.sh
 
-kind-multicluster-e2e: ## One-shot: create both KIND clusters, deploy the split stack and run the multicluster suite
-	@$(MAKE) kind-multicluster-start
+kind-multicluster-e2e: ## One-shot: deploy the split stack and run the multicluster suite
 	@$(MAKE) kind-multicluster-stack E2E_PLUGIN=dummy
 	@$(MAKE) multicluster-e2e
 
