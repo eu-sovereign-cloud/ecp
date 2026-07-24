@@ -1,0 +1,5 @@
+# Shell scripts must stay LF, even when a checkout has core.autocrlf=true (a
+# common Windows/WSL default). Otherwise git rewrites them to CRLF, which gives
+# a broken shebang (`/bin/bash\r`: No such file or directory) and `$'\r'` errors
+# in any script that sources another. eol=lf overrides autocrlf per file.
+*.sh text eol=lf
