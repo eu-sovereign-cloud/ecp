@@ -32,7 +32,9 @@ The Aruba API can auto-create a default subnet and security group together with 
 
 ### Security groups are materialised at instance attach, not at creation
 
-Aruba's `SecurityGroup` and `SecurityRule` both require a `VPCReference` (a rule additionally requires a `SecurityGroupReference`). A SECA `SecurityGroup` carries **no VPC**: it is workspace-scoped and only takes effect once a NIC or instance references it (via `securityGroupRefs`). That reference is what binds the group to a subnet, hence to a network, hence to an Aruba VPC. So the SECA `SecurityGroup` and `SecurityGroupRule` controllers create nothing — they accept and go active — and the real Aruba `SecurityGroup` + `SecurityRule` are created by the **compute-instance handler**, per VPC, when an instance attaches the group (see "Compute" below). A standalone SECA `SecurityGroupRule` is a reusable template that does nothing until a `SecurityGroup` pulls it in via `ruleRefs`; it is materialised as part of the group that references it.
+Aruba's `SecurityGroup` and `SecurityRule` both require a `VPCReference` (a rule additionally requires a `SecurityGroupReference`). A SECA `SecurityGroup` carries **no VPC**: it is workspace-scoped and only takes effect once a NIC or instance references it (via `securityGroupRefs`). That reference is what binds the group to a subnet, hence to a network, hence to an Aruba VPC. So the SECA `SecurityGroup` and `SecurityGroupRule` controllers create nothing on accept — they go active — and the real Aruba `SecurityGroup` + `SecurityRule` are created by the **compute-instance handler**, per VPC, when an instance attaches the group (see "Compute" below). A standalone SECA `SecurityGroupRule` is a reusable template that does nothing until a `SecurityGroup` pulls it in via `ruleRefs`; it is materialised as part of the group that references it.
+
+Deleting the SECA `SecurityGroup` is what reaps the materialised Aruba resources: its `Delete` lists every Aruba `SecurityGroup` (and its `SecurityRule`s) labelled for that SECA group — one per VPC it was attached in — and removes them. Instance deletion leaves them (they may be shared), so the SECA group is the single owner that can clean them up.
 
 Replicating a SECA security group into *every* VPC up front was considered and rejected: it would create dormant Aruba resources nothing uses, and would need the Network handler to back-fill security groups into VPCs created later, for no present benefit.
 
@@ -47,7 +49,7 @@ A SECA `Instance` maps to an Aruba `CloudServer`. A CloudServer's required refer
 
 Missing dependencies gate the create with `ErrStillProcessing` (the instance stays in `creating` and is retried): a NIC not created yet, a subnet not yet active, **no security group** (a CloudServer requires ≥1), or **no ssh key** (the required `KeyPairReference` cannot be built). `PowerOn`/`PowerOff` are **no-ops**: Aruba's `CloudServer` CRD exposes no power field, so power state lives only on the SECA side.
 
-On instance delete the CloudServer is deleted and then the key pair; the **materialised security groups are left in place** — they may be shared with other instances and do not interfere once the SECA security group still exists.
+On instance delete the CloudServer is deleted and then the key pair; the **materialised security groups are left in place** — they may be shared with other instances and are reaped only when the SECA security group itself is deleted (see "Security groups are materialised at instance attach" above).
 
 ### Compute mapping ceilings
 
