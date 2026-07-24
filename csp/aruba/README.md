@@ -105,3 +105,54 @@ Aruba CRs are created in the same namespace as the SECA resource they mirror (ha
 - `Project` (from the SECA Workspace) → tenant namespace, `hash(tenant)`.
 
 Every Aruba CR references its `Project` by `{name: <workspace>, namespace: hash(tenant)}`; the Aruba `Subnet`, `SecurityGroup`, `SecurityRule` and `CloudServer` additionally reference their `VPC` by `{name: <seca network>, namespace: hash(tenant/workspace)}`. The `CloudServer` references subnets in the network namespace and its key pair, security groups and volumes in the workspace namespace — cross-namespace references the operator supports.
+
+## Testing the plugin
+
+The plugin has its own integration suite in [`test/integration`](test/integration), run from this directory with:
+
+```shell
+make test-integration ARUBA_TENANT=<your-aruba-account>
+```
+
+Like [`csp/dummy/test/integration`](../dummy/test/integration) it exercises the plugin **directly**: it creates the SECA CRs and asserts the delegator reconciles them into `arubacloud.com` CRs — there is **no gateway** in the path. Unlike the dummy suite it does **not** stand up its own cluster, because the backend is the real third-party operator, not a self-contained simulation.
+
+### Requirements
+
+The suite connects to the **current kube-context** and expects the stack already deployed — the two-phase flow documented in [`test/conformance/aruba`](../../test/conformance/aruba):
+
+1. **A running cluster.** For a local KIND cluster: `make -C ../../test kind-start`.
+2. **The [`arubacloud-resource-operator`](https://github.com/Arubacloud/arubacloud-resource-operator) and its Aruba credentials** installed in that cluster. This is installed **out of band** — there is no in-repo tooling for it — and is what actually provisions resources against the Aruba CMP.
+3. **The `delegator-aruba` deployed** with the SECA CRDs and the test-data fixtures (which provide the SKUs the suite references — `sku-1`, `network-sku-1`, `compute-sku-1`): `make -C ../../test kind-deploy-stack E2E_PLUGIN=aruba E2E_TENANT=<your-aruba-account>`.
+4. **A real Aruba account in `ARUBA_TENANT`.** The operator provisions real cloud resources, so a resource only reaches `Active` against a genuine tenant (the default, `test-tenant`, will not provision). It **must match** the `E2E_TENANT` the stack was deployed with, so the fixture SKUs land in the same `hash(tenant)` namespace the plugin reads them from.
+
+### What the test does
+
+`TestArubaFlow` drives the whole dependency graph **in order** — not per-resource in parallel like the dummy suite, because aruba's resources depend on one another and are provisioned for real:
+
+```
+workspace          ─▶ Project
+block-storage      ─▶ BlockStorage
+internet-gateway   ─▶ (no-op)            ┐ gate: the VPC is created only
+network            ─▶ VPC                ┘ once an internet-gateway exists
+route-table        ─▶ (no-op)
+subnet             ─▶ Subnet             (needs the VPC active)
+public-ip          ─▶ ElasticIP
+security-group     ─▶ (no-op)           ┐ the real Aruba SecurityGroup + rules
+security-group-rule─▶ (no-op)           │ are materialised at instance attach
+nic                ─▶ (no-op)           ┘
+instance           ─▶ CloudServer        (+ per-VPC SecurityGroup, SecurityRule, KeyPair)
+```
+
+Each step asserts the SECA resource reaches `Active` **and** the matching `arubacloud.com` CR does too. Two behaviours are checked explicitly:
+
+- **Internet-gateway gating** — the network is created *before* any internet-gateway, and the suite asserts **no VPC is created** while the gate holds; it then creates the internet-gateway and asserts the VPC appears and provisions.
+- **Instance materialisation** — it asserts the per-VPC `SecurityGroup` (`<sg>-<network>`) and the `KeyPair` provision and that the `CloudServer` CR is created with them referenced. It does **not** assert the VM itself reaches `Active`: the CloudServer's `FlavorName` is the SECA compute-SKU name verbatim (`compute-sku-1` in the fixtures), which is not a real Aruba flavor — provisioning a running VM needs the compute-SKU catalog to carry real Aruba flavor names, a data concern outside the plugin's contract.
+
+A `t.Cleanup` deletes every resource in reverse dependency order, so a run — even a failed one — does not leak real Aruba resources.
+
+### Constraints the suite encodes
+
+Real Aruba CMP validation, discovered against a live account, that test inputs must respect:
+
+- **Resource names must be ≥ 4 characters** — Aruba rejects shorter names with a `400` validation error.
+- **`Instance.Spec.SshKeys` must carry a well-formed public key** — the `KeyPair` fails validation otherwise. The suite ships a valid ed25519 key; override it with `ARUBA_SSH_KEY`.
