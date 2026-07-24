@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"log/slog"
 	"os"
 	"time"
 
+	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/dynamic"
@@ -13,14 +15,14 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
-	ionosapis "github.com/ionos-cloud/provider-upjet-ionoscloud/apis/namespaced/compute/v1alpha1"
-
-	"github.com/eu-sovereign-cloud/ecp/csp/ionos/pkg/controllerset"
+	arubaconverter "github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/converter"
+	arubahandler "github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/handler"
+	arubarepository "github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/repository"
+	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	frameworkbuilder "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/builder"
-	netk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network/backend/kubernetes"
 	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage/backend/kubernetes"
+	ssk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/storage-sku/backend/kubernetes"
 	wsk8s "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1/backend/kubernetes"
 )
 
@@ -29,9 +31,9 @@ var scheme = runtime.NewScheme()
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(bsk8s.AddToScheme(scheme))
-	utilruntime.Must(netk8s.AddToScheme(scheme))
+	utilruntime.Must(ssk8s.AddToScheme(scheme))
 	utilruntime.Must(wsk8s.AddToScheme(scheme))
-	utilruntime.Must(ionosapis.AddToScheme(scheme))
+	utilruntime.Must(v1alpha1.AddToScheme(scheme))
 }
 
 func main() {
@@ -40,14 +42,9 @@ func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme: scheme,
-		Metrics: metricsserver.Options{
-			SecureServing: false,
-			BindAddress:   ":8083",
-		},
-		// The chart-delegator deployment probes /healthz on 8081; match it so the
-		// per-plugin image is ready under the same chart as the other plugins.
+		Scheme:                 scheme,
 		HealthProbeBindAddress: ":8081",
+		LeaderElection:         false,
 	})
 	if err != nil {
 		logger.Error("unable to start manager", "error", err)
@@ -63,11 +60,10 @@ func main() {
 	controllerOpts := []frameworkbuilder.Option{
 		frameworkbuilder.WithLogger(logger.With("component", "controller-set")),
 		frameworkbuilder.WithRequeueAfter(1 * time.Second),
-		frameworkbuilder.WithMaxConditions(5),
 	}
 
 	controllerSet := frameworkbuilder.NewControllerSet()
-	controllerset.Add(controllerSet, mgr, dynClient, logger, controllerOpts...)
+	loadControllers(context.Background(), dynClient, mgr, logger, controllerSet, controllerOpts)
 
 	if err := controllerSet.SetupWithManager(mgr); err != nil {
 		logger.Error("unable to setup controllers with manager", "error", err)
@@ -88,4 +84,27 @@ func main() {
 		logger.Error("problem running manager", "error", err)
 		os.Exit(1)
 	}
+}
+
+func loadControllers(ctx context.Context, dynClient dynamic.Interface, mgr ctrl.Manager, logger *slog.Logger, controllerSet *frameworkbuilder.ControllerSet, controllerOpts []frameworkbuilder.Option) {
+	logger.Info("Loading 'aruba' plugin set")
+
+	// Instantiate seca-specific read-only repositories (for aruba BlockStorageHandler dependencies)
+	secaWsRepo := k8sadapter.NewReaderAdapter(dynClient, wsk8s.WorkspaceGVR, logger, wsk8s.WorkspaceFromCR)
+	secaSkuRepo := k8sadapter.NewReaderAdapter(dynClient, ssk8s.StorageSKUGVR, logger, ssk8s.StorageSKUFromCR)
+
+	// Instantiate aruba-specific repositories
+	wr := arubarepository.NewProjectRepository(ctx, mgr.GetClient(), mgr.GetCache())
+	br := arubarepository.NewBlockStorageRepository(ctx, mgr.GetClient(), mgr.GetCache())
+
+	// Instantiate aruba-specific converters
+	wc := arubaconverter.NewWorkspaceProjectConverter()
+	bc := arubaconverter.NewBlockStorageConverter()
+
+	// Create aruba-specific handlers
+	wsPlugin := arubahandler.NewWorkspaceHandler(wr, wc)
+	bsPlugin := arubahandler.NewBlockStorageHandler(secaWsRepo, secaSkuRepo, br, wr, bc, wc)
+
+	controllerSet.Add(bsk8s.NewController(mgr.GetClient(), dynClient, bsPlugin, controllerOpts...))
+	controllerSet.Add(wsk8s.NewController(mgr.GetClient(), dynClient, wsPlugin, controllerOpts...))
 }
