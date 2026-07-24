@@ -27,7 +27,7 @@ test/
   internal/
     testenv/            # shared kubeconfig + port-forward helpers (Go)
     authhelper/         # shared auth test helpers (build tag `authhelper`)
-    cmd/                # entrypoints: delegator + benchreport
+    cmd/                # entrypoints: benchreport (per-plugin delegators live in csp/<plugin>/cmd)
     build/              # a Dockerfile per component (incl. conformance runner)
     deploy/             # per-component deployment inputs: chart values, or
                         # Kustomize manifests for what no chart deploys
@@ -38,7 +38,7 @@ test/
 
 ## The plugin model: one-shot vs multi-phase
 
-Both the e2e and conformance stacks reconcile with a **delegator plugin**. The delegator compiles in three plugin sets — `dummy`, `aruba`, `ionos` — selected by `E2E_PLUGIN` / `CONFORMANCE_PLUGIN` (default `dummy`). What differs is the **backend** each needs, and that dictates how you run it:
+Both the e2e and conformance stacks reconcile with a **delegator plugin**. Each plugin ships its own single-plugin delegator image (`delegator-<plugin>`, built from `csp/<plugin>/cmd`); `E2E_PLUGIN` / `CONFORMANCE_PLUGIN` (default `dummy`) selects which one the harness builds and deploys. What differs is the **backend** each needs, and that dictates how you run it:
 
 | Plugin | Backend | How to run |
 |--------|---------|------------|

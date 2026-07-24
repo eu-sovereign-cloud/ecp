@@ -1,14 +1,16 @@
 # Default values for the ecp-delegator chart.
 #
-# One image serves every CSP; this chart picks the controller set it runs and
-# grants exactly that set's RBAC.
+# Each CSP ships its own single-plugin delegator image; this chart selects that
+# image and grants exactly that plugin's RBAC.
 
-# Which CSP plugin set the delegator reconciles with: "aruba", "dummy" or
-# "ionos". Required — there is no sensible default CSP, and a wrong guess
-# silently reconciles nothing. Each plugin expects its backend to be installed
-# separately: the arubacloud-resource-operator for aruba, Crossplane and the
-# IONOS provider for ionos (see doc/PLUGINS.md). "dummy" reconciles in-process
-# with no backend at all and is for development and testing only.
+# Which CSP plugin the delegator reconciles with: "aruba", "dummy" or "ionos".
+# Required — it selects both the image (delegator-<plugin>) and the RBAC, and a
+# wrong guess silently reconciles nothing. Each plugin expects its backend to be
+# installed separately: the arubacloud-resource-operator for aruba, Crossplane
+# and the IONOS provider for ionos (see doc/PLUGINS.md). "dummy" reconciles
+# in-process with no backend at all and is for development and testing only —
+# it is not published, so an install with plugin=dummy must override
+# image.repository with a locally built, side-loaded image.
 plugin: ""
 
 nameOverride: ""
@@ -23,9 +25,11 @@ imagePullSecrets: []
 replicaCount: 1
 
 image:
-  # Published on every v* tag by .github/workflows/image-release.yaml.
-  # Override only to pull from a mirror of your own.
-  repository: ghcr.io/eu-sovereign-cloud/ecp/delegator
+  # Empty derives ghcr.io/eu-sovereign-cloud/ecp/delegator-<plugin>, published on
+  # every v* tag by .github/workflows/image-release.yaml. Set it to pull from a
+  # mirror, or to point at a locally built image (e.g. the dummy plugin, which is
+  # not published).
+  repository: ""
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""

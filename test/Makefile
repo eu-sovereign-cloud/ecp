@@ -45,8 +45,10 @@ export SYSTEM_NAMESPACE E2E_TENANT
 AUTH_PLUGIN ?= dummy
 export AUTH_PLUGIN
 
-# Discover components automatically from the build directory
-COMPONENTS := $(notdir $(wildcard $(CURDIR)/internal/build/*))
+# Discover components automatically from the build directory, plus the delegator:
+# it is built per plugin from csp/<plugin>/build/Dockerfile (build.sh resolves the
+# path from PLUGIN_TYPE), so it has no internal/build/ dir of its own to discover.
+COMPONENTS := $(notdir $(wildcard $(CURDIR)/internal/build/*)) delegator
 
 # Discover deployments automatically from the deploy directory. Directories only:
 # deploy/ also holds files shared by several components (gateway-values.yaml),
@@ -232,7 +234,7 @@ kind-deploy-stack: ## Deploy the full test stack into KIND with AUTH_PLUGIN / E2
 
 .PHONY: kind-stack
 kind-stack: ## Build the component images, load them into KIND and deploy the stack
-	@$(MAKE) build-delegator build-gateway-global build-gateway-regional
+	@PLUGIN_TYPE=$(E2E_PLUGIN) $(MAKE) build-delegator build-gateway-global build-gateway-regional
 	@$(MAKE) kind-load-delegator kind-load-gateway-global kind-load-gateway-regional
 	@$(MAKE) kind-deploy-stack
 
@@ -313,7 +315,7 @@ kind-multicluster-stop: ## Delete both multicluster KIND clusters
 
 .PHONY: kind-multicluster-stack
 kind-multicluster-stack: ## Deploy the split stack across both KIND clusters and register the region
-	@$(MAKE) build-gateway-global build-gateway-regional build-delegator
+	@PLUGIN_TYPE=$(E2E_PLUGIN) $(MAKE) build-gateway-global build-gateway-regional build-delegator
 	@KIND_CLUSTER=$(MULTICLUSTER_GLOBAL_CLUSTER) $(MAKE) kind-load-gateway-global kind-deploy-gateway-global
 	@KIND_CLUSTER=$(MULTICLUSTER_REGIONAL_CLUSTER) $(MAKE) kind-load-gateway-regional kind-load-delegator
 	@KIND_CLUSTER=$(MULTICLUSTER_REGIONAL_CLUSTER) PLUGIN_TYPE=$(E2E_PLUGIN) $(MAKE) kind-deploy-delegator

@@ -52,6 +52,21 @@ setup_registry_vars() {
     export IMAGE_NAME="${image_name}"
 }
 
+# resolve_plugin_type defaults PLUGIN_TYPE for the delegator: aruba, except on
+# KIND where dummy is the only self-contained plugin. An explicit PLUGIN_TYPE
+# (e.g. E2E_PLUGIN threaded from the Makefile stack targets) always wins. Each
+# delegator image is now single-plugin, so build.sh and deploy.sh must resolve
+# the SAME plugin — the Makefile threads PLUGIN_TYPE into both.
+resolve_plugin_type() {
+    if [ -z "${PLUGIN_TYPE:-}" ]; then
+        PLUGIN_TYPE="aruba"
+        if [[ "${USE_KIND:-}" == "true" ]]; then
+            PLUGIN_TYPE="dummy"
+        fi
+    fi
+    export PLUGIN_TYPE
+}
+
 # Name of the image-pull secret ensure_pull_secret mints.
 PULL_SECRET_NAME="ecp-test-registry"
 
