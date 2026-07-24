@@ -17,6 +17,17 @@ import (
 // time. The compute-instance handler materialises it here, once per (network, SECA security
 // group), in the VPC the attaching instance lives in. See csp/aruba/README.md.
 
+// Labels stamped on every materialised Aruba SecurityGroup and SecurityRule. They are the only
+// link back to the SECA security group, so the SecurityGroupHandler reaps by these keys when the
+// SECA group is deleted - keep the two writers below and that reader in step through these consts.
+// Note LabelSecurityGroup holds the SECA group name on a SecurityGroup but the materialised group
+// name on a SecurityRule (a rule belongs to one materialised group, not directly to the SECA one).
+const (
+	LabelTenant        = "seca.securitygroup/tenant"
+	LabelNetwork       = "seca.securitygroup/network"
+	LabelSecurityGroup = "seca.securitygroup/securitygroup"
+)
+
 // MaterializedSecurityGroupName is the name of the Aruba SecurityGroup that backs a SECA security
 // group inside one network's VPC. The network is encoded because the same SECA security group may
 // be attached in several networks, each needing its own Aruba SecurityGroup in that VPC.
@@ -35,9 +46,9 @@ func BuildSecurityGroup(secaName, network, region, tenant, namespace string, vpc
 			Name:      MaterializedSecurityGroupName(secaName, network),
 			Namespace: namespace,
 			Labels: map[string]string{
-				"seca.securitygroup/tenant":        tenant,
-				"seca.securitygroup/network":       network,
-				"seca.securitygroup/securitygroup": secaName,
+				LabelTenant:        tenant,
+				LabelNetwork:       network,
+				LabelSecurityGroup: secaName,
 			},
 		},
 		Spec: v1alpha1.SecurityGroupSpec{
@@ -109,8 +120,8 @@ func BuildSecurityRules(rules []RuleSpec, sgName, region, tenant, namespace stri
 							Name:      fmt.Sprintf("%s-r%d", sgName, idx),
 							Namespace: namespace,
 							Labels: map[string]string{
-								"seca.securitygroup/tenant":        tenant,
-								"seca.securitygroup/securitygroup": sgName,
+								LabelTenant:        tenant,
+								LabelSecurityGroup: sgName,
 							},
 						},
 						Spec: v1alpha1.SecurityRuleSpec{

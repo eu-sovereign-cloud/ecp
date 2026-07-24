@@ -149,7 +149,7 @@ func loadControllers(ctx context.Context, dynClient dynamic.Interface, mgr ctrl.
 	// materialised by the instance handler, per VPC, at attach time). See csp/aruba/README.md.
 	igwPlugin := arubahandler.NewInternetGatewayHandler()
 	rtPlugin := arubahandler.NewRouteTableHandler()
-	sgPlugin := arubahandler.NewSecurityGroupHandler()
+	sgPlugin := arubahandler.NewSecurityGroupHandler(sgRepo, srRepo)
 	sgrPlugin := arubahandler.NewSecurityGroupRuleHandler()
 	nicPlugin := arubahandler.NewNicHandler()
 

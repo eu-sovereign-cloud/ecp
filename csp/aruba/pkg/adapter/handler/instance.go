@@ -109,8 +109,9 @@ func (h *ComputeInstanceHandler) Create(ctx context.Context, domain *instancedom
 }
 
 // Delete removes the CloudServer and, once it is gone, the key pair the instance owned. The
-// materialised security groups are left in place: they may be shared with other instances and do
-// not interfere once the SECA security group still exists (see csp/aruba/README.md).
+// materialised security groups are left in place: they may be shared with other instances, so they
+// are reaped by the SecurityGroupHandler when the SECA security group itself is deleted, not here
+// (see security-group.go / csp/aruba/README.md).
 func (h *ComputeInstanceHandler) Delete(ctx context.Context, domain *instancedom.Instance) error {
 	namespace := k8sadapter.ComputeNamespace(domain)
 
