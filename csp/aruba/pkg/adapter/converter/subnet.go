@@ -18,6 +18,15 @@ const (
 	subnetTypeAdvanced = "Advanced"
 )
 
+// Labels stamped on every Aruba Subnet. A SECA subnet is network-scoped, so the same name may
+// exist in several networks of one workspace and these are what the compute-instance handler
+// searches on to find the right one - keep the writer below and that reader in step.
+const (
+	LabelSubnetTenant    = "seca.subnet/tenant"
+	LabelSubnetWorkspace = "seca.subnet/workspace"
+	LabelSubnetNetwork   = "seca.subnet/network"
+)
+
 // SubnetConverter maps a SECA Subnet to an Aruba Subnet.
 //
 // The SECA Zone, SkuRef and RouteTableRef are not propagated: the Aruba Subnet CRD has no
@@ -55,9 +64,9 @@ func (c *SubnetConverter) FromSECAToAruba(from *subnetdom.Subnet) (*v1alpha1.Sub
 			Name:      from.Name,
 			Namespace: namespace,
 			Labels: map[string]string{
-				"seca.subnet/workspace":    workspace,
-				"seca.subnet/tenant":       tenant,
-				"seca.subnet/network":      network,
+				LabelSubnetWorkspace:       workspace,
+				LabelSubnetTenant:          tenant,
+				LabelSubnetNetwork:         network,
 				"seca.subnet/namespace":    namespace,
 				"seca.workspace/namespace": namespaceWorkspace,
 			},
