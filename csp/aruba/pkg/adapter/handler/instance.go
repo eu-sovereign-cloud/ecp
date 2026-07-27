@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
@@ -53,6 +54,8 @@ type ComputeInstanceHandler struct {
 	keyPairRepository  repository.Repository[*v1alpha1.KeyPair, *v1alpha1.KeyPairList]
 	secGroupRepository repository.Repository[*v1alpha1.SecurityGroup, *v1alpha1.SecurityGroupList]
 	secRuleRepository  repository.Repository[*v1alpha1.SecurityRule, *v1alpha1.SecurityRuleList]
+	blockStorageRepo   repository.Repository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList]
+	elasticIPRepo      repository.Repository[*v1alpha1.ElasticIP, *v1alpha1.ElasticIPList]
 	cloudServerRepo    repository.Repository[*v1alpha1.CloudServer, *v1alpha1.CloudServerList]
 }
 
@@ -69,6 +72,8 @@ func NewComputeInstanceHandler(
 	keyPairRepo repository.Repository[*v1alpha1.KeyPair, *v1alpha1.KeyPairList],
 	secGroupRepo repository.Repository[*v1alpha1.SecurityGroup, *v1alpha1.SecurityGroupList],
 	secRuleRepo repository.Repository[*v1alpha1.SecurityRule, *v1alpha1.SecurityRuleList],
+	blockStorageRepo repository.Repository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList],
+	elasticIPRepo repository.Repository[*v1alpha1.ElasticIP, *v1alpha1.ElasticIPList],
 	cloudServerRepo repository.Repository[*v1alpha1.CloudServer, *v1alpha1.CloudServerList],
 ) *ComputeInstanceHandler {
 	return &ComputeInstanceHandler{
@@ -82,6 +87,8 @@ func NewComputeInstanceHandler(
 		keyPairRepository:    keyPairRepo,
 		secGroupRepository:   secGroupRepo,
 		secRuleRepository:    secRuleRepo,
+		blockStorageRepo:     blockStorageRepo,
+		elasticIPRepo:        elasticIPRepo,
 		cloudServerRepo:      cloudServerRepo,
 	}
 }
@@ -218,16 +225,42 @@ func (h *ComputeInstanceHandler) resolve(ctx context.Context, domain *instancedo
 	if err := h.keyPairRepository.Create(ctx, keyPair); err != nil && !apierrors.IsAlreadyExists(err) {
 		return nil, err
 	}
+	if err := loadActiveAruba(ctx, h.keyPairRepository, keyPair.DeepCopy()); err != nil {
+		return nil, err
+	}
 
 	bootName := lastSegment(domain.Spec.BootVolume.DeviceRef.Resource)
 	if bootName == "" {
 		return nil, backend.ErrStillProcessing // BootVolumeReference is required
 	}
+	// The boot volume must be provisioned before the server, and Aruba requires the two to share a
+	// zone. SECA models no per-volume zone, so the volume's zone is the one that actually exists:
+	// take it from there rather than from the instance, and refuse a conflicting instance zone
+	// instead of sending a request Aruba would reject.
+	bootVolume := &v1alpha1.BlockStorage{
+		ObjectMeta: metav1.ObjectMeta{Name: bootName, Namespace: wsNamespace},
+	}
+	if err := loadActiveAruba(ctx, h.blockStorageRepo, bootVolume); err != nil {
+		return nil, err
+	}
+	if zone := domain.Spec.Zone; zone != "" && zone != bootVolume.Spec.Zone {
+		return nil, fmt.Errorf("instance zone %q conflicts with boot volume %q in zone %q: an Aruba CloudServer must share a zone with its boot volume",
+			zone, bootName, bootVolume.Spec.Zone)
+	}
+
 	var dataRefs []v1alpha1.ResourceReference
 	for _, dv := range domain.Spec.DataVolumes {
-		if name := lastSegment(dv.DeviceRef.Resource); name != "" {
-			dataRefs = append(dataRefs, v1alpha1.ResourceReference{Name: name, Namespace: wsNamespace})
+		name := lastSegment(dv.DeviceRef.Resource)
+		if name == "" {
+			continue
 		}
+		dataVolume := &v1alpha1.BlockStorage{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: wsNamespace},
+		}
+		if err := loadActiveAruba(ctx, h.blockStorageRepo, dataVolume); err != nil {
+			return nil, err
+		}
+		dataRefs = append(dataRefs, v1alpha1.ResourceReference{Name: name, Namespace: wsNamespace})
 	}
 
 	// The instance's SKU is a SECA InstanceSKU describing capacity (vCPU/RAM); Aruba needs a named
@@ -251,11 +284,18 @@ func (h *ComputeInstanceHandler) resolve(ctx context.Context, domain *instancedo
 
 	var eipRef *v1alpha1.ResourceReference
 	if len(pipNames) > 0 {
+		elasticIP := &v1alpha1.ElasticIP{
+			ObjectMeta: metav1.ObjectMeta{Name: pipNames[0], Namespace: wsNamespace},
+		}
+		if err := loadActiveAruba(ctx, h.elasticIPRepo, elasticIP); err != nil {
+			return nil, err
+		}
 		eipRef = &v1alpha1.ResourceReference{Name: pipNames[0], Namespace: wsNamespace}
 	}
 
 	return &adaptconverter.CloudServerRefs{
 		FlavorName:              flavor,
+		Zone:                    bootVolume.Spec.Zone,
 		VPCReference:            vpcRef,
 		SubnetReferences:        subnetRefs,
 		SecurityGroupReferences: sgRefs,
@@ -355,6 +395,20 @@ func (h *ComputeInstanceHandler) materializeSecurityGroup(ctx context.Context, t
 		if err := h.secRuleRepository.Create(ctx, rule); err != nil && !apierrors.IsAlreadyExists(err) {
 			return v1alpha1.ResourceReference{}, err
 		}
+	}
+
+	// The CloudServer references this security group; Aruba rejects a server create (semantic 400)
+	// whose security group is not yet provisioned in the CMP. Gate on the materialised SG being
+	// active before handing back its reference, as we already do for the subnet.
+	observed := arubaSG.DeepCopy()
+	if err := h.secGroupRepository.Load(ctx, observed); err != nil {
+		if apierrors.IsNotFound(err) {
+			return v1alpha1.ResourceReference{}, backend.ErrStillProcessing
+		}
+		return v1alpha1.ResourceReference{}, err
+	}
+	if observed.Status.Phase != v1alpha1.ResourcePhaseActive {
+		return v1alpha1.ResourceReference{}, backend.ErrStillProcessing
 	}
 
 	return v1alpha1.ResourceReference{Name: arubaSG.Name, Namespace: namespace}, nil

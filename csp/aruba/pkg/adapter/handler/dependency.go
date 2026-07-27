@@ -61,3 +61,29 @@ func loadActiveProject(ctx context.Context, repo repository.Repository[*v1alpha1
 
 	return nil
 }
+
+// arubaResource is satisfied by every arubacloud.com CR: the operator embeds ResourceStatus in each
+// of them and exposes it through this accessor.
+type arubaResource interface {
+	GetResourceStatus() *v1alpha1.ResourceStatus
+}
+
+// loadActiveAruba loads an arubacloud.com CR and reports it only once the operator has provisioned
+// it. Aruba requires every resource a CloudServer references (boot and data volumes, key pair,
+// security groups, elastic IP) to already exist in the CMP, so a server create issued while one is
+// still pending is rejected outright rather than retried - gate on this instead.
+func loadActiveAruba[T arubaResource, L any](ctx context.Context, repo repository.Repository[T, L], obj T) error {
+	if err := repo.Load(ctx, obj); err != nil {
+		if apierrors.IsNotFound(err) {
+			return backend.ErrStillProcessing // not created yet
+		}
+
+		return err
+	}
+
+	if obj.GetResourceStatus().Phase != v1alpha1.ResourcePhaseActive {
+		return backend.ErrStillProcessing // still provisioning
+	}
+
+	return nil
+}

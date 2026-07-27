@@ -14,7 +14,11 @@ import (
 )
 
 const (
-	defaultRegion        = "ITBG-Bergamo"
+	defaultRegion = "ITBG-Bergamo"
+	// defaultDatacenter is the zone every block storage lands in (SECA models no per-volume zone).
+	// An Instance carries its own zone, and Aruba requires a CloudServer and its boot volume to share
+	// one, so an instance in another zone cannot be satisfied today.
+	// ponytail: single hardcoded zone; thread the zone through from the instance if that is needed.
 	defaultDatacenter    = "ITBG-1"
 	defaultBillingPeriod = "Hour" // supported values: "Hour", "Month"
 )

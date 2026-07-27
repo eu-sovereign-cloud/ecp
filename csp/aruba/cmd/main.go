@@ -146,7 +146,7 @@ func loadControllers(ctx context.Context, dynClient dynamic.Interface, mgr ctrl.
 	subnetPlugin := arubahandler.NewSubnetHandler(secaWsRepo, subnetRepo, vpcRepo, wr, subnetConv, wc)
 	pipPlugin := arubahandler.NewPublicIpHandler(secaWsRepo, eipRepo, wr, pipConv, wc)
 	instancePlugin := arubahandler.NewComputeInstanceHandler(secaWsRepo, secaNicRepo, secaSgRepo, secaSgrRepo,
-		secaComputeSkuRepo, wr, subnetRepo, keyPairRepo, sgRepo, srRepo, cloudServerRepo)
+		secaComputeSkuRepo, wr, subnetRepo, keyPairRepo, sgRepo, srRepo, br, eipRepo, cloudServerRepo)
 
 	// Route table, internet gateway, nic, security group and security group rule have no Aruba CR
 	// of their own: they are accepted and go active immediately (the real Aruba security groups are

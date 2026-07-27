@@ -30,6 +30,8 @@ type instMocks struct {
 	keyPairRepo *MockRepository[*v1alpha1.KeyPair, *v1alpha1.KeyPairList]
 	sgArubaRepo *MockRepository[*v1alpha1.SecurityGroup, *v1alpha1.SecurityGroupList]
 	srArubaRepo *MockRepository[*v1alpha1.SecurityRule, *v1alpha1.SecurityRuleList]
+	bsRepo      *MockRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList]
+	eipRepo     *MockRepository[*v1alpha1.ElasticIP, *v1alpha1.ElasticIPList]
 	csRepo      *MockRepository[*v1alpha1.CloudServer, *v1alpha1.CloudServerList]
 }
 
@@ -45,13 +47,15 @@ func newInstMocks(ctrl *gomock.Controller) *instMocks {
 		keyPairRepo: NewMockRepository[*v1alpha1.KeyPair, *v1alpha1.KeyPairList](ctrl),
 		sgArubaRepo: NewMockRepository[*v1alpha1.SecurityGroup, *v1alpha1.SecurityGroupList](ctrl),
 		srArubaRepo: NewMockRepository[*v1alpha1.SecurityRule, *v1alpha1.SecurityRuleList](ctrl),
+		bsRepo:      NewMockRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList](ctrl),
+		eipRepo:     NewMockRepository[*v1alpha1.ElasticIP, *v1alpha1.ElasticIPList](ctrl),
 		csRepo:      NewMockRepository[*v1alpha1.CloudServer, *v1alpha1.CloudServerList](ctrl),
 	}
 }
 
 func (m *instMocks) handler() *ComputeInstanceHandler {
 	return NewComputeInstanceHandler(m.wsRepo, m.nicRepo, m.sgRepo, m.sgrRepo, m.skuRepo, m.prjRepo,
-		m.subnetRepo, m.keyPairRepo, m.sgArubaRepo, m.srArubaRepo, m.csRepo)
+		m.subnetRepo, m.keyPairRepo, m.sgArubaRepo, m.srArubaRepo, m.bsRepo, m.eipRepo, m.csRepo)
 }
 
 func testInstance() *instancedom.Instance {
@@ -73,6 +77,32 @@ func testInstance() *instancedom.Instance {
 func expectProjectActive(m *MockRepository[*v1alpha1.Project, *v1alpha1.ProjectList]) {
 	m.EXPECT().Load(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, p *v1alpha1.Project) error {
 		p.Status.Phase = v1alpha1.ResourcePhaseActive
+		return nil
+	}).AnyTimes()
+}
+
+// expectActiveArubaSG makes the materialised Aruba SecurityGroup load back as active, so the
+// instance handler's gate (which waits for the SG before creating the CloudServer) is satisfied.
+func expectActiveArubaSG(m *MockRepository[*v1alpha1.SecurityGroup, *v1alpha1.SecurityGroupList]) {
+	m.EXPECT().Load(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, sg *v1alpha1.SecurityGroup) error {
+		sg.Status.Phase = v1alpha1.ResourcePhaseActive
+		return nil
+	}).AnyTimes()
+}
+
+// expectActiveKeyPair satisfies the gate on the materialised KeyPair being provisioned.
+func expectActiveKeyPair(m *MockRepository[*v1alpha1.KeyPair, *v1alpha1.KeyPairList]) {
+	m.EXPECT().Load(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, kp *v1alpha1.KeyPair) error {
+		kp.Status.Phase = v1alpha1.ResourcePhaseActive
+		return nil
+	}).AnyTimes()
+}
+
+// expectActiveBlockStorage satisfies the boot/data volume gate, reporting the volume in zone.
+func expectActiveBlockStorage(m *MockRepository[*v1alpha1.BlockStorage, *v1alpha1.BlockStorageList], zone string) {
+	m.EXPECT().Load(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, bs *v1alpha1.BlockStorage) error {
+		bs.Spec.Zone = zone
+		bs.Status.Phase = v1alpha1.ResourcePhaseActive
 		return nil
 	}).AnyTimes()
 }
@@ -154,6 +184,7 @@ func TestComputeInstance_create(t *testing.T) {
 				expectComputeSku(m.skuRepo, 4, 8)
 				m.sgRepo.EXPECT().Load(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 				m.sgArubaRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+				expectActiveArubaSG(m.sgArubaRepo)
 				m.srArubaRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 			},
 			wantErr:     true,
@@ -170,8 +201,11 @@ func TestComputeInstance_create(t *testing.T) {
 				expectComputeSku(m.skuRepo, 4, 8)
 				m.sgRepo.EXPECT().Load(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 				m.sgArubaRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+				expectActiveArubaSG(m.sgArubaRepo)
 				m.srArubaRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 				m.keyPairRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+				expectActiveKeyPair(m.keyPairRepo)
+				expectActiveBlockStorage(m.bsRepo, "ITBG-1")
 				m.csRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 				m.csRepo.EXPECT().Load(gomock.Any(), gomock.Any()).Return(nil).AnyTimes() // present but not active
 			},
@@ -193,8 +227,11 @@ func TestComputeInstance_create(t *testing.T) {
 					return nil
 				}).AnyTimes()
 				m.sgArubaRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil).Times(1)
+				expectActiveArubaSG(m.sgArubaRepo)
 				m.srArubaRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil).Times(1)
 				m.keyPairRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+				expectActiveKeyPair(m.keyPairRepo)
+				expectActiveBlockStorage(m.bsRepo, "ITBG-1")
 				m.csRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 				m.csRepo.EXPECT().Load(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, cs *v1alpha1.CloudServer) error {
 					cs.Status.Phase = v1alpha1.ResourcePhaseActive
@@ -202,6 +239,55 @@ func TestComputeInstance_create(t *testing.T) {
 				}).AnyTimes()
 			},
 			wantErr: false,
+		},
+		{
+			// Aruba requires a CloudServer and its boot volume to share a zone. SECA models no
+			// per-volume zone, so an instance asking for a different one cannot be satisfied: fail
+			// with a clear message rather than send a request Aruba rejects.
+			name: "instance zone conflicting with the boot volume - error",
+			instance: func() *instancedom.Instance {
+				i := testInstance()
+				i.Spec.Zone = "ITBG-2"
+				return i
+			}(),
+			setupMocks: func(m *instMocks) {
+				expectWorkspaceActive(m.wsRepo)
+				expectProjectActive(m.prjRepo)
+				expectNic(m.nicRepo, "sub-1", "web")
+				expectActiveSubnet(m.subnetRepo, "sub-1", "my-network")
+				expectComputeSku(m.skuRepo, 4, 8)
+				m.sgRepo.EXPECT().Load(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+				m.sgArubaRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+				expectActiveArubaSG(m.sgArubaRepo)
+				m.srArubaRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+				m.keyPairRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+				expectActiveKeyPair(m.keyPairRepo)
+				expectActiveBlockStorage(m.bsRepo, "ITBG-1") // volume lives elsewhere
+			},
+			wantErr:     true,
+			errContains: "must share a zone with its boot volume",
+		},
+		{
+			// The CloudServer create must wait for its boot volume: Aruba rejects a server whose
+			// volume is not yet provisioned, and the rejection is terminal rather than retried.
+			name:     "boot volume still provisioning - still processing",
+			instance: testInstance(),
+			setupMocks: func(m *instMocks) {
+				expectWorkspaceActive(m.wsRepo)
+				expectProjectActive(m.prjRepo)
+				expectNic(m.nicRepo, "sub-1", "web")
+				expectActiveSubnet(m.subnetRepo, "sub-1", "my-network")
+				expectComputeSku(m.skuRepo, 4, 8)
+				m.sgRepo.EXPECT().Load(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+				m.sgArubaRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+				expectActiveArubaSG(m.sgArubaRepo)
+				m.srArubaRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+				m.keyPairRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+				expectActiveKeyPair(m.keyPairRepo)
+				m.bsRepo.EXPECT().Load(gomock.Any(), gomock.Any()).Return(nil).AnyTimes() // present, not active
+			},
+			wantErr:     true,
+			errContains: "operation still in progress",
 		},
 	}
 
