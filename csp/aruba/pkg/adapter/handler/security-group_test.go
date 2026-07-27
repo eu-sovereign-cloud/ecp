@@ -6,9 +6,17 @@ import (
 	"testing"
 
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
+	adaptconverter "github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/converter"
+	genrepo "github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/generic/repository"
+	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	res "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	sgdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group"
@@ -114,4 +122,57 @@ func TestSecurityGroup_delete(t *testing.T) {
 
 		assertErr(t, h.Delete(context.Background(), testSecaSG()), true, "boom")
 	})
+}
+
+// The reap runs through GenericRepository, which is a plain cluster-wide client.List: the ECP's
+// per-workspace namespaces only scope it if the list options say so. Two workspaces of one tenant
+// can each hold a SECA group "web" attached in a network named "prod", and both materialise as
+// SecurityGroup "web-prod" - same name, different namespace. Deleting one must leave the other's
+// firewall intact. Backed by a fake client rather than a mock so the filtering actually happens.
+func TestSecurityGroup_delete_staysInsideItsWorkspace(t *testing.T) {
+	ctx := context.Background()
+
+	scheme := runtime.NewScheme()
+	require.NoError(t, v1alpha1.AddToScheme(scheme))
+
+	nsFor := func(workspace string) string {
+		return k8sadapter.ComputeNamespace(&res.Scope{Tenant: "acme", Workspace: workspace})
+	}
+	vpcRef := v1alpha1.ResourceReference{Name: "prod"}
+	prjRef := v1alpha1.ResourceReference{Name: "project"}
+	rules := []adaptconverter.RuleSpec{{Direction: "ingress", Protocol: "tcp", PortFrom: 22, PortTo: 22}}
+
+	var objs []client.Object
+	for _, ws := range []string{"ws-1", "ws-2"} {
+		sg := adaptconverter.BuildSecurityGroup("web", "prod", "", "acme", nsFor(ws), vpcRef, prjRef)
+		objs = append(objs, sg)
+		for _, rule := range adaptconverter.BuildSecurityRules(rules, sg.Name, "", "acme", nsFor(ws), vpcRef, prjRef) {
+			objs = append(objs, rule)
+		}
+	}
+
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(objs...).Build()
+	h := NewSecurityGroupHandler(
+		genrepo.NewGenericRepository[*v1alpha1.SecurityGroup, *v1alpha1.SecurityGroupList](ctx, fakeClient, nil),
+		genrepo.NewGenericRepository[*v1alpha1.SecurityRule, *v1alpha1.SecurityRuleList](ctx, fakeClient, nil),
+	)
+
+	require.NoError(t, h.Delete(ctx, testSecaSG())) // testSecaSG is acme/ws-1
+
+	sgKey := func(ws string) client.ObjectKey {
+		return client.ObjectKey{Name: "web-prod", Namespace: nsFor(ws)}
+	}
+	ruleCount := func(ws string) int {
+		list := &v1alpha1.SecurityRuleList{}
+		require.NoError(t, fakeClient.List(ctx, list, client.InNamespace(nsFor(ws))))
+		return len(list.Items)
+	}
+
+	// ws-1 is the workspace being reaped: its group and rules must be gone.
+	require.True(t, apierrors.IsNotFound(fakeClient.Get(ctx, sgKey("ws-1"), &v1alpha1.SecurityGroup{})))
+	require.Zero(t, ruleCount("ws-1"))
+
+	// ws-2 is a bystander: it must be untouched.
+	require.NoError(t, fakeClient.Get(ctx, sgKey("ws-2"), &v1alpha1.SecurityGroup{}))
+	require.Equal(t, 1, ruleCount("ws-2"))
 }
