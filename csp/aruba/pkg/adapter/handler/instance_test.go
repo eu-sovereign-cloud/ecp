@@ -2,12 +2,15 @@ package handler
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	res "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	instancedom "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/instance"
@@ -117,10 +120,15 @@ func expectComputeSku(m *MockReaderRepo[*computeskudom.InstanceSKU], vcpu, ram i
 	}).AnyTimes()
 }
 
-// expectNic makes the NIC reader return a NIC referencing one subnet and one security group.
+// expectNic makes the NIC reader return a NIC referencing one subnet and one security group. A bare
+// subnet name becomes the flat reference "subnets/<name>"; pass a path to reference a subnet by the
+// network it is scoped under ("networks/<network>/subnets/<name>").
 func expectNic(m *MockReaderRepo[*nicdom.Nic], subnet, secGroup string) {
+	if !strings.Contains(subnet, "/") {
+		subnet = "subnets/" + subnet
+	}
 	m.EXPECT().Load(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, n **nicdom.Nic) error {
-		(*n).Spec.SubnetRef = commondomain.Reference{Resource: "subnets/" + subnet}
+		(*n).Spec.SubnetRef = commondomain.Reference{Resource: subnet}
 		if secGroup != "" {
 			(*n).Spec.SecurityGroupRefs = []commondomain.Reference{{Resource: "security-groups/" + secGroup}}
 		}
@@ -303,6 +311,82 @@ func TestComputeInstance_create(t *testing.T) {
 			assertErr(t, err, tt.wantErr, tt.errContains)
 		})
 	}
+}
+
+// expectSubnets makes the Aruba subnet list return one active subnet per (name, network) pair,
+// each in its own network namespace and its own VPC - which is what the ECP's per-network
+// namespaces allow: the same subnet name in two networks of one workspace.
+func expectSubnets(m *MockRepository[*v1alpha1.Subnet, *v1alpha1.SubnetList], name string, networks ...string) {
+	items := make([]v1alpha1.Subnet, 0, len(networks))
+	for _, network := range networks {
+		items = append(items, v1alpha1.Subnet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: name,
+				Namespace: k8sadapter.ComputeNetworkNamespace(&commondomain.RegionalNetworkMetadata{
+					RegionalMetadata: commondomain.RegionalMetadata{
+						Scope: res.Scope{Tenant: "test-tenant", Workspace: "test-workspace"},
+					},
+					Network: network,
+				}),
+				Labels: map[string]string{"seca.subnet/network": network},
+			},
+			Spec:   v1alpha1.SubnetSpec{VPCReference: v1alpha1.ResourceReference{Name: network, Namespace: "ws-ns"}},
+			Status: v1alpha1.SubnetStatus{ResourceStatus: v1alpha1.ResourceStatus{Phase: v1alpha1.ResourcePhaseActive}},
+		})
+	}
+	m.EXPECT().List(gomock.Any(), gomock.Any()).Return(&v1alpha1.SubnetList{Items: items}, nil).AnyTimes()
+}
+
+// A SECA subnet is network-scoped, so one workspace can hold two subnets named "app" in different
+// networks. A bare "subnets/app" reference cannot say which, and client.List order is not
+// guaranteed - resolving it by taking whichever came back first silently wires the instance, its
+// subnet reference and its materialised security groups into the wrong VPC. A qualified reference
+// names the network and must resolve to exactly that one.
+func TestComputeInstance_subnetNameSharedAcrossNetworks(t *testing.T) {
+	setup := func(m *instMocks, subnetRef string) {
+		expectWorkspaceActive(m.wsRepo)
+		expectProjectActive(m.prjRepo)
+		expectNic(m.nicRepo, subnetRef, "web")
+		expectSubnets(m.subnetRepo, "app", "prod", "staging")
+		expectComputeSku(m.skuRepo, 4, 8)
+		m.sgRepo.EXPECT().Load(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+		m.sgArubaRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+		expectActiveArubaSG(m.sgArubaRepo)
+		m.srArubaRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+		m.keyPairRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+		expectActiveKeyPair(m.keyPairRepo)
+		expectActiveBlockStorage(m.bsRepo, "ITBG-1")
+	}
+
+	t.Run("ambiguous bare reference is rejected rather than guessed", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		m := newInstMocks(ctrl)
+		setup(m, "app")
+		// No CloudServer create expectation: guessing a VPC must not reach the Aruba side.
+
+		err := m.handler().Create(context.Background(), testInstance())
+		assertErr(t, err, true, `subnet "app" exists in more than one network`)
+	})
+
+	t.Run("network-qualified reference resolves to that network's VPC", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		m := newInstMocks(ctrl)
+		setup(m, "networks/staging/subnets/app")
+
+		var created *v1alpha1.CloudServer
+		m.csRepo.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, cs *v1alpha1.CloudServer) error {
+			created = cs
+			return nil
+		}).AnyTimes()
+		m.csRepo.EXPECT().Load(gomock.Any(), gomock.Any()).Return(notFoundErr("cs")).AnyTimes()
+
+		err := m.handler().Create(context.Background(), testInstance())
+		assertErr(t, err, true, "operation still in progress")
+		require.NotNil(t, created)
+		require.Equal(t, "staging", created.Spec.VPCReference.Name)
+	})
 }
 
 func TestComputeInstance_delete(t *testing.T) {
