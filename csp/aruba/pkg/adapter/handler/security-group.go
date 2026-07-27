@@ -7,6 +7,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	sgdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group"
 	sgk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group/backend/kubernetes"
 
@@ -42,8 +43,16 @@ func (h *SecurityGroupHandler) Create(_ context.Context, _ *sgdom.SecurityGroup)
 // One SECA group is materialised once per VPC it was attached in, so all labelled matches are
 // removed. Idempotent: a missing object is treated as already reaped, so a retried delete after a
 // partial failure is harmless.
+//
+// Every list here is namespace-scoped. The repository issues a plain cluster-wide client.List, so
+// labels alone do not confine the reap to this SECA group's own workspace - and the materialised
+// name (<seca>-<network>) is only unique within one, since a sibling workspace of the same tenant
+// may hold its own group of the same name in a network of the same name.
 func (h *SecurityGroupHandler) Delete(ctx context.Context, domain *sgdom.SecurityGroup) error {
-	groups, err := h.secGroupRepository.List(ctx, client.MatchingLabels{
+	// The instance handler materialises these into the workspace namespace (see instance.go).
+	workspaceNamespace := client.InNamespace(k8sadapter.ComputeNamespace(domain))
+
+	groups, err := h.secGroupRepository.List(ctx, workspaceNamespace, client.MatchingLabels{
 		adaptconverter.LabelTenant:        domain.GetTenant(),
 		adaptconverter.LabelSecurityGroup: domain.Name,
 	})
@@ -54,8 +63,9 @@ func (h *SecurityGroupHandler) Delete(ctx context.Context, domain *sgdom.Securit
 	for i := range groups.Items {
 		sg := &groups.Items[i]
 		// A rule is labelled with the materialised group name, not the SECA name (see
-		// converter.BuildSecurityRules), so list per materialised group.
-		rules, err := h.secRuleRepository.List(ctx, client.MatchingLabels{
+		// converter.BuildSecurityRules), so list per materialised group - in that group's own
+		// namespace, which is where BuildSecurityRules puts them.
+		rules, err := h.secRuleRepository.List(ctx, client.InNamespace(sg.Namespace), client.MatchingLabels{
 			adaptconverter.LabelSecurityGroup: sg.Name,
 		})
 		if err != nil {
