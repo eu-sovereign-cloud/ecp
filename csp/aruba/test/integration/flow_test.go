@@ -121,19 +121,20 @@ func TestArubaFlow(t *testing.T) {
 		return o.Status.State, true
 	})
 
-	// 12. instance: assert the plugin MATERIALISES the CloudServer graph - the per-VPC SecurityGroup
-	// and the KeyPair provision, and the CloudServer CR is created with them referenced. The VM
-	// itself is not asserted Active: Aruba's CloudServer flavor is the SECA compute-SKU name verbatim
-	// (compute-sku-1 here), which is not a real Aruba flavor, so provisioning is a catalog concern
-	// outside the plugin's contract.
-	_, err = instRepo.Create(ctx, newInstance(instName, envOr("ARUBA_SSH_KEY", defaultSSHKey)))
-	require.NoError(t, err)
-	// The materialised security group + its rule (named <sg>-<network>) provision for real.
-	matSG := sgName + "-" + network
-	requireEventuallyActive(t, "securitygroups", matSG, wsNS)
+	// 12. instance -> aruba CloudServer, provisioned to a running VM. The compute-SKU (compute-sku-1
+	// = 4 vCPU / 8 GB) maps to the Aruba flavor CSO4A8 via skumap, so the CloudServer is a valid
+	// request and reaches Active - alongside the per-VPC SecurityGroup and KeyPair it references.
+	mustActive(t, instRepo, newInstance(instName, envOr("ARUBA_SSH_KEY", defaultSSHKey)), activeTimeout,
+		func() (commondomain.ResourceState, bool) {
+			o := newInstance(instName, "")
+			if instRepo.Load(ctx, &o) != nil || o.Status == nil {
+				return "", false
+			}
+			return o.Status.State, true
+		})
+	requireEventuallyActive(t, "securitygroups", sgName+"-"+network, wsNS) // materialised per VPC
 	requireEventuallyActive(t, "keypairs", instName+keyPairSuffix, wsNS)
-	// The CloudServer CR itself is created (materialisation), regardless of provisioning outcome.
-	requireEventuallyPresent(t, "cloudservers", instName, wsNS)
+	requireEventuallyActive(t, "cloudservers", instName, wsNS)
 }
 
 // keyPairSuffix mirrors converter.KeyPairSuffix ("-key") without importing the plugin internals.
@@ -155,11 +156,4 @@ func requireEventuallyActive(t *testing.T, resource, name, ns string) {
 	require.NoErrorf(t, wait.PollUntilContextTimeout(ctx, pollInterval, activeTimeout, true,
 		func(context.Context) (bool, error) { return arubaPhase(resource, name, ns) == "Active", nil }),
 		"arubacloud.com %s/%s should reach Active", resource, name)
-}
-
-func requireEventuallyPresent(t *testing.T, resource, name, ns string) {
-	t.Helper()
-	require.NoErrorf(t, wait.PollUntilContextTimeout(ctx, pollInterval, activeTimeout, true,
-		func(context.Context) (bool, error) { return arubaPhase(resource, name, ns) != "NOTFOUND", nil }),
-		"arubacloud.com %s/%s should be created", resource, name)
 }

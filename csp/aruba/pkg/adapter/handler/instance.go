@@ -15,12 +15,14 @@ import (
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	instancedom "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/instance"
 	instancek8s "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/instance/backend/kubernetes"
+	computeskudom "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/sku"
 	nicdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic"
 	sgdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group"
 	sgrdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group-rule"
 	wsdom "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1"
 
 	adaptconverter "github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/converter"
+	"github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/skumap"
 	"github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/port/repository"
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 )
@@ -40,10 +42,11 @@ var _ instancek8s.InstancePlugin = (*ComputeInstanceHandler)(nil)
 // matching the other Aruba handlers. Aruba's CloudServer CRD carries no power field, so PowerOn and
 // PowerOff are no-ops.
 type ComputeInstanceHandler struct {
-	wsRepository  persistence.ReaderRepo[*wsdom.Workspace]
-	nicRepository persistence.ReaderRepo[*nicdom.Nic]
-	sgRepository  persistence.ReaderRepo[*sgdom.SecurityGroup]
-	sgrRepository persistence.ReaderRepo[*sgrdom.SecurityGroupRule]
+	wsRepository         persistence.ReaderRepo[*wsdom.Workspace]
+	nicRepository        persistence.ReaderRepo[*nicdom.Nic]
+	sgRepository         persistence.ReaderRepo[*sgdom.SecurityGroup]
+	sgrRepository        persistence.ReaderRepo[*sgrdom.SecurityGroupRule]
+	computeSkuRepository persistence.ReaderRepo[*computeskudom.InstanceSKU]
 
 	prjRepository      repository.Repository[*v1alpha1.Project, *v1alpha1.ProjectList]
 	subnetRepository   repository.Repository[*v1alpha1.Subnet, *v1alpha1.SubnetList]
@@ -60,6 +63,7 @@ func NewComputeInstanceHandler(
 	nicRepo persistence.ReaderRepo[*nicdom.Nic],
 	sgRepo persistence.ReaderRepo[*sgdom.SecurityGroup],
 	sgrRepo persistence.ReaderRepo[*sgrdom.SecurityGroupRule],
+	computeSkuRepo persistence.ReaderRepo[*computeskudom.InstanceSKU],
 	prjRepo repository.Repository[*v1alpha1.Project, *v1alpha1.ProjectList],
 	subnetRepo repository.Repository[*v1alpha1.Subnet, *v1alpha1.SubnetList],
 	keyPairRepo repository.Repository[*v1alpha1.KeyPair, *v1alpha1.KeyPairList],
@@ -68,16 +72,17 @@ func NewComputeInstanceHandler(
 	cloudServerRepo repository.Repository[*v1alpha1.CloudServer, *v1alpha1.CloudServerList],
 ) *ComputeInstanceHandler {
 	return &ComputeInstanceHandler{
-		wsRepository:       wsRepo,
-		nicRepository:      nicRepo,
-		sgRepository:       sgRepo,
-		sgrRepository:      sgrRepo,
-		prjRepository:      prjRepo,
-		subnetRepository:   subnetRepo,
-		keyPairRepository:  keyPairRepo,
-		secGroupRepository: secGroupRepo,
-		secRuleRepository:  secRuleRepo,
-		cloudServerRepo:    cloudServerRepo,
+		wsRepository:         wsRepo,
+		nicRepository:        nicRepo,
+		sgRepository:         sgRepo,
+		sgrRepository:        sgrRepo,
+		computeSkuRepository: computeSkuRepo,
+		prjRepository:        prjRepo,
+		subnetRepository:     subnetRepo,
+		keyPairRepository:    keyPairRepo,
+		secGroupRepository:   secGroupRepo,
+		secRuleRepository:    secRuleRepo,
+		cloudServerRepo:      cloudServerRepo,
 	}
 }
 
@@ -225,9 +230,23 @@ func (h *ComputeInstanceHandler) resolve(ctx context.Context, domain *instancedo
 		}
 	}
 
-	flavor := lastSegment(domain.Spec.SkuRef.Resource)
-	if flavor == "" {
-		return nil, backend.ErrStillProcessing // FlavorName is required
+	// The instance's SKU is a SECA InstanceSKU describing capacity (vCPU/RAM); Aruba needs a named
+	// flavor. Load the SKU and map its capacity to the Aruba flavor. A missing SKU CR is a not-ready
+	// gate (catalog still syncing); a capacity with no Aruba flavor is a real error.
+	skuName := lastSegment(domain.Spec.SkuRef.Resource)
+	if skuName == "" {
+		return nil, backend.ErrStillProcessing // SkuRef is required
+	}
+	sku := &computeskudom.InstanceSKU{RegionalMetadata: commondomain.RegionalMetadata{
+		CommonMetadata: commondomain.CommonMetadata{Name: skuName},
+		Scope:          res.Scope{Tenant: tenant},
+	}}
+	if err := h.computeSkuRepository.Load(ctx, &sku); err != nil {
+		return nil, backend.ErrStillProcessing // SKU catalog not ready yet
+	}
+	flavor, err := skumap.ComputeFlavor(sku.Spec.VCPU, sku.Spec.Ram)
+	if err != nil {
+		return nil, err // no Aruba flavor for this capacity - surfaces as an Error condition
 	}
 
 	var eipRef *v1alpha1.ResourceReference
