@@ -12,7 +12,10 @@ import (
 // CloudServer can be assembled: a SECA Instance names none of them directly (they come from its
 // NICs, boot/data volumes, ssh keys and sku), so they are gathered by the handler and passed here.
 type CloudServerRefs struct {
-	FlavorName              string
+	FlavorName string
+	// Zone is the boot volume's zone: Aruba requires a CloudServer and its boot volume to share one,
+	// and the volume's is the zone that actually exists (SECA models no per-volume zone).
+	Zone                    string
 	VPCReference            v1alpha1.ResourceReference
 	SubnetReferences        []v1alpha1.ResourceReference
 	SecurityGroupReferences []v1alpha1.ResourceReference
@@ -34,7 +37,7 @@ func BuildCloudServer(from *instancedom.Instance, refs CloudServerRefs) *v1alpha
 	if region == "" {
 		region = defaultRegion
 	}
-	zone := from.Spec.Zone
+	zone := refs.Zone
 	if zone == "" {
 		zone = defaultDatacenter
 	}
