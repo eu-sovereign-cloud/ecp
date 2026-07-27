@@ -283,6 +283,88 @@ func TestBlockStorage_delete(t *testing.T) {
 	}
 }
 
+// imageBlockStorage returns a SECA block storage booted from the given image name.
+func imageBlockStorage(image string) *bsdomblock.BlockStorage {
+	return &bsdomblock.BlockStorage{
+		Spec: bsdomblock.BlockStorageSpec{
+			SizeGB:         100,
+			SkuRef:         refdom.Reference{Resource: "storage/sku-id"},
+			SourceImageRef: &refdom.Reference{Resource: "images/" + image},
+		},
+	}
+}
+
+// Mapping a SECA image name to an Aruba OS template is a create-time concern, but the convert step
+// is shared by all three chains. An image the plugin's table does not know must still fail the
+// create and still allow the delete - otherwise the volume is stuck forever, because the convert
+// error is returned before propagateDelete ever runs.
+func TestBlockStorage_sourceImage(t *testing.T) {
+	t.Run("known image is mapped to its OS template and marked bootable", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		m := newBsMocks(ctrl)
+
+		expectWorkspaceActive(m.wsRepo)
+		m.skuRepo.EXPECT().Load(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+		m.wsConv.EXPECT().FromSECAToAruba(gomock.Any()).Return(activeProject(), nil).AnyTimes()
+		m.bsConv.EXPECT().FromSECAToAruba(gomock.Any()).Return(blockStorage(100, v1alpha1.ResourcePhaseCreating), nil).AnyTimes()
+		m.prjRepo.EXPECT().Load(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+		// Not created yet, so the flow issues the create and reports "still processing".
+		m.bsRepo.EXPECT().Load(gomock.Any(), gomock.Any()).Return(notFoundErr("block-storage")).AnyTimes()
+
+		var created *v1alpha1.BlockStorage
+		m.bsRepo.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, bs *v1alpha1.BlockStorage) error {
+			created = bs
+			return nil
+		}).AnyTimes()
+
+		assertErr(t, m.handler().Create(context.Background(), imageBlockStorage("debian-12")), true, "operation still in progress")
+		require.NotNil(t, created)
+		require.Equal(t, "DE12-001", created.Spec.Image)
+		require.True(t, created.Spec.Bootable)
+	})
+
+	t.Run("unknown image fails the create", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		m := newBsMocks(ctrl)
+
+		expectWorkspaceActive(m.wsRepo)
+		m.skuRepo.EXPECT().Load(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+		m.wsConv.EXPECT().FromSECAToAruba(gomock.Any()).Return(activeProject(), nil).AnyTimes()
+		m.bsConv.EXPECT().FromSECAToAruba(gomock.Any()).Return(blockStorage(100, v1alpha1.ResourcePhaseCreating), nil).AnyTimes()
+
+		err := m.handler().Create(context.Background(), imageBlockStorage("my-custom-snapshot"))
+		assertErr(t, err, true, `no Aruba OS template for SECA image "my-custom-snapshot"`)
+	})
+
+	t.Run("unknown image is still deletable", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		m := newBsMocks(ctrl)
+
+		m.bsConv.EXPECT().FromSECAToAruba(gomock.Any()).Return(blockStorage(100, v1alpha1.ResourcePhaseDeleted), nil).AnyTimes()
+		m.bsRepo.EXPECT().Load(gomock.Any(), gomock.Any()).Return(notFoundErr("block-storage")).AnyTimes()
+		m.bsRepo.EXPECT().Delete(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+
+		err := m.handler().Delete(context.Background(), imageBlockStorage("my-custom-snapshot"))
+		assertErr(t, err, false, "")
+	})
+
+	t.Run("unknown image is still resizable", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		m := newBsMocks(ctrl)
+
+		m.bsConv.EXPECT().FromSECAToAruba(gomock.Any()).Return(blockStorage(100, v1alpha1.ResourcePhaseActive), nil).AnyTimes()
+		m.bsRepo.EXPECT().Load(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+		m.bsRepo.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+
+		err := m.handler().IncreaseSize(context.Background(), imageBlockStorage("my-custom-snapshot"))
+		assertErr(t, err, false, "")
+	})
+}
+
 func TestBlockStorage_increaseSize(t *testing.T) {
 	tests := []struct {
 		name        string
