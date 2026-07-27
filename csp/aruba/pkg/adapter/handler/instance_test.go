@@ -11,6 +11,7 @@ import (
 	res "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	instancedom "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/instance"
+	computeskudom "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/sku"
 	nicdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic"
 	sgdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group"
 	sgrdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group-rule"
@@ -23,6 +24,7 @@ type instMocks struct {
 	nicRepo     *MockReaderRepo[*nicdom.Nic]
 	sgRepo      *MockReaderRepo[*sgdom.SecurityGroup]
 	sgrRepo     *MockReaderRepo[*sgrdom.SecurityGroupRule]
+	skuRepo     *MockReaderRepo[*computeskudom.InstanceSKU]
 	prjRepo     *MockRepository[*v1alpha1.Project, *v1alpha1.ProjectList]
 	subnetRepo  *MockRepository[*v1alpha1.Subnet, *v1alpha1.SubnetList]
 	keyPairRepo *MockRepository[*v1alpha1.KeyPair, *v1alpha1.KeyPairList]
@@ -37,6 +39,7 @@ func newInstMocks(ctrl *gomock.Controller) *instMocks {
 		nicRepo:     NewMockReaderRepo[*nicdom.Nic](ctrl),
 		sgRepo:      NewMockReaderRepo[*sgdom.SecurityGroup](ctrl),
 		sgrRepo:     NewMockReaderRepo[*sgrdom.SecurityGroupRule](ctrl),
+		skuRepo:     NewMockReaderRepo[*computeskudom.InstanceSKU](ctrl),
 		prjRepo:     NewMockRepository[*v1alpha1.Project, *v1alpha1.ProjectList](ctrl),
 		subnetRepo:  NewMockRepository[*v1alpha1.Subnet, *v1alpha1.SubnetList](ctrl),
 		keyPairRepo: NewMockRepository[*v1alpha1.KeyPair, *v1alpha1.KeyPairList](ctrl),
@@ -47,7 +50,7 @@ func newInstMocks(ctrl *gomock.Controller) *instMocks {
 }
 
 func (m *instMocks) handler() *ComputeInstanceHandler {
-	return NewComputeInstanceHandler(m.wsRepo, m.nicRepo, m.sgRepo, m.sgrRepo, m.prjRepo,
+	return NewComputeInstanceHandler(m.wsRepo, m.nicRepo, m.sgRepo, m.sgrRepo, m.skuRepo, m.prjRepo,
 		m.subnetRepo, m.keyPairRepo, m.sgArubaRepo, m.srArubaRepo, m.csRepo)
 }
 
@@ -70,6 +73,16 @@ func testInstance() *instancedom.Instance {
 func expectProjectActive(m *MockRepository[*v1alpha1.Project, *v1alpha1.ProjectList]) {
 	m.EXPECT().Load(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, p *v1alpha1.Project) error {
 		p.Status.Phase = v1alpha1.ResourcePhaseActive
+		return nil
+	}).AnyTimes()
+}
+
+// expectComputeSku makes the InstanceSKU reader return a SKU of the given capacity; 4 vCPU / 8 GB
+// maps to the Aruba flavor CSO4A8.
+func expectComputeSku(m *MockReaderRepo[*computeskudom.InstanceSKU], vcpu, ram int) {
+	m.EXPECT().Load(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, s **computeskudom.InstanceSKU) error {
+		(*s).Spec.VCPU = vcpu
+		(*s).Spec.Ram = ram
 		return nil
 	}).AnyTimes()
 }
@@ -138,6 +151,7 @@ func TestComputeInstance_create(t *testing.T) {
 				expectProjectActive(m.prjRepo)
 				expectNic(m.nicRepo, "sub-1", "web")
 				expectActiveSubnet(m.subnetRepo, "sub-1", "my-network")
+				expectComputeSku(m.skuRepo, 4, 8)
 				m.sgRepo.EXPECT().Load(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 				m.sgArubaRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 				m.srArubaRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
@@ -153,6 +167,7 @@ func TestComputeInstance_create(t *testing.T) {
 				expectProjectActive(m.prjRepo)
 				expectNic(m.nicRepo, "sub-1", "web")
 				expectActiveSubnet(m.subnetRepo, "sub-1", "my-network")
+				expectComputeSku(m.skuRepo, 4, 8)
 				m.sgRepo.EXPECT().Load(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 				m.sgArubaRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 				m.srArubaRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
@@ -171,6 +186,7 @@ func TestComputeInstance_create(t *testing.T) {
 				expectProjectActive(m.prjRepo)
 				expectNic(m.nicRepo, "sub-1", "web")
 				expectActiveSubnet(m.subnetRepo, "sub-1", "my-network")
+				expectComputeSku(m.skuRepo, 4, 8)
 				// The SECA security group carries one inline rule so a SecurityRule is materialised.
 				m.sgRepo.EXPECT().Load(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, sg **sgdom.SecurityGroup) error {
 					(*sg).Spec.Rules = []sgdom.SecurityGroupRuleSpec{{Direction: "ingress", Protocol: "tcp", Ports: &sgdom.Ports{From: 22, To: 22}}}

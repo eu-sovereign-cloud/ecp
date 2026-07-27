@@ -22,6 +22,7 @@ import (
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	frameworkbuilder "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/builder"
 	instancek8s "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/instance/backend/kubernetes"
+	computeskuk8s "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/sku/backend/kubernetes"
 	igwk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/internet-gateway/backend/kubernetes"
 	netk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network/backend/kubernetes"
 	nick8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic/backend/kubernetes"
@@ -116,6 +117,7 @@ func loadControllers(ctx context.Context, dynClient dynamic.Interface, mgr ctrl.
 	secaNicRepo := k8sadapter.NewReaderAdapter(dynClient, nick8s.NICGVR, logger, nick8s.NicFromCR)
 	secaSgRepo := k8sadapter.NewReaderAdapter(dynClient, sgk8s.SecurityGroupGVR, logger, sgk8s.SecurityGroupFromCR)
 	secaSgrRepo := k8sadapter.NewReaderAdapter(dynClient, sgrk8s.SecurityGroupRuleGVR, logger, sgrk8s.SecurityGroupRuleFromCR)
+	secaComputeSkuRepo := k8sadapter.NewReaderAdapter(dynClient, computeskuk8s.InstanceSKUGVR, logger, computeskuk8s.InstanceSKUFromCR)
 
 	// Instantiate aruba-specific repositories (the arubacloud.com CRs the plugin writes).
 	wr := arubarepository.NewProjectRepository(ctx, mgr.GetClient(), mgr.GetCache())
@@ -142,7 +144,7 @@ func loadControllers(ctx context.Context, dynClient dynamic.Interface, mgr ctrl.
 	subnetPlugin := arubahandler.NewSubnetHandler(secaWsRepo, subnetRepo, vpcRepo, wr, subnetConv, wc)
 	pipPlugin := arubahandler.NewPublicIpHandler(secaWsRepo, eipRepo, wr, pipConv, wc)
 	instancePlugin := arubahandler.NewComputeInstanceHandler(secaWsRepo, secaNicRepo, secaSgRepo, secaSgrRepo,
-		wr, subnetRepo, keyPairRepo, sgRepo, srRepo, cloudServerRepo)
+		secaComputeSkuRepo, wr, subnetRepo, keyPairRepo, sgRepo, srRepo, cloudServerRepo)
 
 	// Route table, internet gateway, nic, security group and security group rule have no Aruba CR
 	// of their own: they are accepted and go active immediately (the real Aruba security groups are

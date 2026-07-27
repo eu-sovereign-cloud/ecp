@@ -21,6 +21,7 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/generic/delegated"
 	mutator_bypass "github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/generic/mutator"
 	resolver_bypass "github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/generic/resolver"
+	"github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/skumap"
 	"github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/port/converter"
 	"github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/port/repository"
 )
@@ -273,6 +274,12 @@ func (h *BlockStorageHandler) FromSECABundleToAruba(from *SecaBlockStorageBundle
 	bs, err := h.bsConverter.FromSECAToAruba(from.BlockStorage)
 	if err != nil {
 		return nil, err // TODO: better error handling
+	}
+
+	// Map the SECA storage SKU's capacity to an Aruba block-storage tier. Absent only on the delete
+	// path (BypassDependencyResolver), where the tier does not matter.
+	if from.StorageSku != nil {
+		bs.Spec.Type = skumap.StorageType(from.StorageSku.Spec.IOPS)
 	}
 
 	response.BlockStorage = bs
