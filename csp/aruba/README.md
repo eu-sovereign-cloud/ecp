@@ -96,11 +96,13 @@ An IPv6-only `Subnet` is likewise rejected: the Aruba `Subnet` CRD validates `ci
 
 | Field | Value | Why |
 |---|---|---|
-| Region | `ITBG-Bergamo` | When the SECA resource carries no region. |
+| Region | `ITBG-Bergamo` | When the SECA resource carries no region — including when it carries a *reference* whose region is empty (see the warning below). |
 | `Subnet.Spec.Type` | `Advanced` | Lets the subnet use the CIDR from the SECA spec; `Basic` would have Aruba choose the range and silently ignore it. |
 | `Subnet.Spec.DHCP.Enabled` | `true` | The CRD requires the field; SECA has no knob for it. |
 | `ElasticIP.Spec.BillingPeriod` | `Hour` | The CRD requires the field; SECA has no knob for it. |
 | `CloudServer.Spec.Zone` | `ITBG-1` | When the SECA `Instance` carries no zone. |
+
+> **A region must never be sent empty.** A SECA `Reference` carries a region only when it points at another one, so the usual case leaves it blank — and that blank must fall through to the default rather than be forwarded. Aruba reports a missing location as `Validation: Size: invalid; DataCenter: invalid`, because both a zone and the size catalog are resolved *within* a region. The error names neither the region nor the real problem, so it reads as a size/zone bug and is easy to chase for a long time; if you see it, check the region first.
 
 ## Status reporting limitation
 
