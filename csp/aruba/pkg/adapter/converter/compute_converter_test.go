@@ -123,7 +123,10 @@ func TestBuildCloudServer(t *testing.T) {
 	}
 
 	cs := converter.BuildCloudServer(inst, converter.CloudServerRefs{
-		FlavorName:              "n1.small",
+		FlavorName: "n1.small",
+		// The zone comes from the resolved boot volume, not from the instance: Aruba requires the two
+		// to share one, and the handler refuses a conflicting instance zone before reaching here.
+		Zone:                    "ITBG-2",
 		VPCReference:            vpcRef(),
 		SubnetReferences:        []v1alpha1.ResourceReference{{Name: "sub-1", Namespace: "net-ns"}},
 		SecurityGroupReferences: []v1alpha1.ResourceReference{{Name: "web-my-network", Namespace: "ws-ns"}},

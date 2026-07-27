@@ -18,7 +18,7 @@ The Aruba resources are the custom resources of the [arubacloud-resource-operato
 | NIC                   | *none*              | Aruba has no standalone NIC: NICs are attributes of a `CloudServer` |
 | Network SKU           | not reconciled      | Read-only catalog                                                |
 | Image                 | *none* — no-op      | Aruba has no image object; the boot volume carries the OS template code instead — see [SKU mapping](#sku-mapping) |
-| Instance              | `CloudServer` (+ `KeyPair`, `SecurityGroup`, `SecurityRule`) | Workspace & `Project` active, its NICs present, their subnets active, an ssh key, a bootable boot volume |
+| Instance              | `CloudServer` (+ `KeyPair`, `SecurityGroup`, `SecurityRule`) | Workspace & `Project` active, its NICs present, and **every referenced Aruba resource active**: subnets, materialised security groups, `KeyPair`, boot volume (bootable), data volumes and `ElasticIP` |
 | Compute SKU           | *mapped, not created* | Its vCPU/RAM select the CloudServer `FlavorName` — see [SKU mapping](#sku-mapping) |
 
 ### Route Table and Internet Gateway have no Aruba counterpart
@@ -47,8 +47,11 @@ A SECA `Instance` maps to an Aruba `CloudServer`. A CloudServer's required refer
 - **Security groups + rules** referenced by the NICs (and the instance's own `securityGroupRef`) are materialised in that VPC: one Aruba `SecurityGroup` per `(network, SECA group)`, named `<seca-group>-<network>`, plus its `SecurityRule`s built from the group's inline `rules` and its `ruleRefs`.
 - **Key pair.** An Aruba CloudServer requires a `KeyPairReference`, but SECA has no key-pair resource: the public key travels inline in `Instance.Spec.SshKeys` (the field is documented as "references" but actually carries the key material, e.g. `ssh-rsa AAAA…`). The handler creates a `KeyPair` named `<instance>-key` from the first ssh key and deletes it with the instance.
 - **Boot/data volumes** come from `BootVolume`/`DataVolumes` (Aruba `BlockStorage`, already reconciled by the storage plugin). A boot volume created from a SECA image is made **bootable** and carries the Aruba **OS template code** the image name maps to (see [SKU mapping](#sku-mapping)) — Aruba has no image object, so the OS lives on the volume, not in a separate resource. **Flavor** is resolved from the instance's compute SKU — its vCPU/RAM select an Aruba flavor, not the SKU name used verbatim; an optional **elastic IP** comes from the first NIC public IP.
+- **Zone** is taken from the resolved **boot volume**, not from the instance. Aruba requires a CloudServer and its boot volume to share a zone, and SECA models no per-volume zone (every block storage lands in the plugin's default datacenter), so the volume's zone is the only one that certainly exists. An `Instance.Spec.Zone` that contradicts it is rejected with a clear error rather than sent to Aruba — see [Compute mapping ceilings](#compute-mapping-ceilings).
 
 Missing dependencies gate the create with `ErrStillProcessing` (the instance stays in `creating` and is retried): a NIC not created yet, a subnet not yet active, **no security group** (a CloudServer requires ≥1), or **no ssh key** (the required `KeyPairReference` cannot be built). `PowerOn`/`PowerOff` are **no-ops**: Aruba's `CloudServer` CRD exposes no power field, so power state lives only on the SECA side.
+
+**Every referenced Aruba resource must be `Active` before the CloudServer is created** — the boot volume, any data volumes, the key pair, the materialised security groups and the elastic IP. This is not merely an optimisation: Aruba **rejects** a server whose references are not yet provisioned in the CMP, and the rejection is terminal (the CR goes to `Failed`) rather than retried, so a create issued too early does not simply succeed on the next pass. Each of these gates with `ErrStillProcessing` instead.
 
 On instance delete the CloudServer is deleted and then the key pair; the **materialised security groups are left in place** — they may be shared with other instances and are reaped only when the SECA security group itself is deleted (see "Security groups are materialised at instance attach" above).
 
@@ -59,6 +62,7 @@ On instance delete the CloudServer is deleted and then the key pair; the **mater
 | Multiple ssh keys | Aruba `KeyPair` holds a single value; SECA allows up to 32 → the first is used. |
 | Security-group rule changes | Rules are created once, at attach; later edits to the SECA group are not reconciled onto the Aruba side. |
 | Multi-VPC instance | All of an instance's subnets are assumed to share one network/VPC; the first subnet's VPC wins. |
+| Instance zone | Every block storage is created in the plugin's hardcoded default datacenter (SECA has no per-volume zone), and Aruba requires a server to share its boot volume's zone. An instance requesting a *different* zone therefore cannot be satisfied and fails with an explicit error. Lifting this means threading a zone from the instance down to its volumes, which SECA's model does not currently express. |
 | Rule fan-out | One SECA rule expands to one Aruba `SecurityRule` per `(protocol × port × source)`: `tcp+udp` → TCP and UDP rules, a port list → one rule per port, each `sourceRef` → its own rule. |
 | Rule targets | A `security-groups/<name>` source becomes a `SecurityGroup` target; anything else is treated as an IP/CIDR literal (`Ip` target). No source means all traffic → `0.0.0.0/0`. Instance/gateway sources have no Aruba target type and are mapped best-effort to `Ip`. |
 
@@ -102,7 +106,8 @@ An IPv6-only `Subnet` is likewise rejected: the Aruba `Subnet` CRD validates `ci
 | `Subnet.Spec.Type` | `Advanced` | Lets the subnet use the CIDR from the SECA spec; `Basic` would have Aruba choose the range and silently ignore it. |
 | `Subnet.Spec.DHCP.Enabled` | `true` | The CRD requires the field; SECA has no knob for it. |
 | `ElasticIP.Spec.BillingPeriod` | `Hour` | The CRD requires the field; SECA has no knob for it. |
-| `CloudServer.Spec.Zone` | `ITBG-1` | When the SECA `Instance` carries no zone. |
+| `BlockStorage.Spec.Zone` | `ITBG-1` | SECA models no per-volume zone. |
+| `CloudServer.Spec.Zone` | boot volume's zone | Aruba requires the two to match; falls back to `ITBG-1`. |
 
 > **A region must never be sent empty.** A SECA `Reference` carries a region only when it points at another one, so the usual case (e.g. a boot volume's `sourceImageRef`) leaves it blank — that blank must fall through to the default rather than be forwarded. Aruba reports a missing location as `Validation: Size: invalid; DataCenter: invalid`, because both a zone and the size catalog are resolved *within* a region. The error names neither the region nor the real problem, so it reads as a size/zone bug and is easy to chase for a long time; if you see it, check the region first.
 
@@ -164,7 +169,7 @@ instance           ─▶ CloudServer        (+ per-VPC SecurityGroup, SecurityR
 Each step asserts the SECA resource reaches `Active` **and** the matching `arubacloud.com` CR does too. Two behaviours are checked explicitly:
 
 - **Internet-gateway gating** — the network is created *before* any internet-gateway, and the suite asserts **no VPC is created** while the gate holds; it then creates the internet-gateway and asserts the VPC appears and provisions.
-- **Instance provisioning** — the `CloudServer` reaches `Active` (a running VM), alongside the per-VPC `SecurityGroup` (`<sg>-<network>`), its `SecurityRule` and the `KeyPair`. This works because the compute SKU (`compute-sku-1` = 4 vCPU / 8 GB) maps to flavor `CSO4A8` and the boot volume is created from an image whose name maps to a real Aruba OS template — a valid request, not a bare `400`.
+- **Instance provisioning** — the `CloudServer` reaches `Active` (a running VM), alongside the per-VPC `SecurityGroup` (`<sg>-<network>`), its `SecurityRule` and the `KeyPair`. This works because the compute SKU (`compute-sku-1` = 4 vCPU / 8 GB) maps to flavor `CSO4A8` and the boot volume is created from an image whose name maps to a real Aruba OS template — a valid request, not a bare `400`. The handler waits for every referenced Aruba resource (security group, key pair, boot volume, elastic IP) to be active before creating the server, so it is never submitted against a reference the CMP has not provisioned yet.
 
 A `t.Cleanup` deletes every resource in reverse dependency order, so a run — even a failed one — does not leak real Aruba resources.
 
