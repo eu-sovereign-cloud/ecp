@@ -32,9 +32,29 @@ func TestArubaFlow(t *testing.T) {
 	})
 	requireArubaActive(t, "projects", workspace, tenantNS)
 
-	// 2. block-storage -> aruba BlockStorage
-	mustActive(t, bsRepo, newBlockStorage(bootName), activeTimeout, func() (commondomain.ResourceState, bool) {
-		o := newBlockStorage(bootName)
+	// 2. block-storage -> aruba BlockStorage. First a plain source volume + a tenant image captured
+	// from it, so the boot volume can be created from that image (Aruba installs an OS: the image
+	// name maps to a template code). The image is a no-op in Aruba; the source volume is a normal
+	// BlockStorage. Then the boot volume itself, created from the image.
+	mustActive(t, bsRepo, newBlockStorage(imgSrcName, nil), activeTimeout, func() (commondomain.ResourceState, bool) {
+		o := newBlockStorage(imgSrcName, nil)
+		if bsRepo.Load(ctx, &o) != nil || o.Status == nil {
+			return "", false
+		}
+		return o.Status.State, true
+	})
+	requireArubaActive(t, "blockstorages", imgSrcName, wsNS)
+
+	mustActive(t, imgRepo, newImage(bootImage, imgSrcName), activeTimeout, func() (commondomain.ResourceState, bool) {
+		o := newImage(bootImage, imgSrcName)
+		if imgRepo.Load(ctx, &o) != nil || o.Status == nil {
+			return "", false
+		}
+		return o.Status.State, true
+	})
+
+	mustActive(t, bsRepo, newBlockStorage(bootName, ptr(imageRefFor(bootImage))), activeTimeout, func() (commondomain.ResourceState, bool) {
+		o := newBlockStorage(bootName, nil)
 		if bsRepo.Load(ctx, &o) != nil || o.Status == nil {
 			return "", false
 		}
@@ -124,7 +144,7 @@ func TestArubaFlow(t *testing.T) {
 	// 12. instance -> aruba CloudServer, provisioned to a running VM. The compute-SKU (compute-sku-1
 	// = 4 vCPU / 8 GB) maps to the Aruba flavor CSO4A8 via skumap, so the CloudServer is a valid
 	// request and reaches Active - alongside the per-VPC SecurityGroup and KeyPair it references.
-	mustActive(t, instRepo, newInstance(instName, envOr("ARUBA_SSH_KEY", defaultSSHKey)), activeTimeout,
+	mustActive(t, instRepo, newInstance(instName, envOr("ARUBA_SSH_KEY", defaultSSHKey)), vmActiveTimeout,
 		func() (commondomain.ResourceState, bool) {
 			o := newInstance(instName, "")
 			if instRepo.Load(ctx, &o) != nil || o.Status == nil {

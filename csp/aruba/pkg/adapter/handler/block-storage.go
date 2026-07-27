@@ -282,6 +282,20 @@ func (h *BlockStorageHandler) FromSECABundleToAruba(from *SecaBlockStorageBundle
 		bs.Spec.Type = skumap.StorageType(from.StorageSku.Spec.IOPS)
 	}
 
+	// A block storage created from a source image is a boot disk: map the SECA image name to the
+	// Aruba OS template code and mark the volume bootable, so Aruba installs an OS on it. Without
+	// this a CloudServer booting from the volume is rejected by the CMP (semantic 400: no bootable
+	// OS). Aruba has no image object, so the image is a no-op there - only its name (the template
+	// code) matters, and it lands here on the volume.
+	if ref := from.BlockStorage.Spec.SourceImageRef; ref != nil {
+		image, err := skumap.ImageTemplate(lastSegment(ref.Resource))
+		if err != nil {
+			return nil, err
+		}
+		bs.Spec.Image = image
+		bs.Spec.Bootable = true
+	}
+
 	response.BlockStorage = bs
 
 	return response, nil
