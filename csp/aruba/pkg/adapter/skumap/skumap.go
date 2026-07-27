@@ -70,3 +70,26 @@ func StorageType(iops int64) string {
 	}
 	return storageStandard
 }
+
+// arubaImages maps a SECA image name to the Aruba OS template code the volume-create API expects in
+// its "image" field (a template code, not a UUID - Aruba has no image object of its own, so the code
+// is baked straight into the boot volume). Source: https://arubacloud.github.io/api/docs/metadata.
+var arubaImages = map[string]string{
+	"alma-8":       "alma8",
+	"alma-9":       "alma9",
+	"debian-12":    "DE12-001",
+	"ubuntu-22-04": "LU22-001",
+	"ubuntu-24-04": "LU24-001",
+	"windows-2019": "WS19-001_W2K19_1_0",
+	"windows-2022": "WS22-001_W2K22_1_0",
+}
+
+// ImageTemplate returns the Aruba OS template code for a SECA image name. It errors on an unknown
+// name so a bad image fails loudly instead of sending a blank/invalid Image to Aruba (a 400 with no
+// useful detail, exactly like a bad flavor).
+func ImageTemplate(secaImage string) (string, error) {
+	if code, ok := arubaImages[secaImage]; ok {
+		return code, nil
+	}
+	return "", fmt.Errorf("no Aruba OS template for SECA image %q", secaImage)
+}

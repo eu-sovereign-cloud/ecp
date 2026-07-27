@@ -17,7 +17,8 @@ The Aruba resources are the custom resources of the [arubacloud-resource-operato
 | Security Group Rule   | *none directly* — materialised as `SecurityRule` at instance attach | — |
 | NIC                   | *none*              | Aruba has no standalone NIC: NICs are attributes of a `CloudServer` |
 | Network SKU           | not reconciled      | Read-only catalog                                                |
-| Instance              | `CloudServer` (+ `KeyPair`, `SecurityGroup`, `SecurityRule`) | Workspace & `Project` active, its NICs present, their subnets active, an ssh key, a boot volume |
+| Image                 | *none* — no-op      | Aruba has no image object; the boot volume carries the OS template code instead — see [SKU mapping](#sku-mapping) |
+| Instance              | `CloudServer` (+ `KeyPair`, `SecurityGroup`, `SecurityRule`) | Workspace & `Project` active, its NICs present, their subnets active, an ssh key, a bootable boot volume |
 | Compute SKU           | *mapped, not created* | Its vCPU/RAM select the CloudServer `FlavorName` — see [SKU mapping](#sku-mapping) |
 
 ### Route Table and Internet Gateway have no Aruba counterpart
@@ -45,7 +46,7 @@ A SECA `Instance` maps to an Aruba `CloudServer`. A CloudServer's required refer
 - **NICs → subnets → VPC.** The instance's `primaryNicRef`/`additionalNicRefs` are loaded; each NIC's `subnetRef`, `securityGroupRefs` and `publicIpRefs` are collected. A NIC reference carries no network, so the Aruba `Subnet` backing a SECA subnet name is located by workspace label across namespaces and matched by name; the first active match wins. The subnet's `VPCReference` fixes the CloudServer's VPC.
 - **Security groups + rules** referenced by the NICs (and the instance's own `securityGroupRef`) are materialised in that VPC: one Aruba `SecurityGroup` per `(network, SECA group)`, named `<seca-group>-<network>`, plus its `SecurityRule`s built from the group's inline `rules` and its `ruleRefs`.
 - **Key pair.** An Aruba CloudServer requires a `KeyPairReference`, but SECA has no key-pair resource: the public key travels inline in `Instance.Spec.SshKeys` (the field is documented as "references" but actually carries the key material, e.g. `ssh-rsa AAAA…`). The handler creates a `KeyPair` named `<instance>-key` from the first ssh key and deletes it with the instance.
-- **Boot/data volumes** come from `BootVolume`/`DataVolumes` (Aruba `BlockStorage`, already reconciled by the storage plugin); **flavor** is resolved from the instance's compute SKU — its vCPU/RAM select an Aruba flavor (see [SKU mapping](#sku-mapping)), not the SKU name used verbatim; an optional **elastic IP** comes from the first NIC public IP.
+- **Boot/data volumes** come from `BootVolume`/`DataVolumes` (Aruba `BlockStorage`, already reconciled by the storage plugin). A boot volume created from a SECA image is made **bootable** and carries the Aruba **OS template code** the image name maps to (see [SKU mapping](#sku-mapping)) — Aruba has no image object, so the OS lives on the volume, not in a separate resource. **Flavor** is resolved from the instance's compute SKU — its vCPU/RAM select an Aruba flavor, not the SKU name used verbatim; an optional **elastic IP** comes from the first NIC public IP.
 
 Missing dependencies gate the create with `ErrStillProcessing` (the instance stays in `creating` and is retried): a NIC not created yet, a subnet not yet active, **no security group** (a CloudServer requires ≥1), or **no ssh key** (the required `KeyPairReference` cannot be built). `PowerOn`/`PowerOff` are **no-ops**: Aruba's `CloudServer` CRD exposes no power field, so power state lives only on the SECA side.
 
@@ -63,15 +64,16 @@ On instance delete the CloudServer is deleted and then the key pair; the **mater
 
 ## SKU mapping
 
-SECA SKUs describe **capacity** (vCPU/RAM, IOPS); Aruba names a fixed **catalog** (flavors, storage tiers). [`pkg/adapter/skumap`](pkg/adapter/skumap) bridges the two. The catalog is **embedded**: the delegator holds no Aruba credentials (only the operator does), so it cannot query Aruba's live catalog — the source of truth is the `sdk-go` `CloudServerFlavor` / `BlockStorageType` enums, transcribed into `skumap`.
+SECA SKUs describe **capacity** (vCPU/RAM, IOPS) and images name an **OS**; Aruba names a fixed **catalog** (flavors, storage tiers, OS templates). [`pkg/adapter/skumap`](pkg/adapter/skumap) bridges the two. The catalog is **embedded**: the delegator holds no Aruba credentials (only the operator does), so it cannot query Aruba's live catalog — the source of truth is the `sdk-go` `CloudServerFlavor` / `BlockStorageType` enums and the [image metadata](https://arubacloud.github.io/api/docs/metadata), transcribed into `skumap`.
 
-| SECA SKU | Mapped to | How |
+| SECA input | Mapped to | How |
 |---|---|---|
 | Compute (`InstanceSKU` — vCPU, RAM) | `CloudServer.FlavorName` (`CSO<cpu>A<ram>`) | **Exact** match on vCPU **and** RAM (GB): `{4, 8}` → `CSO4A8`. No matching flavor → the instance goes to `error` with a clear message (`no Aruba CloudServer flavor provides N vCPU / M GB RAM`) instead of a bare Aruba `400`. |
 | Storage (`StorageSKU` — IOPS) | `BlockStorage.Type` (`Standard` / `Performance`) | IOPS at/above a threshold → `Performance`, else `Standard`. A coarse heuristic keyed on the objective metric (IOPS), because Aruba exposes only two tiers and does not publish their IOPS boundary; the SECA `Type` string (`local-durable`…) describes durability, not a perf tier. Safe: Aruba defaults the field when unset. |
+| Image (name via a boot volume's `SourceImageRef`) | `BlockStorage.Image` (OS template code) + `Bootable=true` | Aruba has no image object — the boot volume is created directly from an OS **template code** (`ubuntu-24-04` → `LU24-001`, `debian-12` → `DE12-001`, …). An unknown image name → the block storage goes to `error` instead of a bare Aruba `400` (a server with no bootable OS). |
 | Network (`NetworkSKU` — bandwidth) | — | Aruba's `VPC`/`Subnet` have no bandwidth or SKU field; not mapped. |
 
-Adding an Aruba flavor is a one-row change to `computeFlavors` in `skumap.go`. The SECA SKU catalog itself (the `InstanceSKU`/`StorageSKU` CRs) is provisioned separately — the region catalog in production, the test-data fixtures in tests — and only capacities Aruba actually offers will resolve to a flavor.
+Adding an Aruba flavor or OS template is a one-row change to `computeFlavors` / `arubaImages` in `skumap.go`. The SECA catalog itself (the `InstanceSKU`/`StorageSKU`/`Image` CRs) is provisioned separately — the region catalog in production, the test-data fixtures in tests — and only capacities/images Aruba actually offers will resolve.
 
 ## What is not propagated
 
@@ -102,7 +104,7 @@ An IPv6-only `Subnet` is likewise rejected: the Aruba `Subnet` CRD validates `ci
 | `ElasticIP.Spec.BillingPeriod` | `Hour` | The CRD requires the field; SECA has no knob for it. |
 | `CloudServer.Spec.Zone` | `ITBG-1` | When the SECA `Instance` carries no zone. |
 
-> **A region must never be sent empty.** A SECA `Reference` carries a region only when it points at another one, so the usual case leaves it blank — and that blank must fall through to the default rather than be forwarded. Aruba reports a missing location as `Validation: Size: invalid; DataCenter: invalid`, because both a zone and the size catalog are resolved *within* a region. The error names neither the region nor the real problem, so it reads as a size/zone bug and is easy to chase for a long time; if you see it, check the region first.
+> **A region must never be sent empty.** A SECA `Reference` carries a region only when it points at another one, so the usual case (e.g. a boot volume's `sourceImageRef`) leaves it blank — that blank must fall through to the default rather than be forwarded. Aruba reports a missing location as `Validation: Size: invalid; DataCenter: invalid`, because both a zone and the size catalog are resolved *within* a region. The error names neither the region nor the real problem, so it reads as a size/zone bug and is easy to chase for a long time; if you see it, check the region first.
 
 ## Status reporting limitation
 
@@ -145,7 +147,9 @@ The suite connects to the **current kube-context** and expects the stack already
 
 ```
 workspace          ─▶ Project
-block-storage      ─▶ BlockStorage
+block-storage(src) ─▶ BlockStorage      ┐ a source volume + a tenant image built from it, so
+image              ─▶ (no-op)           ┘ the boot volume can be created from that OS image
+block-storage(boot)─▶ BlockStorage      (bootable, image → Aruba template code DE12-001)
 internet-gateway   ─▶ (no-op)            ┐ gate: the VPC is created only
 network            ─▶ VPC                ┘ once an internet-gateway exists
 route-table        ─▶ (no-op)
@@ -160,7 +164,7 @@ instance           ─▶ CloudServer        (+ per-VPC SecurityGroup, SecurityR
 Each step asserts the SECA resource reaches `Active` **and** the matching `arubacloud.com` CR does too. Two behaviours are checked explicitly:
 
 - **Internet-gateway gating** — the network is created *before* any internet-gateway, and the suite asserts **no VPC is created** while the gate holds; it then creates the internet-gateway and asserts the VPC appears and provisions.
-- **Instance materialisation** — it asserts the per-VPC `SecurityGroup` (`<sg>-<network>`) and the `KeyPair` provision and that the `CloudServer` CR is created with them referenced. It does **not** assert the VM itself reaches `Active`: the CloudServer's `FlavorName` is the SECA compute-SKU name verbatim (`compute-sku-1` in the fixtures), which is not a real Aruba flavor — provisioning a running VM needs the compute-SKU catalog to carry real Aruba flavor names, a data concern outside the plugin's contract.
+- **Instance provisioning** — the `CloudServer` reaches `Active` (a running VM), alongside the per-VPC `SecurityGroup` (`<sg>-<network>`), its `SecurityRule` and the `KeyPair`. This works because the compute SKU (`compute-sku-1` = 4 vCPU / 8 GB) maps to flavor `CSO4A8` and the boot volume is created from an image whose name maps to a real Aruba OS template — a valid request, not a bare `400`.
 
 A `t.Cleanup` deletes every resource in reverse dependency order, so a run — even a failed one — does not leak real Aruba resources.
 

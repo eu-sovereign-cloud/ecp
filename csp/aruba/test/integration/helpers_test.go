@@ -26,6 +26,7 @@ import (
 	sgrdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group-rule"
 	subdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/subnet"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage"
+	imgdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image"
 	wsdom "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1"
 )
 
@@ -59,9 +60,30 @@ func newWorkspace(name string) *wsdom.Workspace {
 	return &wsdom.Workspace{RegionalMetadata: tMeta(name)}
 }
 
-func newBlockStorage(name string) *bsdom.BlockStorage {
+// newBlockStorage builds a workspace block storage, optionally created from a source image (which
+// makes it a bootable OS disk - the aruba plugin maps the image name to an Aruba template code).
+// 20 GB matches the Aruba CRD default and the SDK's bootable example - room for an OS image.
+func newBlockStorage(name string, srcImage *commondomain.Reference) *bsdom.BlockStorage {
 	return &bsdom.BlockStorage{RegionalMetadata: rMeta(name),
-		Spec: bsdom.BlockStorageSpec{SizeGB: 10, SkuRef: ref("sku-1")}}
+		Spec: bsdom.BlockStorageSpec{SizeGB: 20, SkuRef: ref("sku-1"), SourceImageRef: srcImage}}
+}
+
+// newImage builds a tenant-scoped image stored on the named workspace block storage. Aruba has no
+// image object, so this is a no-op there; it exists so the boot-from-image chain is SECA-consistent.
+func newImage(name, blockStorageName string) *imgdom.Image {
+	return &imgdom.Image{RegionalMetadata: tMeta(name),
+		Spec: imgdom.ImageSpec{BlockStorageRef: blockStorageRefFor(blockStorageName),
+			CpuArchitecture: "amd64", Boot: "UEFI", Initializer: "none"}}
+}
+
+// blockStorageRefFor is an image's reference to a workspace-scoped block storage by name.
+func blockStorageRefFor(name string) commondomain.Reference {
+	return commondomain.Reference{Workspace: workspace, Resource: "block-storages/" + name}
+}
+
+// imageRefFor is a block storage's source reference to a tenant-scoped image by name.
+func imageRefFor(name string) commondomain.Reference {
+	return commondomain.Reference{Resource: "images/" + name}
 }
 
 func newInternetGateway(name string) *igwdom.InternetGateway {
@@ -115,7 +137,7 @@ func newInstance(name, sshKey string) *instdom.Instance {
 			BootVolume:    instdom.VolumeReference{DeviceRef: ref("block-storages/" + bootName)},
 			SkuRef:        ref("skus/compute-sku-1"),
 			SshKeys:       []string{sshKey},
-			Zone:          "ITBG-1"}}
+			Zone:          "ITBG-1"}} // Aruba requires a server and its boot volume to share a zone
 }
 
 // ---- assertions ------------------------------------------------------------
@@ -173,6 +195,8 @@ func deleteFlowResources() {
 	_ = rtRepo.Delete(ctx, newRouteTable(rtName))
 	_ = netRepo.Delete(ctx, newNetwork(network))
 	_ = igwRepo.Delete(ctx, newInternetGateway(igwName))
-	_ = bsRepo.Delete(ctx, newBlockStorage(bootName))
+	_ = bsRepo.Delete(ctx, newBlockStorage(bootName, nil))
+	_ = imgRepo.Delete(ctx, newImage(bootImage, imgSrcName)) // before its source: a stored image blocks the volume's delete
+	_ = bsRepo.Delete(ctx, newBlockStorage(imgSrcName, nil))
 	_ = wsRepo.Delete(ctx, newWorkspace(workspace))
 }

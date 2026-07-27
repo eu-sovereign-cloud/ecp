@@ -30,6 +30,32 @@ func TestComputeFlavor(t *testing.T) {
 	}
 }
 
+func TestImageTemplate(t *testing.T) {
+	tests := []struct {
+		image   string
+		want    string
+		wantErr bool
+	}{
+		{"ubuntu-24-04", "LU24-001", false},
+		{"debian-12", "DE12-001", false},
+		{"alma-8", "alma8", false},
+		{"windows-2022", "WS22-001_W2K22_1_0", false},
+		{"ubuntu-99-04", "", true},
+		{"", "", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.image, func(t *testing.T) {
+			got, err := ImageTemplate(tt.image)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("ImageTemplate(%q) err = %v, wantErr %v", tt.image, err, tt.wantErr)
+			}
+			if got != tt.want {
+				t.Fatalf("ImageTemplate(%q) = %q, want %q", tt.image, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestStorageType(t *testing.T) {
 	tests := []struct {
 		iops int64
