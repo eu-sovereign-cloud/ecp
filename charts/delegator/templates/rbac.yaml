@@ -21,9 +21,11 @@ rules:
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
 {{- if eq $plugin "aruba" }}
   # Block storage, its read-only SKU lookup, and the arubacloud.com CRs the
-  # plugin writes for the arubacloud-resource-operator.
+  # plugin writes for the arubacloud-resource-operator. Images are a no-op (Aruba
+  # has no image object): the boot volume carries the OS template code instead, but
+  # the image resource is still reconciled to active so boot-from-image gating works.
   - apiGroups: ["storage.v1.secapi.cloud"]
-    resources: ["block-storages", "block-storages/status"]
+    resources: ["block-storages", "block-storages/status", "images", "images/status"]
     verbs: ["get", "list", "watch", "update", "patch", "create", "delete"]
   - apiGroups: ["storage.v1.secapi.cloud"]
     resources: ["skus"]

@@ -17,10 +17,11 @@ grants it. There is no default — an install must say which cloud it is for.
 > ⚠️ `plugin=dummy` marks resources Active without provisioning anything. It
 > exists for development and testing; never run it in production.
 
-Each plugin covers a different set of verticals — aruba reconciles workspaces
-and block storage, dummy reconciles every vertical, ionos covers compute,
-storage and network. The RBAC follows the plugin, so switching `plugin` on an
-existing release re-grants the role to match.
+Each plugin covers a different set of verticals — aruba reconciles workspaces,
+storage (block storage and images) network and compute, dummy reconciles every
+vertical, ionos covers compute, storage and network. The RBAC follows the
+plugin, so switching `plugin` on an existing release re-grants the role to
+match.
 
 ## Prerequisites
 

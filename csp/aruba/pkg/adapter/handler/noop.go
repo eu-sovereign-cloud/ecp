@@ -11,6 +11,8 @@ import (
 	rtk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/route-table/backend/kubernetes"
 	sgrdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group-rule"
 	sgrk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group-rule/backend/kubernetes"
+	imgdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image"
+	imgk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image/backend/kubernetes"
 )
 
 // Aruba has no internet gateway and no route table resource: internet egress and routing are
@@ -34,12 +36,29 @@ import (
 // nothing and goes active immediately; the compute-instance handler reads the NIC CRs to learn
 // which subnet and security groups a CloudServer must be wired to. See csp/aruba/README.md.
 
+// The Image is a no-op as well: Aruba has no image object. A SECA image is only a name; the boot
+// volume that is created from it carries the matching Aruba OS template code (mapped in the
+// block-storage handler via skumap), so the image resource has nothing to propagate and goes active
+// immediately, existing only so the SECA boot-from-image model stays consistent. See
+// csp/aruba/README.md.
+
 var (
 	_ igwk8s.InternetGatewayPlugin   = (*InternetGatewayHandler)(nil)
 	_ rtk8s.RouteTablePlugin         = (*RouteTableHandler)(nil)
 	_ sgrk8s.SecurityGroupRulePlugin = (*SecurityGroupRuleHandler)(nil)
 	_ nick8s.NicPlugin               = (*NicHandler)(nil)
+	_ imgk8s.ImagePlugin             = (*ImageHandler)(nil)
 )
+
+// ImageHandler accepts every Image without creating an Aruba resource. Aruba has no image object;
+// the OS template code the image names is applied to the boot volume by the block-storage handler.
+type ImageHandler struct{}
+
+func NewImageHandler() *ImageHandler { return &ImageHandler{} }
+
+func (h *ImageHandler) Create(_ context.Context, _ *imgdom.Image) error { return nil }
+
+func (h *ImageHandler) Delete(_ context.Context, _ *imgdom.Image) error { return nil }
 
 // InternetGatewayHandler accepts every InternetGateway without creating an Aruba resource.
 type InternetGatewayHandler struct{}

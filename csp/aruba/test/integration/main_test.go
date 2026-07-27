@@ -54,6 +54,8 @@ import (
 	subk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/subnet/backend/kubernetes"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage"
 	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage/backend/kubernetes"
+	imgdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image"
+	imgk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image/backend/kubernetes"
 	wsdom "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1"
 	wsk8s "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1/backend/kubernetes"
 )
@@ -69,9 +71,16 @@ const (
 	// (route-table, security-group, nic) goes Active almost immediately.
 	activeTimeout = 4 * time.Minute
 	noopTimeout   = 45 * time.Second
+	// A real VM boots an OS from its image, materialises its security group and clones a bootable
+	// disk - measurably slower than the other resources, so it gets a longer deadline.
+	vmActiveTimeout = 10 * time.Minute
 
 	// Resource names shared across the suite. All >= 4 characters (Aruba rejects shorter names).
-	bootName   = "boot"
+	bootName = "boot"
+	// imgSrcName is the source volume the boot image is captured from; bootImage is a SECA image
+	// name skumap knows (-> Aruba template DE12-001), so the boot disk boots Debian 12.
+	imgSrcName = "imgsrc"
+	bootImage  = "debian-12"
 	igwName    = "igw1"
 	rtName     = "rtbl"
 	subnetName = "subneta"
@@ -99,6 +108,7 @@ var (
 
 	wsRepo   *k8sadapter.RepoAdapter[*wsdom.Workspace]
 	bsRepo   *k8sadapter.RepoAdapter[*bsdom.BlockStorage]
+	imgRepo  *k8sadapter.RepoAdapter[*imgdom.Image]
 	igwRepo  *k8sadapter.RepoAdapter[*igwdom.InternetGateway]
 	rtRepo   *k8sadapter.RepoAdapter[*rtdom.RouteTable]
 	netRepo  *k8sadapter.RepoAdapter[*netdom.Network]
@@ -126,6 +136,7 @@ func TestMain(m *testing.M) {
 
 	wsRepo = repo[*wsdom.Workspace](wsk8s.WorkspaceGVR, wsk8s.WorkspaceToCR, wsk8s.WorkspaceFromCR)
 	bsRepo = repo[*bsdom.BlockStorage](bsk8s.BlockStorageGVR, bsk8s.BlockStorageToCR, bsk8s.BlockStorageFromCR)
+	imgRepo = repo[*imgdom.Image](imgk8s.ImageGVR, imgk8s.ImageToCR, imgk8s.ImageFromCR)
 	igwRepo = repo[*igwdom.InternetGateway](igwk8s.InternetGatewayGVR, igwk8s.InternetGatewayToCR, igwk8s.InternetGatewayFromCR)
 	rtRepo = repo[*rtdom.RouteTable](rtk8s.RouteTableGVR, rtk8s.RouteTableToCR, rtk8s.RouteTableFromCR)
 	netRepo = repo[*netdom.Network](netk8s.NetworkGVR, netk8s.NetworkToCR, netk8s.NetworkFromCR)

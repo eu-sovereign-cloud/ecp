@@ -32,6 +32,7 @@ import (
 	sgk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group/backend/kubernetes"
 	subnetk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/subnet/backend/kubernetes"
 	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage/backend/kubernetes"
+	imgk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image/backend/kubernetes"
 	ssk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/storage-sku/backend/kubernetes"
 	wsk8s "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1/backend/kubernetes"
 )
@@ -41,6 +42,7 @@ var scheme = runtime.NewScheme()
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(bsk8s.AddToScheme(scheme))
+	utilruntime.Must(imgk8s.AddToScheme(scheme))
 	utilruntime.Must(ssk8s.AddToScheme(scheme))
 	utilruntime.Must(wsk8s.AddToScheme(scheme))
 	utilruntime.Must(netk8s.AddToScheme(scheme))
@@ -154,6 +156,7 @@ func loadControllers(ctx context.Context, dynClient dynamic.Interface, mgr ctrl.
 	sgPlugin := arubahandler.NewSecurityGroupHandler(sgRepo, srRepo)
 	sgrPlugin := arubahandler.NewSecurityGroupRuleHandler()
 	nicPlugin := arubahandler.NewNicHandler()
+	imgPlugin := arubahandler.NewImageHandler()
 
 	controllerSet.Add(bsk8s.NewController(mgr.GetClient(), dynClient, bsPlugin, controllerOpts...))
 	controllerSet.Add(wsk8s.NewController(mgr.GetClient(), dynClient, wsPlugin, controllerOpts...))
@@ -165,5 +168,6 @@ func loadControllers(ctx context.Context, dynClient dynamic.Interface, mgr ctrl.
 	controllerSet.Add(sgk8s.NewController(mgr.GetClient(), dynClient, sgPlugin, controllerOpts...))
 	controllerSet.Add(sgrk8s.NewController(mgr.GetClient(), dynClient, sgrPlugin, controllerOpts...))
 	controllerSet.Add(nick8s.NewController(mgr.GetClient(), dynClient, nicPlugin, controllerOpts...))
+	controllerSet.Add(imgk8s.NewController(mgr.GetClient(), dynClient, imgPlugin, controllerOpts...))
 	controllerSet.Add(instancek8s.NewController(mgr.GetClient(), dynClient, instancePlugin, controllerOpts...))
 }
