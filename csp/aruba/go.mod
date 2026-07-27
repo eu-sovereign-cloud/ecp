@@ -3,7 +3,7 @@ module github.com/eu-sovereign-cloud/ecp/csp/aruba
 go 1.26.5
 
 require (
-	github.com/Arubacloud/arubacloud-resource-operator v1.1.1
+	github.com/Arubacloud/arubacloud-resource-operator v1.1.2
 	github.com/eu-sovereign-cloud/ecp/framework v0.0.1
 	github.com/eu-sovereign-cloud/ecp/resource v0.0.1
 	github.com/stretchr/testify v1.11.1
