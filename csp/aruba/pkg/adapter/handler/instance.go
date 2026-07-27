@@ -194,8 +194,8 @@ func (h *ComputeInstanceHandler) resolve(ctx context.Context, domain *instancedo
 	subnetRefs := make([]v1alpha1.ResourceReference, 0, len(subnetNames))
 	var vpcRef v1alpha1.ResourceReference
 	var network string
-	for i, name := range subnetNames {
-		subnet, err := h.resolveSubnet(ctx, tenant, workspace, name)
+	for i, resource := range subnetNames {
+		subnet, err := h.resolveSubnet(ctx, tenant, workspace, resource)
 		if err != nil {
 			return nil, err
 		}
@@ -307,8 +307,8 @@ func (h *ComputeInstanceHandler) resolve(ctx context.Context, domain *instancedo
 	}, nil
 }
 
-// resolveNics loads the instance's NICs and collects the subnet, security group and public IP names
-// they reference. A NIC that is not present yet gates the whole reconcile.
+// resolveNics loads the instance's NICs and collects the subnet references and the security group
+// and public IP names they carry. A NIC that is not present yet gates the whole reconcile.
 func (h *ComputeInstanceHandler) resolveNics(ctx context.Context, domain *instancedom.Instance) (subnets, secGroups, publicIps []string, err error) {
 	refs := domain.Spec.AdditionalNicRefs
 	if domain.Spec.PrimaryNicRef != nil {
@@ -326,7 +326,9 @@ func (h *ComputeInstanceHandler) resolveNics(ctx context.Context, domain *instan
 			return nil, nil, nil, backend.ErrStillProcessing // NIC not created yet
 		}
 
-		subnets = appendUnique(subnets, lastSegment(nic.Spec.SubnetRef.Resource))
+		// Kept whole rather than reduced to a name: a subnet reference may name the network it
+		// is scoped under, which is what resolveSubnet needs to pick between same-named subnets.
+		subnets = appendUnique(subnets, nic.Spec.SubnetRef.Resource)
 		for _, sg := range nic.Spec.SecurityGroupRefs {
 			secGroups = appendUnique(secGroups, lastSegment(sg.Resource))
 		}
@@ -337,25 +339,61 @@ func (h *ComputeInstanceHandler) resolveNics(ctx context.Context, domain *instan
 	return subnets, secGroups, publicIps, nil
 }
 
-// resolveSubnet finds the active Aruba Subnet that backs a SECA subnet name. SECA NIC references
-// carry no network, so the subnet is located by workspace label across namespaces and matched by
-// name; the first active match wins (see csp/aruba/README.md).
-func (h *ComputeInstanceHandler) resolveSubnet(ctx context.Context, tenant, workspace, name string) (*v1alpha1.Subnet, error) {
+// resolveSubnet finds the active Aruba Subnet that backs a SECA subnet reference.
+//
+// A SECA subnet is scoped under a network, so one workspace may hold several subnets of the same
+// name in different networks. A reference that names its network ("networks/<network>/subnets/
+// <name>") identifies one of them exactly. A bare "subnets/<name>" does not, and since the list
+// order is not guaranteed, taking whichever came back first would wire the instance, its subnet
+// reference and its materialised security groups into an arbitrary VPC - silently, and differently
+// between reconciles. Refuse instead, and say how to disambiguate (see csp/aruba/README.md).
+func (h *ComputeInstanceHandler) resolveSubnet(ctx context.Context, tenant, workspace, resource string) (*v1alpha1.Subnet, error) {
 	list, err := h.subnetRepository.List(ctx, client.MatchingLabels{
-		"seca.subnet/tenant":    tenant,
-		"seca.subnet/workspace": workspace,
+		adaptconverter.LabelSubnetTenant:    tenant,
+		adaptconverter.LabelSubnetWorkspace: workspace,
 	})
 	if err != nil {
 		return nil, err
 	}
 
+	name, wantNetwork := lastSegment(resource), referenceNetwork(resource)
+
+	var match *v1alpha1.Subnet
 	for i := range list.Items {
 		subnet := &list.Items[i]
-		if subnet.Name == name && subnet.Status.Phase == v1alpha1.ResourcePhaseActive {
-			return subnet, nil
+		if subnet.Name != name || subnet.Status.Phase != v1alpha1.ResourcePhaseActive {
+			continue
+		}
+		if wantNetwork != "" {
+			if subnet.Labels[adaptconverter.LabelSubnetNetwork] == wantNetwork {
+				return subnet, nil
+			}
+			continue
+		}
+		if match != nil && match.Labels[adaptconverter.LabelSubnetNetwork] != subnet.Labels[adaptconverter.LabelSubnetNetwork] {
+			return nil, fmt.Errorf("subnet %q exists in more than one network (%q and %q): reference it as networks/<network>/subnets/%s",
+				name, match.Labels[adaptconverter.LabelSubnetNetwork], subnet.Labels[adaptconverter.LabelSubnetNetwork], name)
+		}
+		match = subnet
+	}
+
+	if match == nil {
+		return nil, backend.ErrStillProcessing // subnet not created or not active yet
+	}
+	return match, nil
+}
+
+// referenceNetwork returns the network segment of a SECA reference to a network-scoped resource.
+// A subnet lives under a network, so a fully-qualified reference is
+// "networks/<network>/subnets/<name>"; a bare "subnets/<name>" names no network and yields "".
+func referenceNetwork(resource string) string {
+	parts := strings.Split(resource, "/")
+	for i := 0; i+1 < len(parts); i++ {
+		if parts[i] == "networks" {
+			return parts[i+1]
 		}
 	}
-	return nil, backend.ErrStillProcessing // subnet not created or not active yet
+	return ""
 }
 
 // materializeSecurityGroup creates the Aruba SecurityGroup (and its rules) that backs a SECA
