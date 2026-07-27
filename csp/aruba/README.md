@@ -18,7 +18,7 @@ The Aruba resources are the custom resources of the [arubacloud-resource-operato
 | NIC                   | *none*              | Aruba has no standalone NIC: NICs are attributes of a `CloudServer` |
 | Network SKU           | not reconciled      | Read-only catalog                                                |
 | Instance              | `CloudServer` (+ `KeyPair`, `SecurityGroup`, `SecurityRule`) | Workspace & `Project` active, its NICs present, their subnets active, an ssh key, a boot volume |
-| Compute SKU           | not reconciled      | Read-only catalog; the sku name is the CloudServer `FlavorName`  |
+| Compute SKU           | *mapped, not created* | Its vCPU/RAM select the CloudServer `FlavorName` — see [SKU mapping](#sku-mapping) |
 
 ### Route Table and Internet Gateway have no Aruba counterpart
 
@@ -45,7 +45,7 @@ A SECA `Instance` maps to an Aruba `CloudServer`. A CloudServer's required refer
 - **NICs → subnets → VPC.** The instance's `primaryNicRef`/`additionalNicRefs` are loaded; each NIC's `subnetRef`, `securityGroupRefs` and `publicIpRefs` are collected. A NIC reference carries no network, so the Aruba `Subnet` backing a SECA subnet name is located by workspace label across namespaces and matched by name; the first active match wins. The subnet's `VPCReference` fixes the CloudServer's VPC.
 - **Security groups + rules** referenced by the NICs (and the instance's own `securityGroupRef`) are materialised in that VPC: one Aruba `SecurityGroup` per `(network, SECA group)`, named `<seca-group>-<network>`, plus its `SecurityRule`s built from the group's inline `rules` and its `ruleRefs`.
 - **Key pair.** An Aruba CloudServer requires a `KeyPairReference`, but SECA has no key-pair resource: the public key travels inline in `Instance.Spec.SshKeys` (the field is documented as "references" but actually carries the key material, e.g. `ssh-rsa AAAA…`). The handler creates a `KeyPair` named `<instance>-key` from the first ssh key and deletes it with the instance.
-- **Boot/data volumes** come from `BootVolume`/`DataVolumes` (Aruba `BlockStorage`, already reconciled by the storage plugin); **flavor** is the last path segment of `SkuRef`; an optional **elastic IP** comes from the first NIC public IP.
+- **Boot/data volumes** come from `BootVolume`/`DataVolumes` (Aruba `BlockStorage`, already reconciled by the storage plugin); **flavor** is resolved from the instance's compute SKU — its vCPU/RAM select an Aruba flavor (see [SKU mapping](#sku-mapping)), not the SKU name used verbatim; an optional **elastic IP** comes from the first NIC public IP.
 
 Missing dependencies gate the create with `ErrStillProcessing` (the instance stays in `creating` and is retried): a NIC not created yet, a subnet not yet active, **no security group** (a CloudServer requires ≥1), or **no ssh key** (the required `KeyPairReference` cannot be built). `PowerOn`/`PowerOff` are **no-ops**: Aruba's `CloudServer` CRD exposes no power field, so power state lives only on the SECA side.
 
@@ -60,6 +60,18 @@ On instance delete the CloudServer is deleted and then the key pair; the **mater
 | Multi-VPC instance | All of an instance's subnets are assumed to share one network/VPC; the first subnet's VPC wins. |
 | Rule fan-out | One SECA rule expands to one Aruba `SecurityRule` per `(protocol × port × source)`: `tcp+udp` → TCP and UDP rules, a port list → one rule per port, each `sourceRef` → its own rule. |
 | Rule targets | A `security-groups/<name>` source becomes a `SecurityGroup` target; anything else is treated as an IP/CIDR literal (`Ip` target). No source means all traffic → `0.0.0.0/0`. Instance/gateway sources have no Aruba target type and are mapped best-effort to `Ip`. |
+
+## SKU mapping
+
+SECA SKUs describe **capacity** (vCPU/RAM, IOPS); Aruba names a fixed **catalog** (flavors, storage tiers). [`pkg/adapter/skumap`](pkg/adapter/skumap) bridges the two. The catalog is **embedded**: the delegator holds no Aruba credentials (only the operator does), so it cannot query Aruba's live catalog — the source of truth is the `sdk-go` `CloudServerFlavor` / `BlockStorageType` enums, transcribed into `skumap`.
+
+| SECA SKU | Mapped to | How |
+|---|---|---|
+| Compute (`InstanceSKU` — vCPU, RAM) | `CloudServer.FlavorName` (`CSO<cpu>A<ram>`) | **Exact** match on vCPU **and** RAM (GB): `{4, 8}` → `CSO4A8`. No matching flavor → the instance goes to `error` with a clear message (`no Aruba CloudServer flavor provides N vCPU / M GB RAM`) instead of a bare Aruba `400`. |
+| Storage (`StorageSKU` — IOPS) | `BlockStorage.Type` (`Standard` / `Performance`) | IOPS at/above a threshold → `Performance`, else `Standard`. A coarse heuristic keyed on the objective metric (IOPS), because Aruba exposes only two tiers and does not publish their IOPS boundary; the SECA `Type` string (`local-durable`…) describes durability, not a perf tier. Safe: Aruba defaults the field when unset. |
+| Network (`NetworkSKU` — bandwidth) | — | Aruba's `VPC`/`Subnet` have no bandwidth or SKU field; not mapped. |
+
+Adding an Aruba flavor is a one-row change to `computeFlavors` in `skumap.go`. The SECA SKU catalog itself (the `InstanceSKU`/`StorageSKU` CRs) is provisioned separately — the region catalog in production, the test-data fixtures in tests — and only capacities Aruba actually offers will resolve to a flavor.
 
 ## What is not propagated
 
