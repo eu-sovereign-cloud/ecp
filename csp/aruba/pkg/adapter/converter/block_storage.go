@@ -101,9 +101,14 @@ func SecaToArubaSize(in int) (int32, error) {
 	return int32(in), nil //nolint:gosec // boundaries checked above
 }
 
-// getRegionFromSpecOrDefault get region from source image or sku ref otherwise default value
+// getRegionFromSpecOrDefault get region from source image or sku ref otherwise default value.
+// A SECA reference only carries a region when it points at another one; the common case leaves it
+// empty ("inferred from context"), so an empty region must fall through to the default rather than
+// be forwarded. Aruba rejects a volume with no region as "Size: invalid; DataCenter: invalid" - both
+// a zone and the size catalog are resolved within a region - which is a confusing way to be told the
+// location is missing.
 func getRegionFromSpecOrDefault(from *bsdom.BlockStorage) string {
-	if from.Spec.SourceImageRef != nil {
+	if from.Spec.SourceImageRef != nil && from.Spec.SourceImageRef.Region != "" {
 		return from.Spec.SourceImageRef.Region
 	}
 
