@@ -13,3 +13,20 @@ keywords:
   - seca
   - sovereign-cloud
   - control-plane
+
+# Disabled by default: the delegator is an optional add-on, and enabling it
+# without a `plugin` value renders nothing useful. It is still resolved into
+# charts/ on every helm run — Helm materializes a declared dependency before it
+# evaluates any condition — so `helm dependency update` must precede lint,
+# template, install and package. See .gitignore for why charts/ is not tracked.
+#
+# The version is a wildcard on purpose. This chart's own `version:` above is a
+# placeholder that helm-release.yaml overwrites from the git tag, so an exact
+# pin here would be a second placeholder to keep in sync for no gain — and it
+# would break the moment the delegator chart is bumped on its own. The
+# file:// repository resolves from the sibling directory regardless.
+dependencies:
+- name: ecp-delegator
+  version: "*"
+  repository: "file://../delegator"
+  condition: ecp-delegator.enabled

@@ -56,6 +56,22 @@ jobs:
           CHART_DIR: ${{ inputs.chart-dir }}
         run: |
           set -euo pipefail
+          # `--version`/`--app-version` below rewrite only the packaged chart's
+          # own Chart.yaml, never a vendored subchart's. Stamp the delegator on
+          # disk first so an ecp package embeds it at the tag version instead of
+          # the placeholder committed in charts/delegator/Chart.yaml — its
+          # deployment template defaults the image tag to .Chart.AppVersion,
+          # which inside a subchart resolves to the subchart's own value, so an
+          # unstamped embed would pull delegator-<plugin>:v0.1.0-alpha1-preview.
+          # Both charts release off the same v* tag, so they stay in lockstep.
+          # Harmless when CHART_DIR is charts/delegator: --version does the same.
+          sed -i -e "s|^version: .*|version: ${GITHUB_REF_NAME#v}|" \
+                 -e "s|^appVersion: .*|appVersion: \"${GITHUB_REF_NAME}\"|" \
+                 charts/delegator/Chart.yaml
+          # Resolve dependencies into charts/ — Helm materializes a declared
+          # dependency before evaluating the condition that disables it, so
+          # packaging fails outright without this. No-op for charts/delegator.
+          helm dependency update "$CHART_DIR"
           helm package "$CHART_DIR" -d packaged \
             --version "${GITHUB_REF_NAME#v}" \
             --app-version "$GITHUB_REF_NAME"
