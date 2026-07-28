@@ -144,6 +144,11 @@ jobs:
       - name: Lint and render charts
         run: |
           set -euo pipefail
+          # The ecp chart declares the delegator as an optional dependency, and
+          # Helm materializes a declared dependency before it evaluates the
+          # condition that keeps it disabled — so lint/template need it resolved
+          # even though the rendered output contains none of it.
+          helm dependency update charts/ecp
           helm lint charts/ecp -f charts/ecp/ci/default-values.yaml
           helm template ecp charts/ecp -f charts/ecp/ci/default-values.yaml > /dev/null
           helm lint charts/delegator -f charts/delegator/ci/default-values.yaml

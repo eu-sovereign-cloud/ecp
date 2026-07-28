@@ -85,6 +85,13 @@ if setup_chart_vars "${COMPONENT}"; then
         VALUES_ARGS+=(--values "${DEPLOY_VALUES}")
     fi
 
+    # Resolve chart dependencies into ${CHART_DIR}/charts/ first. The ecp chart
+    # declares the delegator as an optional dependency, and Helm materializes a
+    # declared dependency before it evaluates the condition that keeps it
+    # disabled, so the upgrade below fails outright without this. A no-op for
+    # the delegator chart, which has no dependencies of its own.
+    helm dependency update "${CHART_DIR}"
+
     # --wait replaces the explicit rollout wait: a suite starting right after
     # would otherwise port-forward to the terminating pod, which still serves
     # the previous config (e.g. the previous auth plugin) and 401s every valid

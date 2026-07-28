@@ -45,6 +45,12 @@ kind create cluster --name "${CLUSTER}"
 kind load docker-image --name "${CLUSTER}" \
     "ecp/gateway-global:${TAG}" "ecp/gateway-regional:${TAG}" "ecp/delegator-dummy:${TAG}"
 
+# The ecp chart declares the delegator as an optional dependency, and Helm
+# materializes a declared dependency before it evaluates the condition that
+# keeps it disabled — so this is required even though nothing below enables it.
+echo "==> helm dependency update ecp"
+helm dependency update charts/ecp
+
 echo "==> helm install ecp"
 helm install ecp charts/ecp \
     --namespace "${NAMESPACE}" --create-namespace \

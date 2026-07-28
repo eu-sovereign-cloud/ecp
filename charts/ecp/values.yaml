@@ -185,3 +185,6 @@ gatewayRegional:
   nodeSelector: {}
   tolerations: []
   affinity: {}
+
+ecp-delegator:
+  enabled: false
