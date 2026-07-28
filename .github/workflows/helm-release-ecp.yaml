@@ -1,6 +1,6 @@
 name: Release ecp Chart
 
-# Publishes the ECP gateways chart (chart/) on every v* tag.
+# Publishes the ECP gateways chart (charts/ecp/) on every v* tag.
 #
 # To give this chart a release cadence independent of the repository's product
 # tags, change the filter to a chart-specific prefix (e.g. `ecp-chart-v*`).
@@ -13,6 +13,6 @@ jobs:
   release:
     uses: ./.github/workflows/helm-release.yaml
     with:
-      chart-dir: chart
+      chart-dir: charts/ecp
     permissions:
       contents: write

@@ -8,7 +8,7 @@ name: Release Helm Chart
 # Chart version comes from the git tag, not from Chart.yaml: tag `v0.1.0` is
 # packaged as chart version `0.1.0` with appVersion `v0.1.0`. The `version:`
 # field committed in Chart.yaml is only a placeholder for local
-# `helm install ./chart` runs and is never what gets published — so there is
+# `helm install ./charts/<name>` runs and is never what gets published — so there is
 # no "forgot to bump the chart version" failure mode where a release silently
 # overwrites the previous one. Note that a prerelease tag (v0.2.0-rc1) yields
 # a prerelease chart version, which `helm install` skips unless given --devel.

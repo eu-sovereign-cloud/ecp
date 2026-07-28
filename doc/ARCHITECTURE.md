@@ -65,7 +65,7 @@ No back-edges. `framework` has zero dependency on `resource`. `resource` has zer
 
 ## Resource Model
 
-The control plane manages 18 resource slices — one CRD each, generated into `chart/crds/` (see [CODEGEN.md](CODEGEN.md)) — organized by SECA API group:
+The control plane manages 18 resource slices — one CRD each, generated into `charts/ecp/crds/` (see [CODEGEN.md](CODEGEN.md)) — organized by SECA API group:
 
 | API group | Resources |
 |-----------|-----------|

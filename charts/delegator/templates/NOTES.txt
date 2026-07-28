@@ -18,4 +18,4 @@ testing only, never production.
 {{- end }}
 
 The delegator requires the ECP CRDs (installed by the ecp chart, or apply
-chart/crds/ from the repository).
+charts/ecp/crds/ from the repository).

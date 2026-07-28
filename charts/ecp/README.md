@@ -8,7 +8,7 @@ Helm chart for the European Control Plane (ECP) API servers:
   `seca.storage`, `seca.network`, `seca.compute`) for one region.
 
 Reconciliation is not part of this chart: install
-[`chart-delegator`](../chart-delegator) alongside the regional gateway, with
+[`delegator`](../delegator) alongside the regional gateway, with
 `plugin` set to the CSP you run.
 
 ## Topology: together or split?
@@ -32,16 +32,16 @@ the chart's appVersion — so the defaults resolve with no override.
 
 ```bash
 # All-in-one
-helm install ecp chart \
+helm install ecp charts/ecp \
   --namespace ecp --create-namespace \
   --set gatewayRegional.region=itbg-bergamo
 
 # Global cluster only
-helm install ecp chart -n ecp --create-namespace \
+helm install ecp charts/ecp -n ecp --create-namespace \
   --set gatewayRegional.enabled=false
 
 # Regional cluster only
-helm install ecp chart -n ecp --create-namespace \
+helm install ecp charts/ecp -n ecp --create-namespace \
   --set gatewayGlobal.enabled=false \
   --set gatewayRegional.region=itbg-bergamo
 ```
@@ -54,7 +54,7 @@ always ships the current generated CRDs. Helm installs the CRDs on first
 CRDs on an existing cluster apply them directly:
 
 ```bash
-kubectl apply -f chart/crds/
+kubectl apply -f charts/ecp/crds/
 ```
 
 ## Authentication
@@ -67,7 +67,7 @@ cluster in that mode. Two authentication plugins exist (`auth.plugin`):
   verification. Development and testing only.
 
   ```bash
-  helm install ecp chart -n ecp --create-namespace \
+  helm install ecp charts/ecp -n ecp --create-namespace \
     --set gatewayRegional.region=itbg-bergamo \
     --set auth.enabled=true \
     --set auth.dummyUsers.users.admin=some-password
@@ -80,7 +80,7 @@ cluster in that mode. Two authentication plugins exist (`auth.plugin`):
   the `alg` header pinned to `auth.jwt.signingMethod`:
 
   ```bash
-  helm install ecp chart -n ecp --create-namespace \
+  helm install ecp charts/ecp -n ecp --create-namespace \
     --set gatewayRegional.region=itbg-bergamo \
     --set auth.enabled=true \
     --set auth.plugin=jwt \
@@ -122,4 +122,4 @@ See [values.yaml](values.yaml) for the full commented list. The notable ones:
 | `*.service.nodePort` | `""` | Fixed node port, honoured only when `service.type=NodePort` (else auto-assigned) |
 
 `helm lint`/CI note: because `gatewayRegional.region` has no sane default,
-lint with the CI values: `helm lint chart -f chart/ci/default-values.yaml`.
+lint with the CI values: `helm lint charts/ecp -f charts/ecp/ci/default-values.yaml`.

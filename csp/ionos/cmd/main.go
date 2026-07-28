@@ -45,7 +45,7 @@ func main() {
 			SecureServing: false,
 			BindAddress:   ":8083",
 		},
-		// The chart-delegator deployment probes /healthz on 8081; match it so the
+		// The charts/delegator deployment probes /healthz on 8081; match it so the
 		// per-plugin image is ready under the same chart as the other plugins.
 		HealthProbeBindAddress: ":8081",
 	})

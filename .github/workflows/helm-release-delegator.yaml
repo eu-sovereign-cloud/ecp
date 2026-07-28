@@ -1,6 +1,6 @@
 name: Release ecp-delegator Chart
 
-# Publishes the delegator chart (chart-delegator/) on every v* tag. One chart
+# Publishes the delegator chart (charts/delegator/) on every v* tag. One chart
 # serves every CSP — the required `plugin` value selects the controller set and
 # the RBAC granted for it.
 #
@@ -15,6 +15,6 @@ jobs:
   release:
     uses: ./.github/workflows/helm-release.yaml
     with:
-      chart-dir: chart-delegator
+      chart-dir: charts/delegator
     permissions:
       contents: write
