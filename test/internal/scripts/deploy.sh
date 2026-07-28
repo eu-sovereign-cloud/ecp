@@ -9,7 +9,7 @@ setup_kube_vars
 setup_registry_vars "$1"
 
 DEPLOY_DIR="${SCRIPT_DIR}/../deploy/${COMPONENT}"
-CRDS_DIR="${SCRIPT_DIR}/../../../chart/crds"
+CRDS_DIR="${SCRIPT_DIR}/../../../charts/ecp/crds"
 
 # Retarget the component namespace (default e2e-ecp).
 SYSTEM_NAMESPACE="${SYSTEM_NAMESPACE:-e2e-ecp}"

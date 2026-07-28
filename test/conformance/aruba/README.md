@@ -38,7 +38,7 @@ When aruba gains backend deploy tooling — a `csp/aruba/deploy` mirroring
 
 1. creates the demo cluster(s),
 2. installs the `arubacloud-resource-operator` (+ credentials),
-3. deploys the `delegator-aruba` image (chart-delegator with `plugin=aruba`),
+3. deploys the `delegator-aruba` image (charts/delegator with `plugin=aruba`),
 4. runs `secatest` against the gateway,
 
 and wire `conformance-aruba*` targets in `test/Makefile` delegating to it (as is

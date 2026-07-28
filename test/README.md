@@ -65,24 +65,24 @@ The multicluster suite is **not** part of `test-all`: it needs its own pair of c
 
 ## How components are deployed
 
-The gateways and the delegator are deployed from the Helm charts this repository publishes — [`chart/`](../chart) and [`chart-delegator/`](../chart-delegator) — not from test-only manifests. `internal/deploy/<component>/values.yaml` holds what the test stack pins; `deploy.sh` supplies the rest (image, pull policy, auth plugin, delegator plugin) with `--set` and runs `helm upgrade --install --wait`.
+The gateways and the delegator are deployed from the Helm charts this repository publishes — [`charts/ecp/`](../charts/ecp) and [`charts/delegator/`](../charts/delegator) — not from test-only manifests. `internal/deploy/<component>/values.yaml` holds what the test stack pins; `deploy.sh` supplies the rest (image, pull policy, auth plugin, delegator plugin) with `--set` and runs `helm upgrade --install --wait`.
 
 The point is that there is one deployment path, not two: a template that breaks, an RBAC rule that goes missing, or a value that reaches no flag fails a test run here rather than a user's first `helm install`. Keeping the charts correct is therefore part of keeping the suites green.
 
 | Component | Deployed by | Release |
 |-----------|-------------|---------|
-| `gateway-global` | `chart/`, other gateway disabled | `ecp-global` |
-| `gateway-regional` | `chart/`, other gateway disabled | `ecp-regional` |
-| `delegator` | `chart-delegator/`, `plugin` from `PLUGIN_TYPE` | `ecp-delegator` |
+| `gateway-global` | `charts/ecp/`, other gateway disabled | `ecp-global` |
+| `gateway-regional` | `charts/ecp/`, other gateway disabled | `ecp-regional` |
+| `delegator` | `charts/delegator/`, `plugin` from `PLUGIN_TYPE` | `ecp-delegator` |
 | `test-data` | kustomize — fixture CRs, nothing anyone installs | — |
 | `conformance` | kustomize — the secatest runner | — |
 
 Two consequences worth knowing:
 
 - **Names come from the chart.** The Deployments and Services are `ecp-global-gateway-global`, `ecp-regional-gateway-regional` and `ecp-delegator`, not the old `*-depl` / `*-svc`. The suites port-forward by pod label (`app=gateway-global`), which the chart still sets, so they are unaffected; anything dialling a gateway by DNS is not, and `internal/scripts/common.sh` holds the service names for it (`test-data/regions.yaml` carries the same ones).
-- **The delegator's RBAC follows its plugin.** `chart-delegator` grants exactly the controller set `plugin` loads, so adding a resource to a plugin means adding its rules to that plugin's branch in `chart-delegator/templates/rbac.yaml`.
+- **The delegator's RBAC follows its plugin.** `charts/delegator` grants exactly the controller set `plugin` loads, so adding a resource to a plugin means adding its rules to that plugin's branch in `charts/delegator/templates/rbac.yaml`.
 
-To deploy the same stack by hand, or to install it anywhere real, use the charts directly — see [`chart/README.md`](../chart/README.md).
+To deploy the same stack by hand, or to install it anywhere real, use the charts directly — see [`charts/ecp/README.md`](../charts/ecp/README.md).
 
 ## Prerequisites
 

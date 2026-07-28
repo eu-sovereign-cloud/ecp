@@ -114,11 +114,11 @@ setup_chart_vars() {
 
     case "${component}" in
         gateway-global)
-            CHART_DIR="${root}/chart"; HELM_RELEASE="ecp-global"; IMAGE_VALUE_PATH="gatewayGlobal.image" ;;
+            CHART_DIR="${root}/charts/ecp"; HELM_RELEASE="ecp-global"; IMAGE_VALUE_PATH="gatewayGlobal.image" ;;
         gateway-regional)
-            CHART_DIR="${root}/chart"; HELM_RELEASE="ecp-regional"; IMAGE_VALUE_PATH="gatewayRegional.image" ;;
+            CHART_DIR="${root}/charts/ecp"; HELM_RELEASE="ecp-regional"; IMAGE_VALUE_PATH="gatewayRegional.image" ;;
         delegator)
-            CHART_DIR="${root}/chart-delegator"; HELM_RELEASE="ecp-delegator"; IMAGE_VALUE_PATH="image" ;;
+            CHART_DIR="${root}/charts/delegator"; HELM_RELEASE="ecp-delegator"; IMAGE_VALUE_PATH="image" ;;
         *)
             return 1 ;;
     esac

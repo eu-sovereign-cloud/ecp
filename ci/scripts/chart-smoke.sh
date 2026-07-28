@@ -46,7 +46,7 @@ kind load docker-image --name "${CLUSTER}" \
     "ecp/gateway-global:${TAG}" "ecp/gateway-regional:${TAG}" "ecp/delegator-dummy:${TAG}"
 
 echo "==> helm install ecp"
-helm install ecp chart \
+helm install ecp charts/ecp \
     --namespace "${NAMESPACE}" --create-namespace \
     --set "gatewayRegional.region=${REGION}" \
     --set "gatewayGlobal.image.repository=ecp/gateway-global" \
@@ -58,7 +58,7 @@ helm install ecp chart \
     --wait --timeout 5m
 
 echo "==> helm install ecp-delegator"
-helm install ecp-delegator chart-delegator \
+helm install ecp-delegator charts/delegator \
     --namespace "${NAMESPACE}" \
     --set plugin=dummy \
     --set "image.repository=ecp/delegator-dummy" \

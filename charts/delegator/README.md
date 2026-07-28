@@ -24,8 +24,8 @@ existing release re-grants the role to match.
 
 ## Prerequisites
 
-- The ECP CRDs, installed by the [`ecp`](../chart) chart (or
-  `kubectl apply -f chart/crds/`).
+- The ECP CRDs, installed by the [`ecp`](../ecp) chart (or
+  `kubectl apply -f charts/ecp/crds/`).
 - Install into the **same cluster as the regional gateway** — the delegator
   reconciles the CRs that gateway writes.
 - The backend for your plugin, installed **out of band**. Until it is present,
@@ -40,7 +40,7 @@ on every `v*` tag (see `.github/workflows/image-release.yaml`), and
 no override.
 
 ```bash
-helm install ecp-delegator chart-delegator \
+helm install ecp-delegator charts/delegator \
   --namespace ecp --create-namespace \
   --set plugin=aruba
 ```
@@ -57,4 +57,4 @@ See [values.yaml](values.yaml) for the full commented list. The notable ones:
 | `rbac.create` | `true` | ClusterRole scoped to the selected plugin's controller set |
 
 `helm lint`/CI note: because `plugin` has no default, lint with the CI values:
-`helm lint chart-delegator -f chart-delegator/ci/default-values.yaml`.
+`helm lint charts/delegator -f charts/delegator/ci/default-values.yaml`.

@@ -4,8 +4,8 @@
 # Repo root, derived from this Makefile's location (framework/backend/kubernetes/).
 REPO_ROOT := $(abspath $(CURDIR)/../../..)
 
-# All CRD YAML files are written exclusively to chart/crds/ at the repo root.
-CRD_OUT_DIR := $(REPO_ROOT)/chart/crds
+# All CRD YAML files are written exclusively to charts/ecp/crds/ at the repo root.
+CRD_OUT_DIR := $(REPO_ROOT)/charts/ecp/crds
 
 .PHONY: generate-all generate-models generate-crds help
 
@@ -26,7 +26,7 @@ generate-models:
 
 # generate-crds: inject +kubebuilder:validation:* markers into every resource-slice
 # zz_generated_schema.go (the inject tool is idempotent), then run controller-gen
-# crd over all slices to emit 18 CRD YAMLs into chart/crds/ at the repo root.
+# crd over all slices to emit 18 CRD YAMLs into charts/ecp/crds/ at the repo root.
 #
 # The inject tool lives in this module (./cmd/inject-kubebuilder-markers); it is
 # built once and reused across all 18 slice directories. controller-gen runs via
