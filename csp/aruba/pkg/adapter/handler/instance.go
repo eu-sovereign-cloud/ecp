@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
@@ -165,9 +166,11 @@ func (h *ComputeInstanceHandler) PowerOff(_ context.Context, _ *instancedom.Inst
 func (h *ComputeInstanceHandler) resolve(ctx context.Context, domain *instancedom.Instance) (*adaptconverter.CloudServerRefs, error) {
 	tenant := domain.GetTenant()
 	workspace := domain.GetWorkspace()
-	wsNamespace := k8sadapter.ComputeNamespace(domain)
 	prjNamespace := k8sadapter.ComputeNamespace(&res.Scope{Tenant: tenant})
-	projectRef := v1alpha1.ResourceReference{Name: workspace, Namespace: prjNamespace}
+
+	refs := &adaptconverter.CloudServerRefs{
+		ProjectReference: v1alpha1.ResourceReference{Name: workspace, Namespace: prjNamespace},
+	}
 
 	if _, err := loadActiveWorkspace(ctx, h.wsRepository, domain); err != nil {
 		return nil, err
@@ -178,44 +181,8 @@ func (h *ComputeInstanceHandler) resolve(ctx context.Context, domain *instancedo
 		return nil, err
 	}
 
-	subnetNames, sgNames, pipNames, err := h.resolveNics(ctx, domain)
-	if err != nil {
+	if err := h.resolveNetworking(ctx, domain, refs); err != nil {
 		return nil, err
-	}
-	if domain.Spec.SecurityGroupRef != nil {
-		sgNames = appendUnique(sgNames, lastSegment(domain.Spec.SecurityGroupRef.Resource))
-	}
-	if len(subnetNames) == 0 {
-		return nil, backend.ErrStillProcessing // an Aruba CloudServer needs at least one subnet
-	}
-
-	// All of an instance's subnets live in one network's VPC; the first subnet fixes the VPC and
-	// the network name used to name the materialised security groups.
-	subnetRefs := make([]v1alpha1.ResourceReference, 0, len(subnetNames))
-	var vpcRef v1alpha1.ResourceReference
-	var network string
-	for i, resource := range subnetNames {
-		subnet, err := h.resolveSubnet(ctx, tenant, workspace, resource)
-		if err != nil {
-			return nil, err
-		}
-		subnetRefs = append(subnetRefs, v1alpha1.ResourceReference{Name: subnet.Name, Namespace: subnet.Namespace})
-		if i == 0 {
-			vpcRef = subnet.Spec.VPCReference
-			network = subnet.Labels["seca.subnet/network"]
-		}
-	}
-
-	if len(sgNames) == 0 {
-		return nil, backend.ErrStillProcessing // an Aruba CloudServer needs at least one security group
-	}
-	sgRefs := make([]v1alpha1.ResourceReference, 0, len(sgNames))
-	for _, name := range sgNames {
-		ref, err := h.materializeSecurityGroup(ctx, tenant, workspace, network, name, wsNamespace, domain.Region, vpcRef, projectRef)
-		if err != nil {
-			return nil, err
-		}
-		sgRefs = append(sgRefs, ref)
 	}
 
 	if len(domain.Spec.SshKeys) == 0 {
@@ -228,39 +195,10 @@ func (h *ComputeInstanceHandler) resolve(ctx context.Context, domain *instancedo
 	if err := loadActiveAruba(ctx, h.keyPairRepository, keyPair.DeepCopy()); err != nil {
 		return nil, err
 	}
+	refs.KeyPairReference = v1alpha1.ResourceReference{Name: keyPair.Name, Namespace: keyPair.Namespace}
 
-	bootName := lastSegment(domain.Spec.BootVolume.DeviceRef.Resource)
-	if bootName == "" {
-		return nil, backend.ErrStillProcessing // BootVolumeReference is required
-	}
-	// The boot volume must be provisioned before the server, and Aruba requires the two to share a
-	// zone. SECA models no per-volume zone, so the volume's zone is the one that actually exists:
-	// take it from there rather than from the instance, and refuse a conflicting instance zone
-	// instead of sending a request Aruba would reject.
-	bootVolume := &v1alpha1.BlockStorage{
-		ObjectMeta: metav1.ObjectMeta{Name: bootName, Namespace: wsNamespace},
-	}
-	if err := loadActiveAruba(ctx, h.blockStorageRepo, bootVolume); err != nil {
+	if err := h.resolveVolumes(ctx, domain, refs); err != nil {
 		return nil, err
-	}
-	if zone := domain.Spec.Zone; zone != "" && zone != bootVolume.Spec.Zone {
-		return nil, fmt.Errorf("instance zone %q conflicts with boot volume %q in zone %q: an Aruba CloudServer must share a zone with its boot volume",
-			zone, bootName, bootVolume.Spec.Zone)
-	}
-
-	var dataRefs []v1alpha1.ResourceReference
-	for _, dv := range domain.Spec.DataVolumes {
-		name := lastSegment(dv.DeviceRef.Resource)
-		if name == "" {
-			continue
-		}
-		dataVolume := &v1alpha1.BlockStorage{
-			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: wsNamespace},
-		}
-		if err := loadActiveAruba(ctx, h.blockStorageRepo, dataVolume); err != nil {
-			return nil, err
-		}
-		dataRefs = append(dataRefs, v1alpha1.ResourceReference{Name: name, Namespace: wsNamespace})
 	}
 
 	// The instance's SKU is a SECA InstanceSKU describing capacity (vCPU/RAM); Aruba needs a named
@@ -281,30 +219,111 @@ func (h *ComputeInstanceHandler) resolve(ctx context.Context, domain *instancedo
 	if err != nil {
 		return nil, err // no Aruba flavor for this capacity - surfaces as an Error condition
 	}
+	refs.FlavorName = flavor
 
-	var eipRef *v1alpha1.ResourceReference
+	return refs, nil
+}
+
+// resolveNetworking fills in the references a CloudServer takes from the instance's network graph.
+// A SECA Instance names none of them: the NICs carry the subnets, security groups and public IPs,
+// and the security groups Aruba needs per VPC are materialised here. Expects refs.ProjectReference
+// to be set, since the materialised security groups are created under it.
+func (h *ComputeInstanceHandler) resolveNetworking(ctx context.Context, domain *instancedom.Instance, refs *adaptconverter.CloudServerRefs) error {
+	tenant := domain.GetTenant()
+	workspace := domain.GetWorkspace()
+	wsNamespace := k8sadapter.ComputeNamespace(domain)
+
+	subnetNames, sgNames, pipNames, err := h.resolveNics(ctx, domain)
+	if err != nil {
+		return err
+	}
+	if domain.Spec.SecurityGroupRef != nil {
+		sgNames = appendUnique(sgNames, lastSegment(domain.Spec.SecurityGroupRef.Resource))
+	}
+	if len(subnetNames) == 0 {
+		return backend.ErrStillProcessing // an Aruba CloudServer needs at least one subnet
+	}
+
+	// All of an instance's subnets live in one network's VPC; the first subnet fixes the VPC and
+	// the network name used to name the materialised security groups.
+	refs.SubnetReferences = make([]v1alpha1.ResourceReference, 0, len(subnetNames))
+	var network string
+	for i, resource := range subnetNames {
+		subnet, err := h.resolveSubnet(ctx, tenant, workspace, resource)
+		if err != nil {
+			return err
+		}
+		refs.SubnetReferences = append(refs.SubnetReferences, v1alpha1.ResourceReference{Name: subnet.Name, Namespace: subnet.Namespace})
+		if i == 0 {
+			refs.VPCReference = subnet.Spec.VPCReference
+			network = subnet.Labels[adaptconverter.LabelSubnetNetwork]
+		}
+	}
+
+	if len(sgNames) == 0 {
+		return backend.ErrStillProcessing // an Aruba CloudServer needs at least one security group
+	}
+	refs.SecurityGroupReferences = make([]v1alpha1.ResourceReference, 0, len(sgNames))
+	for _, name := range sgNames {
+		ref, err := h.materializeSecurityGroup(ctx, tenant, workspace, network, name, wsNamespace, domain.Region, refs.VPCReference, refs.ProjectReference)
+		if err != nil {
+			return err
+		}
+		refs.SecurityGroupReferences = append(refs.SecurityGroupReferences, ref)
+	}
+
 	if len(pipNames) > 0 {
 		elasticIP := &v1alpha1.ElasticIP{
 			ObjectMeta: metav1.ObjectMeta{Name: pipNames[0], Namespace: wsNamespace},
 		}
 		if err := loadActiveAruba(ctx, h.elasticIPRepo, elasticIP); err != nil {
-			return nil, err
+			return err
 		}
-		eipRef = &v1alpha1.ResourceReference{Name: pipNames[0], Namespace: wsNamespace}
+		refs.ElasticIPReference = &v1alpha1.ResourceReference{Name: pipNames[0], Namespace: wsNamespace}
 	}
+	return nil
+}
 
-	return &adaptconverter.CloudServerRefs{
-		FlavorName:              flavor,
-		Zone:                    bootVolume.Spec.Zone,
-		VPCReference:            vpcRef,
-		SubnetReferences:        subnetRefs,
-		SecurityGroupReferences: sgRefs,
-		KeyPairReference:        v1alpha1.ResourceReference{Name: keyPair.Name, Namespace: keyPair.Namespace},
-		BootVolumeReference:     v1alpha1.ResourceReference{Name: bootName, Namespace: wsNamespace},
-		DataVolumeReferences:    dataRefs,
-		ElasticIPReference:      eipRef,
-		ProjectReference:        projectRef,
-	}, nil
+// resolveVolumes fills in the boot and data volume references, plus the zone they pin the server to.
+// The boot volume must be provisioned before the server, and Aruba requires the two to share a zone.
+// SECA models no per-volume zone, so the volume's zone is the one that actually exists: take it from
+// there rather than from the instance, and refuse a conflicting instance zone instead of sending a
+// request Aruba would reject.
+func (h *ComputeInstanceHandler) resolveVolumes(ctx context.Context, domain *instancedom.Instance, refs *adaptconverter.CloudServerRefs) error {
+	wsNamespace := k8sadapter.ComputeNamespace(domain)
+
+	bootName := lastSegment(domain.Spec.BootVolume.DeviceRef.Resource)
+	if bootName == "" {
+		return backend.ErrStillProcessing // BootVolumeReference is required
+	}
+	bootVolume := &v1alpha1.BlockStorage{
+		ObjectMeta: metav1.ObjectMeta{Name: bootName, Namespace: wsNamespace},
+	}
+	if err := loadActiveAruba(ctx, h.blockStorageRepo, bootVolume); err != nil {
+		return err
+	}
+	if zone := domain.Spec.Zone; zone != "" && zone != bootVolume.Spec.Zone {
+		return fmt.Errorf("instance zone %q conflicts with boot volume %q in zone %q: an Aruba CloudServer must share a zone with its boot volume",
+			zone, bootName, bootVolume.Spec.Zone)
+	}
+	refs.Zone = bootVolume.Spec.Zone
+	refs.BootVolumeReference = v1alpha1.ResourceReference{Name: bootName, Namespace: wsNamespace}
+
+	refs.DataVolumeReferences = []v1alpha1.ResourceReference{}
+	for _, dv := range domain.Spec.DataVolumes {
+		name := lastSegment(dv.DeviceRef.Resource)
+		if name == "" {
+			continue
+		}
+		dataVolume := &v1alpha1.BlockStorage{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: wsNamespace},
+		}
+		if err := loadActiveAruba(ctx, h.blockStorageRepo, dataVolume); err != nil {
+			return err
+		}
+		refs.DataVolumeReferences = append(refs.DataVolumeReferences, v1alpha1.ResourceReference{Name: name, Namespace: wsNamespace})
+	}
+	return nil
 }
 
 // resolveNics loads the instance's NICs and collects the subnet references and the security group
@@ -465,10 +484,8 @@ func appendUnique(s []string, v string) []string {
 	if v == "" {
 		return s
 	}
-	for _, e := range s {
-		if e == v {
-			return s
-		}
+	if slices.Contains(s, v) {
+		return s
 	}
 	return append(s, v)
 }
