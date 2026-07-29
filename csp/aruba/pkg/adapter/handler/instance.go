@@ -410,12 +410,12 @@ func (h *ComputeInstanceHandler) materializeSecurityGroup(ctx context.Context, t
 		return v1alpha1.ResourceReference{}, backend.ErrStillProcessing // SECA security group not created yet
 	}
 
-	arubaSG := adaptconverter.BuildSecurityGroup(secaName, network, region, tenant, namespace, vpcRef, projectRef)
+	arubaSG := adaptconverter.BuildSecurityGroup(secaName, network, region, tenant, namespace, seca.Labels, vpcRef, projectRef)
 	if err := h.secGroupRepository.Create(ctx, arubaSG); err != nil && !apierrors.IsAlreadyExists(err) {
 		return v1alpha1.ResourceReference{}, err
 	}
 
-	rules := adaptconverter.NormalizeInlineRules(seca.Spec.Rules)
+	rules := adaptconverter.NormalizeInlineRules(seca.Spec.Rules, seca.Labels)
 	for _, rr := range seca.Spec.RuleRefs {
 		standalone := &sgrdom.SecurityGroupRule{
 			RegionalMetadata: commondomain.RegionalMetadata{
@@ -426,7 +426,7 @@ func (h *ComputeInstanceHandler) materializeSecurityGroup(ctx context.Context, t
 		if err := h.sgrRepository.Load(ctx, &standalone); err != nil {
 			return v1alpha1.ResourceReference{}, backend.ErrStillProcessing // referenced rule not created yet
 		}
-		rules = append(rules, adaptconverter.NormalizeStandaloneRule(standalone.Spec))
+		rules = append(rules, adaptconverter.NormalizeStandaloneRule(standalone.Spec, standalone.Labels))
 	}
 
 	for _, rule := range adaptconverter.BuildSecurityRules(rules, arubaSG.Name, region, tenant, namespace, vpcRef, projectRef) {

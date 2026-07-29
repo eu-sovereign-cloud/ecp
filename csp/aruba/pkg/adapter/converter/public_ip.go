@@ -56,6 +56,7 @@ func (c *PublicIpElasticIpConverter) FromSECAToAruba(from *publicipdom.PublicIp)
 		Spec: v1alpha1.ElasticIPSpec{
 			Tenant:        tenant,
 			Region:        region,
+			Tags:          ArubaTags(from.Labels),
 			BillingPeriod: defaultBillingPeriod,
 			ProjectReference: v1alpha1.ResourceReference{
 				Name:      workspace,

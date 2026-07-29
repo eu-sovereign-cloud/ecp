@@ -54,6 +54,7 @@ func (c *BlockStorageConverter) FromSECAToAruba(from *bsdom.BlockStorage) (*v1al
 			SizeGB: sizeGB,
 			Tenant: tenant,
 			Region: getRegionFromSpecOrDefault(from),
+			Tags:   ArubaTags(from.Labels),
 			ProjectReference: v1alpha1.ResourceReference{
 				Name:      workspace,
 				Namespace: namespaceWorkspace,

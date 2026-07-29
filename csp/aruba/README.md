@@ -21,6 +21,22 @@ The Aruba resources are the custom resources of the [arubacloud-resource-operato
 | Instance              | `CloudServer` (+ `KeyPair`, `SecurityGroup`, `SecurityRule`) | Workspace & `Project` active, its NICs present, and **every referenced Aruba resource active**: subnets, materialised security groups, `KeyPair`, boot volume (bootable), data volumes and `ElasticIP` |
 | Compute SKU           | *mapped, not created* | Its vCPU/RAM select the CloudServer `FlavorName` — see [SKU mapping](#sku-mapping) |
 
+### Labels become tags
+
+A SECA resource's `labels` are key/value pairs; an Aruba tag is an opaque free-form string with no
+structure of its own. Each label is therefore flattened to `key=value` — the only encoding that
+keeps the key — and the resulting slice is **sorted**, so converting the same labels twice yields
+an identical `spec.tags` instead of a random permutation that would read as drift. The one function
+doing this ([`converter.ArubaTags`](pkg/adapter/converter/tags.go)) feeds every converter.
+
+Two Aruba resources have no SECA resource of their own and inherit their tags: the `KeyPair` takes
+the owning instance's labels, and a `SecurityRule` built from an **inline** rule takes the owning
+security group's (an inline rule is part of the group's spec and carries no labels). A
+`SecurityRule` built from a standalone SECA `SecurityGroupRule` keeps that rule's own labels.
+
+Tags are written at create time only. Like security-group rules, later label edits are not
+reconciled onto the Aruba side — the plugin interfaces expose no `Update`.
+
 ### Route Table and Internet Gateway have no Aruba counterpart
 
 Aruba's network API (see the [SDK](https://github.com/Arubacloud/sdk-go) `client_network.go`) exposes VPCs, subnets, security groups and rules, elastic IPs, VPC peerings and VPN tunnels — there is no route table and no internet gateway object. Internet egress and intra-VPC routing are properties Aruba configures on the VPC itself.
