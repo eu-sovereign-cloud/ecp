@@ -142,7 +142,7 @@ func TestSecurityGroup_delete_staysInsideItsWorkspace(t *testing.T) {
 	prjRef := v1alpha1.ResourceReference{Name: "project"}
 	rules := []adaptconverter.RuleSpec{{Direction: "ingress", Protocol: "tcp", PortFrom: 22, PortTo: 22}}
 
-	var objs []client.Object
+	objs := []client.Object{}
 	for _, ws := range []string{"ws-1", "ws-2"} {
 		sg := adaptconverter.BuildSecurityGroup("web", "prod", "", "acme", nsFor(ws), nil, vpcRef, prjRef)
 		objs = append(objs, sg)
