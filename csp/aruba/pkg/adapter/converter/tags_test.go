@@ -1,6 +1,7 @@
 package converter_test
 
 import (
+	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -22,13 +23,51 @@ import (
 var testLabels = map[string]string{"env": "prod", "app": "web"}
 
 // sorted rendering of testLabels
-var testTags = []string{"app=web", "env=prod"}
+var testTags = []string{"app-web", "env-prod"}
 
 func TestArubaTags(t *testing.T) {
 	require.Nil(t, converter.ArubaTags(nil))
 	require.Nil(t, converter.ArubaTags(map[string]string{}))
 	require.Equal(t, testTags, converter.ArubaTags(testLabels))
-	require.Equal(t, []string{"empty="}, converter.ArubaTags(map[string]string{"empty": ""}))
+}
+
+// The Aruba CMP accepts only letters, digits and "-" in a tag and fails the whole resource
+// otherwise, so anything else has to be replaced before it is sent - in the value as much as the
+// key, since Kubernetes label values routinely contain "." and "_".
+func TestArubaTags_staysInsideTheAlphabetArubaAccepts(t *testing.T) {
+	valid := regexp.MustCompile(`^[A-Za-z0-9-]+$`)
+
+	for name, labels := range map[string]map[string]string{
+		"dotted value":      {"version": "24.04"},
+		"underscored value": {"os_name": "ubuntu_24"},
+		"slash and colon":   {"app.kubernetes.io/name": "team:platform"},
+		"spaces":            {"owner": "platform team"},
+		"unicode":           {"région": "münchen"},
+		"already clean":     {"cost-center": "eng-42"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			for _, tag := range converter.ArubaTags(labels) {
+				require.Truef(t, valid.MatchString(tag), "tag %q would be rejected by Aruba", tag)
+			}
+		})
+	}
+}
+
+func TestArubaTags_rendering(t *testing.T) {
+	// A single dash already in a key or value survives; a run of rejected characters collapses.
+	require.Equal(t, []string{"cost-center-eng-42"}, converter.ArubaTags(map[string]string{"cost-center": "eng-42"}))
+	require.Equal(t, []string{"version-24-04"}, converter.ArubaTags(map[string]string{"version": "24.04"}))
+
+	// No trailing dash when the value is empty or unusable, and no leading dash from the key.
+	require.Equal(t, []string{"empty"}, converter.ArubaTags(map[string]string{"empty": ""}))
+	require.Equal(t, []string{"key"}, converter.ArubaTags(map[string]string{"key": "..."}))
+
+	// A label with nothing representable is dropped rather than sent as an empty tag.
+	require.Nil(t, converter.ArubaTags(map[string]string{"...": "..."}))
+
+	// Sanitising can map two distinct labels onto the same tag; Aruba should not be sent the
+	// duplicate.
+	require.Equal(t, []string{"a-b"}, converter.ArubaTags(map[string]string{"a": "b", "a.": ".b"}))
 }
 
 func regionalMeta(name string) commondomain.RegionalMetadata {
@@ -112,6 +151,6 @@ func TestSECALabelsBecomeArubaTags(t *testing.T) {
 		out := converter.BuildSecurityRules(rules, sg.Name, "", "test-tenant", "ws-ns", vpcRef(), projectRef())
 		require.Len(t, out, 2)
 		require.Equal(t, testTags, out[0].Spec.Tags)
-		require.Equal(t, []string{"tier=db"}, out[1].Spec.Tags)
+		require.Equal(t, []string{"tier-db"}, out[1].Spec.Tags)
 	})
 }

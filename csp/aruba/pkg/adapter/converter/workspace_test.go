@@ -61,12 +61,12 @@ func TestWorkspaceProjectConverter_FromSECAToAruba(t *testing.T) {
 					)
 				}
 
-				// Labels become sorted "key=value" tags - see converter.ArubaTags.
+				// Labels become sorted "key-value" tags - see converter.ArubaTags.
 				if len(project.Spec.Tags) != 2 ||
-					project.Spec.Tags[0] != "app=web" ||
-					project.Spec.Tags[1] != "env=prod" {
+					project.Spec.Tags[0] != "app-web" ||
+					project.Spec.Tags[1] != "env-prod" {
 					t.Errorf(
-						"expected tags ['app=web', 'env=prod'], got %v",
+						"expected tags ['app-web', 'env-prod'], got %v",
 						project.Spec.Tags,
 					)
 				}
