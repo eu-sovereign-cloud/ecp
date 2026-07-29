@@ -36,7 +36,7 @@ func MaterializedSecurityGroupName(secaName, network string) string {
 }
 
 // BuildSecurityGroup maps a SECA security group to an Aruba SecurityGroup in a given VPC.
-func BuildSecurityGroup(secaName, network, region, tenant, namespace string, vpcRef, projectRef v1alpha1.ResourceReference) *v1alpha1.SecurityGroup {
+func BuildSecurityGroup(secaName, network, region, tenant, namespace string, labels map[string]string, vpcRef, projectRef v1alpha1.ResourceReference) *v1alpha1.SecurityGroup {
 	if region == "" {
 		region = defaultRegion
 	}
@@ -54,6 +54,7 @@ func BuildSecurityGroup(secaName, network, region, tenant, namespace string, vpc
 		Spec: v1alpha1.SecurityGroupSpec{
 			Tenant:           tenant,
 			Region:           region,
+			Tags:             ArubaTags(labels),
 			VPCReference:     vpcRef,
 			ProjectReference: projectRef,
 		},
@@ -70,13 +71,18 @@ type RuleSpec struct {
 	PortList  []int
 	HasIcmp   bool
 	SourceRef []commondomain.Reference
+	// Labels are the SECA labels the rule inherits its Aruba tags from: its own when it comes from
+	// a standalone SecurityGroupRule, the owning group's when it is inline (an inline rule is part
+	// of the group's spec and has no labels of its own).
+	Labels map[string]string
 }
 
-// NormalizeInlineRules converts a SECA SecurityGroup's inline rules to RuleSpecs.
-func NormalizeInlineRules(rules []securitygroup.SecurityGroupRuleSpec) []RuleSpec {
+// NormalizeInlineRules converts a SECA SecurityGroup's inline rules to RuleSpecs, carrying the
+// owning group's labels onto each.
+func NormalizeInlineRules(rules []securitygroup.SecurityGroupRuleSpec, labels map[string]string) []RuleSpec {
 	out := make([]RuleSpec, 0, len(rules))
 	for _, r := range rules {
-		spec := RuleSpec{Direction: r.Direction, Protocol: r.Protocol, SourceRef: r.SourceRef}
+		spec := RuleSpec{Direction: r.Direction, Protocol: r.Protocol, SourceRef: r.SourceRef, Labels: labels}
 		if r.Ports != nil {
 			spec.PortFrom, spec.PortTo, spec.PortList = r.Ports.From, r.Ports.To, r.Ports.List
 		}
@@ -87,8 +93,8 @@ func NormalizeInlineRules(rules []securitygroup.SecurityGroupRuleSpec) []RuleSpe
 }
 
 // NormalizeStandaloneRule converts a standalone SECA SecurityGroupRule to a RuleSpec.
-func NormalizeStandaloneRule(r securitygrouprule.SecurityGroupRuleSpec) RuleSpec {
-	spec := RuleSpec{Direction: r.Direction, Protocol: r.Protocol, SourceRef: r.SourceRef}
+func NormalizeStandaloneRule(r securitygrouprule.SecurityGroupRuleSpec, labels map[string]string) RuleSpec {
+	spec := RuleSpec{Direction: r.Direction, Protocol: r.Protocol, SourceRef: r.SourceRef, Labels: labels}
 	if r.Ports != nil {
 		spec.PortFrom, spec.PortTo, spec.PortList = r.Ports.From, r.Ports.To, r.Ports.List
 	}
@@ -127,6 +133,7 @@ func BuildSecurityRules(rules []RuleSpec, sgName, region, tenant, namespace stri
 						Spec: v1alpha1.SecurityRuleSpec{
 							Tenant:                 tenant,
 							Region:                 region,
+							Tags:                   ArubaTags(r.Labels),
 							Protocol:               protocol,
 							Port:                   port,
 							Direction:              direction,

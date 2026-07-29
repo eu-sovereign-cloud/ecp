@@ -47,6 +47,7 @@ func (c *NetworkVPCConverter) FromSECAToAruba(from *netdom.Network) (*v1alpha1.V
 		Spec: v1alpha1.VPCSpec{
 			Tenant: tenant,
 			Region: region,
+			Tags:   ArubaTags(from.Labels),
 			ProjectReference: v1alpha1.ResourceReference{
 				Name:      workspace,
 				Namespace: namespaceWorkspace,

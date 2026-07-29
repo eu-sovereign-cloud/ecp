@@ -55,6 +55,7 @@ func BuildCloudServer(from *instancedom.Instance, refs CloudServerRefs) *v1alpha
 		Spec: v1alpha1.CloudServerSpec{
 			Tenant:                  tenant,
 			Region:                  region,
+			Tags:                    ArubaTags(from.Labels),
 			Zone:                    zone,
 			FlavorName:              refs.FlavorName,
 			VPCReference:            refs.VPCReference,

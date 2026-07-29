@@ -74,6 +74,7 @@ func (c *SubnetConverter) FromSECAToAruba(from *subnetdom.Subnet) (*v1alpha1.Sub
 		Spec: v1alpha1.SubnetSpec{
 			Tenant: tenant,
 			Region: region,
+			Tags:   ArubaTags(from.Labels),
 			Type:   subnetTypeAdvanced,
 			CIDR:   from.Spec.Cidr.IPv4,
 			DHCP:   v1alpha1.SubnetDHCP{Enabled: true},

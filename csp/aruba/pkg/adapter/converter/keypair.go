@@ -47,7 +47,9 @@ func BuildKeyPair(from *instancedom.Instance, sshKey string) *v1alpha1.KeyPair {
 		Spec: v1alpha1.KeyPairSpec{
 			Tenant: tenant,
 			Region: region,
-			Value:  sshKey,
+			// The KeyPair has no SECA resource of its own; it inherits the owning instance's labels.
+			Tags:  ArubaTags(from.Labels),
+			Value: sshKey,
 			ProjectReference: v1alpha1.ResourceReference{
 				Name:      workspace,
 				Namespace: namespaceWorkspace,
