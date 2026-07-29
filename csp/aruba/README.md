@@ -24,10 +24,32 @@ The Aruba resources are the custom resources of the [arubacloud-resource-operato
 ### Labels become tags
 
 A SECA resource's `labels` are key/value pairs; an Aruba tag is an opaque free-form string with no
-structure of its own. Each label is therefore flattened to `key=value` — the only encoding that
-keeps the key — and the resulting slice is **sorted**, so converting the same labels twice yields
-an identical `spec.tags` instead of a random permutation that would read as drift. The one function
-doing this ([`converter.ArubaTags`](pkg/adapter/converter/tags.go)) feeds every converter.
+structure of its own. Each label is therefore flattened to `key-value` by the one function every
+converter calls, [`converter.ArubaTags`](pkg/adapter/converter/tags.go).
+
+**The separator is a dash because the Aruba CMP accepts only letters, digits and `-`.** Everything
+else is refused outright, and the rejection fails the whole resource rather than the field:
+
+```
+400 [semantic] Validation: Tag: character '=' is not valid
+```
+
+`=`, `:`, `_`, `.`, `/`, `+` and space are all rejected; letters (either case), digits and `-` are
+accepted. Nothing else in the stack enforces this — `ResourceMetadataRequest.Tags` is a bare
+`[]string` in the SDK and the operator's CRD applies no pattern — so it surfaces only against a
+real backend.
+
+Characters outside that alphabet are replaced **in the value as well as the key**: Kubernetes label
+values legitimately contain `.` and `_`, and one unrepresentable character would otherwise fail the
+entire Aruba resource. A run of rejected characters collapses to a single dash and leading/trailing
+dashes are dropped, so `version=24.04` becomes `version-24-04`. The mapping is deliberately lossy —
+it keeps every label visible in the Aruba console at the cost of not being reversible, which
+nothing needs, since tags are never read back into SECA labels. A label with nothing representable
+is dropped rather than sent as an empty tag.
+
+The result is **sorted and de-duplicated**: sorted so converting the same labels twice yields an
+identical `spec.tags` rather than a random permutation that would read as drift, de-duplicated
+because sanitising can map two distinct labels onto one tag.
 
 Two Aruba resources have no SECA resource of their own and inherit their tags: the `KeyPair` takes
 the owning instance's labels, and a `SecurityRule` built from an **inline** rule takes the owning
