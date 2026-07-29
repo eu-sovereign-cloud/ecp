@@ -289,6 +289,50 @@ func TestRegionController_ListRegions(t *testing.T) {
 	}
 }
 
+func TestRegionToCR(t *testing.T) {
+	dom := &rdom.Region{
+		Providers: []rdom.Provider{
+			{Name: "seca.compute", URL: "https://eu-central-1.example.com", Version: "v1"},
+			{Name: "seca.network", URL: "https://eu-central-1.example.com", Version: "v1"},
+		},
+		Zones: []rdom.Zone{"eu-central-1a", "eu-central-1b"},
+	}
+	dom.Name = "eu-central-1"
+	dom.ResourceVersion = "12"
+
+	t.Run("populates_spec_and_identity", func(t *testing.T) {
+		obj, err := RegionToCR(dom)
+		require.NoError(t, err)
+
+		cr, ok := obj.(*Region)
+		require.True(t, ok, "expected *Region, got %T", obj)
+		require.Equal(t, "eu-central-1", cr.GetName())
+		require.Equal(t, "12", cr.GetResourceVersion())
+		require.Equal(t, RegionGVK, cr.GroupVersionKind())
+		require.Equal(t, []string{"eu-central-1a", "eu-central-1b"}, cr.Spec.AvailableZones)
+		require.Equal(t, []Provider{
+			{Name: "seca.compute", Url: "https://eu-central-1.example.com", Version: "v1"},
+			{Name: "seca.network", Url: "https://eu-central-1.example.com", Version: "v1"},
+		}, cr.Spec.Providers)
+	})
+
+	t.Run("spec_survives_round_trip", func(t *testing.T) {
+		obj, err := RegionToCR(dom)
+		require.NoError(t, err)
+
+		got, err := RegionFromCR(obj)
+		require.NoError(t, err)
+		require.Equal(t, dom.Providers, got.Providers)
+		require.Equal(t, dom.Zones, got.Zones)
+	})
+
+	t.Run("nil_errors", func(t *testing.T) {
+		obj, err := RegionToCR(nil)
+		require.Error(t, err)
+		require.Nil(t, obj)
+	})
+}
+
 func extractDomainNames(regs []*rdom.Region) []string {
 	out := make([]string, len(regs))
 	for i, r := range regs {

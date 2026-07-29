@@ -1,10 +1,10 @@
 module github.com/eu-sovereign-cloud/ecp/resource
 
-go 1.26.4
+go 1.26.5
 
 require (
 	github.com/eu-sovereign-cloud/ecp/framework v0.0.1
-	github.com/eu-sovereign-cloud/go-sdk v0.4.1
+	github.com/eu-sovereign-cloud/go-sdk v0.4.3
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/mock v0.6.0
 	k8s.io/apimachinery v0.35.0

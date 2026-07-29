@@ -1,0 +1,9 @@
+# Test-stack values for the global gateway, layered on ../gateway-values.yaml.
+#
+# One chart, two releases (ecp-global and ecp-regional): each disables the other
+# gateway, so `make deploy-gateway-global` still deploys only what the
+# gateway-global suite needs. Image repository, tag and pullPolicy are set by
+# internal/scripts/deploy.sh — they follow whatever the local build produced.
+
+gatewayRegional:
+  enabled: false

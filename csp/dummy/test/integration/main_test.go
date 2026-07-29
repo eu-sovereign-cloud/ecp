@@ -25,14 +25,25 @@ import (
 
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	kernelresource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
-	roledom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role"
-	radom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment"
-	rak8s "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment/backend/kubernetes"
-	rolek8s "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role/backend/kubernetes"
+	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
+	instancedom "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/instance"
+	instancek8s "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/instance/backend/kubernetes"
+	internetgatewaydom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/internet-gateway"
+	internetgatewayk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/internet-gateway/backend/kubernetes"
 	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network"
 	netk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network/backend/kubernetes"
 	nicdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic"
 	nick8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic/backend/kubernetes"
+	publicipdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/public-ip"
+	publicipk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/public-ip/backend/kubernetes"
+	routetabledom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/route-table"
+	routetablek8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/route-table/backend/kubernetes"
+	securitygroupdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group"
+	securitygroupruledom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group-rule"
+	securitygrouprulek8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group-rule/backend/kubernetes"
+	securitygroupk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group/backend/kubernetes"
+	subnetdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/subnet"
+	subnetk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/subnet/backend/kubernetes"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage"
 	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage/backend/kubernetes"
 	imgdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image"
@@ -43,21 +54,33 @@ import (
 
 const (
 	testNamespace = "ecp-dummy-delegator"
-	pollInterval  = 5 * time.Second
+	pollInterval  = 2 * time.Second
 	timeout       = 2 * time.Minute
+	// dependencyTimeout allows for resources that must wait on a dependency to
+	// become active before they themselves can be reconciled (two sequential
+	// simulated operations), so it is larger than the single-operation timeout.
+	dependencyTimeout = 5 * time.Minute
+
+	testTenant    = "test-tenant"
+	testWorkspace = "test-workspace"
 )
 
 var (
-	dynamicClient      dynamic.Interface
-	testLogger         *slog.Logger
-	networkRepo        *k8sadapter.RepoAdapter[*netdom.Network]
-	nicRepo            *k8sadapter.RepoAdapter[*nicdom.Nic]
-	workspaceRepo      *k8sadapter.RepoAdapter[*wsdom.Workspace]
-	blockStorageRepo   *k8sadapter.RepoAdapter[*bsdom.BlockStorage]
-	imageRepo          *k8sadapter.RepoAdapter[*imgdom.Image]
-	roleRepo           *k8sadapter.RepoAdapter[*roledom.Role]
-	roleAssignmentRepo *k8sadapter.RepoAdapter[*radom.RoleAssignment]
-	k8sClient          client.Client
+	dynamicClient         dynamic.Interface
+	testLogger            *slog.Logger
+	networkRepo           *k8sadapter.RepoAdapter[*netdom.Network]
+	nicRepo               *k8sadapter.RepoAdapter[*nicdom.Nic]
+	publicIpRepo          *k8sadapter.RepoAdapter[*publicipdom.PublicIp]
+	internetGatewayRepo   *k8sadapter.RepoAdapter[*internetgatewaydom.InternetGateway]
+	routeTableRepo        *k8sadapter.RepoAdapter[*routetabledom.RouteTable]
+	securityGroupRepo     *k8sadapter.RepoAdapter[*securitygroupdom.SecurityGroup]
+	securityGroupRuleRepo *k8sadapter.RepoAdapter[*securitygroupruledom.SecurityGroupRule]
+	subnetRepo            *k8sadapter.RepoAdapter[*subnetdom.Subnet]
+	instanceRepo          *k8sadapter.RepoAdapter[*instancedom.Instance]
+	workspaceRepo         *k8sadapter.RepoAdapter[*wsdom.Workspace]
+	blockStorageRepo      *k8sadapter.RepoAdapter[*bsdom.BlockStorage]
+	imageRepo             *k8sadapter.RepoAdapter[*imgdom.Image]
+	k8sClient             client.Client
 )
 
 func TestMain(m *testing.M) {
@@ -67,13 +90,18 @@ func TestMain(m *testing.M) {
 
 	s := runtime.NewScheme()
 	utilruntime.Must(clientgoscheme.AddToScheme(s))
-	utilruntime.Must(rolek8s.AddToScheme(s))
 	utilruntime.Must(netk8s.AddToScheme(s))
 	utilruntime.Must(nick8s.AddToScheme(s))
+	utilruntime.Must(publicipk8s.AddToScheme(s))
+	utilruntime.Must(internetgatewayk8s.AddToScheme(s))
+	utilruntime.Must(routetablek8s.AddToScheme(s))
+	utilruntime.Must(securitygroupk8s.AddToScheme(s))
+	utilruntime.Must(securitygrouprulek8s.AddToScheme(s))
+	utilruntime.Must(subnetk8s.AddToScheme(s))
+	utilruntime.Must(instancek8s.AddToScheme(s))
 	utilruntime.Must(wsk8s.AddToScheme(s))
 	utilruntime.Must(bsk8s.AddToScheme(s))
 	utilruntime.Must(imgk8s.AddToScheme(s))
-	utilruntime.Must(rak8s.AddToScheme(s))
 	utilruntime.Must(corev1.AddToScheme(s))
 
 	kubeconfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
@@ -113,6 +141,55 @@ func TestMain(m *testing.M) {
 		nick8s.NicToCR,
 		nick8s.NicFromCR,
 	)
+	publicIpRepo = k8sadapter.NewRepoAdapter[*publicipdom.PublicIp](
+		dynamicClient,
+		publicipk8s.PublicIPGVR,
+		testLogger,
+		publicipk8s.PublicIpToCR,
+		publicipk8s.PublicIpFromCR,
+	)
+	internetGatewayRepo = k8sadapter.NewRepoAdapter[*internetgatewaydom.InternetGateway](
+		dynamicClient,
+		internetgatewayk8s.InternetGatewayGVR,
+		testLogger,
+		internetgatewayk8s.InternetGatewayToCR,
+		internetgatewayk8s.InternetGatewayFromCR,
+	)
+	routeTableRepo = k8sadapter.NewRepoAdapter[*routetabledom.RouteTable](
+		dynamicClient,
+		routetablek8s.RouteTableGVR,
+		testLogger,
+		routetablek8s.RouteTableToCR,
+		routetablek8s.RouteTableFromCR,
+	)
+	securityGroupRepo = k8sadapter.NewRepoAdapter[*securitygroupdom.SecurityGroup](
+		dynamicClient,
+		securitygroupk8s.SecurityGroupGVR,
+		testLogger,
+		securitygroupk8s.SecurityGroupToCR,
+		securitygroupk8s.SecurityGroupFromCR,
+	)
+	securityGroupRuleRepo = k8sadapter.NewRepoAdapter[*securitygroupruledom.SecurityGroupRule](
+		dynamicClient,
+		securitygrouprulek8s.SecurityGroupRuleGVR,
+		testLogger,
+		securitygrouprulek8s.SecurityGroupRuleToCR,
+		securitygrouprulek8s.SecurityGroupRuleFromCR,
+	)
+	subnetRepo = k8sadapter.NewRepoAdapter[*subnetdom.Subnet](
+		dynamicClient,
+		subnetk8s.SubnetGVR,
+		testLogger,
+		subnetk8s.SubnetToCR,
+		subnetk8s.SubnetFromCR,
+	)
+	instanceRepo = k8sadapter.NewRepoAdapter[*instancedom.Instance](
+		dynamicClient,
+		instancek8s.InstanceGVR,
+		testLogger,
+		instancek8s.InstanceToCR,
+		instancek8s.InstanceFromCR,
+	)
 	blockStorageRepo = k8sadapter.NewRepoAdapter[*bsdom.BlockStorage](
 		dynamicClient,
 		bsk8s.BlockStorageGVR,
@@ -134,21 +211,6 @@ func TestMain(m *testing.M) {
 		imgk8s.ImageToCR,
 		imgk8s.ImageFromCR,
 	)
-	roleRepo = k8sadapter.NewRepoAdapter[*roledom.Role](
-		dynamicClient,
-		rolek8s.RoleGVR,
-		testLogger,
-		rolek8s.RoleToCR,
-		rolek8s.RoleFromCR,
-	)
-	roleAssignmentRepo = k8sadapter.NewRepoAdapter[*radom.RoleAssignment](
-		dynamicClient,
-		rak8s.RoleAssignmentGVR,
-		testLogger,
-		rak8s.RoleAssignmentToCR,
-		rak8s.RoleAssignmentFromCR,
-	)
-
 	if err := waitForNamespace(context.Background(), testNamespace); err != nil {
 		log.Fatalf("Failed to wait for namespace %s: %v", testNamespace, err)
 	}
@@ -200,9 +262,16 @@ func waitForNamespace(ctx context.Context, namespace string) error {
 
 func createTestNamespaces(ctx context.Context) error {
 	log.Println("Creating test namespaces...")
+	networkScopedRouteTable := &routetabledom.RouteTable{
+		RegionalNetworkMetadata: commondomain.RegionalNetworkMetadata{Network: testNetwork},
+	}
+	networkScopedRouteTable.Tenant = testTenant
+	networkScopedRouteTable.Workspace = testWorkspace
+
 	nsToCreate := []string{
 		k8sadapter.ComputeNamespace(&kernelresource.Scope{Tenant: "test-tenant"}),
 		k8sadapter.ComputeNamespace(&kernelresource.Scope{Tenant: "test-tenant", Workspace: "test-workspace"}),
+		k8sadapter.ComputeNetworkNamespace(networkScopedRouteTable),
 	}
 
 	for _, nsName := range nsToCreate {

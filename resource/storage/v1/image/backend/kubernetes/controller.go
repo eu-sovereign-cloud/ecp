@@ -7,6 +7,7 @@ import (
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	builder "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/builder"
 	frameworkcontroller "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/controller"
+	commonbackend "github.com/eu-sovereign-cloud/ecp/resource/common/backend"
 	imgdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image"
 )
 
@@ -32,7 +33,8 @@ func NewController(
 		ImageToCR,
 		ImageFromCR,
 	)
-	handler := NewImagePluginHandler(repo, plugin, options.MaxConditions)
+	deps := commonbackend.NewReferenceResolver(dynClient)
+	handler := NewImagePluginHandler(repo, plugin, options.MaxConditions, deps)
 	return &Controller{
 		GenericController: frameworkcontroller.NewGenericController[*imgdom.Image](
 			ctrlClient,

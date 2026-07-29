@@ -9,18 +9,42 @@ kind: ClusterRole
 metadata:
   name: ionos-plugin-role
 rules:
+# IONOS crossplane managed resources the plugin creates/observes.
 - apiGroups: ["compute.m.ionoscloud.io"]
-  resources: ["datacenters", "volumes", "lans"]
+  resources: ["datacenters", "volumes", "lans", "servers", "nics", "ipblocks"]
   verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["compute.m.ionoscloud.io"]
+  resources: ["datacenters/status", "volumes/status", "lans/status", "servers/status", "nics/status", "ipblocks/status"]
+  verbs: ["get", "list", "watch"]
+# IONOS crossplane provider config, referenced by every managed resource.
+- apiGroups: ["upjet-ionoscloud.m.ionoscloud.io"]
+  resources: ["clusterproviderconfigs"]
+  verbs: ["get", "list", "watch"]
+# SECA workspace CRs.
 - apiGroups: ["workspace.v1.secapi.cloud"]
   resources: ["workspaces", "workspaces/status"]
   verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+# SECA compute CRs: instances (reconciled) + read-only SKU catalog.
+- apiGroups: ["compute.v1.secapi.cloud"]
+  resources: ["instances", "instances/status"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["compute.v1.secapi.cloud"]
+  resources: ["skus"]
+  verbs: ["get", "list", "watch"]
+# SECA storage CRs: block-storages (reconciled) + read-only image/SKU catalog.
 - apiGroups: ["storage.v1.secapi.cloud"]
   resources: ["block-storages", "block-storages/status"]
   verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["storage.v1.secapi.cloud"]
+  resources: ["images", "images/status", "skus"]
+  verbs: ["get", "list", "watch"]
+# SECA network CRs: networks/nics/subnets/public-ips (reconciled) + read-only SKU catalog.
 - apiGroups: ["network.v1.secapi.cloud"]
-  resources: ["networks", "networks/status"]
+  resources: ["networks", "networks/status", "nics", "nics/status", "subnets", "subnets/status", "public-ips", "public-ips/status"]
   verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["network.v1.secapi.cloud"]
+  resources: ["skus"]
+  verbs: ["get", "list", "watch"]
 - apiGroups: [""]
   resources: ["namespaces", "events"]
   verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]

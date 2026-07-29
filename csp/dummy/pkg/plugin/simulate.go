@@ -11,14 +11,24 @@ import (
 
 	kubernetesadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	backendport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
-	roledom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role"
-	radom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment"
-	roleassignmentconv "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment/backend/kubernetes"
-	roleconv "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role/backend/kubernetes"
+	instancedom "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/instance"
+	instanceconv "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/instance/backend/kubernetes"
+	internetgatewaydom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/internet-gateway"
+	internetgatewayconv "github.com/eu-sovereign-cloud/ecp/resource/network/v1/internet-gateway/backend/kubernetes"
 	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network"
 	networkconv "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network/backend/kubernetes"
 	nicdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic"
 	nicconv "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic/backend/kubernetes"
+	publicipdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/public-ip"
+	publicipconv "github.com/eu-sovereign-cloud/ecp/resource/network/v1/public-ip/backend/kubernetes"
+	routetabledom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/route-table"
+	routetableconv "github.com/eu-sovereign-cloud/ecp/resource/network/v1/route-table/backend/kubernetes"
+	securitygroupdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group"
+	securitygroupruledom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group-rule"
+	securitygroupruleconv "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group-rule/backend/kubernetes"
+	securitygroupconv "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group/backend/kubernetes"
+	subnetdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/subnet"
+	subnetconv "github.com/eu-sovereign-cloud/ecp/resource/network/v1/subnet/backend/kubernetes"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage"
 	storageconv "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage/backend/kubernetes"
 	imgdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image"
@@ -118,26 +128,6 @@ func simulateImage(ctx context.Context, op string, resource *imgdom.Image, delay
 	)
 }
 
-func simulateRA(ctx context.Context, op string, resource *radom.RoleAssignment, delay time.Duration, logger *slog.Logger) error {
-	return simulate(ctx, op, &resource.Annotations, resource.GetName(), delay, logger,
-		func(ctx context.Context) error {
-			dynamicClient, err := newDynamicClient()
-			if err != nil {
-				return err
-			}
-			repo := kubernetesadapter.NewRepoAdapter(
-				dynamicClient,
-				roleassignmentconv.RoleAssignmentGVR,
-				logger,
-				roleassignmentconv.RoleAssignmentToCR,
-				roleassignmentconv.RoleAssignmentFromCR,
-			)
-			_, err = repo.Update(ctx, resource)
-			return err
-		},
-	)
-}
-
 func simulateWS(ctx context.Context, op string, resource *wsdom.Workspace, delay time.Duration, logger *slog.Logger) error {
 	return simulate(ctx, op, &resource.Annotations, resource.GetName(), delay, logger,
 		func(ctx context.Context) error {
@@ -151,6 +141,26 @@ func simulateWS(ctx context.Context, op string, resource *wsdom.Workspace, delay
 				logger,
 				workspaceconv.WorkspaceToCR,
 				workspaceconv.WorkspaceFromCR,
+			)
+			_, err = repo.Update(ctx, resource)
+			return err
+		},
+	)
+}
+
+func simulateInstance(ctx context.Context, op string, resource *instancedom.Instance, delay time.Duration, logger *slog.Logger) error {
+	return simulate(ctx, op, &resource.Annotations, resource.GetName(), delay, logger,
+		func(ctx context.Context) error {
+			dynamicClient, err := newDynamicClient()
+			if err != nil {
+				return err
+			}
+			repo := kubernetesadapter.NewRepoAdapter(
+				dynamicClient,
+				instanceconv.InstanceGVR,
+				logger,
+				instanceconv.InstanceToCR,
+				instanceconv.InstanceFromCR,
 			)
 			_, err = repo.Update(ctx, resource)
 			return err
@@ -178,6 +188,46 @@ func simulateNic(ctx context.Context, op string, resource *nicdom.Nic, delay tim
 	)
 }
 
+func simulatePublicIp(ctx context.Context, op string, resource *publicipdom.PublicIp, delay time.Duration, logger *slog.Logger) error {
+	return simulate(ctx, op, &resource.Annotations, resource.GetName(), delay, logger,
+		func(ctx context.Context) error {
+			dynamicClient, err := newDynamicClient()
+			if err != nil {
+				return err
+			}
+			repo := kubernetesadapter.NewRepoAdapter(
+				dynamicClient,
+				publicipconv.PublicIPGVR,
+				logger,
+				publicipconv.PublicIpToCR,
+				publicipconv.PublicIpFromCR,
+			)
+			_, err = repo.Update(ctx, resource)
+			return err
+		},
+	)
+}
+
+func simulateInternetGateway(ctx context.Context, op string, resource *internetgatewaydom.InternetGateway, delay time.Duration, logger *slog.Logger) error {
+	return simulate(ctx, op, &resource.Annotations, resource.GetName(), delay, logger,
+		func(ctx context.Context) error {
+			dynamicClient, err := newDynamicClient()
+			if err != nil {
+				return err
+			}
+			repo := kubernetesadapter.NewRepoAdapter(
+				dynamicClient,
+				internetgatewayconv.InternetGatewayGVR,
+				logger,
+				internetgatewayconv.InternetGatewayToCR,
+				internetgatewayconv.InternetGatewayFromCR,
+			)
+			_, err = repo.Update(ctx, resource)
+			return err
+		},
+	)
+}
+
 func simulateNet(ctx context.Context, op string, resource *netdom.Network, delay time.Duration, logger *slog.Logger) error {
 	return simulate(ctx, op, &resource.Annotations, resource.GetName(), delay, logger,
 		func(ctx context.Context) error {
@@ -198,7 +248,7 @@ func simulateNet(ctx context.Context, op string, resource *netdom.Network, delay
 	)
 }
 
-func simulateRole(ctx context.Context, op string, resource *roledom.Role, delay time.Duration, logger *slog.Logger) error {
+func simulateRouteTable(ctx context.Context, op string, resource *routetabledom.RouteTable, delay time.Duration, logger *slog.Logger) error {
 	return simulate(ctx, op, &resource.Annotations, resource.GetName(), delay, logger,
 		func(ctx context.Context) error {
 			dynamicClient, err := newDynamicClient()
@@ -207,10 +257,70 @@ func simulateRole(ctx context.Context, op string, resource *roledom.Role, delay 
 			}
 			repo := kubernetesadapter.NewRepoAdapter(
 				dynamicClient,
-				roleconv.RoleGVR,
+				routetableconv.RouteTableGVR,
 				logger,
-				roleconv.RoleToCR,
-				roleconv.RoleFromCR,
+				routetableconv.RouteTableToCR,
+				routetableconv.RouteTableFromCR,
+			)
+			_, err = repo.Update(ctx, resource)
+			return err
+		},
+	)
+}
+
+func simulateSubnet(ctx context.Context, op string, resource *subnetdom.Subnet, delay time.Duration, logger *slog.Logger) error {
+	return simulate(ctx, op, &resource.Annotations, resource.GetName(), delay, logger,
+		func(ctx context.Context) error {
+			dynamicClient, err := newDynamicClient()
+			if err != nil {
+				return err
+			}
+			repo := kubernetesadapter.NewRepoAdapter(
+				dynamicClient,
+				subnetconv.SubnetGVR,
+				logger,
+				subnetconv.SubnetToCR,
+				subnetconv.SubnetFromCR,
+			)
+			_, err = repo.Update(ctx, resource)
+			return err
+		},
+	)
+}
+
+func simulateSecurityGroup(ctx context.Context, op string, resource *securitygroupdom.SecurityGroup, delay time.Duration, logger *slog.Logger) error {
+	return simulate(ctx, op, &resource.Annotations, resource.GetName(), delay, logger,
+		func(ctx context.Context) error {
+			dynamicClient, err := newDynamicClient()
+			if err != nil {
+				return err
+			}
+			repo := kubernetesadapter.NewRepoAdapter(
+				dynamicClient,
+				securitygroupconv.SecurityGroupGVR,
+				logger,
+				securitygroupconv.SecurityGroupToCR,
+				securitygroupconv.SecurityGroupFromCR,
+			)
+			_, err = repo.Update(ctx, resource)
+			return err
+		},
+	)
+}
+
+func simulateSecurityGroupRule(ctx context.Context, op string, resource *securitygroupruledom.SecurityGroupRule, delay time.Duration, logger *slog.Logger) error {
+	return simulate(ctx, op, &resource.Annotations, resource.GetName(), delay, logger,
+		func(ctx context.Context) error {
+			dynamicClient, err := newDynamicClient()
+			if err != nil {
+				return err
+			}
+			repo := kubernetesadapter.NewRepoAdapter(
+				dynamicClient,
+				securitygroupruleconv.SecurityGroupRuleGVR,
+				logger,
+				securitygroupruleconv.SecurityGroupRuleToCR,
+				securitygroupruleconv.SecurityGroupRuleFromCR,
 			)
 			_, err = repo.Update(ctx, resource)
 			return err

@@ -1,0 +1,9 @@
+apiVersion: network.v1.secapi.cloud/v1
+kind: NetworkSKU
+metadata:
+  name: network-sku-1
+  # hex(sha3-224("test-tenant")) — the ECP namespace for tenant "test-tenant"; see namespace.yaml.
+  namespace: f7ec6f666803cd9d9814d4c055217581afbff53f3c35fd6c5e6b444d
+spec:
+  bandwidth: 1000
+  packets: 1000000

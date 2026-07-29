@@ -1,0 +1,77 @@
+name: Release Images
+
+# Builds and pushes the deployable ECP images to GHCR on every v* tag — the
+# same trigger as the chart releases, so `helm install` resolves without an
+# image.tag override: the charts default image.tag to .Chart.AppVersion, and
+# helm-release.yaml sets appVersion to the tag name verbatim (v0.1.0), which
+# is exactly the tag pushed here.
+#
+# Each CSP ships its own single-plugin delegator image (delegator-<plugin>),
+# built from csp/<plugin>/cmd. The dummy plugin is development/test-only and is
+# side-loaded into KIND, never pulled, so it is not published here.
+#
+# No :latest tag is published on purpose — tags here are prerelease-heavy
+# (v0.1.0-alpha1-preview) and the charts always pin an explicit version.
+#
+# One-time setup: after the first run, set each package's visibility to Public
+# at https://github.com/orgs/eu-sovereign-cloud/packages so anonymous pulls
+# work — otherwise every install needs an imagePullSecret.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Image tag to push (e.g. v0.1.0-rc1)
+        required: true
+        type: string
+
+concurrency:
+  group: image-release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: ${{ matrix.image }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: gateway-global
+            dockerfile: gateway/build/Dockerfile.global
+          - image: gateway-regional
+            dockerfile: gateway/build/Dockerfile.regional
+          - image: delegator-aruba
+            dockerfile: csp/aruba/build/Dockerfile
+          - image: delegator-ionos
+            dockerfile: csp/ionos/build/Dockerfile
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          # ghcr.io/eu-sovereign-cloud/ecp/<image>:<tag> — matches the
+          # image.repository defaults committed in both charts.
+          tags: ghcr.io/${{ github.repository }}/${{ matrix.image }}:${{ inputs.tag || github.ref_name }}
+          # Registry-backed layer cache, per image: a re-tag or an rc bump
+          # reuses the unchanged Go build layers instead of recompiling.
+          cache-from: type=registry,ref=ghcr.io/${{ github.repository }}/${{ matrix.image }}:buildcache
+          cache-to: type=registry,ref=ghcr.io/${{ github.repository }}/${{ matrix.image }}:buildcache,mode=max

@@ -182,24 +182,24 @@ test-envtest:
 	  sh -c "cd $(_REPO_ROOT)/resource && go test -race -tags envtest -v $(if $(RUN),-run '$(RUN)') ./..."
 
 ###############################################################################
-# Per-module vet-integration: compile-check //go:build integration test files
+# Per-module vet-integration: compile-check tag-gated test files
 #
 # Usage:
 #   make framework-vet-integration
 #   make vet-integration
 #   make framework-vet-integration-ctzd   # via tools container
 #
-# Runs `go vet -tags integration ./...` per module. Unlike the plain `test`
-# target, this builds files gated by the `integration` build tag — catching
-# stale imports and wrong types without executing TestMain (no KIND needed).
-# Wired into pre-commit and pre-merge to prevent this class of breakage from
-# reaching CI undetected.
+# Runs `go vet -tags integration,envtest ./...` per module. Unlike the plain
+# `test` target, this builds files gated by the `integration` or `envtest`
+# build tags — catching stale imports and wrong types without executing
+# TestMain (no KIND cluster or envtest binaries needed). Wired into pre-merge
+# to prevent this class of breakage from reaching CI undetected.
 ###############################################################################
 
 .PHONY: %-vet-integration
 %-vet-integration:
 	@$(_REPO_ROOT)/ci/scripts/verify-run.sh "$*-vet-integration" "Integration build check" -- \
-	  sh -c "cd $(_REPO_ROOT)/$* && go vet -tags integration ./..."
+	  sh -c "cd $(_REPO_ROOT)/$* && go vet -tags integration,envtest ./..."
 
 .PHONY: vet-integration
 vet-integration: $(addsuffix -vet-integration,$(GO_MODULES))
@@ -349,7 +349,7 @@ generate-api:
 .PHONY: generate-api-verify
 generate-api-verify: generate-api
 	@$(_REPO_ROOT)/ci/scripts/verify-run.sh generate-api-verify "Generated API artifacts are in sync" -- \
-	  $(_REPO_ROOT)/ci/scripts/git-tree-clean-verify.sh --against-index $(_REPO_ROOT) generate-api "make generate-api" framework/backend/kubernetes/ resource/ chart/
+	  $(_REPO_ROOT)/ci/scripts/git-tree-clean-verify.sh --against-index $(_REPO_ROOT) generate-api "make generate-api" framework/backend/kubernetes/ resource/ charts/ecp/
 
 ###############################################################################
 # Per-module: go mod tidy

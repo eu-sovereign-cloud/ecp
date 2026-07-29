@@ -20,7 +20,7 @@ type mockLister[D any] struct {
 	err       error
 }
 
-func (m *mockLister[D]) Do(_ context.Context, _ resource.ListParams) ([]D, *string, error) {
+func (m *mockLister[D]) Do(_ context.Context, _ resource.ListFilter) ([]D, *string, error) {
 	return m.items, m.nextToken, m.err
 }
 

@@ -1,0 +1,6 @@
+# Local-only context for the test harness: registry credentials, kubeconfigs,
+# and any other settings consumed by the Makefile and scripts (config.env,
+# kubeconfig.yaml, ...). This directory ships EMPTY in the repository; populate
+# it locally. Everything here is ignored except this file.
+*
+!.gitignore

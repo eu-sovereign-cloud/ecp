@@ -38,6 +38,16 @@ type RegionalMetadata struct {
 	Region      string
 }
 
+// RegionalNetworkMetadata carries common resource identity and classification data used in
+// domain models for resources scoped under a network (e.g. RouteTable, Subnet), in addition to
+// tenant/workspace. It embeds RegionalMetadata and adds the owning network's name.
+type RegionalNetworkMetadata struct {
+	RegionalMetadata
+	Network string
+}
+
+func (m *RegionalNetworkMetadata) GetNetwork() string { return m.Network }
+
 // GlobalTenantMetadata carries common resource identity and classification data used in global-tenant domain models.
 // It embeds CommonMetadata and resource.Scope to provide tenant access, but has no Region field — these resources
 // are served from a single global control plane and are not tied to a specific region.

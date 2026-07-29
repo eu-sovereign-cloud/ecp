@@ -8,6 +8,7 @@ import (
 
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	nicdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic"
 )
@@ -20,9 +21,9 @@ func TestNicFromAPIToAPIRoundTrip(t *testing.T) {
 			SkuRef:    &sdkschema.Reference{Resource: "nic-sku/small"},
 		},
 	}
-	id := &NicIdentity{name: "nic1", tenant: "t1", workspace: "w1"}
+	id := &resource.Identity{Name: "nic1", Scope: resource.Scope{Tenant: "t1", Workspace: "w1"}}
 
-	dom := NicFromAPI(sdk, id, "r1")
+	dom := nicFromAPI(sdk, id, "r1")
 	require.Equal(t, "nic1", dom.Name)
 	require.Equal(t, "t1", dom.Tenant)
 	require.Equal(t, "w1", dom.Workspace)
@@ -32,7 +33,7 @@ func TestNicFromAPIToAPIRoundTrip(t *testing.T) {
 	require.Equal(t, "subnet/sn1", dom.Spec.SubnetRef.Resource)
 	require.Equal(t, "nic-sku/small", dom.Spec.SkuRef.Resource)
 
-	out := NicToAPIWithVerb(http.MethodPut)(dom)
+	out := nicToAPIWithVerb(http.MethodPut)(dom)
 	require.Equal(t, http.MethodPut, out.Metadata.Verb)
 	require.Equal(t, "nic1", out.Metadata.Name)
 	require.Equal(t, []string{"10.0.0.5"}, out.Spec.Addresses)
@@ -43,7 +44,7 @@ func TestNicFromAPIToAPIRoundTrip(t *testing.T) {
 }
 
 func TestNicIteratorToAPI_ResponseMetadata(t *testing.T) {
-	iter := NicIteratorToAPI(nil, nil)
+	iter := nicIteratorToAPI(nil, nil)
 	require.Equal(t, "nics", iter.Metadata.Resource)
 	require.Equal(t, "seca.network/v1", iter.Metadata.Provider)
 }
@@ -55,9 +56,9 @@ func TestNicFromAPI_NilSkuRef(t *testing.T) {
 			SubnetRef: sdkschema.Reference{Resource: "subnet/sn1"},
 		},
 	}
-	dom := NicFromAPI(sdk, &NicIdentity{name: "nic1"}, "r1")
+	dom := nicFromAPI(sdk, &resource.Identity{Name: "nic1"}, "r1")
 	require.Equal(t, commondomain.Reference{}, dom.Spec.SkuRef)
 
-	out := NicToAPIWithVerb(http.MethodPut)(dom)
+	out := nicToAPIWithVerb(http.MethodPut)(dom)
 	require.Nil(t, out.Spec.SkuRef)
 }

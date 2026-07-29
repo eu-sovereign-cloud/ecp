@@ -7,7 +7,6 @@ import (
 	sdkauthz "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.authorization.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
-	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/validation"
 	radom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment"
@@ -22,22 +21,8 @@ const (
 	RoleAssignmentResource = radom.Resource
 )
 
-// RoleAssignmentIdentity carries identity for a single role assignment resource.
-type RoleAssignmentIdentity struct {
-	name            string
-	tenant          string
-	resourceVersion string
-}
-
-func (r *RoleAssignmentIdentity) GetName() string      { return r.name }
-func (r *RoleAssignmentIdentity) GetVersion() string   { return r.resourceVersion }
-func (r *RoleAssignmentIdentity) GetTenant() string    { return r.tenant }
-func (r *RoleAssignmentIdentity) GetWorkspace() string { return "" }
-
-var _ persistence.IdentifiableResource = (*RoleAssignmentIdentity)(nil)
-
-// ListRoleAssignmentsParamsFromAPI converts SDK ListRoleAssignmentsParams to resource.ListParams.
-func ListRoleAssignmentsParamsFromAPI(params sdkauthz.ListRoleAssignmentsParams, tenant string) resource.ListParams {
+// listRoleAssignmentsParamsFromAPI converts SDK ListRoleAssignmentsParams to resource.ListParams.
+func listRoleAssignmentsParamsFromAPI(params sdkauthz.ListRoleAssignmentsParams, tenant string) resource.ListParams {
 	limit := validation.GetLimit(params.Limit)
 
 	var skipToken string
@@ -60,8 +45,8 @@ func ListRoleAssignmentsParamsFromAPI(params sdkauthz.ListRoleAssignmentsParams,
 	}
 }
 
-// RoleAssignmentToAPIWithVerb returns a func that converts a RoleAssignment to its SDK representation with the given verb.
-func RoleAssignmentToAPIWithVerb(verb string) func(ra *radom.RoleAssignment) *sdkschema.RoleAssignment {
+// roleAssignmentToAPIWithVerb returns a func that converts a RoleAssignment to its SDK representation with the given verb.
+func roleAssignmentToAPIWithVerb(verb string) func(ra *radom.RoleAssignment) *sdkschema.RoleAssignment {
 	return func(ra *radom.RoleAssignment) *sdkschema.RoleAssignment {
 		sdk := roleAssignmentToAPI(ra)
 		sdk.Metadata.Verb = verb
@@ -120,8 +105,8 @@ func roleAssignmentToAPI(ra *radom.RoleAssignment) *sdkschema.RoleAssignment {
 	return out
 }
 
-// RoleAssignmentIteratorToAPI converts a list of RoleAssignment to an SDK RoleAssignmentIterator.
-func RoleAssignmentIteratorToAPI(ras []*radom.RoleAssignment, nextSkipToken *string) *sdkauthz.RoleAssignmentIterator {
+// roleAssignmentIteratorToAPI converts a list of RoleAssignment to an SDK RoleAssignmentIterator.
+func roleAssignmentIteratorToAPI(ras []*radom.RoleAssignment, nextSkipToken *string) *sdkauthz.RoleAssignmentIterator {
 	items := make([]sdkschema.RoleAssignment, len(ras))
 	for i := range ras {
 		items[i] = *roleAssignmentToAPI(ras[i])
@@ -143,8 +128,8 @@ func RoleAssignmentIteratorToAPI(ras []*radom.RoleAssignment, nextSkipToken *str
 	return iterator
 }
 
-// RoleAssignmentFromAPI converts an SDK RoleAssignment to a RoleAssignment.
-func RoleAssignmentFromAPI(sdk sdkschema.RoleAssignment, id *RoleAssignmentIdentity) *radom.RoleAssignment {
+// roleAssignmentFromAPI converts an SDK RoleAssignment to a RoleAssignment.
+func roleAssignmentFromAPI(sdk sdkschema.RoleAssignment, id *resource.Identity) *radom.RoleAssignment {
 	ra := &radom.RoleAssignment{
 		Spec: radom.RoleAssignmentSpec{
 			Subs:   sdk.Spec.Subs,

@@ -15,21 +15,6 @@ import (
 	nicdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic"
 )
 
-// NicIdentity carries identity for a single NIC resource.
-type NicIdentity struct {
-	name            string
-	tenant          string
-	workspace       string
-	resourceVersion string
-}
-
-func (n *NicIdentity) GetName() string      { return n.name }
-func (n *NicIdentity) GetVersion() string   { return n.resourceVersion }
-func (n *NicIdentity) GetTenant() string    { return n.tenant }
-func (n *NicIdentity) GetWorkspace() string { return n.workspace }
-
-var _ persistence.IdentifiableResource = (*NicIdentity)(nil)
-
 // nicListParamsFromAPI converts SDK ListNicsParams to resource.ListParams.
 func nicListParamsFromAPI(params sdknetwork.ListNicsParams, tenant, workspace string) resource.ListParams {
 	var skipToken string
@@ -48,8 +33,8 @@ func nicListParamsFromAPI(params sdknetwork.ListNicsParams, tenant, workspace st
 	}
 }
 
-// NicToAPIWithVerb returns a func that converts a Nic to its SDK representation with the given verb.
-func NicToAPIWithVerb(verb string) func(n *nicdom.Nic) *sdkschema.Nic {
+// nicToAPIWithVerb returns a func that converts a Nic to its SDK representation with the given verb.
+func nicToAPIWithVerb(verb string) func(n *nicdom.Nic) *sdkschema.Nic {
 	return func(n *nicdom.Nic) *sdkschema.Nic {
 		sdk := nicToAPI(n)
 		sdk.Metadata.Verb = verb
@@ -123,8 +108,8 @@ func nicToAPI(n *nicdom.Nic) *sdkschema.Nic {
 	return out
 }
 
-// NicIteratorToAPI converts a list of Nic to an SDK NicIterator.
-func NicIteratorToAPI(ns []*nicdom.Nic, nextSkipToken *string) *sdknetwork.NicIterator {
+// nicIteratorToAPI converts a list of Nic to an SDK NicIterator.
+func nicIteratorToAPI(ns []*nicdom.Nic, nextSkipToken *string) *sdknetwork.NicIterator {
 	items := make([]sdkschema.Nic, len(ns))
 	for i := range ns {
 		items[i] = *nicToAPI(ns[i])
@@ -143,8 +128,8 @@ func NicIteratorToAPI(ns []*nicdom.Nic, nextSkipToken *string) *sdknetwork.NicIt
 	return iterator
 }
 
-// NicFromAPI converts an SDK Nic to a Nic.
-func NicFromAPI(sdk sdkschema.Nic, id *NicIdentity, region string) *nicdom.Nic {
+// nicFromAPI converts an SDK Nic to a Nic.
+func nicFromAPI(sdk sdkschema.Nic, id *resource.Identity, region string) *nicdom.Nic {
 	n := &nicdom.Nic{
 		Spec: nicdom.NicSpec{
 			Addresses: sdk.Spec.Addresses,

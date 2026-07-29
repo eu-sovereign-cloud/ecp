@@ -1,0 +1,38 @@
+{{- if and .Values.gatewayRegional.enabled .Values.gatewayRegional.ingress.enabled }}
+{{- $fullName := include "ecp.gatewayRegional.fullname" . }}
+{{- $svcPort := .Values.gatewayRegional.service.port }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $fullName }}
+  labels:
+    {{- include "ecp.labels" . | nindent 4 }}
+    app.kubernetes.io/component: gateway-regional
+  {{- with .Values.gatewayRegional.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.gatewayRegional.ingress.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  {{- with .Values.gatewayRegional.ingress.tls }}
+  tls:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  rules:
+    {{- range .Values.gatewayRegional.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType }}
+            backend:
+              service:
+                name: {{ $fullName }}
+                port:
+                  number: {{ $svcPort }}
+          {{- end }}
+    {{- end }}
+{{- end }}

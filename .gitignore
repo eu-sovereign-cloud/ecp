@@ -32,8 +32,20 @@ ci/tools/bin/
 scripts/common-template/dist/
 /gateway/gateway
 
-# Ignore local e2e context
-/test/e2e/context/
+# Ignore local test context (registry creds, kubeconfigs, settings).
+# Keep the directory (via its own .gitignore) but never track its contents.
+/test/internal/context/*
+!/test/internal/context/.gitignore
+
+# Helm dependency resolution output. `helm dependency update` vendors each
+# declared dependency as a .tgz under <chart>/charts/ and records what it
+# resolved in Chart.lock. Both are regenerated from the sibling chart
+# directories on demand, and a committed .tgz would silently go stale the next
+# time that sibling chart is edited — tests would then run against the old
+# templates. Every helm entry point runs `helm dependency update` first
+# instead; see charts/ecp/Chart.yaml.
+charts/*/charts/
+charts/*/Chart.lock
 
 # Devcontainer generated files (host-specific, written by devcontainer-init.sh)
 /.devcontainer/.env

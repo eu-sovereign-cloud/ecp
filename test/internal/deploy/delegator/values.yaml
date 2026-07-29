@@ -1,0 +1,7 @@
+# Test-stack values for the delegator.
+#
+# The plugin is set per deployment from PLUGIN_TYPE (dummy on KIND, aruba
+# otherwise — see internal/scripts/deploy.sh), which also selects the RBAC the
+# chart grants. Image repository, tag and pullPolicy come from the script, as
+# does imagePullSecrets when the local context carries registry credentials.
+{}

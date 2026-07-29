@@ -1,0 +1,108 @@
+{{- if .Values.gatewayRegional.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ecp.gatewayRegional.fullname" . }}
+  labels:
+    {{- include "ecp.labels" . | nindent 4 }}
+    app.kubernetes.io/component: gateway-regional
+spec:
+  replicas: {{ .Values.gatewayRegional.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "ecp.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: gateway-regional
+  template:
+    metadata:
+      {{- with .Values.gatewayRegional.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "ecp.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: gateway-regional
+        app: gateway-regional
+        {{- with .Values.gatewayRegional.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "ecp.gatewayRegional.serviceAccountName" . }}
+      {{- with .Values.gatewayRegional.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: gateway
+          image: "{{ .Values.gatewayRegional.image.repository }}:{{ .Values.gatewayRegional.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.gatewayRegional.image.pullPolicy }}
+          {{- with .Values.gatewayRegional.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          args:
+            - regionalapiserver
+            - --region={{ required "gatewayRegional.region is required when gatewayRegional.enabled is true" .Values.gatewayRegional.region }}
+            {{- with (include "ecp.authArgs" . | trim) }}
+            {{- . | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          {{- with .Values.gatewayRegional.extraEnv }}
+          env:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.gatewayRegional.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.gatewayRegional.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.gatewayRegional.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.auth.enabled }}
+          volumeMounts:
+            {{- if eq .Values.auth.plugin "jwt" }}
+            - name: jwt-key
+              mountPath: /etc/ecp/jwt
+              readOnly: true
+            {{- else }}
+            - name: dummy-users
+              mountPath: /etc/ecp/auth
+              readOnly: true
+            {{- end }}
+          {{- end }}
+      {{- if .Values.auth.enabled }}
+      volumes:
+        {{- if eq .Values.auth.plugin "jwt" }}
+        - name: jwt-key
+          secret:
+            secretName: {{ include "ecp.jwtKeySecretName" . }}
+        {{- else }}
+        - name: dummy-users
+          secret:
+            secretName: {{ include "ecp.dummyUsersSecretName" . }}
+        {{- end }}
+      {{- end }}
+      {{- with .Values.gatewayRegional.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.gatewayRegional.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.gatewayRegional.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

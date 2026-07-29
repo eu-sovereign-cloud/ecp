@@ -58,39 +58,76 @@ Each resource slice at `resource/{group}/vN/{resource}/` contains:
 ```
 framework   ← resource ← gateway
                       ↖ csp/{dummy,ionos,aruba}
-                      ↖ test/e2e
+                      ↖ test
 ```
 
 No back-edges. `framework` has zero dependency on `resource`. `resource` has zero dependency on `gateway` or any CSP.
 
 ## Resource Model
 
-### Cluster-Scoped Resources
+The control plane manages 18 resource slices — one CRD each, generated into `charts/ecp/crds/` (see [CODEGEN.md](CODEGEN.md)) — organized by SECA API group:
 
-| Resource | Description |
-|----------|-------------|
-| `Region` | Available regions (read-only) |
+| API group | Resources |
+|-----------|-----------|
+| `v1.secapi.cloud` (`seca.region`) | `Region` — region catalog (read-only, cluster-scoped) |
+| `workspace.v1.secapi.cloud` | `Workspace` — logical grouping of resources within a tenant |
+| `authorization.v1.secapi.cloud` | `Role`, `RoleAssignment` — SECA RBAC policy (see [AUTH.md](AUTH.md)) |
+| `storage.v1.secapi.cloud` | `BlockStorage`, `Image`, `StorageSKU` (read-only catalog) |
+| `network.v1.secapi.cloud` | `Network`, `Subnet`, `NIC`, `PublicIP`, `RouteTable`, `InternetGateway`, `SecurityGroup`, `SecurityGroupRule`, `NetworkSKU` (read-only catalog) |
+| `compute.v1.secapi.cloud` | `Instance`, `InstanceSKU` (read-only catalog) |
 
-Cluster-scoped resources are stored in the `seca` namespace and carry no tenant or workspace qualifier.
-
-### Tenant-Scoped Resources
-
-| Resource | Description |
-|----------|-------------|
-| `Workspace` | Logical grouping of resources within a tenant |
-| `BlockStorage` | Block storage volume |
-| `Network` | Network resource |
-| `StorageSKU` / `NetworkSKU` | Available SKU options (read-only) |
+`Region` is the only cluster-scoped CRD: it carries no tenant or workspace qualifier (tenant-less by spec — the gateway serves it authn-only, see [AUTH.md](AUTH.md)). Every other resource is namespaced.
 
 ### Namespacing Strategy
 
-- The `seca` namespace groups cluster-scoped and shared resources.
-- Each `Tenant` CR triggers the creation of a dedicated tenant namespace; all tenant-scoped resources owned by that tenant live there.
-- `Workspace` CRs are placed in the tenant namespace and labeled with their parent tenant.
+There is no `Tenant` CRD. Namespaces are derived deterministically from the resource's SECA scope by `ComputeNamespace` (`framework/backend/kubernetes/adapter.go`): the SHA3-224 hash of `<tenant>` for tenant-scoped resources, or of `<tenant>/<workspace>` for workspace-scoped ones.
+
+- Tenant-scoped resources (`Workspace`, `Role`, `RoleAssignment`, SKU catalogs) live in the tenant namespace `sha3-224(tenant)`.
+- Creating a `Workspace` also creates the namespace `sha3-224(tenant/workspace)` that holds the workspace's resources (e.g. `BlockStorage`), labeled with internal tenant/workspace owner labels; the namespace is rolled back if the workspace create fails.
+- An empty scope yields no namespace — that is the cluster-scoped `Region` case.
+
+## Authentication & Authorization
+
+The gateway enforces an opt-in bearer-token authn + SECA RBAC authz middleware
+chain. When enabled (`--auth-enabled`), every request must carry a valid
+`Authorization: Bearer <token>` header and the decoded identity must be
+authorised by the RBAC policy before the request reaches the handler. A caller's
+roles are resolved from `RoleAssignment`/`Role` in the tenant namespace — never
+from the token, which carries only the subject and an optional down-scope.
+
+```
+HTTP request
+    │
+    ▼
+NewAuthentication  — validates bearer token → Identity in context (401 on failure)
+    │
+    ▼
+NewAuthorization   — builds AuthorizationClaim, calls Checker.Authorize (403 on denial)
+    │
+    ▼
+provider handler
+```
+
+The middleware chain is assembled once at startup in `gateway/internal/auth/config.go`
+via `ProviderMWs[M]`, which returns the correctly reversed slice required by
+oapi-codegen's `StdHTTPServerOptions.Middlewares`.
+
+Not every provider gets both stages: providers listed in `--authz-skip-providers`
+(default `seca.region` — the region catalog is tenant-less by spec, so tenant-scoped
+RBAC cannot govern it) are served authn-only, i.e. the authorization middleware is
+never installed for their routes.
+
+All framework-layer types (`Authenticator`, `Checker`, `ClaimExtractor`,
+`AuthorizationClaim`) live under `framework/kernel/port/{authn,authz}` and are
+resource-agnostic. Concrete implementations (`DummyAuthenticator`, SECA RBAC
+`Checker`, `CachedChecker`) live in `gateway/` and may import `resource/`.
+
+See [doc/AUTH.md](AUTH.md) for the full reference — bearer-token format, token
+down-scoping, config flags, the RBAC algorithm, and a code layout map.
 
 ## Cascaded Deletion
 
-ECP enforces owner-reference–based cascaded deletion:
+The SECA resource organization is hierarchical — Tenants 1—\* Workspaces 1—\* resources — and deletion is intended to cascade down this hierarchy. The building block for this is namespace ownership rather than Kubernetes owner references (none are set today):
 
-- Deleting a **Tenant** cascades to all its Workspaces and all resources within them.
-- Deleting a **Workspace** cascades to all resources within that workspace.
+- A `Workspace`'s resources live in the workspace's dedicated namespace (see [Namespacing Strategy](#namespacing-strategy)), so deleting that namespace removes everything in the workspace at once.
+- Automatic cascade is not fully wired yet: deleting a `Workspace` CR does not yet delete its namespace (`NamespaceManagingWriterAdapter.Delete` deletes only the CR), and with no `Tenant` entity there is no tenant-level deletion to cascade from.

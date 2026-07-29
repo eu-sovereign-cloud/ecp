@@ -25,10 +25,12 @@ func (w *Workspace) Delete(ctx context.Context, resource *wsdom.Workspace) error
 	return simulateWS(ctx, "delete", resource, workspaceDelay(), w.logger)
 }
 
+// workspaceDelay returns the (short) simulated latency of a workspace operation. See
+// blockStorageDelay for why the values are kept small.
 func workspaceDelay() time.Duration {
-	const base int = 15
+	const base int = 2
 
-	variation := rand.IntN(30) //#nosec G404 -- math/rand/v2 is fine here: delay jitter is not security-sensitive
+	variation := rand.IntN(3) //#nosec G404 -- math/rand/v2 is fine here: delay jitter is not security-sensitive
 
 	return time.Duration(base+variation) * time.Second
 }

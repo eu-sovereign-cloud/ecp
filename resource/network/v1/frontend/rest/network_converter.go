@@ -7,7 +7,6 @@ import (
 	sdknetwork "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.network.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
-	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/validation"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
@@ -21,21 +20,6 @@ const (
 	// NetworkResource is the resource name.
 	NetworkResource = netdom.Resource
 )
-
-// NetworkIdentity carries identity for a single network resource.
-type NetworkIdentity struct {
-	name            string
-	tenant          string
-	workspace       string
-	resourceVersion string
-}
-
-func (n *NetworkIdentity) GetName() string      { return n.name }
-func (n *NetworkIdentity) GetVersion() string   { return n.resourceVersion }
-func (n *NetworkIdentity) GetTenant() string    { return n.tenant }
-func (n *NetworkIdentity) GetWorkspace() string { return n.workspace }
-
-var _ persistence.IdentifiableResource = (*NetworkIdentity)(nil)
 
 // networkListParamsFromAPI converts SDK ListNetworksParams to resource.ListParams.
 func networkListParamsFromAPI(params sdknetwork.ListNetworksParams, tenant, workspace string) resource.ListParams {
@@ -62,8 +46,8 @@ func networkListParamsFromAPI(params sdknetwork.ListNetworksParams, tenant, work
 	}
 }
 
-// NetworkToAPIWithVerb returns a func that converts a Network to its SDK representation with the given verb.
-func NetworkToAPIWithVerb(verb string) func(n *netdom.Network) *sdkschema.Network {
+// networkToAPIWithVerb returns a func that converts a Network to its SDK representation with the given verb.
+func networkToAPIWithVerb(verb string) func(n *netdom.Network) *sdkschema.Network {
 	return func(n *netdom.Network) *sdkschema.Network {
 		sdk := networkToAPI(n)
 		sdk.Metadata.Verb = verb
@@ -103,9 +87,8 @@ func networkToAPI(n *netdom.Network) *sdkschema.Network {
 		Annotations: n.Annotations,
 		Extensions:  n.Extensions,
 		Spec: sdkschema.NetworkSpec{
-			Cidr:          cidrToAPI(n.Spec.CIDR),
-			SkuRef:        commonfrontend.ReferenceToAPI(n.Spec.SkuRef),
-			RouteTableRef: commonfrontend.ReferenceToAPI(n.Spec.RouteTableRef),
+			Cidr:   cidrToAPI(n.Spec.CIDR),
+			SkuRef: commonfrontend.ReferenceToAPI(n.Spec.SkuRef),
 		},
 	}
 
@@ -129,8 +112,8 @@ func networkToAPI(n *netdom.Network) *sdkschema.Network {
 	return out
 }
 
-// NetworkIteratorToAPI converts a list of Network to an SDK NetworkIterator.
-func NetworkIteratorToAPI(ns []*netdom.Network, nextSkipToken *string) *sdknetwork.NetworkIterator {
+// networkIteratorToAPI converts a list of Network to an SDK NetworkIterator.
+func networkIteratorToAPI(ns []*netdom.Network, nextSkipToken *string) *sdknetwork.NetworkIterator {
 	items := make([]sdkschema.Network, len(ns))
 	for i := range ns {
 		items[i] = *networkToAPI(ns[i])
@@ -152,13 +135,12 @@ func NetworkIteratorToAPI(ns []*netdom.Network, nextSkipToken *string) *sdknetwo
 	return iterator
 }
 
-// NetworkFromAPI converts an SDK Network to a Network.
-func NetworkFromAPI(sdk sdkschema.Network, id *NetworkIdentity, region string) *netdom.Network {
+// networkFromAPI converts an SDK Network to a Network.
+func networkFromAPI(sdk sdkschema.Network, id *resource.Identity, region string) *netdom.Network {
 	n := &netdom.Network{
 		Spec: netdom.NetworkSpec{
-			CIDR:          cidrFromAPI(sdk.Spec.Cidr),
-			SkuRef:        commonfrontend.ReferenceFromAPI(sdk.Spec.SkuRef),
-			RouteTableRef: commonfrontend.ReferenceFromAPI(sdk.Spec.RouteTableRef),
+			CIDR:   cidrFromAPI(sdk.Spec.Cidr),
+			SkuRef: commonfrontend.ReferenceFromAPI(sdk.Spec.SkuRef),
 		},
 	}
 	n.Name = id.GetName()

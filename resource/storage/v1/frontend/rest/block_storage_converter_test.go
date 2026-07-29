@@ -9,7 +9,7 @@ import (
 )
 
 func TestBlockStorageIteratorToAPI_ResponseMetadata(t *testing.T) {
-	iter := BlockStorageIteratorToAPI(nil, nil)
+	iter := blockStorageIteratorToAPI(nil, nil)
 	require.Equal(t, "block-storages", iter.Metadata.Resource)
 	require.Equal(t, "seca.storage/v1", iter.Metadata.Provider)
 }

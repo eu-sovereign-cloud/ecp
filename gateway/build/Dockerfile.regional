@@ -1,5 +1,5 @@
 # --- Build Stage ---
-FROM golang:1.26.4-alpine AS build
+FROM golang:1.26.5-alpine AS build
 
 RUN apk add --no-cache git
 
@@ -18,7 +18,7 @@ COPY gateway/go.mod gateway/go.mod
 COPY csp/aruba/go.mod csp/aruba/go.mod
 COPY csp/dummy/go.mod csp/dummy/go.mod
 COPY csp/ionos/go.mod csp/ionos/go.mod
-COPY test/e2e/go.mod test/e2e/go.mod
+COPY test/go.mod test/go.mod
 
 WORKDIR /app/gateway
 RUN go mod download
@@ -39,6 +39,10 @@ FROM alpine:latest
 COPY --from=build /server /server
 
 EXPOSE 8080
+
+# Numeric and non-root: the chart sets runAsNonRoot without runAsUser, so
+# kubelet rejects the pod unless the image itself declares a non-zero UID.
+USER 65532:65532
 
 ENTRYPOINT ["/server"]
 CMD ["regionalapiserver"]

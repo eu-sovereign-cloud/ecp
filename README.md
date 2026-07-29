@@ -1,4 +1,4 @@
-# ECP — European Control Plane
+# ECP — European Control Plane 
 
 A Kubernetes-native distributed control plane for managing cloud resources across multiple cloud service providers (CSPs).
 
@@ -9,9 +9,11 @@ ECP exposes a unified, declarative REST API for provisioning and managing cloud 
 ```
 framework/            # Resource-agnostic SDK (horizontal axis)
 ├── kernel/           #   All abstractions: ports, Scope, Error, validation
+│   └── port/         #     authn.Authenticator, authz.Checker — auth port interfaces
 ├── backend/          #   Kubernetes backend: adapter, schema/v1 CRDs, codegen, controller, builder
 │   └── kubernetes/   #     adapter, labels, convert, schema/v1, controller, builder, cmd
 └── frontend/         #   HTTP server, kubeclient, logger, config
+    └── middleware/   #     NewAuthentication, NewAuthorization, SECAClaimExtractor, Chain
 resource/             # Data vocabulary + per-resource slices (vertical axis)
 ├── common/           #   Shared domain, frontend, backend helpers
 └── <group>/vN/<resource>/
@@ -19,19 +21,27 @@ resource/             # Data vocabulary + per-resource slices (vertical axis)
     ├── frontend/rest/#   REST↔domain converters + HTTP handlers (per-group, shared handler)
     └── backend/kubernetes/ # CR types, adapters, controller, plugin interface + handler
 gateway/              # Global and regional REST API server binary
+├── internal/authn/   #   DummyAuthenticator (bearer-token dev/test auth)
+├── internal/authz/   #   seca/ — SECA RBAC Checker + CachedChecker
+└── internal/auth/    #   Build, ProviderMWs, StartChecker — opt-in wiring
 csp/
 ├── dummy/            # Reference plugin (no real backend)
 ├── ionos/            # IONOS CSP plugin (Crossplane-based)
 └── aruba/            # Aruba CSP plugin
-test/
-├── e2e/              # End-to-end test harness
-└── ionos-e2e/        # IONOS-specific integration tests
+test/                 # Test harness: integration, e2e and conformance suites
+├── integration/      # Per-component suites (delegator, gateway-global/-regional)
+├── e2e/              # End-to-end suites: single-cluster, plus multicluster/ (split topology)
+├── conformance/      # secatest conformance harnesses (ionos, aruba)
+└── internal/         # Shared infra: build, deploy, scripts, cmd, testenv, authhelper, context
 ci/
 ├── container/        # Dockerfile layers: builder, tools, dev, runner
 ├── scripts/          # CI and dev automation scripts
 └── tools/            # Pinned Go dev tool dependencies
-chart/
-└── crd/              # Generated Kubernetes CRD YAML (all 18 resource slices)
+charts/               # Helm charts
+├── ecp/              # The global and regional gateways
+│   ├── crds/         # Generated Kubernetes CRD YAML (all 18 resource slices)
+│   └── templates/    # Gateway Deployments, Services, RBAC, ingress
+└── delegator/        # The delegator, one plugin set per install
 modules/
 └── go-sdk/           # Git submodule: shared OpenAPI specs and client SDK
 doc/                  # Documentation
@@ -49,7 +59,7 @@ This is a Go monorepo managed with `go.work`. The workspace contains 8 first-par
 | `csp/dummy` | `./csp/dummy` | Reference plugin (no real backend) |
 | `csp/ionos` | `./csp/ionos` | IONOS CSP adapter via Crossplane |
 | `csp/aruba` | `./csp/aruba` | Aruba CSP adapter |
-| `test/e2e` | `./test/e2e` | End-to-end test harness |
+| `test` | `./test` | Test harness (integration, e2e, conformance) |
 | `ci/tools/go` | `./ci/tools/go` | Pinned versions of Go development tools |
 
 **Module boundary**: `framework ↛ resource` is compiler-enforced. `resource` and `gateway` depend on `framework`. CSP plugins depend on both `framework` and `resource`. See [doc/ARCHITECTURE.md](doc/ARCHITECTURE.md).
@@ -88,10 +98,13 @@ For containerized development, persistent dev containers, and the full Makefile 
 | Document | Description |
 |----------|-------------|
 | [doc/ARCHITECTURE.md](doc/ARCHITECTURE.md) | DDD/hexagonal design, two-axis module topology, module DAG |
+| [doc/AUTH.md](doc/AUTH.md) | Authentication & authorization — bearer-token format, token down-scoping, SECA RBAC algorithm, config flags |
 | [doc/CI_DEVEX.md](doc/CI_DEVEX.md) | Developer environment setup, Makefile targets, CI pipeline |
 | [doc/CODEGEN.md](doc/CODEGEN.md) | Code generation pipeline (OpenAPI types, CRDs, controller-gen) |
 | [doc/PLUGINS.md](doc/PLUGINS.md) | Plugin system: interface, builder inversion, writing a new CSP plugin |
 | [doc/CONTRIBUTING.md](doc/CONTRIBUTING.md) | Contribution guidelines, import alias convention, PR conventions |
+| [doc/CONVENTIONS.md](doc/CONVENTIONS.md) | Go style conventions — naming, initialisms, conversion functions, structural symmetry |
+| [doc/AUTH-SPEC-REVIEW.md](doc/AUTH-SPEC-REVIEW.md) | Auth findings — token model and SECA spec alignment review (record) |
 
 ## Current Version
 

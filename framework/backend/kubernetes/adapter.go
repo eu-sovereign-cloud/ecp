@@ -20,7 +20,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
-	kernel "github.com/eu-sovereign-cloud/ecp/framework/kernel"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/validation/filter"
@@ -149,7 +149,9 @@ func NewWatcherAdapter[T persistence.IdentifiableResource](
 	}
 }
 
-// ComputeNamespace computes the Kubernetes namespace based on tenant and workspace.
+// ComputeNamespace computes the Kubernetes namespace based on tenant and workspace. It never
+// looks at anything beyond persistence.Scope — for resolving the right namespace rule for a
+// given resource (which may be network-scoped instead), see resolveNamespace.
 func ComputeNamespace(obj persistence.Scope) string {
 	if obj.GetTenant() == "" && obj.GetWorkspace() == "" {
 		return ""
@@ -163,6 +165,33 @@ func ComputeNamespace(obj persistence.Scope) string {
 	}
 
 	return fmt.Sprintf("%x", hasher.Sum(nil))
+}
+
+// ComputeNetworkNamespace computes the Kubernetes namespace for a network-scoped resource,
+// hashing tenant/workspace/network so each network gets its own namespace. This gives
+// network-scoped resources (e.g. RouteTable name uniqueness) isolation per network, unlike
+// ComputeNamespace's per-workspace sharing used by every other (non-network-scoped) resource.
+func ComputeNetworkNamespace(obj persistence.NetworkScope) string {
+	hasher := sha3.New224()
+	_, _ = fmt.Fprintf(hasher, "%s/%s/%s", obj.GetTenant(), obj.GetWorkspace(), obj.GetNetwork())
+
+	return fmt.Sprintf("%x", hasher.Sum(nil))
+}
+
+// resolveNamespace picks the right namespace rule for obj: ComputeNetworkNamespace when obj
+// also implements NetworkScope, ComputeNamespace otherwise. This is where "which formula applies
+// to this resource" is decided — ComputeNamespace and ComputeNetworkNamespace themselves stay
+// dumb, explicit hash formulas with no branching on the caller's shape. A NetworkScope object
+// with an empty network is a caller bug, not a fallback case, so it errors instead of silently
+// resolving to the workspace-level namespace.
+func resolveNamespace(obj persistence.Scope) (string, error) {
+	if networkScope, ok := obj.(persistence.NetworkScope); ok {
+		if networkScope.GetNetwork() == "" {
+			return "", kernel.NewError(kernel.KindValidation, fmt.Errorf("network-scoped resource has empty network"))
+		}
+		return ComputeNetworkNamespace(networkScope), nil
+	}
+	return ComputeNamespace(obj), nil
 }
 
 // CreateNamespace creates a Kubernetes Namespace.
@@ -214,24 +243,33 @@ func DeleteNamespace(ctx context.Context, clientSet kubernetes.Interface, name s
 	return nil
 }
 
-// List implements the persistence.ReaderRepo interface.
-func (a *ReaderAdapter[T]) List(ctx context.Context, params resource.ListParams, list *[]T) (*string, error) {
+// List implements the persistence.ReaderRepo interface. params only needs to satisfy
+// resource.ListFilter, so a resource with an extra scoping dimension (e.g. Network) can carry
+// it on its own local params type and have it picked up here via the NetworkScope assertion,
+// without that dimension living on the shared resource.ListParams struct.
+func (a *ReaderAdapter[T]) List(ctx context.Context, params resource.ListFilter, list *[]T) (*string, error) {
 	lo := metav1.ListOptions{}
 
-	if params.Limit > 0 {
-		lo.Limit = int64(params.Limit)
+	if limit := params.GetLimit(); limit > 0 {
+		lo.Limit = int64(limit)
 	}
 
-	if params.SkipToken != "" {
-		lo.Continue = params.SkipToken
+	if skipToken := params.GetSkipToken(); skipToken != "" {
+		lo.Continue = skipToken
 	}
+
+	selector := params.GetSelector()
 
 	// Separate server-side and client-side selectors
-	if params.Selector != "" {
-		lo.LabelSelector = filter.K8sSelectorForAPI(params.Selector)
+	if selector != "" {
+		lo.LabelSelector = filter.K8sSelectorForAPI(selector)
 	}
 
-	ri := a.client.Resource(a.gvr).Namespace(ComputeNamespace(&params))
+	namespace, err := resolveNamespace(params)
+	if err != nil {
+		return nil, err
+	}
+	ri := a.client.Resource(a.gvr).Namespace(namespace)
 
 	ulist, err := ri.List(ctx, lo)
 	if err != nil {
@@ -241,9 +279,9 @@ func (a *ReaderAdapter[T]) List(ctx context.Context, params resource.ListParams,
 
 	// Apply client-side filtering for selectors not handled by the API
 	var filteredItems []unstructured.Unstructured
-	if params.Selector != "" {
+	if selector != "" {
 		for _, item := range ulist.Items {
-			matched, k8sHandled, err := filter.MatchLabels(item.GetLabels(), params.Selector)
+			matched, k8sHandled, err := filter.MatchLabels(item.GetLabels(), selector)
 			if err != nil {
 				a.logger.ErrorContext(ctx, "label filter evaluation failed", "resource", a.gvr.Resource, "item", item.GetName(), "error", err)
 
@@ -287,7 +325,11 @@ func (a *ReaderAdapter[T]) List(ctx context.Context, params resource.ListParams,
 // Load implements the persistence.ReaderRepo interface.
 func (a *ReaderAdapter[T]) Load(ctx context.Context, obj *T) error {
 	v := *obj
-	ri := a.client.Resource(a.gvr).Namespace(ComputeNamespace(v))
+	namespace, err := resolveNamespace(v)
+	if err != nil {
+		return err
+	}
+	ri := a.client.Resource(a.gvr).Namespace(namespace)
 
 	uobj, err := ri.Get(ctx, v.GetName(), metav1.GetOptions{})
 	if err != nil {
@@ -310,7 +352,11 @@ func (a *ReaderAdapter[T]) Load(ctx context.Context, obj *T) error {
 
 // Create implements the persistence.WriterRepo interface.
 func (a *WriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
-	ri := a.client.Resource(a.gvr).Namespace(ComputeNamespace(m))
+	namespace, err := resolveNamespace(m)
+	if err != nil {
+		return nil, err
+	}
+	ri := a.client.Resource(a.gvr).Namespace(namespace)
 
 	uobj, err := a.toUnstructured(m)
 	if err != nil {
@@ -343,7 +389,11 @@ func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
 		return nil, kernel.NewError(kernel.KindValidation, fmt.Errorf("failed to convert %s to unstructured: %w", a.gvr.Resource, err))
 	}
 
-	resourceInterface := a.client.Resource(a.gvr).Namespace(ComputeNamespace(m))
+	namespace, err := resolveNamespace(m)
+	if err != nil {
+		return nil, err
+	}
+	resourceInterface := a.client.Resource(a.gvr).Namespace(namespace)
 
 	if m.GetVersion() == "" {
 		if err := a.updateMetadataAndSpecRetry(ctx, resourceInterface, m.GetName(), uobj); err != nil {
@@ -387,7 +437,11 @@ func (a *WriterAdapter[T]) UpdateStatus(ctx context.Context, m T) (*T, error) {
 		return nil, kernel.NewError(kernel.KindValidation, fmt.Errorf("no status data provided for %s '%s'", a.gvr.Resource, m.GetName()))
 	}
 
-	resourceInterface := a.client.Resource(a.gvr).Namespace(ComputeNamespace(m))
+	namespace, err := resolveNamespace(m)
+	if err != nil {
+		return nil, err
+	}
+	resourceInterface := a.client.Resource(a.gvr).Namespace(namespace)
 
 	if err := a.updateStatusRetry(ctx, resourceInterface, m, desiredStatus); err != nil {
 		a.logger.ErrorContext(ctx, "failed to update status", "resource", a.gvr.Resource, "error", err)
@@ -499,7 +553,11 @@ func (a *WriterAdapter[T]) updateStatusRetry(
 
 // Delete implements the persistence.WriterRepo interface.
 func (a *WriterAdapter[T]) Delete(ctx context.Context, m T) error {
-	ri := a.client.Resource(a.gvr).Namespace(ComputeNamespace(m))
+	namespace, err := resolveNamespace(m)
+	if err != nil {
+		return err
+	}
+	ri := a.client.Resource(a.gvr).Namespace(namespace)
 
 	deleteOptions := metav1.DeleteOptions{}
 	if m.GetVersion() != "" {
@@ -508,8 +566,7 @@ func (a *WriterAdapter[T]) Delete(ctx context.Context, m T) error {
 		}
 	}
 
-	err := ri.Delete(ctx, m.GetName(), deleteOptions)
-	if err != nil {
+	if err := ri.Delete(ctx, m.GetName(), deleteOptions); err != nil {
 		a.logger.ErrorContext(ctx, "failed to delete resource", "name", m.GetName(), "resource", a.gvr.Resource, "error", err, slog.Any("m", m))
 		return kubeToDomainError(fmt.Errorf("failed to delete %s '%s': %w", a.gvr.Resource, m.GetName(), err))
 	}
@@ -565,13 +622,80 @@ func (a *WriterAdapter[T]) toUnstructured(m T) (*unstructured.Unstructured, erro
 	return &unstructured.Unstructured{Object: uobj}, nil
 }
 
-// NamespaceManagingWriterAdapter wraps a WriterAdapter and ensures namespaces exist before creating resources.
-// It uses a typed clientset for Namespace operations when available.
+// ChildNamespaceKind selects which namespace-provisioning behavior
+// NamespaceManagingWriterAdapter.Create applies when creating a resource. It matches the two
+// points in the tenant→workspace→network scope chain that own a namespace for their children:
+// a Workspace provisions the namespace its children (Network, Nic, PublicIp, InternetGateway,
+// ...) live in; a Network provisions the namespace its children (RouteTable, Subnet) live in.
+// The current SECA resource organization
+// (https://spec.secapi.cloud/docs/content/Architecture/resource-organization) has no other
+// point on the chain that owns a children namespace, so this is a closed set rather than an
+// injected function.
+type ChildNamespaceKind int
+
+const (
+	// NoChildNamespace opts out: Create delegates straight to the wrapped WriterAdapter.
+	NoChildNamespace ChildNamespaceKind = iota
+	// WorkspaceChildren provisions the tenant/workspace namespace, using the resource's own
+	// name as the workspace segment (there is no Tenant entity, so the Workspace is the only
+	// entity that manages this).
+	WorkspaceChildren
+	// NetworkChildren provisions the tenant/workspace/network namespace, using the resource's
+	// own name as the network segment.
+	NetworkChildren
+)
+
+// namespaceScope is a plain NetworkScope value used to call ComputeNetworkNamespace from raw
+// tenant/workspace/network strings, without needing a full domain object.
+type namespaceScope struct {
+	tenant, workspace, network string
+}
+
+func (s namespaceScope) GetTenant() string    { return s.tenant }
+func (s namespaceScope) GetWorkspace() string { return s.workspace }
+func (s namespaceScope) GetNetwork() string   { return s.network }
+
+// childNamespaceFor computes the namespace (and owner labels) a resource's children will live
+// in, for the given ChildNamespaceKind. Returns "" for NoChildNamespace.
+func childNamespaceFor(kind ChildNamespaceKind, m persistence.IdentifiableResource) (namespace string, ownerLabels map[string]string) {
+	switch kind {
+	case WorkspaceChildren:
+		return childNamespaceLabels(m.GetTenant(), m.GetName(), "")
+	case NetworkChildren:
+		return childNamespaceLabels(m.GetTenant(), m.GetWorkspace(), m.GetName())
+	default:
+		return "", nil
+	}
+}
+
+// childNamespaceLabels builds the namespace and its owner labels for a tenant/workspace[/network]
+// triple, hashing via ComputeNetworkNamespace when network is set and ComputeNamespace otherwise.
+func childNamespaceLabels(tenant, workspace, network string) (string, map[string]string) {
+	ownerLabels := map[string]string{}
+	if tenant != "" {
+		ownerLabels[labels.InternalTenantLabel] = tenant
+	}
+	if workspace != "" {
+		ownerLabels[labels.InternalWorkspaceLabel] = workspace
+	}
+
+	if network != "" {
+		ownerLabels[labels.InternalNetworkLabel] = network
+		return ComputeNetworkNamespace(namespaceScope{tenant: tenant, workspace: workspace, network: network}), ownerLabels
+	}
+	return ComputeNamespace(&resource.Scope{Tenant: tenant, Workspace: workspace}), ownerLabels
+}
+
+// NamespaceManagingWriterAdapter wraps a WriterAdapter and ensures the namespace computed for
+// childNamespace exists before creating resources, rolling back that namespace if it created it
+// and the resource creation subsequently fails. It uses a typed clientset for Namespace
+// operations when available.
 type NamespaceManagingWriterAdapter[T persistence.IdentifiableResource] struct {
 	*WriterAdapter[T]
-	client    dynamic.Interface
-	clientset kubernetes.Interface
-	logger    *slog.Logger
+	client         dynamic.Interface
+	clientset      kubernetes.Interface
+	logger         *slog.Logger
+	childNamespace ChildNamespaceKind
 }
 
 // NamespaceManagingRepoAdapter implements the persistence.WatcherRepo interface for a specific resource type.
@@ -581,7 +705,8 @@ type NamespaceManagingRepoAdapter[T persistence.IdentifiableResource] struct {
 	*WatcherAdapter[T]
 }
 
-// NewNamespaceManagingWriterAdapter creates a new writer adapter that ensures namespaces for resources.
+// NewNamespaceManagingWriterAdapter creates a new writer adapter that ensures the namespace
+// selected by childNamespace exists before creating resources.
 func NewNamespaceManagingWriterAdapter[T persistence.IdentifiableResource](
 	dynClient dynamic.Interface,
 	clientset kubernetes.Interface,
@@ -589,13 +714,15 @@ func NewNamespaceManagingWriterAdapter[T persistence.IdentifiableResource](
 	logger *slog.Logger,
 	domainToK8s DomainToK8s[T],
 	k8sToDomain K8sToDomain[T],
+	childNamespace ChildNamespaceKind,
 ) *NamespaceManagingWriterAdapter[T] {
 	base := NewWriterAdapter(dynClient, gvr, logger, domainToK8s, k8sToDomain)
 	return &NamespaceManagingWriterAdapter[T]{
-		WriterAdapter: base,
-		client:        dynClient,
-		clientset:     clientset,
-		logger:        logger,
+		WriterAdapter:  base,
+		client:         dynClient,
+		clientset:      clientset,
+		logger:         logger,
+		childNamespace: childNamespace,
 	}
 }
 
@@ -607,6 +734,7 @@ func NewNamespaceManagingRepoAdapter[T persistence.IdentifiableResource](
 	logger *slog.Logger,
 	domainToK8s DomainToK8s[T],
 	k8sToDomain K8sToDomain[T],
+	childNamespace ChildNamespaceKind,
 ) *NamespaceManagingRepoAdapter[T] {
 	return &NamespaceManagingRepoAdapter[T]{
 		ReaderAdapter: NewReaderAdapter(
@@ -622,6 +750,7 @@ func NewNamespaceManagingRepoAdapter[T persistence.IdentifiableResource](
 			logger,
 			domainToK8s,
 			k8sToDomain,
+			childNamespace,
 		),
 		WatcherAdapter: NewWatcherAdapter(
 			dynClient,
@@ -660,41 +789,12 @@ func namespaceOwnedBy(ctx context.Context, clientset kubernetes.Interface, nsNam
 	return true, nil
 }
 
-// Create ensures the computed namespace exists (for both tenant and workspace scopes) and rolls back if we created it and the resource creation fails.
+// Create ensures the namespace selected by a.childNamespace exists and rolls back if it
+// created that namespace and the resource creation subsequently fails.
 func (a *NamespaceManagingWriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
-	// The current SECA resource organization (https://spec.secapi.cloud/docs/content/Architecture/resource-organization)
-	// contains only three hierarchical levels: Tenants 1<->* Workspaces 1<->* SECA Resources.
-	//
-	// At present, there is not a Tenant entity defined, and the only entity
-	// which will really manage its namespace is the Workspace.
-	//
-	// The Workspace should be placed into the Tenant namespace, and it should
-	// not own that namespace because it will contain all the Workspaces and
-	// other elements owned by the Tenant.
-	//
-	// So, in fact, the Workspaces will create and manage namespaces for its
-	// underlying resources, and not for themselves.
-	//
-	// That's why the namespace name must always consider Tenant and Workspace
-	// names here.
-	tenant := m.GetTenant()
-	container := m.GetWorkspace()
-	if container == "" {
-		container = m.GetName()
-	}
-
-	namespace := ComputeNamespace(&resource.Scope{Tenant: tenant, Workspace: container})
+	namespace, ownerLabels := childNamespaceFor(a.childNamespace, m)
 	if namespace == "" {
 		return a.WriterAdapter.Create(ctx, m)
-	}
-
-	ownerLabels := map[string]string{}
-	if tenant != "" {
-		ownerLabels[labels.InternalTenantLabel] = tenant
-	}
-
-	if container != "" {
-		ownerLabels[labels.InternalWorkspaceLabel] = container
 	}
 
 	createdNS, err := CreateNamespace(ctx, a.clientset, namespace, ownerLabels)

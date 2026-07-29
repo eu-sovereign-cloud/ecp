@@ -97,15 +97,23 @@ func TestRoleBackend_CreateAndGetRole(t *testing.T) {
 		},
 	}
 
-	created, err := writerRepo.Create(ctx, role)
+	createdPtr, err := writerRepo.Create(ctx, role)
 	require.NoError(t, err)
+	require.NotNil(t, createdPtr)
+	created := *createdPtr
 	require.Equal(t, roleName, created.Name)
 	require.Equal(t, tenant, created.Tenant)
 	require.Equal(t, 1, len(created.Spec.Permissions))
 	require.Equal(t, "seca.compute", created.Spec.Permissions[0].Provider)
 
 	// Fetch the role back.
-	got, err := readerRepo.Get(ctx, created)
+	got := &roledom.Role{
+		GlobalTenantMetadata: commondomain.GlobalTenantMetadata{
+			CommonMetadata: commondomain.CommonMetadata{Name: roleName},
+			Scope:          kernelresource.Scope{Tenant: tenant},
+		},
+	}
+	err = readerRepo.Load(ctx, &got)
 	require.NoError(t, err)
 	require.Equal(t, roleName, got.Name)
 	require.Equal(t, tenant, got.Tenant)

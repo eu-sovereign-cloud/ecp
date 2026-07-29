@@ -7,6 +7,7 @@ import (
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	builder "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/builder"
 	frameworkcontroller "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/controller"
+	commonbackend "github.com/eu-sovereign-cloud/ecp/resource/common/backend"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage"
 )
 
@@ -32,7 +33,8 @@ func NewController(
 		BlockStorageToCR,
 		BlockStorageFromCR,
 	)
-	handler := NewBlockStoragePluginHandler(repo, plugin, options.MaxConditions)
+	deps := commonbackend.NewReferenceResolver(dynClient)
+	handler := NewBlockStoragePluginHandler(repo, plugin, options.MaxConditions, deps)
 	return &Controller{
 		GenericController: frameworkcontroller.NewGenericController[*bsdom.BlockStorage](
 			ctrlClient,

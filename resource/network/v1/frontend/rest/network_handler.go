@@ -10,21 +10,22 @@ import (
 	frameworkconfig "github.com/eu-sovereign-cloud/ecp/framework/frontend/config"
 	frest "github.com/eu-sovereign-cloud/ecp/framework/frontend/rest"
 	persistencepkg "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network"
 )
 
 // ListNetworks handles GET /v1/tenants/{tenant}/workspaces/{workspace}/networks.
 func (h *Handler) ListNetworks(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, params sdknetwork.ListNetworksParams) {
 	logger := h.Logger.With("provider", "network", "resource", "network")
-	frest.HandleList(w, r, logger, networkListParamsFromAPI(params, tenant, workspace), frest.ListerFromRepo(h.NetworkReader), NetworkIteratorToAPI)
+	frest.HandleList(w, r, logger, networkListParamsFromAPI(params, tenant, workspace), frest.ListerFromRepo(h.NetworkReader), networkIteratorToAPI)
 }
 
 // DeleteNetwork handles DELETE /v1/tenants/{tenant}/workspaces/{workspace}/networks/{name}.
 func (h *Handler) DeleteNetwork(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdknetwork.DeleteNetworkParams) {
 	logger := h.Logger.With("provider", "network", "resource", "network", "name", name)
-	id := &NetworkIdentity{name: name, tenant: tenant, workspace: workspace}
+	id := &resource.Identity{Name: name, Scope: resource.Scope{Tenant: tenant, Workspace: workspace}}
 	if params.IfUnmodifiedSince != nil {
-		id.resourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
+		id.Version = strconv.Itoa(*params.IfUnmodifiedSince)
 	}
 	frest.HandleDelete(w, r, logger, id, frest.DeleterFromRepo(h.NetworkWriter, newNetworkWithIdentity))
 }
@@ -32,16 +33,16 @@ func (h *Handler) DeleteNetwork(w http.ResponseWriter, r *http.Request, tenant s
 // GetNetwork handles GET /v1/tenants/{tenant}/workspaces/{workspace}/networks/{name}.
 func (h *Handler) GetNetwork(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam) {
 	logger := h.Logger.With("provider", "network", "resource", "network", "name", name)
-	ir := &NetworkIdentity{name: name, tenant: tenant, workspace: workspace}
-	frest.HandleGet(w, r, logger, ir, frest.GetterFromRepo(h.NetworkReader, newNetworkWithIdentity), NetworkToAPIWithVerb(http.MethodGet))
+	ir := &resource.Identity{Name: name, Scope: resource.Scope{Tenant: tenant, Workspace: workspace}}
+	frest.HandleGet(w, r, logger, ir, frest.GetterFromRepo(h.NetworkReader, newNetworkWithIdentity), networkToAPIWithVerb(http.MethodGet))
 }
 
 // CreateOrUpdateNetwork handles PUT /v1/tenants/{tenant}/workspaces/{workspace}/networks/{name}.
 func (h *Handler) CreateOrUpdateNetwork(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdknetwork.CreateOrUpdateNetworkParams) {
 	logger := h.Logger.With("provider", "network", "resource", "network", "name", name)
-	id := &NetworkIdentity{name: name, tenant: tenant, workspace: workspace}
+	id := &resource.Identity{Name: name, Scope: resource.Scope{Tenant: tenant, Workspace: workspace}}
 	if params.IfUnmodifiedSince != nil {
-		id.resourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
+		id.Version = strconv.Itoa(*params.IfUnmodifiedSince)
 	}
 	region := frameworkconfig.Singleton().Region()
 	frest.HandleUpsert(w, r, logger, frest.UpsertOptions[sdkschema.Network, *netdom.Network, *sdkschema.Network]{
@@ -49,9 +50,9 @@ func (h *Handler) CreateOrUpdateNetwork(w http.ResponseWriter, r *http.Request, 
 		Creator: frest.CreatorFromRepo(h.NetworkWriter),
 		Updater: frest.UpdaterFromRepo(h.NetworkWriter),
 		APIToDomain: func(sdk sdkschema.Network, p persistencepkg.IdentifiableResource) *netdom.Network {
-			return NetworkFromAPI(sdk, p.(*NetworkIdentity), region)
+			return networkFromAPI(sdk, p.(*resource.Identity), region)
 		},
-		DomainToAPI: NetworkToAPIWithVerb(http.MethodPut),
+		DomainToAPI: networkToAPIWithVerb(http.MethodPut),
 	})
 }
 
@@ -63,126 +64,4 @@ func newNetworkWithIdentity(ir persistencepkg.IdentifiableResource) *netdom.Netw
 	d.Workspace = ir.GetWorkspace()
 	d.ResourceVersion = ir.GetVersion()
 	return d
-}
-
-// --- Stubs for unimplemented resources ---
-
-func (h *Handler) ListInternetGateways(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, params sdknetwork.ListInternetGatewaysParams) {
-	h.Logger.DebugContext(r.Context(), "ListInternetGateways not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (h *Handler) DeleteInternetGateway(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdknetwork.DeleteInternetGatewayParams) {
-	h.Logger.DebugContext(r.Context(), "DeleteInternetGateway not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (h *Handler) GetInternetGateway(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam) {
-	h.Logger.DebugContext(r.Context(), "GetInternetGateway not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (h *Handler) CreateOrUpdateInternetGateway(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdknetwork.CreateOrUpdateInternetGatewayParams) {
-	h.Logger.DebugContext(r.Context(), "CreateOrUpdateInternetGateway not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (h *Handler) ListRouteTables(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, network sdkschema.NetworkPathParam, params sdknetwork.ListRouteTablesParams) {
-	h.Logger.DebugContext(r.Context(), "ListRouteTables not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (h *Handler) DeleteRouteTable(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, network sdkschema.NetworkPathParam, name sdkschema.ResourcePathParam, params sdknetwork.DeleteRouteTableParams) {
-	h.Logger.DebugContext(r.Context(), "DeleteRouteTable not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (h *Handler) GetRouteTable(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, network sdkschema.NetworkPathParam, name sdkschema.ResourcePathParam) {
-	h.Logger.DebugContext(r.Context(), "GetRouteTable not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (h *Handler) CreateOrUpdateRouteTable(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, network sdkschema.NetworkPathParam, name sdkschema.ResourcePathParam, params sdknetwork.CreateOrUpdateRouteTableParams) {
-	h.Logger.DebugContext(r.Context(), "CreateOrUpdateRouteTable not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (h *Handler) ListSubnets(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, network sdkschema.NetworkPathParam, params sdknetwork.ListSubnetsParams) {
-	h.Logger.DebugContext(r.Context(), "ListSubnets not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (h *Handler) DeleteSubnet(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, network sdkschema.NetworkPathParam, name sdkschema.ResourcePathParam, params sdknetwork.DeleteSubnetParams) {
-	h.Logger.DebugContext(r.Context(), "DeleteSubnet not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (h *Handler) GetSubnet(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, network sdkschema.NetworkPathParam, name sdkschema.ResourcePathParam) {
-	h.Logger.DebugContext(r.Context(), "GetSubnet not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (h *Handler) CreateOrUpdateSubnet(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, network sdkschema.NetworkPathParam, name sdkschema.ResourcePathParam, params sdknetwork.CreateOrUpdateSubnetParams) {
-	h.Logger.DebugContext(r.Context(), "CreateOrUpdateSubnet not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (h *Handler) ListPublicIps(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, params sdknetwork.ListPublicIpsParams) {
-	h.Logger.DebugContext(r.Context(), "ListPublicIps not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (h *Handler) DeletePublicIp(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdknetwork.DeletePublicIpParams) {
-	h.Logger.DebugContext(r.Context(), "DeletePublicIp not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (h *Handler) GetPublicIp(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam) {
-	h.Logger.DebugContext(r.Context(), "GetPublicIp not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (h *Handler) CreateOrUpdatePublicIp(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdknetwork.CreateOrUpdatePublicIpParams) {
-	h.Logger.DebugContext(r.Context(), "CreateOrUpdatePublicIp not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (h *Handler) ListSecurityGroupRules(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, params sdknetwork.ListSecurityGroupRulesParams) {
-	h.Logger.DebugContext(r.Context(), "ListSecurityGroupRules not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (h *Handler) DeleteSecurityGroupRule(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdknetwork.DeleteSecurityGroupRuleParams) {
-	h.Logger.DebugContext(r.Context(), "DeleteSecurityGroupRule not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (h *Handler) GetSecurityGroupRule(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam) {
-	h.Logger.DebugContext(r.Context(), "GetSecurityGroupRule not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (h *Handler) CreateOrUpdateSecurityGroupRule(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdknetwork.CreateOrUpdateSecurityGroupRuleParams) {
-	h.Logger.DebugContext(r.Context(), "CreateOrUpdateSecurityGroupRule not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (h *Handler) ListSecurityGroups(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, params sdknetwork.ListSecurityGroupsParams) {
-	h.Logger.DebugContext(r.Context(), "ListSecurityGroups not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (h *Handler) DeleteSecurityGroup(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdknetwork.DeleteSecurityGroupParams) {
-	h.Logger.DebugContext(r.Context(), "DeleteSecurityGroup not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (h *Handler) GetSecurityGroup(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam) {
-	h.Logger.DebugContext(r.Context(), "GetSecurityGroup not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (h *Handler) CreateOrUpdateSecurityGroup(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdknetwork.CreateOrUpdateSecurityGroupParams) {
-	h.Logger.DebugContext(r.Context(), "CreateOrUpdateSecurityGroup not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
 }

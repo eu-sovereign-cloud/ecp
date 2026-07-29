@@ -97,34 +97,88 @@ make -C csp/ionos/deploy install-on-regional
 
 See `csp/ionos/README.md` for full deployment instructions, including token secret setup and provider configuration.
 
-**IONOS E2E tests** (`test/ionos-e2e/`):
+**Conformance** — the conformance suite (`secatest`) is plugin-generic and lives in
+the test harness. Each plugin ships its own single-plugin delegator image
+(`delegator-<plugin>`, built from `csp/<plugin>/cmd`); `CONFORMANCE_PLUGIN` on the
+`conformance-deploy` target selects which one to build and deploy (the chart picks
+the matching image and RBAC from its `plugin` value). Only `dummy` is
+self-contained; like aruba, `ionos` only reconciles once its backend (Crossplane +
+the IONOS provider, see `csp/ionos/deploy`) is installed in the cluster, so those
+two run as a two-phase flow:
 ```bash
-make -C test/ionos-e2e secatest-all
+# dummy plugin — self-contained one-shot on KIND
+make -C test kind-conformance
+
+# aruba / ionos — deploy the stack with the plugin, provision its backend, then run
+make -C test conformance-deploy CONFORMANCE_PLUGIN=aruba   # or CONFORMANCE_PLUGIN=ionos
+#   ... install the plugin's backend (aruba operator / Crossplane + IONOS provider) ...
+make -C test conformance
+```
+
+The IONOS plugin additionally keeps a standalone secatest flow for the full,
+realistic split global/regional demo (separate clusters, Crossplane provider,
+NodePort), in `test/conformance/ionos/` and delegated from the single Makefile:
+```bash
+make -C test conformance-ionos-scaffolding   # build images, create demo clusters, install plugin
+make -C test conformance-ionos               # run secatest via NodePort
+make -C test conformance-ionos-clean         # tear down
 ```
 
 ### Aruba Plugin (`csp/aruba/`)
 
 Direct CSP adapter for Aruba Cloud, without a Crossplane layer.
 
-## E2E Test Harness (`test/e2e/`)
+## Test Harness (`test/`)
 
-A multi-component test harness that tests the full ECP stack (gateway + plugin) end-to-end on a KIND cluster. Components are auto-discovered from the `build/` directory.
+The `test/` module tests the full ECP stack on KIND. It has four kinds of
+suite, all driven from one `Makefile`. Components are auto-discovered from the
+`internal/build/` directory.
+
+- **integration** (`test/integration/`) — each component in isolation. Every
+  `kind-deploy-<component>` also deploys the fixtures its suite needs, so it is a
+  complete setup for the matching `kind-integration-<component>`:
+  - **`gateway-regional`** / **`gateway-global`** test only REST↔CR translation
+    (asserting HTTP responses — never reconciled status). Each needs only its own
+    gateway plus `test-data`.
+  - **`delegator`** tests reconciliation: the dummy-plugin controllers drive CRs to
+    `Active`. It needs `test-data`.
+- **e2e** (`test/e2e/`) — the whole stack in one run: it drives the SECA API and
+  asserts resources reconcile down to the delegator plugin. Single cluster.
+- **multicluster e2e** (`test/e2e/multicluster/`) — the split topology: global gateway
+  in one cluster, regional gateway + delegator in another, joined only by the Region CR
+  the global gateway advertises. The suite gets only the global endpoint and must
+  discover the regional API from the region catalog. Needs its own cluster pair, so it
+  is not part of `test-all`.
+- **conformance** — runs `secatest` against the stack, generic across plugins.
 
 ```bash
-# Start KIND cluster, load all images, deploy all components
-make -C test/e2e kind-start
+# Integration: deploy a suite's components and run it
+make -C test kind-start
+make -C test kind-deploy-gateway-regional
+make -C test kind-integration-gateway-regional
 
-# Build all component images
-make -C test/e2e build-all
+# One shot (build, load, deploy the dummy stack, run the suite)
+make -C test kind-e2e            # e2e only
+make -C test kind-integration    # every integration suite
+make -C test kind-test-all       # both
 
-# Run all tests
-make -C test/e2e test-all
+# Split global/regional topology (its own cluster pair)
+make -C test kind-multicluster-e2e
+make -C test kind-multicluster-stop
 
 # Tear down
-make -C test/e2e kind-stop
+make -C test kind-stop
 ```
 
-The e2e module (`test/e2e`) is excluded from the standard per-module CI checks (`GO_MODULES_EXCLUDE` in `.common.mk`).
+All suites run against the same stack, deployed with one authenticator
+(`AUTH_PLUGIN=dummy|jwt`, default `dummy`) — `make -C test kind-test-all AUTH_PLUGIN=jwt`
+runs everything against signed JWTs instead.
+
+The stack is deployed from the shipped Helm charts (`charts/ecp/` for the gateways,
+`charts/delegator/` for the delegator, whose `plugin` value is the same one selected here),
+so a test run exercises the charts a real install uses. See `test/README.md` for the full
+workflow. The test module (`test`) is excluded from the standard per-module CI checks (see
+the exclude list in `ci/scripts/go-modules.sh`).
 
 ## Writing a New Plugin
 

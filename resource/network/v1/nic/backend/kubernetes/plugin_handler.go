@@ -163,5 +163,5 @@ func wantNicRetryCreate(resource *nicdom.Nic) bool {
 	return resource.DeletedAt == nil && resource.Status != nil &&
 		resource.Status.State == commondomain.ResourceStateError &&
 		len(resource.Status.Conditions) > 1 &&
-		resource.Status.Conditions[len(resource.Status.Conditions)-2].State == commondomain.ResourceStateCreating
+		resource.Status.Conditions[1].State == commondomain.ResourceStateCreating
 }

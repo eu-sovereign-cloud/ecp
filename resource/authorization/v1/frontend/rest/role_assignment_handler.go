@@ -9,21 +9,22 @@ import (
 
 	frest "github.com/eu-sovereign-cloud/ecp/framework/frontend/rest"
 	persistencepkg "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	radom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment"
 )
 
 // ListRoleAssignments handles GET /v1/tenants/{tenant}/role-assignments.
 func (h *Handler) ListRoleAssignments(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, params sdkauth.ListRoleAssignmentsParams) {
 	logger := h.Logger.With("provider", "authorization", "resource", "role-assignment")
-	frest.HandleList(w, r, logger, ListRoleAssignmentsParamsFromAPI(params, tenant), frest.ListerFromRepo(h.RoleAssignmentReader), RoleAssignmentIteratorToAPI)
+	frest.HandleList(w, r, logger, listRoleAssignmentsParamsFromAPI(params, tenant), frest.ListerFromRepo(h.RoleAssignmentReader), roleAssignmentIteratorToAPI)
 }
 
 // DeleteRoleAssignment handles DELETE /v1/tenants/{tenant}/role-assignments/{name}.
 func (h *Handler) DeleteRoleAssignment(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam, params sdkauth.DeleteRoleAssignmentParams) {
 	logger := h.Logger.With("provider", "authorization", "resource", "role-assignment", "name", name)
-	id := &RoleAssignmentIdentity{name: name, tenant: tenant}
+	id := &resource.Identity{Name: name, Scope: resource.Scope{Tenant: tenant}}
 	if params.IfUnmodifiedSince != nil {
-		id.resourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
+		id.Version = strconv.Itoa(*params.IfUnmodifiedSince)
 	}
 	frest.HandleDelete(w, r, logger, id, frest.DeleterFromRepo(h.RoleAssignmentWriter, newRoleAssignmentWithIdentity))
 }
@@ -31,25 +32,25 @@ func (h *Handler) DeleteRoleAssignment(w http.ResponseWriter, r *http.Request, t
 // GetRoleAssignment handles GET /v1/tenants/{tenant}/role-assignments/{name}.
 func (h *Handler) GetRoleAssignment(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam) {
 	logger := h.Logger.With("provider", "authorization", "resource", "role-assignment", "name", name)
-	id := &RoleAssignmentIdentity{name: name, tenant: tenant}
-	frest.HandleGet(w, r, logger, id, frest.GetterFromRepo(h.RoleAssignmentReader, newRoleAssignmentWithIdentity), RoleAssignmentToAPIWithVerb(http.MethodGet))
+	id := &resource.Identity{Name: name, Scope: resource.Scope{Tenant: tenant}}
+	frest.HandleGet(w, r, logger, id, frest.GetterFromRepo(h.RoleAssignmentReader, newRoleAssignmentWithIdentity), roleAssignmentToAPIWithVerb(http.MethodGet))
 }
 
 // CreateOrUpdateRoleAssignment handles PUT /v1/tenants/{tenant}/role-assignments/{name}.
 func (h *Handler) CreateOrUpdateRoleAssignment(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam, params sdkauth.CreateOrUpdateRoleAssignmentParams) {
 	logger := h.Logger.With("provider", "authorization", "resource", "role-assignment", "name", name)
-	id := &RoleAssignmentIdentity{name: name, tenant: tenant}
+	id := &resource.Identity{Name: name, Scope: resource.Scope{Tenant: tenant}}
 	if params.IfUnmodifiedSince != nil {
-		id.resourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
+		id.Version = strconv.Itoa(*params.IfUnmodifiedSince)
 	}
 	frest.HandleUpsert(w, r, logger, frest.UpsertOptions[sdkschema.RoleAssignment, *radom.RoleAssignment, *sdkschema.RoleAssignment]{
 		Params:  id,
-		Creator: frest.CreatorFromRepo(h.RoleAssignmentWriter),
-		Updater: frest.UpdaterFromRepo(h.RoleAssignmentWriter),
+		Creator: activeCreator(h.RoleAssignmentWriter, markRoleAssignmentActive),
+		Updater: activeUpdater(h.RoleAssignmentWriter, markRoleAssignmentActive),
 		APIToDomain: func(sdk sdkschema.RoleAssignment, p persistencepkg.IdentifiableResource) *radom.RoleAssignment {
-			return RoleAssignmentFromAPI(sdk, p.(*RoleAssignmentIdentity))
+			return roleAssignmentFromAPI(sdk, p.(*resource.Identity))
 		},
-		DomainToAPI: RoleAssignmentToAPIWithVerb(http.MethodPut),
+		DomainToAPI: roleAssignmentToAPIWithVerb(http.MethodPut),
 	})
 }
 

@@ -9,7 +9,7 @@ import (
 )
 
 func TestImageIteratorToAPI_ResponseMetadata(t *testing.T) {
-	iter := ImageIteratorToAPI(nil, nil)
+	iter := imageIteratorToAPI(nil, nil)
 	require.Equal(t, "images", iter.Metadata.Resource)
 	require.Equal(t, "seca.storage/v1", iter.Metadata.Provider)
 }

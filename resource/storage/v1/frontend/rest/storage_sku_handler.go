@@ -16,14 +16,14 @@ import (
 // ListSkus handles GET /v1/tenants/{tenant}/skus.
 func (h *Handler) ListSkus(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, params sdkstorage.ListSkusParams) {
 	logger := h.Logger.With("provider", "storage", "resource", "sku")
-	frest.HandleList(w, r, logger, storageSKUListParamsFromAPI(params, tenant), frest.ListerFromRepo(h.SKUReader), StorageSKUIteratorToAPI)
+	frest.HandleList(w, r, logger, storageSKUListParamsFromAPI(params, tenant), frest.ListerFromRepo(h.SKUReader), storageSKUIteratorToAPI)
 }
 
 // GetSku handles GET /v1/tenants/{tenant}/skus/{name}.
 func (h *Handler) GetSku(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam) {
 	logger := h.Logger.With("provider", "storage", "resource", "sku", "name", name)
-	ir := &skuIdentity{name: name, tenant: tenant}
-	frest.HandleGet(w, r, logger, ir, frest.GetterFromRepo(h.SKUReader, newStorageSKUWithIdentity), StorageSKUToAPIWithVerb(http.MethodGet))
+	ir := &resource.Identity{Name: name, Scope: resource.Scope{Tenant: tenant}}
+	frest.HandleGet(w, r, logger, ir, frest.GetterFromRepo(h.SKUReader, newStorageSKUWithIdentity), storageSKUToAPIWithVerb(http.MethodGet))
 }
 
 // storageSKUListParamsFromAPI converts SDK ListSkusParams to a tenant-scoped resource.ListParams.
@@ -43,19 +43,6 @@ func storageSKUListParamsFromAPI(params sdkstorage.ListSkusParams, tenant string
 		Selector:  selector,
 	}
 }
-
-// skuIdentity is a minimal IdentifiableResource for SKU get operations (tenant-scoped, no workspace).
-type skuIdentity struct {
-	name   string
-	tenant string
-}
-
-func (s *skuIdentity) GetName() string      { return s.name }
-func (s *skuIdentity) GetVersion() string   { return "" }
-func (s *skuIdentity) GetTenant() string    { return s.tenant }
-func (s *skuIdentity) GetWorkspace() string { return "" }
-
-var _ persistencepkg.IdentifiableResource = (*skuIdentity)(nil)
 
 // newStorageSKUWithIdentity returns a *skudom.StorageSKU populated with identity fields from ir.
 func newStorageSKUWithIdentity(ir persistencepkg.IdentifiableResource) *skudom.StorageSKU {

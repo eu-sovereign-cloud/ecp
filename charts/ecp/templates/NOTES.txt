@@ -1,0 +1,47 @@
+ECP {{ .Chart.AppVersion }} deployed to namespace {{ .Release.Namespace }}.
+
+Components:
+{{- if .Values.gatewayGlobal.enabled }}
+  * gateway-global   — providers: seca.region, seca.authorization
+      kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "ecp.gatewayGlobal.fullname" . }} 8080:{{ .Values.gatewayGlobal.service.port }}
+      curl http://localhost:8080/providers/seca.region/v1/regions
+{{- end }}
+{{- if .Values.gatewayRegional.enabled }}
+  * gateway-regional — region "{{ .Values.gatewayRegional.region }}", providers: seca.workspace, seca.storage, seca.network, seca.compute
+      kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "ecp.gatewayRegional.fullname" . }} 8081:{{ .Values.gatewayRegional.service.port }}
+      curl http://localhost:8081/providers/seca.workspace/v1/tenants/<tenant>/workspaces
+{{- end }}
+
+{{- if .Values.auth.enabled }}
+
+Authentication is ENABLED: requests need an "Authorization: Bearer <token>"
+header — see doc/AUTH.md for the token formats.
+{{- if eq .Values.auth.plugin "jwt" }}
+Both gateways verify standard signed JWTs ({{ .Values.auth.jwt.signingMethod }}).
+{{- else }}
+Both gateways use the dummy authenticator — no signature verification,
+development and testing only.
+{{- end }}
+{{- else }}
+
+WARNING: authentication is DISABLED (auth.enabled=false, the default). The API
+is unauthenticated — do not expose it beyond the cluster in this mode.
+{{- end }}
+
+{{- if ( index .Values "ecp-delegator" ).enabled }}
+
+  * delegator — {{ ( index .Values "ecp-delegator" ).plugin }} plugin
+      kubectl -n {{ .Release.Namespace }} rollout status deploy -l app.kubernetes.io/name=ecp-delegator
+
+Its backend is not installed by this chart — resources stay pending until the
+plugin's backend is present (see charts/delegator/README.md). plugin=dummy
+provisions nothing at all: development and testing only.
+{{- else }}
+
+To reconcile resources you also need a delegator running in this cluster,
+with the plugin for your CSP — either as this chart's subchart:
+  helm upgrade ecp <repo>/ecp --reuse-values \
+    --set ecp-delegator.enabled=true --set ecp-delegator.plugin=aruba
+or standalone:
+  helm install ecp-delegator <repo>/ecp-delegator --set plugin=aruba
+{{- end }}

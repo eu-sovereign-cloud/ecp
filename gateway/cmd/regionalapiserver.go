@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"log"
 	"log/slog"
@@ -17,20 +18,42 @@ import (
 	sdknetworkapi "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.network.v1"
 	sdkstorageapi "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	sdkworkspaceapi "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1"
-	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	"github.com/eu-sovereign-cloud/ecp/framework/frontend/config"
+	"github.com/eu-sovereign-cloud/ecp/gateway/internal/auth"
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/httpserver"
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/kubeclient"
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/logger"
+	"github.com/eu-sovereign-cloud/ecp/gateway/internal/metrics"
+	roledom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role"
+	radom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment"
+	rak8s "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment/backend/kubernetes"
+	rolek8s "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role/backend/kubernetes"
+	computerest "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/frontend/rest"
+	instancedom "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/instance"
+	instancek8s "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/instance/backend/kubernetes"
+	computeskudom "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/sku"
+	computeskuk8s "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/sku/backend/kubernetes"
 	netrest "github.com/eu-sovereign-cloud/ecp/resource/network/v1/frontend/rest"
+	internetgatewaydom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/internet-gateway"
+	internetgatewayk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/internet-gateway/backend/kubernetes"
 	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network"
 	netskudom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network-sku"
 	netskuk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network-sku/backend/kubernetes"
 	netk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network/backend/kubernetes"
 	nicdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic"
 	nick8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic/backend/kubernetes"
+	publicipdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/public-ip"
+	publicipk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/public-ip/backend/kubernetes"
+	routetabledom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/route-table"
+	routetablek8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/route-table/backend/kubernetes"
+	securitygroupdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group"
+	securitygroupruledom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group-rule"
+	securitygrouprulek8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group-rule/backend/kubernetes"
+	securitygroupk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group/backend/kubernetes"
+	subnetdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/subnet"
+	subnetk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/subnet/backend/kubernetes"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage"
 	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage/backend/kubernetes"
 	storagerest "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/frontend/rest"
@@ -48,6 +71,8 @@ var (
 	regionalHost       string
 	regionalPort       string
 	regionalKubeconfig string
+
+	regionalAuthFlags auth.Flags
 )
 
 var regionalApiServerCMD = &cobra.Command{
@@ -75,59 +100,8 @@ func init() {
 		&regionalKubeconfig, "kubeconfig", filepath.Join(homedir.HomeDir(), ".kube", "config"),
 		"Path to regional kubeconfig",
 	)
+	auth.RegisterFlags(regionalApiServerCMD, &regionalAuthFlags)
 	rootCmd.AddCommand(regionalApiServerCMD)
-}
-
-// computeStub is a local stub implementing sdkcomputeapi.ServerInterface with all methods returning 501.
-type computeStub struct {
-	logger *slog.Logger
-}
-
-var _ sdkcomputeapi.ServerInterface = (*computeStub)(nil)
-
-func (c *computeStub) ListSkus(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, params sdkcomputeapi.ListSkusParams) {
-	c.logger.DebugContext(r.Context(), "ListSkus not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (c *computeStub) GetSku(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam) {
-	c.logger.DebugContext(r.Context(), "GetSku not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (c *computeStub) ListInstances(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, params sdkcomputeapi.ListInstancesParams) {
-	c.logger.DebugContext(r.Context(), "ListInstances not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (c *computeStub) DeleteInstance(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdkcomputeapi.DeleteInstanceParams) {
-	c.logger.DebugContext(r.Context(), "DeleteInstance not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (c *computeStub) GetInstance(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam) {
-	c.logger.DebugContext(r.Context(), "GetInstance not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (c *computeStub) CreateOrUpdateInstance(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdkcomputeapi.CreateOrUpdateInstanceParams) {
-	c.logger.DebugContext(r.Context(), "CreateOrUpdateInstance not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (c *computeStub) RestartInstance(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdkcomputeapi.RestartInstanceParams) {
-	c.logger.DebugContext(r.Context(), "RestartInstance not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (c *computeStub) StartInstance(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdkcomputeapi.StartInstanceParams) {
-	c.logger.DebugContext(r.Context(), "StartInstance not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (c *computeStub) StopInstance(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdkcomputeapi.StopInstanceParams) {
-	c.logger.DebugContext(r.Context(), "StopInstance not implemented")
-	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // startRegional starts the backend HTTP server on the given address.
@@ -163,13 +137,68 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 	// Create a shared mux for all regional handlers
 	mux := http.NewServeMux()
 
-	// Compute (stub — not yet implemented)
+	// Compute adapters
+	instanceReaderAdapter := k8sadapter.NewReaderAdapter[*instancedom.Instance](
+		client.Client,
+		instancek8s.InstanceGVR,
+		logger,
+		instancek8s.InstanceFromCR,
+	)
+	instanceWriterAdapter := k8sadapter.NewWriterAdapter[*instancedom.Instance](
+		client.Client,
+		instancek8s.InstanceGVR,
+		logger,
+		instancek8s.InstanceToCR,
+		instancek8s.InstanceFromCR,
+	)
+	instanceSKUReaderAdapter := k8sadapter.NewReaderAdapter[*computeskudom.InstanceSKU](
+		client.Client,
+		computeskuk8s.InstanceSKUGVR,
+		logger,
+		computeskuk8s.InstanceSKUFromCR,
+	)
+	// Metrics endpoint — unauthenticated, mounted outside provider HandlerWithOptions.
+	mux.Handle("/metrics", metrics.Handler())
+
+	// RBAC reader adapters used by the authorization checker.
+	roleReaderAdapter := k8sadapter.NewReaderAdapter[*roledom.Role](
+		client.Client,
+		rolek8s.RoleGVR,
+		logger,
+		rolek8s.RoleFromCR,
+	)
+	roleAssignmentReaderAdapter := k8sadapter.NewReaderAdapter[*radom.RoleAssignment](
+		client.Client,
+		rak8s.RoleAssignmentGVR,
+		logger,
+		rak8s.RoleAssignmentFromCR,
+	)
+
+	// Build the authenticator and RBAC checker (both nil when --auth-enabled is not set).
+	authenticator, checker, err := auth.Build(&regionalAuthFlags, client.Client, roleReaderAdapter, roleAssignmentReaderAdapter, logger)
+	if err != nil {
+		logger.Error("failed to build auth chain", slog.Any("error", err))
+		log.Fatal(err, " - failed to build auth chain")
+	}
+
+	// Start the informer-backed checker when --authz-cache is enabled.
+	if err := auth.StartChecker(context.Background(), checker, logger); err != nil {
+		logger.Error("failed to start authz cache", slog.Any("error", err))
+		log.Fatal(err, " - failed to start authz cache")
+	}
+
 	sdkcomputeapi.HandlerWithOptions(
-		&computeStub{logger: logger},
+		&computerest.Handler{
+			InstanceReader: instanceReaderAdapter,
+			InstanceWriter: instanceWriterAdapter,
+			SKUReader:      instanceSKUReaderAdapter,
+			Logger:         logger,
+		},
 		sdkcomputeapi.StdHTTPServerOptions{
-			BaseURL:          "/providers/seca.compute",
-			BaseRouter:       mux,
-			Middlewares:      nil,
+			BaseURL:    "/providers/seca.compute",
+			BaseRouter: mux,
+			Middlewares: auth.ProviderMWs[sdkcomputeapi.MiddlewareFunc](&regionalAuthFlags, authenticator, checker, "seca.compute",
+				"/providers/seca.compute", logger),
 			ErrorHandlerFunc: nil,
 		},
 	)
@@ -181,12 +210,14 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		logger,
 		netk8s.NetworkFromCR,
 	)
-	netWriterAdapter := k8sadapter.NewWriterAdapter[*netdom.Network](
+	netWriterAdapter := k8sadapter.NewNamespaceManagingWriterAdapter[*netdom.Network](
 		client.Client,
+		client.ClientSet,
 		netk8s.NetworkGVR,
 		logger,
 		netk8s.NetworkToCR,
 		netk8s.NetworkFromCR,
+		k8sadapter.NetworkChildren,
 	)
 	netSKUReaderAdapter := k8sadapter.NewReaderAdapter[*netskudom.NetworkSKU](
 		client.Client,
@@ -207,20 +238,110 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		nick8s.NicToCR,
 		nick8s.NicFromCR,
 	)
+	publicIpReaderAdapter := k8sadapter.NewReaderAdapter[*publicipdom.PublicIp](
+		client.Client,
+		publicipk8s.PublicIPGVR,
+		logger,
+		publicipk8s.PublicIpFromCR,
+	)
+	publicIpWriterAdapter := k8sadapter.NewWriterAdapter[*publicipdom.PublicIp](
+		client.Client,
+		publicipk8s.PublicIPGVR,
+		logger,
+		publicipk8s.PublicIpToCR,
+		publicipk8s.PublicIpFromCR,
+	)
+	internetGatewayReaderAdapter := k8sadapter.NewReaderAdapter[*internetgatewaydom.InternetGateway](
+		client.Client,
+		internetgatewayk8s.InternetGatewayGVR,
+		logger,
+		internetgatewayk8s.InternetGatewayFromCR,
+	)
+	internetGatewayWriterAdapter := k8sadapter.NewWriterAdapter[*internetgatewaydom.InternetGateway](
+		client.Client,
+		internetgatewayk8s.InternetGatewayGVR,
+		logger,
+		internetgatewayk8s.InternetGatewayToCR,
+		internetgatewayk8s.InternetGatewayFromCR,
+	)
+	routeTableReaderAdapter := k8sadapter.NewReaderAdapter[*routetabledom.RouteTable](
+		client.Client,
+		routetablek8s.RouteTableGVR,
+		logger,
+		routetablek8s.RouteTableFromCR,
+	)
+	routeTableWriterAdapter := k8sadapter.NewWriterAdapter[*routetabledom.RouteTable](
+		client.Client,
+		routetablek8s.RouteTableGVR,
+		logger,
+		routetablek8s.RouteTableToCR,
+		routetablek8s.RouteTableFromCR,
+	)
+	subnetReaderAdapter := k8sadapter.NewReaderAdapter[*subnetdom.Subnet](
+		client.Client,
+		subnetk8s.SubnetGVR,
+		logger,
+		subnetk8s.SubnetFromCR,
+	)
+	subnetWriterAdapter := k8sadapter.NewWriterAdapter[*subnetdom.Subnet](
+		client.Client,
+		subnetk8s.SubnetGVR,
+		logger,
+		subnetk8s.SubnetToCR,
+		subnetk8s.SubnetFromCR,
+	)
+	securityGroupReaderAdapter := k8sadapter.NewReaderAdapter[*securitygroupdom.SecurityGroup](
+		client.Client,
+		securitygroupk8s.SecurityGroupGVR,
+		logger,
+		securitygroupk8s.SecurityGroupFromCR,
+	)
+	securityGroupWriterAdapter := k8sadapter.NewWriterAdapter[*securitygroupdom.SecurityGroup](
+		client.Client,
+		securitygroupk8s.SecurityGroupGVR,
+		logger,
+		securitygroupk8s.SecurityGroupToCR,
+		securitygroupk8s.SecurityGroupFromCR,
+	)
+	securityGroupRuleReaderAdapter := k8sadapter.NewReaderAdapter[*securitygroupruledom.SecurityGroupRule](
+		client.Client,
+		securitygrouprulek8s.SecurityGroupRuleGVR,
+		logger,
+		securitygrouprulek8s.SecurityGroupRuleFromCR,
+	)
+	securityGroupRuleWriterAdapter := k8sadapter.NewWriterAdapter[*securitygroupruledom.SecurityGroupRule](
+		client.Client,
+		securitygrouprulek8s.SecurityGroupRuleGVR,
+		logger,
+		securitygrouprulek8s.SecurityGroupRuleToCR,
+		securitygrouprulek8s.SecurityGroupRuleFromCR,
+	)
 
 	sdknetworkapi.HandlerWithOptions(
 		&netrest.Handler{
-			NetworkReader: netReaderAdapter,
-			NetworkWriter: netWriterAdapter,
-			SKUReader:     netSKUReaderAdapter,
-			NicReader:     nicReaderAdapter,
-			NicWriter:     nicWriterAdapter,
-			Logger:        logger,
+			NetworkReader:           netReaderAdapter,
+			NetworkWriter:           netWriterAdapter,
+			SKUReader:               netSKUReaderAdapter,
+			NicReader:               nicReaderAdapter,
+			NicWriter:               nicWriterAdapter,
+			PublicIpReader:          publicIpReaderAdapter,
+			PublicIpWriter:          publicIpWriterAdapter,
+			InternetGatewayReader:   internetGatewayReaderAdapter,
+			InternetGatewayWriter:   internetGatewayWriterAdapter,
+			RouteTableReader:        routeTableReaderAdapter,
+			RouteTableWriter:        routeTableWriterAdapter,
+			SubnetReader:            subnetReaderAdapter,
+			SubnetWriter:            subnetWriterAdapter,
+			SecurityGroupReader:     securityGroupReaderAdapter,
+			SecurityGroupWriter:     securityGroupWriterAdapter,
+			SecurityGroupRuleReader: securityGroupRuleReaderAdapter,
+			SecurityGroupRuleWriter: securityGroupRuleWriterAdapter,
+			Logger:                  logger,
 		},
 		sdknetworkapi.StdHTTPServerOptions{
 			BaseURL:          "/providers/seca.network",
 			BaseRouter:       mux,
-			Middlewares:      nil,
+			Middlewares:      auth.ProviderMWs[sdknetworkapi.MiddlewareFunc](&regionalAuthFlags, authenticator, checker, "seca.network", "/providers/seca.network", logger),
 			ErrorHandlerFunc: nil,
 		},
 	)
@@ -269,9 +390,10 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 			Logger:             logger,
 		},
 		sdkstorageapi.StdHTTPServerOptions{
-			BaseURL:          "/providers/seca.storage",
-			BaseRouter:       mux,
-			Middlewares:      nil,
+			BaseURL:    "/providers/seca.storage",
+			BaseRouter: mux,
+			Middlewares: auth.ProviderMWs[sdkstorageapi.MiddlewareFunc](&regionalAuthFlags, authenticator, checker, "seca.storage",
+				"/providers/seca.storage", logger),
 			ErrorHandlerFunc: nil,
 		},
 	)
@@ -284,6 +406,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		logger,
 		wsk8s.WorkspaceToCR,
 		wsk8s.WorkspaceFromCR,
+		k8sadapter.WorkspaceChildren,
 	)
 	wsReaderAdapter := k8sadapter.NewReaderAdapter[*wsdom.Workspace](
 		client.Client,
@@ -299,9 +422,10 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 			Logger: logger,
 		},
 		sdkworkspaceapi.StdHTTPServerOptions{
-			BaseURL:          "/providers/seca.workspace",
-			BaseRouter:       mux,
-			Middlewares:      nil,
+			BaseURL:    "/providers/seca.workspace",
+			BaseRouter: mux,
+			Middlewares: auth.ProviderMWs[sdkworkspaceapi.MiddlewareFunc](&regionalAuthFlags, authenticator, checker, "seca.workspace",
+				"/providers/seca.workspace", logger),
 			ErrorHandlerFunc: nil,
 		},
 	)

@@ -219,6 +219,12 @@ func formatDefaultMarker(value string) string {
 	if _, err := strconv.ParseFloat(value, 64); err == nil {
 		return "// +kubebuilder:default=" + value
 	}
+	if strings.HasPrefix(value, "[") || strings.HasPrefix(value, "{") {
+		if strings.Contains(value, `'`) {
+			value = strings.ReplaceAll(value, `'`, `"`)
+		}
+		return fmt.Sprintf(`// +kubebuilder:default=%s`, value)
+	}
 	return fmt.Sprintf(`// +kubebuilder:default="%s"`, value)
 }
 

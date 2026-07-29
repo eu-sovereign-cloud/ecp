@@ -9,7 +9,7 @@ import (
 )
 
 func TestWorkspaceIteratorToAPI_ResponseMetadata(t *testing.T) {
-	iter := WorkspaceIteratorToAPI(nil, nil)
+	iter := workspaceIteratorToAPI(nil, nil)
 	require.Equal(t, "workspaces", iter.Metadata.Resource)
 	require.Equal(t, "seca.workspace/v1", iter.Metadata.Provider)
 }
