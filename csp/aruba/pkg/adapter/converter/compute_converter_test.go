@@ -40,7 +40,7 @@ func TestBuildKeyPair(t *testing.T) {
 }
 
 func TestBuildSecurityGroup(t *testing.T) {
-	sg := converter.BuildSecurityGroup("web", "my-network", "", "test-tenant", "ws-ns", vpcRef(), projectRef())
+	sg := converter.BuildSecurityGroup("web", "my-network", "", "test-tenant", "ws-ns", nil, vpcRef(), projectRef())
 	// Name encodes the network so the same SECA group can be materialised in several VPCs.
 	require.Equal(t, "web-my-network", sg.Name)
 	require.Equal(t, "ws-ns", sg.Namespace)
@@ -59,7 +59,7 @@ func TestBuildSecurityRules_expansion(t *testing.T) {
 				Protocol:  "tcp+udp",
 				Ports:     &securitygroup.Ports{List: []int{80, 443}},
 			},
-		})
+		}, nil)
 
 		out := converter.BuildSecurityRules(rules, sgName, "", "test-tenant", "ws-ns", vpcRef(), projectRef())
 		// 2 protocols x 2 ports x 1 (default) target = 4 rules.
@@ -91,7 +91,7 @@ func TestBuildSecurityRules_expansion(t *testing.T) {
 				Ports:     &securitygroup.Ports{From: 80, To: 90},
 				SourceRef: []commondomain.Reference{{Resource: "security-groups/frontend"}},
 			},
-		})
+		}, nil)
 
 		out := converter.BuildSecurityRules(rules, sgName, "ITBG-Bergamo", "test-tenant", "ws-ns", vpcRef(), projectRef())
 		require.Len(t, out, 1)
@@ -104,7 +104,7 @@ func TestBuildSecurityRules_expansion(t *testing.T) {
 	t.Run("port range and empty protocol map to a range and ALL", func(t *testing.T) {
 		rules := converter.NormalizeInlineRules([]securitygroup.SecurityGroupRuleSpec{
 			{Direction: "ingress", Ports: &securitygroup.Ports{From: 8000, To: 8100}},
-		})
+		}, nil)
 
 		out := converter.BuildSecurityRules(rules, sgName, "", "test-tenant", "ws-ns", vpcRef(), projectRef())
 		require.Len(t, out, 1)
