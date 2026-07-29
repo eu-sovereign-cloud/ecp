@@ -4,7 +4,7 @@ source "$(dirname "$0")/common.sh"
 setup_env
 setup_kube_vars
 
-CRDS_DIR="${SCRIPT_DIR}/../../../chart/crds"
+CRDS_DIR="${SCRIPT_DIR}/../../../charts/ecp/crds"
 
 if [ -d "${CRDS_DIR}" ]; then
     echo "Cleaning CRDs from ${CRDS_DIR}..."

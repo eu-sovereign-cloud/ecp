@@ -7,9 +7,11 @@ Helm chart for the European Control Plane (ECP) API servers:
 - **gateway-regional** — serves the regional SECA providers (`seca.workspace`,
   `seca.storage`, `seca.network`, `seca.compute`) for one region.
 
-Reconciliation is not part of this chart: install
-[`chart-delegator`](../chart-delegator) alongside the regional gateway, with
-`plugin` set to the CSP you run.
+Reconciliation is done by the [`delegator`](../delegator), which runs
+alongside the regional gateway with `plugin` set to the CSP you run. It ships
+here as an optional subchart (`ecp-delegator.enabled`, off by default) — or
+install that chart standalone if you want to version and upgrade it
+separately.
 
 ## Topology: together or split?
 
@@ -30,21 +32,43 @@ Images are published to `ghcr.io/eu-sovereign-cloud/ecp/` on every `v*` tag
 (see `.github/workflows/image-release.yaml`), and `*.image.tag` defaults to
 the chart's appVersion — so the defaults resolve with no override.
 
+Installing **from a checkout** needs the delegator dependency resolved first,
+even though it is disabled by default — Helm materializes a declared
+dependency before it evaluates the condition that switches it off, so without
+this every command below fails with `missing in charts/ directory`:
+
 ```bash
-# All-in-one
-helm install ecp chart \
+helm dependency update charts/ecp
+```
+
+The resolved `charts/*.tgz` is gitignored and regenerated on demand; re-run it
+after editing [`charts/delegator/`](../delegator). Installing from a packaged
+release instead has the dependency already embedded and needs none of this.
+
+```bash
+# Global and Regional clusters
+helm install ecp charts/ecp \
   --namespace ecp --create-namespace \
   --set gatewayRegional.region=itbg-bergamo
 
 # Global cluster only
-helm install ecp chart -n ecp --create-namespace \
+helm install ecp charts/ecp -n ecp --create-namespace \
   --set gatewayRegional.enabled=false
 
 # Regional cluster only
-helm install ecp chart -n ecp --create-namespace \
+helm install ecp charts/ecp -n ecp --create-namespace \
   --set gatewayGlobal.enabled=false \
   --set gatewayRegional.region=itbg-bergamo
+
+# Global and Regional clusters, with the delegator as a subchart
+helm install ecp charts/ecp -n ecp --create-namespace \
+  --set gatewayRegional.region=itbg-bergamo \
+  --set ecp-delegator.enabled=true \
+  --set ecp-delegator.plugin=aruba
 ```
+
+`plugin=dummy` works the same way, but its image is never published — pass
+`--set ecp-delegator.image.repository=<locally built image>` with it.
 
 ## CRDs
 
@@ -54,7 +78,7 @@ always ships the current generated CRDs. Helm installs the CRDs on first
 CRDs on an existing cluster apply them directly:
 
 ```bash
-kubectl apply -f chart/crds/
+kubectl apply -f charts/ecp/crds/
 ```
 
 ## Authentication
@@ -67,7 +91,7 @@ cluster in that mode. Two authentication plugins exist (`auth.plugin`):
   verification. Development and testing only.
 
   ```bash
-  helm install ecp chart -n ecp --create-namespace \
+  helm install ecp charts/ecp -n ecp --create-namespace \
     --set gatewayRegional.region=itbg-bergamo \
     --set auth.enabled=true \
     --set auth.dummyUsers.users.admin=some-password
@@ -80,7 +104,7 @@ cluster in that mode. Two authentication plugins exist (`auth.plugin`):
   the `alg` header pinned to `auth.jwt.signingMethod`:
 
   ```bash
-  helm install ecp chart -n ecp --create-namespace \
+  helm install ecp charts/ecp -n ecp --create-namespace \
     --set gatewayRegional.region=itbg-bergamo \
     --set auth.enabled=true \
     --set auth.plugin=jwt \
@@ -120,6 +144,8 @@ See [values.yaml](values.yaml) for the full commented list. The notable ones:
 | `*.image.repository` | `ghcr.io/eu-sovereign-cloud/ecp/...` | Override only to mirror the images into your own registry |
 | `*.service.type` / `*.ingress.enabled` | `ClusterIP` / `false` | How to expose each gateway |
 | `*.service.nodePort` | `""` | Fixed node port, honoured only when `service.type=NodePort` (else auto-assigned) |
+| `ecp-delegator.enabled` | `false` | Deploy the [delegator](../delegator) as a subchart. Its dependency is resolved either way — see Installing |
+| `ecp-delegator.plugin` | `""` | **Required** when enabled — `aruba`, `dummy` or `ionos`; any other `ecp-delegator.*` value from that chart passes through |
 
 `helm lint`/CI note: because `gatewayRegional.region` has no sane default,
-lint with the CI values: `helm lint chart -f chart/ci/default-values.yaml`.
+lint with the CI values: `helm lint charts/ecp -f charts/ecp/ci/default-values.yaml`.

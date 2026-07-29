@@ -174,8 +174,8 @@ All suites run against the same stack, deployed with one authenticator
 (`AUTH_PLUGIN=dummy|jwt`, default `dummy`) — `make -C test kind-test-all AUTH_PLUGIN=jwt`
 runs everything against signed JWTs instead.
 
-The stack is deployed from the shipped Helm charts (`chart/` for the gateways,
-`chart-delegator/` for the delegator, whose `plugin` value is the same one selected here),
+The stack is deployed from the shipped Helm charts (`charts/ecp/` for the gateways,
+`charts/delegator/` for the delegator, whose `plugin` value is the same one selected here),
 so a test run exercises the charts a real install uses. See `test/README.md` for the full
 workflow. The test module (`test`) is excluded from the standard per-module CI checks (see
 the exclude list in `ci/scripts/go-modules.sh`).

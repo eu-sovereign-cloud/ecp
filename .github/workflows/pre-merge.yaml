@@ -144,11 +144,16 @@ jobs:
       - name: Lint and render charts
         run: |
           set -euo pipefail
-          helm lint chart -f chart/ci/default-values.yaml
-          helm template ecp chart -f chart/ci/default-values.yaml > /dev/null
-          helm lint chart-delegator -f chart-delegator/ci/default-values.yaml
+          # The ecp chart declares the delegator as an optional dependency, and
+          # Helm materializes a declared dependency before it evaluates the
+          # condition that keeps it disabled — so lint/template need it resolved
+          # even though the rendered output contains none of it.
+          helm dependency update charts/ecp
+          helm lint charts/ecp -f charts/ecp/ci/default-values.yaml
+          helm template ecp charts/ecp -f charts/ecp/ci/default-values.yaml > /dev/null
+          helm lint charts/delegator -f charts/delegator/ci/default-values.yaml
           for plugin in aruba dummy ionos; do
-            helm template ecp-delegator chart-delegator --set "plugin=$plugin" > /dev/null
+            helm template ecp-delegator charts/delegator --set "plugin=$plugin" > /dev/null
           done
 
   # ===========================================================================

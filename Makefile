@@ -349,7 +349,7 @@ generate-api:
 .PHONY: generate-api-verify
 generate-api-verify: generate-api
 	@$(_REPO_ROOT)/ci/scripts/verify-run.sh generate-api-verify "Generated API artifacts are in sync" -- \
-	  $(_REPO_ROOT)/ci/scripts/git-tree-clean-verify.sh --against-index $(_REPO_ROOT) generate-api "make generate-api" framework/backend/kubernetes/ resource/ chart/
+	  $(_REPO_ROOT)/ci/scripts/git-tree-clean-verify.sh --against-index $(_REPO_ROOT) generate-api "make generate-api" framework/backend/kubernetes/ resource/ charts/ecp/
 
 ###############################################################################
 # Per-module: go mod tidy

@@ -62,7 +62,7 @@ docker-build-plugin:
 # Install ECP CRDs on the regional cluster (required for the plugin manager to sync caches)
 install-ecp-crds-on-regional:
 	@if [[ -z "$$REGIONAL_KUBECONFIG" ]]; then echo "Error: REGIONAL_KUBECONFIG must be set"; exit 1; fi
-	kubectl --kubeconfig $$REGIONAL_KUBECONFIG apply -f ../../../chart/crds
+	kubectl --kubeconfig $$REGIONAL_KUBECONFIG apply -f ../../../charts/ecp/crds
 
 # Load the plugin image into the regional cluster and apply the Deployment manifest.
 # Requires REGIONAL_KUBECONFIG to point at the regional cluster kubeconfig.
