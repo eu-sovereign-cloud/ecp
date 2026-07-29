@@ -242,7 +242,6 @@ func TestHandleUpsert_BodyTooLarge(t *testing.T) {
 	updater.AssertNotCalled(t, "Do")
 }
 
-
 func TestHandleUpsert_UpdateSucceedsOnAlreadyExists(t *testing.T) {
 	creator := &MockCreator[TestDomain]{}
 	updater := &MockUpdater[TestDomain]{}
