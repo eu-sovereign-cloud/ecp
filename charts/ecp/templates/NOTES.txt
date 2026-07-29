@@ -28,6 +28,20 @@ WARNING: authentication is DISABLED (auth.enabled=false, the default). The API
 is unauthenticated — do not expose it beyond the cluster in this mode.
 {{- end }}
 
+{{- if ( index .Values "ecp-delegator" ).enabled }}
+
+  * delegator — {{ ( index .Values "ecp-delegator" ).plugin }} plugin
+      kubectl -n {{ .Release.Namespace }} rollout status deploy -l app.kubernetes.io/name=ecp-delegator
+
+Its backend is not installed by this chart — resources stay pending until the
+plugin's backend is present (see charts/delegator/README.md). plugin=dummy
+provisions nothing at all: development and testing only.
+{{- else }}
+
 To reconcile resources you also need a delegator running in this cluster,
-with the plugin for your CSP:
+with the plugin for your CSP — either as this chart's subchart:
+  helm upgrade ecp <repo>/ecp --reuse-values \
+    --set ecp-delegator.enabled=true --set ecp-delegator.plugin=aruba
+or standalone:
   helm install ecp-delegator <repo>/ecp-delegator --set plugin=aruba
+{{- end }}
