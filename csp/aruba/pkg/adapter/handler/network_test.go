@@ -55,7 +55,7 @@ func expectInternetGateway(m *MockReaderRepo[*igwdom.InternetGateway], count int
 	m.EXPECT().
 		List(gomock.Any(), gomock.Any(), gomock.Any()).
 		DoAndReturn(func(_ context.Context, _ res.ListFilter, list *[]*igwdom.InternetGateway) (*string, error) {
-			for i := 0; i < count; i++ {
+			for range count {
 				*list = append(*list, &igwdom.InternetGateway{})
 			}
 			return nil, nil
