@@ -24,11 +24,15 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
-	roledom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role"
-	radom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment"
-	rak8s "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment/backend/kubernetes"
-	rolek8s "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role/backend/kubernetes"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
+	instancedom "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/instance"
+	instancek8s "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/instance/backend/kubernetes"
+	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network"
+	netk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network/backend/kubernetes"
+	routetabledom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/route-table"
+	routetablek8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/route-table/backend/kubernetes"
+	subnetdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/subnet"
+	subnetk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/subnet/backend/kubernetes"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage"
 	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage/backend/kubernetes"
 	imgdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image"
@@ -44,7 +48,11 @@ const (
 	timeout       = 5 * time.Minute
 	testTenant    = "test-tenant"
 	testWorkspace = "test-workspace"
-	testRegion    = "ITBG-Bergamo"
+	// testNetwork is the parent network that the networked-scope resources (subnet,
+	// route-table) live under. Its per-network namespace is provisioned as a fixture
+	// in TestMain; the network resource itself is exercised separately in network_test.go.
+	testNetwork = "test-network"
+	testRegion  = "ITBG-Bergamo"
 	// sourceBlockStorage is a workspace-scoped block storage that image tests depend
 	// on: images reference "block-storages/source-bs" and stay pending until it is
 	// active.
@@ -52,25 +60,29 @@ const (
 )
 
 var (
-	dynamicClient      dynamic.Interface
-	testLogger         *slog.Logger
-	workspaceRepo      persistence.Repo[*wsdom.Workspace]
-	blockStorageRepo   persistence.Repo[*bsdom.BlockStorage]
-	imageRepo          persistence.Repo[*imgdom.Image]
-	roleRepo           persistence.Repo[*roledom.Role]
-	roleAssignmentRepo persistence.Repo[*radom.RoleAssignment]
-	k8sClient          client.Client
+	dynamicClient    dynamic.Interface
+	testLogger       *slog.Logger
+	workspaceRepo    persistence.Repo[*wsdom.Workspace]
+	blockStorageRepo persistence.Repo[*bsdom.BlockStorage]
+	imageRepo        persistence.Repo[*imgdom.Image]
+	networkRepo      persistence.Repo[*netdom.Network]
+	subnetRepo       persistence.Repo[*subnetdom.Subnet]
+	routeTableRepo   persistence.Repo[*routetabledom.RouteTable]
+	instanceRepo     persistence.Repo[*instancedom.Instance]
+	k8sClient        client.Client
 )
 
 func TestMain(m *testing.M) {
 	// Initialize k8s scheme for client-go
 	s := runtime.NewScheme()
 	utilruntime.Must(scheme.AddToScheme(s))
-	utilruntime.Must(rolek8s.AddToScheme(s))
-	utilruntime.Must(rak8s.AddToScheme(s))
 	utilruntime.Must(wsk8s.AddToScheme(s))
 	utilruntime.Must(bsk8s.AddToScheme(s))
 	utilruntime.Must(imgk8s.AddToScheme(s))
+	utilruntime.Must(netk8s.AddToScheme(s))
+	utilruntime.Must(subnetk8s.AddToScheme(s))
+	utilruntime.Must(routetablek8s.AddToScheme(s))
+	utilruntime.Must(instancek8s.AddToScheme(s))
 	utilruntime.Must(corev1.AddToScheme(s))
 
 	restConfig, err := testenv.RestConfig()
@@ -117,20 +129,36 @@ func TestMain(m *testing.M) {
 		imgk8s.ImageFromCR,
 	)
 
-	roleRepo = k8sadapter.NewRepoAdapter(
+	networkRepo = k8sadapter.NewRepoAdapter(
 		dynamicClient,
-		rolek8s.RoleGVR,
+		netk8s.NetworkGVR,
 		testLogger,
-		rolek8s.RoleToCR,
-		rolek8s.RoleFromCR,
+		netk8s.NetworkToCR,
+		netk8s.NetworkFromCR,
 	)
 
-	roleAssignmentRepo = k8sadapter.NewRepoAdapter(
+	subnetRepo = k8sadapter.NewRepoAdapter(
 		dynamicClient,
-		rak8s.RoleAssignmentGVR,
+		subnetk8s.SubnetGVR,
 		testLogger,
-		rak8s.RoleAssignmentToCR,
-		rak8s.RoleAssignmentFromCR,
+		subnetk8s.SubnetToCR,
+		subnetk8s.SubnetFromCR,
+	)
+
+	routeTableRepo = k8sadapter.NewRepoAdapter(
+		dynamicClient,
+		routetablek8s.RouteTableGVR,
+		testLogger,
+		routetablek8s.RouteTableToCR,
+		routetablek8s.RouteTableFromCR,
+	)
+
+	instanceRepo = k8sadapter.NewRepoAdapter(
+		dynamicClient,
+		instancek8s.InstanceGVR,
+		testLogger,
+		instancek8s.InstanceToCR,
+		instancek8s.InstanceFromCR,
 	)
 
 	workspaceRepo = k8sadapter.NewNamespaceManagingRepoAdapter(
@@ -146,6 +174,15 @@ func TestMain(m *testing.M) {
 	// Provide Workspace for BlockStorage tests
 	if err := createTestWorkspace(context.Background(), workspaceRepo); err != nil {
 		log.Fatalf("Failed to create test workspace: %v", err)
+	}
+
+	// Provide the per-network namespace that the networked-scope resources (subnet,
+	// route-table) live in. The gateway provisions this when a Network is created
+	// (NetworkChildren); here we create it directly so the networked-scope tests do not
+	// depend on the network resource itself, which network_test.go covers separately.
+	networkNamespace := k8sadapter.ComputeNetworkNamespace(networkNamespaceScope())
+	if _, err := k8sadapter.CreateNamespace(context.Background(), clientset, networkNamespace, nil); err != nil {
+		log.Fatalf("Failed to create network namespace %q: %v", networkNamespace, err)
 	}
 
 	// Provide the source block storage that Image tests depend on. Images reference
@@ -168,6 +205,7 @@ func TestMain(m *testing.M) {
 	// have cleaned up their own images by now.
 	cleanupSourceBlockStorage(context.Background(), blockStorageRepo)
 	cleanupTestWorkspace(context.Background(), workspaceRepo)
+	_ = k8sadapter.DeleteNamespace(context.Background(), clientset, networkNamespace)
 
 	os.Exit(exitCode)
 }
@@ -205,6 +243,18 @@ func cleanupTestWorkspace(ctx context.Context, workspaceRepo persistence.Repo[*w
 	}
 
 	return workspaceRepo.Delete(ctx, wsDomain)
+}
+
+// networkNamespaceScope returns a network-scoped identity for testNetwork under the
+// test tenant/workspace, used only to compute the per-network namespace shared by the
+// subnet and route-table fixtures and tests (via ComputeNetworkNamespace).
+func networkNamespaceScope() *routetabledom.RouteTable {
+	rt := &routetabledom.RouteTable{
+		RegionalNetworkMetadata: commondomain.RegionalNetworkMetadata{Network: testNetwork},
+	}
+	rt.Tenant = testTenant
+	rt.Workspace = testWorkspace
+	return rt
 }
 
 // newSourceBlockStorage builds the workspace-scoped block storage that image tests

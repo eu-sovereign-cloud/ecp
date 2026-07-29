@@ -21,7 +21,7 @@ NAMESPACE="${CONFORMANCE_NAMESPACE:-e2e-ecp}"
 DEPLOY_DIR="${SCRIPT_DIR}/../deploy/conformance"
 
 # Defaults target the in-cluster global gateway with the dummy test-data tenant.
-: "${CONFORMANCE_PROVIDER_REGION_V1:=http://gateway-global-svc:80/providers/seca.region}"
+: "${CONFORMANCE_PROVIDER_REGION_V1:=http://${GATEWAY_GLOBAL_SVC}:80/providers/seca.region}"
 : "${CONFORMANCE_PROVIDER_AUTHORIZATION_V1:=}"
 : "${CONFORMANCE_AUTH_TOKEN:=test-token}"
 : "${CONFORMANCE_TENANT:=test-tenant}"
@@ -50,6 +50,17 @@ fi
 
 echo "Deploying conformance runner..."
 echo "${YAML}" | kubectl ${KUBECONFIG_ARG} apply -f -
+
+# A private registry needs a pull secret; KIND side-loads the runner image and
+# needs none. When the local context carries registry credentials, mint it,
+# attach it to the runner's ServiceAccount and restart so the pod is recreated
+# inheriting it.
+pull_secret=$(ensure_pull_secret "${NAMESPACE}")
+if [ -n "${pull_secret}" ]; then
+    kubectl ${KUBECONFIG_ARG} -n "${NAMESPACE}" patch serviceaccount conformance-sa \
+        --type merge -p "{\"imagePullSecrets\":[{\"name\":\"${pull_secret}\"}]}"
+    kubectl ${KUBECONFIG_ARG} -n "${NAMESPACE}" rollout restart deploy/conformance
+fi
 
 echo "Waiting for the conformance pod to be ready..."
 kubectl ${KUBECONFIG_ARG} -n "${NAMESPACE}" rollout status deploy/conformance --timeout=120s

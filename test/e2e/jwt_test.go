@@ -19,9 +19,10 @@ import (
 )
 
 // TestJWTAuthn exercises the JWT authenticator on the deployed global gateway,
-// which e2e-deploy configures with --auth-plugin=jwt --jwt-signing-method=ES256
-// and the public key in jwt-key-secret.yaml. The regional gateway keeps the
-// dummy authenticator, so the rest of the suite covers that plugin.
+// which AUTH_PLUGIN=jwt configures with --auth-plugin=jwt
+// --jwt-signing-method=ES256 and the public key in internal/deploy/gateway-values.yaml. Run the
+// stack with AUTH_PLUGIN=jwt to cover it; under the dummy plugin (the default)
+// these cases do not apply and the suite skips them.
 //
 // This is the only test that covers the flag → key file → ParseVerifyKey →
 // authenticator wiring: the unit tests build the authenticator from an
@@ -29,6 +30,9 @@ import (
 func TestJWTAuthn(t *testing.T) {
 	if !authhelper.AuthEnabled() {
 		t.Skip("E2E_AUTH_ENABLED=false: skipping JWT authn tests")
+	}
+	if !authhelper.JWTAuth() {
+		t.Skip("AUTH_PLUGIN is not jwt: the gateways verify dummy tokens")
 	}
 
 	// seca.region is authn-only (--authz-skip-providers), so its status isolates

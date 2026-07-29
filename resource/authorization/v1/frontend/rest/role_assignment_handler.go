@@ -45,8 +45,8 @@ func (h *Handler) CreateOrUpdateRoleAssignment(w http.ResponseWriter, r *http.Re
 	}
 	frest.HandleUpsert(w, r, logger, frest.UpsertOptions[sdkschema.RoleAssignment, *radom.RoleAssignment, *sdkschema.RoleAssignment]{
 		Params:  id,
-		Creator: frest.CreatorFromRepo(h.RoleAssignmentWriter),
-		Updater: frest.UpdaterFromRepo(h.RoleAssignmentWriter),
+		Creator: activeCreator(h.RoleAssignmentWriter, markRoleAssignmentActive),
+		Updater: activeUpdater(h.RoleAssignmentWriter, markRoleAssignmentActive),
 		APIToDomain: func(sdk sdkschema.RoleAssignment, p persistencepkg.IdentifiableResource) *radom.RoleAssignment {
 			return roleAssignmentFromAPI(sdk, p.(*resource.Identity))
 		},

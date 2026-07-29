@@ -1,0 +1,14 @@
+# Overlay for the multicluster topology, layered on top of values.yaml by
+# deploy.sh when DEPLOY_VALUES points here (see the kind-multicluster-stack
+# target).
+#
+# In the split topology the regional gateway lives in a different cluster from
+# the global one, so both the suite and the global gateway's region catalog must
+# reach it at an address that resolves outside its cluster. ClusterIP does not; a
+# NodePort published to the host does. The nodePort is pinned so it lines up with
+# the host port published by internal/kind-config/regional-cluster.yaml and read
+# back by internal/scripts/register-region.sh.
+gatewayRegional:
+  service:
+    type: NodePort
+    nodePort: 30080

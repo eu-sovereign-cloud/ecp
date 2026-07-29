@@ -1,4 +1,4 @@
-# ECP — European Control Plane
+# ECP — European Control Plane 
 
 A Kubernetes-native distributed control plane for managing cloud resources across multiple cloud service providers (CSPs).
 
@@ -30,15 +30,17 @@ csp/
 └── aruba/            # Aruba CSP plugin
 test/                 # Test harness: integration, e2e and conformance suites
 ├── integration/      # Per-component suites (delegator, gateway-global/-regional)
-├── e2e/              # Single end-to-end suite (API → delegator plugin)
+├── e2e/              # End-to-end suites: single-cluster, plus multicluster/ (split topology)
 ├── conformance/      # secatest conformance harnesses (ionos, aruba)
 └── internal/         # Shared infra: build, deploy, scripts, cmd, testenv, authhelper, context
 ci/
 ├── container/        # Dockerfile layers: builder, tools, dev, runner
 ├── scripts/          # CI and dev automation scripts
 └── tools/            # Pinned Go dev tool dependencies
-chart/
-└── crd/              # Generated Kubernetes CRD YAML (all 18 resource slices)
+chart/                # Helm chart: the global and regional gateways
+├── crds/             # Generated Kubernetes CRD YAML (all 18 resource slices)
+└── templates/        # Gateway Deployments, Services, RBAC, ingress
+chart-delegator/      # Helm chart: the delegator, one plugin set per install
 modules/
 └── go-sdk/           # Git submodule: shared OpenAPI specs and client SDK
 doc/                  # Documentation

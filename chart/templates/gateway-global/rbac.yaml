@@ -1,0 +1,41 @@
+{{- if and .Values.gatewayGlobal.enabled .Values.gatewayGlobal.rbac.create }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "ecp.gatewayGlobal.fullname" . }}
+  labels:
+    {{- include "ecp.labels" . | nindent 4 }}
+    app.kubernetes.io/component: gateway-global
+rules:
+  - apiGroups: ["v1.secapi.cloud"]
+    resources: ["regions"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["authorization.v1.secapi.cloud"]
+    resources: ["roles"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["authorization.v1.secapi.cloud"]
+    resources: ["roles/status"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: ["authorization.v1.secapi.cloud"]
+    resources: ["role-assignments"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["authorization.v1.secapi.cloud"]
+    resources: ["role-assignments/status"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "ecp.gatewayGlobal.fullname" . }}
+  labels:
+    {{- include "ecp.labels" . | nindent 4 }}
+    app.kubernetes.io/component: gateway-global
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "ecp.gatewayGlobal.fullname" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "ecp.gatewayGlobal.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}

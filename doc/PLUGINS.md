@@ -98,9 +98,10 @@ make -C csp/ionos/deploy install-on-regional
 See `csp/ionos/README.md` for full deployment instructions, including token secret setup and provider configuration.
 
 **Conformance** — the conformance suite (`secatest`) is plugin-generic and lives in
-the test harness. The delegator can load any of the plugin sets (`dummy`, `aruba`,
-`ionos`), selected with `CONFORMANCE_PLUGIN` on the `conformance-deploy` target
-(templated into the delegator's `PLUGIN` env var at deploy time). Only `dummy` is
+the test harness. Each plugin ships its own single-plugin delegator image
+(`delegator-<plugin>`, built from `csp/<plugin>/cmd`); `CONFORMANCE_PLUGIN` on the
+`conformance-deploy` target selects which one to build and deploy (the chart picks
+the matching image and RBAC from its `plugin` value). Only `dummy` is
 self-contained; like aruba, `ionos` only reconciles once its backend (Crossplane +
 the IONOS provider, see `csp/ionos/deploy`) is installed in the cluster, so those
 two run as a two-phase flow:
@@ -129,37 +130,55 @@ Direct CSP adapter for Aruba Cloud, without a Crossplane layer.
 
 ## Test Harness (`test/`)
 
-The `test/` module tests the full ECP stack on a KIND cluster. It has three kinds of
+The `test/` module tests the full ECP stack on KIND. It has four kinds of
 suite, all driven from one `Makefile`. Components are auto-discovered from the
 `internal/build/` directory.
 
 - **integration** (`test/integration/`) — each component in isolation. Every
   `kind-deploy-<component>` also deploys the fixtures its suite needs, so it is a
-  complete setup for the matching `kind-test-<component>`:
+  complete setup for the matching `kind-integration-<component>`:
   - **`gateway-regional`** / **`gateway-global`** test only REST↔CR translation
     (asserting HTTP responses — never reconciled status). Each needs only its own
     gateway plus `test-data`.
   - **`delegator`** tests reconciliation: the dummy-plugin controllers drive CRs to
     `Active`. It needs `test-data`.
 - **e2e** (`test/e2e/`) — the whole stack in one run: it drives the SECA API and
-  asserts resources reconcile down to the delegator plugin.
+  asserts resources reconcile down to the delegator plugin. Single cluster.
+- **multicluster e2e** (`test/e2e/multicluster/`) — the split topology: global gateway
+  in one cluster, regional gateway + delegator in another, joined only by the Region CR
+  the global gateway advertises. The suite gets only the global endpoint and must
+  discover the regional API from the region catalog. Needs its own cluster pair, so it
+  is not part of `test-all`.
 - **conformance** — runs `secatest` against the stack, generic across plugins.
 
 ```bash
 # Integration: deploy a suite's components and run it
 make -C test kind-start
 make -C test kind-deploy-gateway-regional
-make -C test kind-test-gateway-regional
+make -C test kind-integration-gateway-regional
 
-# End-to-end (one shot: build, load, deploy the dummy stack, run the suite)
-make -C test kind-e2e
+# One shot (build, load, deploy the dummy stack, run the suite)
+make -C test kind-e2e            # e2e only
+make -C test kind-integration    # every integration suite
+make -C test kind-test-all       # both
+
+# Split global/regional topology (its own cluster pair)
+make -C test kind-multicluster-e2e
+make -C test kind-multicluster-stop
 
 # Tear down
 make -C test kind-stop
 ```
 
-See `test/README.md` for the full workflow. The test module (`test`) is excluded from
-the standard per-module CI checks (see the exclude list in `ci/scripts/go-modules.sh`).
+All suites run against the same stack, deployed with one authenticator
+(`AUTH_PLUGIN=dummy|jwt`, default `dummy`) — `make -C test kind-test-all AUTH_PLUGIN=jwt`
+runs everything against signed JWTs instead.
+
+The stack is deployed from the shipped Helm charts (`chart/` for the gateways,
+`chart-delegator/` for the delegator, whose `plugin` value is the same one selected here),
+so a test run exercises the charts a real install uses. See `test/README.md` for the full
+workflow. The test module (`test`) is excluded from the standard per-module CI checks (see
+the exclude list in `ci/scripts/go-modules.sh`).
 
 ## Writing a New Plugin
 

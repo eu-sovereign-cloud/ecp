@@ -14,7 +14,8 @@ import (
 	"os"
 	"testing"
 
-	authv1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.authorization.v1"
+	computev1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.compute.v1"
+	networkv1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.network.v1"
 	regionv1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
 	storagev1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	workspacev1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1"
@@ -51,12 +52,13 @@ func envOr(key, def string) string {
 }
 
 var (
-	// Regional gateway (dummy authenticator) clients.
+	// Regional gateway clients.
 	storageClient   *storagev1.ClientWithResponses
 	workspaceClient *workspacev1.ClientWithResponses
-	// Global gateway (JWT authenticator) clients.
+	networkClient   *networkv1.ClientWithResponses
+	computeClient   *computev1.ClientWithResponses
+	// Global gateway clients.
 	regionClient *regionv1.ClientWithResponses
-	authClient   *authv1.ClientWithResponses
 
 	// globalURL is the port-forwarded global gateway, for tests that drive it
 	// with raw requests instead of an SDK client (see jwt_test.go).
@@ -79,27 +81,28 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Failed to port-forward to global gateway: %v", err)
 	}
 
-	// The two gateways are deployed with different authentication plugins, so a
-	// single run exercises both: the regional one verifies dummy tokens, the
-	// global one verifies standard signed JWTs. Same admin subject either way —
-	// RBAC resolves roles from the subject, not from the token format.
-	dummyEditor := authhelper.AdminEditor()
-	jwtEditor := authhelper.AdminJWTEditor()
+	// Both gateways run the plugin named by AUTH_PLUGIN, so one admin editor
+	// serves both: it mints whichever token format was deployed. RBAC resolves
+	// roles from the subject, not from the token format.
+	editor := authhelper.AdminEditor()
 
 	regionalURL := fmt.Sprintf("http://localhost:%d", regionalPF.LocalPort)
 	globalURL = fmt.Sprintf("http://localhost:%d", globalPF.LocalPort)
 
-	if storageClient, err = storagev1.NewClientWithResponses(regionalURL+"/providers/seca.storage", storagev1.WithRequestEditorFn(dummyEditor)); err != nil {
+	if storageClient, err = storagev1.NewClientWithResponses(regionalURL+"/providers/seca.storage", storagev1.WithRequestEditorFn(editor)); err != nil {
 		log.Fatalf("Failed to create storage SDK client: %v", err)
 	}
-	if workspaceClient, err = workspacev1.NewClientWithResponses(regionalURL+"/providers/seca.workspace", workspacev1.WithRequestEditorFn(dummyEditor)); err != nil {
+	if workspaceClient, err = workspacev1.NewClientWithResponses(regionalURL+"/providers/seca.workspace", workspacev1.WithRequestEditorFn(editor)); err != nil {
 		log.Fatalf("Failed to create workspace SDK client: %v", err)
 	}
-	if regionClient, err = regionv1.NewClientWithResponses(globalURL+"/providers/seca.region", regionv1.WithRequestEditorFn(jwtEditor)); err != nil {
-		log.Fatalf("Failed to create region SDK client: %v", err)
+	if networkClient, err = networkv1.NewClientWithResponses(regionalURL+"/providers/seca.network", networkv1.WithRequestEditorFn(editor)); err != nil {
+		log.Fatalf("Failed to create network SDK client: %v", err)
 	}
-	if authClient, err = authv1.NewClientWithResponses(globalURL+"/providers/seca.authorization", authv1.WithRequestEditorFn(jwtEditor)); err != nil {
-		log.Fatalf("Failed to create authorization SDK client: %v", err)
+	if computeClient, err = computev1.NewClientWithResponses(regionalURL+"/providers/seca.compute", computev1.WithRequestEditorFn(editor)); err != nil {
+		log.Fatalf("Failed to create compute SDK client: %v", err)
+	}
+	if regionClient, err = regionv1.NewClientWithResponses(globalURL+"/providers/seca.region", regionv1.WithRequestEditorFn(editor)); err != nil {
+		log.Fatalf("Failed to create region SDK client: %v", err)
 	}
 
 	log.Println("End-to-end environment ready. Running tests...")

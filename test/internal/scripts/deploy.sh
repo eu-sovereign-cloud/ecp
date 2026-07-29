@@ -9,13 +9,94 @@ setup_kube_vars
 setup_registry_vars "$1"
 
 DEPLOY_DIR="${SCRIPT_DIR}/../deploy/${COMPONENT}"
-CRDS_DIR="${SCRIPT_DIR}/../../../chart/crd"
+CRDS_DIR="${SCRIPT_DIR}/../../../chart/crds"
+
+# Retarget the component namespace (default e2e-ecp).
+SYSTEM_NAMESPACE="${SYSTEM_NAMESPACE:-e2e-ecp}"
 
 echo "Applying CRDs from ${CRDS_DIR}..."
 find "${CRDS_DIR}" -type f -name "*.yaml" -exec cat {} + | kubectl ${KUBECONFIG_ARG} apply -f -
 
 echo "Deploying ${COMPONENT} with image ${IMAGE_NAME}..."
 
+# --- Chart-deployed components -----------------------------------------------
+# Deployed from the charts this repository ships, so the test stack and a real
+# `helm install` exercise the same templates: a broken template fails a test run
+# instead of a user's first install. Everything the manifests used to hardcode
+# (image, pull policy, auth plugin, namespace) is a value.
+if setup_chart_vars "${COMPONENT}"; then
+    kubectl ${KUBECONFIG_ARG} create namespace "${SYSTEM_NAMESPACE}" --dry-run=client -o yaml |
+        kubectl ${KUBECONFIG_ARG} apply -f -
+
+    # IMAGE_NAME is repository:tag; the charts take the halves separately.
+    HELM_ARGS=(
+        --namespace "${SYSTEM_NAMESPACE}"
+        --set "${IMAGE_VALUE_PATH}.repository=${IMAGE_NAME%:*}"
+        --set "${IMAGE_VALUE_PATH}.tag=${IMAGE_NAME##*:}"
+    )
+
+    # A private registry needs a pull secret; KIND and public GHCR do not. When
+    # the local context carries registry credentials, mint it and point the chart
+    # at it — both charts take imagePullSecrets by name.
+    pull_secret=$(ensure_pull_secret "${SYSTEM_NAMESPACE}")
+    if [ -n "${pull_secret}" ]; then
+        HELM_ARGS+=(--set "imagePullSecrets[0].name=${pull_secret}")
+    fi
+
+    # Locally built images are side-loaded into KIND and never pullable.
+    if [[ "$USE_KIND" == "true" ]]; then
+        HELM_ARGS+=(--set "${IMAGE_VALUE_PATH}.pullPolicy=IfNotPresent")
+    else
+        HELM_ARGS+=(--set "${IMAGE_VALUE_PATH}.pullPolicy=Always")
+    fi
+
+    # Both gateways pick their authentication plugin at deploy time: dummy
+    # (default) or jwt. The suites read the same AUTH_PLUGIN to mint matching
+    # tokens, so deploy and test with the same value (see test/Makefile).
+    if [[ "$COMPONENT" == gateway-* ]]; then
+        echo "Deploying ${COMPONENT} with auth plugin: ${AUTH_PLUGIN:=dummy}"
+        HELM_ARGS+=(
+            --values "${SCRIPT_DIR}/../deploy/gateway-values.yaml"
+            --set "auth.plugin=${AUTH_PLUGIN}"
+        )
+        # The RBAC checker to benchmark: the report workflow deploys the same
+        # gateway twice, cached and direct, and diffs the two metric snapshots
+        # (see README, "Benchmarking the Auth Middleware").
+        if [ -n "${AUTHZ_IMPL:-}" ]; then
+            HELM_ARGS+=(--set "auth.authz.impl=${AUTHZ_IMPL}")
+        fi
+    fi
+
+    # The delegator's CSP plugin. resolve_plugin_type defaults it (aruba, or dummy
+    # on KIND); the image built for that plugin must match, so the Makefile threads
+    # the same PLUGIN_TYPE into build.sh. The chart derives delegator-<plugin> from
+    # it, but IMAGE_VALUE_PATH.repository above already pins the locally built image.
+    if [ "$COMPONENT" == "delegator" ]; then
+        resolve_plugin_type
+        echo "Deploying delegator with plugin: ${PLUGIN_TYPE}"
+        HELM_ARGS+=(--set "plugin=${PLUGIN_TYPE}")
+    fi
+
+    # Per-component values, then an optional overlay (DEPLOY_VALUES) layered last
+    # so it wins — e.g. the multicluster topology exposes the regional gateway on
+    # a NodePort (see the kind-multicluster-stack target).
+    VALUES_ARGS=(--values "${DEPLOY_DIR}/values.yaml")
+    if [ -n "${DEPLOY_VALUES:-}" ]; then
+        VALUES_ARGS+=(--values "${DEPLOY_VALUES}")
+    fi
+
+    # --wait replaces the explicit rollout wait: a suite starting right after
+    # would otherwise port-forward to the terminating pod, which still serves
+    # the previous config (e.g. the previous auth plugin) and 401s every valid
+    # token.
+    helm ${HELM_KUBECONFIG_ARG} upgrade --install "${HELM_RELEASE}" "${CHART_DIR}" \
+        "${HELM_ARGS[@]}" "${VALUES_ARGS[@]}" --wait --timeout 3m
+
+    echo "Deployment of ${COMPONENT} complete."
+    exit 0
+fi
+
+# --- Kustomize-deployed components -------------------------------------------
 # Build the YAML stream from kustomize
 YAML_STREAM=$(kubectl kustomize "${DEPLOY_DIR}")
 
@@ -27,9 +108,8 @@ if [[ -n "$USE_KIND" && "$USE_KIND" == "true" ]]; then
     YAML_STREAM=$(echo "${YAML_STREAM}" | sed "s|imagePullPolicy: Always|imagePullPolicy: IfNotPresent|g")
 fi
 
-# Retarget the component namespace (default e2e-ecp). Anchored to end-of-line so
-# only namespace values are rewritten, not the e2e-ecp-conformance resource name.
-SYSTEM_NAMESPACE="${SYSTEM_NAMESPACE:-e2e-ecp}"
+# Anchored to end-of-line so only namespace values are rewritten, not the
+# e2e-ecp-conformance resource name.
 if [ "$SYSTEM_NAMESPACE" != "e2e-ecp" ]; then
     echo "Retargeting namespace to ${SYSTEM_NAMESPACE}"
     YAML_STREAM=$(echo "${YAML_STREAM}" | sed -E "s/e2e-ecp[[:space:]]*$/${SYSTEM_NAMESPACE}/")
@@ -48,30 +128,14 @@ if [ "$COMPONENT" == "test-data" ]; then
     fi
 fi
 
-# The global gateway picks its authentication plugin at deploy time: dummy by
-# default (what the integration suites sign tokens for), jwt when the e2e stack
-# deploys it. Only this component's manifest carries the placeholder.
-if [ "$COMPONENT" == "gateway-global" ]; then
-    echo "Deploying gateway-global with auth plugin: ${AUTH_PLUGIN:=dummy}"
-    YAML_STREAM=$(echo "${YAML_STREAM}" | sed "s|##AUTH_PLUGIN##|${AUTH_PLUGIN}|g")
-fi
-
-# If the component is the delegator, handle the plugin type.
-# PLUGIN_TYPE may be overridden via the environment; otherwise default to
-# aruba, except on KIND where the dummy plugin is the default.
-if [ "$COMPONENT" == "delegator" ]; then
-    if [ -z "$PLUGIN_TYPE" ]; then
-        PLUGIN_TYPE="aruba" # Default to aruba
-        if [[ -n "$USE_KIND" && "$USE_KIND" == "true" ]]; then
-            PLUGIN_TYPE="dummy"
-        fi
-    fi
-    echo "Deploying delegator with plugin: ${PLUGIN_TYPE}"
-    YAML_STREAM=$(echo "${YAML_STREAM}" | sed "s|##PLUGIN_TYPE##|${PLUGIN_TYPE}|g")
-fi
-
 # Apply the processed YAML stream
 echo "${YAML_STREAM}" | kubectl ${KUBECONFIG_ARG} apply -f -
 
-echo "Deployment of ${COMPONENT} complete."
+# Wait for the rollout, otherwise a suite starting right after can port-forward to
+# the terminating pod, which still serves the previous config. Components without
+# a Deployment (test-data) skip this.
+if kubectl ${KUBECONFIG_ARG} -n "${SYSTEM_NAMESPACE}" get deployment "${COMPONENT}-depl" >/dev/null 2>&1; then
+    kubectl ${KUBECONFIG_ARG} -n "${SYSTEM_NAMESPACE}" rollout status "deployment/${COMPONENT}-depl" --timeout=180s
+fi
 
+echo "Deployment of ${COMPONENT} complete."

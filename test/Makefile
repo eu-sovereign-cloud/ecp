@@ -22,8 +22,8 @@ REGISTRY_URL ?= "default-registry"
 # --- e2e / deploy customization --------------------------------------------------
 # Override to target a custom deployment. Threaded (via export below) to deploy.sh
 # and the e2e suite, so pass the SAME values to *-deploy and e2e:
-#   make e2e-deploy SYSTEM_NAMESPACE=my-ecp E2E_TENANT=my-tenant
-#   make e2e        SYSTEM_NAMESPACE=my-ecp E2E_TENANT=my-tenant
+#   make deploy-stack SYSTEM_NAMESPACE=my-ecp E2E_TENANT=my-tenant
+#   make e2e          SYSTEM_NAMESPACE=my-ecp E2E_TENANT=my-tenant
 # CLUSTER: export KUBECONFIG (or drop internal/context/kubeconfig.yaml) to pick it.
 #   SYSTEM_NAMESPACE — namespace the components (gateways + delegator) deploy into.
 #   E2E_TENANT       — fixture tenant; its data lands in hex(sha3-224(tenant)).
@@ -31,11 +31,29 @@ SYSTEM_NAMESPACE ?= e2e-ecp
 E2E_TENANT       ?= test-tenant
 export SYSTEM_NAMESPACE E2E_TENANT
 
-# Discover components automatically from the build directory
-COMPONENTS := $(notdir $(wildcard $(CURDIR)/internal/build/*))
+# --- Authentication plugin -------------------------------------------------------
+# Which authenticator BOTH gateways are deployed with — dummy (static
+# username→password tokens) or jwt (standard signed JWTs). Exported, so the same
+# value reaches deploy.sh (passed to helm as auth.plugin) and the test binaries
+# (internal/authhelper mints the matching token format). One stack therefore
+# serves every suite; deploy and test with the same value or every valid token
+# comes back 401:
+#   make kind-test-all                  # dummy (default)
+#   make kind-test-all AUTH_PLUGIN=jwt  # signed JWTs
+# Plugin-specific cases skip themselves under the other plugin (e2e TestJWTAuthn
+# under dummy, the password cases of TestAuthn under jwt).
+AUTH_PLUGIN ?= dummy
+export AUTH_PLUGIN
 
-# Discover deployments automatically from the deploy directory
-DEPLOYMENTS := $(notdir $(wildcard $(CURDIR)/internal/deploy/*))
+# Discover components automatically from the build directory, plus the delegator:
+# it is built per plugin from csp/<plugin>/build/Dockerfile (build.sh resolves the
+# path from PLUGIN_TYPE), so it has no internal/build/ dir of its own to discover.
+COMPONENTS := $(notdir $(wildcard $(CURDIR)/internal/build/*)) delegator
+
+# Discover deployments automatically from the deploy directory. Directories only:
+# deploy/ also holds files shared by several components (gateway-values.yaml),
+# which are not deployments of their own.
+DEPLOYMENTS := $(notdir $(patsubst %/,%,$(wildcard $(CURDIR)/internal/deploy/*/)))
 
 # Discover components that actually have integration tests
 TEST_COMPONENTS := $(notdir $(wildcard $(CURDIR)/integration/*))
@@ -130,7 +148,7 @@ $(foreach comp,$(DEPLOYMENTS),$(eval $(call kind_deploy_rule,$(comp))))
 # --- Test-suite deployment dependencies ----------------------------------------
 # Deploying a component that has an integration suite also deploys every other
 # component that suite needs, so `make [kind-]deploy-<comp>` is a complete setup for
-# `make [kind-]test-<comp>`. Dependencies (see test/integration/<comp>):
+# `make [kind-]integration-<comp>`. Dependencies (see test/integration/<comp>):
 #   * test-data        — tenant namespace + storage SKUs + regions (leaf fixture);
 #                        the tenant namespace is where workspace/role CRs are created.
 #   * delegator        — reconciles CRs to Active (dummy plugin); needs test-data.
@@ -189,27 +207,56 @@ kind-clean-crds: ## Clean all CRDs from the KIND cluster
 
 
 # =====================================================================================
+# The test stack — one deployment for every suite
+# =====================================================================================
+# Integration and e2e run against the SAME stack: test-data (via the prerequisites
+# above), both gateways and the delegator, all with the same AUTH_PLUGIN. Deploy it
+# once and run whatever suite you want; nothing has to be redeployed in between.
+#
+# Which delegator plugin the stack reconciles with. Only the dummy plugin is
+# self-contained (no external backend), so the one-shot targets (kind-integration,
+# kind-e2e, kind-test-all, kind-conformance) always use dummy. The aruba and ionos
+# plugins need their backend stood up first, so they are two-phase — set these on
+# the `*-deploy` targets, provision the backend, then run the suite:
+#   make deploy-stack E2E_PLUGIN=aruba   # deploy the stack with the aruba plugin
+#   <install the aruba operator + credentials>
+#   make e2e                             # run the suite
+# For a full real-backend IONOS run see conformance-ionos* (conformance/ionos/).
+E2E_PLUGIN         ?= dummy
+CONFORMANCE_PLUGIN ?= dummy
+
+.PHONY: deploy-stack kind-deploy-stack
+deploy-stack: ## Deploy the full test stack (both gateways + delegator + test-data) with AUTH_PLUGIN / E2E_PLUGIN
+	@PLUGIN_TYPE=$(E2E_PLUGIN) $(MAKE) deploy-gateway-global deploy-gateway-regional deploy-delegator
+
+kind-deploy-stack: ## Deploy the full test stack into KIND with AUTH_PLUGIN / E2E_PLUGIN
+	@PLUGIN_TYPE=$(E2E_PLUGIN) $(MAKE) kind-deploy-gateway-global kind-deploy-gateway-regional kind-deploy-delegator
+
+.PHONY: kind-stack
+kind-stack: ## Build the component images, load them into KIND and deploy the stack
+	@PLUGIN_TYPE=$(E2E_PLUGIN) $(MAKE) build-delegator build-gateway-global build-gateway-regional
+	@$(MAKE) kind-load-delegator kind-load-gateway-global kind-load-gateway-regional
+	@$(MAKE) kind-deploy-stack
+
+# =====================================================================================
 # Integration tests — each component (delegator, gateway-global, gateway-regional)
 # exercised in isolation. See test/integration/.
 # =====================================================================================
-.PHONY: integration kind-integration
-integration: test-all           ## Run all integration suites against a configured cluster
-kind-integration: kind-test-all ## Run all integration suites against a KIND cluster
+.PHONY: integration
+integration: $(addprefix integration-,$(TEST_COMPONENTS)) ## Run all integration suites against an already-deployed stack
 
-.PHONY: test-all
-test-all: $(addprefix test-,$(TEST_COMPONENTS)) ## Run all integration tests
+.PHONY: kind-integration
+kind-integration: ## One-shot: build, load, deploy the stack into KIND and run all integration suites
+	@$(MAKE) kind-stack E2E_PLUGIN=dummy
+	@$(MAKE) $(addprefix kind-integration-,$(TEST_COMPONENTS))
 
-.PHONY: kind-test-all
-kind-test-all: $(addprefix kind-test-,$(TEST_COMPONENTS)) ## Run all integration tests against KIND clusters
-
-# --- Generate test targets for each component ---
 define TEST_template
-.PHONY: test-$(1)
-test-$(1): ## Run $(1) integration tests against a configured cluster
+.PHONY: integration-$(1)
+integration-$(1): ## Run the $(1) integration suite against an already-deployed stack
 	@./internal/scripts/run-test.sh $(1)
 
-.PHONY: kind-test-$(1)
-kind-test-$(1): ## Run $(1) integration tests against a configured KIND cluster
+.PHONY: kind-integration-$(1)
+kind-integration-$(1): ## Run the $(1) integration suite against an already-deployed KIND stack
 	@USE_KIND=true ./internal/scripts/run-test.sh $(1)
 endef
 
@@ -218,43 +265,85 @@ $(foreach comp,$(TEST_COMPONENTS),$(eval $(call TEST_template,$(comp))))
 # =====================================================================================
 # End-to-end test — the whole stack (both gateways + delegator) in a single run,
 # driving the SECA API and asserting reconciliation down to the delegator plugin.
-# See test/e2e/. The default plugin is the dummy plugin.
+# See test/e2e/.
 # =====================================================================================
-
-# Which delegator plugin the e2e / conformance stack reconciles with. Only the
-# dummy plugin is self-contained (no external backend), so the one-shot
-# `kind-e2e` / `kind-conformance` targets always use dummy. The aruba and ionos
-# plugins need their backend stood up first, so they are two-phase — set these on
-# the `*-deploy` targets, provision the backend, then run `e2e` / `conformance`:
-#   make conformance-deploy CONFORMANCE_PLUGIN=aruba   # deploy stack + aruba plugin
-#   <install the aruba operator + credentials>
-#   make conformance                                   # run secatest
-# For a full real-backend IONOS run see conformance-ionos* (conformance/ionos/).
-E2E_PLUGIN         ?= dummy
-CONFORMANCE_PLUGIN ?= dummy
-
-# The e2e stack deploys its GLOBAL gateway with the jwt authenticator and leaves
-# the regional one on dummy, so one e2e run covers both: the suite signs real
-# JWTs for the global gateway and dummy tokens for the regional one. The
-# integration suites deploy the same gateway without AUTH_PLUGIN and get dummy.
-# The e2e suite assumes this split, so pair `e2e` with `e2e-deploy`.
-.PHONY: e2e-deploy kind-e2e-deploy
-e2e-deploy: ## Deploy the full e2e stack (gateways + delegator) with E2E_PLUGIN (default: dummy)
-	@AUTH_PLUGIN=jwt $(MAKE) deploy-gateway-global
-	@PLUGIN_TYPE=$(E2E_PLUGIN) $(MAKE) deploy-gateway-regional deploy-delegator
-
-kind-e2e-deploy: ## Deploy the full e2e stack into KIND with E2E_PLUGIN (default: dummy)
-	@AUTH_PLUGIN=jwt $(MAKE) kind-deploy-gateway-global
-	@PLUGIN_TYPE=$(E2E_PLUGIN) $(MAKE) kind-deploy-gateway-regional kind-deploy-delegator
-
 .PHONY: e2e kind-e2e
 e2e: ## Run the e2e suite against an already-deployed stack (configured cluster)
 	@./internal/scripts/run-e2e.sh
 
-kind-e2e: ## One-shot (dummy plugin only): build, load, deploy the stack into KIND and run the e2e suite
-	@$(MAKE) build-delegator build-gateway-global build-gateway-regional
-	@$(MAKE) kind-load-delegator kind-load-gateway-global kind-load-gateway-regional
-	@$(MAKE) kind-e2e-deploy E2E_PLUGIN=dummy
+kind-e2e: ## One-shot: build, load, deploy the stack into KIND and run the e2e suite
+	@$(MAKE) kind-stack E2E_PLUGIN=dummy
+	@USE_KIND=true ./internal/scripts/run-e2e.sh
+
+# =====================================================================================
+# Multicluster e2e — the split topology: the global gateway in one cluster, the
+# regional gateway + delegator in another, joined only by the Region CR the global
+# gateway advertises. The suite is given the global endpoint and nothing else; it
+# has to discover the regional API from the region catalog, so a broken
+# registration fails the run. See test/e2e/multicluster/.
+#
+# Deliberately separate from kind-e2e: two clusters roughly double the wall time
+# for a topology that changes rarely, so run this nightly or on deploy/ changes
+# rather than per-PR.
+#
+#   make kind-multicluster-e2e                    # one-shot, dummy plugin
+#   make kind-multicluster-start                  # just the clusters
+#   make kind-multicluster-stack                  # deploy + register into existing clusters
+#   make multicluster-e2e                         # just the suite
+#   make kind-multicluster-stop                   # tear both down
+# =====================================================================================
+MULTICLUSTER_GLOBAL_CLUSTER   ?= e2e-global
+MULTICLUSTER_REGIONAL_CLUSTER ?= e2e-regional
+# Contexts are how both the scripts and the Go suite address the two clusters:
+# `kind create cluster` leaves the ambient current-context on whichever cluster it
+# made last, so nothing here may rely on it.
+MULTICLUSTER_GLOBAL_CONTEXT   ?= kind-$(MULTICLUSTER_GLOBAL_CLUSTER)
+MULTICLUSTER_REGIONAL_CONTEXT ?= kind-$(MULTICLUSTER_REGIONAL_CLUSTER)
+export MULTICLUSTER_GLOBAL_CONTEXT MULTICLUSTER_REGIONAL_CONTEXT
+
+.PHONY: kind-multicluster-start
+kind-multicluster-start: ## Create the global and regional KIND clusters
+	@KIND_CLUSTER=$(MULTICLUSTER_GLOBAL_CLUSTER)   ./internal/scripts/kind-start.sh
+	@KIND_CLUSTER=$(MULTICLUSTER_REGIONAL_CLUSTER) \
+		KIND_CONFIG=$(CURDIR)/internal/kind-config/regional-cluster.yaml \
+		./internal/scripts/kind-start.sh
+
+.PHONY: kind-multicluster-stop
+kind-multicluster-stop: ## Delete both multicluster KIND clusters
+	@KIND_CLUSTER=$(MULTICLUSTER_GLOBAL_CLUSTER)   ./internal/scripts/kind-stop.sh
+	@KIND_CLUSTER=$(MULTICLUSTER_REGIONAL_CLUSTER) ./internal/scripts/kind-stop.sh
+
+.PHONY: kind-multicluster-stack
+kind-multicluster-stack: ## Deploy the split stack across both KIND clusters and register the region
+	@PLUGIN_TYPE=$(E2E_PLUGIN) $(MAKE) build-gateway-global build-gateway-regional build-delegator
+	@KIND_CLUSTER=$(MULTICLUSTER_GLOBAL_CLUSTER) $(MAKE) kind-load-gateway-global kind-deploy-gateway-global
+	@KIND_CLUSTER=$(MULTICLUSTER_REGIONAL_CLUSTER) $(MAKE) kind-load-gateway-regional kind-load-delegator
+	@KIND_CLUSTER=$(MULTICLUSTER_REGIONAL_CLUSTER) PLUGIN_TYPE=$(E2E_PLUGIN) $(MAKE) kind-deploy-delegator
+	# The regional gateway is exposed on a NodePort so the global cluster and the
+	# suite can reach it across the cluster boundary — the chart does it via the
+	# multicluster overlay, not an out-of-band kubectl patch.
+	@KIND_CLUSTER=$(MULTICLUSTER_REGIONAL_CLUSTER) \
+		DEPLOY_VALUES=$(CURDIR)/internal/deploy/gateway-regional/multicluster-values.yaml \
+		$(MAKE) kind-deploy-gateway-regional
+	@./internal/scripts/register-region.sh
+
+.PHONY: multicluster-e2e kind-multicluster-e2e
+multicluster-e2e: ## Run the multicluster suite against an already-deployed cluster pair
+	@./internal/scripts/run-multicluster-e2e.sh
+
+kind-multicluster-e2e: ## One-shot: deploy the split stack and run the multicluster suite
+	@$(MAKE) kind-multicluster-stack E2E_PLUGIN=dummy
+	@$(MAKE) multicluster-e2e
+
+# =====================================================================================
+# Everything — integration + e2e, one stack, one run
+# =====================================================================================
+.PHONY: test-all kind-test-all
+test-all: integration e2e ## Run every suite (integration + e2e) against an already-deployed stack
+
+kind-test-all: ## One-shot: build, load, deploy the stack into KIND and run every suite
+	@$(MAKE) kind-stack E2E_PLUGIN=dummy
+	@$(MAKE) $(addprefix kind-integration-,$(TEST_COMPONENTS))
 	@USE_KIND=true ./internal/scripts/run-e2e.sh
 
 # =====================================================================================
@@ -265,10 +354,10 @@ kind-e2e: ## One-shot (dummy plugin only): build, load, deploy the stack into KI
 # =====================================================================================
 .PHONY: conformance-deploy kind-conformance-deploy
 conformance-deploy: ## Deploy the stack for conformance with CONFORMANCE_PLUGIN (default: dummy)
-	@PLUGIN_TYPE=$(CONFORMANCE_PLUGIN) $(MAKE) deploy-gateway-global deploy-gateway-regional deploy-delegator
+	@$(MAKE) deploy-stack E2E_PLUGIN=$(CONFORMANCE_PLUGIN)
 
 kind-conformance-deploy: ## Deploy the stack for conformance into KIND with CONFORMANCE_PLUGIN
-	@PLUGIN_TYPE=$(CONFORMANCE_PLUGIN) $(MAKE) kind-deploy-gateway-global kind-deploy-gateway-regional kind-deploy-delegator
+	@$(MAKE) kind-deploy-stack E2E_PLUGIN=$(CONFORMANCE_PLUGIN)
 
 .PHONY: conformance kind-conformance
 conformance: ## Run conformance (secatest) against an already-deployed stack (configured cluster)

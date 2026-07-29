@@ -20,7 +20,7 @@ import (
 // It must match a Subs entry in ra-admin (role-assignments.yaml).
 const DefaultAuthUser = "admin"
 
-// DefaultAuthPassword is the password for DefaultAuthUser (matches users-configmap.yaml).
+// DefaultAuthPassword is the password for DefaultAuthUser (matches auth.dummyUsers.users in internal/deploy/gateway-values.yaml).
 const DefaultAuthPassword = "e2e-admin-pass"
 
 // AuthEnabled reports whether auth is expected to be active in the deployed gateway.
@@ -28,6 +28,25 @@ const DefaultAuthPassword = "e2e-admin-pass"
 // clients (for running the suite against a gateway deployed without --auth-enabled).
 func AuthEnabled() bool {
 	return os.Getenv("E2E_AUTH_ENABLED") != "false"
+}
+
+// JWTAuth reports whether the deployed gateways verify signed JWTs instead of dummy
+// tokens. It reads the same AUTH_PLUGIN the Makefile substitutes into the manifests
+// (default "dummy"), so the stack and the suites can never disagree on the token
+// format. Plugin-specific tests use it to skip themselves.
+func JWTAuth() bool {
+	return os.Getenv("AUTH_PLUGIN") == "jwt"
+}
+
+// Token mints a bearer token for the deployed authenticator: a JWT with the username
+// as "sub" when the gateways run the jwt plugin, a dummy token otherwise (the JWT
+// plugin trusts the signature, so the password is unused). Both plugins feed the same
+// Identity.Subject, so RBAC resolves identically either way.
+func Token(username, password string, scope *resource.TokenScope) string {
+	if JWTAuth() {
+		return SignJWT(JWTKey(), username, scope, time.Now().Add(time.Hour))
+	}
+	return MakeBearerToken(username, password, scope)
 }
 
 // MakeBearerToken encodes a Dummy authenticator bearer token.
@@ -61,30 +80,29 @@ func AdminEditor() func(ctx context.Context, req *http.Request) error {
 	if !AuthEnabled() {
 		return func(_ context.Context, _ *http.Request) error { return nil }
 	}
-	return bearerEditor(MakeBearerToken(DefaultAuthUser, DefaultAuthPassword, nil))
+	return bearerEditor(Token(DefaultAuthUser, DefaultAuthPassword, nil))
 }
 
 // IdentityEditor returns a request editor for the given username/password.
 // Panics if called when auth is disabled (callers should guard with AuthEnabled()).
 func IdentityEditor(username, password string) func(ctx context.Context, req *http.Request) error {
-	return bearerEditor(MakeBearerToken(username, password, nil))
+	return bearerEditor(Token(username, password, nil))
 }
 
 // ScopedEditor is like IdentityEditor but attaches a token down-scope: tenant/region/workspace
 // caps that can only narrow the caller's permissions, never grant new ones.
 func ScopedEditor(username, password string, scope *resource.TokenScope) func(ctx context.Context, req *http.Request) error {
-	return bearerEditor(MakeBearerToken(username, password, scope))
+	return bearerEditor(Token(username, password, scope))
 }
 
-// --- JWT authenticator (global gateway) --------------------------------------
+// --- JWT authenticator --------------------------------------------------------
 //
-// The global gateway is deployed with --auth-plugin=jwt while the regional one
-// keeps the dummy plugin, so one e2e run covers both authenticators. The helpers
-// below mint the tokens the global gateway accepts.
+// Both gateways are deployed with the plugin named by AUTH_PLUGIN; the helpers
+// below mint (or deliberately forge) the tokens the jwt plugin accepts.
 
 // jwtPrivateKeyPEM is the ES256 private key the suite signs e2e JWTs with. Its
-// public half is deployed in internal/deploy/gateway-global/jwt-key-secret.yaml
-// and passed to the gateway via --jwt-secret.
+// public half is auth.jwt.key in internal/deploy/gateway-values.yaml
+// and passed to the gateways via --jwt-secret.
 //
 // WARNING: a published test fixture, not a secret. Never use it in production.
 const jwtPrivateKeyPEM = `-----BEGIN PRIVATE KEY-----
@@ -122,19 +140,4 @@ func SignJWT(key *ecdsa.PrivateKey, subject string, scope *resource.TokenScope, 
 		panic("SignJWT: signing failed: " + err.Error())
 	}
 	return signed
-}
-
-// JWTEditor returns a request editor carrying a valid, one-hour JWT for subject.
-func JWTEditor(subject string, scope *resource.TokenScope) func(ctx context.Context, req *http.Request) error {
-	return bearerEditor(SignJWT(JWTKey(), subject, scope, time.Now().Add(time.Hour)))
-}
-
-// AdminJWTEditor is the JWT counterpart of AdminEditor: the default admin identity
-// for clients talking to the JWT-backed global gateway. When E2E_AUTH_ENABLED=false
-// it returns a no-op editor so clients work unchanged.
-func AdminJWTEditor() func(ctx context.Context, req *http.Request) error {
-	if !AuthEnabled() {
-		return func(_ context.Context, _ *http.Request) error { return nil }
-	}
-	return JWTEditor(DefaultAuthUser, nil)
 }

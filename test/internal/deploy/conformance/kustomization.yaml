@@ -9,4 +9,3 @@ resources:
   - namespace.yaml
   - deployment.yaml
   - serviceaccount.yaml
-  - registry-secret.yaml

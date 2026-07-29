@@ -15,4 +15,4 @@ source "$(dirname "$0")/common.sh"
 setup_env
 setup_kube_vars
 
-go test -v -count=1 -tags=integration,authhelper -timeout "${TEST_TIMEOUT:-20m}" ./integration/${COMPONENT}/...
+go test -v -count=1 -tags=integration,authhelper -timeout "${TEST_TIMEOUT:-20m}" ./integration/${COMPONENT}/... "$@"

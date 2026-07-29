@@ -19,7 +19,7 @@ import (
 // TestAuthz exercises SECA RBAC authorization on the global gateway.
 // These tests rely on the Role and RoleAssignment fixtures from
 // test/internal/deploy/test-data/roles.yaml and role-assignments.yaml, and on the
-// Dummy authenticator being enabled with the users from users-configmap.yaml.
+// Dummy authenticator being enabled with the users from internal/deploy/gateway-values.yaml.
 // Skipped when E2E_AUTH_ENABLED=false.
 func TestAuthz(t *testing.T) {
 	if !authhelper.AuthEnabled() {
@@ -71,7 +71,7 @@ func TestAuthz(t *testing.T) {
 	})
 
 	t.Run("nobody gets 403 (valid creds, no RoleAssignment grants seca.authorization)", func(t *testing.T) {
-		// "nobody" exists in users-configmap.yaml but has no RoleAssignment, so every
+		// "nobody" exists in gateway-values.yaml but has no RoleAssignment, so every
 		// RBAC-governed provider denies them: no grant for seca.authorization → 403.
 		editor := authhelper.IdentityEditor("nobody", "nobody-pass")
 		client, err := authv1.NewClientWithResponses(baseURL+"/providers/seca.authorization", authv1.WithRequestEditorFn(editor))

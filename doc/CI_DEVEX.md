@@ -315,7 +315,7 @@ Any target `FOO` defined at the root can be run as `FOO-ctzd`. The wrapper:
 | Makefile | Key Targets |
 |----------|-------------|
 | `csp/dummy/Makefile` | `build`, `deploy`, `kind-start`, `kind-stop`, `test-integration` |
-| `test/Makefile` | `integration`, `e2e`, `conformance`, `conformance-ionos` (+ `kind-*` variants), `build-all`, `push-all`, `deploy-all`, `kind-start`, `kind-stop`, `kind-load-all`, `bench`, `report` |
+| `test/Makefile` | `test-all` (integration + e2e), `integration`, `integration-<component>`, `e2e`, `multicluster-e2e`, `conformance`, `conformance-ionos`, `deploy-stack` (+ `kind-*` variants, one-shot on KIND), `kind-multicluster-{start,stack,e2e,stop}`, `build-all`, `push-all`, `deploy-all`, `kind-start`, `kind-stop`, `kind-load-all`, `bench`, `report` |
 | `csp/ionos/deploy/Makefile` | `install-crossplane`, `install-provider`, `install-all`, `install-on-regional` |
 | `test/conformance/ionos/Makefile` | `secatest-scaffolding`, `secatest`, `secatest-all`, `secatest-clean` |
 
@@ -331,6 +331,10 @@ Stage 1 — cheap gates, run in parallel
   module-diff      Detect which Go modules changed (dorny/paths-filter, config derived from go.work)
   branch-rebase    Verify branch is rebased onto its target (make branch-rebase-verify)
   go-sdk-verify    Verify go-sdk submodule and go.mod pins agree (make go-sdk-verify)
+  chart-lint       helm lint + template both charts (every delegator plugin)
+  chart-smoke      Install both charts on KIND from the published Dockerfiles and
+                   assert the gateway enforces the auth the values asked for
+                   (ci/scripts/chart-smoke.sh) — the only job that starts a pod
 
 Stage 2 — depends on Stage 1
   builder-publish-pr   Ensure a builder image exists for this PR:

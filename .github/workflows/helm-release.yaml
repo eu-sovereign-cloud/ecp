@@ -1,0 +1,89 @@
+name: Release Helm Chart
+
+# Reusable workflow: packages ONE chart, publishes it to the Helm repository
+# hosted on the gh-pages branch, and attaches the .tgz to the GitHub release
+# for the pushed tag. Called once per chart — see helm-release-ecp.yaml and
+# helm-release-delegator.yaml.
+#
+# Chart version comes from the git tag, not from Chart.yaml: tag `v0.1.0` is
+# packaged as chart version `0.1.0` with appVersion `v0.1.0`. The `version:`
+# field committed in Chart.yaml is only a placeholder for local
+# `helm install ./chart` runs and is never what gets published — so there is
+# no "forgot to bump the chart version" failure mode where a release silently
+# overwrites the previous one. Note that a prerelease tag (v0.2.0-rc1) yields
+# a prerelease chart version, which `helm install` skips unless given --devel.
+#
+# Both callers share the `helm-repo` concurrency group, so their runs for the
+# same tag serialize instead of racing: the second run merges into the
+# index.yaml the first one published, rather than overwriting it with an index
+# that only knows about its own chart.
+#
+# One-time setup (required before the first release resolves):
+#   Settings -> Pages -> Source: "Deploy from a branch", branch `gh-pages`,
+#   folder `/ (root)`. The branch itself is created by the first run.
+#
+# Consumers then use:
+#   helm repo add ecp https://eu-sovereign-cloud.github.io/ecp/
+
+on:
+  workflow_call:
+    inputs:
+      chart-dir:
+        description: Path to the chart directory to release
+        required: true
+        type: string
+
+concurrency:
+  group: helm-repo
+  cancel-in-progress: false # queue behind the other chart, never drop it
+
+env:
+  REPO_URL: https://eu-sovereign-cloud.github.io/ecp/
+
+jobs:
+  release:
+    name: Package and publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # push gh-pages, upload release assets
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: azure/setup-helm@v4
+
+      - name: Package chart at the tag version
+        env:
+          CHART_DIR: ${{ inputs.chart-dir }}
+        run: |
+          set -euo pipefail
+          helm package "$CHART_DIR" -d packaged \
+            --version "${GITHUB_REF_NAME#v}" \
+            --app-version "$GITHUB_REF_NAME"
+
+      - name: Build repository index
+        run: |
+          set -euo pipefail
+          # Merge into the index already on gh-pages so previously released
+          # versions — and the chart released by the sibling workflow — stay
+          # resolvable. Without --merge, `helm repo index` would emit an index
+          # describing only the single .tgz packaged above.
+          if git fetch --depth 1 origin gh-pages 2>/dev/null &&
+             git show FETCH_HEAD:index.yaml > old-index.yaml 2>/dev/null; then
+            helm repo index packaged --url "$REPO_URL" --merge old-index.yaml
+          else
+            helm repo index packaged --url "$REPO_URL"
+          fi
+          touch packaged/.nojekyll # serve paths starting with _ verbatim
+
+      - name: Publish to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: packaged
+          keep_files: true # .tgz files from earlier releases
+
+      - name: Attach chart to the GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: packaged/*.tgz
+          generate_release_notes: true
