@@ -47,9 +47,13 @@ func TestComputeNetworkNamespace_DistinctPerNetwork(t *testing.T) {
 }
 
 func TestComputeNetworkNamespace_Deterministic(t *testing.T) {
+	// Two separately-built scopes with equal fields: passing the same value twice would assert
+	// nothing, since a function that returned a fresh random string each call would still pass.
 	scope := fakeNetworkScope{tenant: "t1", workspace: "w1", network: "n1"}
+	same := fakeNetworkScope{tenant: "t1", workspace: "w1", network: "n1"}
 
-	require.Equal(t, ComputeNetworkNamespace(scope), ComputeNetworkNamespace(scope))
+	require.Equal(t, ComputeNetworkNamespace(scope), ComputeNetworkNamespace(same),
+		"equal tenant/workspace/network must always map to the same namespace")
 }
 
 var testGVR = schema.GroupVersionResource{Group: "network.test", Version: "v1", Resource: "routetables"}

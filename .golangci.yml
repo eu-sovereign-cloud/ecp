@@ -43,8 +43,19 @@ linters:
       rules:
         # Framework inter-layer DAG (applies when linting framework/* paths).
         # Three-layer DAG: kernel (leaf) ← backend ← (nothing; frontend and backend are peers)
-        # "framework ↛ resources" is compiler-enforced (GOWORK=off gate) and
-        # lives in framework/.golangci.yml to avoid false-positives in other modules.
+        #
+        # These rules live here rather than in a framework/.golangci.yml: golangci-lint's
+        # `extends` REPLACES the `linters` block instead of merging into it, so a module-local
+        # config that omits `linters.enable` silently drops back to the five default linters —
+        # depguard among them — and every rule below goes dead exactly where it was aimed.
+        # Scope by path instead; it is false-positive-free and cannot drift out of sync.
+        framework-no-resources:
+          files:
+            - "**/framework/**"
+          list-mode: lax
+          deny:
+            - pkg: "github.com/eu-sovereign-cloud/ecp/resource"
+              desc: "framework must not import resources — compiler-enforced via GOWORK=off; this lint catches workspace-masked violations"
         kernel-no-impl:
           files:
             - "**/kernel/**"

@@ -272,12 +272,6 @@ Competing toolkits (`gomega`, `ginkgo`, `gotest.tools`, `go-cmp` as an assertion
 files by the `test-toolkit` depguard rule in `.golangci.yml`. `go-cmp` remains allowed in non-test
 code, where it is a diffing library rather than an assertion library.
 
-The rule covers `resource/`, `gateway/`, `csp/*`, and `test/`. It does **not** currently reach
-`framework/`: `framework/.golangci.yml` uses `extends`, which replaces the root `linters` block
-rather than merging into it, so that module runs only golangci-lint's five default linters and
-`depguard` is not among them. Fixing that config is tracked separately — until then, §9 is convention
-rather than gate inside `framework/`.
-
 ---
 
 ## Appendix — Known residuals

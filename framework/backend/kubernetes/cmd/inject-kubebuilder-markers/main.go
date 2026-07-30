@@ -240,6 +240,12 @@ const kbDefaultPrefix = "// +kubebuilder:default"
 // processFile reads a Go file, injects kubebuilder markers above fields that
 // have x-cel-* or x-kubebuilder-validation-* struct tags, and writes the file
 // back. Returns the number of markers injected.
+//
+// Over gocyclo's threshold by design: build-time codegen, not shipped in any binary. The
+// branching is one arm per supported marker tag and reads better flat than split across
+// helpers. Split it if a fourth marker family lands.
+//
+//nolint:gocyclo // see the note above
 func processFile(path string) (int, error) {
 	info, err := os.Stat(path)
 	if err != nil {
