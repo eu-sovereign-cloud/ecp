@@ -2,12 +2,14 @@ package cmd
 
 import (
 	"context"
-	"errors"
-	"log"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"strings"
+	"syscall"
 
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/rest"
@@ -82,7 +84,10 @@ var regionalApiServerCMD = &cobra.Command{
 	Long:    `The command starts the regional server for the ECP application`,
 	Run: func(cmd *cobra.Command, args []string) {
 		logger := logger.New(os.Getenv("APP_ENV"))
-		startRegional(logger, regionalHost+":"+regionalPort, regionalKubeconfig)
+		if err := startRegional(logger, regionalHost+":"+regionalPort, regionalKubeconfig); err != nil {
+			logger.Error("regional API server failed", slog.Any("error", err))
+			os.Exit(1)
+		}
 	},
 }
 
@@ -105,9 +110,15 @@ func init() {
 }
 
 // startRegional starts the backend HTTP server on the given address.
-func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
+func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) error {
 	if region == "" {
 		region = os.Getenv("REGION")
+	}
+	region = strings.TrimSpace(region)
+	// Fail fast: empty region freezes into the config singleton and mis-scopes
+	// every regional request (authz region, resource placement) for the process life.
+	if region == "" {
+		return fmt.Errorf("region is required: set --region or the REGION environment variable")
 	}
 	config.Singleton().SetRegion(region)
 
@@ -121,21 +132,21 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 		)
 		inClusterConfig, err = clientcmd.BuildConfigFromFlags("", kubeconfigPath)
 		if err != nil {
-			logger.Error(
-				"failed to build kubeconfig", "path", kubeconfigPath, slog.Any("error", err),
-			)
-			log.Fatal(err, " - failed to build kubeconfig")
+			return fmt.Errorf("build kubeconfig %s: %w", kubeconfigPath, err)
 		}
 	}
 
 	client, err := kubeclient.NewFromConfig(inClusterConfig)
 	if err != nil {
-		logger.Error("failed to create kubeclient", slog.Any("error", err))
-		log.Fatal(err, " - failed to create kubeclient")
+		return fmt.Errorf("create kubeclient: %w", err)
 	}
 
 	// Create a shared mux for all regional handlers
 	mux := http.NewServeMux()
+	readiness := httpserver.NewReadiness()
+	// Probes are unauthenticated and registered before provider routes so kubelet
+	// can hit them while the process is still wiring (readyz stays 503 until Set).
+	httpserver.RegisterProbes(mux, readiness, client.CheckAPIServer)
 
 	// Compute adapters
 	instanceReaderAdapter := k8sadapter.NewReaderAdapter[*instancedom.Instance](
@@ -177,14 +188,16 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 	// Build the authenticator and RBAC checker (both nil when --auth-enabled is not set).
 	authenticator, checker, err := auth.Build(&regionalAuthFlags, client.Client, roleReaderAdapter, roleAssignmentReaderAdapter, logger)
 	if err != nil {
-		logger.Error("failed to build auth chain", slog.Any("error", err))
-		log.Fatal(err, " - failed to build auth chain")
+		return fmt.Errorf("build auth chain: %w", err)
 	}
 
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
 	// Start the informer-backed checker when --authz-cache is enabled.
-	if err := auth.StartChecker(context.Background(), checker, logger); err != nil {
-		logger.Error("failed to start authz cache", slog.Any("error", err))
-		log.Fatal(err, " - failed to start authz cache")
+	// Same ctx as Serve so SIGTERM cancels informers during drain.
+	if err := auth.StartChecker(ctx, checker, logger); err != nil {
+		return fmt.Errorf("start authz cache: %w", err)
 	}
 
 	sdkcomputeapi.HandlerWithOptions(
@@ -437,8 +450,12 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) {
 			Logger:  logger,
 		},
 	)
-	if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		logger.Error("failed to start regional API server", "error", err)
-		log.Fatal(err, " - failed to start regional API server")
+	// Open the readiness gate only after full wiring; Serve clears it on SIGTERM.
+	readiness.Set(true)
+	logger.Info("Regional API server started successfully")
+	if err := httpserver.Serve(ctx, httpServer, logger, readiness); err != nil {
+		return fmt.Errorf("serve: %w", err)
 	}
+	logger.Info("Regional API server shut down gracefully")
+	return nil
 }

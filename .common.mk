@@ -136,8 +136,15 @@ endif
 # group membership. Pass --group-add with the socket's runtime GID so nested
 # docker/kind commands work. On Podman the socket is user-owned via userns, so
 # no extra group is needed.
+# Portable socket GID: GNU stat uses -c; BSD/macOS uses -f (with -L to follow
+# symlinks like GNU). Omit the flag when empty — docker rejects --group-add=.
 ifeq ($(_CTZD_BACKEND),docker)
-  _CTZD_DOCKER_GROUP := --group-add=$(shell stat -c '%g' $(_CTZD_SOCKET) 2>/dev/null)
+  _CTZD_SOCKET_GID := $(strip $(shell stat -c '%g' $(_CTZD_SOCKET) 2>/dev/null || stat -L -f '%g' $(_CTZD_SOCKET) 2>/dev/null))
+  ifneq ($(_CTZD_SOCKET_GID),)
+    _CTZD_DOCKER_GROUP := --group-add=$(_CTZD_SOCKET_GID)
+  else
+    _CTZD_DOCKER_GROUP :=
+  endif
 else
   _CTZD_DOCKER_GROUP :=
 endif

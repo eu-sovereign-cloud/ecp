@@ -67,3 +67,16 @@ func TestWriteErrorResponse_BadRequest(t *testing.T) {
 		t.Errorf("expected 400, got %d", w.Code)
 	}
 }
+
+func TestWriteErrorResponse_RequestEntityTooLarge(t *testing.T) {
+	t.Parallel()
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodPut, "/", nil)
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	WriteErrorResponse(w, r, log, errors.Join(ErrRequestEntityTooLarge, errors.New("limit exceeded")))
+
+	if w.Code != http.StatusRequestEntityTooLarge {
+		t.Errorf("expected 413, got %d", w.Code)
+	}
+}

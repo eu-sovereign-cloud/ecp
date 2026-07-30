@@ -2,12 +2,13 @@ package cmd
 
 import (
 	"context"
-	"errors"
-	"log"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"syscall"
 
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/rest"
@@ -49,7 +50,10 @@ var globalAPIServerCMD = &cobra.Command{
 	Long:    `The API server command starts the global server for the ECP application`,
 	Run: func(cmd *cobra.Command, args []string) {
 		logger := logger.New(os.Getenv("APP_ENV"))
-		startGlobal(logger, host+":"+port, kubeconfig)
+		if err := startGlobal(logger, host+":"+port, kubeconfig); err != nil {
+			logger.Error("global API server failed", slog.Any("error", err))
+			os.Exit(1)
+		}
 	},
 }
 
@@ -62,7 +66,7 @@ func init() {
 }
 
 // startGlobal starts the backend HTTP server on the given address.
-func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
+func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) error {
 	logger.Info("Starting global API server on", slog.Any("addr", addr))
 
 	config, err := rest.InClusterConfig()
@@ -70,19 +74,21 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
 		logger.Warn("could not get in-cluster config, falling back to kubeconfig file", slog.Any("error", err))
 		config, err = clientcmd.BuildConfigFromFlags("", kubeconfigPath)
 		if err != nil {
-			logger.Error("failed to build kubeconfig", "path", kubeconfigPath, slog.Any("error", err))
-			log.Fatal(err, " - failed to build kubeconfig")
+			return fmt.Errorf("build kubeconfig %s: %w", kubeconfigPath, err)
 		}
 	}
 
 	client, err := kubeclient.NewFromConfig(config)
 	if err != nil {
-		logger.Error("failed to create kubeclient", slog.Any("error", err))
-		log.Fatal(err, " - failed to create kubeclient")
+		return fmt.Errorf("create kubeclient: %w", err)
 	}
 
 	// Create a shared mux for all global handlers.
 	mux := http.NewServeMux()
+	readiness := httpserver.NewReadiness()
+	// Probes are unauthenticated and registered before provider routes so kubelet
+	// can hit them while the process is still wiring (readyz stays 503 until Set).
+	httpserver.RegisterProbes(mux, readiness, client.CheckAPIServer)
 
 	// Metrics endpoint — unauthenticated, mounted outside provider HandlerWithOptions.
 	mux.Handle("/metrics", metrics.Handler())
@@ -118,14 +124,16 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
 	// Build the authenticator and RBAC checker (both nil when --auth-enabled is not set).
 	authenticator, checker, err := auth.Build(&globalAuthFlags, client.Client, roleReaderAdapter, roleAssignmentReaderAdapter, logger)
 	if err != nil {
-		logger.Error("failed to build auth chain", slog.Any("error", err))
-		log.Fatal(err, " - failed to build auth chain")
+		return fmt.Errorf("build auth chain: %w", err)
 	}
 
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
 	// Start the informer-backed checker when --authz-cache is enabled.
-	if err := auth.StartChecker(context.Background(), checker, logger); err != nil {
-		logger.Error("failed to start authz cache", slog.Any("error", err))
-		log.Fatal(err, " - failed to start authz cache")
+	// Same ctx as Serve so SIGTERM cancels informers during drain.
+	if err := auth.StartChecker(ctx, checker, logger); err != nil {
+		return fmt.Errorf("start authz cache: %w", err)
 	}
 
 	// Region adapters and handler.
@@ -165,9 +173,12 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) {
 		Logger:  logger,
 	})
 
+	// Open the readiness gate only after full wiring; Serve clears it on SIGTERM.
+	readiness.Set(true)
 	logger.Info("Global API server started successfully")
-	if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		logger.Error("failed to start global API server", slog.Any("error", err))
-		log.Fatal(err, " - failed to start global API server")
+	if err := httpserver.Serve(ctx, httpServer, logger, readiness); err != nil {
+		return fmt.Errorf("serve: %w", err)
 	}
+	logger.Info("Global API server shut down gracefully")
+	return nil
 }

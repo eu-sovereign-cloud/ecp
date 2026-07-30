@@ -71,6 +71,17 @@ This is a Go monorepo managed with `go.work`. The workspace contains 8 first-par
 > Go is **not** required on the host. All compilation runs inside the `builder` container image, which is pulled automatically on first use.
 
 ```bash
+# If you have a frash repository clone, you need to get the sub modules:
+
+    make submodules
+
+If this failes because of SSH access, one way to solve it is
+
+    git config --global url."https://github.com/".insteadOf "git@github.com:"
+
+Then run `make modules again`.
+
+
 # Generate CRDs and typed Go models from OpenAPI specs
 make generate-api
 
@@ -79,7 +90,7 @@ make -C csp/dummy kind-start
 
 # Run the API servers (in separate terminals)
 go run ./gateway globalapiserver
-go run ./gateway regionalapiserver
+go run ./gateway regionalapiserver --region local -p 8081
 
 # Run all tests
 make test
