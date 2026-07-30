@@ -68,6 +68,21 @@ linters:
           deny:
             - pkg: "github.com/eu-sovereign-cloud/ecp/framework/backend"
               desc: "frontend must not import framework/backend"
+        # One assertion toolkit only — see doc/CONVENTIONS.md §9.
+        # go-cmp stays allowed outside tests, where it is a diffing library.
+        test-toolkit:
+          files:
+            - "**/*_test.go"
+          list-mode: lax
+          deny:
+            - pkg: "github.com/onsi/gomega"
+              desc: "use testify (require/assert); see doc/CONVENTIONS.md §9"
+            - pkg: "github.com/onsi/ginkgo"
+              desc: "use plain go test with testify; see doc/CONVENTIONS.md §9"
+            - pkg: "gotest.tools"
+              desc: "use testify (require/assert); see doc/CONVENTIONS.md §9"
+            - pkg: "github.com/google/go-cmp/cmp"
+              desc: "use testify (require/assert) for assertions; see doc/CONVENTIONS.md §9"
     importas:
       # Enforce <resource><layer> short aliases for resource slices.
       # Per-slice aliases are added in Phase C alongside slice creation.
