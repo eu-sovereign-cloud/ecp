@@ -338,7 +338,7 @@ func TestNamespaceManagingWriterAdapter_Delete(t *testing.T) {
 		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(
 			runtime.NewScheme(), parentListKinds(), parentObj, newChildObject(childNS, "bs-1"),
 		)
-		cs := k8sfake.NewSimpleClientset(&corev1.Namespace{
+		cs := k8sfake.NewClientset(&corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{Name: childNS, Labels: ownerLabels},
 		})
 
@@ -373,7 +373,7 @@ func TestNamespaceManagingWriterAdapter_Delete(t *testing.T) {
 		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(
 			runtime.NewScheme(), parentListKinds(), parentObj,
 		)
-		cs := k8sfake.NewSimpleClientset(&corev1.Namespace{
+		cs := k8sfake.NewClientset(&corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{Name: childNS, Labels: ownerLabels},
 		})
 
@@ -403,7 +403,7 @@ func TestNamespaceManagingWriterAdapter_Delete(t *testing.T) {
 			runtime.NewScheme(), parentListKinds(), parentObj,
 		)
 		// Namespace exists but lacks ownership labels.
-		cs := k8sfake.NewSimpleClientset(&corev1.Namespace{
+		cs := k8sfake.NewClientset(&corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{Name: childNS},
 		})
 
@@ -432,7 +432,7 @@ func TestNamespaceManagingWriterAdapter_Delete(t *testing.T) {
 		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(
 			runtime.NewScheme(), parentListKinds(), parentObj, newChildObject(childNS, "bs-1"),
 		)
-		cs := k8sfake.NewSimpleClientset(&corev1.Namespace{
+		cs := k8sfake.NewClientset(&corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{Name: childNS, Labels: ownerLabels},
 		})
 
@@ -501,7 +501,7 @@ func TestNamespaceManagingWriterAdapter_Delete_NetworkChildren(t *testing.T) {
 		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(
 			runtime.NewScheme(), networkParentListKinds(), parentObj, newChildObject(networkChildNS, "subnet-1"),
 		)
-		cs := k8sfake.NewSimpleClientset(&corev1.Namespace{
+		cs := k8sfake.NewClientset(&corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{Name: networkChildNS, Labels: ownerLabels},
 		})
 
@@ -534,7 +534,7 @@ func TestNamespaceManagingWriterAdapter_Delete_NetworkChildren(t *testing.T) {
 		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(
 			runtime.NewScheme(), networkParentListKinds(), parentObj,
 		)
-		cs := k8sfake.NewSimpleClientset(&corev1.Namespace{
+		cs := k8sfake.NewClientset(&corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{Name: networkChildNS, Labels: ownerLabels},
 		})
 
