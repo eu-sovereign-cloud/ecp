@@ -17,8 +17,8 @@ import (
 // the case of automation (ie Terraform) runs with large amounts of state-check
 // GETs.
 const (
-	DefaultQPS       = 20
-	DefaultBurst     = 30
+	DefaultQPS       = 5  // Default in go-client is 5
+	DefaultBurst     = 10 // Default in go-client is 10
 	DefaultUserAgent = "ecp-gateway"
 )
 
