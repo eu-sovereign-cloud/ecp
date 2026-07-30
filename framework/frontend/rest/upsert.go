@@ -38,10 +38,6 @@ type UpsertOptions[In any, D any, Out any] struct {
 	DomainToAPI DomainToAPI[D, Out]
 }
 
-// MaxRequestBodyBytes caps PUT body size for HandleUpsert. Concurrent unbounded
-// reads can OOM gateway pods under multi-tenant load (GW-P1-02).
-const MaxRequestBodyBytes = 1 << 20 // 1 MiB
-
 // HandleUpsert is a generic helper for PUT endpoints that:
 // 1. Decodes the JSON request body.
 // 2. Maps SDK to domain.

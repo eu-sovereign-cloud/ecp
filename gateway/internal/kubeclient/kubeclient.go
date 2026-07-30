@@ -13,10 +13,12 @@ import (
 )
 
 // Default client-go rate limits for the gateway HTTP path. client-go defaults
-// (QPS=5, Burst=10) throttle multi-tenant parallel traffic into latency cliffs.
+// (QPS=5, Burst=10) would throttle multi-tenant parallel traffic, especially in
+// the case of automation (ie Terraform) runs with large amounts of state-check
+// GETs.
 const (
-	DefaultQPS       = 100
-	DefaultBurst     = 200
+	DefaultQPS       = 20
+	DefaultBurst     = 30
 	DefaultUserAgent = "ecp-gateway"
 )
 

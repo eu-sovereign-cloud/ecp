@@ -111,6 +111,8 @@ func Serve(ctx context.Context, srv *http.Server, log *slog.Logger, readiness *R
 		if err := srv.Shutdown(shutdownCtx); err != nil {
 			// Force-close if drain budget is exhausted so Serve returns.
 			_ = srv.Close()
+			// Wait for the serve goroutine to end, so the listener is closed and
+			// the port is free. The error is always ErrServerClosed here.
 			<-errCh
 			return fmt.Errorf("HTTP server shutdown: %w", err)
 		}
