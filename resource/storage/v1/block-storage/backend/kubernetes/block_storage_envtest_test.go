@@ -90,7 +90,9 @@ func TestBlockStorageBackend_CreateAndGetBlockStorage(t *testing.T) {
 			},
 			Spec: bsdom.BlockStorageSpec{
 				SizeGB: 100,
-				SkuRef: commondomain.Reference{Resource: "standard-ssd"},
+				// TODO_TEST_238_239
+				// SkuRef: commondomain.Reference{Resource: "standard-ssd"},
+				SkuRef: commondomain.Reference{Resource: "skus/standard-ssd"},
 			},
 		}
 

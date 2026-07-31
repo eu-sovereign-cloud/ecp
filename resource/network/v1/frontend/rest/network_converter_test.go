@@ -10,6 +10,8 @@ import (
 
 func TestNetworkIteratorToAPI_ResponseMetadata(t *testing.T) {
 	iter := networkIteratorToAPI(nil, nil)
+	// TODO_TEST_238_239
+	// require.Equal(t, "networks", iter.Metadata.Resource)
 	require.Equal(t, "networks", iter.Metadata.Resource)
 	require.Equal(t, "seca.network/v1", iter.Metadata.Provider)
 }
@@ -23,6 +25,10 @@ func TestNetworkToAPI_ResourceAndRef(t *testing.T) {
 
 	out := networkToAPI(n)
 
-	require.Equal(t, "network/net1", out.Metadata.Resource)
-	require.Equal(t, "seca.network/v1/tenants/t1/workspaces/w1/providers/network/net1", out.Metadata.Ref)
+	// TODO_TEST_238_239
+	// require.Equal(t, "network/net1", out.Metadata.Resource)
+	require.Equal(t, "networks/net1", out.Metadata.Resource)
+	// TODO_TEST_238_239
+	// require.Equal(t, "seca.network/v1/tenants/t1/workspaces/w1/providers/network/net1", out.Metadata.Ref)
+	require.Equal(t, "seca.network/v1/tenants/t1/workspaces/w1/networks/net1", out.Metadata.Ref)
 }

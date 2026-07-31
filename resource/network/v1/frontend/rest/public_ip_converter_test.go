@@ -36,12 +36,18 @@ func TestPublicIpFromAPIToAPIRoundTrip(t *testing.T) {
 	require.Equal(t, "ip1", out.Metadata.Name)
 	require.Equal(t, "203.0.113.5", out.Spec.Address)
 	require.Equal(t, sdkschema.IPVersionIPv4, out.Spec.Version)
-	require.Equal(t, "public-ip/ip1", out.Metadata.Resource)
-	require.Equal(t, "seca.network/v1/tenants/t1/workspaces/w1/providers/public-ip/ip1", out.Metadata.Ref)
+	// TODO_TEST_238_239
+	// require.Equal(t, "public-ip/ip1", out.Metadata.Resource)
+	require.Equal(t, "public-ips/ip1", out.Metadata.Resource)
+	// TODO_TEST_238_239
+	// require.Equal(t, "seca.network/v1/tenants/t1/workspaces/w1/providers/public-ip/ip1", out.Metadata.Ref)
+	require.Equal(t, "seca.network/v1/tenants/t1/workspaces/w1/public-ips/ip1", out.Metadata.Ref)
 }
 
 func TestPublicIpIteratorToAPI_ResponseMetadata(t *testing.T) {
 	iter := publicIpIteratorToAPI(nil, nil)
+	// TODO_TEST_238_239
+	// require.Equal(t, "public-ips", iter.Metadata.Resource)
 	require.Equal(t, "public-ips", iter.Metadata.Resource)
 	require.Equal(t, "seca.network/v1", iter.Metadata.Provider)
 }
@@ -55,7 +61,9 @@ func TestPublicIpToAPI_AttachedTo(t *testing.T) {
 	out := publicIpToAPIWithVerb(http.MethodGet)(dom)
 	require.Nil(t, out.Status)
 
-	attachedTo := commondomain.Reference{Resource: "nic/nic1"}
+	// TODO_TEST_238_239
+	// attachedTo := commondomain.Reference{Resource: "nic/nic1"}
+	attachedTo := commondomain.Reference{Resource: "nics/nic1"}
 	dom.Status = &publicipdom.PublicIpStatus{
 		Status:     commondomain.Status{State: commondomain.ResourceStateActive},
 		AttachedTo: &attachedTo,
@@ -65,6 +73,6 @@ func TestPublicIpToAPI_AttachedTo(t *testing.T) {
 	out = publicIpToAPIWithVerb(http.MethodGet)(dom)
 	require.NotNil(t, out.Status)
 	require.NotNil(t, out.Status.AttachedTo)
-	require.Equal(t, "nic/nic1", out.Status.AttachedTo.Resource)
+	require.Equal(t, "nics/nic1", out.Status.AttachedTo.Resource)
 	require.Equal(t, "203.0.113.5", out.Status.IpAddress)
 }

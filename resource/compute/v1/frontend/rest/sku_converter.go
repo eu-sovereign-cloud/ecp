@@ -1,8 +1,6 @@
 package rest
 
 import (
-	"fmt"
-
 	sdkcompute "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.compute.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
@@ -36,13 +34,8 @@ func instanceSKUToAPI(sku *skudom.InstanceSKU) *sdkschema.InstanceSku {
 			Provider:   sku.Provider,
 			Region:     sku.Region,
 			Tenant:     sku.Tenant,
-			Resource:   fmt.Sprintf(commondomain.RegionalResourceFormat, sdkschema.SkuResourceMetadataKindResourceKindInstanceSku, sku.Name),
-			Ref: fmt.Sprintf(
-				sku.Provider+"/"+commondomain.RegionalTenantScopedResourceFormat,
-				sku.Tenant,
-				sdkschema.SkuResourceMetadataKindResourceKindInstanceSku,
-				sku.Name,
-			),
+			Resource:   commondomain.FormatRegionalResource(sdkschema.SkuResourceMetadataKindResourceKindInstanceSku, sku.Name),
+			Ref:        commondomain.FormatRegionalTenantScopedRef(sku.Provider, sku.Tenant, sdkschema.SkuResourceMetadataKindResourceKindInstanceSku, sku.Name),
 		},
 		Spec: &sdkschema.InstanceSkuSpec{
 			Ram:  sku.Spec.Ram,

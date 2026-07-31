@@ -134,6 +134,8 @@ func TestSecurityGroupBackend_CreateAndGetSecurityGroup(t *testing.T) {
 		// Update the spec (add a rule ref).
 		updateDomain := newSGDomain()
 		updateDomain.ResourceVersion = created.ResourceVersion
+		// TODO_TEST_238_239
+		// updateDomain.Spec.RuleRefs = []commondomain.Reference{{Resource: "security-group-rules/shared-rule"}}
 		updateDomain.Spec.RuleRefs = []commondomain.Reference{{Resource: "security-group-rules/shared-rule"}}
 
 		updateResult, err := writerRepo.Update(ctx, updateDomain)

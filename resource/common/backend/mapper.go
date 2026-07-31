@@ -127,6 +127,7 @@ func IPVersionFromCR(v schemav1.IPVersion) domain.IPVersion {
 	}
 }
 
+// TODO_238_239
 // ReferenceFromCR converts a generated schemav1.Reference to a domain.Reference.
 // Tenant and Workspace are embedded into the Resource path so the domain always
 // carries a fully-qualified resource path string (e.g. "seca.storage/v1/tenants/t/skus/s").
@@ -142,6 +143,7 @@ func ReferenceFromCR(ref schemav1.Reference) domain.Reference {
 	}
 }
 
+// TODO_238_239
 // ReferenceToCR converts a domain.Reference to a generated schemav1.Reference.
 // It parses the Resource path to extract embedded segments (providers, regions, tenants, workspaces)
 // and sets the corresponding fields. Extracted segments are stripped from the Resource path.
@@ -155,6 +157,7 @@ func ReferenceToCR(ref domain.Reference) schemav1.Reference {
 	// embedded path segments are extracted; on subsequent calls (after a round-trip
 	// through the CR) the explicit fields are already populated and path extraction
 	// is skipped, leaving the Resource unchanged.
+	// TODO_238_239
 	if ref.Provider == "" {
 		if provider, remaining := extractAndStripSegment(resourcePath, "providers/"); provider != "" {
 			result.Provider = provider
@@ -195,6 +198,7 @@ func ReferenceToCR(ref domain.Reference) schemav1.Reference {
 	return result
 }
 
+// TODO_238_239
 // embedScopeInResource inserts tenants/{tenant} and workspaces/{workspace} segments
 // into the resource path, just before the resource type/name suffix.
 // e.g. "seca.storage/v1/skus/fast-local" with tenant "seca" becomes

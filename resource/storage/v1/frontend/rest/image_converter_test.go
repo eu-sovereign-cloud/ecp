@@ -10,6 +10,8 @@ import (
 
 func TestImageIteratorToAPI_ResponseMetadata(t *testing.T) {
 	iter := imageIteratorToAPI(nil, nil)
+	// TODO_TEST_238_239
+	// require.Equal(t, "images", iter.Metadata.Resource)
 	require.Equal(t, "images", iter.Metadata.Resource)
 	require.Equal(t, "seca.storage/v1", iter.Metadata.Provider)
 }
@@ -22,6 +24,10 @@ func TestImageToAPI_ResourceAndRef(t *testing.T) {
 
 	out := imageToAPI(img)
 
-	require.Equal(t, "image/img1", out.Metadata.Resource)
-	require.Equal(t, "seca.storage/v1/tenants/t1/providers/image/img1", out.Metadata.Ref)
+	// TODO_TEST_238_239
+	// require.Equal(t, "image/img1", out.Metadata.Resource)
+	require.Equal(t, "images/img1", out.Metadata.Resource)
+	// TODO_TEST_238_239
+	// require.Equal(t, "seca.storage/v1/tenants/t1/providers/image/img1", out.Metadata.Ref)
+	require.Equal(t, "seca.storage/v1/tenants/t1/images/img1", out.Metadata.Ref)
 }

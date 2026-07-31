@@ -1,7 +1,6 @@
 package rest
 
 import (
-	"fmt"
 	"strconv"
 
 	sdknetwork "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.network.v1"
@@ -67,20 +66,17 @@ func securityGroupRuleToAPI(sgr *securitygroupruledom.SecurityGroupRule) *sdksch
 
 	out := &sdkschema.SecurityGroupRule{
 		Metadata: &sdkschema.RegionalWorkspaceResourceMetadata{
-			ApiVersion:     securitygroupruledom.Version,
-			CreatedAt:      sgr.CreatedAt,
-			LastModifiedAt: sgr.UpdatedAt,
-			Kind:           kind,
-			Name:           sgr.Name,
-			Tenant:         sgr.Tenant,
-			Workspace:      sgr.Workspace,
-			Provider:       sgr.Provider,
-			Region:         sgr.Region,
-			Resource:       fmt.Sprintf(commondomain.RegionalResourceFormat, kind, sgr.Name),
-			Ref: fmt.Sprintf(
-				sgr.Provider+"/"+commondomain.RegionalWorkspaceScopedResourceFormat,
-				sgr.Tenant, sgr.Workspace, kind, sgr.Name,
-			),
+			ApiVersion:      securitygroupruledom.Version,
+			CreatedAt:       sgr.CreatedAt,
+			LastModifiedAt:  sgr.UpdatedAt,
+			Kind:            kind,
+			Name:            sgr.Name,
+			Tenant:          sgr.Tenant,
+			Workspace:       sgr.Workspace,
+			Provider:        sgr.Provider,
+			Region:          sgr.Region,
+			Resource:        commondomain.FormatRegionalResource(kind, sgr.Name),
+			Ref:             commondomain.FormatRegionalWorkspaceScopedRef(sgr.Provider, sgr.Tenant, sgr.Workspace, kind, sgr.Name),
 			ResourceVersion: resourceVersion,
 		},
 		Labels:      sgr.Labels,

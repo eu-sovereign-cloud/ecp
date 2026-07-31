@@ -33,6 +33,8 @@ func TestRouteTable(t *testing.T) {
 			},
 			Spec: routetabledom.RouteTableSpec{
 				Routes: []routetabledom.RouteSpec{
+					// TODO_TEST_238_239
+					// {DestinationCidrBlock: "10.0.0.0/24", TargetRef: commondomain.Reference{Resource: "instances/inst1"}},
 					{DestinationCidrBlock: "10.0.0.0/24", TargetRef: commondomain.Reference{Resource: "instances/inst1"}},
 				},
 			},
@@ -75,6 +77,8 @@ func TestRouteTable(t *testing.T) {
 			},
 			Spec: routetabledom.RouteTableSpec{
 				Routes: []routetabledom.RouteSpec{
+					// TODO_TEST_238_239
+					// {DestinationCidrBlock: "10.0.1.0/24", TargetRef: commondomain.Reference{Resource: "instances/inst2"}},
 					{DestinationCidrBlock: "10.0.1.0/24", TargetRef: commondomain.Reference{Resource: "instances/inst2"}},
 				},
 			},

@@ -32,12 +32,18 @@ func TestInternetGatewayFromAPIToAPIRoundTrip(t *testing.T) {
 	require.Equal(t, http.MethodPut, out.Metadata.Verb)
 	require.Equal(t, "ig1", out.Metadata.Name)
 	require.True(t, out.Spec.EgressOnly)
-	require.Equal(t, "internet-gateway/ig1", out.Metadata.Resource)
-	require.Equal(t, "seca.network/v1/tenants/t1/workspaces/w1/providers/internet-gateway/ig1", out.Metadata.Ref)
+	// TODO_TEST_238_239
+	// require.Equal(t, "internet-gateway/ig1", out.Metadata.Resource)
+	require.Equal(t, "internet-gateways/ig1", out.Metadata.Resource)
+	// TODO_TEST_238_239
+	// require.Equal(t, "seca.network/v1/tenants/t1/workspaces/w1/providers/internet-gateway/ig1", out.Metadata.Ref)
+	require.Equal(t, "seca.network/v1/tenants/t1/workspaces/w1/internet-gateways/ig1", out.Metadata.Ref)
 }
 
 func TestInternetGatewayIteratorToAPI_ResponseMetadata(t *testing.T) {
 	iter := internetGatewayIteratorToAPI(nil, nil)
+	// TODO_TEST_238_239
+	// require.Equal(t, "internet-gateways", iter.Metadata.Resource)
 	require.Equal(t, "internet-gateways", iter.Metadata.Resource)
 	require.Equal(t, "seca.network/v1", iter.Metadata.Provider)
 }

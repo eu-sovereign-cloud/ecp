@@ -1,7 +1,6 @@
 package rest
 
 import (
-	"fmt"
 	"strconv"
 
 	sdknetwork "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.network.v1"
@@ -84,21 +83,18 @@ func subnetToAPI(s *subnetdom.Subnet) *sdkschema.Subnet {
 
 	out := &sdkschema.Subnet{
 		Metadata: &sdkschema.RegionalNetworkResourceMetadata{
-			ApiVersion:     subnetdom.Version,
-			CreatedAt:      s.CreatedAt,
-			LastModifiedAt: s.UpdatedAt,
-			Kind:           kind,
-			Name:           s.Name,
-			Tenant:         s.Tenant,
-			Workspace:      s.Workspace,
-			Network:        s.Network,
-			Provider:       s.Provider,
-			Region:         s.Region,
-			Resource:       fmt.Sprintf(commondomain.RegionalResourceFormat, kind, s.Name),
-			Ref: fmt.Sprintf(
-				s.Provider+"/"+commondomain.RegionalNetworkScopedResourceFormat,
-				s.Tenant, s.Workspace, s.Network, kind, s.Name,
-			),
+			ApiVersion:      subnetdom.Version,
+			CreatedAt:       s.CreatedAt,
+			LastModifiedAt:  s.UpdatedAt,
+			Kind:            kind,
+			Name:            s.Name,
+			Tenant:          s.Tenant,
+			Workspace:       s.Workspace,
+			Network:         s.Network,
+			Provider:        s.Provider,
+			Region:          s.Region,
+			Resource:        commondomain.FormatRegionalNetworkScopedResource(s.Network, kind, s.Name),
+			Ref:             commondomain.FormatRegionalNetworkScopedRef(s.Provider, s.Tenant, s.Workspace, s.Network, kind, s.Name),
 			ResourceVersion: resourceVersion,
 		},
 		Labels:      s.Labels,

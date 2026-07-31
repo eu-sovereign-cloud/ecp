@@ -8,6 +8,7 @@ type Reference struct {
 	Provider string
 	// Region of the resource. If empty, inferred from context.
 	Region string
+	// TODO_238_239
 	// Resource is the name and type in format `<type>/<name>`.
 	Resource string
 	// Tenant of the resource. If empty, inferred from context.

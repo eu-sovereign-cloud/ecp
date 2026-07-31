@@ -89,6 +89,8 @@ func TestImageBackend_CreateAndGetImage(t *testing.T) {
 				Labels:         map[string]string{k8slabels.InternalTenantLabel: tenant},
 			},
 			Spec: imgdom.ImageSpec{
+				// TODO_TEST_238_239
+				// BlockStorageRef: commondomain.Reference{Resource: "block-storages/source-bs"},
 				BlockStorageRef: commondomain.Reference{Resource: "block-storages/source-bs"},
 				CpuArchitecture: "amd64",
 				Boot:            "UEFI",

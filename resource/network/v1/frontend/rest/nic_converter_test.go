@@ -17,8 +17,12 @@ func TestNicFromAPIToAPIRoundTrip(t *testing.T) {
 	sdk := sdkschema.Nic{
 		Spec: sdkschema.NicSpec{
 			Addresses: []string{"10.0.0.5"},
-			SubnetRef: sdkschema.Reference{Resource: "subnet/sn1"},
-			SkuRef:    &sdkschema.Reference{Resource: "nic-sku/small"},
+			// TODO_TEST_238_239
+			// SubnetRef: sdkschema.Reference{Resource: "subnet/sn1"},
+			SubnetRef: sdkschema.Reference{Resource: "networks/n1/subnets/sn1"},
+			// TODO_TEST_238_239
+			// SkuRef: &sdkschema.Reference{Resource: "nic-sku/small"},
+			SkuRef: &sdkschema.Reference{Resource: "skus/small"},
 		},
 	}
 	id := &resource.Identity{Name: "nic1", Scope: resource.Scope{Tenant: "t1", Workspace: "w1"}}
@@ -30,21 +34,27 @@ func TestNicFromAPIToAPIRoundTrip(t *testing.T) {
 	require.Equal(t, "r1", dom.Region)
 	require.Equal(t, nicdom.ProviderID, dom.Provider)
 	require.Equal(t, []string{"10.0.0.5"}, dom.Spec.Addresses)
-	require.Equal(t, "subnet/sn1", dom.Spec.SubnetRef.Resource)
-	require.Equal(t, "nic-sku/small", dom.Spec.SkuRef.Resource)
+	require.Equal(t, "networks/n1/subnets/sn1", dom.Spec.SubnetRef.Resource)
+	require.Equal(t, "skus/small", dom.Spec.SkuRef.Resource)
 
 	out := nicToAPIWithVerb(http.MethodPut)(dom)
 	require.Equal(t, http.MethodPut, out.Metadata.Verb)
 	require.Equal(t, "nic1", out.Metadata.Name)
 	require.Equal(t, []string{"10.0.0.5"}, out.Spec.Addresses)
 	require.NotNil(t, out.Spec.SkuRef)
-	require.Equal(t, "nic-sku/small", out.Spec.SkuRef.Resource)
-	require.Equal(t, "nic/nic1", out.Metadata.Resource)
-	require.Equal(t, "seca.network/v1/tenants/t1/workspaces/w1/providers/nic/nic1", out.Metadata.Ref)
+	require.Equal(t, "skus/small", out.Spec.SkuRef.Resource)
+	// TODO_TEST_238_239
+	// require.Equal(t, "nic/nic1", out.Metadata.Resource)
+	require.Equal(t, "nics/nic1", out.Metadata.Resource)
+	// TODO_TEST_238_239
+	// require.Equal(t, "seca.network/v1/tenants/t1/workspaces/w1/providers/nic/nic1", out.Metadata.Ref)
+	require.Equal(t, "seca.network/v1/tenants/t1/workspaces/w1/nics/nic1", out.Metadata.Ref)
 }
 
 func TestNicIteratorToAPI_ResponseMetadata(t *testing.T) {
 	iter := nicIteratorToAPI(nil, nil)
+	// TODO_TEST_238_239
+	// require.Equal(t, "nics", iter.Metadata.Resource)
 	require.Equal(t, "nics", iter.Metadata.Resource)
 	require.Equal(t, "seca.network/v1", iter.Metadata.Provider)
 }
@@ -53,7 +63,9 @@ func TestNicFromAPI_NilSkuRef(t *testing.T) {
 	sdk := sdkschema.Nic{
 		Spec: sdkschema.NicSpec{
 			Addresses: []string{"10.0.0.5"},
-			SubnetRef: sdkschema.Reference{Resource: "subnet/sn1"},
+			// TODO_TEST_238_239
+			// SubnetRef: sdkschema.Reference{Resource: "subnet/sn1"},
+			SubnetRef: sdkschema.Reference{Resource: "networks/n1/subnets/sn1"},
 		},
 	}
 	dom := nicFromAPI(sdk, &resource.Identity{Name: "nic1"}, "r1")

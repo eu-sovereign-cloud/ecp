@@ -30,7 +30,9 @@ func TestSubnet(t *testing.T) {
 				Network: testNetwork,
 			},
 			Spec: subnetdom.SubnetSpec{
-				Cidr:          subnetdom.CIDR{IPv4: "10.0.0.0/24"},
+				Cidr: subnetdom.CIDR{IPv4: "10.0.0.0/24"},
+				// TODO_TEST_238_239
+				// RouteTableRef: commondomain.Reference{Resource: "route-tables/rt1"},
 				RouteTableRef: commondomain.Reference{Resource: "route-tables/rt1"},
 				Zone:          "zone-1",
 			},
@@ -72,7 +74,9 @@ func TestSubnet(t *testing.T) {
 				Network: testNetwork,
 			},
 			Spec: subnetdom.SubnetSpec{
-				Cidr:          subnetdom.CIDR{IPv4: "10.0.1.0/24"},
+				Cidr: subnetdom.CIDR{IPv4: "10.0.1.0/24"},
+				// TODO_TEST_238_239
+				// RouteTableRef: commondomain.Reference{Resource: "route-tables/rt2"},
 				RouteTableRef: commondomain.Reference{Resource: "route-tables/rt2"},
 				Zone:          "zone-1",
 			},

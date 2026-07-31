@@ -12,14 +12,22 @@ import (
 
 const (
 	testInstanceName = "inst1"
-	testBootDevice   = "block-storage/boot"
-	testSku          = "sku/small"
-	testZone         = "zone-a"
+	// TODO_TEST_238_239
+	// testBootDevice   = "block-storage/boot"
+	testBootDevice = "block-storages/boot"
+	// TODO_TEST_238_239
+	// testSku          = "sku/small"
+	testSku  = "skus/small"
+	testZone = "zone-a"
 )
 
 func TestInstanceConversionRoundTrip(t *testing.T) {
-	primaryNic := commondomain.Reference{Resource: "nic/nic1"}
-	securityGroup := commondomain.Reference{Resource: "security-group/sg1"}
+	// TODO_TEST_238_239
+	// primaryNic := commondomain.Reference{Resource: "nic/nic1"}
+	primaryNic := commondomain.Reference{Resource: "nics/nic1"}
+	// TODO_TEST_238_239
+	// securityGroup := commondomain.Reference{Resource: "security-group/sg1"}
+	securityGroup := commondomain.Reference{Resource: "security-groups/sg1"}
 	in := &instancedom.Instance{
 		Spec: instancedom.InstanceSpec{
 			AntiAffinityGroup: "aag1",
@@ -28,9 +36,13 @@ func TestInstanceConversionRoundTrip(t *testing.T) {
 				Type:      "virtio",
 			},
 			DataVolumes: []instancedom.VolumeReference{
-				{DeviceRef: commondomain.Reference{Resource: "block-storage/data1"}, Type: "virtio"},
+				// TODO_TEST_238_239
+				// {DeviceRef: commondomain.Reference{Resource: "block-storage/data1"}, Type: "virtio"},
+				{DeviceRef: commondomain.Reference{Resource: "block-storages/data1"}, Type: "virtio"},
 			},
-			AdditionalNicRefs: []commondomain.Reference{{Resource: "nic/nic2"}},
+			// TODO_TEST_238_239
+			// AdditionalNicRefs: []commondomain.Reference{{Resource: "nic/nic2"}},
+			AdditionalNicRefs: []commondomain.Reference{{Resource: "nics/nic2"}},
 			PrimaryNicRef:     &primaryNic,
 			SecurityGroupRef:  &securityGroup,
 			SkuRef:            commondomain.Reference{Resource: testSku},

@@ -1,8 +1,6 @@
 package rest
 
 import (
-	"fmt"
-
 	sdknetwork "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.network.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
@@ -20,13 +18,8 @@ func networkSKUToAPI(sku *skudom.NetworkSKU) *sdkschema.NetworkSku {
 			Provider:   sku.Provider,
 			Region:     sku.Region,
 			Tenant:     sku.Tenant,
-			Resource:   fmt.Sprintf(commondomain.RegionalResourceFormat, sdkschema.SkuResourceMetadataKindResourceKindNetworkSku, sku.Name),
-			Ref: fmt.Sprintf(
-				sku.Provider+"/"+commondomain.RegionalTenantScopedResourceFormat,
-				sku.Tenant,
-				sdkschema.SkuResourceMetadataKindResourceKindNetworkSku,
-				sku.Name,
-			),
+			Resource:   commondomain.FormatRegionalResource(sdkschema.SkuResourceMetadataKindResourceKindNetworkSku, sku.Name),
+			Ref:        commondomain.FormatRegionalTenantScopedRef(sku.Provider, sku.Tenant, sdkschema.SkuResourceMetadataKindResourceKindNetworkSku, sku.Name),
 		},
 		Spec: &sdkschema.NetworkSkuSpec{
 			Bandwidth: sku.Spec.Bandwidth,

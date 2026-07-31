@@ -24,10 +24,14 @@ func newTestInstance(name string) *instancedom.Instance {
 		},
 		Spec: instancedom.InstanceSpec{
 			BootVolume: instancedom.VolumeReference{
-				DeviceRef: commondomain.Reference{Resource: "block-storage/boot"},
+				// TODO_TEST_238_239
+				// DeviceRef: commondomain.Reference{Resource: "block-storage/boot"},
+				DeviceRef: commondomain.Reference{Resource: "block-storages/boot"},
 				Type:      "virtio",
 			},
-			SkuRef: commondomain.Reference{Resource: "sku/small"},
+			// TODO_TEST_238_239
+			// SkuRef: commondomain.Reference{Resource: "sku/small"},
+			SkuRef: commondomain.Reference{Resource: "skus/small"},
 			Zone:   "zone-a",
 		},
 	}
