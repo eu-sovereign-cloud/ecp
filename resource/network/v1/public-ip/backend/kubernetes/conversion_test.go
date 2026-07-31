@@ -11,8 +11,8 @@ import (
 )
 
 func TestPublicIpConversionRoundTrip(t *testing.T) {
-	// TODO_TEST_238_239
-	// attachedTo := commondomain.Reference{Resource: "nic/nic1"}
+	// Reference.resource: {collection}/{name}
+	// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 	attachedTo := commondomain.Reference{Resource: "nics/nic1"}
 	in := &publicipdom.PublicIp{
 		Spec: publicipdom.PublicIpSpec{

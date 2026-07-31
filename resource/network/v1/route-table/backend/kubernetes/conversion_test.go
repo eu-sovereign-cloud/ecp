@@ -16,8 +16,8 @@ func TestRouteTableConversionRoundTrip(t *testing.T) {
 			Routes: []routetabledom.RouteSpec{
 				{
 					DestinationCidrBlock: "10.0.0.0/24",
-					// TODO_TEST_238_239
-					// TargetRef:            commondomain.Reference{Resource: "instances/inst1"},
+					// Reference.resource: {collection}/{name}
+					// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 					TargetRef: commondomain.Reference{Resource: "instances/inst1"},
 				},
 			},

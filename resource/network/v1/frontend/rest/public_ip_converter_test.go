@@ -36,18 +36,18 @@ func TestPublicIpFromAPIToAPIRoundTrip(t *testing.T) {
 	require.Equal(t, "ip1", out.Metadata.Name)
 	require.Equal(t, "203.0.113.5", out.Spec.Address)
 	require.Equal(t, sdkschema.IPVersionIPv4, out.Spec.Version)
-	// TODO_TEST_238_239
-	// require.Equal(t, "public-ip/ip1", out.Metadata.Resource)
+	// metadata.resource: {collection}/{name}
+	// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 	require.Equal(t, "public-ips/ip1", out.Metadata.Resource)
-	// TODO_TEST_238_239
-	// require.Equal(t, "seca.network/v1/tenants/t1/workspaces/w1/providers/public-ip/ip1", out.Metadata.Ref)
+	// metadata.ref: {provider}/tenants/{tenant}/workspaces/{workspace}/{collection}/{name}
+	// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 	require.Equal(t, "seca.network/v1/tenants/t1/workspaces/w1/public-ips/ip1", out.Metadata.Ref)
 }
 
 func TestPublicIpIteratorToAPI_ResponseMetadata(t *testing.T) {
 	iter := publicIpIteratorToAPI(nil, nil)
-	// TODO_TEST_238_239
-	// require.Equal(t, "public-ips", iter.Metadata.Resource)
+	// ResponseMetadata.resource: {collection}
+	// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 	require.Equal(t, "public-ips", iter.Metadata.Resource)
 	require.Equal(t, "seca.network/v1", iter.Metadata.Provider)
 }
@@ -61,8 +61,8 @@ func TestPublicIpToAPI_AttachedTo(t *testing.T) {
 	out := publicIpToAPIWithVerb(http.MethodGet)(dom)
 	require.Nil(t, out.Status)
 
-	// TODO_TEST_238_239
-	// attachedTo := commondomain.Reference{Resource: "nic/nic1"}
+	// Reference.resource: {collection}/{name}
+	// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 	attachedTo := commondomain.Reference{Resource: "nics/nic1"}
 	dom.Status = &publicipdom.PublicIpStatus{
 		Status:     commondomain.Status{State: commondomain.ResourceStateActive},

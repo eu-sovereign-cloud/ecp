@@ -17,11 +17,11 @@ func TestNicFromAPIToAPIRoundTrip(t *testing.T) {
 	sdk := sdkschema.Nic{
 		Spec: sdkschema.NicSpec{
 			Addresses: []string{"10.0.0.5"},
-			// TODO_TEST_238_239
-			// SubnetRef: sdkschema.Reference{Resource: "subnet/sn1"},
+			// Reference.resource: networks/{network}/{collection}/{name}
+			// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 			SubnetRef: sdkschema.Reference{Resource: "networks/n1/subnets/sn1"},
-			// TODO_TEST_238_239
-			// SkuRef: &sdkschema.Reference{Resource: "nic-sku/small"},
+			// Reference.resource: {collection}/{name}
+			// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 			SkuRef: &sdkschema.Reference{Resource: "skus/small"},
 		},
 	}
@@ -43,18 +43,18 @@ func TestNicFromAPIToAPIRoundTrip(t *testing.T) {
 	require.Equal(t, []string{"10.0.0.5"}, out.Spec.Addresses)
 	require.NotNil(t, out.Spec.SkuRef)
 	require.Equal(t, "skus/small", out.Spec.SkuRef.Resource)
-	// TODO_TEST_238_239
-	// require.Equal(t, "nic/nic1", out.Metadata.Resource)
+	// metadata.resource: {collection}/{name}
+	// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 	require.Equal(t, "nics/nic1", out.Metadata.Resource)
-	// TODO_TEST_238_239
-	// require.Equal(t, "seca.network/v1/tenants/t1/workspaces/w1/providers/nic/nic1", out.Metadata.Ref)
+	// metadata.ref: {provider}/tenants/{tenant}/workspaces/{workspace}/{collection}/{name}
+	// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 	require.Equal(t, "seca.network/v1/tenants/t1/workspaces/w1/nics/nic1", out.Metadata.Ref)
 }
 
 func TestNicIteratorToAPI_ResponseMetadata(t *testing.T) {
 	iter := nicIteratorToAPI(nil, nil)
-	// TODO_TEST_238_239
-	// require.Equal(t, "nics", iter.Metadata.Resource)
+	// ResponseMetadata.resource: {collection}
+	// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 	require.Equal(t, "nics", iter.Metadata.Resource)
 	require.Equal(t, "seca.network/v1", iter.Metadata.Provider)
 }
@@ -63,8 +63,8 @@ func TestNicFromAPI_NilSkuRef(t *testing.T) {
 	sdk := sdkschema.Nic{
 		Spec: sdkschema.NicSpec{
 			Addresses: []string{"10.0.0.5"},
-			// TODO_TEST_238_239
-			// SubnetRef: sdkschema.Reference{Resource: "subnet/sn1"},
+			// Reference.resource: networks/{network}/{collection}/{name}
+			// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 			SubnetRef: sdkschema.Reference{Resource: "networks/n1/subnets/sn1"},
 		},
 	}

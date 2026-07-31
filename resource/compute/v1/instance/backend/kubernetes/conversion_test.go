@@ -12,21 +12,16 @@ import (
 
 const (
 	testInstanceName = "inst1"
-	// TODO_TEST_238_239
-	// testBootDevice   = "block-storage/boot"
+	// Reference.resource: {collection}/{name}
+	// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 	testBootDevice = "block-storages/boot"
-	// TODO_TEST_238_239
-	// testSku          = "sku/small"
-	testSku  = "skus/small"
-	testZone = "zone-a"
+	testSku        = "skus/small"
+	testZone       = "zone-a"
 )
 
 func TestInstanceConversionRoundTrip(t *testing.T) {
-	// TODO_TEST_238_239
-	// primaryNic := commondomain.Reference{Resource: "nic/nic1"}
+	// Reference.resource values use {collection}/{name}; see testBootDevice/testSku above.
 	primaryNic := commondomain.Reference{Resource: "nics/nic1"}
-	// TODO_TEST_238_239
-	// securityGroup := commondomain.Reference{Resource: "security-group/sg1"}
 	securityGroup := commondomain.Reference{Resource: "security-groups/sg1"}
 	in := &instancedom.Instance{
 		Spec: instancedom.InstanceSpec{
@@ -36,12 +31,8 @@ func TestInstanceConversionRoundTrip(t *testing.T) {
 				Type:      "virtio",
 			},
 			DataVolumes: []instancedom.VolumeReference{
-				// TODO_TEST_238_239
-				// {DeviceRef: commondomain.Reference{Resource: "block-storage/data1"}, Type: "virtio"},
 				{DeviceRef: commondomain.Reference{Resource: "block-storages/data1"}, Type: "virtio"},
 			},
-			// TODO_TEST_238_239
-			// AdditionalNicRefs: []commondomain.Reference{{Resource: "nic/nic2"}},
 			AdditionalNicRefs: []commondomain.Reference{{Resource: "nics/nic2"}},
 			PrimaryNicRef:     &primaryNic,
 			SecurityGroupRef:  &securityGroup,

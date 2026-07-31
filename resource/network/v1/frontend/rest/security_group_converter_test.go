@@ -15,8 +15,8 @@ import (
 func TestSecurityGroupFromAPIToAPIRoundTrip(t *testing.T) {
 	sdk := sdkschema.SecurityGroup{
 		Spec: sdkschema.SecurityGroupSpec{
-			// TODO_TEST_238_239
-			// RuleRefs: []sdkschema.Reference{{Resource: "security-group-rules/rule1"}},
+			// Reference.resource: {collection}/{name}
+			// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 			RuleRefs: []sdkschema.Reference{{Resource: "security-group-rules/rule1"}},
 			Rules: []sdkschema.SecurityGroupRuleSpec{
 				{Direction: sdkschema.SecurityGroupRuleSpecDirection("ingress"), Protocol: sdkschema.SecurityGroupRuleSpecProtocol("tcp")},
@@ -43,8 +43,8 @@ func TestSecurityGroupFromAPIToAPIRoundTrip(t *testing.T) {
 
 func TestSecurityGroupIteratorToAPI_ResponseMetadata(t *testing.T) {
 	iter := securityGroupIteratorToAPI(nil, nil)
-	// TODO_TEST_238_239
-	// require.Equal(t, "security-groups", iter.Metadata.Resource)
+	// ResponseMetadata.resource: {collection}
+	// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 	require.Equal(t, "security-groups", iter.Metadata.Resource)
 	require.Equal(t, "seca.network/v1", iter.Metadata.Provider)
 }

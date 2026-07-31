@@ -10,8 +10,8 @@ import (
 
 func TestInstanceSKUIteratorToAPI_ResponseMetadata(t *testing.T) {
 	iter := instanceSKUIteratorToAPI(nil, nil)
-	// TODO_TEST_238_239
-	// require.Equal(t, "skus", iter.Metadata.Resource)
+	// ResponseMetadata.resource: {collection}
+	// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 	require.Equal(t, "skus", iter.Metadata.Resource)
 	require.Equal(t, "seca.compute/v1", iter.Metadata.Provider)
 }
@@ -25,11 +25,11 @@ func TestInstanceSKUToAPI_ResourceAndRef(t *testing.T) {
 
 	out := instanceSKUToAPI(sku)
 
-	// TODO_TEST_238_239
-	// require.Equal(t, "instance-sku/sku1", out.Metadata.Resource)
+	// metadata.resource: {collection}/{name}
+	// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 	require.Equal(t, "skus/sku1", out.Metadata.Resource)
-	// TODO_TEST_238_239
-	// require.Equal(t, "seca.compute/v1/tenants/t1/providers/instance-sku/sku1", out.Metadata.Ref)
+	// metadata.ref: {provider}/tenants/{tenant}/{collection}/{name}
+	// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 	require.Equal(t, "seca.compute/v1/tenants/t1/skus/sku1", out.Metadata.Ref)
 	require.Equal(t, 2, out.Spec.VCPU)
 	require.Equal(t, 4, out.Spec.Ram)

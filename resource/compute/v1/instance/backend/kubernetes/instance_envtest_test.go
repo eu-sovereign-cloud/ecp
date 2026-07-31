@@ -89,13 +89,11 @@ func TestInstanceBackend_CreateAndGetInstance(t *testing.T) {
 				Labels:         map[string]string{k8slabels.InternalTenantLabel: tenant},
 			},
 			Spec: instancedom.InstanceSpec{
-				// TODO_TEST_238_239
-				// BootVolume: instancedom.VolumeReference{DeviceRef: commondomain.Reference{Resource: "block-storages/boot"}},
+				// Reference.resource: {collection}/{name}
+				// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 				BootVolume: instancedom.VolumeReference{DeviceRef: commondomain.Reference{Resource: "block-storages/boot"}},
-				// TODO_TEST_238_239
-				// SkuRef:     commondomain.Reference{Resource: "standard-instance"},
-				SkuRef: commondomain.Reference{Resource: "skus/standard-instance"},
-				Zone:   "zone-1",
+				SkuRef:     commondomain.Reference{Resource: "skus/standard-instance"},
+				Zone:       "zone-1",
 			},
 		}
 	}
@@ -206,13 +204,9 @@ func TestInstanceBackend_CreateAndGetInstance(t *testing.T) {
 				Labels:         map[string]string{k8slabels.InternalTenantLabel: tenant},
 			},
 			Spec: instancedom.InstanceSpec{
-				// TODO_TEST_238_239
-				// BootVolume: instancedom.VolumeReference{DeviceRef: commondomain.Reference{Resource: "block-storages/boot"}},
 				BootVolume: instancedom.VolumeReference{DeviceRef: commondomain.Reference{Resource: "block-storages/boot"}},
-				// TODO_TEST_238_239
-				// SkuRef:     commondomain.Reference{Resource: "sku-original"},
-				SkuRef: commondomain.Reference{Resource: "skus/sku-original"},
-				Zone:   "zone-1",
+				SkuRef:     commondomain.Reference{Resource: "skus/sku-original"},
+				Zone:       "zone-1",
 			},
 		}
 
@@ -244,13 +238,9 @@ func TestInstanceBackend_CreateAndGetInstance(t *testing.T) {
 				Scope: kernelresource.Scope{Tenant: tenant, Workspace: workspace},
 			},
 			Spec: instancedom.InstanceSpec{
-				// TODO_TEST_238_239
-				// BootVolume: instancedom.VolumeReference{DeviceRef: commondomain.Reference{Resource: "block-storages/boot"}},
 				BootVolume: instancedom.VolumeReference{DeviceRef: commondomain.Reference{Resource: "block-storages/boot"}},
-				// TODO_TEST_238_239
-				// SkuRef:     commondomain.Reference{Resource: "sku-changed"},
-				SkuRef: commondomain.Reference{Resource: "skus/sku-changed"},
-				Zone:   "zone-1",
+				SkuRef:     commondomain.Reference{Resource: "skus/sku-changed"},
+				Zone:       "zone-1",
 			},
 		}
 		_, err = writerRepo.Update(ctx, mutated)

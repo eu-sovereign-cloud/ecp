@@ -657,8 +657,8 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// Given a pending resource created from a source image
-		// TODO_TEST_238_239
-		// ref := commondomain.Reference{Resource: "images/src"}
+		// Reference.resource: {collection}/{name}
+		// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 		ref := commondomain.Reference{Resource: "images/src"}
 		resource := &bsdom.BlockStorage{
 			Spec: bsdom.BlockStorageSpec{SizeGB: 10, SourceImageRef: &ref},
@@ -698,8 +698,6 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// Given a pending resource whose source image does not exist yet
-		// TODO_TEST_238_239
-		// ref := commondomain.Reference{Resource: "images/src"}
 		ref := commondomain.Reference{Resource: "images/src"}
 		resource := &bsdom.BlockStorage{
 			Spec: bsdom.BlockStorageSpec{SizeGB: 10, SourceImageRef: &ref},

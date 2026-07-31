@@ -25,8 +25,8 @@ func newBlockStorage(name string, sourceImageRef *commondomain.Reference) *bsdom
 		},
 		Spec: bsdom.BlockStorageSpec{
 			SizeGB: 1,
-			// TODO_TEST_238_239
-			// SkuRef:         commondomain.Reference{Resource: "sku-1"},
+			// Reference.resource: {collection}/{name}
+			// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 			SkuRef:         commondomain.Reference{Resource: "skus/sku-1"},
 			SourceImageRef: sourceImageRef,
 		},
@@ -51,15 +51,15 @@ func newImage(name string, blockStorageRef commondomain.Reference) *imgdom.Image
 
 // blockStorageRefFor returns an image's reference to a workspace-scoped block storage by name.
 func blockStorageRefFor(name string) commondomain.Reference {
-	// TODO_TEST_238_239
-	// return commondomain.Reference{Workspace: testWorkspace, Resource: "block-storages/" + name}
+	// Reference.resource: {collection}/{name}
+	// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 	return commondomain.Reference{Workspace: testWorkspace, Resource: "block-storages/" + name}
 }
 
 // imageRefFor returns a block storage's source reference to a tenant-scoped image by name.
 func imageRefFor(name string) commondomain.Reference {
-	// TODO_TEST_238_239
-	// return commondomain.Reference{Resource: "images/" + name}
+	// Reference.resource: {collection}/{name}
+	// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 	return commondomain.Reference{Resource: "images/" + name}
 }
 

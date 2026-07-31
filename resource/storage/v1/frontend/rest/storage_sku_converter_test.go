@@ -10,8 +10,8 @@ import (
 
 func TestStorageSKUIteratorToAPI_ResponseMetadata(t *testing.T) {
 	iter := storageSKUIteratorToAPI(nil, nil)
-	// TODO_TEST_238_239
-	// require.Equal(t, "skus", iter.Metadata.Resource)
+	// ResponseMetadata.resource: {collection}
+	// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 	require.Equal(t, "skus", iter.Metadata.Resource)
 	require.Equal(t, "seca.storage/v1", iter.Metadata.Provider)
 }
@@ -24,10 +24,10 @@ func TestStorageSKUToAPI_ResourceAndRef(t *testing.T) {
 
 	out := storageSKUToAPI(sku)
 
-	// TODO_TEST_238_239
-	// require.Equal(t, "storage-sku/sku1", out.Metadata.Resource)
+	// metadata.resource: {collection}/{name}
+	// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 	require.Equal(t, "skus/sku1", out.Metadata.Resource)
-	// TODO_TEST_238_239
-	// require.Equal(t, "seca.storage/v1/tenants/t1/providers/storage-sku/sku1", out.Metadata.Ref)
+	// metadata.ref: {provider}/tenants/{tenant}/{collection}/{name}
+	// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 	require.Equal(t, "seca.storage/v1/tenants/t1/skus/sku1", out.Metadata.Ref)
 }

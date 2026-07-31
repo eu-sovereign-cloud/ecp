@@ -59,13 +59,12 @@ func TestExtractAndStripSegment(t *testing.T) {
 		},
 		{
 			name: "multiple segments present",
-			// TODO_TEST_238_239
-			// resource:          "providers/ionos/regions/de-fra/tenants/t-1/workspaces/ws-1/block-storages/my-storage",
-			resource:      "tenants/t-1/workspaces/ws-1/block-storages/my-storage",
-			segment:       "workspaces/",
-			expectedValue: "ws-1",
-			// TODO_TEST_238_239
-			// expectedRemaining: "providers/ionos/regions/de-fra/tenants/t-1/block-storages/my-storage",
+			// Reference.resource path with tenant/workspace scope:
+			// tenants/{tenant}/workspaces/{workspace}/{collection}/{name}
+			// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
+			resource:          "tenants/t-1/workspaces/ws-1/block-storages/my-storage",
+			segment:           "workspaces/",
+			expectedValue:     "ws-1",
 			expectedRemaining: "tenants/t-1/block-storages/my-storage",
 		},
 	}
@@ -84,8 +83,6 @@ func FuzzExtractAndStripSegment(f *testing.F) {
 	f.Add("workspaces/ws-1/block-storages/my-storage", "workspaces/")
 	f.Add("tenants/t-1/workspaces/ws-1", "workspaces/")
 	f.Add("workspaces/ws-1", "workspaces/")
-	// TODO_TEST_238_239
-	// f.Add("providers/ionos/regions/de-fra", "regions/")
 	f.Add("providers/ionos/regions/de-fra", "regions/")
 	f.Add("", "workspaces/")
 	f.Add("/", "/")

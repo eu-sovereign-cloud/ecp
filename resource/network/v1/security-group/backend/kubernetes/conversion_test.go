@@ -13,8 +13,8 @@ import (
 func TestSecurityGroupConversionRoundTrip(t *testing.T) {
 	in := &securitygroupdom.SecurityGroup{
 		Spec: securitygroupdom.SecurityGroupSpec{
-			// TODO_TEST_238_239
-			// RuleRefs: []commondomain.Reference{{Resource: "security-group-rules/rule1"}},
+			// Reference.resource: {collection}/{name}
+			// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 			RuleRefs: []commondomain.Reference{{Resource: "security-group-rules/rule1"}},
 			Rules: []securitygroupdom.SecurityGroupRuleSpec{
 				{
@@ -22,8 +22,8 @@ func TestSecurityGroupConversionRoundTrip(t *testing.T) {
 					Protocol:  "tcp",
 					Version:   commondomain.IPVersionIPv4,
 					Ports:     &securitygroupdom.Ports{From: 80, To: 443},
-					// TODO_TEST_238_239
-					// SourceRef: []commondomain.Reference{{Resource: "networks/net1"}},
+					// Reference.resource: {collection}/{name}
+					// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 					SourceRef: []commondomain.Reference{{Resource: "networks/net1"}},
 				},
 			},

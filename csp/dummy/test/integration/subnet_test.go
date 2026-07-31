@@ -31,8 +31,8 @@ func TestSubnet(t *testing.T) {
 			},
 			Spec: subnetdom.SubnetSpec{
 				Cidr: subnetdom.CIDR{IPv4: "10.0.0.0/24"},
-				// TODO_TEST_238_239
-				// RouteTableRef: commondomain.Reference{Resource: "route-tables/rt1"},
+				// Reference.resource: {collection}/{name}
+				// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 				RouteTableRef: commondomain.Reference{Resource: "route-tables/rt1"},
 				Zone:          "zone-1",
 			},
@@ -74,9 +74,7 @@ func TestSubnet(t *testing.T) {
 				Network: testNetwork,
 			},
 			Spec: subnetdom.SubnetSpec{
-				Cidr: subnetdom.CIDR{IPv4: "10.0.1.0/24"},
-				// TODO_TEST_238_239
-				// RouteTableRef: commondomain.Reference{Resource: "route-tables/rt2"},
+				Cidr:          subnetdom.CIDR{IPv4: "10.0.1.0/24"},
 				RouteTableRef: commondomain.Reference{Resource: "route-tables/rt2"},
 				Zone:          "zone-1",
 			},

@@ -14,37 +14,27 @@ import (
 )
 
 func TestInstanceFromAPIToAPIRoundTrip(t *testing.T) {
-	// TODO_TEST_238_239
-	// primaryNic := sdkschema.Reference{Resource: "nic/nic1"}
+	// Reference.resource: {collection}/{name}
+	// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 	primaryNic := sdkschema.Reference{Resource: "nics/nic1"}
-	// TODO_TEST_238_239
-	// securityGroup := sdkschema.Reference{Resource: "security-group/sg1"}
 	securityGroup := sdkschema.Reference{Resource: "security-groups/sg1"}
 	sdk := sdkschema.Instance{
 		Spec: sdkschema.InstanceSpec{
 			AntiAffinityGroup: "aag1",
 			BootVolume: sdkschema.VolumeReference{
-				// TODO_TEST_238_239
-				// DeviceRef: sdkschema.Reference{Resource: "block-storage/boot"},
 				DeviceRef: sdkschema.Reference{Resource: "block-storages/boot"},
 				Type:      "virtio",
 			},
 			DataVolumes: []sdkschema.VolumeReference{
-				// TODO_TEST_238_239
-				// {DeviceRef: sdkschema.Reference{Resource: "block-storage/data1"}, Type: "virtio"},
 				{DeviceRef: sdkschema.Reference{Resource: "block-storages/data1"}, Type: "virtio"},
 			},
-			// TODO_TEST_238_239
-			// AdditionalNicRefs: []sdkschema.Reference{{Resource: "nic/nic2"}},
 			AdditionalNicRefs: []sdkschema.Reference{{Resource: "nics/nic2"}},
 			PrimaryNicRef:     &primaryNic,
 			SecurityGroupRef:  &securityGroup,
-			// TODO_TEST_238_239
-			// SkuRef:   sdkschema.Reference{Resource: "sku/small"},
-			SkuRef:   sdkschema.Reference{Resource: "skus/small"},
-			SshKeys:  []string{"key-ref-1"},
-			UserData: "#cloud-config",
-			Zone:     "zone-a",
+			SkuRef:            sdkschema.Reference{Resource: "skus/small"},
+			SshKeys:           []string{"key-ref-1"},
+			UserData:          "#cloud-config",
+			Zone:              "zone-a",
 		},
 	}
 	id := &resource.Identity{Name: "inst1", Scope: resource.Scope{Tenant: "t1", Workspace: "w1"}}
@@ -70,18 +60,18 @@ func TestInstanceFromAPIToAPIRoundTrip(t *testing.T) {
 	require.Equal(t, "inst1", out.Metadata.Name)
 	require.Equal(t, "zone-a", out.Spec.Zone)
 	require.Equal(t, "block-storages/boot", out.Spec.BootVolume.DeviceRef.Resource)
-	// TODO_TEST_238_239
-	// require.Equal(t, "instance/inst1", out.Metadata.Resource)
+	// metadata.resource: {collection}/{name}
+	// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 	require.Equal(t, "instances/inst1", out.Metadata.Resource)
-	// TODO_TEST_238_239
-	// require.Equal(t, "seca.compute/v1/tenants/t1/workspaces/w1/providers/instance/inst1", out.Metadata.Ref)
+	// metadata.ref: {provider}/tenants/{tenant}/workspaces/{workspace}/{collection}/{name}
+	// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 	require.Equal(t, "seca.compute/v1/tenants/t1/workspaces/w1/instances/inst1", out.Metadata.Ref)
 }
 
 func TestInstanceIteratorToAPI_ResponseMetadata(t *testing.T) {
 	iter := instanceIteratorToAPI(nil, nil)
-	// TODO_TEST_238_239
-	// require.Equal(t, "instances", iter.Metadata.Resource)
+	// ResponseMetadata.resource: {collection}
+	// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 	require.Equal(t, "instances", iter.Metadata.Resource)
 	require.Equal(t, "seca.compute/v1", iter.Metadata.Provider)
 }

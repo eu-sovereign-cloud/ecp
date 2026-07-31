@@ -30,8 +30,8 @@ func TestNetwork(t *testing.T) {
 			},
 			Spec: netdom.NetworkSpec{
 				CIDR: netdom.CIDR{IPv4: "10.0.0.0/24"},
-				// TODO_TEST_238_239
-				// SkuRef: commondomain.Reference{Resource: "sku-1"},
+				// Reference.resource: {collection}/{name}
+				// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 				SkuRef: commondomain.Reference{Resource: "skus/sku-1"},
 			},
 		}
@@ -64,9 +64,7 @@ func TestNetwork(t *testing.T) {
 				Scope:          kernelresource.Scope{Tenant: "test-tenant"},
 			},
 			Spec: netdom.NetworkSpec{
-				CIDR: netdom.CIDR{IPv4: "10.0.1.0/24"},
-				// TODO_TEST_238_239
-				// SkuRef: commondomain.Reference{Resource: "sku-1"},
+				CIDR:   netdom.CIDR{IPv4: "10.0.1.0/24"},
 				SkuRef: commondomain.Reference{Resource: "skus/sku-1"},
 			},
 		}

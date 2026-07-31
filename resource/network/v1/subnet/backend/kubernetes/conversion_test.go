@@ -16,13 +16,11 @@ func TestSubnetConversionRoundTrip(t *testing.T) {
 	in := &subnetdom.Subnet{
 		Spec: subnetdom.SubnetSpec{
 			Cidr: subnetdom.CIDR{IPv4: "10.0.0.0/24"},
-			// TODO_TEST_238_239
-			// RouteTableRef: commondomain.Reference{Resource: "route-tables/rt1"},
+			// Reference.resource: {collection}/{name}
+			// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 			RouteTableRef: commondomain.Reference{Resource: "route-tables/rt1"},
-			// TODO_TEST_238_239
-			// SkuRef:        commondomain.Reference{Resource: "network-skus/sku1"},
-			SkuRef: commondomain.Reference{Resource: "skus/sku1"},
-			Zone:   "zone-a",
+			SkuRef:        commondomain.Reference{Resource: "skus/sku1"},
+			Zone:          "zone-a",
 		},
 	}
 	in.Name = sn1
@@ -34,8 +32,8 @@ func TestSubnetConversionRoundTrip(t *testing.T) {
 	in.Status = &subnetdom.SubnetStatus{
 		Status: commondomain.Status{State: commondomain.ResourceStateActive},
 		Cidr:   &subnetdom.CIDR{IPv4: "10.0.0.0/24"},
-		// TODO_TEST_238_239
-		// RouteTableRef: &commondomain.Reference{Resource: "route-tables/rt1"},
+		// Reference.resource: {collection}/{name}
+		// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 		RouteTableRef: &commondomain.Reference{Resource: "route-tables/rt1"},
 	}
 	in.Status.PushCondition(commondomain.StatusCondition{State: commondomain.ResourceStateActive})
@@ -106,8 +104,8 @@ func TestSubnetConversion_SkuRefOptional(t *testing.T) {
 	in := &subnetdom.Subnet{
 		Spec: subnetdom.SubnetSpec{
 			Cidr: subnetdom.CIDR{IPv4: "10.0.0.0/24"},
-			// TODO_TEST_238_239
-			// RouteTableRef: commondomain.Reference{Resource: "route-tables/rt1"},
+			// Reference.resource: {collection}/{name}
+			// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 			RouteTableRef: commondomain.Reference{Resource: "route-tables/rt1"},
 			Zone:          "zone-a",
 		},

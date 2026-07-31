@@ -127,10 +127,11 @@ func IPVersionFromCR(v schemav1.IPVersion) domain.IPVersion {
 	}
 }
 
-// TODO_238_239
 // ReferenceFromCR converts a generated schemav1.Reference to a domain.Reference.
 // Tenant and Workspace are embedded into the Resource path so the domain always
-// carries a fully-qualified resource path string (e.g. "seca.storage/v1/tenants/t/skus/s").
+// carries a fully-qualified resource path string
+// (e.g. "tenants/t/workspaces/w/block-storages/bs").
+// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 func ReferenceFromCR(ref schemav1.Reference) domain.Reference {
 	resourcePath := ref.Resource
 	if ref.Tenant != "" || ref.Workspace != "" {
@@ -143,11 +144,13 @@ func ReferenceFromCR(ref schemav1.Reference) domain.Reference {
 	}
 }
 
-// TODO_238_239
 // ReferenceToCR converts a domain.Reference to a generated schemav1.Reference.
-// It parses the Resource path to extract embedded segments (providers, regions, tenants, workspaces)
-// and sets the corresponding fields. Extracted segments are stripped from the Resource path.
-// If a segment is not in the path, it falls back to the domain value.
+// It parses the Resource path to extract embedded segments (tenants, workspaces;
+// also legacy providers/regions) and sets the corresponding fields. Extracted
+// segments are stripped from the Resource path, leaving {collection}/{name}
+// (or nested network paths). If a segment is not in the path, it falls back to
+// the domain value.
+// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 func ReferenceToCR(ref domain.Reference) schemav1.Reference {
 	resourcePath := ref.Resource
 	result := schemav1.Reference{}
@@ -157,7 +160,6 @@ func ReferenceToCR(ref domain.Reference) schemav1.Reference {
 	// embedded path segments are extracted; on subsequent calls (after a round-trip
 	// through the CR) the explicit fields are already populated and path extraction
 	// is skipped, leaving the Resource unchanged.
-	// TODO_238_239
 	if ref.Provider == "" {
 		if provider, remaining := extractAndStripSegment(resourcePath, "providers/"); provider != "" {
 			result.Provider = provider
@@ -198,11 +200,10 @@ func ReferenceToCR(ref domain.Reference) schemav1.Reference {
 	return result
 }
 
-// TODO_238_239
 // embedScopeInResource inserts tenants/{tenant} and workspaces/{workspace} segments
-// into the resource path, just before the resource type/name suffix.
-// e.g. "seca.storage/v1/skus/fast-local" with tenant "seca" becomes
-// "seca.storage/v1/tenants/seca/skus/fast-local".
+// into the resource path, just before the {collection}/{name} suffix.
+// e.g. "skus/fast-local" with tenant "t1" becomes "tenants/t1/skus/fast-local".
+// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 func embedScopeInResource(resourcePath, tenant, workspace string) string {
 	// Find the resource type/name (last two path segments)
 	lastSlash := strings.LastIndex(resourcePath, "/")

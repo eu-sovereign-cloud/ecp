@@ -18,8 +18,8 @@ func TestSecurityGroupRuleConversionRoundTrip(t *testing.T) {
 			Version:   commondomain.IPVersionIPv4,
 			Icmp:      &securitygroupruledom.IcmpConfig{Code: 1, Type: 2},
 			Ports:     &securitygroupruledom.Ports{From: 80, To: 443, List: []int{22, 8080}},
-			// TODO_TEST_238_239
-			// SourceRef: []commondomain.Reference{{Resource: "networks/net1"}},
+			// Reference.resource: {collection}/{name}
+			// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 			SourceRef: []commondomain.Reference{{Resource: "networks/net1"}},
 		},
 	}

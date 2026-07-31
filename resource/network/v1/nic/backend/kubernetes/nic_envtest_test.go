@@ -90,12 +90,10 @@ func TestNicBackend_CreateAndGetNic(t *testing.T) {
 			},
 			Spec: nicdom.NicSpec{
 				Addresses: []string{"10.0.0.5"},
-				// TODO_TEST_238_239
-				// SubnetRef: commondomain.Reference{Resource: "subnet-1"},
+				// Reference.resource: {collection}/{name}
+				// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 				SubnetRef: commondomain.Reference{Resource: "subnets/subnet-1"},
-				// TODO_TEST_238_239
-				// SkuRef:    commondomain.Reference{Resource: "standard-nic"},
-				SkuRef: commondomain.Reference{Resource: "skus/standard-nic"},
+				SkuRef:    commondomain.Reference{Resource: "skus/standard-nic"},
 			},
 		}
 	}
@@ -149,8 +147,8 @@ func TestNicBackend_CreateAndGetNic(t *testing.T) {
 		// Update the NIC: add a security group reference (securityGroupRefs is mutable).
 		updateDomain := newNicDomain()
 		updateDomain.ResourceVersion = nic2.ResourceVersion
-		// TODO_TEST_238_239
-		// updateDomain.Spec.SecurityGroupRefs = []commondomain.Reference{{Resource: "sg-1"}}
+		// Reference.resource: {collection}/{name}
+		// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 		updateDomain.Spec.SecurityGroupRefs = []commondomain.Reference{{Resource: "security-groups/sg-1"}}
 
 		updateResult, err := writerRepo.Update(ctx, updateDomain)
@@ -217,12 +215,8 @@ func TestNicBackend_CreateAndGetNic(t *testing.T) {
 			},
 			Spec: nicdom.NicSpec{
 				Addresses: []string{"10.0.0.6"},
-				// TODO_TEST_238_239
-				// SubnetRef: commondomain.Reference{Resource: "subnet-1"},
 				SubnetRef: commondomain.Reference{Resource: "subnets/subnet-1"},
-				// TODO_TEST_238_239
-				// SkuRef:    commondomain.Reference{Resource: "sku-original"},
-				SkuRef: commondomain.Reference{Resource: "skus/sku-original"},
+				SkuRef:    commondomain.Reference{Resource: "skus/sku-original"},
 			},
 		}
 
@@ -255,12 +249,8 @@ func TestNicBackend_CreateAndGetNic(t *testing.T) {
 			},
 			Spec: nicdom.NicSpec{
 				Addresses: []string{"10.0.0.6"},
-				// TODO_TEST_238_239
-				// SubnetRef: commondomain.Reference{Resource: "subnet-1"},
 				SubnetRef: commondomain.Reference{Resource: "subnets/subnet-1"},
-				// TODO_TEST_238_239
-				// SkuRef:    commondomain.Reference{Resource: "sku-changed"},
-				SkuRef: commondomain.Reference{Resource: "skus/sku-changed"},
+				SkuRef:    commondomain.Reference{Resource: "skus/sku-changed"},
 			},
 		}
 		_, err = writerRepo.Update(ctx, mutated)

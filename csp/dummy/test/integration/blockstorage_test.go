@@ -33,8 +33,8 @@ func TestBlockStorage(t *testing.T) {
 			},
 			Spec: bsdom.BlockStorageSpec{
 				SizeGB: 1,
-				// TODO_TEST_238_239
-				// SkuRef: commondomain.Reference{Resource: "sku-1"},
+				// Reference.resource: {collection}/{name}
+				// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 				SkuRef: commondomain.Reference{Resource: "skus/sku-1"},
 			},
 		}
@@ -71,8 +71,6 @@ func TestBlockStorage(t *testing.T) {
 			},
 			Spec: bsdom.BlockStorageSpec{
 				SizeGB: 1,
-				// TODO_TEST_238_239
-				// SkuRef: commondomain.Reference{Resource: "sku-1"},
 				SkuRef: commondomain.Reference{Resource: "skus/sku-1"},
 			},
 		}
@@ -128,8 +126,6 @@ func TestBlockStorage(t *testing.T) {
 			},
 			Spec: bsdom.BlockStorageSpec{
 				SizeGB: 1,
-				// TODO_TEST_238_239
-				// SkuRef: commondomain.Reference{Resource: "sku-1"},
 				SkuRef: commondomain.Reference{Resource: "skus/sku-1"},
 			},
 		}
