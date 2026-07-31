@@ -15,6 +15,9 @@ import (
 // ErrBadRequest is returned when the request body cannot be decoded.
 var ErrBadRequest = errors.New("bad request")
 
+// ErrRequestEntityTooLarge is returned when the request body exceeds MaxRequestBodyBytes.
+var ErrRequestEntityTooLarge = errors.New("request entity too large")
+
 // DomainToAPIError converts a domain error to an RFC 7807 SDK error.
 // This is the adapter's responsibility — mapping domain to protocol.
 func DomainToAPIError(err error, requestPath string) schema.Error {
@@ -118,6 +121,8 @@ func mapKindToHTTP(kind kernel.ErrKind) (int, string, schema.ErrorType) {
 // mapErrorToHTTP maps non-domain errors to HTTP status, title, and RFC 7807 type.
 func mapErrorToHTTP(err error) (int, string, schema.ErrorType) {
 	switch {
+	case errors.Is(err, ErrRequestEntityTooLarge):
+		return http.StatusRequestEntityTooLarge, http.StatusText(http.StatusRequestEntityTooLarge), schema.ErrorTypeInvalidRequest
 	case errors.Is(err, ErrBadRequest):
 		return http.StatusBadRequest, http.StatusText(http.StatusBadRequest), schema.ErrorTypeInvalidRequest
 	default:

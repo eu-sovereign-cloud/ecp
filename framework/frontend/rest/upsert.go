@@ -53,6 +53,9 @@ func HandleUpsert[In any, D any, Out any](
 ) {
 	logger = logger.With("name", options.Params.GetName(), "tenant", options.Params.GetTenant(), "workspace", options.Params.GetWorkspace())
 
+	// Cap body before ReadAll so oversized PUTs cannot exhaust process memory.
+	r.Body = http.MaxBytesReader(w, r.Body, MaxRequestBodyBytes)
+
 	defer func(ctx context.Context, body io.ReadCloser) {
 		if err := body.Close(); err != nil {
 			logger.ErrorContext(ctx, "failed to close response body", "err", err)
@@ -62,6 +65,12 @@ func HandleUpsert[In any, D any, Out any](
 	// Read and decode the request body.
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
+		if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
+			errMsg := "request body too large"
+			logger.ErrorContext(r.Context(), errMsg, slog.Any("error", err), slog.Int64("limit", MaxRequestBodyBytes))
+			WriteErrorResponse(w, r, logger, fmt.Errorf("%w: %s (limit %d bytes): %w", ErrRequestEntityTooLarge, errMsg, MaxRequestBodyBytes, err))
+			return
+		}
 		errMsg := "failed to read request body"
 		logger.ErrorContext(r.Context(), errMsg, slog.Any("error", err))
 		WriteErrorResponse(w, r, logger, fmt.Errorf("%w: %s: %w", ErrBadRequest, errMsg, err))

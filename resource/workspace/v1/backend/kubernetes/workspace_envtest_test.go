@@ -54,6 +54,7 @@ func TestWorkspaceBackend(t *testing.T) {
 		WorkspaceToCR,
 		WorkspaceFromCR,
 		k8sadapter.WorkspaceChildren,
+		nil, // no child GVRs in this suite; emptiness check is a no-op
 	)
 
 	readerRepo := k8sadapter.NewReaderAdapter[*wsdom.Workspace](

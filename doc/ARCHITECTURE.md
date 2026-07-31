@@ -65,7 +65,7 @@ No back-edges. `framework` has zero dependency on `resource`. `resource` has zer
 
 ## Resource Model
 
-The control plane manages 18 resource slices — one CRD each, generated into `chart/crd/` (see [CODEGEN.md](CODEGEN.md)) — organized by SECA API group:
+The control plane manages 18 resource slices — one CRD each, generated into `charts/ecp/crds/` (see [CODEGEN.md](CODEGEN.md)) — organized by SECA API group:
 
 | API group | Resources |
 |-----------|-----------|
@@ -130,4 +130,4 @@ down-scoping, config flags, the RBAC algorithm, and a code layout map.
 The SECA resource organization is hierarchical — Tenants 1—\* Workspaces 1—\* resources — and deletion is intended to cascade down this hierarchy. The building block for this is namespace ownership rather than Kubernetes owner references (none are set today):
 
 - A `Workspace`'s resources live in the workspace's dedicated namespace (see [Namespacing Strategy](#namespacing-strategy)), so deleting that namespace removes everything in the workspace at once.
-- Automatic cascade is not fully wired yet: deleting a `Workspace` CR does not yet delete its namespace (`NamespaceManagingWriterAdapter.Delete` deletes only the CR), and with no `Tenant` entity there is no tenant-level deletion to cascade from.
+- `NamespaceManagingWriterAdapter.Delete` refuses delete when the child namespace still has SECA resources (empty check over injected GVRs), then deletes the CR and the owned child namespace. With no `Tenant` entity there is no tenant-level deletion to cascade from.

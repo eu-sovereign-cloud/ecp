@@ -1,0 +1,84 @@
+# Default values for the ecp-delegator chart.
+#
+# Each CSP ships its own single-plugin delegator image; this chart selects that
+# image and grants exactly that plugin's RBAC.
+
+# Which CSP plugin the delegator reconciles with: "aruba", "dummy" or "ionos".
+# Required — it selects both the image (delegator-<plugin>) and the RBAC, and a
+# wrong guess silently reconciles nothing. Each plugin expects its backend to be
+# installed separately: the arubacloud-resource-operator for aruba, Crossplane
+# and the IONOS provider for ionos (see doc/PLUGINS.md). "dummy" reconciles
+# in-process with no backend at all and is for development and testing only —
+# it is not published, so an install with plugin=dummy must override
+# image.repository with a locally built, side-loaded image.
+plugin: ""
+
+nameOverride: ""
+fullnameOverride: ""
+
+# Names of pre-existing image pull secrets.
+# e.g. imagePullSecrets: [{name: my-registry-secret}]
+imagePullSecrets: []
+
+# Keep this at 1: the delegator runs without leader election, so extra
+# replicas would reconcile the same resources concurrently.
+replicaCount: 1
+
+image:
+  # Empty derives ghcr.io/eu-sovereign-cloud/ecp/delegator-<plugin>, published on
+  # every v* tag by .github/workflows/image-release.yaml. Set it to pull from a
+  # mirror, or to point at a locally built image (e.g. the dummy plugin, which is
+  # not published).
+  repository: ""
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  # If not set and create is true, a name is generated from the fullname.
+  name: ""
+
+rbac:
+  create: true
+
+podAnnotations: {}
+podLabels: {}
+podSecurityContext: {}
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: healthz
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: healthz
+
+# Memory is dominated by the controller-runtime informer caches, which hold every
+# object of each watched type cluster-wide. Measured on KIND against the aruba
+# plugin: RSS ~= 56 MiB + 26 KiB per SECA resource, but that sweep cached only 3
+# of the 4 object classes (no aruba BlockStorage). Correcting by measured object
+# size (6005 B/set vs 4075 B) gives ~37 KiB per resource:
+#   memory ~= 56 MiB + 0.037 MiB * <expected resource count>, then add headroom.
+# The 256Mi below therefore covers ~5000 resources; raise it beyond that.
+# Note Go does not return freed arenas to the OS, so RSS holds at its high-water
+# mark — size for peak cardinality ever reached, not current.
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+# Extra environment variables for the delegator container.
+extraEnv: []
+nodeSelector: {}
+tolerations: []
+affinity: {}

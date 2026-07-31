@@ -1,0 +1,117 @@
+{{- if and .Values.gatewayRegional.enabled .Values.gatewayRegional.rbac.create }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "ecp.gatewayRegional.fullname" . }}
+  labels:
+    {{- include "ecp.labels" . | nindent 4 }}
+    app.kubernetes.io/component: gateway-regional
+rules:
+  - apiGroups: ["storage.v1.secapi.cloud"]
+    resources: ["block-storages"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["storage.v1.secapi.cloud"]
+    resources: ["block-storages/status"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["storage.v1.secapi.cloud"]
+    resources: ["images"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["storage.v1.secapi.cloud"]
+    resources: ["images/status"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["storage.v1.secapi.cloud"]
+    resources: ["skus"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["network.v1.secapi.cloud"]
+    resources: ["networks"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["network.v1.secapi.cloud"]
+    resources: ["networks/status"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["network.v1.secapi.cloud"]
+    resources: ["nics"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["network.v1.secapi.cloud"]
+    resources: ["nics/status"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["network.v1.secapi.cloud"]
+    resources: ["public-ips"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["network.v1.secapi.cloud"]
+    resources: ["public-ips/status"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["network.v1.secapi.cloud"]
+    resources: ["internet-gateways"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["network.v1.secapi.cloud"]
+    resources: ["internet-gateways/status"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["network.v1.secapi.cloud"]
+    resources: ["route-tables"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["network.v1.secapi.cloud"]
+    resources: ["route-tables/status"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["network.v1.secapi.cloud"]
+    resources: ["subnets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["network.v1.secapi.cloud"]
+    resources: ["subnets/status"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["network.v1.secapi.cloud"]
+    resources: ["network-skus"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["network.v1.secapi.cloud"]
+    resources: ["security-groups"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["network.v1.secapi.cloud"]
+    resources: ["security-groups/status"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["network.v1.secapi.cloud"]
+    resources: ["security-group-rules"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["network.v1.secapi.cloud"]
+    resources: ["security-group-rules/status"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["compute.v1.secapi.cloud"]
+    resources: ["instances"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["compute.v1.secapi.cloud"]
+    resources: ["instances/status"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["compute.v1.secapi.cloud"]
+    resources: ["skus"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["workspace.v1.secapi.cloud"]
+    resources: ["workspaces"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["workspace.v1.secapi.cloud"]
+    resources: ["workspaces/status"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  # Required by both the reader-backed Checker and the CachedChecker informer.
+  - apiGroups: ["authorization.v1.secapi.cloud"]
+    resources: ["roles"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["authorization.v1.secapi.cloud"]
+    resources: ["role-assignments"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "ecp.gatewayRegional.fullname" . }}
+  labels:
+    {{- include "ecp.labels" . | nindent 4 }}
+    app.kubernetes.io/component: gateway-regional
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "ecp.gatewayRegional.fullname" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "ecp.gatewayRegional.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}

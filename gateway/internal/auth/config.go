@@ -35,6 +35,12 @@ type Flags struct {
 	// Enabled turns the entire auth chain on; when false, no middlewares are installed
 	// and existing deployments are unaffected.
 	Enabled bool
+	// AuthPlugin selects the authentication plugin to use. Supports "dummy" (static username→password map) and "jwt" (standard signed JWTs). Default "dummy".
+	AuthPlugin string
+	// JwtSigningMethod is the expected JWT signing method (e.g. "ES256") when AuthPlugin is "jwt". Required when AuthPlugin is "jwt".
+	JwtSigningMethod string
+	// JwtSecretFile is the path to a file holding the verification key for JWTs when AuthPlugin is "jwt". Required when AuthPlugin is "jwt". For HS* the file content is the raw HMAC secret; for all other methods it is a PEM-encoded PKIX public key.
+	JwtSecretFile string
 	// DummyUsersFile is the path to a JSON file containing username→password pairs.
 	// Required when Enabled is true. Example file content: {"alice":"s3cr3t","bob":"p@ss"}
 	DummyUsersFile string
@@ -58,9 +64,12 @@ type Flags struct {
 func RegisterFlags(cmd *cobra.Command, f *Flags) {
 	cmd.Flags().BoolVar(&f.Enabled, "auth-enabled", false,
 		"Enable bearer-token authentication and SECA RBAC authorization (disabled by default)")
+	cmd.Flags().StringVar(&f.AuthPlugin, "auth-plugin", "dummy", "Authentication plugin to use (one of: dummy, jwt)")
 	cmd.Flags().StringVar(&f.DummyUsersFile, "dummy-auth-users", "",
 		"Path to a JSON file mapping username→password for the Dummy authenticator "+
 			"(required when --auth-enabled is set)")
+	cmd.Flags().StringVar(&f.JwtSigningMethod, "jwt-signing-method", "ES256", "Expected JWT signing method when --auth-plugin is 'jwt' (required when --auth-plugin is 'jwt')")
+	cmd.Flags().StringVar(&f.JwtSecretFile, "jwt-secret", "", "Path to a file containing the JWT verification key: the raw HMAC secret for HS*, a PEM public key otherwise (required when --auth-plugin is 'jwt')")
 	cmd.Flags().BoolVar(&f.AuthzCache, "authz-cache", false,
 		"Use the informer-backed CachedChecker instead of the per-request RBAC checker "+
 			"(requires --auth-enabled; reduces API-server load on hot paths)")
@@ -206,17 +215,34 @@ func StartChecker(ctx context.Context, checker authzport.Checker, log *slog.Logg
 }
 
 // buildAuthenticator loads the Dummy authenticator from the configured users file.
-func buildAuthenticator(flags *Flags) (*gatewayauthn.DummyAuthenticator, error) {
-	if flags.DummyUsersFile == "" {
-		return nil, fmt.Errorf("--dummy-auth-users must be set when --auth-enabled is true")
+func buildAuthenticator(flags *Flags) (authnport.Authenticator, error) {
+	switch flags.AuthPlugin {
+	case "dummy":
+		if flags.DummyUsersFile == "" {
+			return nil, fmt.Errorf("--dummy-auth-users must be set when --auth-enabled is true")
+		}
+		data, err := os.ReadFile(flags.DummyUsersFile)
+		if err != nil {
+			return nil, fmt.Errorf("read dummy users file %q: %w", flags.DummyUsersFile, err)
+		}
+		var users map[string]string
+		if err := json.Unmarshal(data, &users); err != nil {
+			return nil, fmt.Errorf("parse dummy users file %q: %w", flags.DummyUsersFile, err)
+		}
+		return gatewayauthn.NewDummyAuthenticator(users), nil
+	case "jwt":
+		if flags.JwtSecretFile == "" || flags.JwtSigningMethod == "" {
+			return nil, fmt.Errorf("--jwt-secret and --jwt-signing-method must be set when --auth-plugin is 'jwt'")
+		}
+		data, err := os.ReadFile(flags.JwtSecretFile)
+		if err != nil {
+			return nil, fmt.Errorf("read JWT secret file %q: %w", flags.JwtSecretFile, err)
+		}
+		key, err := gatewayauthn.ParseVerifyKey(flags.JwtSigningMethod, data)
+		if err != nil {
+			return nil, fmt.Errorf("parse JWT key from %q: %w", flags.JwtSecretFile, err)
+		}
+		return gatewayauthn.NewJWTAuthenticator(key, flags.JwtSigningMethod), nil
 	}
-	data, err := os.ReadFile(flags.DummyUsersFile)
-	if err != nil {
-		return nil, fmt.Errorf("read dummy users file %q: %w", flags.DummyUsersFile, err)
-	}
-	var users map[string]string
-	if err := json.Unmarshal(data, &users); err != nil {
-		return nil, fmt.Errorf("parse dummy users file %q: %w", flags.DummyUsersFile, err)
-	}
-	return gatewayauthn.NewDummyAuthenticator(users), nil
+	return nil, fmt.Errorf("unknown auth plugin %q", flags.AuthPlugin)
 }

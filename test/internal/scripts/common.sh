@@ -52,13 +52,101 @@ setup_registry_vars() {
     export IMAGE_NAME="${image_name}"
 }
 
-# setup_kube_vars sets the KUBECONFIG_ARG, KUBECONFIG, and CLUSTER_NAME environment variables.
+# resolve_plugin_type defaults PLUGIN_TYPE for the delegator: aruba, except on
+# KIND where dummy is the only self-contained plugin. An explicit PLUGIN_TYPE
+# (e.g. E2E_PLUGIN threaded from the Makefile stack targets) always wins. Each
+# delegator image is now single-plugin, so build.sh and deploy.sh must resolve
+# the SAME plugin — the Makefile threads PLUGIN_TYPE into both.
+resolve_plugin_type() {
+    if [ -z "${PLUGIN_TYPE:-}" ]; then
+        PLUGIN_TYPE="aruba"
+        if [[ "${USE_KIND:-}" == "true" ]]; then
+            PLUGIN_TYPE="dummy"
+        fi
+    fi
+    export PLUGIN_TYPE
+}
+
+# Name of the image-pull secret ensure_pull_secret mints.
+PULL_SECRET_NAME="ecp-test-registry"
+
+# ensure_pull_secret creates a docker-registry pull secret in the given namespace
+# from the registry credentials in the local context (internal/context/config.env
+# — the same REGISTRY_* vars push.sh logs in with) and echoes its name. It creates
+# nothing and echoes nothing when those are unset: KIND side-loads images and the
+# published GHCR packages are public, so neither path needs a secret. No registry
+# credential is committed to the repository — the caller wires the echoed name into
+# the deployment only when there is one.
+ensure_pull_secret() {
+    local namespace=${1:?namespace is required}
+    [ -n "${REGISTRY_USER:-}" ] && [ -n "${REGISTRY_PASSWORD:-}" ] || return 0
+    kubectl ${KUBECONFIG_ARG} -n "${namespace}" create secret docker-registry "${PULL_SECRET_NAME}" \
+        --docker-server="${REGISTRY_URL:-}" \
+        --docker-username="${REGISTRY_USER}" \
+        --docker-password="${REGISTRY_PASSWORD}" \
+        --dry-run=client -o yaml | kubectl ${KUBECONFIG_ARG} apply -f - >/dev/null
+    echo "${PULL_SECRET_NAME}"
+}
+
+# Service names the gateway chart renders, "<release>-<component>". Anything
+# dialling a gateway by DNS rather than by port-forward needs them: the
+# conformance runner, the benchmark scraper, and test-data/regions.yaml, which
+# publishes them in the region catalog for clients to follow. Keep the YAML in
+# step with these.
+GATEWAY_GLOBAL_SVC="ecp-global-gateway-global"
+GATEWAY_REGIONAL_SVC="ecp-regional-gateway-regional"
+
+# setup_chart_vars maps a component to the Helm chart that deploys it, setting
+# CHART_DIR, HELM_RELEASE and IMAGE_VALUE_PATH (the values key holding the image
+# coordinates, which differs between the two charts). Returns 1 for components
+# that are not chart-deployed — test-data is fixture CRs and conformance is the
+# secatest runner, neither of which is something anyone installs — so callers
+# can branch on it:
+#
+#     if setup_chart_vars "$COMPONENT"; then helm ...; else kubectl kustomize ...; fi
+#
+# Two releases share the gateway chart, each disabling the other gateway, so a
+# component can still be deployed on its own. Their names must contain the chart
+# name ("ecp") for the fullname helper to use them verbatim.
+setup_chart_vars() {
+    local component=${1:?component is required}
+    local root="${SCRIPT_DIR}/../../.."
+
+    case "${component}" in
+        gateway-global)
+            CHART_DIR="${root}/charts/ecp"; HELM_RELEASE="ecp-global"; IMAGE_VALUE_PATH="gatewayGlobal.image" ;;
+        gateway-regional)
+            CHART_DIR="${root}/charts/ecp"; HELM_RELEASE="ecp-regional"; IMAGE_VALUE_PATH="gatewayRegional.image" ;;
+        delegator)
+            CHART_DIR="${root}/charts/delegator"; HELM_RELEASE="ecp-delegator"; IMAGE_VALUE_PATH="image" ;;
+        *)
+            return 1 ;;
+    esac
+}
+
+# setup_kube_vars sets KUBECONFIG_ARG (for kubectl), HELM_KUBECONFIG_ARG (for
+# helm — the two tools spell the context flag differently: kubectl --context vs
+# helm --kube-context), KUBECONFIG, and CLUSTER_NAME.
 setup_kube_vars() {
     # 1. Handle KIND case
     if [[ -n "$USE_KIND" && "$USE_KIND" == "true" ]]; then
         unset KUBECONFIG
-        KUBECONFIG_ARG=""
-        export CLUSTER_NAME="e2e-cluster" # Hardcoded for KIND
+        # KIND_CLUSTER selects which KIND cluster to act on; the single-cluster
+        # flows leave it unset and get e2e-cluster. The multicluster flow sets it
+        # per invocation to drive two clusters from the same scripts.
+        export CLUSTER_NAME="${KIND_CLUSTER:-e2e-cluster}"
+        # Only address the cluster by context when one was explicitly selected.
+        # `kind create cluster` points the ambient current-context at whichever
+        # cluster it made last, so with two clusters ambient targeting silently
+        # picks one — but the single-cluster flows have always relied on ambient
+        # targeting, so leave their behaviour byte-identical.
+        if [ -n "${KIND_CLUSTER}" ]; then
+            KUBECONFIG_ARG="--context kind-${CLUSTER_NAME}"
+            HELM_KUBECONFIG_ARG="--kube-context kind-${CLUSTER_NAME}"
+        else
+            KUBECONFIG_ARG=""
+            HELM_KUBECONFIG_ARG=""
+        fi
         return
     fi
 
@@ -66,7 +154,9 @@ setup_kube_vars() {
     local context_kubeconfig="${CONTEXT_DIR}/kubeconfig.yaml"
     if [ -f "${context_kubeconfig}" ]; then
         export KUBECONFIG="${context_kubeconfig}"
+        # Both tools accept --kubeconfig with the same spelling.
         KUBECONFIG_ARG="--kubeconfig ${context_kubeconfig}"
+        HELM_KUBECONFIG_ARG="--kubeconfig ${context_kubeconfig}"
         local current_context
         current_context=$(kubectl config current-context --kubeconfig "${context_kubeconfig}")
         export CLUSTER_NAME
@@ -74,9 +164,9 @@ setup_kube_vars() {
         return
     fi
 
-    # 3. Handle default case
-    unset KUBECONFIG
+    # 3. Default: honour an exported KUBECONFIG (custom cluster) or ~/.kube/config.
     KUBECONFIG_ARG=""
+    HELM_KUBECONFIG_ARG=""
     local current_context
     current_context=$(kubectl config current-context)
     export CLUSTER_NAME

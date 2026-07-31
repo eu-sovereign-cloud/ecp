@@ -1,0 +1,94 @@
+{{- if .Values.rbac.create }}
+{{- $plugin := include "ecp-delegator.plugin" . }}
+# Scoped to the controller set the selected plugin loads — see the loadControllers
+# function in each plugin's cmd (csp/<plugin>/cmd). Granting the union across
+# plugins would hand every install write access to CRDs its plugin never touches,
+# so each set is listed separately.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "ecp-delegator.fullname" . }}
+  labels:
+    {{- include "ecp-delegator.labels" . | nindent 4 }}
+rules:
+  # Every plugin reconciles workspaces, and the workspace path manages the
+  # namespace a tenant's resources live in.
+  - apiGroups: ["workspace.v1.secapi.cloud"]
+    resources: ["workspaces", "workspaces/status"]
+    verbs: ["get", "list", "watch", "update", "patch", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+{{- if eq $plugin "aruba" }}
+  # Block storage, its read-only SKU lookup, and the arubacloud.com CRs the
+  # plugin writes for the arubacloud-resource-operator.
+  - apiGroups: ["storage.v1.secapi.cloud"]
+    resources: ["block-storages", "block-storages/status"]
+    verbs: ["get", "list", "watch", "update", "patch", "create", "delete"]
+  - apiGroups: ["storage.v1.secapi.cloud"]
+    resources: ["skus"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["arubacloud.com"]
+    resources: ["projects", "projects/status"]
+    verbs: ["get", "list", "watch", "update", "patch", "create", "delete"]
+  - apiGroups: ["arubacloud.com"]
+    resources: ["blockstorages", "blockstorages/status"]
+    verbs: ["get", "list", "watch", "update", "patch", "create", "delete"]
+{{- else if eq $plugin "dummy" }}
+  # The widest set: the dummy plugin reconciles every vertical in-process, with
+  # no backend CRs to write.
+  - apiGroups: ["storage.v1.secapi.cloud"]
+    resources: ["block-storages", "block-storages/status", "images", "images/status"]
+    verbs: ["get", "list", "watch", "update", "patch", "create", "delete"]
+  - apiGroups: ["storage.v1.secapi.cloud"]
+    resources: ["skus"]
+    verbs: ["get", "list", "watch"]
+  # Every network vertical: network, nic, public-ip, internet-gateway, route-table,
+  # subnet, security-group and security-group-rule all have a dummy controller.
+  - apiGroups: ["network.v1.secapi.cloud"]
+    resources: ["networks", "networks/status", "nics", "nics/status", "public-ips", "public-ips/status", "internet-gateways", "internet-gateways/status", "route-tables", "route-tables/status", "subnets", "subnets/status", "security-groups", "security-groups/status", "security-group-rules", "security-group-rules/status"]
+    verbs: ["get", "list", "watch", "update", "patch", "create", "delete"]
+  - apiGroups: ["compute.v1.secapi.cloud"]
+    resources: ["instances", "instances/status"]
+    verbs: ["get", "list", "watch", "update", "patch", "create", "delete"]
+  - apiGroups: ["compute.v1.secapi.cloud"]
+    resources: ["skus"]
+    verbs: ["get", "list", "watch"]
+{{- else if eq $plugin "ionos" }}
+  # The crossplane managed resources the plugin creates and observes, plus the
+  # provider config every one of them references.
+  - apiGroups: ["compute.m.ionoscloud.io"]
+    resources: ["datacenters", "volumes", "lans", "servers", "nics", "ipblocks"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["compute.m.ionoscloud.io"]
+    resources: ["datacenters/status", "volumes/status", "lans/status", "servers/status", "nics/status", "ipblocks/status"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["upjet-ionoscloud.m.ionoscloud.io"]
+    resources: ["clusterproviderconfigs"]
+    verbs: ["get", "list", "watch"]
+  # The SECA resources the ionos plugin reconciles: block-storage and network
+  # (workspace is in the shared block above). It registers no other controllers
+  # and reads no other SECA resource, so nothing else is granted.
+  - apiGroups: ["storage.v1.secapi.cloud"]
+    resources: ["block-storages", "block-storages/status"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["network.v1.secapi.cloud"]
+    resources: ["networks", "networks/status"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+{{- end }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "ecp-delegator.fullname" . }}
+  labels:
+    {{- include "ecp-delegator.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "ecp-delegator.fullname" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "ecp-delegator.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}

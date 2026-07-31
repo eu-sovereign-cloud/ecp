@@ -59,4 +59,44 @@ func TestWorkspaceAPI(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, http.StatusAccepted, delResp.StatusCode())
 	})
+
+	t.Run("should reject workspace deletion when a block storage exists", func(t *testing.T) {
+		//
+		// Given a workspace that holds a block storage
+		workspaceName := "test-ws-nonempty-" + uuid.New().String()[:8]
+		bsName := "test-bs-block-delete-" + uuid.New().String()[:8]
+
+		createWS, err := workspaceClient.CreateOrUpdateWorkspaceWithResponse(context.Background(), testTenant, workspaceName, nil, schema.Workspace{})
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, createWS.StatusCode())
+
+		createBS, err := storageClient.CreateOrUpdateBlockStorageWithResponse(
+			context.Background(), testTenant, workspaceName, bsName, nil, newBlockStorageBody(1),
+		)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, createBS.StatusCode())
+
+		t.Cleanup(func() {
+			_, _ = storageClient.DeleteBlockStorageWithResponse(context.Background(), testTenant, workspaceName, bsName, nil)
+			_, _ = workspaceClient.DeleteWorkspaceWithResponse(context.Background(), testTenant, workspaceName, nil)
+		})
+
+		//
+		// When we try to delete the workspace while the block storage still exists
+		delResp, err := workspaceClient.DeleteWorkspaceWithResponse(context.Background(), testTenant, workspaceName, nil)
+		require.NoError(t, err)
+
+		//
+		// Then the gateway refuses with 409 Conflict
+		require.Equal(t, http.StatusConflict, delResp.StatusCode())
+		require.NotNil(t, delResp.JSON409)
+
+		//
+		// And the workspace is still readable
+		getResp, err := workspaceClient.GetWorkspaceWithResponse(context.Background(), testTenant, workspaceName)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, getResp.StatusCode())
+		require.NotNil(t, getResp.JSON200)
+		require.Equal(t, workspaceName, getResp.JSON200.Metadata.Name)
+	})
 }

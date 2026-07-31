@@ -213,6 +213,35 @@ func TestHandleUpsert_BadRequestBody(t *testing.T) {
 	updater.AssertNotCalled(t, "Do")
 }
 
+func TestHandleUpsert_BodyTooLarge(t *testing.T) {
+	creator := &MockCreator[TestDomain]{}
+	updater := &MockUpdater[TestDomain]{}
+
+	// Just over the cap; MaxBytesReader stops reading and returns MaxBytesError.
+	oversized := bytes.Repeat([]byte("x"), frest.MaxRequestBodyBytes+1)
+	req := httptest.NewRequest(http.MethodPut, "/v1/resources/test-resource", bytes.NewReader(oversized))
+	req.Header.Set("Content-Type", "application/json")
+
+	recorder := httptest.NewRecorder()
+	frest.HandleUpsert(recorder, req, discardLogger(),
+		frest.UpsertOptions[TestIn, TestDomain, TestOut]{
+			Params:      upsertParams,
+			Creator:     creator,
+			Updater:     updater,
+			APIToDomain: apiToTestDomain,
+			DomainToAPI: domainToTestOut,
+		},
+	)
+
+	resp := recorder.Result()
+	defer resp.Body.Close()
+	assert.Equal(t, http.StatusRequestEntityTooLarge, resp.StatusCode)
+	body, _ := io.ReadAll(resp.Body)
+	assert.Contains(t, string(body), "\"status\":413")
+	creator.AssertNotCalled(t, "Do")
+	updater.AssertNotCalled(t, "Do")
+}
+
 func TestHandleUpsert_UpdateSucceedsOnAlreadyExists(t *testing.T) {
 	creator := &MockCreator[TestDomain]{}
 	updater := &MockUpdater[TestDomain]{}

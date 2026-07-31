@@ -69,7 +69,7 @@ correct strings — locate it rather than assuming):
 | **Slice dir** | kebab-case of the schema type | `image`, `subnet`, `block-storage`, `storage-sku` |
 | **Plural** | the entry's `plural:`, spaces → hyphens | `images`, `subnets`, `block-storages`, `skus`, `public-ips` |
 | **API group** | `<group>.v1.secapi.cloud` | `storage.v1.secapi.cloud`, `network.v1.secapi.cloud` |
-| **CRD file** | `chart/crd/<apigroup>_<plural>.yaml` | `storage.v1.secapi.cloud_images.yaml` |
+| **CRD file** | `charts/ecp/crds/<apigroup>_<plural>.yaml` | `storage.v1.secapi.cloud_images.yaml` |
 
 > ⚠️ **The spec `name:` is not always the Kind/dir.** Generic names are schema-qualified —
 > e.g. spec `name: sku` in the storage group has schema `StorageSku`, so Kind is
@@ -172,7 +172,7 @@ A few sentences per directory you will touch:
   compiler-enforced — framework never names a concrete resource.
 - **`gateway/cmd/`** — the API-server binaries. `regionalapiserver.go` wires the
   tenant/workspace-scoped group handlers; `globalapiserver.go` wires the global handler.
-- **`chart/crd/`** — generated CRD YAML, one file per group+plural. Output only.
+- **`charts/ecp/crds/`** — generated CRD YAML, one file per group+plural. Output only.
 - **`csp/dummy/`** — the reference CSP plugin (mock backend, no real cloud). `pkg/plugin/` has
   one file per resource that has a controller; `cmd/main.go` wires them; `deploy/` holds
   manifests + RBAC; `test/integration/` holds plugin integration tests (build-tagged, Kind).
@@ -191,7 +191,7 @@ A few sentences per directory you will touch:
 Pipeline:
 `spec yaml (upstream) → modules/go-sdk/pkg/spec/schema/<schema>.go → (model-gen, per slice)
 zz_generated_schema.go → (inject-kubebuilder-markers) markers → (controller-gen crd)
-chart/crd/<apigroup>_<plural>.yaml`. Two entry points, **both needed** for a slice:
+charts/ecp/crds/<apigroup>_<plural>.yaml`. Two entry points, **both needed** for a slice:
 
 - `(cd resource && go generate ./...)` — runs each slice's `//go:generate` directives
   (`model-gen` → `zz_generated_schema.go`; `mockgen` → the test mocks). Driven by
@@ -215,7 +215,7 @@ chart/crd/<apigroup>_<plural>.yaml`. Two entry points, **both needed** for a sli
 > `zz_generated.conditions.go` for `+ecp:conditioned` CR types, and marker→CRD lowering by
 > controller-gen). After generating, **inspect the outputs**: confirm `zz_generated_schema.go`,
 > `zz_generated.deepcopy.go`, `zz_generated.conditions.go` (read-write only), and
-> `chart/crd/<apigroup>_<plural>.yaml` exist and that the CRD carries your spec's validations.
+> `charts/ecp/crds/<apigroup>_<plural>.yaml` exist and that the CRD carries your spec's validations.
 
 Reference: [doc/CODEGEN.md](../../../doc/CODEGEN.md).
 
@@ -320,18 +320,23 @@ resource (GVR + `FromCR`/`ToCR`), and either add them to the existing group hand
 - **Skip entirely for read-only** (no controller to run).
 
 ### 4.13 Deployment & RBAC (permissions)
-CRDs install automatically from `chart/crd/`. Add API-group rules to **every** relevant
+CRDs install automatically from `charts/ecp/crds/`. Add API-group rules to **every** relevant
 ClusterRole — these drift, so add your resource wherever its peers appear and verify each role:
-- **read-write:** two rules (`<plural>` and `<plural>/status`) on the **dummy delegator**
-  ([csp/dummy/deploy/clusterrole.yaml](../../../csp/dummy/deploy/clusterrole.yaml)) and the
-  **e2e delegator** ([test/internal/deploy/delegator/clusterrole.yaml](../../../test/internal/deploy/delegator/clusterrole.yaml))
-  with full verbs; on the **e2e gateway-regional**
-  ([test/internal/deploy/gateway-regional/clusterrole.yaml](../../../test/internal/deploy/gateway-regional/clusterrole.yaml))
-  split read/write (`<plural>` full verbs, `<plural>/status` read-only).
-- **read-only, regional:** read-only verbs on `<plural>` (no `/status`) in the e2e delegator and
-  e2e gateway-regional roles; **no dummy delegator rule** (no controller).
-- **read-only, global:** read-only verbs on `<plural>` in the e2e gateway-global role
-  ([test/internal/deploy/gateway-global/clusterrole.yaml](../../../test/internal/deploy/gateway-global/clusterrole.yaml)).
+The e2e stack deploys from the charts, so the chart roles below are the ones the suites run
+with — a missing rule fails the tests **and** ships broken.
+- **read-write:** two rules (`<plural>` and `<plural>/status`) on the **standalone dummy
+  delegator** ([csp/dummy/deploy/clusterrole.yaml](../../../csp/dummy/deploy/clusterrole.yaml))
+  and in the **`dummy` branch of the delegator chart**
+  ([charts/delegator/templates/rbac.yaml](../../../charts/delegator/templates/rbac.yaml)) with full
+  verbs; on the **gateway-regional role**
+  ([charts/ecp/templates/gateway-regional/rbac.yaml](../../../charts/ecp/templates/gateway-regional/rbac.yaml))
+  split read/write (`<plural>` full verbs, `<plural>/status` read-only). Add the rule to the
+  `aruba` / `ionos` branches too if their plugin reconciles the resource.
+- **read-only, regional:** read-only verbs on `<plural>` (no `/status`) in the delegator chart's
+  `dummy` branch and the gateway-regional role; **no standalone dummy delegator rule** (no
+  controller).
+- **read-only, global:** read-only verbs on `<plural>` in the gateway-global role
+  ([charts/ecp/templates/gateway-global/rbac.yaml](../../../charts/ecp/templates/gateway-global/rbac.yaml)).
 
 ### 4.14 Tests
 Follow existing conventions; **examples are inline fixtures inside the tests — there is no
@@ -444,7 +449,7 @@ attribution (e.g. `feat(storage/image): implement image vertical`).
 - [ ] `domain.go`, `resource.go`, `generate.go` present and correct (Status/`+ecp:conditioned`
       only for read-write).
 - [ ] Slice present in the `framework/backend/kubernetes/Makefile` `generate-crds` loop (path form: `$(REPO_ROOT)/resource/<group>/v1/<dir>/backend/kubernetes`).
-- [ ] Generation run; `zz_generated_*` and `chart/crd/<apigroup>_<plural>.yaml` present **with
+- [ ] Generation run; `zz_generated_*` and `charts/ecp/crds/<apigroup>_<plural>.yaml` present **with
       the spec's validations**.
 - [ ] `conversion.go` present; `plugin.go`/`plugin_handler.go`/`controller.go` present for
       read-write (skipped for read-only).

@@ -7,13 +7,18 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
+	kerrs "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic/fake"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	kernelresource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 )
 
@@ -236,4 +241,316 @@ func TestChildNamespaceFor_NoChildNamespace(t *testing.T) {
 
 	require.Empty(t, namespace)
 	require.Nil(t, ownerLabels)
+}
+
+// --- NamespaceManagingWriterAdapter.Delete: empty-check + owned NS cleanup ---
+
+var (
+	testParentGVR = schema.GroupVersionResource{Group: "workspace.test", Version: "v1", Resource: "workspaces"}
+	testChildGVR  = schema.GroupVersionResource{Group: "storage.test", Version: "v1", Resource: "blockstorages"}
+)
+
+func parentListKinds() map[schema.GroupVersionResource]string {
+	return map[schema.GroupVersionResource]string{
+		testParentGVR: "WorkspaceList",
+		testChildGVR:  "BlockStorageList",
+	}
+}
+
+// parentDomainToK8s places the parent CR in the tenant namespace (like WorkspaceToCR).
+func parentDomainToK8s(m *testWorkspaceScopedIdentifiable) (client.Object, error) {
+	return &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "workspace.test/v1",
+		"kind":       "Workspace",
+		"metadata": map[string]any{
+			"namespace": ComputeNamespace(&kernelresource.Scope{Tenant: m.tenant}),
+			"name":      m.name,
+		},
+	}}, nil
+}
+
+func parentK8sToDomain(obj client.Object) (*testWorkspaceScopedIdentifiable, error) {
+	return &testWorkspaceScopedIdentifiable{name: obj.GetName(), tenant: "t1"}, nil
+}
+
+func newChildObject(namespace, name string) *unstructured.Unstructured {
+	return &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "storage.test/v1",
+		"kind":       "BlockStorage",
+		"metadata":   map[string]any{"namespace": namespace, "name": name},
+	}}
+}
+
+func TestNamespaceHasChildResources(t *testing.T) {
+	childNS := ComputeNamespace(&kernelresource.Scope{Tenant: "t1", Workspace: "w1"})
+	gvrs := []schema.GroupVersionResource{testChildGVR}
+
+	t.Run("empty namespace", func(t *testing.T) {
+		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), parentListKinds())
+		has, err := namespaceHasChildResources(context.Background(), dynFake, childNS, gvrs)
+		require.NoError(t, err)
+		require.False(t, has)
+	})
+
+	t.Run("namespace with a child resource", func(t *testing.T) {
+		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(
+			runtime.NewScheme(), parentListKinds(), newChildObject(childNS, "bs-1"),
+		)
+		has, err := namespaceHasChildResources(context.Background(), dynFake, childNS, gvrs)
+		require.NoError(t, err)
+		require.True(t, has)
+	})
+
+	t.Run("nil gvrs means empty", func(t *testing.T) {
+		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(
+			runtime.NewScheme(), parentListKinds(), newChildObject(childNS, "bs-1"),
+		)
+		has, err := namespaceHasChildResources(context.Background(), dynFake, childNS, nil)
+		require.NoError(t, err)
+		require.False(t, has)
+	})
+
+	t.Run("empty namespace name means empty", func(t *testing.T) {
+		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), parentListKinds())
+		has, err := namespaceHasChildResources(context.Background(), dynFake, "", gvrs)
+		require.NoError(t, err)
+		require.False(t, has)
+	})
+}
+
+func TestNamespaceManagingWriterAdapter_Delete(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	parent := &testWorkspaceScopedIdentifiable{name: "w1", tenant: "t1"}
+	// WorkspaceChildren uses GetName() as the workspace segment.
+	childNS := ComputeNamespace(&kernelresource.Scope{Tenant: "t1", Workspace: "w1"})
+	tenantNS := ComputeNamespace(&kernelresource.Scope{Tenant: "t1"})
+	ownerLabels := map[string]string{
+		labels.InternalTenantLabel:    "t1",
+		labels.InternalWorkspaceLabel: "w1",
+	}
+
+	t.Run("refuses delete when child namespace has SECA resources", func(t *testing.T) {
+		parentObj := &unstructured.Unstructured{Object: map[string]any{
+			"apiVersion": "workspace.test/v1",
+			"kind":       "Workspace",
+			"metadata":   map[string]any{"namespace": tenantNS, "name": "w1"},
+		}}
+		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(
+			runtime.NewScheme(), parentListKinds(), parentObj, newChildObject(childNS, "bs-1"),
+		)
+		cs := k8sfake.NewClientset(&corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{Name: childNS, Labels: ownerLabels},
+		})
+
+		writer := NewNamespaceManagingWriterAdapter[*testWorkspaceScopedIdentifiable](
+			dynFake, cs, testParentGVR, logger, parentDomainToK8s, parentK8sToDomain,
+			WorkspaceChildren, []schema.GroupVersionResource{testChildGVR},
+		)
+
+		err := writer.Delete(context.Background(), parent)
+		require.Error(t, err)
+		var domainErr *kernel.Error
+		require.ErrorAs(t, err, &domainErr)
+		require.Equal(t, kernel.KindConflict, domainErr.Kind)
+
+		// Parent CR must still exist.
+		_, getErr := dynFake.Resource(testParentGVR).Namespace(tenantNS).Get(
+			context.Background(), "w1", metav1.GetOptions{},
+		)
+		require.NoError(t, getErr)
+
+		// Child namespace must still exist.
+		_, nsErr := cs.CoreV1().Namespaces().Get(context.Background(), childNS, metav1.GetOptions{})
+		require.NoError(t, nsErr)
+	})
+
+	t.Run("deletes parent and owned empty child namespace", func(t *testing.T) {
+		parentObj := &unstructured.Unstructured{Object: map[string]any{
+			"apiVersion": "workspace.test/v1",
+			"kind":       "Workspace",
+			"metadata":   map[string]any{"namespace": tenantNS, "name": "w1"},
+		}}
+		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(
+			runtime.NewScheme(), parentListKinds(), parentObj,
+		)
+		cs := k8sfake.NewClientset(&corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{Name: childNS, Labels: ownerLabels},
+		})
+
+		writer := NewNamespaceManagingWriterAdapter[*testWorkspaceScopedIdentifiable](
+			dynFake, cs, testParentGVR, logger, parentDomainToK8s, parentK8sToDomain,
+			WorkspaceChildren, []schema.GroupVersionResource{testChildGVR},
+		)
+
+		require.NoError(t, writer.Delete(context.Background(), parent))
+
+		_, getErr := dynFake.Resource(testParentGVR).Namespace(tenantNS).Get(
+			context.Background(), "w1", metav1.GetOptions{},
+		)
+		require.True(t, kerrs.IsNotFound(getErr), "parent CR should be deleted")
+
+		_, nsErr := cs.CoreV1().Namespaces().Get(context.Background(), childNS, metav1.GetOptions{})
+		require.True(t, kerrs.IsNotFound(nsErr), "owned empty child namespace should be deleted")
+	})
+
+	t.Run("does not delete child namespace that is not owned", func(t *testing.T) {
+		parentObj := &unstructured.Unstructured{Object: map[string]any{
+			"apiVersion": "workspace.test/v1",
+			"kind":       "Workspace",
+			"metadata":   map[string]any{"namespace": tenantNS, "name": "w1"},
+		}}
+		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(
+			runtime.NewScheme(), parentListKinds(), parentObj,
+		)
+		// Namespace exists but lacks ownership labels.
+		cs := k8sfake.NewClientset(&corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{Name: childNS},
+		})
+
+		writer := NewNamespaceManagingWriterAdapter[*testWorkspaceScopedIdentifiable](
+			dynFake, cs, testParentGVR, logger, parentDomainToK8s, parentK8sToDomain,
+			WorkspaceChildren, []schema.GroupVersionResource{testChildGVR},
+		)
+
+		require.NoError(t, writer.Delete(context.Background(), parent))
+
+		_, getErr := dynFake.Resource(testParentGVR).Namespace(tenantNS).Get(
+			context.Background(), "w1", metav1.GetOptions{},
+		)
+		require.True(t, kerrs.IsNotFound(getErr))
+
+		_, nsErr := cs.CoreV1().Namespaces().Get(context.Background(), childNS, metav1.GetOptions{})
+		require.NoError(t, nsErr, "unowned namespace must not be deleted")
+	})
+
+	t.Run("NoChildNamespace skips empty check and namespace cleanup", func(t *testing.T) {
+		parentObj := &unstructured.Unstructured{Object: map[string]any{
+			"apiVersion": "workspace.test/v1",
+			"kind":       "Workspace",
+			"metadata":   map[string]any{"namespace": tenantNS, "name": "w1"},
+		}}
+		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(
+			runtime.NewScheme(), parentListKinds(), parentObj, newChildObject(childNS, "bs-1"),
+		)
+		cs := k8sfake.NewClientset(&corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{Name: childNS, Labels: ownerLabels},
+		})
+
+		writer := NewNamespaceManagingWriterAdapter[*testWorkspaceScopedIdentifiable](
+			dynFake, cs, testParentGVR, logger, parentDomainToK8s, parentK8sToDomain,
+			NoChildNamespace, []schema.GroupVersionResource{testChildGVR},
+		)
+
+		require.NoError(t, writer.Delete(context.Background(), parent))
+
+		_, getErr := dynFake.Resource(testParentGVR).Namespace(tenantNS).Get(
+			context.Background(), "w1", metav1.GetOptions{},
+		)
+		require.True(t, kerrs.IsNotFound(getErr))
+
+		_, nsErr := cs.CoreV1().Namespaces().Get(context.Background(), childNS, metav1.GetOptions{})
+		require.NoError(t, nsErr, "NoChildNamespace must not delete the child namespace")
+	})
+}
+
+// Network CR lives in the workspace namespace; NetworkChildren provisions a separate
+// per-network namespace for subnet/route-table (same shape as gateway wiring).
+var testNetworkParentGVR = schema.GroupVersionResource{Group: "network.test", Version: "v1", Resource: "networks"}
+
+func networkParentListKinds() map[schema.GroupVersionResource]string {
+	return map[schema.GroupVersionResource]string{
+		testNetworkParentGVR: "NetworkList",
+		testChildGVR:         "BlockStorageList", // stand-in for subnet/route-table
+	}
+}
+
+func networkParentDomainToK8s(m *testWorkspaceScopedIdentifiable) (client.Object, error) {
+	// Network CRs sit in the workspace namespace (tenant + workspace), not the network child NS.
+	return &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "network.test/v1",
+		"kind":       "Network",
+		"metadata": map[string]any{
+			"namespace": ComputeNamespace(&kernelresource.Scope{Tenant: m.tenant, Workspace: m.workspace}),
+			"name":      m.name,
+		},
+	}}, nil
+}
+
+func networkParentK8sToDomain(obj client.Object) (*testWorkspaceScopedIdentifiable, error) {
+	return &testWorkspaceScopedIdentifiable{name: obj.GetName(), tenant: "t1", workspace: "w1"}, nil
+}
+
+func TestNamespaceManagingWriterAdapter_Delete_NetworkChildren(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	// NetworkChildren uses GetName() as the network segment and GetWorkspace() for the workspace.
+	network := &testWorkspaceScopedIdentifiable{name: "net1", tenant: "t1", workspace: "w1"}
+	workspaceNS := ComputeNamespace(&kernelresource.Scope{Tenant: "t1", Workspace: "w1"})
+	networkChildNS := ComputeNetworkNamespace(fakeNetworkScope{tenant: "t1", workspace: "w1", network: "net1"})
+	ownerLabels := map[string]string{
+		labels.InternalTenantLabel:    "t1",
+		labels.InternalWorkspaceLabel: "w1",
+		labels.InternalNetworkLabel:   "net1",
+	}
+
+	t.Run("refuses delete when network child namespace has resources", func(t *testing.T) {
+		parentObj := &unstructured.Unstructured{Object: map[string]any{
+			"apiVersion": "network.test/v1",
+			"kind":       "Network",
+			"metadata":   map[string]any{"namespace": workspaceNS, "name": "net1"},
+		}}
+		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(
+			runtime.NewScheme(), networkParentListKinds(), parentObj, newChildObject(networkChildNS, "subnet-1"),
+		)
+		cs := k8sfake.NewClientset(&corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{Name: networkChildNS, Labels: ownerLabels},
+		})
+
+		writer := NewNamespaceManagingWriterAdapter[*testWorkspaceScopedIdentifiable](
+			dynFake, cs, testNetworkParentGVR, logger, networkParentDomainToK8s, networkParentK8sToDomain,
+			NetworkChildren, []schema.GroupVersionResource{testChildGVR},
+		)
+
+		err := writer.Delete(context.Background(), network)
+		require.Error(t, err)
+		var domainErr *kernel.Error
+		require.ErrorAs(t, err, &domainErr)
+		require.Equal(t, kernel.KindConflict, domainErr.Kind)
+
+		_, getErr := dynFake.Resource(testNetworkParentGVR).Namespace(workspaceNS).Get(
+			context.Background(), "net1", metav1.GetOptions{},
+		)
+		require.NoError(t, getErr, "network CR must remain when children exist")
+
+		_, nsErr := cs.CoreV1().Namespaces().Get(context.Background(), networkChildNS, metav1.GetOptions{})
+		require.NoError(t, nsErr, "network child namespace must remain when children exist")
+	})
+
+	t.Run("deletes network and owned empty network child namespace", func(t *testing.T) {
+		parentObj := &unstructured.Unstructured{Object: map[string]any{
+			"apiVersion": "network.test/v1",
+			"kind":       "Network",
+			"metadata":   map[string]any{"namespace": workspaceNS, "name": "net1"},
+		}}
+		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(
+			runtime.NewScheme(), networkParentListKinds(), parentObj,
+		)
+		cs := k8sfake.NewClientset(&corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{Name: networkChildNS, Labels: ownerLabels},
+		})
+
+		writer := NewNamespaceManagingWriterAdapter[*testWorkspaceScopedIdentifiable](
+			dynFake, cs, testNetworkParentGVR, logger, networkParentDomainToK8s, networkParentK8sToDomain,
+			NetworkChildren, []schema.GroupVersionResource{testChildGVR},
+		)
+
+		require.NoError(t, writer.Delete(context.Background(), network))
+
+		_, getErr := dynFake.Resource(testNetworkParentGVR).Namespace(workspaceNS).Get(
+			context.Background(), "net1", metav1.GetOptions{},
+		)
+		require.True(t, kerrs.IsNotFound(getErr), "network CR should be deleted")
+
+		_, nsErr := cs.CoreV1().Namespaces().Get(context.Background(), networkChildNS, metav1.GetOptions{})
+		require.True(t, kerrs.IsNotFound(nsErr), "owned empty network child namespace should be deleted")
+	})
 }

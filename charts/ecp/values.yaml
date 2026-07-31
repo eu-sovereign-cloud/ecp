@@ -1,0 +1,190 @@
+# Default values for the ecp chart.
+#
+# The chart deploys the two ECP API servers. Both are enabled by default
+# (all-in-one cluster, as in the e2e stack); for the split topology install
+# the chart once per cluster with the other gateway disabled — see README.md.
+
+nameOverride: ""
+fullnameOverride: ""
+
+# Names of pre-existing image pull secrets, applied to all pods.
+# e.g. imagePullSecrets: [{name: my-registry-secret}]
+imagePullSecrets: []
+
+auth:
+  # Enable bearer-token authentication (and SECA RBAC authorization) on both
+  # gateways. Opt-in, mirroring the gateway binary default.
+  enabled: false
+  # Authentication plugin for both gateways: "dummy" (base64 JSON
+  # username/password tokens — no signature verification, development and
+  # testing only) or "jwt" (standard signed JWTs, verified against auth.jwt's
+  # key).
+  plugin: dummy
+  jwt:
+    # Expected JWT signing method (the token's alg header is pinned to this,
+    # defeating algorithm confusion), e.g. ES256 or HS256.
+    signingMethod: ES256
+    # Verification key material: a PEM-encoded public key, or the raw HMAC
+    # secret for HS* methods (an HS* secret can also MINT tokens — anyone who
+    # reads it can impersonate any subject). Required when plugin is "jwt"
+    # and existingSecret is empty. Tip: --set-file auth.jwt.key=key.pem
+    key: ""
+    # Name of a pre-existing Secret with a "jwt.pub" key. Takes precedence
+    # over key.
+    existingSecret: ""
+  authz:
+    # RBAC authorization (only effective when auth.enabled).
+    enabled: true
+    # "cached" (informer-backed checker) or "direct" (per-request reads).
+    impl: cached
+    # Comma-separated provider IDs served authn-only. Empty keeps the binary
+    # default ("seca.region" — the region catalog is tenant-less by spec).
+    skipProviders: ""
+  dummyUsers:
+    # username -> password map for the dummy authenticator, rendered into a
+    # Secret. Required when auth.enabled is true, plugin is "dummy" and
+    # existingSecret is empty.
+    users: {}
+    # Name of a pre-existing Secret with a "users.json" key. Takes precedence
+    # over users.
+    existingSecret: ""
+
+gatewayGlobal:
+  enabled: true
+  replicaCount: 1
+  image:
+    # Published on every v* tag by .github/workflows/image-release.yaml.
+    # Override only to pull from a mirror of your own.
+    repository: ghcr.io/eu-sovereign-cloud/ecp/gateway-global
+    pullPolicy: IfNotPresent
+    # Overrides the image tag whose default is the chart appVersion.
+    tag: ""
+  serviceAccount:
+    create: true
+    annotations: {}
+    # If not set and create is true, a name is generated from the fullname.
+    name: ""
+  rbac:
+    create: true
+  service:
+    type: ClusterIP
+    port: 80
+    # Fixed node port, honoured only when type is NodePort (else Kubernetes
+    # auto-assigns). Empty leaves it dynamic. Pin it to expose the gateway at a
+    # known host port, as the multicluster test does for the regional gateway.
+    nodePort: ""
+  ingress:
+    enabled: false
+    className: ""
+    annotations: {}
+    hosts:
+      - host: ecp-global.example.local
+        paths:
+          - path: /
+            pathType: Prefix
+    tls: []
+  podAnnotations: {}
+  podLabels: {}
+  podSecurityContext: {}
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  # The gateway exposes no dedicated health endpoint yet, so probe the socket.
+  livenessProbe:
+    tcpSocket:
+      port: http
+  readinessProbe:
+    tcpSocket:
+      port: http
+  # Measured on a KIND run: ~42 MiB RSS idle, ~48 MiB peak under the
+  # gateway-global bench (5000 requests). CPU cost is ~4 ms per request, so
+  # raise the CPU request if you expect sustained rates above ~25 req/s.
+  # Requests only: CPU limits throttle tail latency for no benefit here.
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  # Extra environment variables (e.g. {name: APP_ENV, value: dev} for debug
+  # text logging).
+  extraEnv: []
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+gatewayRegional:
+  enabled: true
+  # The region served by this regional gateway (REGION env var). Required when
+  # enabled, e.g. "itbg-bergamo".
+  region: ""
+  replicaCount: 1
+  image:
+    # Published on every v* tag by .github/workflows/image-release.yaml.
+    # Override only to pull from a mirror of your own.
+    repository: ghcr.io/eu-sovereign-cloud/ecp/gateway-regional
+    pullPolicy: IfNotPresent
+    # Overrides the image tag whose default is the chart appVersion.
+    tag: ""
+  serviceAccount:
+    create: true
+    annotations: {}
+    # If not set and create is true, a name is generated from the fullname.
+    name: ""
+  rbac:
+    create: true
+  service:
+    type: ClusterIP
+    port: 80
+    # Fixed node port, honoured only when type is NodePort (else Kubernetes
+    # auto-assigns). Empty leaves it dynamic. Pin it to expose the gateway at a
+    # known host port, as the multicluster test does for the regional gateway.
+    nodePort: ""
+  ingress:
+    enabled: false
+    className: ""
+    annotations: {}
+    hosts:
+      - host: ecp-regional.example.local
+        paths:
+          - path: /
+            pathType: Prefix
+    tls: []
+  podAnnotations: {}
+  podLabels: {}
+  podSecurityContext: {}
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  # The gateway exposes no dedicated health endpoint yet, so probe the socket.
+  livenessProbe:
+    tcpSocket:
+      port: http
+  readinessProbe:
+    tcpSocket:
+      port: http
+  # Measured on a KIND run: ~42 MiB RSS idle, ~48 MiB peak under the
+  # gateway-global bench (5000 requests). CPU cost is ~4 ms per request, so
+  # raise the CPU request if you expect sustained rates above ~25 req/s.
+  # Requests only: CPU limits throttle tail latency for no benefit here.
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  # Extra environment variables (e.g. {name: APP_ENV, value: dev} for debug
+  # text logging).
+  extraEnv: []
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+ecp-delegator:
+  enabled: false

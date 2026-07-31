@@ -40,5 +40,9 @@ COPY --from=build /server /server
 
 EXPOSE 8080
 
+# Numeric and non-root: the chart sets runAsNonRoot without runAsUser, so
+# kubelet rejects the pod unless the image itself declares a non-zero UID.
+USER 65532:65532
+
 ENTRYPOINT ["/server"]
 CMD ["regionalapiserver"]

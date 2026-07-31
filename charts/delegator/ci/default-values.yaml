@@ -1,0 +1,4 @@
+# Values used by chart CI (helm lint / chart-testing): fill in the values that
+# have no universal default so the chart renders. `plugin` is deliberately
+# unset in values.yaml — there is no sensible default CSP.
+plugin: aruba

@@ -12,6 +12,8 @@ import (
 
 	authhelper "github.com/eu-sovereign-cloud/ecp/test/internal/authhelper"
 
+	computev1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.compute.v1"
+	networkv1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.network.v1"
 	storagev1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	workspacev1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1"
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
@@ -31,6 +33,8 @@ const (
 )
 
 var (
+	computeClient   *computev1.ClientWithResponses
+	networkClient   *networkv1.ClientWithResponses
 	storageClient   *storagev1.ClientWithResponses
 	workspaceClient *workspacev1.ClientWithResponses
 
@@ -58,7 +62,7 @@ func TestMain(m *testing.M) {
 
 	editor := authhelper.AdminEditor()
 
-	// SECA SDK clients, both pointing at the regional gateway.
+	// SECA SDK clients, all pointing at the regional gateway.
 	baseURL := fmt.Sprintf("http://localhost:%d", pf.LocalPort)
 	workspaceClient, err = workspacev1.NewClientWithResponses(baseURL+"/providers/seca.workspace", workspacev1.WithRequestEditorFn(editor))
 	if err != nil {
@@ -67,6 +71,14 @@ func TestMain(m *testing.M) {
 	storageClient, err = storagev1.NewClientWithResponses(baseURL+"/providers/seca.storage", storagev1.WithRequestEditorFn(editor))
 	if err != nil {
 		log.Fatalf("Failed to create storage SDK client: %v", err)
+	}
+	networkClient, err = networkv1.NewClientWithResponses(baseURL+"/providers/seca.network", networkv1.WithRequestEditorFn(editor))
+	if err != nil {
+		log.Fatalf("Failed to create network SDK client: %v", err)
+	}
+	computeClient, err = computev1.NewClientWithResponses(baseURL+"/providers/seca.compute", computev1.WithRequestEditorFn(editor))
+	if err != nil {
+		log.Fatalf("Failed to create compute SDK client: %v", err)
 	}
 
 	// Provision shared fixtures through the gateway itself. Creating the workspace

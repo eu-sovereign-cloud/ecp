@@ -57,7 +57,9 @@ func main() {
 			SecureServing: false,
 			BindAddress:   ":8083",
 		},
-		HealthProbeBindAddress: ":8082",
+		// The charts/delegator deployment probes /healthz on 8081; match it so the
+		// per-plugin image is ready under the same chart as the other plugins.
+		HealthProbeBindAddress: ":8081",
 	})
 	if err != nil {
 		logger.Error("unable to start manager", "error", err)

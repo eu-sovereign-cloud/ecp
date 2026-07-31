@@ -1,4 +1,4 @@
-# ECP — European Control Plane
+# ECP — European Control Plane 
 
 A Kubernetes-native distributed control plane for managing cloud resources across multiple cloud service providers (CSPs).
 
@@ -30,15 +30,18 @@ csp/
 └── aruba/            # Aruba CSP plugin
 test/                 # Test harness: integration, e2e and conformance suites
 ├── integration/      # Per-component suites (delegator, gateway-global/-regional)
-├── e2e/              # Single end-to-end suite (API → delegator plugin)
+├── e2e/              # End-to-end suites: single-cluster, plus multicluster/ (split topology)
 ├── conformance/      # secatest conformance harnesses (ionos, aruba)
 └── internal/         # Shared infra: build, deploy, scripts, cmd, testenv, authhelper, context
 ci/
 ├── container/        # Dockerfile layers: builder, tools, dev, runner
 ├── scripts/          # CI and dev automation scripts
 └── tools/            # Pinned Go dev tool dependencies
-chart/
-└── crd/              # Generated Kubernetes CRD YAML (all 18 resource slices)
+charts/               # Helm charts
+├── ecp/              # The global and regional gateways
+│   ├── crds/         # Generated Kubernetes CRD YAML (all 18 resource slices)
+│   └── templates/    # Gateway Deployments, Services, RBAC, ingress
+└── delegator/        # The delegator, one plugin set per install
 modules/
 └── go-sdk/           # Git submodule: shared OpenAPI specs and client SDK
 doc/                  # Documentation
@@ -68,6 +71,17 @@ This is a Go monorepo managed with `go.work`. The workspace contains 8 first-par
 > Go is **not** required on the host. All compilation runs inside the `builder` container image, which is pulled automatically on first use.
 
 ```bash
+# If you have a frash repository clone, you need to get the sub modules:
+
+    make submodules
+
+If this failes because of SSH access, one way to solve it is
+
+    git config --global url."https://github.com/".insteadOf "git@github.com:"
+
+Then run `make modules again`.
+
+
 # Generate CRDs and typed Go models from OpenAPI specs
 make generate-api
 
@@ -76,7 +90,7 @@ make -C csp/dummy kind-start
 
 # Run the API servers (in separate terminals)
 go run ./gateway globalapiserver
-go run ./gateway regionalapiserver
+go run ./gateway regionalapiserver --region local -p 8081
 
 # Run all tests
 make test

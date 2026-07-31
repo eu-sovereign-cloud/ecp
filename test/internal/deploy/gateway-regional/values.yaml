@@ -1,0 +1,13 @@
+# Test-stack values for the regional gateway, layered on ../gateway-values.yaml.
+#
+# One chart, two releases (ecp-global and ecp-regional): each disables the other
+# gateway, so `make deploy-gateway-regional` still deploys only what the
+# gateway-regional suite needs. Image repository, tag and pullPolicy are set by
+# internal/scripts/deploy.sh — they follow whatever the local build produced.
+
+gatewayGlobal:
+  enabled: false
+
+gatewayRegional:
+  # Must match a region in test-data/regions.yaml.
+  region: itbg-bergamo

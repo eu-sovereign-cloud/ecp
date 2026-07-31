@@ -1,0 +1,107 @@
+{{- if .Values.gatewayGlobal.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ecp.gatewayGlobal.fullname" . }}
+  labels:
+    {{- include "ecp.labels" . | nindent 4 }}
+    app.kubernetes.io/component: gateway-global
+spec:
+  replicas: {{ .Values.gatewayGlobal.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "ecp.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: gateway-global
+  template:
+    metadata:
+      {{- with .Values.gatewayGlobal.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "ecp.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: gateway-global
+        app: gateway-global
+        {{- with .Values.gatewayGlobal.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "ecp.gatewayGlobal.serviceAccountName" . }}
+      {{- with .Values.gatewayGlobal.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: gateway
+          image: "{{ .Values.gatewayGlobal.image.repository }}:{{ .Values.gatewayGlobal.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.gatewayGlobal.image.pullPolicy }}
+          {{- with .Values.gatewayGlobal.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          args:
+            - globalapiserver
+            {{- with (include "ecp.authArgs" . | trim) }}
+            {{- . | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          {{- with .Values.gatewayGlobal.extraEnv }}
+          env:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.gatewayGlobal.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.gatewayGlobal.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.gatewayGlobal.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.auth.enabled }}
+          volumeMounts:
+            {{- if eq .Values.auth.plugin "jwt" }}
+            - name: jwt-key
+              mountPath: /etc/ecp/jwt
+              readOnly: true
+            {{- else }}
+            - name: dummy-users
+              mountPath: /etc/ecp/auth
+              readOnly: true
+            {{- end }}
+          {{- end }}
+      {{- if .Values.auth.enabled }}
+      volumes:
+        {{- if eq .Values.auth.plugin "jwt" }}
+        - name: jwt-key
+          secret:
+            secretName: {{ include "ecp.jwtKeySecretName" . }}
+        {{- else }}
+        - name: dummy-users
+          secret:
+            secretName: {{ include "ecp.dummyUsersSecretName" . }}
+        {{- end }}
+      {{- end }}
+      {{- with .Values.gatewayGlobal.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.gatewayGlobal.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.gatewayGlobal.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}
