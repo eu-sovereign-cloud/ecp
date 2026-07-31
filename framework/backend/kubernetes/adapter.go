@@ -574,26 +574,79 @@ func (a *WriterAdapter[T]) Delete(ctx context.Context, m T) error {
 	return nil
 }
 
-// Delete deletes the resource and then attempts to delete the associated namespace only if it is owned by us.
+// Delete refuses the delete when the child namespace still holds SECA resources,
+// then deletes the resource CR and, if owned, the child namespace.
 func (a *NamespaceManagingWriterAdapter[T]) Delete(ctx context.Context, m T) error {
-	// The current SECA resource organization (https://spec.secapi.cloud/docs/content/Architecture/resource-organization)
-	// contains only three hierarchical levels: Tenants 1<->* Workspaces 1<->* SECA Resources.
-	//
-	// At present, there is not a Tenant entity defined, and the only entity
-	// which will really manage its namespace is the Workspace.
-	//
-	// The Workspace should be placed into the Tenant namespace, and it should
-	// not own that namespace because it will contain all the Workspaces and
-	// other elements owned by the Tenant.
-	//
-	// So, in fact, the Workspaces will create and manage namespaces for its
-	// underlying resources, and not for themselves.
-	//
-	// That's why the namespace name must always consider Tenant and Workspace
-	// names here.
+	childNS, ownerLabels := childNamespaceFor(a.childNamespace, m)
 
-	// Delete the resource which manages the namespace
-	return a.WriterAdapter.Delete(ctx, m)
+	if childNS != "" {
+		hasChildren, err := namespaceHasChildResources(ctx, a.client, childNS, a.childResourceGVRs)
+		if err != nil {
+			a.logger.ErrorContext(ctx, "failed to check child namespace emptiness",
+				"namespace", childNS, "error", err)
+			return err
+		}
+		if hasChildren {
+			return kernel.NewError(kernel.KindConflict,
+				fmt.Errorf("cannot delete %s %q: namespace %q is not empty", a.gvr.Resource, m.GetName(), childNS))
+		}
+	}
+
+	if err := a.WriterAdapter.Delete(ctx, m); err != nil {
+		return err
+	}
+
+	if childNS == "" {
+		return nil
+	}
+
+	owned, err := namespaceOwnedBy(ctx, a.clientset, childNS, ownerLabels)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to verify namespace ownership after resource delete",
+			"namespace", childNS, "error", err)
+		return kubeToDomainError(fmt.Errorf("failed to verify ownership of namespace %q: %w", childNS, err))
+	}
+	if !owned {
+		return nil
+	}
+
+	if err := DeleteNamespace(ctx, a.clientset, childNS); err != nil {
+		a.logger.ErrorContext(ctx, "failed to delete owned child namespace",
+			"namespace", childNS, "error", err)
+		return err
+	}
+	return nil
+}
+
+// namespaceHasChildResources reports whether any of the given GVRs has at least one
+// object in namespace. Missing CRDs (NotFound) are ignored so partial installs still work.
+// An empty gvrs list means there is nothing to check — the namespace is treated as empty.
+func namespaceHasChildResources(
+	ctx context.Context,
+	dyn dynamic.Interface,
+	namespace string,
+	gvrs []schema.GroupVersionResource,
+) (bool, error) {
+	if dyn == nil {
+		return false, kernel.NewError(kernel.KindUnavailable, fmt.Errorf("cannot list child resources: dynamic client is nil"))
+	}
+	if namespace == "" || len(gvrs) == 0 {
+		return false, nil
+	}
+
+	for _, gvr := range gvrs {
+		list, err := dyn.Resource(gvr).Namespace(namespace).List(ctx, metav1.ListOptions{Limit: 1})
+		if err != nil {
+			if kerrs.IsNotFound(err) {
+				continue
+			}
+			return false, kubeToDomainError(fmt.Errorf("failed to list %s in namespace %q: %w", gvr.Resource, namespace, err))
+		}
+		if len(list.Items) > 0 {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // Watch implements the persistence.WatcherRepo interface.
@@ -688,14 +741,16 @@ func childNamespaceLabels(tenant, workspace, network string) (string, map[string
 
 // NamespaceManagingWriterAdapter wraps a WriterAdapter and ensures the namespace computed for
 // childNamespace exists before creating resources, rolling back that namespace if it created it
-// and the resource creation subsequently fails. It uses a typed clientset for Namespace
-// operations when available.
+// and the resource creation subsequently fails. On Delete it refuses when childResourceGVRs
+// still list objects in that namespace, then deletes the CR and the owned child namespace.
+// It uses a typed clientset for Namespace operations when available.
 type NamespaceManagingWriterAdapter[T persistence.IdentifiableResource] struct {
 	*WriterAdapter[T]
-	client         dynamic.Interface
-	clientset      kubernetes.Interface
-	logger         *slog.Logger
-	childNamespace ChildNamespaceKind
+	client            dynamic.Interface
+	clientset         kubernetes.Interface
+	logger            *slog.Logger
+	childNamespace    ChildNamespaceKind
+	childResourceGVRs []schema.GroupVersionResource
 }
 
 // NamespaceManagingRepoAdapter implements the persistence.WatcherRepo interface for a specific resource type.
@@ -707,6 +762,8 @@ type NamespaceManagingRepoAdapter[T persistence.IdentifiableResource] struct {
 
 // NewNamespaceManagingWriterAdapter creates a new writer adapter that ensures the namespace
 // selected by childNamespace exists before creating resources.
+// childResourceGVRs is the closed set of SECA types that may live in the child namespace;
+// Delete uses it for the emptiness check (empty/nil means no types to check).
 func NewNamespaceManagingWriterAdapter[T persistence.IdentifiableResource](
 	dynClient dynamic.Interface,
 	clientset kubernetes.Interface,
@@ -715,14 +772,16 @@ func NewNamespaceManagingWriterAdapter[T persistence.IdentifiableResource](
 	domainToK8s DomainToK8s[T],
 	k8sToDomain K8sToDomain[T],
 	childNamespace ChildNamespaceKind,
+	childResourceGVRs []schema.GroupVersionResource,
 ) *NamespaceManagingWriterAdapter[T] {
 	base := NewWriterAdapter(dynClient, gvr, logger, domainToK8s, k8sToDomain)
 	return &NamespaceManagingWriterAdapter[T]{
-		WriterAdapter:  base,
-		client:         dynClient,
-		clientset:      clientset,
-		logger:         logger,
-		childNamespace: childNamespace,
+		WriterAdapter:     base,
+		client:            dynClient,
+		clientset:         clientset,
+		logger:            logger,
+		childNamespace:    childNamespace,
+		childResourceGVRs: childResourceGVRs,
 	}
 }
 
@@ -735,6 +794,7 @@ func NewNamespaceManagingRepoAdapter[T persistence.IdentifiableResource](
 	domainToK8s DomainToK8s[T],
 	k8sToDomain K8sToDomain[T],
 	childNamespace ChildNamespaceKind,
+	childResourceGVRs []schema.GroupVersionResource,
 ) *NamespaceManagingRepoAdapter[T] {
 	return &NamespaceManagingRepoAdapter[T]{
 		ReaderAdapter: NewReaderAdapter(
@@ -751,6 +811,7 @@ func NewNamespaceManagingRepoAdapter[T persistence.IdentifiableResource](
 			domainToK8s,
 			k8sToDomain,
 			childNamespace,
+			childResourceGVRs,
 		),
 		WatcherAdapter: NewWatcherAdapter(
 			dynClient,
