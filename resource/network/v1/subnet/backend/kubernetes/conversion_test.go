@@ -15,14 +15,14 @@ const sn1 = "sn1"
 func TestSubnetConversionRoundTrip(t *testing.T) {
 	in := &subnetdom.Subnet{
 		Spec: subnetdom.SubnetSpec{
-			Cidr:          subnetdom.CIDR{IPv4: "10.0.0.0/24"},
+			Cidr: subnetdom.CIDR{IPv4: "10.0.0.0/24"},
 			// TODO_TEST_238_239
 			// RouteTableRef: commondomain.Reference{Resource: "route-tables/rt1"},
 			RouteTableRef: commondomain.Reference{Resource: "route-tables/rt1"},
 			// TODO_TEST_238_239
 			// SkuRef:        commondomain.Reference{Resource: "network-skus/sku1"},
-			SkuRef:        commondomain.Reference{Resource: "skus/sku1"},
-			Zone:          "zone-a",
+			SkuRef: commondomain.Reference{Resource: "skus/sku1"},
+			Zone:   "zone-a",
 		},
 	}
 	in.Name = sn1
@@ -32,8 +32,8 @@ func TestSubnetConversionRoundTrip(t *testing.T) {
 	in.Provider = subnetdom.ProviderID
 	in.Region = "r1"
 	in.Status = &subnetdom.SubnetStatus{
-		Status:        commondomain.Status{State: commondomain.ResourceStateActive},
-		Cidr:          &subnetdom.CIDR{IPv4: "10.0.0.0/24"},
+		Status: commondomain.Status{State: commondomain.ResourceStateActive},
+		Cidr:   &subnetdom.CIDR{IPv4: "10.0.0.0/24"},
 		// TODO_TEST_238_239
 		// RouteTableRef: &commondomain.Reference{Resource: "route-tables/rt1"},
 		RouteTableRef: &commondomain.Reference{Resource: "route-tables/rt1"},
@@ -105,7 +105,7 @@ func TestSubnetToCR_UsesNetworkNamespace(t *testing.T) {
 func TestSubnetConversion_SkuRefOptional(t *testing.T) {
 	in := &subnetdom.Subnet{
 		Spec: subnetdom.SubnetSpec{
-			Cidr:          subnetdom.CIDR{IPv4: "10.0.0.0/24"},
+			Cidr: subnetdom.CIDR{IPv4: "10.0.0.0/24"},
 			// TODO_TEST_238_239
 			// RouteTableRef: commondomain.Reference{Resource: "route-tables/rt1"},
 			RouteTableRef: commondomain.Reference{Resource: "route-tables/rt1"},

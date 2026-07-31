@@ -95,7 +95,7 @@ func TestNicBackend_CreateAndGetNic(t *testing.T) {
 				SubnetRef: commondomain.Reference{Resource: "subnets/subnet-1"},
 				// TODO_TEST_238_239
 				// SkuRef:    commondomain.Reference{Resource: "standard-nic"},
-				SkuRef:    commondomain.Reference{Resource: "skus/standard-nic"},
+				SkuRef: commondomain.Reference{Resource: "skus/standard-nic"},
 			},
 		}
 	}
@@ -222,7 +222,7 @@ func TestNicBackend_CreateAndGetNic(t *testing.T) {
 				SubnetRef: commondomain.Reference{Resource: "subnets/subnet-1"},
 				// TODO_TEST_238_239
 				// SkuRef:    commondomain.Reference{Resource: "sku-original"},
-				SkuRef:    commondomain.Reference{Resource: "skus/sku-original"},
+				SkuRef: commondomain.Reference{Resource: "skus/sku-original"},
 			},
 		}
 
@@ -260,7 +260,7 @@ func TestNicBackend_CreateAndGetNic(t *testing.T) {
 				SubnetRef: commondomain.Reference{Resource: "subnets/subnet-1"},
 				// TODO_TEST_238_239
 				// SkuRef:    commondomain.Reference{Resource: "sku-changed"},
-				SkuRef:    commondomain.Reference{Resource: "skus/sku-changed"},
+				SkuRef: commondomain.Reference{Resource: "skus/sku-changed"},
 			},
 		}
 		_, err = writerRepo.Update(ctx, mutated)

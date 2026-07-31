@@ -13,16 +13,16 @@ import (
 func TestNicConversionRoundTrip(t *testing.T) {
 	in := &nicdom.Nic{
 		Spec: nicdom.NicSpec{
-			Addresses:         []string{"10.0.0.5"},
+			Addresses: []string{"10.0.0.5"},
 			// TODO_TEST_238_239
 			// SubnetRef:         commondomain.Reference{Resource: "subnet/sn1"},
-			SubnetRef:         commondomain.Reference{Resource: "networks/n1/subnets/sn1"},
+			SubnetRef: commondomain.Reference{Resource: "networks/n1/subnets/sn1"},
 			// TODO_TEST_238_239
 			// SkuRef:            commondomain.Reference{Resource: "nic-sku/small"},
-			SkuRef:            commondomain.Reference{Resource: "skus/small"},
+			SkuRef: commondomain.Reference{Resource: "skus/small"},
 			// TODO_TEST_238_239
 			// PublicIpRefs:      []commondomain.Reference{{Resource: "public-ip/ip1"}},
-			PublicIpRefs:      []commondomain.Reference{{Resource: "public-ips/ip1"}},
+			PublicIpRefs: []commondomain.Reference{{Resource: "public-ips/ip1"}},
 			// TODO_TEST_238_239
 			// SecurityGroupRefs: []commondomain.Reference{{Resource: "security-group/sg1"}},
 			SecurityGroupRefs: []commondomain.Reference{{Resource: "security-groups/sg1"}},
@@ -34,9 +34,9 @@ func TestNicConversionRoundTrip(t *testing.T) {
 	in.Provider = nicdom.ProviderID
 	in.Region = "r1"
 	in.Status = &nicdom.NicStatus{
-		Status:       commondomain.Status{State: commondomain.ResourceStateActive},
-		MacAddress:   "aa:bb:cc:dd:ee:ff",
-		Addresses:    []string{"10.0.0.5"},
+		Status:     commondomain.Status{State: commondomain.ResourceStateActive},
+		MacAddress: "aa:bb:cc:dd:ee:ff",
+		Addresses:  []string{"10.0.0.5"},
 		// TODO_TEST_238_239
 		// PublicIpRefs: []commondomain.Reference{{Resource: "public-ip/ip1"}},
 		PublicIpRefs: []commondomain.Reference{{Resource: "public-ips/ip1"}},

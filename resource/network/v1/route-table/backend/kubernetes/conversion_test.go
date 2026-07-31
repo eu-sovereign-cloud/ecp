@@ -18,7 +18,7 @@ func TestRouteTableConversionRoundTrip(t *testing.T) {
 					DestinationCidrBlock: "10.0.0.0/24",
 					// TODO_TEST_238_239
 					// TargetRef:            commondomain.Reference{Resource: "instances/inst1"},
-					TargetRef:            commondomain.Reference{Resource: "instances/inst1"},
+					TargetRef: commondomain.Reference{Resource: "instances/inst1"},
 				},
 			},
 		},
