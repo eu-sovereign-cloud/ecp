@@ -33,6 +33,8 @@ func TestRouteTable(t *testing.T) {
 			},
 			Spec: routetabledom.RouteTableSpec{
 				Routes: []routetabledom.RouteSpec{
+					// Reference.resource: {collection}/{name}
+					// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 					{DestinationCidrBlock: "10.0.0.0/24", TargetRef: commondomain.Reference{Resource: "instances/inst1"}},
 				},
 			},

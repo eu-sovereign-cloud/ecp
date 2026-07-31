@@ -19,7 +19,9 @@ func TestRouteTableFromAPIToAPIRoundTrip(t *testing.T) {
 			Routes: []sdkschema.RouteSpec{
 				{
 					DestinationCidrBlock: "10.0.0.0/24",
-					TargetRef:            sdkschema.Reference{Resource: "instances/inst1"},
+					// Reference.resource: {collection}/{name}
+					// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
+					TargetRef: sdkschema.Reference{Resource: "instances/inst1"},
 				},
 			},
 		},
@@ -44,12 +46,18 @@ func TestRouteTableFromAPIToAPIRoundTrip(t *testing.T) {
 	require.Equal(t, sdkschema.RegionalNetworkResourceMetadataKindResourceKindRoutingTable, out.Metadata.Kind)
 	require.Len(t, out.Spec.Routes, 1)
 	require.Equal(t, "10.0.0.0/24", out.Spec.Routes[0].DestinationCidrBlock)
-	require.Equal(t, "routing-table/rt1", out.Metadata.Resource)
-	require.Equal(t, "seca.network/v1/tenants/t1/workspaces/w1/networks/n1/providers/routing-table/rt1", out.Metadata.Ref)
+	// metadata.resource: networks/{network}/{collection}/{name}
+	// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
+	require.Equal(t, "networks/n1/route-tables/rt1", out.Metadata.Resource)
+	// metadata.ref: {provider}/tenants/{tenant}/workspaces/{workspace}/networks/{network}/{collection}/{name}
+	// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
+	require.Equal(t, "seca.network/v1/tenants/t1/workspaces/w1/networks/n1/route-tables/rt1", out.Metadata.Ref)
 }
 
 func TestRouteTableIteratorToAPI_ResponseMetadata(t *testing.T) {
 	iter := routeTableIteratorToAPI(nil, nil)
+	// ResponseMetadata.resource: {collection}
+	// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 	require.Equal(t, "route-tables", iter.Metadata.Resource)
 	require.Equal(t, "seca.network/v1", iter.Metadata.Provider)
 }

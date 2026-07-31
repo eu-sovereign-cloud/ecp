@@ -1,32 +1,31 @@
 package domain
 
 const (
-	// WorkspaceScopedResourceFormat defines the format for workspace-scoped resources. It pluralizes the resource type.
-	// Example: tenant/{tenant_name}/workspace/{workspace_name}/{resource_type}s/{resource_name}
-	WorkspaceScopedResourceFormat = "tenants/%s/workspaces/%s/%ss/%s"
+	// WorkspaceScopedResourceFormat defines the format for workspace-scoped resources.
+	// Example: tenants/{tenant}/workspaces/{workspace}/{collection}/{name}
+	WorkspaceScopedResourceFormat = "tenants/%s/workspaces/%s/%s/%s"
 
-	// TenantScopedResourceFormat defines the format for tenant-scoped resources. It pluralizes the resource type.
-	// Example: tenant/{tenant_name}/{resource_type}s/{resource_name}
-	TenantScopedResourceFormat = "tenants/%s/%ss/%s"
+	// TenantScopedResourceFormat defines the format for tenant-scoped resources.
+	// Example: tenants/{tenant}/{collection}/{name}
+	TenantScopedResourceFormat = "tenants/%s/%s/%s"
 
-	// ResourceFormat defines the general format for resources. It pluralizes the resource type.
-	// Example: {resource_type}s/{resource_name}
-	ResourceFormat = "%ss/%s"
+	// ResourceFormat defines the short-form path for resources.
+	// Example: {collection}/{name}
+	ResourceFormat = "%s/%s"
 
-	// RegionalWorkspaceScopedResourceFormat defines the format for regional workspace-scoped resources backed by a provider.
-	// Example: tenants/{tenant_name}/workspaces/{workspace_name}/providers/{resource_type}/{resource_name}
-	RegionalWorkspaceScopedResourceFormat = "tenants/%s/workspaces/%s/providers/%s/%s"
+	// RegionalWorkspaceScopedResourceFormat defines the format for regional workspace-scoped resource refs.
+	// Example: tenants/{tenant}/workspaces/{workspace}/{collection}/{name}
+	RegionalWorkspaceScopedResourceFormat = "tenants/%s/workspaces/%s/%s/%s"
 
-	// RegionalTenantScopedResourceFormat defines the format for regional tenant-scoped resources backed by a provider.
-	// Example: tenants/{tenant_name}/providers/{resource_type}/{resource_name}
-	RegionalTenantScopedResourceFormat = "tenants/%s/providers/%s/%s"
+	// RegionalTenantScopedResourceFormat defines the format for regional tenant-scoped resource refs.
+	// Example: tenants/{tenant}/{collection}/{name}
+	RegionalTenantScopedResourceFormat = "tenants/%s/%s/%s"
 
-	// RegionalResourceFormat defines the short-form path for regional resources within a provider namespace.
-	// Example: {resource_type}/{resource_name}
+	// RegionalResourceFormat defines the short-form path for regional resources.
+	// Example: {collection}/{name}
 	RegionalResourceFormat = "%s/%s"
 
-	// RegionalNetworkScopedResourceFormat defines the format for regional resources scoped under a
-	// network, backed by a provider.
-	// Example: tenants/{tenant_name}/workspaces/{workspace_name}/networks/{network_name}/providers/{resource_type}/{resource_name}
-	RegionalNetworkScopedResourceFormat = "tenants/%s/workspaces/%s/networks/%s/providers/%s/%s"
+	// RegionalNetworkScopedResourceFormat defines the format for network-scoped resource refs.
+	// Example: tenants/{tenant}/workspaces/{workspace}/networks/{network}/{collection}/{name}
+	RegionalNetworkScopedResourceFormat = "tenants/%s/workspaces/%s/networks/%s/%s/%s"
 )

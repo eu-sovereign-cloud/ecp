@@ -1,7 +1,6 @@
 package rest
 
 import (
-	"fmt"
 	"strconv"
 
 	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
@@ -73,21 +72,16 @@ func imageToAPI(img *imgdom.Image) *sdkschema.Image {
 
 	out := &sdkschema.Image{
 		Metadata: &sdkschema.RegionalResourceMetadata{
-			ApiVersion:     ImageAPIVersion,
-			CreatedAt:      img.CreatedAt,
-			LastModifiedAt: img.UpdatedAt,
-			Kind:           sdkschema.RegionalResourceMetadataKindResourceKindImage,
-			Name:           img.Name,
-			Tenant:         img.Tenant,
-			Provider:       img.Provider,
-			Region:         img.Region,
-			Resource:       fmt.Sprintf(commondomain.RegionalResourceFormat, sdkschema.RegionalResourceMetadataKindResourceKindImage, img.Name),
-			Ref: fmt.Sprintf(
-				img.Provider+"/"+commondomain.RegionalTenantScopedResourceFormat,
-				img.Tenant,
-				sdkschema.RegionalResourceMetadataKindResourceKindImage,
-				img.Name,
-			),
+			ApiVersion:      ImageAPIVersion,
+			CreatedAt:       img.CreatedAt,
+			LastModifiedAt:  img.UpdatedAt,
+			Kind:            sdkschema.RegionalResourceMetadataKindResourceKindImage,
+			Name:            img.Name,
+			Tenant:          img.Tenant,
+			Provider:        img.Provider,
+			Region:          img.Region,
+			Resource:        commondomain.FormatRegionalResource(sdkschema.RegionalResourceMetadataKindResourceKindImage, img.Name),
+			Ref:             commondomain.FormatRegionalTenantScopedRef(img.Provider, img.Tenant, sdkschema.RegionalResourceMetadataKindResourceKindImage, img.Name),
 			ResourceVersion: resourceVersion,
 		},
 		Labels:      img.Labels,

@@ -90,8 +90,10 @@ func TestNicBackend_CreateAndGetNic(t *testing.T) {
 			},
 			Spec: nicdom.NicSpec{
 				Addresses: []string{"10.0.0.5"},
-				SubnetRef: commondomain.Reference{Resource: "subnet-1"},
-				SkuRef:    commondomain.Reference{Resource: "standard-nic"},
+				// Reference.resource: {collection}/{name}
+				// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
+				SubnetRef: commondomain.Reference{Resource: "subnets/subnet-1"},
+				SkuRef:    commondomain.Reference{Resource: "skus/standard-nic"},
 			},
 		}
 	}
@@ -145,7 +147,9 @@ func TestNicBackend_CreateAndGetNic(t *testing.T) {
 		// Update the NIC: add a security group reference (securityGroupRefs is mutable).
 		updateDomain := newNicDomain()
 		updateDomain.ResourceVersion = nic2.ResourceVersion
-		updateDomain.Spec.SecurityGroupRefs = []commondomain.Reference{{Resource: "sg-1"}}
+		// Reference.resource: {collection}/{name}
+		// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
+		updateDomain.Spec.SecurityGroupRefs = []commondomain.Reference{{Resource: "security-groups/sg-1"}}
 
 		updateResult, err := writerRepo.Update(ctx, updateDomain)
 		require.NoError(t, err)
@@ -211,8 +215,8 @@ func TestNicBackend_CreateAndGetNic(t *testing.T) {
 			},
 			Spec: nicdom.NicSpec{
 				Addresses: []string{"10.0.0.6"},
-				SubnetRef: commondomain.Reference{Resource: "subnet-1"},
-				SkuRef:    commondomain.Reference{Resource: "sku-original"},
+				SubnetRef: commondomain.Reference{Resource: "subnets/subnet-1"},
+				SkuRef:    commondomain.Reference{Resource: "skus/sku-original"},
 			},
 		}
 
@@ -245,8 +249,8 @@ func TestNicBackend_CreateAndGetNic(t *testing.T) {
 			},
 			Spec: nicdom.NicSpec{
 				Addresses: []string{"10.0.0.6"},
-				SubnetRef: commondomain.Reference{Resource: "subnet-1"},
-				SkuRef:    commondomain.Reference{Resource: "sku-changed"},
+				SubnetRef: commondomain.Reference{Resource: "subnets/subnet-1"},
+				SkuRef:    commondomain.Reference{Resource: "skus/sku-changed"},
 			},
 		}
 		_, err = writerRepo.Update(ctx, mutated)

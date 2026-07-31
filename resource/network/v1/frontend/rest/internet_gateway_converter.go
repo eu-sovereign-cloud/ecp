@@ -1,7 +1,6 @@
 package rest
 
 import (
-	"fmt"
 	"strconv"
 
 	sdknetwork "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.network.v1"
@@ -67,20 +66,17 @@ func internetGatewayToAPI(ig *internetgatewaydom.InternetGateway) *sdkschema.Int
 
 	out := &sdkschema.InternetGateway{
 		Metadata: &sdkschema.RegionalWorkspaceResourceMetadata{
-			ApiVersion:     internetgatewaydom.Version,
-			CreatedAt:      ig.CreatedAt,
-			LastModifiedAt: ig.UpdatedAt,
-			Kind:           kind,
-			Name:           ig.Name,
-			Tenant:         ig.Tenant,
-			Workspace:      ig.Workspace,
-			Provider:       ig.Provider,
-			Region:         ig.Region,
-			Resource:       fmt.Sprintf(commondomain.RegionalResourceFormat, kind, ig.Name),
-			Ref: fmt.Sprintf(
-				ig.Provider+"/"+commondomain.RegionalWorkspaceScopedResourceFormat,
-				ig.Tenant, ig.Workspace, kind, ig.Name,
-			),
+			ApiVersion:      internetgatewaydom.Version,
+			CreatedAt:       ig.CreatedAt,
+			LastModifiedAt:  ig.UpdatedAt,
+			Kind:            kind,
+			Name:            ig.Name,
+			Tenant:          ig.Tenant,
+			Workspace:       ig.Workspace,
+			Provider:        ig.Provider,
+			Region:          ig.Region,
+			Resource:        commondomain.FormatRegionalResource(kind, ig.Name),
+			Ref:             commondomain.FormatRegionalWorkspaceScopedRef(ig.Provider, ig.Tenant, ig.Workspace, kind, ig.Name),
 			ResourceVersion: resourceVersion,
 		},
 		Labels:      ig.Labels,

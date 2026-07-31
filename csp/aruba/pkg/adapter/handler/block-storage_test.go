@@ -193,7 +193,9 @@ func TestBlockStorage_create(t *testing.T) {
 			bd := &bsdomblock.BlockStorage{
 				Spec: bsdomblock.BlockStorageSpec{
 					SizeGB: 100,
-					SkuRef: refdom.Reference{Resource: "storage/sku-id"},
+					// Reference.resource: {collection}/{name}
+					// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
+					SkuRef: refdom.Reference{Resource: "skus/sku-id"},
 				},
 			}
 
@@ -266,7 +268,9 @@ func TestBlockStorage_delete(t *testing.T) {
 			bd := &bsdomblock.BlockStorage{
 				Spec: bsdomblock.BlockStorageSpec{
 					SizeGB: 100,
-					SkuRef: refdom.Reference{Resource: "storage/sku-id"},
+					// Reference.resource: {collection}/{name}
+					// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
+					SkuRef: refdom.Reference{Resource: "skus/sku-id"},
 				},
 			}
 
@@ -329,7 +333,9 @@ func TestBlockStorage_increaseSize(t *testing.T) {
 			bd := &bsdomblock.BlockStorage{
 				Spec: bsdomblock.BlockStorageSpec{
 					SizeGB: 200, // New size for the increase.
-					SkuRef: refdom.Reference{Resource: "storage/sku-id"},
+					// Reference.resource: {collection}/{name}
+					// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
+					SkuRef: refdom.Reference{Resource: "skus/sku-id"},
 				},
 			}
 

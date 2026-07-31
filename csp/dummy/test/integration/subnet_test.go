@@ -30,7 +30,9 @@ func TestSubnet(t *testing.T) {
 				Network: testNetwork,
 			},
 			Spec: subnetdom.SubnetSpec{
-				Cidr:          subnetdom.CIDR{IPv4: "10.0.0.0/24"},
+				Cidr: subnetdom.CIDR{IPv4: "10.0.0.0/24"},
+				// Reference.resource: {collection}/{name}
+				// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 				RouteTableRef: commondomain.Reference{Resource: "route-tables/rt1"},
 				Zone:          "zone-1",
 			},

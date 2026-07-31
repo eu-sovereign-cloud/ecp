@@ -10,6 +10,8 @@ import (
 
 func TestBlockStorageIteratorToAPI_ResponseMetadata(t *testing.T) {
 	iter := blockStorageIteratorToAPI(nil, nil)
+	// ResponseMetadata.resource: {collection}
+	// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 	require.Equal(t, "block-storages", iter.Metadata.Resource)
 	require.Equal(t, "seca.storage/v1", iter.Metadata.Provider)
 }
@@ -23,6 +25,10 @@ func TestBlockStorageToAPI_ResourceAndRef(t *testing.T) {
 
 	out := blockStorageToAPI(bs)
 
-	require.Equal(t, "block-storage/bs1", out.Metadata.Resource)
-	require.Equal(t, "seca.storage/v1/tenants/t1/workspaces/w1/providers/block-storage/bs1", out.Metadata.Ref)
+	// metadata.resource: {collection}/{name}
+	// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
+	require.Equal(t, "block-storages/bs1", out.Metadata.Resource)
+	// metadata.ref: {provider}/tenants/{tenant}/workspaces/{workspace}/{collection}/{name}
+	// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
+	require.Equal(t, "seca.storage/v1/tenants/t1/workspaces/w1/block-storages/bs1", out.Metadata.Ref)
 }

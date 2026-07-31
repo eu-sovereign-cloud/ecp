@@ -1,7 +1,6 @@
 package rest
 
 import (
-	"fmt"
 	"strconv"
 
 	sdknetwork "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.network.v1"
@@ -91,21 +90,18 @@ func routeTableToAPI(rt *routetabledom.RouteTable) *sdkschema.RouteTable {
 
 	out := &sdkschema.RouteTable{
 		Metadata: &sdkschema.RegionalNetworkResourceMetadata{
-			ApiVersion:     routetabledom.Version,
-			CreatedAt:      rt.CreatedAt,
-			LastModifiedAt: rt.UpdatedAt,
-			Kind:           kind,
-			Name:           rt.Name,
-			Tenant:         rt.Tenant,
-			Workspace:      rt.Workspace,
-			Network:        rt.Network,
-			Provider:       rt.Provider,
-			Region:         rt.Region,
-			Resource:       fmt.Sprintf(commondomain.RegionalResourceFormat, kind, rt.Name),
-			Ref: fmt.Sprintf(
-				rt.Provider+"/"+commondomain.RegionalNetworkScopedResourceFormat,
-				rt.Tenant, rt.Workspace, rt.Network, kind, rt.Name,
-			),
+			ApiVersion:      routetabledom.Version,
+			CreatedAt:       rt.CreatedAt,
+			LastModifiedAt:  rt.UpdatedAt,
+			Kind:            kind,
+			Name:            rt.Name,
+			Tenant:          rt.Tenant,
+			Workspace:       rt.Workspace,
+			Network:         rt.Network,
+			Provider:        rt.Provider,
+			Region:          rt.Region,
+			Resource:        commondomain.FormatRegionalNetworkScopedResource(rt.Network, kind, rt.Name),
+			Ref:             commondomain.FormatRegionalNetworkScopedRef(rt.Provider, rt.Tenant, rt.Workspace, rt.Network, kind, rt.Name),
 			ResourceVersion: resourceVersion,
 		},
 		Labels:      rt.Labels,

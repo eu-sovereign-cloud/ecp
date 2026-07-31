@@ -16,7 +16,9 @@ import (
 func TestSubnetFromAPIToAPIRoundTrip(t *testing.T) {
 	sdk := sdkschema.Subnet{
 		Spec: sdkschema.SubnetSpec{
-			Cidr:          sdkschema.Cidr{Ipv4: "10.0.0.0/24"},
+			Cidr: sdkschema.Cidr{Ipv4: "10.0.0.0/24"},
+			// Reference.resource: {collection}/{name}
+			// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 			RouteTableRef: sdkschema.Reference{Resource: "route-tables/rt1"},
 			Zone:          "zone-a",
 		},
@@ -41,12 +43,18 @@ func TestSubnetFromAPIToAPIRoundTrip(t *testing.T) {
 	require.Equal(t, sdkschema.RegionalNetworkResourceMetadataKindResourceKindSubnet, out.Metadata.Kind)
 	require.Equal(t, "10.0.0.0/24", out.Spec.Cidr.Ipv4)
 	require.Equal(t, "route-tables/rt1", out.Spec.RouteTableRef.Resource)
-	require.Equal(t, "subnet/sn1", out.Metadata.Resource)
-	require.Equal(t, "seca.network/v1/tenants/t1/workspaces/w1/networks/n1/providers/subnet/sn1", out.Metadata.Ref)
+	// metadata.resource: networks/{network}/{collection}/{name}
+	// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
+	require.Equal(t, "networks/n1/subnets/sn1", out.Metadata.Resource)
+	// metadata.ref: {provider}/tenants/{tenant}/workspaces/{workspace}/networks/{network}/{collection}/{name}
+	// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
+	require.Equal(t, "seca.network/v1/tenants/t1/workspaces/w1/networks/n1/subnets/sn1", out.Metadata.Ref)
 }
 
 func TestSubnetIteratorToAPI_ResponseMetadata(t *testing.T) {
 	iter := subnetIteratorToAPI(nil, nil)
+	// ResponseMetadata.resource: {collection}
+	// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 	require.Equal(t, "subnets", iter.Metadata.Resource)
 	require.Equal(t, "seca.network/v1", iter.Metadata.Provider)
 }
@@ -86,10 +94,12 @@ func TestSubnetToAPI_SkuRefOptional(t *testing.T) {
 	out := subnetToAPIWithVerb(http.MethodGet)(dom)
 	require.Nil(t, out.Spec.SkuRef)
 
-	dom.Spec.SkuRef = commondomain.Reference{Resource: "network-skus/sku1"}
+	// Reference.resource: {collection}/{name}
+	// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
+	dom.Spec.SkuRef = commondomain.Reference{Resource: "skus/sku1"}
 	out = subnetToAPIWithVerb(http.MethodGet)(dom)
 	require.NotNil(t, out.Spec.SkuRef)
-	require.Equal(t, "network-skus/sku1", out.Spec.SkuRef.Resource)
+	require.Equal(t, "skus/sku1", out.Spec.SkuRef.Resource)
 }
 
 func TestSubnetListParamsFromAPI_SetsNetwork(t *testing.T) {

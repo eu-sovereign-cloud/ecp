@@ -58,11 +58,14 @@ func TestExtractAndStripSegment(t *testing.T) {
 			expectedRemaining: "",
 		},
 		{
-			name:              "multiple segments present",
-			resource:          "providers/ionos/regions/de-fra/tenants/t-1/workspaces/ws-1/block-storages/my-storage",
+			name: "multiple segments present",
+			// Reference.resource path with tenant/workspace scope:
+			// tenants/{tenant}/workspaces/{workspace}/{collection}/{name}
+			// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
+			resource:          "tenants/t-1/workspaces/ws-1/block-storages/my-storage",
 			segment:           "workspaces/",
 			expectedValue:     "ws-1",
-			expectedRemaining: "providers/ionos/regions/de-fra/tenants/t-1/block-storages/my-storage",
+			expectedRemaining: "tenants/t-1/block-storages/my-storage",
 		},
 	}
 

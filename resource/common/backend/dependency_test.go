@@ -31,13 +31,17 @@ func TestParseReference(t *testing.T) {
 		want          commonbackend.ReferenceTarget
 	}{
 		{
-			name:          "explicit workspace field, tenant inferred",
+			name: "explicit workspace field, tenant inferred",
+			// Reference.resource: {collection}/{name}
+			// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 			ref:           commondomain.Reference{Workspace: "w1", Resource: "block-storages/bs1"},
 			defaultTenant: "t1",
 			want:          commonbackend.ReferenceTarget{Tenant: "t1", Workspace: "w1", Name: "bs1"},
 		},
 		{
-			name:          "tenant and workspace embedded in path",
+			name: "tenant and workspace embedded in path",
+			// Reference.resource: tenants/{tenant}/workspaces/{workspace}/{collection}/{name}
+			// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 			ref:           commondomain.Reference{Resource: "tenants/t2/workspaces/w2/block-storages/bs2"},
 			defaultTenant: "t1",
 			want:          commonbackend.ReferenceTarget{Tenant: "t2", Workspace: "w2", Name: "bs2"},
@@ -67,6 +71,8 @@ func TestReferenceResolver_State(t *testing.T) {
 	resolver := commonbackend.NewReferenceResolver(dynFake)
 
 	t.Run("returns state of an existing reference", func(t *testing.T) {
+		// Reference.resource: {collection}/{name}
+		// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 		ref := commondomain.Reference{Workspace: workspace, Resource: "block-storages/bs1"}
 		exists, state, err := resolver.State(context.Background(), bsGVR, ref, tenant)
 		require.NoError(t, err)

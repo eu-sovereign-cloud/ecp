@@ -1,7 +1,6 @@
 package rest
 
 import (
-	"fmt"
 	"strconv"
 
 	sdknetwork "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.network.v1"
@@ -64,23 +63,17 @@ func networkToAPI(n *netdom.Network) *sdkschema.Network {
 
 	out := &sdkschema.Network{
 		Metadata: &sdkschema.RegionalWorkspaceResourceMetadata{
-			ApiVersion:     NetworkAPIVersion,
-			CreatedAt:      n.CreatedAt,
-			LastModifiedAt: n.UpdatedAt,
-			Kind:           sdkschema.RegionalWorkspaceResourceMetadataKindResourceKindNetwork,
-			Name:           n.Name,
-			Tenant:         n.Tenant,
-			Workspace:      n.Workspace,
-			Provider:       n.Provider,
-			Region:         n.Region,
-			Resource:       fmt.Sprintf(commondomain.RegionalResourceFormat, sdkschema.RegionalWorkspaceResourceMetadataKindResourceKindNetwork, n.Name),
-			Ref: fmt.Sprintf(
-				n.Provider+"/"+commondomain.RegionalWorkspaceScopedResourceFormat,
-				n.Tenant,
-				n.Workspace,
-				sdkschema.RegionalWorkspaceResourceMetadataKindResourceKindNetwork,
-				n.Name,
-			),
+			ApiVersion:      NetworkAPIVersion,
+			CreatedAt:       n.CreatedAt,
+			LastModifiedAt:  n.UpdatedAt,
+			Kind:            sdkschema.RegionalWorkspaceResourceMetadataKindResourceKindNetwork,
+			Name:            n.Name,
+			Tenant:          n.Tenant,
+			Workspace:       n.Workspace,
+			Provider:        n.Provider,
+			Region:          n.Region,
+			Resource:        commondomain.FormatRegionalResource(sdkschema.RegionalWorkspaceResourceMetadataKindResourceKindNetwork, n.Name),
+			Ref:             commondomain.FormatRegionalWorkspaceScopedRef(n.Provider, n.Tenant, n.Workspace, sdkschema.RegionalWorkspaceResourceMetadataKindResourceKindNetwork, n.Name),
 			ResourceVersion: resourceVersion,
 		},
 		Labels:      n.Labels,

@@ -2,7 +2,6 @@
 package rest
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 
@@ -94,8 +93,8 @@ func workspaceToAPI(ws wsdom.Workspace, verb string) *sdkschema.Workspace {
 			Tenant:          ws.Tenant,
 			Provider:        ws.Provider,
 			Region:          ws.Region,
-			Resource:        fmt.Sprintf(commondomain.RegionalResourceFormat, sdkschema.RegionalResourceMetadataKindResourceKindWorkspace, ws.Name),
-			Ref:             fmt.Sprintf(ws.Provider+"/"+commondomain.RegionalTenantScopedResourceFormat, ws.Tenant, sdkschema.RegionalResourceMetadataKindResourceKindWorkspace, ws.Name),
+			Resource:        commondomain.FormatRegionalResource(sdkschema.RegionalResourceMetadataKindResourceKindWorkspace, ws.Name),
+			Ref:             commondomain.FormatRegionalTenantScopedRef(ws.Provider, ws.Tenant, sdkschema.RegionalResourceMetadataKindResourceKindWorkspace, ws.Name),
 			ResourceVersion: resourceVersion,
 			Verb:            verb,
 		},

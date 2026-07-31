@@ -1,7 +1,6 @@
 package rest
 
 import (
-	"fmt"
 	"strconv"
 
 	sdkauthz "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.authorization.v1"
@@ -63,20 +62,15 @@ func roleAssignmentToAPI(ra *radom.RoleAssignment) *sdkschema.RoleAssignment {
 
 	out := &sdkschema.RoleAssignment{
 		Metadata: &sdkschema.GlobalTenantResourceMetadata{
-			ApiVersion:     RoleAssignmentAPIVersion,
-			CreatedAt:      ra.CreatedAt,
-			LastModifiedAt: ra.UpdatedAt,
-			Kind:           sdkschema.GlobalTenantResourceMetadataKindResourceKindRoleAssignment,
-			Name:           ra.Name,
-			Tenant:         ra.Tenant,
-			Provider:       ra.Provider,
-			Resource:       fmt.Sprintf(commondomain.ResourceFormat, sdkschema.GlobalTenantResourceMetadataKindResourceKindRoleAssignment, ra.Name),
-			Ref: fmt.Sprintf(
-				ra.Provider+"/"+commondomain.TenantScopedResourceFormat,
-				ra.Tenant,
-				sdkschema.GlobalTenantResourceMetadataKindResourceKindRoleAssignment,
-				ra.Name,
-			),
+			ApiVersion:      RoleAssignmentAPIVersion,
+			CreatedAt:       ra.CreatedAt,
+			LastModifiedAt:  ra.UpdatedAt,
+			Kind:            sdkschema.GlobalTenantResourceMetadataKindResourceKindRoleAssignment,
+			Name:            ra.Name,
+			Tenant:          ra.Tenant,
+			Provider:        ra.Provider,
+			Resource:        commondomain.FormatResource(sdkschema.GlobalTenantResourceMetadataKindResourceKindRoleAssignment, ra.Name),
+			Ref:             commondomain.FormatTenantScopedRef(ra.Provider, ra.Tenant, sdkschema.GlobalTenantResourceMetadataKindResourceKindRoleAssignment, ra.Name),
 			ResourceVersion: resourceVersion,
 		},
 		Labels:      ra.Labels,

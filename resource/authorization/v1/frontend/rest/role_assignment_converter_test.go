@@ -10,6 +10,8 @@ import (
 
 func TestRoleAssignmentIteratorToAPI_ResponseMetadata(t *testing.T) {
 	iter := roleAssignmentIteratorToAPI(nil, nil)
+	// ResponseMetadata.resource: {collection}
+	// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 	require.Equal(t, "role-assignments", iter.Metadata.Resource)
 	require.Equal(t, "seca.authorization/v1", iter.Metadata.Provider)
 }
@@ -22,6 +24,10 @@ func TestRoleAssignmentToAPI_ResourceAndRef(t *testing.T) {
 
 	out := roleAssignmentToAPI(ra)
 
+	// metadata.resource: {collection}/{name}
+	// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 	require.Equal(t, "role-assignments/ra1", out.Metadata.Resource)
+	// metadata.ref: {provider}/tenants/{tenant}/{collection}/{name}
+	// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 	require.Equal(t, "seca.authorization/v1/tenants/t1/role-assignments/ra1", out.Metadata.Ref)
 }

@@ -1,8 +1,6 @@
 package rest
 
 import (
-	"fmt"
-
 	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
@@ -36,13 +34,8 @@ func storageSKUToAPI(sku *skudom.StorageSKU) *sdkschema.StorageSku {
 			Provider:   sku.Provider,
 			Region:     sku.Region,
 			Tenant:     sku.Tenant,
-			Resource:   fmt.Sprintf(commondomain.RegionalResourceFormat, sdkschema.SkuResourceMetadataKindResourceKindStorageSku, sku.Name),
-			Ref: fmt.Sprintf(
-				sku.Provider+"/"+commondomain.RegionalTenantScopedResourceFormat,
-				sku.Tenant,
-				sdkschema.SkuResourceMetadataKindResourceKindStorageSku,
-				sku.Name,
-			),
+			Resource:   commondomain.FormatRegionalResource(sdkschema.SkuResourceMetadataKindResourceKindStorageSku, sku.Name),
+			Ref:        commondomain.FormatRegionalTenantScopedRef(sku.Provider, sku.Tenant, sdkschema.SkuResourceMetadataKindResourceKindStorageSku, sku.Name),
 		},
 		Spec: &sdkschema.StorageSkuSpec{
 			Iops:          int(sku.Spec.IOPS),

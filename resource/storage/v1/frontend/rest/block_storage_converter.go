@@ -1,7 +1,6 @@
 package rest
 
 import (
-	"fmt"
 	"strconv"
 
 	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
@@ -64,23 +63,17 @@ func blockStorageToAPI(bs *bsdom.BlockStorage) *sdkschema.BlockStorage {
 
 	out := &sdkschema.BlockStorage{
 		Metadata: &sdkschema.RegionalWorkspaceResourceMetadata{
-			ApiVersion:     BlockStorageAPIVersion,
-			CreatedAt:      bs.CreatedAt,
-			LastModifiedAt: bs.UpdatedAt,
-			Kind:           sdkschema.RegionalWorkspaceResourceMetadataKind(sdkschema.RegionalResourceMetadataKindResourceKindBlockStorage),
-			Name:           bs.Name,
-			Tenant:         bs.Tenant,
-			Workspace:      bs.Workspace,
-			Provider:       bs.Provider,
-			Region:         bs.Region,
-			Resource:       fmt.Sprintf(commondomain.RegionalResourceFormat, sdkschema.RegionalResourceMetadataKindResourceKindBlockStorage, bs.Name),
-			Ref: fmt.Sprintf(
-				bs.Provider+"/"+commondomain.RegionalWorkspaceScopedResourceFormat,
-				bs.Tenant,
-				bs.Workspace,
-				sdkschema.RegionalResourceMetadataKindResourceKindBlockStorage,
-				bs.Name,
-			),
+			ApiVersion:      BlockStorageAPIVersion,
+			CreatedAt:       bs.CreatedAt,
+			LastModifiedAt:  bs.UpdatedAt,
+			Kind:            sdkschema.RegionalWorkspaceResourceMetadataKind(sdkschema.RegionalResourceMetadataKindResourceKindBlockStorage),
+			Name:            bs.Name,
+			Tenant:          bs.Tenant,
+			Workspace:       bs.Workspace,
+			Provider:        bs.Provider,
+			Region:          bs.Region,
+			Resource:        commondomain.FormatRegionalResource(sdkschema.RegionalResourceMetadataKindResourceKindBlockStorage, bs.Name),
+			Ref:             commondomain.FormatRegionalWorkspaceScopedRef(bs.Provider, bs.Tenant, bs.Workspace, sdkschema.RegionalResourceMetadataKindResourceKindBlockStorage, bs.Name),
 			ResourceVersion: resourceVersion,
 		},
 		Labels:      bs.Labels,

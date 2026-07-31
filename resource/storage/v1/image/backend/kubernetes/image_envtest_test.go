@@ -89,6 +89,8 @@ func TestImageBackend_CreateAndGetImage(t *testing.T) {
 				Labels:         map[string]string{k8slabels.InternalTenantLabel: tenant},
 			},
 			Spec: imgdom.ImageSpec{
+				// Reference.resource: {collection}/{name}
+				// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 				BlockStorageRef: commondomain.Reference{Resource: "block-storages/source-bs"},
 				CpuArchitecture: "amd64",
 				Boot:            "UEFI",
