@@ -384,6 +384,31 @@ conformance-ionos-scaffolding: ## Build images, create the demo clusters and ins
 
 conformance-ionos-clean: ## Tear down the IONOS conformance demo clusters
 	@$(MAKE) -C conformance/ionos secatest-clean
+
+# =====================================================================================
+# k6 functional load journeys — black-box API paths (see load/README.md).
+# Requires a deployed stack and BASE_URL_GLOBAL / BASE_URL_REGIONAL in the environment.
+# Not the same as "bench" below (Go TestBench + Prometheus metrics).
+#
+#   export BASE_URL_GLOBAL=http://127.0.0.1:8080
+#   export BASE_URL_REGIONAL=http://127.0.0.1:8081
+#   make load-smoke
+#   make load-create-workspace
+# =====================================================================================
+.PHONY: load-smoke load-create-workspace load-k6-start load-ensure-tenant
+load-k6-start: ## Ensure k6 is available (delegates to load/)
+	@$(MAKE) -C load k6-start
+
+load-ensure-tenant: ## Ensure tenant Namespace exists (delegates to load/)
+	@$(MAKE) -C load ensure-tenant
+
+load-smoke: ## Run k6 smoke journey (delegates to load/; needs BASE_URL_*)
+	@$(MAKE) -C load smoke
+
+load-create-workspace: ## Run k6 create-workspace journey (delegates to load/; needs BASE_URL_*)
+	@$(MAKE) -C load create-workspace
+
+# =====================================================================================
 # Benchmark & report
 # =====================================================================================
 # bench — fire the load workload against the deployed gateway to populate metrics.
