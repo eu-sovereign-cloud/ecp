@@ -1,14 +1,16 @@
-// Smoke journey: stack is reachable and light authenticated reads succeed.
+// Stress load journey: same light reads as smoke/stepwise, heavier VU ramp.
 //
-// 1. GET /healthz on global + regional (no auth)
-// 2. GET regions (authn-only provider on global)
-// 3. GET workspaces for tenant (authz + tenant wiring on regional)
+// Profile (see options/stress.json):
+//   warmup  5s × 1 VU  (~1 iter/s total when paced)
+//   then 12 × 5s phases with VUs 30..360 (+30 each step)
+//
+// Each VU paces to about 1 iteration/s so aggregate rate ≈ active VUs.
 //
 // Requires BASE_URL_GLOBAL, BASE_URL_REGIONAL. Run via:
-//   make -C test/load smoke
+//   make -C test/load stress
 
 import http from 'k6/http';
-import { check } from 'k6';
+import { check, sleep } from 'k6';
 
 import { checkStatus, parseJSON } from '../lib/checks.js';
 import { loadConfig } from '../lib/config.js';
@@ -16,19 +18,14 @@ import { get, logIfUnexpected } from '../lib/http.js';
 
 export { handleSummary } from '../lib/summary.js';
 
-function hintTenantOrFixtures(status, tenant) {
-  console.error(
-    `smoke: list workspaces for tenant ${tenant} returned ${status}. ` +
-      'If the tenant Namespace is missing: make -C test/load ensure-tenant. ' +
-      'If RBAC/fixtures are missing: make -C test deploy-test-data ' +
-      '(or kind-deploy-test-data / kind-stack). See test/load/README.md.',
-  );
-}
+// Target wall-clock per VU iteration (warmup: 1 VU → ~1 req-cycle/s).
+const PACE_S = Number(__ENV.STRESS_PACE_S || '1');
 
 export default function () {
-  const cfg = loadConfig(); // requires BASE_URL_*
+  const cfg = loadConfig();
+  const t0 = Date.now();
 
-  // --- 1. Liveness (no auth) -------------------------------------------------
+  // --- Liveness (no auth) ----------------------------------------------------
   const globalHealth = http.get(`${cfg.baseUrlGlobal}/healthz`);
   logIfUnexpected(globalHealth, 200, 'global /healthz');
   checkStatus(globalHealth, 200, 'global healthz');
@@ -37,9 +34,8 @@ export default function () {
   logIfUnexpected(regionalHealth, 200, 'regional /healthz');
   checkStatus(regionalHealth, 200, 'regional healthz');
 
-  // --- 2. Regions (authn-only; needs bearer when auth enabled) ---------------
-  const regionsURL = cfg.regionsListURL();
-  const regionsRes = get(regionsURL, cfg);
+  // --- Regions (global) ------------------------------------------------------
+  const regionsRes = get(cfg.regionsListURL(), cfg);
   logIfUnexpected(regionsRes, 200, 'list regions');
   const regionsOK = checkStatus(regionsRes, 200, 'list regions');
   if (regionsOK) {
@@ -51,12 +47,8 @@ export default function () {
     });
   }
 
-  // --- 3. Workspaces list (tenant-scoped; proves authz + tenant ns) ----------
-  const wsURL = cfg.workspacesListURL();
-  const wsRes = get(wsURL, cfg);
-  if (wsRes.status === 403 || wsRes.status === 404) {
-    hintTenantOrFixtures(wsRes.status, cfg.tenant);
-  }
+  // --- Workspaces list (regional, tenant-scoped) -----------------------------
+  const wsRes = get(cfg.workspacesListURL(), cfg);
   logIfUnexpected(wsRes, 200, 'list workspaces');
   const wsOK = checkStatus(wsRes, 200, 'list workspaces');
   if (wsOK) {
@@ -64,5 +56,11 @@ export default function () {
     check(body, {
       'list workspaces has items array': (b) => b !== null && Array.isArray(b.items),
     });
+  }
+
+  // Pace: ~1 iteration per second per VU (warmup → 1/s total).
+  const elapsedS = (Date.now() - t0) / 1000;
+  if (elapsedS < PACE_S) {
+    sleep(PACE_S - elapsedS);
   }
 }

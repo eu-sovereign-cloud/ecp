@@ -7,6 +7,8 @@ import encoding from 'k6/encoding';
 import { authHeaders, mintToken } from '../lib/auth.js';
 import { loadConfig } from '../lib/config.js';
 
+export { handleSummary } from '../lib/summary.js';
+
 export default function () {
   const cfg = loadConfig({ requireUrls: false });
 

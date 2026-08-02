@@ -3,6 +3,8 @@
 
 import { loadConfig } from '../lib/config.js';
 
+export { handleSummary } from '../lib/summary.js';
+
 export const options = {
   vus: 1,
   iterations: 1,

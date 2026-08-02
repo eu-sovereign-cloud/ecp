@@ -1,8 +1,9 @@
-// Thin HTTP helpers: attach auth headers and optional unexpected-status logging.
+// Thin HTTP helpers: attach auth headers, status counting, optional error logging.
 
 import http from 'k6/http';
 
 import { authHeaders } from './auth.js';
+import { recordResponse } from './status.js';
 
 /**
  * @param {import('k6/http').RefinedResponse} res
@@ -34,13 +35,20 @@ function withAuth(cfg, params) {
   };
 }
 
+function tagFromParams(params) {
+  const t = (params && params.tags) || {};
+  return { name: t.name, resource: t.resource };
+}
+
 /**
  * @param {string} url
  * @param {object} cfg
  * @param {import('k6/http').Params} [params]
  */
 export function get(url, cfg, params) {
-  return http.get(url, withAuth(cfg, params));
+  const res = http.get(url, withAuth(cfg, params));
+  recordResponse(res, tagFromParams(params));
+  return res;
 }
 
 /**
@@ -54,7 +62,9 @@ export function put(url, body, cfg, params) {
     body !== null && typeof body === 'object' && !(body instanceof ArrayBuffer)
       ? JSON.stringify(body)
       : body;
-  return http.put(url, payload, withAuth(cfg, params));
+  const res = http.put(url, payload, withAuth(cfg, params));
+  recordResponse(res, tagFromParams(params));
+  return res;
 }
 
 /**
@@ -63,5 +73,7 @@ export function put(url, body, cfg, params) {
  * @param {import('k6/http').Params} [params]
  */
 export function del(url, cfg, params) {
-  return http.del(url, null, withAuth(cfg, params));
+  const res = http.del(url, null, withAuth(cfg, params));
+  recordResponse(res, tagFromParams(params));
+  return res;
 }

@@ -1,0 +1,29 @@
+{
+  "scenarios": {
+    "stepwise": {
+      "executor": "ramping-vus",
+      "startVUs": 0,
+      "stages": [
+        { "duration": "0s", "target": 1 },
+        { "duration": "10s", "target": 1 },
+        { "duration": "0s", "target": 2 },
+        { "duration": "10s", "target": 2 },
+        { "duration": "0s", "target": 4 },
+        { "duration": "10s", "target": 4 },
+        { "duration": "0s", "target": 6 },
+        { "duration": "10s", "target": 6 },
+        { "duration": "0s", "target": 8 },
+        { "duration": "10s", "target": 8 },
+        { "duration": "0s", "target": 10 },
+        { "duration": "10s", "target": 10 },
+        { "duration": "0s", "target": 12 },
+        { "duration": "10s", "target": 12 }
+      ],
+      "gracefulRampDown": "5s"
+    }
+  },
+  "thresholds": {
+    "http_req_failed": ["rate<0.01"],
+    "checks": ["rate>0.95"]
+  }
+}

@@ -12,6 +12,8 @@ import { checkStatus, parseJSON } from '../lib/checks.js';
 import { loadConfig } from '../lib/config.js';
 import { del, get, logIfUnexpected, put } from '../lib/http.js';
 
+export { handleSummary } from '../lib/summary.js';
+
 const WAIT_ACTIVE = (__ENV.WAIT_ACTIVE || '0') === '1';
 const ACTIVE_TIMEOUT_S = Number(__ENV.ACTIVE_TIMEOUT_S || '60');
 const ACTIVE_POLL_S = Number(__ENV.ACTIVE_POLL_S || '2');
