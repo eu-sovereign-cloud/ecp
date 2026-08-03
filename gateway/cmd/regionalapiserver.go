@@ -462,7 +462,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) erro
 	httpServer := httpserver.New(
 		httpserver.Options{
 			Addr:    addr,
-			Handler: mux,
+			Handler: metrics.HTTPMiddleware(mux),
 			Logger:  logger,
 		},
 	)

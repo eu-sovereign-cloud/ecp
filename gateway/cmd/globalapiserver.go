@@ -169,7 +169,7 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) error 
 
 	httpServer := httpserver.New(httpserver.Options{
 		Addr:    addr,
-		Handler: mux,
+		Handler: metrics.HTTPMiddleware(mux),
 		Logger:  logger,
 	})
 
