@@ -68,6 +68,7 @@ func init() {
 // startGlobal starts the backend HTTP server on the given address.
 func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) error {
 	logger.Info("Starting global API server on", slog.Any("addr", addr))
+	metrics.RegisterUpstreamObserver()
 
 	config, err := rest.InClusterConfig()
 	if err != nil {

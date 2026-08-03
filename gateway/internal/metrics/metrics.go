@@ -7,6 +7,8 @@
 //   - ecp_gateway_http_request_duration_seconds{method,status,route,provider} —
 //     end-to-end latency of every inbound HTTP request (mux-level). Use the
 //     histogram _count series for request rate; no separate counter is exported.
+//   - ecp_gateway_upstream_kube_request_duration_seconds{resource,group,operation,result} —
+//     latency of one gateway→apiserver call via the framework resource adapters.
 //   - ecp_gateway_auth_middleware_duration_seconds{provider} — end-to-end latency
 //     of the full authenticated request (authn + authz + provider handler). Metric (a).
 //   - ecp_gateway_authz_check_duration_seconds{impl} — latency of a single

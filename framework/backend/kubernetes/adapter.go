@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	corev1 "k8s.io/api/core/v1"
@@ -196,6 +197,9 @@ func resolveNamespace(obj persistence.Scope) (string, error) {
 
 // CreateNamespace creates a Kubernetes Namespace.
 func CreateNamespace(ctx context.Context, clientSet kubernetes.Interface, name string, ownerLabels map[string]string) (created bool, err error) {
+	start := time.Now()
+	defer func() { observeUpstream(namespaceGVR, OpCreate, start, err) }()
+
 	if name == "" {
 		return false, kernel.NewError(kernel.KindValidation, fmt.Errorf("cannot create namespace with empty name"))
 	}
@@ -223,7 +227,10 @@ func CreateNamespace(ctx context.Context, clientSet kubernetes.Interface, name s
 }
 
 // DeleteNamespace deletes the namespace. It does not error if NotFound.
-func DeleteNamespace(ctx context.Context, clientSet kubernetes.Interface, name string) error {
+func DeleteNamespace(ctx context.Context, clientSet kubernetes.Interface, name string) (err error) {
+	start := time.Now()
+	defer func() { observeUpstream(namespaceGVR, OpDelete, start, err) }()
+
 	if name == "" {
 		return nil
 	}
@@ -247,7 +254,10 @@ func DeleteNamespace(ctx context.Context, clientSet kubernetes.Interface, name s
 // resource.ListFilter, so a resource with an extra scoping dimension (e.g. Network) can carry
 // it on its own local params type and have it picked up here via the NetworkScope assertion,
 // without that dimension living on the shared resource.ListParams struct.
-func (a *ReaderAdapter[T]) List(ctx context.Context, params resource.ListFilter, list *[]T) (*string, error) {
+func (a *ReaderAdapter[T]) List(ctx context.Context, params resource.ListFilter, list *[]T) (next *string, err error) {
+	start := time.Now()
+	defer func() { observeUpstream(a.gvr, OpList, start, err) }()
+
 	lo := metav1.ListOptions{}
 
 	if limit := params.GetLimit(); limit > 0 {
@@ -314,16 +324,19 @@ func (a *ReaderAdapter[T]) List(ctx context.Context, params resource.ListFilter,
 		*list = append(*list, converted)
 	}
 
-	next := ulist.GetContinue()
-	if next == "" {
+	cont := ulist.GetContinue()
+	if cont == "" {
 		return nil, nil
 	}
 
-	return &next, nil
+	return &cont, nil
 }
 
 // Load implements the persistence.ReaderRepo interface.
-func (a *ReaderAdapter[T]) Load(ctx context.Context, obj *T) error {
+func (a *ReaderAdapter[T]) Load(ctx context.Context, obj *T) (err error) {
+	start := time.Now()
+	defer func() { observeUpstream(a.gvr, OpGet, start, err) }()
+
 	v := *obj
 	namespace, err := resolveNamespace(v)
 	if err != nil {
@@ -351,7 +364,10 @@ func (a *ReaderAdapter[T]) Load(ctx context.Context, obj *T) error {
 }
 
 // Create implements the persistence.WriterRepo interface.
-func (a *WriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
+func (a *WriterAdapter[T]) Create(ctx context.Context, m T) (res *T, err error) {
+	start := time.Now()
+	defer func() { observeUpstream(a.gvr, OpCreate, start, err) }()
+
 	namespace, err := resolveNamespace(m)
 	if err != nil {
 		return nil, err
@@ -370,19 +386,22 @@ func (a *WriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
 		return nil, kubeToDomainError(fmt.Errorf("failed to create resource %s '%s': %w", a.gvr.Resource, m.GetName(), err))
 	}
 
-	res, err := a.k8sToDomain(ures)
+	converted, err := a.k8sToDomain(ures)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "conversion from k8s object failed", "resource", a.gvr.Resource, "error", err)
 		return nil, kernel.NewError(kernel.KindValidation, fmt.Errorf("failed to convert %s from k8s object: %w", a.gvr.Resource, err))
 	}
 
-	return &res, nil
+	return &converted, nil
 }
 
 // Update implements the persistence.WriterRepo interface. It updates the resource's
 // metadata (labels, annotations) and spec. Status updates are handled separately
 // by UpdateStatus.
-func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
+func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (res *T, err error) {
+	start := time.Now()
+	defer func() { observeUpstream(a.gvr, OpUpdate, start, err) }()
+
 	uobj, err := a.toUnstructured(m)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "conversion from T to unstructured failed", "resource", a.gvr.Resource, "error", err)
@@ -410,17 +429,20 @@ func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
 		return nil, kubeToDomainError(fmt.Errorf("failed to get %s '%s' after update: %w", a.gvr.Resource, m.GetName(), err))
 	}
 
-	res, err := a.k8sToDomain(currObj)
+	converted, err := a.k8sToDomain(currObj)
 	if err != nil {
 		return nil, kernel.NewError(kernel.KindValidation, fmt.Errorf("failed to convert %s '%s' from k8s object: %w", a.gvr.Resource, m.GetName(), err))
 	}
 
-	return &res, nil
+	return &converted, nil
 }
 
 // UpdateStatus implements the persistence.WriterRepo interface. It updates only the
 // resource's status subresource, leaving metadata and spec unchanged.
-func (a *WriterAdapter[T]) UpdateStatus(ctx context.Context, m T) (*T, error) {
+func (a *WriterAdapter[T]) UpdateStatus(ctx context.Context, m T) (res *T, err error) {
+	start := time.Now()
+	defer func() { observeUpstream(a.gvr, OpUpdateStatus, start, err) }()
+
 	uobj, err := a.toUnstructured(m)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "conversion from T to unstructured failed", "resource", a.gvr.Resource, "error", err)
@@ -454,13 +476,13 @@ func (a *WriterAdapter[T]) UpdateStatus(ctx context.Context, m T) (*T, error) {
 		return nil, kubeToDomainError(fmt.Errorf("failed to get %s '%s' after status update: %w", a.gvr.Resource, m.GetName(), err))
 	}
 
-	res, err := a.k8sToDomain(currObj)
+	converted, err := a.k8sToDomain(currObj)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "conversion from k8s object failed", "resource", a.gvr.Resource, "error", err)
 		return nil, kernel.NewError(kernel.KindValidation, fmt.Errorf("failed to convert %s '%s' from k8s object after status update: %w", a.gvr.Resource, m.GetName(), err))
 	}
 
-	return &res, nil
+	return &converted, nil
 }
 
 func (a *WriterAdapter[T]) updateMetadataAndSpecRetry(
@@ -552,7 +574,10 @@ func (a *WriterAdapter[T]) updateStatusRetry(
 }
 
 // Delete implements the persistence.WriterRepo interface.
-func (a *WriterAdapter[T]) Delete(ctx context.Context, m T) error {
+func (a *WriterAdapter[T]) Delete(ctx context.Context, m T) (err error) {
+	start := time.Now()
+	defer func() { observeUpstream(a.gvr, OpDelete, start, err) }()
+
 	namespace, err := resolveNamespace(m)
 	if err != nil {
 		return err
@@ -635,13 +660,17 @@ func namespaceHasChildResources(
 	}
 
 	for _, gvr := range gvrs {
+		listStart := time.Now()
 		list, err := dyn.Resource(gvr).Namespace(namespace).List(ctx, metav1.ListOptions{Limit: 1})
 		if err != nil {
 			if kerrs.IsNotFound(err) {
+				observeUpstream(gvr, OpList, listStart, nil)
 				continue
 			}
+			observeUpstream(gvr, OpList, listStart, err)
 			return false, kubeToDomainError(fmt.Errorf("failed to list %s in namespace %q: %w", gvr.Resource, namespace, err))
 		}
+		observeUpstream(gvr, OpList, listStart, nil)
 		if len(list.Items) > 0 {
 			return true, nil
 		}
@@ -823,7 +852,10 @@ func NewNamespaceManagingRepoAdapter[T persistence.IdentifiableResource](
 }
 
 // namespaceOwnedBy checks that the namespace contains all key/value pairs in expectedLabels.
-func namespaceOwnedBy(ctx context.Context, clientset kubernetes.Interface, nsName string, expectedLabels map[string]string) (bool, error) {
+func namespaceOwnedBy(ctx context.Context, clientset kubernetes.Interface, nsName string, expectedLabels map[string]string) (owned bool, err error) {
+	start := time.Now()
+	defer func() { observeUpstream(namespaceGVR, OpGet, start, err) }()
+
 	if clientset == nil {
 		return false, fmt.Errorf("clientset is nil")
 	}

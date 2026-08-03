@@ -124,6 +124,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) erro
 	config.Singleton().SetRegion(region)
 
 	logger.Info("Starting regional API server", slog.String("region", config.Singleton().Region()), slog.Any("addr", addr))
+	metrics.RegisterUpstreamObserver()
 
 	inClusterConfig, err := rest.InClusterConfig()
 	if err != nil {
