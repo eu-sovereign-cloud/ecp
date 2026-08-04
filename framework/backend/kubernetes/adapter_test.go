@@ -2,8 +2,11 @@ package kubernetes
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
+	"maps"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -557,4 +560,88 @@ func TestNamespaceManagingWriterAdapter_Delete_NetworkChildren(t *testing.T) {
 		_, nsErr := cs.CoreV1().Namespaces().Get(context.Background(), networkChildNS, metav1.GetOptions{})
 		require.True(t, kerrs.IsNotFound(nsErr), "owned empty network child namespace should be deleted")
 	})
+}
+
+// testLabelled is a domain type carrying SECA labels the way the real ones do: the values live in
+// metadata.labels under hashed kl/<sha3> keys, and the key list lives in commonData.labels. The
+// key list is what KeyedToOriginal walks to rebuild them, so a write that drops commonData leaves
+// a newly added key unreachable even though its value made it onto the object.
+type testLabelled struct {
+	name   string
+	labels map[string]string
+}
+
+func (t *testLabelled) GetName() string      { return t.name }
+func (t *testLabelled) GetVersion() string   { return "" }
+func (t *testLabelled) GetTenant() string    { return "t1" }
+func (t *testLabelled) GetWorkspace() string { return "w1" }
+
+func testLabelledToCR(d *testLabelled) (client.Object, error) {
+	crLabels := map[string]any{}
+	for k, v := range labels.OriginalToKeyed(d.labels) {
+		crLabels[k] = v
+	}
+
+	keys := make([]any, 0, len(d.labels))
+	for _, k := range slices.Sorted(maps.Keys(d.labels)) {
+		keys = append(keys, k)
+	}
+
+	return &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "network.test/v1",
+		"kind":       "RouteTable",
+		"metadata": map[string]any{
+			"namespace": ComputeNamespace(&kernelresource.Scope{Tenant: "t1", Workspace: "w1"}),
+			"name":      d.name,
+			"labels":    crLabels,
+		},
+		"commonData": map[string]any{"labels": keys},
+		"spec":       map[string]any{},
+	}}, nil
+}
+
+func testLabelledFromCR(obj client.Object) (*testLabelled, error) {
+	u, ok := obj.(*unstructured.Unstructured)
+	if !ok {
+		return nil, fmt.Errorf("unexpected type %T", obj)
+	}
+
+	keys, _, err := unstructured.NestedStringSlice(u.Object, "commonData", "labels")
+	if err != nil {
+		return nil, err
+	}
+
+	return &testLabelled{name: u.GetName(), labels: labels.KeyedToOriginal(labels.GetKeyedLabels(u.GetLabels()), keys)}, nil
+}
+
+// TestWriterAdapter_Update_PropagatesCommonData is a regression test for a label added on update
+// going missing. commonData is a sibling of spec, not part of it, so an update that copied only
+// spec, labels and annotations wrote the new label's value but never its key - and the key list is
+// what the read path uses to find it again.
+func TestWriterAdapter_Update_PropagatesCommonData(t *testing.T) {
+	namespace := ComputeNamespace(&kernelresource.Scope{Tenant: "t1", Workspace: "w1"})
+
+	created, err := testLabelledToCR(&testLabelled{name: "rt-1", labels: map[string]string{"env": "prod"}})
+	require.NoError(t, err)
+
+	dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(
+		runtime.NewScheme(), testListKinds(), created.(*unstructured.Unstructured))
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	writer := NewWriterAdapter[*testLabelled](dynFake, testGVR, logger, testLabelledToCR, testLabelledFromCR)
+
+	// Add a second label, the case that used to be lost.
+	updated, err := writer.Update(context.Background(), &testLabelled{
+		name:   "rt-1",
+		labels: map[string]string{"env": "prod", "tier": "frontend"},
+	})
+	require.NoError(t, err)
+	require.Equal(t, map[string]string{"env": "prod", "tier": "frontend"}, (*updated).labels)
+
+	stored, err := dynFake.Resource(testGVR).Namespace(namespace).
+		Get(context.Background(), "rt-1", metav1.GetOptions{})
+	require.NoError(t, err)
+
+	keys, _, err := unstructured.NestedStringSlice(stored.Object, "commonData", "labels")
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{"env", "tier"}, keys, "the added label's key must reach commonData")
 }
