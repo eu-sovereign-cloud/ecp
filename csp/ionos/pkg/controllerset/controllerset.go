@@ -17,6 +17,7 @@ import (
 	networkctrl "github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/controller/network"
 	nicctrl "github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/controller/nic"
 	publicipctrl "github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/controller/public_ip"
+	routetablectrl "github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/controller/route_table"
 	subnetctrl "github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/controller/subnet"
 	workspacectrl "github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/controller/workspace"
 	"github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/service"
@@ -26,6 +27,7 @@ import (
 	netk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network/backend/kubernetes"
 	nick8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic/backend/kubernetes"
 	publicipk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/public-ip/backend/kubernetes"
+	routetablek8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/route-table/backend/kubernetes"
 	subnetk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/subnet/backend/kubernetes"
 	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage/backend/kubernetes"
 	wsk8s "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1/backend/kubernetes"
@@ -42,6 +44,7 @@ func Add(cs *frameworkbuilder.ControllerSet, mgr ctrl.Manager, dynClient dynamic
 	publicIPAdapter := crossplane.NewPublicIPStore(mgr.GetClient(), logger.With("adapter", "public-ip"))
 	nicAdapter := crossplane.NewNicStore(mgr.GetClient(), logger.With("adapter", "nic"))
 	subnetAdapter := crossplane.NewSubnetStore(mgr.GetClient(), logger.With("adapter", "subnet"))
+	routeTableAdapter := crossplane.NewRouteTableStore(mgr.GetClient(), logger.With("adapter", "route-table"))
 	instanceAdapter := crossplane.NewInstanceStore(mgr.GetClient(), logger.With("adapter", "instance"))
 
 	wsPlugin := &service.Workspace{
@@ -69,6 +72,10 @@ func Add(cs *frameworkbuilder.ControllerSet, mgr ctrl.Manager, dynClient dynamic
 		Creator: &subnetctrl.CreateSubnet{Store: subnetAdapter},
 		Deleter: &subnetctrl.DeleteSubnet{Store: subnetAdapter},
 	}
+	routeTablePlugin := &service.RouteTable{
+		Creator: &routetablectrl.CreateRouteTable{Store: routeTableAdapter},
+		Deleter: &routetablectrl.DeleteRouteTable{Store: routeTableAdapter},
+	}
 	instancePlugin := &service.Instance{
 		Creator:    &instancectrl.CreateInstance{Store: instanceAdapter},
 		Deleter:    &instancectrl.DeleteInstance{Store: instanceAdapter},
@@ -82,5 +89,6 @@ func Add(cs *frameworkbuilder.ControllerSet, mgr ctrl.Manager, dynClient dynamic
 	cs.Add(publicipk8s.NewController(mgr.GetClient(), dynClient, publicIPPlugin, opts...))
 	cs.Add(nick8s.NewController(mgr.GetClient(), dynClient, nicPlugin, opts...))
 	cs.Add(subnetk8s.NewController(mgr.GetClient(), dynClient, subnetPlugin, opts...))
+	cs.Add(routetablek8s.NewController(mgr.GetClient(), dynClient, routeTablePlugin, opts...))
 	cs.Add(instancek8s.NewController(mgr.GetClient(), dynClient, instancePlugin, opts...))
 }

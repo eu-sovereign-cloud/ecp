@@ -74,6 +74,9 @@ func TestPowerOnCreatesServerFirst(t *testing.T) {
 	if err := c.Get(context.Background(), client.ObjectKey{Namespace: ns, Name: "instance-1"}, srv); err != nil {
 		t.Fatalf("server not created: %v", err)
 	}
+	if srv.Spec.ForProvider.Name == nil || *srv.Spec.ForProvider.Name != "instance-1" {
+		t.Fatalf("server name = %v, want instance-1", srv.Spec.ForProvider.Name)
+	}
 	if srv.Spec.ForProvider.Type == nil || *srv.Spec.ForProvider.Type != "ENTERPRISE" {
 		t.Fatalf("server type = %v, want ENTERPRISE", srv.Spec.ForProvider.Type)
 	}
@@ -83,8 +86,40 @@ func TestPowerOnCreatesServerFirst(t *testing.T) {
 	if srv.Spec.ForProvider.RAM == nil || *srv.Spec.ForProvider.RAM != 4096 {
 		t.Fatalf("server ram = %v, want 4096", srv.Spec.ForProvider.RAM)
 	}
-	if srv.Spec.ForProvider.VMState == nil || *srv.Spec.ForProvider.VMState != "RUNNING" {
+	if srv.Spec.ForProvider.VMState == nil || *srv.Spec.ForProvider.VMState != serverVMStateRunning {
 		t.Fatalf("server vmState = %v, want RUNNING", srv.Spec.ForProvider.VMState)
+	}
+}
+
+// A stopped-then-restarted instance's Server CR already exists (SHUTOFF, Ready) from the
+// prior PowerOff. PowerOn must flip it back to RUNNING, not treat "already exists and ready"
+// as "nothing to do" — reproduces a real restart getting stuck: the domain layer accepted the
+// `start` action and recorded powerState "on", but the underlying IONOS Server stayed SHUTOFF
+// forever because createCR's AlreadyExists fallback (checkExisting) only checks the Ready
+// condition and never compares/updates VMState.
+func TestPowerOnRestartsStoppedServer(t *testing.T) {
+	ns := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: "tenant-1"})
+
+	srv := &ionosv1alpha1.Server{
+		ObjectMeta: metav1.ObjectMeta{Name: "instance-1", Namespace: ns, Generation: 1},
+		Spec: ionosv1alpha1.ServerSpec{
+			ForProvider: ionosv1alpha1.ServerParameters{Name: new("instance-1"), VMState: new(serverVMStateShutoff)},
+		},
+	}
+	srv.SetConditions(v1.Available().WithObservedGeneration(1))
+	c := fakeclient.NewClientBuilder().WithScheme(instanceScheme(t)).WithObjects(srv).Build()
+	store := NewInstanceStore(c, testLogger())
+
+	if err := store.ensureServerRunning(context.Background(), testInstance(), ns, 2, 4096); !errors.Is(err, backend.ErrStillProcessing) {
+		t.Fatalf("ensureServerRunning = %v, want ErrStillProcessing", err)
+	}
+
+	got := &ionosv1alpha1.Server{}
+	if err := c.Get(context.Background(), client.ObjectKey{Namespace: ns, Name: "instance-1"}, got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Spec.ForProvider.VMState == nil || *got.Spec.ForProvider.VMState != serverVMStateRunning {
+		t.Fatalf("vmState = %v, want RUNNING", got.Spec.ForProvider.VMState)
 	}
 }
 
@@ -94,7 +129,7 @@ func TestPowerOffSetsShutoff(t *testing.T) {
 	srv := &ionosv1alpha1.Server{
 		ObjectMeta: metav1.ObjectMeta{Name: "instance-1", Namespace: ns, Generation: 1},
 		Spec: ionosv1alpha1.ServerSpec{
-			ForProvider: ionosv1alpha1.ServerParameters{VMState: new("RUNNING")},
+			ForProvider: ionosv1alpha1.ServerParameters{VMState: new(serverVMStateRunning)},
 		},
 	}
 	c := fakeclient.NewClientBuilder().WithScheme(instanceScheme(t)).WithObjects(srv).Build()
@@ -106,7 +141,7 @@ func TestPowerOffSetsShutoff(t *testing.T) {
 	if err := c.Get(context.Background(), client.ObjectKey{Namespace: ns, Name: "instance-1"}, got); err != nil {
 		t.Fatal(err)
 	}
-	if got.Spec.ForProvider.VMState == nil || *got.Spec.ForProvider.VMState != "SHUTOFF" {
+	if got.Spec.ForProvider.VMState == nil || *got.Spec.ForProvider.VMState != serverVMStateShutoff {
 		t.Fatalf("vmState = %v, want SHUTOFF", got.Spec.ForProvider.VMState)
 	}
 }
@@ -144,6 +179,40 @@ func TestNewNicIpsOmittedWithoutPublicIP(t *testing.T) {
 	nicWithIP := store.newNic(domainInst, ns, "nic-1", "lan-1", "203.0.113.10")
 	if len(nicWithIP.Spec.ForProvider.Ips) != 1 || nicWithIP.Spec.ForProvider.Ips[0] == nil || *nicWithIP.Spec.ForProvider.Ips[0] != "203.0.113.10" {
 		t.Fatalf("newNic Ips = %v, want [203.0.113.10]", nicWithIP.Spec.ForProvider.Ips)
+	}
+}
+
+// The upjet IONOS provider late-inits whatever address IONOS currently reports into
+// spec.forProvider.ips, on its own reconcile schedule, entirely outside our control. When the
+// domain has no reserved public IP (DHCP fallback), PowerOn must NOT try to fight that by forcing
+// ips back to nil: doing so races the provider's own late-init and never converges, which blocks
+// ensureNic (and therefore PowerOn) from ever returning nil — the instance's power state gets
+// stuck "off" forever even though the real Server/Nic are up and reachable. DHCP fallback must
+// accept whatever address is currently present, ready or not.
+func TestPowerOnAcceptsDHCPAssignedNicIP(t *testing.T) {
+	ns := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: "tenant-1"})
+
+	nic := &ionosv1alpha1.Nic{
+		ObjectMeta: metav1.ObjectMeta{Name: "nic-1", Namespace: ns, Generation: 1},
+		Spec: ionosv1alpha1.NicSpec{
+			ForProvider: ionosv1alpha1.NicParameters_2{Ips: []*string{new("31.70.129.98")}},
+		},
+	}
+	nic.SetConditions(v1.Available().WithObservedGeneration(1))
+	c := fakeclient.NewClientBuilder().WithScheme(instanceScheme(t)).WithObjects(nic).Build()
+	store := NewInstanceStore(c, testLogger())
+
+	// publicIP="" mirrors readNicNetworking's DHCP-fallback result (no PublicIpRefs).
+	if err := store.ensureNic(context.Background(), testInstance(), ns, "nic-1", "lan-1", ""); err != nil {
+		t.Fatalf("ensureNic = %v, want nil (Ready, DHCP fallback accepts whatever ips is)", err)
+	}
+
+	got := &ionosv1alpha1.Nic{}
+	if err := c.Get(context.Background(), client.ObjectKey{Namespace: ns, Name: "nic-1"}, got); err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Spec.ForProvider.Ips) != 1 || got.Spec.ForProvider.Ips[0] == nil || *got.Spec.ForProvider.Ips[0] != "31.70.129.98" {
+		t.Fatalf("nic ips = %v, want unchanged [31.70.129.98] (DHCP fallback must not touch it)", got.Spec.ForProvider.Ips)
 	}
 }
 

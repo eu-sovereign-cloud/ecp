@@ -8,6 +8,7 @@ import (
 	v1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	v2 "github.com/crossplane/crossplane-runtime/v2/apis/common/v2"
 	ionosv1alpha1 "github.com/ionos-cloud/provider-upjet-ionoscloud/apis/namespaced/compute/v1alpha1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -16,6 +17,13 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	commonbackend "github.com/eu-sovereign-cloud/ecp/resource/common/backend"
 	instancedom "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/instance"
+)
+
+// IONOS Server VMState values (enterprise servers support RUNNING/SHUTOFF; SUSPENDED is
+// cube-only and unused here).
+const (
+	serverVMStateRunning = "RUNNING"
+	serverVMStateShutoff = "SHUTOFF"
 )
 
 var _ port.InstanceStore = (*InstanceStore)(nil)
@@ -86,7 +94,7 @@ func (a *InstanceStore) PowerOn(ctx context.Context, domain *instancedom.Instanc
 	}
 
 	// 3. Server (ENTERPRISE, RUNNING). Idempotent; nil only when ready.
-	if err := a.createCR(ctx, a.newServer(domain, ns, cores, ramMB)); err != nil {
+	if err := a.ensureServerRunning(ctx, domain, ns, cores, ramMB); err != nil {
 		return err
 	}
 
@@ -109,7 +117,7 @@ func (a *InstanceStore) PowerOn(ctx context.Context, domain *instancedom.Instanc
 	if err != nil {
 		return err
 	}
-	return a.createCR(ctx, a.newNic(domain, ns, nicName, lanName, publicIP))
+	return a.ensureNic(ctx, domain, ns, nicName, lanName, publicIP)
 }
 
 // PowerOff shuts down the Server CR. Idempotent; nil only once the provider
@@ -121,11 +129,34 @@ func (a *InstanceStore) PowerOff(ctx context.Context, domain *instancedom.Instan
 		a.logger.Error("failed to get server", "name", domain.GetName(), "error", err)
 		return err
 	}
-	if srv.Spec.ForProvider.VMState != nil && *srv.Spec.ForProvider.VMState == "SHUTOFF" {
+
+	if srv.Spec.ForProvider.VMState != nil && *srv.Spec.ForProvider.VMState == serverVMStateShutoff {
 		return a.checkExisting(ctx, srv)
 	}
-	srv.Spec.ForProvider.VMState = new("SHUTOFF")
+	srv.Spec.ForProvider.VMState = new(serverVMStateShutoff)
 	return a.updateCR(ctx, srv)
+}
+
+// ensureServerRunning creates the Server if it doesn't exist yet, or flips an existing one back
+// to RUNNING if it was left SHUTOFF by a prior PowerOff. createCR's AlreadyExists fallback
+// (checkExisting) only checks the Ready condition — it would otherwise treat an already-existing,
+// still-Ready-but-SHUTOFF Server as "nothing to do", permanently stalling a restart even though
+// the domain layer already recorded the instance as powered on.
+func (a *InstanceStore) ensureServerRunning(ctx context.Context, domain *instancedom.Instance, ns string, cores, ramMB float64) error {
+	srv := &ionosv1alpha1.Server{}
+	err := a.client.Get(ctx, client.ObjectKey{Namespace: ns, Name: domain.GetName()}, srv)
+	switch {
+	case apierrors.IsNotFound(err):
+		return a.createCR(ctx, a.newServer(domain, ns, cores, ramMB))
+	case err != nil:
+		a.logger.Error("failed to get server", "name", domain.GetName(), "error", err)
+		return err
+	case srv.Spec.ForProvider.VMState == nil || *srv.Spec.ForProvider.VMState != serverVMStateRunning:
+		srv.Spec.ForProvider.VMState = new(serverVMStateRunning)
+		return a.updateCR(ctx, srv)
+	default:
+		return a.checkExisting(ctx, srv)
+	}
 }
 
 func (a *InstanceStore) newServer(domain *instancedom.Instance, ns string, cores, ramMB float64) *ionosv1alpha1.Server {
@@ -135,11 +166,12 @@ func (a *InstanceStore) newServer(domain *instancedom.Instance, ns string, cores
 		ObjectMeta: metav1.ObjectMeta{Name: domain.GetName(), Namespace: ns},
 		Spec: ionosv1alpha1.ServerSpec{
 			ForProvider: ionosv1alpha1.ServerParameters{
+				Name:             new(domain.GetName()),
 				Type:             new("ENTERPRISE"),
 				Cores:            new(cores),
 				RAM:              new(ramMB),
 				AvailabilityZone: new(translateZone(domain.Spec.Zone)),
-				VMState:          new("RUNNING"),
+				VMState:          new(serverVMStateRunning),
 				DatacenterIDRef:  &v1.NamespacedReference{Name: domain.GetWorkspace(), Namespace: ns},
 				SSHKeys:          sshKeys,
 			},
@@ -171,6 +203,36 @@ func (a *InstanceStore) newBootVolume(domain *instancedom.Instance, ns, name, al
 		vol.Spec.ForProvider.UserData = new(domain.Spec.UserData)
 	}
 	return vol
+}
+
+// ensureNic creates the primary NIC if it doesn't exist, or corrects spec.forProvider.ips if the
+// domain wants a specific reserved public IP that isn't (yet) reflected there. When publicIP is
+// empty (no reserved IP — DHCP fallback), ips is left untouched no matter its current value: the
+// upjet IONOS provider late-inits whatever address IONOS currently reports into spec on its own
+// reconcile schedule, entirely outside our control, so trying to force it back to nil here would
+// race that process and never converge — permanently blocking PowerOn (and the instance's power
+// state) instead of just letting DHCP do its job.
+func (a *InstanceStore) ensureNic(ctx context.Context, domain *instancedom.Instance, ns, name, lanName, publicIP string) error {
+	nic := &ionosv1alpha1.Nic{}
+	err := a.client.Get(ctx, client.ObjectKey{Namespace: ns, Name: name}, nic)
+	switch {
+	case apierrors.IsNotFound(err):
+		return a.createCR(ctx, a.newNic(domain, ns, name, lanName, publicIP))
+	case err != nil:
+		a.logger.Error("failed to get nic", "name", name, "error", err)
+		return err
+	case publicIP != "" && !nicHasReservedIP(nic.Spec.ForProvider.Ips, publicIP):
+		nic.Spec.ForProvider.Ips = []*string{new(publicIP)}
+		return a.updateCR(ctx, nic)
+	default:
+		return a.checkExisting(ctx, nic)
+	}
+}
+
+// nicHasReservedIP reports whether a Nic's current spec.forProvider.ips already reflects the
+// single reserved address wantIP.
+func nicHasReservedIP(current []*string, wantIP string) bool {
+	return len(current) == 1 && current[0] != nil && *current[0] == wantIP
 }
 
 func (a *InstanceStore) newNic(domain *instancedom.Instance, ns, name, lanName, publicIP string) *ionosv1alpha1.Nic {

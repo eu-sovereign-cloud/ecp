@@ -113,10 +113,9 @@ func (c *base) readNicNetworking(ctx context.Context, nicRef domain.Reference, d
 		return "", "", err
 	}
 
-	// A NIC with no public-ip ref is not an error: the SECA Terraform provider cannot
-	// associate a public IP with a NIC (the field is read-only), so in practice this
-	// is empty and we fall back to IONOS auto-assigning a public IPv4 via DHCP on the
-	// public LAN.
+	// A NIC with no public-ip ref is not an error: callers may leave public_ip_ids
+	// unset (as the POC does), so we fall back to IONOS auto-assigning a public
+	// IPv4 via DHCP on the public LAN.
 	if len(nic.Spec.PublicIpRefs) == 0 {
 		return lanName, "", nil
 	}
