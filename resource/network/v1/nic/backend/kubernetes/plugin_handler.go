@@ -43,7 +43,7 @@ func (h *NicPluginHandler) HandleReconcile(ctx context.Context, resource *nicdom
 	// An active resource has no lifecycle transition left to make, so it takes the update
 	// path instead of the create/delete state machine below. See commonbackend.HandleUpdate.
 	if isNicActive(resource) {
-		return commonbackend.HandleUpdate(ctx, resource, &resource.Status.Status, h.plugin.Update, h.persistStatus, h.MaxConditions)
+		return commonbackend.HandleUpdate(ctx, resource, &resource.Status.Status, h.plugin.Update, h.repo, h.MaxConditions)
 	}
 
 	var delegate backendport.DelegatedFunc[*nicdom.Nic]
@@ -133,14 +133,6 @@ func (h *NicPluginHandler) setResourceErrorState(ctx context.Context, resource *
 	}
 
 	return requeue, nil
-}
-
-// persistStatus writes the resource's status subresource. It is handed to the shared
-// update helper, which owns the decision of when a write is warranted.
-func (h *NicPluginHandler) persistStatus(ctx context.Context, resource *nicdom.Nic) error {
-	_, err := h.repo.UpdateStatus(ctx, resource)
-
-	return err
 }
 
 func isNicActive(resource *nicdom.Nic) bool {

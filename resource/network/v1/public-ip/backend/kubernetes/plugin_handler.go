@@ -43,7 +43,7 @@ func (h *PublicIpPluginHandler) HandleReconcile(ctx context.Context, resource *p
 	// An active resource has no lifecycle transition left to make, so it takes the update
 	// path instead of the create/delete state machine below. See commonbackend.HandleUpdate.
 	if isPublicIpActive(resource) {
-		return commonbackend.HandleUpdate(ctx, resource, &resource.Status.Status, h.plugin.Update, h.persistStatus, h.MaxConditions)
+		return commonbackend.HandleUpdate(ctx, resource, &resource.Status.Status, h.plugin.Update, h.repo, h.MaxConditions)
 	}
 
 	var delegate backendport.DelegatedFunc[*publicipdom.PublicIp]
@@ -133,14 +133,6 @@ func (h *PublicIpPluginHandler) setResourceErrorState(ctx context.Context, resou
 	}
 
 	return requeue, nil
-}
-
-// persistStatus writes the resource's status subresource. It is handed to the shared
-// update helper, which owns the decision of when a write is warranted.
-func (h *PublicIpPluginHandler) persistStatus(ctx context.Context, resource *publicipdom.PublicIp) error {
-	_, err := h.repo.UpdateStatus(ctx, resource)
-
-	return err
 }
 
 func isPublicIpActive(resource *publicipdom.PublicIp) bool {

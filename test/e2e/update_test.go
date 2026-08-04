@@ -115,24 +115,21 @@ func TestUpdateResource(t *testing.T) {
 		}
 	}
 
-	waitActive := func() {
-		waitForActive(t, "block storage", func(ctx context.Context) (schema.ResourceState, bool, error) {
-			r, err := storageClient.GetBlockStorageWithResponse(ctx, testTenant, testWorkspace, volumeName)
-			if err != nil {
-				return "", false, err
-			}
-			if r.StatusCode() != http.StatusOK || r.JSON200 == nil || r.JSON200.Status == nil {
-				return "", false, nil
-			}
-			return r.JSON200.Status.State, true, nil
-		})
-	}
-
 	resp, err := storageClient.CreateOrUpdateBlockStorageWithResponse(ctx, testTenant, testWorkspace, volumeName, nil,
 		volume(1, schema.Labels{"tier": "cold"}))
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, resp.StatusCode())
-	waitActive()
+
+	waitForActive(t, "block storage", func(ctx context.Context) (schema.ResourceState, bool, error) {
+		r, err := storageClient.GetBlockStorageWithResponse(ctx, testTenant, testWorkspace, volumeName)
+		if err != nil {
+			return "", false, err
+		}
+		if r.StatusCode() != http.StatusOK || r.JSON200 == nil || r.JSON200.Status == nil {
+			return "", false, nil
+		}
+		return r.JSON200.Status.State, true, nil
+	})
 
 	t.Run("a spec change is applied and the resource returns to active", func(t *testing.T) {
 		resp, err := storageClient.CreateOrUpdateBlockStorageWithResponse(ctx, testTenant, testWorkspace, volumeName, nil,
