@@ -41,6 +41,7 @@ var (
 	kubeconfig string
 
 	globalAuthFlags auth.Flags
+	globalKubeFlags kubeclient.ClientFlags
 )
 
 var globalAPIServerCMD = &cobra.Command{
@@ -62,6 +63,7 @@ func init() {
 	globalAPIServerCMD.Flags().StringVar(&host, "host", "0.0.0.0", "Host to bind the server to")
 	globalAPIServerCMD.Flags().StringVarP(&port, "port", "p", "8080", "Port to bind the server to")
 	auth.RegisterFlags(globalAPIServerCMD, &globalAuthFlags)
+	kubeclient.RegisterClientFlags(globalAPIServerCMD, &globalKubeFlags)
 	rootCmd.AddCommand(globalAPIServerCMD)
 }
 
@@ -78,6 +80,14 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) error 
 			return fmt.Errorf("build kubeconfig %s: %w", kubeconfigPath, err)
 		}
 	}
+
+	if err := globalKubeFlags.ApplyToConfig(config); err != nil {
+		return fmt.Errorf("apply kube client flags: %w", err)
+	}
+	logger.Info("kube client rate limit",
+		slog.Float64("kube_qps", float64(globalKubeFlags.QPS)),
+		slog.Int("kube_burst", globalKubeFlags.Burst),
+	)
 
 	client, err := kubeclient.NewFromConfig(config)
 	if err != nil {

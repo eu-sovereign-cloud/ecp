@@ -76,6 +76,7 @@ var (
 	regionalKubeconfig string
 
 	regionalAuthFlags auth.Flags
+	regionalKubeFlags kubeclient.ClientFlags
 )
 
 var regionalApiServerCMD = &cobra.Command{
@@ -107,6 +108,7 @@ func init() {
 		"Path to regional kubeconfig",
 	)
 	auth.RegisterFlags(regionalApiServerCMD, &regionalAuthFlags)
+	kubeclient.RegisterClientFlags(regionalApiServerCMD, &regionalKubeFlags)
 	rootCmd.AddCommand(regionalApiServerCMD)
 }
 
@@ -137,6 +139,14 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) erro
 			return fmt.Errorf("build kubeconfig %s: %w", kubeconfigPath, err)
 		}
 	}
+
+	if err := regionalKubeFlags.ApplyToConfig(inClusterConfig); err != nil {
+		return fmt.Errorf("apply kube client flags: %w", err)
+	}
+	logger.Info("kube client rate limit",
+		slog.Float64("kube_qps", float64(regionalKubeFlags.QPS)),
+		slog.Int("kube_burst", regionalKubeFlags.Burst),
+	)
 
 	client, err := kubeclient.NewFromConfig(inClusterConfig)
 	if err != nil {
