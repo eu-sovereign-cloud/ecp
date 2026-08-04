@@ -11,14 +11,8 @@ type InternetGatewayPlugin interface {
 	Create(ctx context.Context, resource *internetgatewaydom.InternetGateway) error
 	Delete(ctx context.Context, resource *internetgatewaydom.InternetGateway) error
 
-	// Update reconciles an already-created resource towards its current spec. It is called on
-	// every reconcile of an active resource rather than on a detected change, so it must be
-	// idempotent and cheap when nothing has drifted - compare against the provider and return
-	// nil if there is nothing to do.
-	//
-	// Return backend.ErrStillProcessing while the change is in flight. Return an error wrapping
-	// backend.ErrNotSupported when the provider cannot apply the change at all (an immutable
-	// field, say); the reason is reported on the resource and the call is not retried. Any other
-	// error is treated as transient and retried.
+	// Update reconciles an already-created resource towards its current spec. It is
+	// level-triggered: called on every reconcile of an active resource, so it must be idempotent
+	// and must not write when nothing has drifted. Full contract in doc/PLUGINS.md.
 	Update(ctx context.Context, resource *internetgatewaydom.InternetGateway) error
 }

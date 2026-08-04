@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"slices"
 
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -123,7 +124,16 @@ func (h *WorkspaceHandler) Update(ctx context.Context, domain *wsdom.Workspace) 
 		return err
 	}
 
-	description := prj.Spec.Description
+	// Load overwrites prj with the live Project, taking the desired values with it.
+	tags, description := slices.Clone(prj.Spec.Tags), prj.Spec.Description
 
-	return syncProject(ctx, h.repository, prj, prj.Spec.Tags, description)
+	return syncSpec(ctx, h.repository, prj, func(prj *v1alpha1.Project) bool {
+		if slices.Equal(prj.Spec.Tags, tags) && prj.Spec.Description == description {
+			return false
+		}
+
+		prj.Spec.Tags, prj.Spec.Description = tags, description
+
+		return true
+	})
 }

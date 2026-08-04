@@ -66,7 +66,7 @@ func (h *BlockStoragePluginHandler) HandleReconcile(ctx context.Context, resourc
 	// its own transition through "updating" with observed size in status, and routing it here
 	// would bypass that and never advance the state.
 	if isBlockStorageActive(resource) && !wantBlockStorageIncreaseSize(resource) {
-		return commonbackend.HandleUpdate(ctx, resource, &resource.Status.Status, h.plugin.Update, h.persistStatus, h.MaxConditions)
+		return commonbackend.HandleUpdate(ctx, resource, &resource.Status.Status, h.plugin.Update, h.repo, h.MaxConditions)
 	}
 
 	var delegate backendport.DelegatedFunc[*bsdom.BlockStorage]
@@ -270,14 +270,6 @@ func blockDecreaseSize(_ context.Context, resource *bsdom.BlockStorage) error {
 	}
 
 	return nil
-}
-
-// persistStatus writes the resource's status subresource. It is handed to the shared update
-// helper, which owns the decision of when a write is warranted.
-func (h *BlockStoragePluginHandler) persistStatus(ctx context.Context, resource *bsdom.BlockStorage) error {
-	_, err := h.repo.UpdateStatus(ctx, resource)
-
-	return err
 }
 
 func isBlockStorageActive(resource *bsdom.BlockStorage) bool {

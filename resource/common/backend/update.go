@@ -14,10 +14,6 @@ import (
 // later successful update that there is a failure to clear.
 const updateFailedConditionType = "UpdateFailed"
 
-// PersistStatusFunc writes a resource's status. Each resource slice passes a closure over its own
-// repository, because the repositories are typed per resource.
-type PersistStatusFunc[D persistence.IdentifiableResource] func(ctx context.Context, resource D) error
-
 // HandleUpdate drives a CSP plugin's Update for a resource that has already been created.
 //
 // It is level-triggered, unlike the create and delete paths: there is no "updating" state to enter
@@ -40,12 +36,12 @@ func HandleUpdate[D persistence.IdentifiableResource](
 	resource D,
 	status *domain.Status,
 	update backendport.DelegatedFunc[D],
-	persist PersistStatusFunc[D],
+	repo persistence.WriterRepo[D],
 	maxConditions int,
 ) (requeue bool, err error) {
 	switch updateErr := update(ctx, resource); {
 	case updateErr == nil:
-		return false, clearUpdateFailure(ctx, resource, status, persist, maxConditions)
+		return false, clearUpdateFailure(ctx, resource, status, repo, maxConditions)
 
 	case errors.Is(updateErr, backendport.ErrStillProcessing):
 		// In flight, not failed. Leave the status alone and come back to it.
@@ -56,7 +52,7 @@ func HandleUpdate[D persistence.IdentifiableResource](
 		// it has already refused would spin forever, and the reason it gave is more useful to the
 		// user than another attempt. Every other failure is assumed transient and requeued.
 		return !errors.Is(updateErr, backendport.ErrNotSupported),
-			recordUpdateFailure(ctx, resource, status, persist, maxConditions, updateErr)
+			recordUpdateFailure(ctx, resource, status, repo, maxConditions, updateErr)
 	}
 }
 
@@ -66,7 +62,7 @@ func recordUpdateFailure[D persistence.IdentifiableResource](
 	ctx context.Context,
 	resource D,
 	status *domain.Status,
-	persist PersistStatusFunc[D],
+	repo persistence.WriterRepo[D],
 	maxConditions int,
 	updateErr error,
 ) error {
@@ -81,7 +77,7 @@ func recordUpdateFailure[D persistence.IdentifiableResource](
 	status.PushCondition(condition)
 	trimConditions(status, maxConditions)
 
-	return persistIgnoringMissing(ctx, resource, persist)
+	return persistIgnoringMissing(ctx, resource, repo)
 }
 
 // clearUpdateFailure retracts a previously reported failure once an update succeeds. It writes
@@ -90,7 +86,7 @@ func clearUpdateFailure[D persistence.IdentifiableResource](
 	ctx context.Context,
 	resource D,
 	status *domain.Status,
-	persist PersistStatusFunc[D],
+	repo persistence.WriterRepo[D],
 	maxConditions int,
 ) error {
 	if previous := status.PeekConditions(); previous == nil || previous.Type != updateFailedConditionType {
@@ -100,7 +96,7 @@ func clearUpdateFailure[D persistence.IdentifiableResource](
 	status.PushCondition(ConditionFromState(domain.ResourceStateActive))
 	trimConditions(status, maxConditions)
 
-	return persistIgnoringMissing(ctx, resource, persist)
+	return persistIgnoringMissing(ctx, resource, repo)
 }
 
 // persistIgnoringMissing treats a resource that has since been deleted as nothing to report: the
@@ -108,9 +104,9 @@ func clearUpdateFailure[D persistence.IdentifiableResource](
 func persistIgnoringMissing[D persistence.IdentifiableResource](
 	ctx context.Context,
 	resource D,
-	persist PersistStatusFunc[D],
+	repo persistence.WriterRepo[D],
 ) error {
-	if err := persist(ctx, resource); err != nil && !errors.Is(err, kernel.ErrNotFound) {
+	if _, err := repo.UpdateStatus(ctx, resource); err != nil && !errors.Is(err, kernel.ErrNotFound) {
 		return err
 	}
 

@@ -3,10 +3,8 @@ package plugin
 import (
 	"context"
 	"log/slog"
-	"maps"
-	"slices"
-	"strings"
 
+	k8slabels "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	kubernetesadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
@@ -100,19 +98,10 @@ func recordAppliedLabels[D persistence.IdentifiableResource](
 	return persist(ctx, resource)
 }
 
-// formatLabels renders labels as a stable "k=v,k=v" string. Sorted, because Go map iteration order
-// is random and an unstable rendering would look like a change on every pass.
+// formatLabels renders labels as a stable "k=v,k=v" string. Set.String sorts, which matters:
+// Go map iteration order is random and an unstable rendering would look like a change on every pass.
 func formatLabels(labels map[string]string) string {
-	if len(labels) == 0 {
-		return ""
-	}
-
-	pairs := make([]string, 0, len(labels))
-	for _, k := range slices.Sorted(maps.Keys(labels)) {
-		pairs = append(pairs, k+"="+labels[k])
-	}
-
-	return strings.Join(pairs, ",")
+	return k8slabels.Set(labels).String()
 }
 
 // Update is the same recording step for every dummy resource: there is no provider state to

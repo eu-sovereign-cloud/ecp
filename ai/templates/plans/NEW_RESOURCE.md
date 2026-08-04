@@ -272,9 +272,8 @@ set here and encodes the scope** (§5). Ref: `resource/workspace/v1/backend/kube
 `Update` at minimum, plus any resource-specific mutating verb. **Skip for read-only.** Ref:
 block-storage (extra verb) / workspace (the three base methods only) `plugin.go`.
 
-Copy the `Update` doc comment from an existing `plugin.go` — it carries the contract, which is not
-obvious from the signature: `Update` is level-triggered and runs on *every* reconcile of an active
-resource, so it must be idempotent and must not write when nothing has drifted. See
+Copy the `Update` doc comment from an existing `plugin.go`: the level-triggered contract is not
+obvious from the signature. Full version in
 [PLUGINS.md](../../../../../doc/PLUGINS.md) §"Update: reconciling an active resource".
 
 ### 4.8 Plugin handler — `…/plugin_handler.go` *(read-write)*
@@ -290,14 +289,14 @@ operation. **Skip for read-only.**
 
 ```go
 if is<Kind>Active(resource) {
-    return commonbackend.HandleUpdate(ctx, resource, &resource.Status.Status, h.plugin.Update, h.persistStatus, h.MaxConditions)
+    return commonbackend.HandleUpdate(ctx, resource, &resource.Status.Status, h.plugin.Update, h.repo, h.MaxConditions)
 }
 ```
 
-plus an `is<Kind>Active` predicate (`DeletedAt == nil && Status != nil && State == Active`) and a
-`persistStatus` method wrapping `h.repo.UpdateStatus`. If the resource has its own post-active
-operation, that operation wins — block-storage guards the arm with `&& !wantBlockStorageIncreaseSize(resource)`
-so a pending resize is not swallowed, and instance runs its power reconcile first.
+plus an `is<Kind>Active` predicate (`DeletedAt == nil && Status != nil && State == Active`). If the
+resource has its own post-active operation, that operation wins — block-storage guards the arm with
+`&& !wantBlockStorageIncreaseSize(resource)` so a pending resize is not swallowed, and instance runs
+its power reconcile first.
 
 ### 4.9 Controller — `resource/<group>/v1/<dir>/backend/kubernetes/controller.go` *(read-write)*
 `NewController(ctrlClient, dynClient, plugin, opts...)` wiring a repo adapter, the plugin

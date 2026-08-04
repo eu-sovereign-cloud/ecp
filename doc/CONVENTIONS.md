@@ -260,12 +260,9 @@ and `HandleReconcile` routes an active resource to `commonbackend.HandleUpdate` 
 create/delete switch. The `DeletedAt` half is what keeps a delete request on an active resource on
 the lifecycle path instead of the update one. Where a resource has its own post-active operation,
 that operation is checked first (block-storage guards the arm with `!wantBlockStorageIncreaseSize`,
-instance runs its power reconcile ahead of it).
-
-**Status writes are conditional.** The controller reconciles on its own writes, so anything on the
-update path must write status only when what it reports actually changed — `HandleUpdate` owns that
-decision, which is why handlers hand it a `persistStatus` closure rather than calling
-`UpdateStatus` themselves.
+instance runs its power reconcile ahead of it). `HandleUpdate` owns every status write on that arm —
+handlers pass it `h.repo` and never call `UpdateStatus` for an update themselves. See
+[PLUGINS.md](PLUGINS.md#update-reconciling-an-active-resource) for the contract this implements.
 
 ---
 
