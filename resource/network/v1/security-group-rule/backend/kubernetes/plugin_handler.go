@@ -40,6 +40,12 @@ func NewSecurityGroupRulePluginHandler(
 }
 
 func (h *SecurityGroupRulePluginHandler) HandleReconcile(ctx context.Context, resource *securitygroupruledom.SecurityGroupRule) (bool, error) {
+	// An active resource has no lifecycle transition left to make, so it takes the update
+	// path instead of the create/delete state machine below. See commonbackend.HandleUpdate.
+	if isSecurityGroupRuleActive(resource) {
+		return commonbackend.HandleUpdate(ctx, resource, &resource.Status.Status, h.plugin.Update, h.persistStatus, h.MaxConditions)
+	}
+
 	var delegate backendport.DelegatedFunc[*securitygroupruledom.SecurityGroupRule]
 
 	switch {
@@ -127,6 +133,20 @@ func (h *SecurityGroupRulePluginHandler) setResourceErrorState(ctx context.Conte
 	}
 
 	return requeue, nil
+}
+
+// persistStatus writes the resource's status subresource. It is handed to the shared
+// update helper, which owns the decision of when a write is warranted.
+func (h *SecurityGroupRulePluginHandler) persistStatus(ctx context.Context, resource *securitygroupruledom.SecurityGroupRule) error {
+	_, err := h.repo.UpdateStatus(ctx, resource)
+
+	return err
+}
+
+func isSecurityGroupRuleActive(resource *securitygroupruledom.SecurityGroupRule) bool {
+	return resource.DeletedAt == nil &&
+		resource.Status != nil &&
+		resource.Status.State == commondomain.ResourceStateActive
 }
 
 func isSecurityGroupRuleAccepted(resource *securitygroupruledom.SecurityGroupRule) bool {

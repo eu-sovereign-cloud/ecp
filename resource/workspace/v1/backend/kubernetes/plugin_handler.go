@@ -40,6 +40,12 @@ func NewWorkspacePluginHandler(
 }
 
 func (h *WorkspacePluginHandler) HandleReconcile(ctx context.Context, resource *wsdom.Workspace) (bool, error) {
+	// An active resource has no lifecycle transition left to make, so it takes the update
+	// path instead of the create/delete state machine below. See commonbackend.HandleUpdate.
+	if isWorkspaceActive(resource) {
+		return commonbackend.HandleUpdate(ctx, resource, &resource.Status.Status, h.plugin.Update, h.persistStatus, h.MaxConditions)
+	}
+
 	var delegate backendport.DelegatedFunc[*wsdom.Workspace]
 
 	switch {
@@ -146,6 +152,20 @@ func (h *WorkspacePluginHandler) setResourceErrorState(ctx context.Context, reso
 	}
 
 	return requeue, nil
+}
+
+// persistStatus writes the resource's status subresource. It is handed to the shared
+// update helper, which owns the decision of when a write is warranted.
+func (h *WorkspacePluginHandler) persistStatus(ctx context.Context, resource *wsdom.Workspace) error {
+	_, err := h.repo.UpdateStatus(ctx, resource)
+
+	return err
+}
+
+func isWorkspaceActive(resource *wsdom.Workspace) bool {
+	return resource.DeletedAt == nil &&
+		resource.Status != nil &&
+		resource.Status.State == commondomain.ResourceStateActive
 }
 
 func isWorkspaceAccepted(resource *wsdom.Workspace) bool {

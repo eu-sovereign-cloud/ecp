@@ -61,6 +61,14 @@ func NewBlockStoragePluginHandler(
 
 //nolint:gocyclo // keep locality of behavior: the two switches describe the full reconciliation state machine in one place
 func (h *BlockStoragePluginHandler) HandleReconcile(ctx context.Context, resource *bsdom.BlockStorage) (bool, error) {
+	// An active volume with no resize pending has no lifecycle edge left to fire, so it takes the
+	// update path instead of the state machine below. The resize outranks it: growing a volume is
+	// its own transition through "updating" with observed size in status, and routing it here
+	// would bypass that and never advance the state.
+	if isBlockStorageActive(resource) && !wantBlockStorageIncreaseSize(resource) {
+		return commonbackend.HandleUpdate(ctx, resource, &resource.Status.Status, h.plugin.Update, h.persistStatus, h.MaxConditions)
+	}
+
 	var delegate backendport.DelegatedFunc[*bsdom.BlockStorage]
 
 	switch {
@@ -262,6 +270,20 @@ func blockDecreaseSize(_ context.Context, resource *bsdom.BlockStorage) error {
 	}
 
 	return nil
+}
+
+// persistStatus writes the resource's status subresource. It is handed to the shared update
+// helper, which owns the decision of when a write is warranted.
+func (h *BlockStoragePluginHandler) persistStatus(ctx context.Context, resource *bsdom.BlockStorage) error {
+	_, err := h.repo.UpdateStatus(ctx, resource)
+
+	return err
+}
+
+func isBlockStorageActive(resource *bsdom.BlockStorage) bool {
+	return resource.DeletedAt == nil &&
+		resource.Status != nil &&
+		resource.Status.State == commondomain.ResourceStateActive
 }
 
 func isBlockStorageAccepted(resource *bsdom.BlockStorage) bool {

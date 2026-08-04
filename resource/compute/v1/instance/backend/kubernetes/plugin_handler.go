@@ -47,6 +47,11 @@ func (h *InstancePluginHandler) HandleReconcile(ctx context.Context, resource *i
 		if handled, requeue, err := h.handlePowerReconcile(ctx, resource); handled {
 			return requeue, err
 		}
+
+		// No power transition is pending, so the instance has no lifecycle edge left to fire and
+		// takes the update path instead of the create/delete state machine below. Power ordering
+		// matters: a start or stop is an explicit request and outranks reconciling the spec.
+		return commonbackend.HandleUpdate(ctx, resource, &resource.Status.Status, h.plugin.Update, h.persistStatus, h.MaxConditions)
 	}
 
 	var delegate backendport.DelegatedFunc[*instancedom.Instance]
@@ -314,6 +319,14 @@ func (h *InstancePluginHandler) recordPowerCondition(ctx context.Context, resour
 	}
 
 	return nil
+}
+
+// persistStatus writes the resource's status subresource. It is handed to the shared update
+// helper, which owns the decision of when a write is warranted.
+func (h *InstancePluginHandler) persistStatus(ctx context.Context, resource *instancedom.Instance) error {
+	_, err := h.repo.UpdateStatus(ctx, resource)
+
+	return err
 }
 
 func isInstanceActive(resource *instancedom.Instance) bool {
