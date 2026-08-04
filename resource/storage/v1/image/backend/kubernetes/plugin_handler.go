@@ -55,6 +55,12 @@ func NewImagePluginHandler(
 }
 
 func (h *ImagePluginHandler) HandleReconcile(ctx context.Context, resource *imgdom.Image) (bool, error) {
+	// An active resource has no lifecycle transition left to make, so it takes the update
+	// path instead of the create/delete state machine below. See commonbackend.HandleUpdate.
+	if isImageActive(resource) {
+		return commonbackend.HandleUpdate(ctx, resource, &resource.Status.Status, h.plugin.Update, h.persistStatus, h.MaxConditions)
+	}
+
 	var delegate backendport.DelegatedFunc[*imgdom.Image]
 
 	switch {
@@ -202,6 +208,20 @@ func (h *ImagePluginHandler) setResourceCondition(ctx context.Context, resource 
 	}
 
 	return requeue, nil
+}
+
+// persistStatus writes the resource's status subresource. It is handed to the shared
+// update helper, which owns the decision of when a write is warranted.
+func (h *ImagePluginHandler) persistStatus(ctx context.Context, resource *imgdom.Image) error {
+	_, err := h.repo.UpdateStatus(ctx, resource)
+
+	return err
+}
+
+func isImageActive(resource *imgdom.Image) bool {
+	return resource.DeletedAt == nil &&
+		resource.Status != nil &&
+		resource.Status.State == commondomain.ResourceStateActive
 }
 
 func isImageAccepted(resource *imgdom.Image) bool {

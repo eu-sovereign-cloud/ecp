@@ -41,6 +41,12 @@ func NewRolePluginHandler(
 
 // HandleReconcile implements the role lifecycle state machine.
 func (h *RolePluginHandler) HandleReconcile(ctx context.Context, resource *roledom.Role) (bool, error) {
+	// An active resource has no lifecycle transition left to make, so it takes the update
+	// path instead of the create/delete state machine below. See commonbackend.HandleUpdate.
+	if isRoleActive(resource) {
+		return commonbackend.HandleUpdate(ctx, resource, &resource.Status.Status, h.plugin.Update, h.persistStatus, h.MaxConditions)
+	}
+
 	var delegate backendport.DelegatedFunc[*roledom.Role]
 
 	switch {
@@ -147,6 +153,20 @@ func (h *RolePluginHandler) setResourceErrorState(ctx context.Context, resource 
 	}
 
 	return requeue, nil
+}
+
+// persistStatus writes the resource's status subresource. It is handed to the shared
+// update helper, which owns the decision of when a write is warranted.
+func (h *RolePluginHandler) persistStatus(ctx context.Context, resource *roledom.Role) error {
+	_, err := h.repo.UpdateStatus(ctx, resource)
+
+	return err
+}
+
+func isRoleActive(resource *roledom.Role) bool {
+	return resource.DeletedAt == nil &&
+		resource.Status != nil &&
+		resource.Status.State == commondomain.ResourceStateActive
 }
 
 func isRoleAccepted(resource *roledom.Role) bool {

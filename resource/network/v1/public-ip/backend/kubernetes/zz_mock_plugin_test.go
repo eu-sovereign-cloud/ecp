@@ -68,3 +68,17 @@ func (mr *MockPublicIpPluginMockRecorder) Delete(ctx, resource any) *gomock.Call
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockPublicIpPlugin)(nil).Delete), ctx, resource)
 }
+
+// Update mocks base method.
+func (m *MockPublicIpPlugin) Update(ctx context.Context, resource *publicip.PublicIp) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Update", ctx, resource)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Update indicates an expected call of Update.
+func (mr *MockPublicIpPluginMockRecorder) Update(ctx, resource any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockPublicIpPlugin)(nil).Update), ctx, resource)
+}

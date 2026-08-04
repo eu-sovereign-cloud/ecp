@@ -13,7 +13,7 @@ import (
 	context "context"
 	reflect "reflect"
 
-	v1 "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image"
+	image "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -42,7 +42,7 @@ func (m *MockImagePlugin) EXPECT() *MockImagePluginMockRecorder {
 }
 
 // Create mocks base method.
-func (m *MockImagePlugin) Create(ctx context.Context, resource *v1.Image) error {
+func (m *MockImagePlugin) Create(ctx context.Context, resource *image.Image) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Create", ctx, resource)
 	ret0, _ := ret[0].(error)
@@ -56,7 +56,7 @@ func (mr *MockImagePluginMockRecorder) Create(ctx, resource any) *gomock.Call {
 }
 
 // Delete mocks base method.
-func (m *MockImagePlugin) Delete(ctx context.Context, resource *v1.Image) error {
+func (m *MockImagePlugin) Delete(ctx context.Context, resource *image.Image) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Delete", ctx, resource)
 	ret0, _ := ret[0].(error)
@@ -67,4 +67,18 @@ func (m *MockImagePlugin) Delete(ctx context.Context, resource *v1.Image) error 
 func (mr *MockImagePluginMockRecorder) Delete(ctx, resource any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockImagePlugin)(nil).Delete), ctx, resource)
+}
+
+// Update mocks base method.
+func (m *MockImagePlugin) Update(ctx context.Context, resource *image.Image) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Update", ctx, resource)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Update indicates an expected call of Update.
+func (mr *MockImagePluginMockRecorder) Update(ctx, resource any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockImagePlugin)(nil).Update), ctx, resource)
 }

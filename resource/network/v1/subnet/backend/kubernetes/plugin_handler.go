@@ -40,6 +40,12 @@ func NewSubnetPluginHandler(
 }
 
 func (h *SubnetPluginHandler) HandleReconcile(ctx context.Context, resource *subnetdom.Subnet) (bool, error) {
+	// An active resource has no lifecycle transition left to make, so it takes the update
+	// path instead of the create/delete state machine below. See commonbackend.HandleUpdate.
+	if isSubnetActive(resource) {
+		return commonbackend.HandleUpdate(ctx, resource, &resource.Status.Status, h.plugin.Update, h.persistStatus, h.MaxConditions)
+	}
+
 	var delegate backendport.DelegatedFunc[*subnetdom.Subnet]
 
 	switch {
@@ -127,6 +133,20 @@ func (h *SubnetPluginHandler) setResourceErrorState(ctx context.Context, resourc
 	}
 
 	return requeue, nil
+}
+
+// persistStatus writes the resource's status subresource. It is handed to the shared
+// update helper, which owns the decision of when a write is warranted.
+func (h *SubnetPluginHandler) persistStatus(ctx context.Context, resource *subnetdom.Subnet) error {
+	_, err := h.repo.UpdateStatus(ctx, resource)
+
+	return err
+}
+
+func isSubnetActive(resource *subnetdom.Subnet) bool {
+	return resource.DeletedAt == nil &&
+		resource.Status != nil &&
+		resource.Status.State == commondomain.ResourceStateActive
 }
 
 func isSubnetAccepted(resource *subnetdom.Subnet) bool {

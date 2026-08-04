@@ -68,3 +68,17 @@ func (mr *MockRouteTablePluginMockRecorder) Delete(ctx, resource any) *gomock.Ca
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockRouteTablePlugin)(nil).Delete), ctx, resource)
 }
+
+// Update mocks base method.
+func (m *MockRouteTablePlugin) Update(ctx context.Context, resource *routetable.RouteTable) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Update", ctx, resource)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Update indicates an expected call of Update.
+func (mr *MockRouteTablePluginMockRecorder) Update(ctx, resource any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockRouteTablePlugin)(nil).Update), ctx, resource)
+}

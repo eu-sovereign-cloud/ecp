@@ -40,6 +40,12 @@ func NewNetworkPluginHandler(
 }
 
 func (h *NetworkPluginHandler) HandleReconcile(ctx context.Context, resource *netdom.Network) (bool, error) {
+	// An active resource has no lifecycle transition left to make, so it takes the update path
+	// instead of the create/delete state machine below. See commonbackend.HandleUpdate.
+	if isNetworkActive(resource) {
+		return commonbackend.HandleUpdate(ctx, resource, &resource.Status.Status, h.plugin.Update, h.persistStatus, h.MaxConditions)
+	}
+
 	var delegate backendport.DelegatedFunc[*netdom.Network]
 
 	switch {
@@ -148,8 +154,22 @@ func (h *NetworkPluginHandler) setResourceErrorState(ctx context.Context, resour
 	return requeue, nil
 }
 
+// persistStatus writes the resource's status subresource. It is handed to the shared update
+// helper, which owns the decision of when a write is warranted.
+func (h *NetworkPluginHandler) persistStatus(ctx context.Context, resource *netdom.Network) error {
+	_, err := h.repo.UpdateStatus(ctx, resource)
+
+	return err
+}
+
 func isNetworkAccepted(resource *netdom.Network) bool {
 	return resource.Status == nil
+}
+
+func isNetworkActive(resource *netdom.Network) bool {
+	return resource.DeletedAt == nil &&
+		resource.Status != nil &&
+		resource.Status.State == commondomain.ResourceStateActive
 }
 
 func isNetworkPending(resource *netdom.Network) bool {

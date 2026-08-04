@@ -3,6 +3,7 @@ package kubernetes_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"testing"
@@ -11,6 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
+	backendport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
+	commonbackend "github.com/eu-sovereign-cloud/ecp/resource/common/backend"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network"
 
@@ -23,26 +26,169 @@ func TestNetworkPluginHandler_HandleReconcile(t *testing.T) {
 		errRepo   = errors.New("repo error")
 	)
 
-	t.Run("should do nothing if resource is active", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-
-		resource := &netdom.Network{
+	activeNetwork := func() *netdom.Network {
+		return &netdom.Network{
 			Status: &netdom.NetworkStatus{
 				Status: commondomain.Status{
-					State: commondomain.ResourceStateActive,
+					State:      commondomain.ResourceStateActive,
+					Conditions: []commondomain.StatusCondition{{Type: "Reconcile", State: commondomain.ResourceStateActive}},
 				},
 			},
 		}
+	}
+
+	// An active resource is handed to the plugin's Update on every pass so a changed spec can
+	// reach the provider. Nothing is written when the provider is already in sync - the
+	// controller watches its own status writes, so a write per pass would never settle.
+	t.Run("should call plugin update and write no status when resource is active and in sync", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
 
 		mockRepo := NewMockRepo[*netdom.Network](ctrl)
 		mockPlugin := NewMockNetworkPlugin(ctrl)
+		mockPlugin.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil).Times(1)
+		handler := NewNetworkPluginHandler(mockRepo, mockPlugin, 0)
+
+		requeue, err := handler.HandleReconcile(context.Background(), activeNetwork())
+
+		require.NoError(t, err)
+		require.False(t, requeue)
+	})
+
+	t.Run("should requeue without touching status while an update is still processing", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		mockRepo := NewMockRepo[*netdom.Network](ctrl)
+		mockPlugin := NewMockNetworkPlugin(ctrl)
+		mockPlugin.EXPECT().Update(gomock.Any(), gomock.Any()).Return(backendport.ErrStillProcessing).Times(1)
+		handler := NewNetworkPluginHandler(mockRepo, mockPlugin, 0)
+
+		requeue, err := handler.HandleReconcile(context.Background(), activeNetwork())
+
+		require.NoError(t, err)
+		require.True(t, requeue)
+	})
+
+	// A change the provider can never apply is reported and dropped. Retrying would re-issue a
+	// request it has already refused; the resource stays active because it is still running.
+	t.Run("should report an unsupported update on the resource and not requeue", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		resource := activeNetwork()
+
+		mockRepo := NewMockRepo[*netdom.Network](ctrl)
+		mockRepo.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).DoAndReturn(
+			func(_ context.Context, res *netdom.Network) (*netdom.Network, error) {
+				require.Equal(t, commondomain.ResourceStateActive, res.Status.State)
+				require.Equal(t, "UpdateFailed", res.Status.Conditions[0].Type)
+				require.Contains(t, res.Status.Conditions[0].Message, "region is immutable")
+				return nil, nil
+			}).Times(1)
+
+		mockPlugin := NewMockNetworkPlugin(ctrl)
+		mockPlugin.EXPECT().Update(gomock.Any(), gomock.Any()).
+			Return(fmt.Errorf("%w: region is immutable", backendport.ErrNotSupported)).Times(1)
+		handler := NewNetworkPluginHandler(mockRepo, mockPlugin, 0)
+
+		requeue, err := handler.HandleReconcile(context.Background(), resource)
+
+		require.NoError(t, err)
+		require.False(t, requeue, "an operation the provider refuses outright must not be retried")
+	})
+
+	// The controller reconciles on its own status writes, so re-reporting an unchanged failure
+	// would loop forever. The second identical failure must write nothing.
+	t.Run("should report a repeated identical update failure only once", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		resource := activeNetwork()
+		failure := fmt.Errorf("%w: region is immutable", backendport.ErrNotSupported)
+
+		mockRepo := NewMockRepo[*netdom.Network](ctrl)
+		mockRepo.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).Return(nil, nil).Times(1)
+
+		mockPlugin := NewMockNetworkPlugin(ctrl)
+		mockPlugin.EXPECT().Update(gomock.Any(), gomock.Any()).Return(failure).Times(2)
+		handler := NewNetworkPluginHandler(mockRepo, mockPlugin, 0)
+
+		_, err := handler.HandleReconcile(context.Background(), resource)
+		require.NoError(t, err)
+		_, err = handler.HandleReconcile(context.Background(), resource)
+		require.NoError(t, err)
+
+		require.Len(t, resource.Status.Conditions, 2, "the repeat must not append another condition")
+	})
+
+	// A transient failure is retried, unlike an unsupported one.
+	t.Run("should requeue a transient update failure", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		mockRepo := NewMockRepo[*netdom.Network](ctrl)
+		mockRepo.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).Return(nil, nil).Times(1)
+
+		mockPlugin := NewMockNetworkPlugin(ctrl)
+		mockPlugin.EXPECT().Update(gomock.Any(), gomock.Any()).Return(errPlugin).Times(1)
+		handler := NewNetworkPluginHandler(mockRepo, mockPlugin, 0)
+
+		requeue, err := handler.HandleReconcile(context.Background(), activeNetwork())
+
+		require.NoError(t, err)
+		require.True(t, requeue)
+	})
+
+	// Once the provider accepts the change, the reported failure is retracted.
+	t.Run("should clear a reported update failure once the update succeeds", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		resource := activeNetwork()
+		resource.Status.PushCondition(commonbackend.UpdateFailedCondition(commondomain.ResourceStateActive, "region is immutable"))
+
+		mockRepo := NewMockRepo[*netdom.Network](ctrl)
+		mockRepo.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).DoAndReturn(
+			func(_ context.Context, res *netdom.Network) (*netdom.Network, error) {
+				require.Equal(t, "Reconcile", res.Status.Conditions[0].Type)
+				require.Equal(t, commondomain.ResourceStateActive, res.Status.State)
+				return nil, nil
+			}).Times(1)
+
+		mockPlugin := NewMockNetworkPlugin(ctrl)
+		mockPlugin.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil).Times(1)
 		handler := NewNetworkPluginHandler(mockRepo, mockPlugin, 0)
 
 		requeue, err := handler.HandleReconcile(context.Background(), resource)
 
 		require.NoError(t, err)
 		require.False(t, requeue)
+	})
+
+	// A delete request on an active resource still takes the lifecycle path, not the update one.
+	t.Run("should take the delete path when an active resource is marked for deletion", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		deletedAt := time.Now()
+		resource := activeNetwork()
+		resource.DeletedAt = &deletedAt
+
+		mockRepo := NewMockRepo[*netdom.Network](ctrl)
+		mockRepo.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).DoAndReturn(
+			func(_ context.Context, res *netdom.Network) (*netdom.Network, error) {
+				require.Equal(t, commondomain.ResourceStateDeleting, res.Status.State)
+				return nil, nil
+			}).Times(1)
+
+		mockPlugin := NewMockNetworkPlugin(ctrl)
+		handler := NewNetworkPluginHandler(mockRepo, mockPlugin, 0)
+
+		requeue, err := handler.HandleReconcile(context.Background(), resource)
+
+		require.NoError(t, err)
+		require.True(t, requeue)
 	})
 
 	t.Run("should set state to creating and requeue when resource is pending", func(t *testing.T) {

@@ -68,3 +68,17 @@ func (mr *MockInternetGatewayPluginMockRecorder) Delete(ctx, resource any) *gomo
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockInternetGatewayPlugin)(nil).Delete), ctx, resource)
 }
+
+// Update mocks base method.
+func (m *MockInternetGatewayPlugin) Update(ctx context.Context, resource *internetgateway.InternetGateway) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Update", ctx, resource)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Update indicates an expected call of Update.
+func (mr *MockInternetGatewayPluginMockRecorder) Update(ctx, resource any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockInternetGatewayPlugin)(nil).Update), ctx, resource)
+}
