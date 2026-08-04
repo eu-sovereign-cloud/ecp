@@ -471,10 +471,6 @@ func (a *WriterAdapter[T]) updateMetadataAndSpecRetry(
 ) error {
 	desiredLabels := desired.GetLabels()
 	desiredAnnotations := desired.GetAnnotations()
-	desiredSpec, specFound, err := unstructured.NestedMap(desired.Object, "spec")
-	if err != nil {
-		return err
-	}
 
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		currObj, getErr := ri.Get(ctx, name, metav1.GetOptions{})
@@ -486,38 +482,64 @@ func (a *WriterAdapter[T]) updateMetadataAndSpecRetry(
 			return nil
 		}
 
-		currSpec, currSpecFound, err := unstructured.NestedMap(currObj.Object, "spec")
+		specChanged, err := syncNestedMap(currObj, desired, "spec")
 		if err != nil {
 			return err
 		}
 
-		currLabels := currObj.GetLabels()
-		currAnnotations := currObj.GetAnnotations()
-
-		specChanged := specFound && (!currSpecFound || !cmp.Equal(currSpec, desiredSpec))
-		labelsChanged := !cmp.Equal(currLabels, desiredLabels)
-		annotationsChanged := !cmp.Equal(currAnnotations, desiredAnnotations)
-
-		if !specChanged && !labelsChanged && !annotationsChanged {
-			return nil
+		// commonData is a sibling of spec, not part of it, so it needs copying in its own right.
+		// It is not cosmetic: commonData.labels holds the *key list* that KeyedToOriginal walks to
+		// rebuild a resource's labels from the hashed kl/<sha3> entries in metadata.labels. Leaving
+		// it behind means a newly added label key never appears in the domain object - the value is
+		// written to metadata.labels but nothing knows to look it up again.
+		commonDataChanged, err := syncNestedMap(currObj, desired, "commonData")
+		if err != nil {
+			return err
 		}
 
-		if specChanged {
-			if err := unstructured.SetNestedMap(currObj.Object, desiredSpec, "spec"); err != nil {
-				return err
-			}
-		}
+		labelsChanged := !cmp.Equal(currObj.GetLabels(), desiredLabels)
 		if labelsChanged {
 			currObj.SetLabels(desiredLabels)
 		}
+
+		annotationsChanged := !cmp.Equal(currObj.GetAnnotations(), desiredAnnotations)
 		if annotationsChanged {
 			currObj.SetAnnotations(desiredAnnotations)
+		}
+
+		if !specChanged && !commonDataChanged && !labelsChanged && !annotationsChanged {
+			return nil
 		}
 
 		_, err = ri.Update(ctx, currObj, metav1.UpdateOptions{})
 
 		return err
 	})
+}
+
+// syncNestedMap copies the named top-level field from desired onto curr when the two differ,
+// reporting whether it wrote. spec and its sibling commonData get identical treatment, so they
+// share one path. A field absent from desired is left alone rather than cleared.
+func syncNestedMap(curr, desired *unstructured.Unstructured, name string) (bool, error) {
+	desiredValue, found, err := unstructured.NestedMap(desired.Object, name)
+	if err != nil {
+		return false, err
+	}
+
+	if !found {
+		return false, nil
+	}
+
+	currValue, currFound, err := unstructured.NestedMap(curr.Object, name)
+	if err != nil {
+		return false, err
+	}
+
+	if currFound && cmp.Equal(currValue, desiredValue) {
+		return false, nil
+	}
+
+	return true, unstructured.SetNestedMap(curr.Object, desiredValue, name)
 }
 
 func (a *WriterAdapter[T]) updateStatusRetry(
