@@ -1,7 +1,6 @@
 package rest
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 
@@ -92,8 +91,8 @@ func roleToAPI(r roledom.Role, verb string) *sdkschema.Role {
 			Name:            r.Name,
 			Tenant:          r.Tenant,
 			Provider:        r.Provider,
-			Resource:        fmt.Sprintf(commondomain.ResourceFormat, sdkschema.GlobalTenantResourceMetadataKindResourceKindRole, r.Name),
-			Ref:             fmt.Sprintf(r.Provider+"/"+commondomain.TenantScopedResourceFormat, r.Tenant, sdkschema.GlobalTenantResourceMetadataKindResourceKindRole, r.Name),
+			Resource:        commondomain.FormatResource(sdkschema.GlobalTenantResourceMetadataKindResourceKindRole, r.Name),
+			Ref:             commondomain.FormatTenantScopedRef(r.Provider, r.Tenant, sdkschema.GlobalTenantResourceMetadataKindResourceKindRole, r.Name),
 			ResourceVersion: resourceVersion,
 			Verb:            verb,
 		},

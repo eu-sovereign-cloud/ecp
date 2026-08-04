@@ -65,6 +65,13 @@ func SECAClaimExtractor(provider, baseURL string) authzport.ClaimExtractor {
 //	POST /providers/.../instances/{name}/restart
 //
 // which yields verb "post.restart" and resource "instances".
+//
+// Over gocyclo's threshold by design: one arm per HTTP method plus wildcard trimming.
+// Splitting the method switch into helpers would scatter the verb derivation this function
+// exists to make auditable in one place — it is on the authorization path, so it is kept
+// readable rather than short.
+//
+//nolint:gocyclo // see the note above
 func resourceAndVerb(r *http.Request, baseURL, name string) (resource, verb string, err error) {
 	// r.Pattern format: "METHOD /path/pattern" — the Go 1.22+ mux sets this after matching.
 	parts := strings.SplitN(r.Pattern, " ", 2)

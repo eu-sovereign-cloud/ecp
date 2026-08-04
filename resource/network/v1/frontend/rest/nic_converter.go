@@ -1,7 +1,6 @@
 package rest
 
 import (
-	"fmt"
 	"strconv"
 
 	sdknetwork "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.network.v1"
@@ -52,20 +51,17 @@ func nicToAPI(n *nicdom.Nic) *sdkschema.Nic {
 
 	out := &sdkschema.Nic{
 		Metadata: &sdkschema.RegionalWorkspaceResourceMetadata{
-			ApiVersion:     nicdom.Version,
-			CreatedAt:      n.CreatedAt,
-			LastModifiedAt: n.UpdatedAt,
-			Kind:           kind,
-			Name:           n.Name,
-			Tenant:         n.Tenant,
-			Workspace:      n.Workspace,
-			Provider:       n.Provider,
-			Region:         n.Region,
-			Resource:       fmt.Sprintf(commondomain.RegionalResourceFormat, kind, n.Name),
-			Ref: fmt.Sprintf(
-				n.Provider+"/"+commondomain.RegionalWorkspaceScopedResourceFormat,
-				n.Tenant, n.Workspace, kind, n.Name,
-			),
+			ApiVersion:      nicdom.Version,
+			CreatedAt:       n.CreatedAt,
+			LastModifiedAt:  n.UpdatedAt,
+			Kind:            kind,
+			Name:            n.Name,
+			Tenant:          n.Tenant,
+			Workspace:       n.Workspace,
+			Provider:        n.Provider,
+			Region:          n.Region,
+			Resource:        commondomain.FormatRegionalResource(kind, n.Name),
+			Ref:             commondomain.FormatRegionalWorkspaceScopedRef(n.Provider, n.Tenant, n.Workspace, kind, n.Name),
 			ResourceVersion: resourceVersion,
 		},
 		Labels:      n.Labels,

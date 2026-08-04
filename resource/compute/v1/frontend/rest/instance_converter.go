@@ -1,7 +1,6 @@
 package rest
 
 import (
-	"fmt"
 	"strconv"
 
 	sdkcompute "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.compute.v1"
@@ -68,20 +67,17 @@ func instanceToAPI(inst *instancedom.Instance) *sdkschema.Instance {
 
 	out := &sdkschema.Instance{
 		Metadata: &sdkschema.RegionalWorkspaceResourceMetadata{
-			ApiVersion:     instancedom.Version,
-			CreatedAt:      inst.CreatedAt,
-			LastModifiedAt: inst.UpdatedAt,
-			Kind:           kind,
-			Name:           inst.Name,
-			Tenant:         inst.Tenant,
-			Workspace:      inst.Workspace,
-			Provider:       inst.Provider,
-			Region:         inst.Region,
-			Resource:       fmt.Sprintf(commondomain.RegionalResourceFormat, kind, inst.Name),
-			Ref: fmt.Sprintf(
-				inst.Provider+"/"+commondomain.RegionalWorkspaceScopedResourceFormat,
-				inst.Tenant, inst.Workspace, kind, inst.Name,
-			),
+			ApiVersion:      instancedom.Version,
+			CreatedAt:       inst.CreatedAt,
+			LastModifiedAt:  inst.UpdatedAt,
+			Kind:            kind,
+			Name:            inst.Name,
+			Tenant:          inst.Tenant,
+			Workspace:       inst.Workspace,
+			Provider:        inst.Provider,
+			Region:          inst.Region,
+			Resource:        commondomain.FormatRegionalResource(kind, inst.Name),
+			Ref:             commondomain.FormatRegionalWorkspaceScopedRef(inst.Provider, inst.Tenant, inst.Workspace, kind, inst.Name),
 			ResourceVersion: resourceVersion,
 		},
 		Labels:      inst.Labels,

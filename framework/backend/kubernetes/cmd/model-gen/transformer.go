@@ -304,6 +304,9 @@ func filterFileDecls(file *ast.File, includeTypes map[string]bool) {
 			continue
 		}
 
+		// Only TYPE and CONST decls are relevant; no other token.Token value appears as a
+		// GenDecl.Tok, and anything unexpected falls through to the default branch.
+		//nolint:exhaustive // see the note above
 		switch genDecl.Tok {
 		case token.TYPE:
 			kept := genDecl.Specs[:0]
@@ -398,6 +401,12 @@ func qualifySharedTypeRefs(fset *token.FileSet, file *ast.File, sharedTypes map[
 // be resolved and inlined. Type specs already declared in file are skipped.
 // Sibling files are visited in sorted order (os.ReadDir) for deterministic
 // output.
+//
+// Over gocyclo's threshold by design: build-time codegen, not shipped in any binary. The
+// nesting is inherent to walking decls → specs → idents. Split if it grows past the AST
+// shapes handled today.
+//
+//nolint:gocyclo // see the note above
 func mergeSiblingTypeDecls(fset *token.FileSet, file *ast.File, srcPath string) error {
 	defined := map[string]bool{}
 	for _, decl := range file.Decls {

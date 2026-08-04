@@ -2,7 +2,6 @@
 package rest
 
 import (
-	"fmt"
 	"strconv"
 
 	regionv1sdk "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
@@ -98,8 +97,8 @@ func regionToAPI(r rdom.Region, verb string) sdkschema.Region {
 			Kind:            sdkschema.GlobalResourceMetadataKindResourceKindRegion,
 			Name:            r.Name,
 			Provider:        RegionProviderName,
-			Resource:        fmt.Sprintf(commondomain.ResourceFormat, sdkschema.GlobalResourceMetadataKindResourceKindRegion, r.Name),
-			Ref:             fmt.Sprintf(RegionProviderName+"/"+commondomain.ResourceFormat, sdkschema.GlobalResourceMetadataKindResourceKindRegion, r.Name),
+			Resource:        commondomain.FormatResource(sdkschema.GlobalResourceMetadataKindResourceKindRegion, r.Name),
+			Ref:             commondomain.FormatResourceRef(RegionProviderName, sdkschema.GlobalResourceMetadataKindResourceKindRegion, r.Name),
 			ResourceVersion: resourceVersion,
 			Verb:            verb,
 		},

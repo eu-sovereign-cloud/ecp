@@ -30,7 +30,9 @@ func TestNic(t *testing.T) {
 			},
 			Spec: nicdom.NicSpec{
 				Addresses: []string{"10.0.0.5"},
-				SubnetRef: commondomain.Reference{Resource: "subnet-1"},
+				// Reference.resource: {collection}/{name}
+				// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
+				SubnetRef: commondomain.Reference{Resource: "subnets/subnet-1"},
 			},
 		}
 
@@ -63,7 +65,7 @@ func TestNic(t *testing.T) {
 			},
 			Spec: nicdom.NicSpec{
 				Addresses: []string{"10.0.1.5"},
-				SubnetRef: commondomain.Reference{Resource: "subnet-1"},
+				SubnetRef: commondomain.Reference{Resource: "subnets/subnet-1"},
 			},
 		}
 

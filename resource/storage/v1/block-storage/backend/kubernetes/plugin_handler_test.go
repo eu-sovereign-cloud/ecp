@@ -657,6 +657,8 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// Given a pending resource created from a source image
+		// Reference.resource: {collection}/{name}
+		// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 		ref := commondomain.Reference{Resource: "images/src"}
 		resource := &bsdom.BlockStorage{
 			Spec: bsdom.BlockStorageSpec{SizeGB: 10, SourceImageRef: &ref},

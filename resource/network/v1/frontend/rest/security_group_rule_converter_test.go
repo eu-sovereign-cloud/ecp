@@ -40,6 +40,8 @@ func TestSecurityGroupRuleFromAPIToAPIRoundTrip(t *testing.T) {
 
 func TestSecurityGroupRuleIteratorToAPI_ResponseMetadata(t *testing.T) {
 	iter := securityGroupRuleIteratorToAPI(nil, nil)
+	// ResponseMetadata.resource: {collection}
+	// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 	require.Equal(t, "security-group-rules", iter.Metadata.Resource)
 	require.Equal(t, "seca.network/v1", iter.Metadata.Provider)
 }

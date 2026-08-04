@@ -1,7 +1,6 @@
 package rest
 
 import (
-	"fmt"
 	"strconv"
 
 	sdknetwork "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.network.v1"
@@ -52,20 +51,17 @@ func publicIpToAPI(p *publicipdom.PublicIp) *sdkschema.PublicIp {
 
 	out := &sdkschema.PublicIp{
 		Metadata: &sdkschema.RegionalWorkspaceResourceMetadata{
-			ApiVersion:     publicipdom.Version,
-			CreatedAt:      p.CreatedAt,
-			LastModifiedAt: p.UpdatedAt,
-			Kind:           kind,
-			Name:           p.Name,
-			Tenant:         p.Tenant,
-			Workspace:      p.Workspace,
-			Provider:       p.Provider,
-			Region:         p.Region,
-			Resource:       fmt.Sprintf(commondomain.RegionalResourceFormat, kind, p.Name),
-			Ref: fmt.Sprintf(
-				p.Provider+"/"+commondomain.RegionalWorkspaceScopedResourceFormat,
-				p.Tenant, p.Workspace, kind, p.Name,
-			),
+			ApiVersion:      publicipdom.Version,
+			CreatedAt:       p.CreatedAt,
+			LastModifiedAt:  p.UpdatedAt,
+			Kind:            kind,
+			Name:            p.Name,
+			Tenant:          p.Tenant,
+			Workspace:       p.Workspace,
+			Provider:        p.Provider,
+			Region:          p.Region,
+			Resource:        commondomain.FormatRegionalResource(kind, p.Name),
+			Ref:             commondomain.FormatRegionalWorkspaceScopedRef(p.Provider, p.Tenant, p.Workspace, kind, p.Name),
 			ResourceVersion: resourceVersion,
 		},
 		Labels:      p.Labels,

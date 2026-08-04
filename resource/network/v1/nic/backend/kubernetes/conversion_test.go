@@ -13,11 +13,15 @@ import (
 func TestNicConversionRoundTrip(t *testing.T) {
 	in := &nicdom.Nic{
 		Spec: nicdom.NicSpec{
-			Addresses:         []string{"10.0.0.5"},
-			SubnetRef:         commondomain.Reference{Resource: "subnet/sn1"},
-			SkuRef:            commondomain.Reference{Resource: "nic-sku/small"},
-			PublicIpRefs:      []commondomain.Reference{{Resource: "public-ip/ip1"}},
-			SecurityGroupRefs: []commondomain.Reference{{Resource: "security-group/sg1"}},
+			Addresses: []string{"10.0.0.5"},
+			// Reference.resource: networks/{network}/{collection}/{name}
+			// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
+			SubnetRef: commondomain.Reference{Resource: "networks/n1/subnets/sn1"},
+			// Reference.resource: {collection}/{name}
+			// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
+			SkuRef:            commondomain.Reference{Resource: "skus/small"},
+			PublicIpRefs:      []commondomain.Reference{{Resource: "public-ips/ip1"}},
+			SecurityGroupRefs: []commondomain.Reference{{Resource: "security-groups/sg1"}},
 		},
 	}
 	in.Name = "nic1"
@@ -29,7 +33,7 @@ func TestNicConversionRoundTrip(t *testing.T) {
 		Status:       commondomain.Status{State: commondomain.ResourceStateActive},
 		MacAddress:   "aa:bb:cc:dd:ee:ff",
 		Addresses:    []string{"10.0.0.5"},
-		PublicIpRefs: []commondomain.Reference{{Resource: "public-ip/ip1"}},
+		PublicIpRefs: []commondomain.Reference{{Resource: "public-ips/ip1"}},
 	}
 	in.Status.PushCondition(commondomain.StatusCondition{State: commondomain.ResourceStateActive})
 
@@ -58,7 +62,9 @@ func TestNicToCR_UnsetSkuRef(t *testing.T) {
 	in := &nicdom.Nic{
 		Spec: nicdom.NicSpec{
 			Addresses: []string{"10.0.0.5"},
-			SubnetRef: commondomain.Reference{Resource: "subnet/sn1"},
+			// Reference.resource: networks/{network}/{collection}/{name}
+			// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
+			SubnetRef: commondomain.Reference{Resource: "networks/n1/subnets/sn1"},
 		},
 	}
 	in.Name = "nic1"

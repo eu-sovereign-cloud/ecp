@@ -716,6 +716,8 @@ func childNamespaceFor(kind ChildNamespaceKind, m persistence.IdentifiableResour
 		return childNamespaceLabels(m.GetTenant(), m.GetName(), "")
 	case NetworkChildren:
 		return childNamespaceLabels(m.GetTenant(), m.GetWorkspace(), m.GetName())
+	case NoChildNamespace:
+		return "", nil
 	default:
 		return "", nil
 	}

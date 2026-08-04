@@ -89,7 +89,9 @@ func TestNetworkBackend_CreateAndGetNetwork(t *testing.T) {
 					IPv4: "10.0.0.0/16",
 				},
 				SkuRef: commondomain.Reference{
-					Resource: "standard-network",
+					// Reference.resource: {collection}/{name}
+					// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
+					Resource: "skus/standard-network",
 				},
 			},
 		}
@@ -151,7 +153,7 @@ func TestNetworkBackend_CreateAndGetNetwork(t *testing.T) {
 					IPv4: "10.0.0.0/16",
 				},
 				SkuRef: commondomain.Reference{
-					Resource: "standard-network",
+					Resource: "skus/standard-network",
 				},
 				AdditionalCIDRs: []netdom.CIDR{
 					{IPv4: "10.1.0.0/24"},

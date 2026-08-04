@@ -15,9 +15,11 @@ const sn1 = "sn1"
 func TestSubnetConversionRoundTrip(t *testing.T) {
 	in := &subnetdom.Subnet{
 		Spec: subnetdom.SubnetSpec{
-			Cidr:          subnetdom.CIDR{IPv4: "10.0.0.0/24"},
+			Cidr: subnetdom.CIDR{IPv4: "10.0.0.0/24"},
+			// Reference.resource: {collection}/{name}
+			// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 			RouteTableRef: commondomain.Reference{Resource: "route-tables/rt1"},
-			SkuRef:        commondomain.Reference{Resource: "network-skus/sku1"},
+			SkuRef:        commondomain.Reference{Resource: "skus/sku1"},
 			Zone:          "zone-a",
 		},
 	}
@@ -28,8 +30,10 @@ func TestSubnetConversionRoundTrip(t *testing.T) {
 	in.Provider = subnetdom.ProviderID
 	in.Region = "r1"
 	in.Status = &subnetdom.SubnetStatus{
-		Status:        commondomain.Status{State: commondomain.ResourceStateActive},
-		Cidr:          &subnetdom.CIDR{IPv4: "10.0.0.0/24"},
+		Status: commondomain.Status{State: commondomain.ResourceStateActive},
+		Cidr:   &subnetdom.CIDR{IPv4: "10.0.0.0/24"},
+		// Reference.resource: {collection}/{name}
+		// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 		RouteTableRef: &commondomain.Reference{Resource: "route-tables/rt1"},
 	}
 	in.Status.PushCondition(commondomain.StatusCondition{State: commondomain.ResourceStateActive})
@@ -47,7 +51,7 @@ func TestSubnetConversionRoundTrip(t *testing.T) {
 	require.Equal(t, in.Region, out.Region)
 	require.Equal(t, "10.0.0.0/24", out.Spec.Cidr.IPv4)
 	require.Equal(t, "route-tables/rt1", out.Spec.RouteTableRef.Resource)
-	require.Equal(t, "network-skus/sku1", out.Spec.SkuRef.Resource)
+	require.Equal(t, "skus/sku1", out.Spec.SkuRef.Resource)
 	require.Equal(t, "zone-a", out.Spec.Zone)
 	require.Equal(t, commondomain.ResourceStateActive, out.Status.State)
 	require.NotNil(t, out.Status.Cidr)
@@ -99,7 +103,9 @@ func TestSubnetToCR_UsesNetworkNamespace(t *testing.T) {
 func TestSubnetConversion_SkuRefOptional(t *testing.T) {
 	in := &subnetdom.Subnet{
 		Spec: subnetdom.SubnetSpec{
-			Cidr:          subnetdom.CIDR{IPv4: "10.0.0.0/24"},
+			Cidr: subnetdom.CIDR{IPv4: "10.0.0.0/24"},
+			// Reference.resource: {collection}/{name}
+			// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 			RouteTableRef: commondomain.Reference{Resource: "route-tables/rt1"},
 			Zone:          "zone-a",
 		},

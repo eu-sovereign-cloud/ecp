@@ -8,7 +8,12 @@ type Reference struct {
 	Provider string
 	// Region of the resource. If empty, inferred from context.
 	Region string
-	// Resource is the name and type in format `<type>/<name>`.
+	// Resource is the resource-specific path within its workspace context.
+	// Flat: {collection}/{name} (e.g. instances/my-server).
+	// Nested: networks/{network}/{collection}/{name}
+	//   (e.g. networks/my-net/route-tables/my-rt).
+	// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
+	// Schema: https://github.com/eu-sovereign-cloud/spec/blob/main/spec/schemas/resource.yaml#L235-L248
 	Resource string
 	// Tenant of the resource. If empty, inferred from context.
 	Tenant string

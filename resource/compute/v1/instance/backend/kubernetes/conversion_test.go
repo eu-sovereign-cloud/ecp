@@ -12,14 +12,17 @@ import (
 
 const (
 	testInstanceName = "inst1"
-	testBootDevice   = "block-storage/boot"
-	testSku          = "sku/small"
-	testZone         = "zone-a"
+	// Reference.resource: {collection}/{name}
+	// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
+	testBootDevice = "block-storages/boot"
+	testSku        = "skus/small"
+	testZone       = "zone-a"
 )
 
 func TestInstanceConversionRoundTrip(t *testing.T) {
-	primaryNic := commondomain.Reference{Resource: "nic/nic1"}
-	securityGroup := commondomain.Reference{Resource: "security-group/sg1"}
+	// Reference.resource values use {collection}/{name}; see testBootDevice/testSku above.
+	primaryNic := commondomain.Reference{Resource: "nics/nic1"}
+	securityGroup := commondomain.Reference{Resource: "security-groups/sg1"}
 	in := &instancedom.Instance{
 		Spec: instancedom.InstanceSpec{
 			AntiAffinityGroup: "aag1",
@@ -28,9 +31,9 @@ func TestInstanceConversionRoundTrip(t *testing.T) {
 				Type:      "virtio",
 			},
 			DataVolumes: []instancedom.VolumeReference{
-				{DeviceRef: commondomain.Reference{Resource: "block-storage/data1"}, Type: "virtio"},
+				{DeviceRef: commondomain.Reference{Resource: "block-storages/data1"}, Type: "virtio"},
 			},
-			AdditionalNicRefs: []commondomain.Reference{{Resource: "nic/nic2"}},
+			AdditionalNicRefs: []commondomain.Reference{{Resource: "nics/nic2"}},
 			PrimaryNicRef:     &primaryNic,
 			SecurityGroupRef:  &securityGroup,
 			SkuRef:            commondomain.Reference{Resource: testSku},

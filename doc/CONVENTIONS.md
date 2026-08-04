@@ -256,6 +256,24 @@ as the authoritative template.
 
 ---
 
+## §9 — Test toolkit
+
+The assertion toolkit is **testify**. Do not introduce a second one — a reader should never have to
+learn a new assertion vocabulary to move between two test files.
+
+- `require` is the default. It aborts the test, so a failed precondition cannot cascade into a nil
+  dereference in the lines below it.
+- `assert` is for independent checks inside a table subtest, where reporting every mismatch in one
+  run is more useful than stopping at the first.
+- Plain `t.Errorf` is correct in fuzz targets: a fuzz body reports and returns rather than aborting,
+  and it must not pull an assertion library into the fuzzing hot path.
+
+Competing toolkits (`gomega`, `ginkgo`, `gotest.tools`, `go-cmp` as an assertion) are denied in test
+files by the `test-toolkit` depguard rule in `.golangci.yml`. `go-cmp` remains allowed in non-test
+code, where it is a diffing library rather than an assertion library.
+
+---
+
 ## Appendix — Known residuals
 
 The following known mismatches between this guide and the current codebase are **accepted** and must
