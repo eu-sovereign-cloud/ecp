@@ -51,7 +51,7 @@ metadata:
 spec:
   permissions:
     - provider: seca.storage
-      resources: ["block-storages", "images", "storage-skus"]
+      resources: ["block-storages", "images", "skus"]
       verb: ["get", "list"]
 ---
 apiVersion: authorization.v1.secapi.cloud/v1
