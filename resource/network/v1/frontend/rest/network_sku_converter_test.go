@@ -10,7 +10,9 @@ import (
 
 func TestNetworkSKUIteratorToAPI_ResponseMetadata(t *testing.T) {
 	iter := networkSKUIteratorToAPI(nil, nil)
-	require.Equal(t, "network-skus", iter.Metadata.Resource)
+	// ResponseMetadata.resource: {collection}
+	// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
+	require.Equal(t, "skus", iter.Metadata.Resource)
 	require.Equal(t, "seca.network/v1", iter.Metadata.Provider)
 	require.Equal(t, "list", iter.Metadata.Verb)
 	require.Nil(t, iter.Metadata.SkipToken)
@@ -28,8 +30,12 @@ func TestNetworkSKUIteratorToAPI_SkipToken(t *testing.T) {
 func TestNetworkSKUToAPI_ResourceAndRef(t *testing.T) {
 	out := networkSKUToAPI(newNetworkSKU())
 
-	require.Equal(t, "network-sku/sku1", out.Metadata.Resource)
-	require.Equal(t, "seca.network/v1/tenants/t1/providers/network-sku/sku1", out.Metadata.Ref)
+	// metadata.resource: {collection}/{name}
+	// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
+	require.Equal(t, "skus/sku1", out.Metadata.Resource)
+	// metadata.ref: {provider}/tenants/{tenant}/{collection}/{name}
+	// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
+	require.Equal(t, "seca.network/v1/tenants/t1/skus/sku1", out.Metadata.Ref)
 	require.Equal(t, "r1", out.Metadata.Region)
 	require.Equal(t, 1000, out.Spec.Bandwidth)
 	require.Equal(t, 500, out.Spec.Packets)
