@@ -90,7 +90,7 @@ func normalizePath(path string) (route, provider string) {
 
 	provider = parts[1]
 	out := make([]string, 0, len(parts))
-	for i := 0; i < len(parts); i++ {
+	for i := range parts {
 		seg := parts[i]
 		if isFixedSegment(seg) {
 			out = append(out, seg)
