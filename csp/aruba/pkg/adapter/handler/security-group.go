@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"slices"
 
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -80,5 +81,38 @@ func (h *SecurityGroupHandler) Delete(ctx context.Context, domain *sgdom.Securit
 			return err
 		}
 	}
+	return nil
+}
+
+// Update re-applies the tags of every Aruba SecurityGroup materialised for this SECA group. One
+// SECA group is materialised once per network it was attached in, so all labelled matches are
+// retagged, scoped to its own workspace namespace for the same reason Delete is (see above).
+//
+// The SecurityRules under those groups are left as they were materialised. A rule's tags come from
+// whichever SECA resource defined it - the group itself for an inline rule, but a standalone
+// SecurityGroupRule for a referenced one - and this handler only knows about the group's labels,
+// so retagging every rule from here would overwrite the tags a standalone rule contributed.
+func (h *SecurityGroupHandler) Update(ctx context.Context, domain *sgdom.SecurityGroup) error {
+	groups, err := h.secGroupRepository.List(ctx, client.InNamespace(k8sadapter.ComputeNamespace(domain)), client.MatchingLabels{
+		adaptconverter.LabelTenant:        domain.GetTenant(),
+		adaptconverter.LabelSecurityGroup: domain.Name,
+	})
+	if err != nil {
+		return err
+	}
+
+	tags := adaptconverter.ArubaTags(domain.Labels)
+	for i := range groups.Items {
+		sg := &groups.Items[i]
+		if slices.Equal(sg.Spec.Tags, tags) {
+			continue
+		}
+
+		sg.Spec.Tags = slices.Clone(tags)
+		if err := h.secGroupRepository.Update(ctx, sg); err != nil && !apierrors.IsNotFound(err) {
+			return err
+		}
+	}
+
 	return nil
 }

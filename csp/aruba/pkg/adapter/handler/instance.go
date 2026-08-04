@@ -489,3 +489,31 @@ func appendUnique(s []string, v string) []string {
 	}
 	return append(s, v)
 }
+
+// Update re-applies the tags of the two Aruba objects the instance owns: its CloudServer and the
+// KeyPair materialised from its ssh key. Everything else a SECA instance names - flavor, zone,
+// boot volume, subnets - is fixed at creation on the Aruba side.
+//
+// The security groups the instance attaches are deliberately left alone: they are shared between
+// instances and belong to their SECA security group, which retags them itself (see
+// security-group.go). Retagging them from here would stamp one instance's labels onto every other
+// instance using the same group.
+func (h *ComputeInstanceHandler) Update(ctx context.Context, domain *instancedom.Instance) error {
+	namespace := k8sadapter.ComputeNamespace(domain)
+	tags := adaptconverter.ArubaTags(domain.Labels)
+
+	cloudServer := &v1alpha1.CloudServer{
+		ObjectMeta: metav1.ObjectMeta{Name: domain.Name, Namespace: namespace},
+	}
+	if err := syncTags(ctx, h.cloudServerRepo, cloudServer, tags,
+		func(c *v1alpha1.CloudServer) *[]string { return &c.Spec.Tags }); err != nil {
+		return err
+	}
+
+	keyPair := &v1alpha1.KeyPair{
+		ObjectMeta: metav1.ObjectMeta{Name: domain.Name + adaptconverter.KeyPairSuffix, Namespace: namespace},
+	}
+
+	return syncTags(ctx, h.keyPairRepository, keyPair, tags,
+		func(k *v1alpha1.KeyPair) *[]string { return &k.Spec.Tags })
+}

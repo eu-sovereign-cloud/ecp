@@ -220,3 +220,14 @@ func (h *NetworkHandler) propagateDelete(ctx context.Context, from *ArubaNetwork
 
 	return nil
 }
+
+// Update re-applies the VPC's tags, which is the whole of what an Aruba VPC lets an update change
+// (see update.go). It carries a SECA label edit through to the provider.
+func (h *NetworkHandler) Update(ctx context.Context, domain *netdom.Network) error {
+	vpc, err := h.netConverter.FromSECAToAruba(domain)
+	if err != nil {
+		return err
+	}
+
+	return syncTags(ctx, h.vpcRepository, vpc, vpc.Spec.Tags, func(v *v1alpha1.VPC) *[]string { return &v.Spec.Tags })
+}
