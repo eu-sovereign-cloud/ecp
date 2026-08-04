@@ -55,6 +55,21 @@ func DependencyPendingCondition(state domain.ResourceState, message string) doma
 	}
 }
 
+// UpdateFailedCondition creates a domain.StatusCondition reporting that the provider could not
+// apply a change to an already-created resource. The caller passes the state to keep, which is
+// normally domain.ResourceStateActive: the resource itself is still running and healthy, it just
+// no longer matches its spec, and holding it active is what lets a corrected spec be picked up on
+// a later pass instead of stranding it in a state the reconciler has no arm for.
+func UpdateFailedCondition(state domain.ResourceState, message string) domain.StatusCondition {
+	return domain.StatusCondition{
+		LastTransitionAt: time.Now(),
+		Type:             "UpdateFailed",
+		State:            state,
+		Reason:           "UpdateNotApplied",
+		Message:          message,
+	}
+}
+
 // DeletionBlockedCondition creates a domain.StatusCondition reporting that a resource
 // cannot be deleted while other resources still reference it. The resource keeps state
 // (and therefore its cleanup finalizer) until the referrers are gone.
