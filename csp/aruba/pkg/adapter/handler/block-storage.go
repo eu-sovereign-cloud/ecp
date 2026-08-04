@@ -339,3 +339,15 @@ func (h *BlockStorageHandler) resolveBlockStorageDependencies(ctx context.Contex
 		BlockStorage: main.BlockStorage,
 	}, err
 }
+
+// Update re-applies the BlockStorage's tags. Growing a volume is not handled here: it has its own
+// plugin operation (IncreaseSize) and its own state transition, which the reconciler routes ahead
+// of this one.
+func (h *BlockStorageHandler) Update(ctx context.Context, domain *bsdom.BlockStorage) error {
+	bs, err := h.bsConverter.FromSECAToAruba(domain)
+	if err != nil {
+		return err
+	}
+
+	return syncTags(ctx, h.bsRepository, bs, bs.Spec.Tags, func(b *v1alpha1.BlockStorage) *[]string { return &b.Spec.Tags })
+}

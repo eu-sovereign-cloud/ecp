@@ -114,3 +114,16 @@ func (h *WorkspaceHandler) propagateDelete(ctx context.Context, project *v1alpha
 
 	return nil
 }
+
+// Update re-applies the Project's tags. The description is mutable on the Aruba side too, and the
+// converter derives both from the SECA workspace, so the two travel together here.
+func (h *WorkspaceHandler) Update(ctx context.Context, domain *wsdom.Workspace) error {
+	prj, err := h.converter.FromSECAToAruba(domain)
+	if err != nil {
+		return err
+	}
+
+	description := prj.Spec.Description
+
+	return syncProject(ctx, h.repository, prj, prj.Spec.Tags, description)
+}

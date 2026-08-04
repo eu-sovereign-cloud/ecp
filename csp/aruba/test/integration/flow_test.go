@@ -20,7 +20,7 @@ import (
 // backend provisions them for real. The instance step asserts materialisation rather than a running
 // VM (see its comment).
 func TestArubaFlow(t *testing.T) {
-	t.Cleanup(deleteFlowResources) // don't leak real Aruba resources, even on failure
+	//t.Cleanup(deleteFlowResources) // don't leak real Aruba resources, even on failure
 
 	// 1. workspace -> aruba Project
 	mustActive(t, wsRepo, newWorkspace(workspace), activeTimeout, func() (commondomain.ResourceState, bool) {

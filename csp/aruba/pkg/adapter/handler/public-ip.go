@@ -193,3 +193,14 @@ func (h *PublicIpHandler) propagateDelete(ctx context.Context, from *ArubaPublic
 
 	return nil
 }
+
+// Update re-applies the ElasticIP's tags. The address itself is allocated by Aruba and cannot be
+// changed, which the converter already rejects on the create path.
+func (h *PublicIpHandler) Update(ctx context.Context, domain *publicipdom.PublicIp) error {
+	eip, err := h.pipConverter.FromSECAToAruba(domain)
+	if err != nil {
+		return err
+	}
+
+	return syncTags(ctx, h.eipRepository, eip, eip.Spec.Tags, func(e *v1alpha1.ElasticIP) *[]string { return &e.Spec.Tags })
+}

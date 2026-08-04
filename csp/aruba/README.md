@@ -56,8 +56,9 @@ the owning instance's labels, and a `SecurityRule` built from an **inline** rule
 security group's (an inline rule is part of the group's spec and carries no labels). A
 `SecurityRule` built from a standalone SECA `SecurityGroupRule` keeps that rule's own labels.
 
-Tags are written at create time only. Like security-group rules, later label edits are not
-reconciled onto the Aruba side — the plugin interfaces expose no `Update`.
+Label edits **are** reconciled: an active resource is handed to the plugin's `Update` on every
+reconcile, and each handler re-applies its Aruba resource's tags. See "Updating an active
+resource" below.
 
 ### Route Table and Internet Gateway have no Aruba counterpart
 
@@ -100,7 +101,7 @@ On instance delete the CloudServer is deleted and then the key pair; the **mater
 | Behaviour | Detail |
 |---|---|
 | Multiple ssh keys | Aruba `KeyPair` holds a single value; SECA allows up to 32 → the first is used. |
-| Security-group rule changes | Rules are created once, at attach; later edits to the SECA group are not reconciled onto the Aruba side. |
+| Security-group rule changes | Rules are created once, at attach; later edits to a SECA group's rules are not reconciled onto the Aruba side. Its labels are - see "Updating an active resource". |
 | Multi-VPC instance | All of an instance's subnets are assumed to share one network/VPC; the first subnet's VPC wins. |
 | Instance zone | Every block storage is created in the plugin's hardcoded default datacenter (SECA has no per-volume zone), and Aruba requires a server to share its boot volume's zone. An instance requesting a *different* zone therefore cannot be satisfied and fails with an explicit error. Lifting this means threading a zone from the instance down to its volumes, which SECA's model does not currently express. |
 | Rule fan-out | One SECA rule expands to one Aruba `SecurityRule` per `(protocol × port × source)`: `tcp+udp` → TCP and UDP rules, a port list → one rule per port, each `sourceRef` → its own rule. |
@@ -118,6 +119,44 @@ SECA SKUs describe **capacity** (vCPU/RAM, IOPS) and images name an **OS**; Arub
 | Network (`NetworkSKU` — bandwidth) | — | Aruba's `VPC`/`Subnet` have no bandwidth or SKU field; not mapped. |
 
 Adding an Aruba flavor or OS template is a one-row change to `computeFlavors` / `arubaImages` in `skumap.go`. The SECA catalog itself (the `InstanceSKU`/`StorageSKU`/`Image` CRs) is provisioned separately — the region catalog in production, the test-data fixtures in tests — and only capacities/images Aruba actually offers will resolve.
+
+## Updating an active resource
+
+Once a resource is active it has no lifecycle transition left, so the reconciler hands it to the
+plugin's `Update` on every pass instead of the create/delete state machine. `Update` is
+**level-triggered**: nothing tells it what changed, so it compares against the Aruba side itself
+and returns without writing when the two already agree. That matters — the operator watches the
+Aruba CRs and the delegator watches the SECA ones, so an unconditional write on either side would
+reconcile itself forever.
+
+**Only tags are re-applied** (plus a Project's description). That is not a shortcut: tags are the
+only field the Aruba API lets an update change on every resource type, and on a `VPC` or a
+`SecurityGroup` they are the *only* mutable field at all.
+
+| Aruba resource | Mutable | What the plugin re-applies |
+|---|---|---|
+| `VPC`, `SecurityGroup` | tags | tags |
+| `Subnet` | tags, dhcp | tags |
+| `ElasticIP` | tags, billingPeriod | tags |
+| `Project` | tags, description | tags + description |
+| `BlockStorage` | tags, sizeGB, billingPeriod, zone | tags (size has its own `IncreaseSize` operation) |
+| `CloudServer` | tags, region, securityGroups | tags (and the instance's `KeyPair`) |
+
+Region, zone, flavor, CIDR and every reference are fixed at creation. The operator screens a change
+to any of them through its `HasDeniedChanges` check and fails the resource rather than calling the
+CMP, which is why the handlers re-apply a whitelist instead of writing back a freshly converted
+spec — that would hand the operator exactly the denied changes it looks for.
+
+Two cases deliberately do nothing. An **instance** does not retag the security groups it attaches:
+those are shared between instances and belong to their SECA security group, which retags them
+itself. A **standalone `SecurityGroupRule`** cannot reach the Aruba `SecurityRules` materialised
+from it — they are named and labelled after the materialised group, not the rule — so relabelling
+one does not reach rules already created from it.
+
+If a provider ever refuses a change outright, the handler returns an error wrapping
+`backend.ErrNotSupported`: the reason is recorded on the SECA resource as an `UpdateFailed`
+condition, the resource stays `active` (it is still running, it just no longer matches its spec),
+and the operation is not retried. A corrected spec is picked up on the next pass.
 
 ## What is not propagated
 
