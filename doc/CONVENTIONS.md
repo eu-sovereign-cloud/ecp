@@ -254,6 +254,19 @@ guard: treat nil status as pending, and only consider deletion pending when `Del
 the resource was not explicitly deleted). See `resource/storage/v1/block-storage/backend/kubernetes/plugin_handler.go`
 as the authoritative template.
 
+**Active-state predicate and the update arm:** every `plugin_handler.go` carries an `isXActive`
+helper with the same three-part guard — `DeletedAt == nil && Status != nil && State == Active` —
+and `HandleReconcile` routes an active resource to `commonbackend.HandleUpdate` before the
+create/delete switch. The `DeletedAt` half is what keeps a delete request on an active resource on
+the lifecycle path instead of the update one. Where a resource has its own post-active operation,
+that operation is checked first (block-storage guards the arm with `!wantBlockStorageIncreaseSize`,
+instance runs its power reconcile ahead of it).
+
+**Status writes are conditional.** The controller reconciles on its own writes, so anything on the
+update path must write status only when what it reports actually changed — `HandleUpdate` owns that
+decision, which is why handlers hand it a `persistStatus` closure rather than calling
+`UpdateStatus` themselves.
+
 ---
 
 ## §9 — Test toolkit
