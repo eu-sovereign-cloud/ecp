@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -147,7 +148,7 @@ func TestResourceAndVerb_NetworkBase(t *testing.T) {
 // newPatternRequest creates an *http.Request with r.Pattern and path values set,
 // mimicking what the Go 1.22+ mux does after a successful route match.
 func newPatternRequest(method, url, pattern string, pathValues map[string]string) *http.Request {
-	r := httptest.NewRequest(method, url, nil)
+	r := httptest.NewRequestWithContext(context.Background(), method, url, nil)
 	// r.Pattern is normally set by http.ServeMux; replicate it for unit tests.
 	r.Pattern = pattern
 	for k, v := range pathValues {

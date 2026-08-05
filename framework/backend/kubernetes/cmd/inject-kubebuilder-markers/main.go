@@ -247,11 +247,11 @@ const kbDefaultPrefix = "// +kubebuilder:default"
 //
 //nolint:gocyclo // see the note above
 func processFile(path string) (int, error) {
-	info, err := os.Stat(path)
+	info, err := os.Stat(path) // #nosec G703 -- path is built from os.ReadDir entries, not user input
 	if err != nil {
 		return 0, err
 	}
-	data, err := os.ReadFile(path) // #nosec:G304 - path comes from os.ReadDir //nolint:gosec
+	data, err := os.ReadFile(path) // #nosec G304 G703 -- path is built from os.ReadDir entries, not user input
 	if err != nil {
 		return 0, err
 	}
