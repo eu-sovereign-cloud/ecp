@@ -264,6 +264,18 @@ instance runs its power reconcile ahead of it). `HandleUpdate` owns every status
 handlers pass it `h.repo` and never call `UpdateStatus` for an update themselves. See
 [PLUGINS.md](PLUGINS.md#update-reconciling-an-active-resource) for the contract this implements.
 
+**Trimming conditions is `commonbackend.TrimConditions`,** not a loop re-inlined beside each
+`PushCondition`. Every handler that pushes a condition then persists it needs the same bound, and a
+trim policy that lives in forty places can only be changed in forty places.
+
+**`commonData.labels` must be sorted.** Every `*ToCR` builds the key list with
+`slices.Sorted(maps.Keys(...))`, never `slices.Collect`. This is not cosmetic: the writer adapter
+compares stored `commonData` against desired to decide whether an update needs to write at all, and
+Go randomises map iteration order — so an unsorted list makes a no-op PUT rewrite the CR, bump its
+`resourceVersion`, and trigger a reconcile that hands the plugin a level-triggered `Update` for a
+request that changed nothing. Pinned by `TestNetworkToCR_LabelKeysAreSorted` and
+`TestWriterAdapter_Update_NoOpDoesNotWrite`.
+
 ---
 
 ## §9 — Test toolkit

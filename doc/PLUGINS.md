@@ -70,7 +70,11 @@ Where a resource has both, its own operation wins: a pending resize is routed to
 return fmt.Errorf("%w: an Aruba VPC's region cannot be changed after creation", backend.ErrNotSupported)
 ```
 
+**Only return it for a diff you have actually detected.** Because `Update` runs on every reconcile and not only after an edit, an unconditional `ErrNotSupported` reports a refusal on resources nobody touched — every one of them, forever. That is worse than saying nothing: it destroys the condition's signal value, since a reader can no longer tell "nothing to do" from "refused". A plugin that cannot diff at all should return `nil` and document the gap (see the IONOS plugin below).
+
 A failed update leaves the resource **active**, with an `UpdateFailed` condition carrying the message. It is still running and healthy; it just no longer matches its spec. Holding it active is also what keeps the failure recoverable — `error` matches no arm of the reconciler, so the resource would be stranded there and a corrected spec would never be retried.
+
+The condition is retracted as soon as an update succeeds — including when it has since been buried under later conditions, which is the normal case for a resource that also has its own post-active operation (a resize, a power transition).
 
 ## Builder Inversion
 
@@ -115,7 +119,7 @@ make -C csp/dummy kind-stop
 
 Provisions IONOS Cloud resources using [Crossplane](https://crossplane.io/) with the `provider-upjet-ionoscloud` provider. The plugin introduces its own internal controller layer to bridge the ECP resource model and the Crossplane managed resource model.
 
-**Updates are not implemented.** Every `Update` returns `backend.ErrNotSupported`, so an edit to a live IONOS-backed resource is reported on its status as an `UpdateFailed` condition rather than silently ignored.
+**Updates are not implemented.** Every `Update` is a no-op, so an edit to a live IONOS-backed resource is accepted and stored but never reaches the provider. It is deliberately *not* reported with `ErrNotSupported`: `Update` is level-triggered and the plugin has no observed state to diff against, so it cannot tell a resource nobody touched from one carrying a change it must refuse — returning `ErrNotSupported` would stamp `UpdateFailed` on every healthy IONOS-backed resource and leave the condition meaning nothing.
 
 **Prerequisites:**
 - Kubernetes cluster with Crossplane installed
