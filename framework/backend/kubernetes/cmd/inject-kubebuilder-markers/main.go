@@ -354,7 +354,7 @@ func processFile(path string) (int, error) {
 		return 0, nil
 	}
 
-	return injected, os.WriteFile(path, []byte(strings.Join(out, "\n")), info.Mode()) //nolint:gosec
+	return injected, os.WriteFile(path, []byte(strings.Join(out, "\n")), info.Mode()) // #nosec G703
 }
 
 // removePriorMarkers strips any trailing kubebuilder marker lines from the
