@@ -120,7 +120,7 @@ func SecurityGroupToCR(sg *securitygroupdom.SecurityGroup) (client.Object, error
 		CommonData: schemav1.CommonData{
 			Annotations: sg.Annotations,
 			Extensions:  sg.Extensions,
-			Labels:      slices.Collect(maps.Keys(sg.Labels)),
+			Labels:      slices.Sorted(maps.Keys(sg.Labels)),
 		},
 		Spec: SecurityGroupSpec{
 			RuleRefs: ruleRefs,

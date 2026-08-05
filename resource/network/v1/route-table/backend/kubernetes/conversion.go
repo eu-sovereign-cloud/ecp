@@ -121,7 +121,7 @@ func RouteTableToCR(rt *routetabledom.RouteTable) (client.Object, error) {
 		CommonData: schemav1.CommonData{
 			Annotations: rt.Annotations,
 			Extensions:  rt.Extensions,
-			Labels:      slices.Collect(maps.Keys(rt.Labels)),
+			Labels:      slices.Sorted(maps.Keys(rt.Labels)),
 		},
 		Spec: RouteTableSpec{
 			Routes: routes,

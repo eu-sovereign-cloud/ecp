@@ -3,6 +3,7 @@ package backend
 import (
 	"context"
 	"errors"
+	"slices"
 
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	backendport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
@@ -75,13 +76,22 @@ func recordUpdateFailure[D persistence.IdentifiableResource](
 	}
 
 	status.PushCondition(condition)
-	trimConditions(status, maxConditions)
+	TrimConditions(status, maxConditions)
 
 	return persistIgnoringMissing(ctx, resource, repo)
 }
 
 // clearUpdateFailure retracts a previously reported failure once an update succeeds. It writes
 // nothing in the common case, where the last update also succeeded and there is nothing to retract.
+//
+// The whole condition list is scanned, not just the head: a failure is only the most recent
+// condition until something else is pushed over it - a resize stepping through "updating", a power
+// transition on an instance - and a buried failure the resource has since recovered from is exactly
+// as misleading as a fresh one.
+//
+// Recovery removes the stale conditions rather than layering an active one on top. Pushing alone
+// would not be idempotent: the failure would still be in the list on the next pass, so the resource
+// would be re-written on every reconcile and never settle.
 func clearUpdateFailure[D persistence.IdentifiableResource](
 	ctx context.Context,
 	resource D,
@@ -89,12 +99,18 @@ func clearUpdateFailure[D persistence.IdentifiableResource](
 	repo persistence.WriterRepo[D],
 	maxConditions int,
 ) error {
-	if previous := status.PeekConditions(); previous == nil || previous.Type != updateFailedConditionType {
+	before := len(status.Conditions)
+
+	status.Conditions = slices.DeleteFunc(status.Conditions, func(c domain.StatusCondition) bool {
+		return c.Type == updateFailedConditionType
+	})
+
+	if len(status.Conditions) == before {
 		return nil
 	}
 
 	status.PushCondition(ConditionFromState(domain.ResourceStateActive))
-	trimConditions(status, maxConditions)
+	TrimConditions(status, maxConditions)
 
 	return persistIgnoringMissing(ctx, resource, repo)
 }
@@ -113,7 +129,10 @@ func persistIgnoringMissing[D persistence.IdentifiableResource](
 	return nil
 }
 
-func trimConditions(status *domain.Status, maxConditions int) {
+// TrimConditions drops the oldest conditions until at most maxConditions remain. A maxConditions of
+// zero or less means unbounded. Every handler that pushes a condition then persists it needs this,
+// so it lives here rather than being re-inlined beside each push.
+func TrimConditions(status *domain.Status, maxConditions int) {
 	for maxConditions > 0 && len(status.Conditions) > maxConditions {
 		status.PopCondition()
 	}

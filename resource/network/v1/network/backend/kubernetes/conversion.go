@@ -106,7 +106,7 @@ func NetworkToCR(n *netdom.Network) (client.Object, error) {
 		CommonData: schemav1.CommonData{
 			Annotations: n.Annotations,
 			Extensions:  n.Extensions,
-			Labels:      slices.Collect(maps.Keys(n.Labels)),
+			Labels:      slices.Sorted(maps.Keys(n.Labels)),
 		},
 		Spec: NetworkSpec{
 			Cidr:            cidrToCR(n.Spec.CIDR),

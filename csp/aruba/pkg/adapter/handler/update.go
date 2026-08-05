@@ -4,10 +4,6 @@ import (
 	"context"
 	"slices"
 
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-
-	backend "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
-
 	"github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/port/repository"
 )
 
@@ -28,14 +24,15 @@ import (
 // write would churn the Aruba CR - which the operator watches - on every pass.
 //
 // apply is handed the live object and returns whether it changed anything.
+// A missing Aruba counterpart is reported, not swallowed. The SECA resource is active, so its
+// counterpart existed at some point and a brief gap really can be timing - but ErrStillProcessing
+// tells the reconciler to requeue and leave status untouched, and nothing bounds how long that can
+// go on. An object deleted out of band never comes back, so the resource would requeue every five
+// minutes forever while reporting itself active, with nothing in the API, its conditions, or the
+// logs saying otherwise. Reported as a plain error it is still retried - so genuine timing still
+// resolves itself, and the condition clears when it does - but a permanent gap is visible.
 func syncSpec[T, L any](ctx context.Context, repo repository.Repository[T, L], obj T, apply func(T) bool) error {
 	if err := repo.Load(ctx, obj); err != nil {
-		if apierrors.IsNotFound(err) {
-			// The SECA resource is active, so its Aruba counterpart existed at some point. Treat a
-			// gap as timing rather than as a failure and look again on the next pass.
-			return backend.ErrStillProcessing
-		}
-
 		return err
 	}
 

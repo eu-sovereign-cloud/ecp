@@ -105,7 +105,7 @@ func WorkspaceToCR(ws *wsdom.Workspace) (client.Object, error) {
 		CommonData: schemav1.CommonData{
 			Annotations: ws.Annotations,
 			Extensions:  ws.Extensions,
-			Labels:      slices.Collect(maps.Keys(ws.Labels)),
+			Labels:      slices.Sorted(maps.Keys(ws.Labels)),
 		},
 		Spec: spec,
 	}
