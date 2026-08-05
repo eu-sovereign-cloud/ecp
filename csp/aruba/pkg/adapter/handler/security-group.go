@@ -84,14 +84,15 @@ func (h *SecurityGroupHandler) Delete(ctx context.Context, domain *sgdom.Securit
 	return nil
 }
 
-// Update re-applies the tags of every Aruba SecurityGroup materialised for this SECA group. One
-// SECA group is materialised once per network it was attached in, so all labelled matches are
-// retagged, scoped to its own workspace namespace for the same reason Delete is (see above).
+// Update re-applies the tags of every Aruba SecurityGroup materialised for this SECA group, and of
+// the SecurityRules under them that inherit their tags from this group. One SECA group is
+// materialised once per network it was attached in, so all labelled matches are retagged, scoped to
+// its own workspace namespace for the same reason Delete is (see above).
 //
-// The SecurityRules under those groups are left as they were materialised. A rule's tags come from
-// whichever SECA resource defined it - the group itself for an inline rule, but a standalone
-// SecurityGroupRule for a referenced one - and this handler only knows about the group's labels,
-// so retagging every rule from here would overwrite the tags a standalone rule contributed.
+// A rule's tags come from whichever SECA resource defined it - this group for an inline rule, but a
+// standalone SecurityGroupRule for a referenced one (see converter.NormalizeInlineRules and
+// NormalizeStandaloneRule) - so the two cannot be retagged alike. Only the inline half is this
+// handler's to update; a referenced rule is retagged by its own SecurityGroupRule's Update.
 func (h *SecurityGroupHandler) Update(ctx context.Context, domain *sgdom.SecurityGroup) error {
 	groups, err := h.secGroupRepository.List(ctx, client.InNamespace(k8sadapter.ComputeNamespace(domain)), client.MatchingLabels{
 		adaptconverter.LabelTenant:        domain.GetTenant(),
@@ -104,12 +105,70 @@ func (h *SecurityGroupHandler) Update(ctx context.Context, domain *sgdom.Securit
 	tags := adaptconverter.ArubaTags(domain.Labels)
 	for i := range groups.Items {
 		sg := &groups.Items[i]
+
+		if err := h.updateInlineRuleTags(ctx, sg, domain, tags); err != nil {
+			return err
+		}
+
 		if slices.Equal(sg.Spec.Tags, tags) {
 			continue
 		}
 
 		sg.Spec.Tags = slices.Clone(tags)
 		if err := h.secGroupRepository.Update(ctx, sg); err != nil && !apierrors.IsNotFound(err) {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// updateInlineRuleTags retags the SecurityRules under sg that were materialised from the SECA
+// group's own inline rules.
+//
+// Which rules those are is recovered by re-running the build that created them: instance.go expands
+// the inline rules first and BuildSecurityRules names them deterministically, so rebuilding from
+// the same inline spec reproduces exactly their names. The rules materialised from referenced
+// SecurityGroupRules carry later names and are not in this set, which is what keeps their own tags
+// from being overwritten from here.
+func (h *SecurityGroupHandler) updateInlineRuleTags(
+	ctx context.Context,
+	sg *v1alpha1.SecurityGroup,
+	domain *sgdom.SecurityGroup,
+	tags []string,
+) error {
+	inline := adaptconverter.BuildSecurityRules(
+		adaptconverter.NormalizeInlineRules(domain.Spec.Rules, domain.Labels),
+		sg.Name, sg.Spec.Region, domain.GetTenant(), sg.Namespace,
+		sg.Spec.VPCReference, sg.Spec.ProjectReference,
+	)
+	if len(inline) == 0 {
+		return nil
+	}
+
+	inlineNames := make(map[string]struct{}, len(inline))
+	for _, rule := range inline {
+		inlineNames[rule.Name] = struct{}{}
+	}
+
+	rules, err := h.secRuleRepository.List(ctx, client.InNamespace(sg.Namespace), client.MatchingLabels{
+		adaptconverter.LabelSecurityGroup: sg.Name,
+	})
+	if err != nil {
+		return err
+	}
+
+	for i := range rules.Items {
+		rule := &rules.Items[i]
+		if _, ok := inlineNames[rule.Name]; !ok {
+			continue
+		}
+		if slices.Equal(rule.Spec.Tags, tags) {
+			continue
+		}
+
+		rule.Spec.Tags = slices.Clone(tags)
+		if err := h.secRuleRepository.Update(ctx, rule); err != nil && !apierrors.IsNotFound(err) {
 			return err
 		}
 	}

@@ -89,7 +89,7 @@ func RoleToCR(r *roledom.Role) (client.Object, error) {
 		CommonData: schemav1.CommonData{
 			Annotations: r.Annotations,
 			Extensions:  r.Extensions,
-			Labels:      slices.Collect(maps.Keys(r.Labels)),
+			Labels:      slices.Sorted(maps.Keys(r.Labels)),
 		},
 		Spec: specToCR(r.Spec),
 	}

@@ -63,7 +63,7 @@ func DependencyPendingCondition(state domain.ResourceState, message string) doma
 func UpdateFailedCondition(state domain.ResourceState, message string) domain.StatusCondition {
 	return domain.StatusCondition{
 		LastTransitionAt: time.Now(),
-		Type:             "UpdateFailed",
+		Type:             updateFailedConditionType,
 		State:            state,
 		Reason:           "UpdateNotApplied",
 		Message:          message,

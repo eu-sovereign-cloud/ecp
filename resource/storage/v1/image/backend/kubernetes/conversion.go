@@ -99,7 +99,7 @@ func ImageToCR(img *imgdom.Image) (client.Object, error) {
 		CommonData: schemav1.CommonData{
 			Annotations: img.Annotations,
 			Extensions:  img.Extensions,
-			Labels:      slices.Collect(maps.Keys(img.Labels)),
+			Labels:      slices.Sorted(maps.Keys(img.Labels)),
 		},
 		Spec: ImageSpec{
 			BlockStorageRef: commonbackend.ReferenceToCR(img.Spec.BlockStorageRef),

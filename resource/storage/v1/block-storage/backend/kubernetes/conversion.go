@@ -108,7 +108,7 @@ func BlockStorageToCR(bs *bsdom.BlockStorage) (client.Object, error) {
 		CommonData: schemav1.CommonData{
 			Annotations: bs.Annotations,
 			Extensions:  bs.Extensions,
-			Labels:      slices.Collect(maps.Keys(bs.Labels)),
+			Labels:      slices.Sorted(maps.Keys(bs.Labels)),
 		},
 		Spec: BlockStorageSpec{
 			SizeGB: bs.Spec.SizeGB,
