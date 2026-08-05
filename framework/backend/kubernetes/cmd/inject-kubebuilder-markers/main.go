@@ -247,11 +247,11 @@ const kbDefaultPrefix = "// +kubebuilder:default"
 //
 //nolint:gocyclo // see the note above
 func processFile(path string) (int, error) {
-	info, err := os.Stat(path)
+	info, err := os.Stat(path) // #nosec G703 -- path is built from os.ReadDir entries, not user input
 	if err != nil {
 		return 0, err
 	}
-	data, err := os.ReadFile(path) // #nosec:G304 - path comes from os.ReadDir //nolint:gosec
+	data, err := os.ReadFile(path) // #nosec G304 G703 -- path is built from os.ReadDir entries, not user input
 	if err != nil {
 		return 0, err
 	}
@@ -354,7 +354,7 @@ func processFile(path string) (int, error) {
 		return 0, nil
 	}
 
-	return injected, os.WriteFile(path, []byte(strings.Join(out, "\n")), info.Mode()) //nolint:gosec
+	return injected, os.WriteFile(path, []byte(strings.Join(out, "\n")), info.Mode()) // #nosec G703
 }
 
 // removePriorMarkers strips any trailing kubebuilder marker lines from the

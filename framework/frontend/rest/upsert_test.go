@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/mock"
 
 	frest "github.com/eu-sovereign-cloud/ecp/framework/frontend/rest"
-	kernel "github.com/eu-sovereign-cloud/ecp/framework/kernel"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 )
 
@@ -112,7 +112,7 @@ var upsertParamsWithVersion = &testParams{
 }
 
 func newUpsertRequest(body string) *http.Request {
-	req := httptest.NewRequest(http.MethodPut, "/v1/resources/test-resource",
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/v1/resources/test-resource",
 		bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	return req
@@ -194,7 +194,7 @@ func TestHandleUpsert_BadRequestBody(t *testing.T) {
 	creator := &MockCreator[TestDomain]{}
 	updater := &MockUpdater[TestDomain]{}
 
-	req := httptest.NewRequest(http.MethodPut, "/v1/resources/test-resource", &errBodyReader{})
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/v1/resources/test-resource", &errBodyReader{})
 	recorder := httptest.NewRecorder()
 	frest.HandleUpsert(recorder, req, discardLogger(),
 		frest.UpsertOptions[TestIn, TestDomain, TestOut]{
@@ -219,7 +219,7 @@ func TestHandleUpsert_BodyTooLarge(t *testing.T) {
 
 	// Just over the cap; MaxBytesReader stops reading and returns MaxBytesError.
 	oversized := bytes.Repeat([]byte("x"), frest.MaxRequestBodyBytes+1)
-	req := httptest.NewRequest(http.MethodPut, "/v1/resources/test-resource", bytes.NewReader(oversized))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/v1/resources/test-resource", bytes.NewReader(oversized))
 	req.Header.Set("Content-Type", "application/json")
 
 	recorder := httptest.NewRecorder()

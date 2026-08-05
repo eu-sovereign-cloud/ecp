@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	kernel "github.com/eu-sovereign-cloud/ecp/framework/kernel"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 )
 
@@ -58,7 +58,7 @@ func TestHandleGet_Success(t *testing.T) {
 	//nolint:staticcheck // S1016: mapping clarifies domain->DTO transformation.
 	mapper := func(d domainModel) outputDTO { return outputDTO{Value: d.Value} }
 
-	req := httptest.NewRequest(http.MethodGet, "/v1/resources/demo", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/v1/resources/demo", nil)
 	recorder := httptest.NewRecorder()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
@@ -86,7 +86,7 @@ func TestHandleGet_NotFound(t *testing.T) {
 	//nolint:staticcheck // S1016: mapping clarifies domain->DTO transformation.
 	mapper := func(d domainModel) outputDTO { return outputDTO{Value: d.Value} }
 
-	req := httptest.NewRequest(http.MethodGet, "/v1/resources/missing", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/v1/resources/missing", nil)
 	recorder := httptest.NewRecorder()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
@@ -118,7 +118,7 @@ func TestHandleGet_InternalError(t *testing.T) {
 	//nolint:staticcheck // S1016: mapping clarifies domain->DTO transformation.
 	mapper := func(d domainModel) outputDTO { return outputDTO{Value: d.Value} }
 
-	req := httptest.NewRequest(http.MethodGet, "/v1/resources/demo", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/v1/resources/demo", nil)
 	recorder := httptest.NewRecorder()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
@@ -147,7 +147,7 @@ func TestHandleGet_EncodingFailure(t *testing.T) {
 	// mapper returns a struct with channel field which json cannot encode.
 	mapper := func(_ domainModel) badDTO { return badDTO{Bad: make(chan int)} }
 
-	req := httptest.NewRequest(http.MethodGet, "/v1/resources/demo", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/v1/resources/demo", nil)
 	recorder := httptest.NewRecorder()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
