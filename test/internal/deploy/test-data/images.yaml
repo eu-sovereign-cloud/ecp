@@ -7,12 +7,11 @@ metadata:
   labels:
     base: ubuntu
     version: "24.04"
-    # Internal labels the gateway would normally stamp. Without them the REST converter emits a
-    # ref with empty tenant/provider ("tenants//ubuntu-24-04"), which downstream dependency
-    # resolution can't locate. region must match the regional gateway's --region ("region").
-    secapi.cloud/tenant: test-tenant
-    secapi.cloud/region: region
+    # Identity is read back from these labels by ImageFromCR. The provider
+    # encodes "/" as "_" because "/" is not a legal label value character.
     secapi.cloud/provider: seca.storage_v1
+    secapi.cloud/region: itbg-bergamo
+    secapi.cloud/tenant: test-tenant
 spec:
   cpuArchitecture: amd64
   boot: UEFI

@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -41,7 +42,7 @@ func TestChain(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	r := httptest.NewRequest(http.MethodGet, "/", nil)
+	r := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
 	handler.ServeHTTP(w, r)
 
 	// After Chain reverses [A,B,C] → [C,B,A], oapi-codegen wraps:
@@ -78,7 +79,7 @@ func TestChain_SingleElement(t *testing.T) {
 		t.Fatalf("len = %d, want 1", len(chain))
 	}
 	w := httptest.NewRecorder()
-	r := httptest.NewRequest(http.MethodGet, "/", nil)
+	r := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
 	chain[0](okHandler).ServeHTTP(w, r)
 	if !called {
 		t.Error("middleware was not called")

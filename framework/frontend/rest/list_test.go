@@ -43,7 +43,7 @@ func TestHandleList_Success(t *testing.T) {
 		items: []domainModel{{Value: "a"}, {Value: "b"}},
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/v1/resources", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/v1/resources", nil)
 	recorder := httptest.NewRecorder()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
@@ -68,7 +68,7 @@ func TestHandleList_InternalError(t *testing.T) {
 		err: errors.New("internal error"),
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/v1/resources", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/v1/resources", nil)
 	recorder := httptest.NewRecorder()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
@@ -104,7 +104,7 @@ func TestHandleList_EncodingFailure(t *testing.T) {
 		return badListDTO{Items: []badDTO{{Bad: make(chan int)}}}
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/v1/resources", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/v1/resources", nil)
 	recorder := httptest.NewRecorder()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 

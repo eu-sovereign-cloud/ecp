@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"fmt"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -40,7 +41,7 @@ func InstanceSKUFromCR(obj client.Object) (*skudom.InstanceSKU, error) {
 	sku.ResourceVersion = cr.GetResourceVersion()
 	sku.CreatedAt = cr.GetCreationTimestamp().Time
 	sku.UpdatedAt = cr.GetCreationTimestamp().Time
-	sku.Provider = internalLabels[k8slabels.InternalProviderLabel]
+	sku.Provider = strings.ReplaceAll(internalLabels[k8slabels.InternalProviderLabel], "_", "/")
 	sku.Region = internalLabels[k8slabels.InternalRegionLabel]
 	sku.Tenant = internalLabels[k8slabels.InternalTenantLabel]
 
