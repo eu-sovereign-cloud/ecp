@@ -3,7 +3,12 @@ apiVersion: storage.v1.secapi.cloud/v1
 kind: StorageSKU
 metadata:
   labels:
-    secapi.cloud/tenant-id: seca
+    # Identity is read back from these labels by StorageSKUFromCR. The provider
+    # encodes "/" as "_" because "/" is not a legal label value character.
+    # "secapi.cloud/tenant-id" is the namespace-level key and is not read here.
+    secapi.cloud/provider: seca.storage_v1
+    secapi.cloud/region: region
+    secapi.cloud/tenant: seca
   name: fast-local
   namespace: 69e09dd4c334335d2f0a4a52c9ff87b76b0f9e1b147d62a5f2b8f965 # seca
 spec:
