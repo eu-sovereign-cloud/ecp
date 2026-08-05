@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
 	skudom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network-sku"
 
 	. "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network-sku/backend/kubernetes"
@@ -41,6 +42,28 @@ func TestNetworkSKUToCR(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 10000, sku.Spec.Bandwidth)
 		require.Equal(t, 80000, sku.Spec.Packets)
+	})
+
+	t.Run("identity_is_read_from_internal_labels", func(t *testing.T) {
+		cr := &NetworkSKU{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "seca.n1k",
+				Labels: map[string]string{
+					// The provider is stored with "/" encoded as "_", since "/"
+					// is not a legal label value character.
+					k8slabels.InternalProviderLabel: "seca.network_v1",
+					k8slabels.InternalRegionLabel:   "eu-central-1",
+					k8slabels.InternalTenantLabel:   "tn-1",
+				},
+			},
+			Spec: NetworkSkuSpec{Bandwidth: 1000, Packets: 10000},
+		}
+
+		sku, err := NetworkSKUFromCR(cr)
+		require.NoError(t, err)
+		require.Equal(t, "seca.network/v1", sku.Provider)
+		require.Equal(t, "eu-central-1", sku.Region)
+		require.Equal(t, "tn-1", sku.Tenant)
 	})
 
 	t.Run("nil_errors", func(t *testing.T) {

@@ -17,8 +17,11 @@ import (
 
 const (
 	testProvider = "seca.storage/v1"
-	testRegion   = "eu-central-1"
-	testTenant   = "tn-1"
+	// testProviderLabel is testProvider as it is stored on the CR: "/" is not a
+	// legal label value character, so it is encoded as "_".
+	testProviderLabel = "seca.storage_v1"
+	testRegion        = "eu-central-1"
+	testTenant        = "tn-1"
 )
 
 // newStorageSKUCR builds a StorageSKU CR with the given identity, internal labels
@@ -30,7 +33,7 @@ func newStorageSKUCR(name, version string, iops, minVolumeSize int, skuType stri
 			Name:            name,
 			ResourceVersion: version,
 			Labels: map[string]string{
-				k8slabels.InternalProviderLabel: testProvider,
+				k8slabels.InternalProviderLabel: testProviderLabel,
 				k8slabels.InternalRegionLabel:   testRegion,
 				k8slabels.InternalTenantLabel:   testTenant,
 			},
