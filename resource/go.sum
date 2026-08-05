@@ -1,5 +1,6 @@
 github.com/eu-sovereign-cloud/go-sdk v0.4.3 h1:Xb9YuN7aR21mJj+a1UPKYKWJ0FnUs0HHz1zCSaW2bJk=
 github.com/eu-sovereign-cloud/go-sdk v0.4.3/go.mod h1:6kH3ooOLCTIE2TM1y8NphibiqItyrZ2yvJYFN1M0lrE=
+github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu7U=
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
 go.uber.org/mock v0.6.0/go.mod h1:KiVJ4BqZJaMj4svdfmHM0AUx4NJYO8ZNpPnZn1Z+BBU=
 k8s.io/apimachinery v0.35.0 h1:Z2L3IHvPVv/MJ7xRxHEtk6GoJElaAqDCCU0S6ncYok8=
