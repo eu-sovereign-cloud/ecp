@@ -83,6 +83,7 @@ func TestUpdateLabelsReachThePlugin(t *testing.T) {
 	final, err := networkClient.GetNetworkWithResponse(ctx, testTenant, testWorkspace, networkName)
 	require.NoError(t, err)
 	require.NotNil(t, final.JSON200)
+	require.NotNil(t, final.JSON200.Status, "the network should still report a status")
 
 	require.Equal(t, schema.Labels{"env": "prod", "team": "platform"}, final.JSON200.Labels,
 		"the edited labels must survive the round trip - including the newly added key, whose "+
@@ -173,8 +174,13 @@ func TestUpdateResource(t *testing.T) {
 		final, err := storageClient.GetBlockStorageWithResponse(ctx, testTenant, testWorkspace, volumeName)
 		require.NoError(t, err)
 		require.NotNil(t, final.JSON200)
+		require.NotNil(t, final.JSON200.Status, "the volume should still report a status")
 		require.Equal(t, schema.ResourceStateActive, final.JSON200.Status.State)
-		require.Equal(t, 2, final.JSON200.Spec.SizeGB, "the earlier resize must not be undone by a label edit")
+
+		// Status.SizeGB, not Spec.SizeGB: spec is echoed straight back from the request body, so
+		// asserting on it would hold even if the resize had been swallowed and the volume were
+		// still 1 GB on the provider. Status carries the observed size the resize actually wrote.
+		require.Equal(t, 2, final.JSON200.Status.SizeGB, "the earlier resize must not be undone by a label edit")
 		requireNoUpdateFailure(t, final.JSON200.Status.Conditions)
 	})
 }

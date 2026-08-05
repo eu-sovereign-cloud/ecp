@@ -18,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic/fake"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
@@ -644,4 +645,40 @@ func TestWriterAdapter_Update_PropagatesCommonData(t *testing.T) {
 	keys, _, err := unstructured.NestedStringSlice(stored.Object, "commonData", "labels")
 	require.NoError(t, err)
 	require.ElementsMatch(t, []string{"env", "tier"}, keys, "the added label's key must reach commonData")
+}
+
+// TestWriterAdapter_Update_NoOpDoesNotWrite pins the early return in updateMetadataAndSpecRetry: an
+// update whose desired state already matches what is stored must not issue a write.
+//
+// It is not an optimisation. A write bumps resourceVersion, the controller watches its own writes,
+// and an active resource's reconcile hands the plugin a level-triggered Update - so a PUT that
+// changes nothing still costs a reconcile and a round trip to the provider. commonData is the part
+// worth guarding: it carries the label *key list*, which converters build from a Go map, and an
+// equal-but-reordered list compares unequal here and writes. That is why they sort it.
+func TestWriterAdapter_Update_NoOpDoesNotWrite(t *testing.T) {
+	labelled := &testLabelled{name: "rt-1", labels: map[string]string{"env": "prod", "tier": "frontend", "team": "platform"}}
+
+	created, err := testLabelledToCR(labelled)
+	require.NoError(t, err)
+
+	dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(
+		runtime.NewScheme(), testListKinds(), created.(*unstructured.Unstructured))
+
+	var writes int
+	dynFake.PrependReactor("update", "*", func(k8stesting.Action) (bool, runtime.Object, error) {
+		writes++
+		return false, nil, nil // Count it, then fall through to the tracker.
+	})
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	writer := NewWriterAdapter[*testLabelled](dynFake, testGVR, logger, testLabelledToCR, testLabelledFromCR)
+
+	// Repeated, because an unstable key ordering would only collide with the stored order some of
+	// the time - one pass could miss it by luck, ten will not.
+	for i := range 10 {
+		_, err := writer.Update(context.Background(), labelled)
+		require.NoErrorf(t, err, "no-op update %d should succeed", i)
+	}
+
+	require.Zerof(t, writes, "an update that changes nothing must not write, got %d writes", writes)
 }
