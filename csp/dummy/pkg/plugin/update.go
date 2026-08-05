@@ -56,7 +56,7 @@ func applyUpdate[D persistence.IdentifiableResource](
 	logger *slog.Logger,
 ) error {
 	return recordAppliedLabels(ctx, resource, annotations, labels, func(ctx context.Context, r D) error {
-		dynamicClient, err := newDynamicClient()
+		dynamicClient, err := sharedDynamicClient()
 		if err != nil {
 			return err
 		}
