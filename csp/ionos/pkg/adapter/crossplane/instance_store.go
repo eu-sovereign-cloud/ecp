@@ -3,6 +3,7 @@ package crossplane
 import (
 	"context"
 	"crypto/rand"
+	"encoding/base64"
 	"log/slog"
 
 	v1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
@@ -200,7 +201,7 @@ func (a *InstanceStore) newBootVolume(domain *instancedom.Instance, ns, name, al
 		},
 	}
 	if domain.Spec.UserData != "" {
-		vol.Spec.ForProvider.UserData = new(domain.Spec.UserData)
+		vol.Spec.ForProvider.UserData = new(base64.StdEncoding.EncodeToString([]byte(domain.Spec.UserData)))
 	}
 	return vol
 }
