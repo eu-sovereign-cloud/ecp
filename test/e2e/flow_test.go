@@ -151,17 +151,27 @@ func TestEndToEnd(t *testing.T) {
 	// Step 5 (network-scoped): a Subnet created under the network. Its URN carries the
 	// extra networks/{network} segment and it lands in the per-network namespace — the
 	// path the workspace-scoped resources above never exercise.
+	//
+	// Its routeTableRef is sent fully qualified, the way a client that only holds the
+	// route table's URN sends it. The scope segments are stripped into the CR's own
+	// fields and re-embedded on read, and a nested path must come back with the scope
+	// still ahead of networks/{network} — terraform rebuilds the URN by joining the
+	// provider onto this path and rejects the apply if the round-trip reorders it.
+	routeTableRefResource := "tenants/" + testTenant + "/workspaces/" + testWorkspace +
+		"/networks/" + networkName + "/route-tables/" + routeTableName
 	t.Run("subnet (network-scoped) created via API reconciles to active", func(t *testing.T) {
 		body := schema.Subnet{
 			Spec: schema.SubnetSpec{
 				Cidr:          schema.Cidr{Ipv4: "10.20.1.0/24"},
-				RouteTableRef: schema.Reference{Resource: "route-tables/" + routeTableName},
+				RouteTableRef: schema.Reference{Resource: routeTableRefResource},
 				Zone:          "itbg-1",
 			},
 		}
 		resp, err := networkClient.CreateOrUpdateSubnetWithResponse(ctx, testTenant, testWorkspace, networkName, subnetName, nil, body)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, resp.StatusCode())
+		require.Equal(t, routeTableRefResource, resp.JSON200.Spec.RouteTableRef.Resource,
+			"the create response must echo the reference path unchanged")
 
 		waitForActive(t, "subnet", func(ctx context.Context) (schema.ResourceState, bool, error) {
 			r, err := networkClient.GetSubnetWithResponse(ctx, testTenant, testWorkspace, networkName, subnetName)
@@ -173,6 +183,11 @@ func TestEndToEnd(t *testing.T) {
 			}
 			return r.JSON200.Status.State, true, nil
 		})
+
+		got, err := networkClient.GetSubnetWithResponse(ctx, testTenant, testWorkspace, networkName, subnetName)
+		require.NoError(t, err)
+		require.Equal(t, routeTableRefResource, got.JSON200.Spec.RouteTableRef.Resource,
+			"the reference path must survive the CR round-trip with its scope ahead of the network segment")
 	})
 
 	// Step 6 (network-scoped): a RouteTable created under the same network.
