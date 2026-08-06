@@ -200,27 +200,15 @@ func ReferenceToCR(ref domain.Reference) schemav1.Reference {
 	return result
 }
 
-// embedScopeInResource inserts tenants/{tenant} and workspaces/{workspace} segments
-// into the resource path, just before the {collection}/{name} suffix.
-// e.g. "skus/fast-local" with tenant "t1" becomes "tenants/t1/skus/fast-local".
+// embedScopeInResource prefixes the resource path with the tenants/{tenant} and
+// workspaces/{workspace} segments, matching the URN segment order
+// {provider}/{version}/tenants/{tenant}/workspaces/{workspace}/{resource}.
+// e.g. "skus/fast-local" with tenant "t1" becomes "tenants/t1/skus/fast-local", and the
+// nested "networks/n1/route-tables/rt1" becomes
+// "tenants/t1/workspaces/w1/networks/n1/route-tables/rt1" — the scope always precedes the
+// whole path, never just its last two segments.
 // Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 func embedScopeInResource(resourcePath, tenant, workspace string) string {
-	// Find the resource type/name (last two path segments)
-	lastSlash := strings.LastIndex(resourcePath, "/")
-	if lastSlash < 0 {
-		return resourcePath
-	}
-	secondLastSlash := strings.LastIndex(resourcePath[:lastSlash], "/")
-
-	var prefix, suffix string
-	if secondLastSlash >= 0 {
-		prefix = resourcePath[:secondLastSlash]
-		suffix = resourcePath[secondLastSlash+1:]
-	} else {
-		prefix = ""
-		suffix = resourcePath
-	}
-
 	var scopePath string
 	switch {
 	case tenant != "" && workspace != "":
@@ -231,10 +219,10 @@ func embedScopeInResource(resourcePath, tenant, workspace string) string {
 		scopePath = fmt.Sprintf("workspaces/%s", workspace)
 	}
 
-	if prefix != "" {
-		return prefix + "/" + scopePath + "/" + suffix
+	if resourcePath == "" {
+		return scopePath
 	}
-	return scopePath + "/" + suffix
+	return scopePath + "/" + resourcePath
 }
 
 // extractAndStripSegment extracts the value following a segment prefix in a resource path

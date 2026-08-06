@@ -102,9 +102,9 @@ func TestRouteTableToCR_UsesNetworkNamespace(t *testing.T) {
 //
 // ponytail: known ceiling, mirrored from the security-group-rule fuzz target.
 // extractAndStripSegment strips a scope anchor from wherever it appears while
-// embedScopeInResource always re-inserts it before the final two segments, so the pair only
-// round-trips for paths with at most one "tenants/" and one "workspaces/" anchor and no empty
-// segments. Real SECA references are always canonical; widen this if the helpers are reworked.
+// embedScopeInResource always re-prefixes it to the whole path, so the pair only round-trips for
+// paths with at most one "tenants/" and one "workspaces/" anchor and no empty segments. Real
+// SECA references are always canonical; widen this if the helpers are reworked.
 func isWellFormedRefPath(p string) bool {
 	return !strings.Contains(p, "//") &&
 		strings.Count(p, "tenants") <= 1 &&
