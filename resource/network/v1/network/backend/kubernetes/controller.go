@@ -47,6 +47,11 @@ func NewController(
 			options.MaxConditions,
 		),
 	}
+	c.WithEnsure(k8sadapter.NamespaceEnsure[*netdom.Network](
+		clientset,
+		options.Logger,
+		k8sadapter.NetworkChildren,
+	))
 	c.WithCleanup(k8sadapter.NamespaceCleanup[*netdom.Network](
 		dynClient,
 		clientset,

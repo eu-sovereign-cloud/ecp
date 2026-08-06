@@ -47,6 +47,11 @@ func NewController(
 			options.MaxConditions,
 		),
 	}
+	c.WithEnsure(k8sadapter.NamespaceEnsure[*wsdom.Workspace](
+		clientset,
+		options.Logger,
+		k8sadapter.WorkspaceChildren,
+	))
 	c.WithCleanup(k8sadapter.NamespaceCleanup[*wsdom.Workspace](
 		dynClient,
 		clientset,

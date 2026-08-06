@@ -13,7 +13,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
@@ -170,11 +169,7 @@ func TestMain(m *testing.M) {
 		wsk8s.WorkspaceToCR,
 		wsk8s.WorkspaceFromCR,
 		k8sadapter.WorkspaceChildren,
-		[]schema.GroupVersionResource{
-			bsk8s.BlockStorageGVR,
-			netk8s.NetworkGVR,
-			instancek8s.InstanceGVR,
-		},
+		wsk8s.ChildResourceGVRs,
 	)
 
 	// Provide Workspace for BlockStorage tests

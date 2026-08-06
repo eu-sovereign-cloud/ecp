@@ -162,6 +162,37 @@ func TestWorkspaceController_Reconcile(t *testing.T) {
 		require.Equal(t, k8srt.Result{RequeueAfter: requeueAfter}, res)
 	})
 
+	t.Run("should run the ensure hook on a live resource", func(t *testing.T) {
+		mc := gomock.NewController(t)
+		defer mc.Finish()
+
+		mockRepo := NewMockRepo[*wsdom.Workspace](mc)
+		mockRepo.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).Return(nil, nil).Times(1)
+
+		fakeClient := fake.NewClientBuilder().
+			WithScheme(newScheme()).
+			WithObjects(newK8sResource()).
+			Build()
+
+		handler := NewWorkspacePluginHandler(mockRepo, NewMockWorkspacePlugin(mc), 1)
+		gc := frameworkcontroller.NewGenericController[*wsdom.Workspace](
+			fakeClient, WorkspaceFromCR, handler, &Workspace{}, 0,
+			slog.New(slog.NewTextHandler(&bytes.Buffer{}, nil)), 1,
+		)
+
+		calls := 0
+		gc.WithEnsure(func(_ context.Context, ws *wsdom.Workspace) error {
+			calls++
+			require.Equal(t, testName, ws.Name)
+			return nil
+		})
+
+		res, err := gc.Reconcile(t.Context(), req)
+		require.NoError(t, err)
+		require.Equal(t, k8srt.Result{}, res)
+		require.Equal(t, 1, calls)
+	})
+
 	// The cleanup hook is the seam that lets a resource tear down the namespace it owns for its
 	// children. It must run only after the plugin has finished deleting, and only while the
 	// finalizer still holds the object — otherwise the side effect is lost.
@@ -203,14 +234,18 @@ func TestWorkspaceController_Reconcile(t *testing.T) {
 
 		calls := 0
 		gc := newDeletingController(t, fakeClient, 0)
-		gc.WithCleanup(func(_ context.Context, ws *wsdom.Workspace) error {
+		gc.WithEnsure(func(context.Context, *wsdom.Workspace) error {
+			require.Fail(t, "ensure must not run while the resource is deleting")
+			return nil
+		})
+		gc.WithCleanup(func(ctx context.Context, ws *wsdom.Workspace) error {
 			calls++
 			require.Equal(t, testName, ws.Name)
 
 			// The finalizer must still be present while cleanup runs — that is what guarantees
 			// a retry if it fails.
 			var current Workspace
-			require.NoError(t, fakeClient.Get(t.Context(), req.NamespacedName, &current))
+			require.NoError(t, fakeClient.Get(ctx, req.NamespacedName, &current))
 			require.Contains(t, current.GetFinalizers(), "secapi.cloud.foundation/cleanup")
 			return nil
 		})

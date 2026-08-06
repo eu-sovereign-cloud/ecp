@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"context"
 	"crypto/sha3"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -14,6 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/retry"
@@ -770,6 +772,81 @@ func namespaceOwnerLabels(tenant, workspace, network string) (string, map[string
 		return ComputeNetworkNamespace(namespaceScope{tenant: tenant, workspace: workspace, network: network}), ownerLabels
 	}
 	return ComputeNamespace(&resource.Scope{Tenant: tenant, Workspace: workspace}), ownerLabels
+}
+
+// NamespaceEnsure returns a controller ensure hook (see controller.GenericController.WithEnsure)
+// that converges the namespace a resource owns for its children: it recreates it if it went
+// missing and repairs its owner labels if they drifted.
+//
+// Label repair is what makes a hand-created namespace adoptable. Namespaces provisioned before
+// this existed — the dev and test fixtures, anything applied by an operator — carry no owner
+// label or the wrong one, which makes them invisible to namespaceOwnedBy and therefore never
+// deletable. One reconcile fixes that.
+func NamespaceEnsure[T persistence.IdentifiableResource](
+	clientset kubernetes.Interface,
+	logger *slog.Logger,
+	childNamespace ChildNamespaceKind,
+) func(context.Context, T) error {
+	return func(ctx context.Context, m T) error {
+		namespace, ownerLabels := childNamespaceFor(childNamespace, m)
+		if namespace == "" {
+			return nil
+		}
+
+		return ensureNamespace(ctx, clientset, namespace, ownerLabels, logger)
+	}
+}
+
+// ensureNamespace creates the namespace when it is missing and otherwise patches in any owner
+// label that is absent or wrong.
+//
+// The patch is additive by construction: it carries only the keys that need fixing, so labels
+// this code does not own — a hand-written key, an operator's selector — survive untouched. It
+// reads before it writes so a converged namespace costs one GET rather than a POST that 409s on
+// every reconcile of every resource.
+func ensureNamespace(
+	ctx context.Context,
+	clientset kubernetes.Interface,
+	name string,
+	ownerLabels map[string]string,
+	logger *slog.Logger,
+) error {
+	if clientset == nil {
+		return kernel.NewError(kernel.KindUnavailable, fmt.Errorf("cannot ensure namespace %q: clientSet is nil", name))
+	}
+
+	ns, err := clientset.CoreV1().Namespaces().Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		if kerrs.IsNotFound(err) {
+			logger.InfoContext(ctx, "recreating missing namespace", "namespace", name)
+			_, createErr := CreateNamespace(ctx, clientset, name, ownerLabels)
+			return createErr
+		}
+
+		return kubeToDomainError(fmt.Errorf("failed to get namespace %s: %w", name, err))
+	}
+
+	drifted := map[string]string{}
+	for k, v := range ownerLabels {
+		if got, ok := ns.Labels[k]; !ok || got != v {
+			drifted[k] = v
+		}
+	}
+	if len(drifted) == 0 {
+		return nil
+	}
+
+	patch, err := json.Marshal(map[string]any{"metadata": map[string]any{"labels": drifted}})
+	if err != nil {
+		return kernel.NewError(kernel.KindValidation, fmt.Errorf("failed to build namespace %s label patch: %w", name, err))
+	}
+
+	logger.InfoContext(ctx, "repairing namespace owner labels", "namespace", name, "labels", drifted)
+	if _, err := clientset.CoreV1().Namespaces().Patch(ctx, name, types.MergePatchType, patch, metav1.PatchOptions{}); err != nil {
+		return kubeToDomainError(fmt.Errorf("failed to patch namespace %s owner labels: %w", name, err))
+	}
+
+	return nil
 }
 
 // NamespaceCleanup returns a controller cleanup hook (see controller.GenericController.WithCleanup)
