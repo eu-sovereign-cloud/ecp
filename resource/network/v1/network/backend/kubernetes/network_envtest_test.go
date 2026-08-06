@@ -118,7 +118,7 @@ func TestNetworkBackend_CreateAndGetNetwork(t *testing.T) {
 		createdDomain := *result
 		require.Equal(t, networkName, createdDomain.Name)
 		require.Equal(t, "10.0.0.0/16", createdDomain.Spec.CIDR.IPv4)
-		require.Equal(t, "standard-network", createdDomain.Spec.SkuRef.Resource)
+		require.Equal(t, "skus/standard-network", createdDomain.Spec.SkuRef.Resource)
 
 		// Get the network and verify it matches
 		net := &netdom.Network{}
@@ -130,7 +130,7 @@ func TestNetworkBackend_CreateAndGetNetwork(t *testing.T) {
 		require.NotNil(t, retrievedDomain)
 		require.Equal(t, networkName, retrievedDomain.Name)
 		require.Equal(t, "10.0.0.0/16", retrievedDomain.Spec.CIDR.IPv4)
-		require.Equal(t, "standard-network", retrievedDomain.Spec.SkuRef.Resource)
+		require.Equal(t, "skus/standard-network", retrievedDomain.Spec.SkuRef.Resource)
 
 		// Get current resource version for the update
 		net2 := &netdom.Network{}

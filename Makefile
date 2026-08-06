@@ -506,10 +506,10 @@ branch-rebase-verify:
 ###############################################################################
 
 .PHONY: pre-commit
-pre-commit: go-sdk-verify generate-api-verify test lint gofmt-check modernize-check vuln gosec
+pre-commit: go-sdk-verify generate-api-verify test test-envtest lint gofmt-check modernize-check vuln gosec
 
 .PHONY: pre-merge
-pre-merge: gh-token-ensure branch-rebase-verify workspace-verify go-sdk-verify generate-api-verify test lint gofmt-check vet-integration modernize-check vuln gosec
+pre-merge: gh-token-ensure branch-rebase-verify workspace-verify go-sdk-verify generate-api-verify test test-envtest lint gofmt-check vet-integration modernize-check vuln gosec
 
 ###############################################################################
 # Workspace membership: add / remove a module from go.work
