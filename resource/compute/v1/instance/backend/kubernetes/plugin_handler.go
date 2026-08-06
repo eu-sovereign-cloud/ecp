@@ -43,7 +43,7 @@ func NewInstancePluginHandler(
 func (h *InstancePluginHandler) HandleReconcile(ctx context.Context, resource *instancedom.Instance) (bool, error) {
 	// Power-state management applies only to active instances that are not being deleted.
 	// It is orthogonal to the create/delete lifecycle below.
-	if resource.DeletedAt == nil && isInstanceActive(resource) {
+	if isInstanceActive(resource) {
 		if handled, requeue, err := h.handlePowerReconcile(ctx, resource); handled {
 			return requeue, err
 		}
@@ -320,7 +320,9 @@ func (h *InstancePluginHandler) recordPowerCondition(ctx context.Context, resour
 }
 
 func isInstanceActive(resource *instancedom.Instance) bool {
-	return resource.Status != nil && resource.Status.State == commondomain.ResourceStateActive
+	return resource.DeletedAt == nil &&
+		resource.Status != nil &&
+		resource.Status.State == commondomain.ResourceStateActive
 }
 
 func (h *InstancePluginHandler) setResourceState(ctx context.Context, resource *instancedom.Instance, state commondomain.ResourceState, requeue bool) (bool, error) {
