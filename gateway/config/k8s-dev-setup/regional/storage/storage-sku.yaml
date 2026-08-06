@@ -5,7 +5,7 @@ metadata:
   labels:
     # Identity is read back from these labels by StorageSKUFromCR. The provider
     # encodes "/" as "_" because "/" is not a legal label value character.
-    # "secapi.cloud/tenant-id" is the namespace-level key and is not read here.
+    # The namespace carries the same secapi.cloud/tenant key as its owner label.
     secapi.cloud/provider: seca.storage_v1
     secapi.cloud/region: region
     secapi.cloud/tenant: seca

@@ -17,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic/fake"
+	"k8s.io/client-go/kubernetes"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -323,6 +324,103 @@ func TestNamespaceHasChildResources(t *testing.T) {
 		has, err := namespaceHasChildResources(context.Background(), dynFake, "", gvrs)
 		require.NoError(t, err)
 		require.False(t, has)
+	})
+}
+
+// --- NamespaceManagingWriterAdapter.Create: on-demand namespace provisioning ---
+
+func TestNamespaceManagingWriterAdapter_Create(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	parent := &testWorkspaceScopedIdentifiable{name: "w1", tenant: "t1"}
+	tenantNS := ComputeNamespace(&kernelresource.Scope{Tenant: "t1"})
+	// WorkspaceChildren uses GetName() as the workspace segment.
+	childNS := ComputeNamespace(&kernelresource.Scope{Tenant: "t1", Workspace: "w1"})
+
+	newWriter := func(cs kubernetes.Interface, dynFake *fake.FakeDynamicClient) *NamespaceManagingWriterAdapter[*testWorkspaceScopedIdentifiable] {
+		return NewNamespaceManagingWriterAdapter[*testWorkspaceScopedIdentifiable](
+			dynFake, cs, testParentGVR, logger, parentDomainToK8s, parentK8sToDomain,
+			WorkspaceChildren, []schema.GroupVersionResource{testChildGVR},
+		)
+	}
+
+	// The regression test for the bug this refactor fixes: before it, nothing created the tenant
+	// namespace, so the very first workspace of a brand-new tenant failed with NotFound.
+	t.Run("creates the tenant namespace it writes into, not only the child namespace", func(t *testing.T) {
+		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), parentListKinds())
+		cs := k8sfake.NewClientset()
+
+		_, err := newWriter(cs, dynFake).Create(context.Background(), parent)
+		require.NoError(t, err)
+
+		tenant, err := cs.CoreV1().Namespaces().Get(context.Background(), tenantNS, metav1.GetOptions{})
+		require.NoError(t, err, "the namespace the Workspace CR itself lives in must be provisioned")
+		require.Equal(t, map[string]string{labels.InternalTenantLabel: "t1"}, tenant.Labels,
+			"the tenant namespace must carry the owner label namespaceOwnedBy checks")
+
+		child, err := cs.CoreV1().Namespaces().Get(context.Background(), childNS, metav1.GetOptions{})
+		require.NoError(t, err, "the namespace the Workspace's children live in must still be provisioned")
+		require.Equal(t, map[string]string{
+			labels.InternalTenantLabel:    "t1",
+			labels.InternalWorkspaceLabel: "w1",
+		}, child.Labels)
+
+		_, err = dynFake.Resource(testParentGVR).Namespace(tenantNS).Get(context.Background(), "w1", metav1.GetOptions{})
+		require.NoError(t, err)
+	})
+
+	t.Run("is idempotent and leaves foreign labels on an existing namespace alone", func(t *testing.T) {
+		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), parentListKinds())
+		cs := k8sfake.NewClientset(&corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{Name: tenantNS, Labels: map[string]string{"someone.else/owns": "this"}},
+		})
+
+		_, err := newWriter(cs, dynFake).Create(context.Background(), parent)
+		require.NoError(t, err)
+
+		tenant, err := cs.CoreV1().Namespaces().Get(context.Background(), tenantNS, metav1.GetOptions{})
+		require.NoError(t, err)
+		require.Equal(t, map[string]string{"someone.else/owns": "this"}, tenant.Labels,
+			"an existing namespace must not be mutated by the write path; repair is the controller's job")
+	})
+
+	// Pins the removal of the create-then-rollback compensating transaction: an ensure is
+	// idempotent, so a namespace left behind by a failed CR create is inert, not garbage.
+	t.Run("does not roll back the namespace when the resource create fails", func(t *testing.T) {
+		existing, err := parentDomainToK8s(parent)
+		require.NoError(t, err)
+		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(
+			runtime.NewScheme(), parentListKinds(), existing.(*unstructured.Unstructured),
+		)
+		cs := k8sfake.NewClientset()
+
+		_, err = newWriter(cs, dynFake).Create(context.Background(), parent)
+		require.Error(t, err, "creating a resource that already exists must fail")
+
+		_, err = cs.CoreV1().Namespaces().Get(context.Background(), tenantNS, metav1.GetOptions{})
+		require.NoError(t, err, "the tenant namespace must survive a failed resource create")
+		_, err = cs.CoreV1().Namespaces().Get(context.Background(), childNS, metav1.GetOptions{})
+		require.NoError(t, err, "the child namespace must survive a failed resource create")
+	})
+
+	// The global gateway's Role/RoleAssignment shape: owns no child namespace, but still has to
+	// provision the tenant namespace it writes into.
+	t.Run("NoChildNamespace still provisions the resource's own namespace", func(t *testing.T) {
+		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), parentListKinds())
+		cs := k8sfake.NewClientset()
+
+		writer := NewNamespaceManagingWriterAdapter[*testWorkspaceScopedIdentifiable](
+			dynFake, cs, testParentGVR, logger, parentDomainToK8s, parentK8sToDomain,
+			NoChildNamespace, nil,
+		)
+
+		_, err := writer.Create(context.Background(), parent)
+		require.NoError(t, err)
+
+		_, err = cs.CoreV1().Namespaces().Get(context.Background(), tenantNS, metav1.GetOptions{})
+		require.NoError(t, err)
+
+		_, err = cs.CoreV1().Namespaces().Get(context.Background(), childNS, metav1.GetOptions{})
+		require.True(t, kerrs.IsNotFound(err), "NoChildNamespace must not provision a child namespace")
 	})
 }
 

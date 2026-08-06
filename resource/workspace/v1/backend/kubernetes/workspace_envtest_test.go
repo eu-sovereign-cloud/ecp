@@ -66,15 +66,10 @@ func TestWorkspaceBackend(t *testing.T) {
 
 	ctx := context.Background()
 
-	// Create the tenant namespace before creating workspace resources.
-	// The workspace CR is stored in the tenant namespace (hash of tenant),
-	// while the NamespaceManagingWriterAdapter only creates the workspace's
-	// child resource namespace (hash of tenant/workspace).
+	// The tenant namespace is deliberately NOT pre-created: against a real API server, a write
+	// into a missing namespace fails, so create_workspace below passing is the proof that the
+	// writer provisions the namespace the Workspace CR itself lives in.
 	namespace := k8sadapter.ComputeNamespace(&kernelresource.Scope{Tenant: tenant})
-	_, err = k8sadapter.CreateNamespace(ctx, clientset, namespace, map[string]string{
-		k8slabels.InternalTenantLabel: tenant,
-	})
-	require.NoError(t, err)
 
 	t.Cleanup(func() {
 		_ = k8sadapter.DeleteNamespace(context.Background(), clientset, namespace)

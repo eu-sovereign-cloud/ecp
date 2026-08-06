@@ -185,13 +185,24 @@ func ComputeNetworkNamespace(obj persistence.NetworkScope) string {
 // with an empty network is a caller bug, not a fallback case, so it errors instead of silently
 // resolving to the workspace-level namespace.
 func resolveNamespace(obj persistence.Scope) (string, error) {
+	namespace, _, err := resolveNamespaceOwner(obj)
+	return namespace, err
+}
+
+// resolveNamespaceOwner is resolveNamespace plus the owner labels that identify the namespace it
+// picked, so a caller provisioning that namespace on demand stamps it exactly as the entity that
+// owns it would (see namespaceOwnerLabels).
+func resolveNamespaceOwner(obj persistence.Scope) (namespace string, ownerLabels map[string]string, err error) {
 	if networkScope, ok := obj.(persistence.NetworkScope); ok {
 		if networkScope.GetNetwork() == "" {
-			return "", kernel.NewError(kernel.KindValidation, fmt.Errorf("network-scoped resource has empty network"))
+			return "", nil, kernel.NewError(kernel.KindValidation, fmt.Errorf("network-scoped resource has empty network"))
 		}
-		return ComputeNetworkNamespace(networkScope), nil
+		namespace, ownerLabels = namespaceOwnerLabels(networkScope.GetTenant(), networkScope.GetWorkspace(), networkScope.GetNetwork())
+		return namespace, ownerLabels, nil
 	}
-	return ComputeNamespace(obj), nil
+
+	namespace, ownerLabels = namespaceOwnerLabels(obj.GetTenant(), obj.GetWorkspace(), "")
+	return namespace, ownerLabels, nil
 }
 
 // CreateNamespace creates a Kubernetes Namespace.
@@ -751,9 +762,9 @@ func (s namespaceScope) GetNetwork() string   { return s.network }
 func childNamespaceFor(kind ChildNamespaceKind, m persistence.IdentifiableResource) (namespace string, ownerLabels map[string]string) {
 	switch kind {
 	case WorkspaceChildren:
-		return childNamespaceLabels(m.GetTenant(), m.GetName(), "")
+		return namespaceOwnerLabels(m.GetTenant(), m.GetName(), "")
 	case NetworkChildren:
-		return childNamespaceLabels(m.GetTenant(), m.GetWorkspace(), m.GetName())
+		return namespaceOwnerLabels(m.GetTenant(), m.GetWorkspace(), m.GetName())
 	case NoChildNamespace:
 		return "", nil
 	default:
@@ -761,9 +772,9 @@ func childNamespaceFor(kind ChildNamespaceKind, m persistence.IdentifiableResour
 	}
 }
 
-// childNamespaceLabels builds the namespace and its owner labels for a tenant/workspace[/network]
+// namespaceOwnerLabels builds the namespace and its owner labels for a tenant/workspace[/network]
 // triple, hashing via ComputeNetworkNamespace when network is set and ComputeNamespace otherwise.
-func childNamespaceLabels(tenant, workspace, network string) (string, map[string]string) {
+func namespaceOwnerLabels(tenant, workspace, network string) (string, map[string]string) {
 	ownerLabels := map[string]string{}
 	if tenant != "" {
 		ownerLabels[labels.InternalTenantLabel] = tenant
@@ -890,34 +901,34 @@ func namespaceOwnedBy(ctx context.Context, clientset kubernetes.Interface, nsNam
 	return true, nil
 }
 
-// Create ensures the namespace selected by a.childNamespace exists and rolls back if it
-// created that namespace and the resource creation subsequently fails.
+// Create ensures both the namespace the resource itself lives in and the namespace selected by
+// a.childNamespace exist, then creates the resource.
+//
+// Only the entities that own a namespace go through this adapter, so "ensure my own namespace" is
+// on-demand provisioning for the owner and never weakens the referential-integrity check that a
+// leaf resource gets for free: a BlockStorage still fails with NotFound when its workspace
+// namespace is absent, because a plain WriterAdapter never creates one.
+//
+// There is no rollback. CreateNamespace is idempotent (it swallows AlreadyExists), so a namespace
+// left behind by a failed resource create is inert and is reclaimed by the owning controller —
+// which is strictly more robust than a compensating transaction that can itself fail.
 func (a *NamespaceManagingWriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
-	namespace, ownerLabels := childNamespaceFor(a.childNamespace, m)
-	if namespace == "" {
-		return a.WriterAdapter.Create(ctx, m)
-	}
-
-	createdNS, err := CreateNamespace(ctx, a.clientset, namespace, ownerLabels)
+	ownNS, ownLabels, err := resolveNamespaceOwner(m)
 	if err != nil {
 		return nil, err
 	}
 
-	res, err := a.WriterAdapter.Create(ctx, m)
-	if err != nil {
-		// rollback namespace only if we created it here and we still own it
-		if createdNS {
-			if owned, getErr := namespaceOwnedBy(ctx, a.clientset, namespace, ownerLabels); getErr == nil && owned {
-				if delErr := DeleteNamespace(ctx, a.clientset, namespace); delErr != nil && !kerrs.IsNotFound(delErr) {
-					a.logger.ErrorContext(ctx, "failed to rollback namespace created for resource", "namespace", namespace, "error", delErr)
-				}
-			} else if getErr != nil {
-				a.logger.ErrorContext(ctx, "failed to verify namespace ownership during rollback", "namespace", namespace, "error", getErr)
-			}
+	if ownNS != "" {
+		if _, err := CreateNamespace(ctx, a.clientset, ownNS, ownLabels); err != nil {
+			return nil, err
 		}
-
-		return nil, err
 	}
 
-	return res, nil
+	if childNS, childLabels := childNamespaceFor(a.childNamespace, m); childNS != "" {
+		if _, err := CreateNamespace(ctx, a.clientset, childNS, childLabels); err != nil {
+			return nil, err
+		}
+	}
+
+	return a.WriterAdapter.Create(ctx, m)
 }
