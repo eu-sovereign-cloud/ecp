@@ -125,16 +125,23 @@ func TestEndToEnd(t *testing.T) {
 	// Step 4: a workspace-scoped Network created through the regional gateway. Creating
 	// it provisions the network's own namespace (NetworkChildren), which the network-scoped
 	// resources below live in — so this step must precede the subnet and route table.
+	//
+	// Its skuRef is sent as the sku's full URN. A sku is tenant-scoped, so this covers the
+	// scope-embed branch the workspace-scoped refs below never reach, and the provider pair
+	// must stay at the front of the path on the way back out.
+	skuRefResource := "seca.network/v1/tenants/" + testTenant + "/skus/sku-1"
 	t.Run("network created via API reconciles to active", func(t *testing.T) {
 		body := schema.Network{
 			Spec: schema.NetworkSpec{
 				Cidr:   schema.Cidr{Ipv4: "10.20.0.0/16"},
-				SkuRef: schema.Reference{Resource: "sku-1"},
+				SkuRef: schema.Reference{Resource: skuRefResource},
 			},
 		}
 		resp, err := networkClient.CreateOrUpdateNetworkWithResponse(ctx, testTenant, testWorkspace, networkName, nil, body)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, resp.StatusCode())
+		require.Equal(t, skuRefResource, resp.JSON200.Spec.SkuRef.Resource,
+			"the create response must echo the sku URN unchanged")
 
 		waitForActive(t, "network", func(ctx context.Context) (schema.ResourceState, bool, error) {
 			r, err := networkClient.GetNetworkWithResponse(ctx, testTenant, testWorkspace, networkName)
@@ -146,18 +153,24 @@ func TestEndToEnd(t *testing.T) {
 			}
 			return r.JSON200.Status.State, true, nil
 		})
+
+		got, err := networkClient.GetNetworkWithResponse(ctx, testTenant, testWorkspace, networkName)
+		require.NoError(t, err)
+		require.Equal(t, skuRefResource, got.JSON200.Spec.SkuRef.Resource,
+			"the sku URN must survive the CR round-trip with its provider pair still in front")
 	})
 
 	// Step 5 (network-scoped): a Subnet created under the network. Its URN carries the
 	// extra networks/{network} segment and it lands in the per-network namespace — the
 	// path the workspace-scoped resources above never exercise.
 	//
-	// Its routeTableRef is sent fully qualified, the way a client that only holds the
-	// route table's URN sends it. The scope segments are stripped into the CR's own
-	// fields and re-embedded on read, and a nested path must come back with the scope
-	// still ahead of networks/{network} — terraform rebuilds the URN by joining the
-	// provider onto this path and rejects the apply if the round-trip reorders it.
-	routeTableRefResource := "tenants/" + testTenant + "/workspaces/" + testWorkspace +
+	// Its routeTableRef is sent as the route table's full URN — provider pair, scope and
+	// nested path — which is what a client holding only that URN (terraform, which reads
+	// it straight out of the route table's metadata.ref) puts in the reference path. The
+	// scope segments are stripped into the CR's own fields and re-embedded on read, so
+	// every part has to come back in its original position: reordering any of them makes
+	// terraform reject the apply with "produced an unexpected new value".
+	routeTableRefResource := "seca.network/v1/tenants/" + testTenant + "/workspaces/" + testWorkspace +
 		"/networks/" + networkName + "/route-tables/" + routeTableName
 	t.Run("subnet (network-scoped) created via API reconciles to active", func(t *testing.T) {
 		body := schema.Subnet{
