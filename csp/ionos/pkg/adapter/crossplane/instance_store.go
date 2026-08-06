@@ -2,7 +2,6 @@ package crossplane
 
 import (
 	"context"
-	"crypto/rand"
 	"encoding/base64"
 	"log/slog"
 
@@ -195,7 +194,6 @@ func (a *InstanceStore) newBootVolume(domain *instancedom.Instance, ns, name, al
 				DiskType:         new("SSD"),
 				AvailabilityZone: new("AUTO"),
 				ImageName:        new(alias),
-				ImagePassword:    new(randomPassword()),
 				SSHKeys:          toPtrSlice(domain.Spec.SshKeys),
 			},
 			ManagedResourceSpec: providerConfig(),
@@ -296,15 +294,4 @@ func toPtrSlice(in []string) []*string {
 		out[i] = new(in[i])
 	}
 	return out
-}
-
-const passwordCharset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-
-func randomPassword() string {
-	b := make([]byte, 24)
-	_, _ = rand.Read(b)
-	for i := range b {
-		b[i] = passwordCharset[int(b[i])%len(passwordCharset)]
-	}
-	return string(b)
 }
