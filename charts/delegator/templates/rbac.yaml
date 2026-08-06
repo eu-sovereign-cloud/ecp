@@ -19,6 +19,24 @@ rules:
   - apiGroups: [""]
     resources: ["namespaces"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # Before the workspace and network controllers delete the namespace they own, they re-check
+  # that it is empty. That check has to see every type that can live there, and the regional
+  # gateway accepts all of them regardless of which plugin is installed — a resource the plugin
+  # never reconciles still occupies the namespace. So this grant is deliberately plugin-
+  # independent and wider than the per-plugin blocks below; it is read-only.
+  #
+  # A missing CRD is tolerated by the check, but a Forbidden is not: it fails the cleanup, the
+  # finalizer is held, and the workspace never finishes deleting. Add new workspace- or
+  # network-scoped resources here as well as to ChildResourceGVRs in the owning slice.
+  - apiGroups: ["storage.v1.secapi.cloud"]
+    resources: ["block-storages", "images"]
+    verbs: ["list"]
+  - apiGroups: ["network.v1.secapi.cloud"]
+    resources: ["networks", "nics", "public-ips", "internet-gateways", "security-groups", "security-group-rules", "route-tables", "subnets"]
+    verbs: ["list"]
+  - apiGroups: ["compute.v1.secapi.cloud"]
+    resources: ["instances"]
+    verbs: ["list"]
 {{- if eq $plugin "aruba" }}
   # Block storage, its read-only SKU lookup, and the arubacloud.com CRs the
   # plugin writes for the arubacloud-resource-operator. Images are a no-op (Aruba

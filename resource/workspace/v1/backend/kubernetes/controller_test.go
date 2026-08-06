@@ -2,6 +2,7 @@ package kubernetes_test
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"log/slog"
 	"testing"
@@ -9,9 +10,11 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
+	kerrs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	k8srt "sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -157,5 +160,90 @@ func TestWorkspaceController_Reconcile(t *testing.T) {
 		require.ErrorIs(t, err, errHandler)
 		require.Contains(t, buf.String(), "handler failed to reconcile")
 		require.Equal(t, k8srt.Result{RequeueAfter: requeueAfter}, res)
+	})
+
+	// The cleanup hook is the seam that lets a resource tear down the namespace it owns for its
+	// children. It must run only after the plugin has finished deleting, and only while the
+	// finalizer still holds the object — otherwise the side effect is lost.
+	newDeletingResource := func() *Workspace {
+		ws := newK8sResource()
+		now := metav1.Now()
+		ws.DeletionTimestamp = &now
+		ws.Status = &WorkspaceStatus{State: schemav1.ResourceStateDeleting}
+		return ws
+	}
+
+	newDeletingController := func(t *testing.T, fakeClient client.Client, requeueAfter time.Duration) *frameworkcontroller.GenericController[*wsdom.Workspace] {
+		t.Helper()
+		mc := gomock.NewController(t)
+		t.Cleanup(mc.Finish)
+
+		mockRepo := NewMockRepo[*wsdom.Workspace](mc)
+		mockPlugin := NewMockWorkspacePlugin(mc)
+		mockPlugin.EXPECT().Delete(gomock.Any(), gomock.Any()).Return(nil).Times(1)
+
+		handler := NewWorkspacePluginHandler(mockRepo, mockPlugin, 1)
+		gc := frameworkcontroller.NewGenericController[*wsdom.Workspace](
+			fakeClient,
+			WorkspaceFromCR,
+			handler,
+			&Workspace{},
+			requeueAfter,
+			slog.New(slog.NewTextHandler(&bytes.Buffer{}, nil)),
+			1,
+		)
+		return &gc
+	}
+
+	t.Run("should run the cleanup hook before dropping the finalizer", func(t *testing.T) {
+		fakeClient := fake.NewClientBuilder().
+			WithScheme(newScheme()).
+			WithObjects(newDeletingResource()).
+			Build()
+
+		calls := 0
+		gc := newDeletingController(t, fakeClient, 0)
+		gc.WithCleanup(func(_ context.Context, ws *wsdom.Workspace) error {
+			calls++
+			require.Equal(t, testName, ws.Name)
+
+			// The finalizer must still be present while cleanup runs — that is what guarantees
+			// a retry if it fails.
+			var current Workspace
+			require.NoError(t, fakeClient.Get(t.Context(), req.NamespacedName, &current))
+			require.Contains(t, current.GetFinalizers(), "secapi.cloud.foundation/cleanup")
+			return nil
+		})
+
+		res, err := gc.Reconcile(t.Context(), req)
+		require.NoError(t, err)
+		require.Equal(t, k8srt.Result{}, res)
+		require.Equal(t, 1, calls, "cleanup must run exactly once")
+
+		// Dropping the last finalizer on an object with a deletionTimestamp releases it, so a
+		// NotFound here is the proof the finalizer was removed after cleanup ran.
+		var after Workspace
+		require.True(t, kerrs.IsNotFound(fakeClient.Get(t.Context(), req.NamespacedName, &after)))
+	})
+
+	t.Run("should keep the finalizer and requeue when the cleanup hook fails", func(t *testing.T) {
+		fakeClient := fake.NewClientBuilder().
+			WithScheme(newScheme()).
+			WithObjects(newDeletingResource()).
+			Build()
+
+		errCleanup := errors.New("namespace still has children")
+		requeueAfter := 5 * time.Minute
+		gc := newDeletingController(t, fakeClient, requeueAfter)
+		gc.WithCleanup(func(context.Context, *wsdom.Workspace) error { return errCleanup })
+
+		res, err := gc.Reconcile(t.Context(), req)
+		require.ErrorIs(t, err, errCleanup)
+		require.Equal(t, k8srt.Result{RequeueAfter: requeueAfter}, res)
+
+		var after Workspace
+		require.NoError(t, fakeClient.Get(t.Context(), req.NamespacedName, &after))
+		require.Contains(t, after.GetFinalizers(), "secapi.cloud.foundation/cleanup",
+			"a failed cleanup must not release the object, or the side effect is orphaned")
 	})
 }

@@ -10,6 +10,7 @@ import (
 	"log/slog"
 
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	blockstoragectrl "github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/controller/block_storage"
@@ -26,8 +27,9 @@ import (
 // Add wires the IONOS (Crossplane-backed) block-storage, network and workspace
 // controllers into cs. The plugin handlers write IONOS Crossplane managed
 // resources through mgr's client, so the caller must have registered the IONOS
-// provider types in mgr's scheme.
-func Add(cs *frameworkbuilder.ControllerSet, mgr ctrl.Manager, dynClient dynamic.Interface, logger *slog.Logger, opts ...frameworkbuilder.Option) {
+// provider types in mgr's scheme. clientset is used by the network and workspace
+// controllers to tear down the namespace they own for their children.
+func Add(cs *frameworkbuilder.ControllerSet, mgr ctrl.Manager, dynClient dynamic.Interface, clientset kubernetes.Interface, logger *slog.Logger, opts ...frameworkbuilder.Option) {
 	wsAdapter := crossplane.NewWorkspaceStore(mgr.GetClient(), logger.With("adapter", "workspace"))
 	bsAdapter := crossplane.NewBlockStorageStore(mgr.GetClient(), logger.With("adapter", "block-storage"))
 	netAdapter := crossplane.NewNetworkStore(mgr.GetClient(), logger.With("adapter", "network"))
@@ -47,6 +49,6 @@ func Add(cs *frameworkbuilder.ControllerSet, mgr ctrl.Manager, dynClient dynamic
 	}
 
 	cs.Add(bsk8s.NewController(mgr.GetClient(), dynClient, bsPlugin, opts...))
-	cs.Add(netk8s.NewController(mgr.GetClient(), dynClient, netPlugin, opts...))
-	cs.Add(wsk8s.NewController(mgr.GetClient(), dynClient, wsPlugin, opts...))
+	cs.Add(netk8s.NewController(mgr.GetClient(), dynClient, clientset, netPlugin, opts...))
+	cs.Add(wsk8s.NewController(mgr.GetClient(), dynClient, clientset, wsPlugin, opts...))
 }

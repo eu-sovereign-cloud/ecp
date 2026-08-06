@@ -623,10 +623,15 @@ func (a *WriterAdapter[T]) Delete(ctx context.Context, m T) error {
 	return nil
 }
 
-// Delete refuses the delete when the child namespace still holds SECA resources,
-// then deletes the resource CR and, if owned, the child namespace.
+// Delete refuses the delete when the child namespace still holds SECA resources, then deletes the
+// resource CR.
+//
+// Only the refusal lives here. It is a user-facing invariant ("a workspace with resources in it
+// cannot be deleted") and has to answer synchronously with 409, so it cannot become eventually
+// consistent. Tearing the namespace down afterwards is a side effect with no caller waiting on it
+// and belongs to the owning controller's finalizer — see NamespaceCleanup.
 func (a *NamespaceManagingWriterAdapter[T]) Delete(ctx context.Context, m T) error {
-	childNS, ownerLabels := childNamespaceFor(a.childNamespace, m)
+	childNS, _ := childNamespaceFor(a.childNamespace, m)
 
 	if childNS != "" {
 		hasChildren, err := namespaceHasChildResources(ctx, a.client, childNS, a.childResourceGVRs)
@@ -641,30 +646,7 @@ func (a *NamespaceManagingWriterAdapter[T]) Delete(ctx context.Context, m T) err
 		}
 	}
 
-	if err := a.WriterAdapter.Delete(ctx, m); err != nil {
-		return err
-	}
-
-	if childNS == "" {
-		return nil
-	}
-
-	owned, err := namespaceOwnedBy(ctx, a.clientset, childNS, ownerLabels)
-	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to verify namespace ownership after resource delete",
-			"namespace", childNS, "error", err)
-		return kubeToDomainError(fmt.Errorf("failed to verify ownership of namespace %q: %w", childNS, err))
-	}
-	if !owned {
-		return nil
-	}
-
-	if err := DeleteNamespace(ctx, a.clientset, childNS); err != nil {
-		a.logger.ErrorContext(ctx, "failed to delete owned child namespace",
-			"namespace", childNS, "error", err)
-		return err
-	}
-	return nil
+	return a.WriterAdapter.Delete(ctx, m)
 }
 
 // namespaceHasChildResources reports whether any of the given GVRs has at least one
@@ -788,6 +770,58 @@ func namespaceOwnerLabels(tenant, workspace, network string) (string, map[string
 		return ComputeNetworkNamespace(namespaceScope{tenant: tenant, workspace: workspace, network: network}), ownerLabels
 	}
 	return ComputeNamespace(&resource.Scope{Tenant: tenant, Workspace: workspace}), ownerLabels
+}
+
+// NamespaceCleanup returns a controller cleanup hook (see controller.GenericController.WithCleanup)
+// that tears down the namespace a resource owns for its children.
+//
+// This is the counterpart of the child-namespace provisioning done on create, and it deliberately
+// lives on the controller rather than the API write path: the finalizer keeps the resource around
+// until the delete succeeds, so a transient failure is retried instead of orphaning the namespace.
+// It also runs after the plugin has finished deleting, whereas an API-path delete raced ahead of it.
+//
+// The emptiness check is repeated here even though the write path already refuses a non-empty
+// delete with 409: that check ran in a different process, and anything could have landed in the
+// namespace since. Deleting a namespace is irreversible and cascades, so it is worth one list call.
+func NamespaceCleanup[T persistence.IdentifiableResource](
+	dyn dynamic.Interface,
+	clientset kubernetes.Interface,
+	logger *slog.Logger,
+	childNamespace ChildNamespaceKind,
+	childResourceGVRs []schema.GroupVersionResource,
+) func(context.Context, T) error {
+	return func(ctx context.Context, m T) error {
+		namespace, ownerLabels := childNamespaceFor(childNamespace, m)
+		if namespace == "" {
+			return nil
+		}
+
+		hasChildren, err := namespaceHasChildResources(ctx, dyn, namespace, childResourceGVRs)
+		if err != nil {
+			return err
+		}
+		if hasChildren {
+			// Anomalous: the write path should have refused this delete. Erroring keeps the
+			// finalizer on, so the resource stays in Terminating until the children are gone
+			// rather than taking them down with it.
+			return kernel.NewError(kernel.KindConflict,
+				fmt.Errorf("cannot delete namespace %q of %s: it still holds resources", namespace, m.GetName()))
+		}
+
+		owned, err := namespaceOwnedBy(ctx, clientset, namespace, ownerLabels)
+		if err != nil {
+			return kubeToDomainError(fmt.Errorf("failed to verify ownership of namespace %q: %w", namespace, err))
+		}
+		if !owned {
+			// A namespace we did not label is not ours to delete. Not an error: retrying would
+			// spin on a finalizer that can never be satisfied. It leaks, so say so out loud.
+			logger.WarnContext(ctx, "leaving namespace in place: owner labels do not match",
+				"namespace", namespace, "resource", m.GetName(), "expected_labels", ownerLabels)
+			return nil
+		}
+
+		return DeleteNamespace(ctx, clientset, namespace)
+	}
 }
 
 // NamespaceManagingWriterAdapter wraps a WriterAdapter and ensures the namespace computed for

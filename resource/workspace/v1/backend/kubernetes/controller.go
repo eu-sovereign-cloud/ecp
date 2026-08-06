@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
@@ -18,9 +19,11 @@ type Controller struct {
 // NewController wires together the workspace controller.
 // ctrlClient is the controller-runtime client used for reconciliation.
 // dynClient is the dynamic client used by the persistence repo adapter.
+// clientset is the typed client used to delete the namespace the workspace owns for its children.
 func NewController(
 	ctrlClient client.Client,
 	dynClient dynamic.Interface,
+	clientset kubernetes.Interface,
 	plugin WorkspacePlugin,
 	opts ...builder.Option,
 ) *Controller {
@@ -33,7 +36,7 @@ func NewController(
 		WorkspaceFromCR,
 	)
 	handler := NewWorkspacePluginHandler(repo, plugin, options.MaxConditions)
-	return &Controller{
+	c := &Controller{
 		GenericController: frameworkcontroller.NewGenericController[*wsdom.Workspace](
 			ctrlClient,
 			WorkspaceFromCR,
@@ -44,4 +47,13 @@ func NewController(
 			options.MaxConditions,
 		),
 	}
+	c.WithCleanup(k8sadapter.NamespaceCleanup[*wsdom.Workspace](
+		dynClient,
+		clientset,
+		options.Logger,
+		k8sadapter.WorkspaceChildren,
+		ChildResourceGVRs,
+	))
+
+	return c
 }

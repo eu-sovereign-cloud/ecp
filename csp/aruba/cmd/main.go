@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -78,13 +79,21 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Typed client for the Namespace API: the Workspace and Network controllers tear down the
+	// namespace they own for their children once the plugin has finished deleting them.
+	clientset, err := kubernetes.NewForConfig(mgr.GetConfig())
+	if err != nil {
+		logger.Error("unable to create clientset", "error", err)
+		os.Exit(1)
+	}
+
 	controllerOpts := []frameworkbuilder.Option{
 		frameworkbuilder.WithLogger(logger.With("component", "controller-set")),
 		frameworkbuilder.WithRequeueAfter(1 * time.Second),
 	}
 
 	controllerSet := frameworkbuilder.NewControllerSet()
-	loadControllers(context.Background(), dynClient, mgr, logger, controllerSet, controllerOpts)
+	loadControllers(context.Background(), dynClient, clientset, mgr, logger, controllerSet, controllerOpts)
 
 	if err := controllerSet.SetupWithManager(mgr); err != nil {
 		logger.Error("unable to setup controllers with manager", "error", err)
@@ -107,7 +116,7 @@ func main() {
 	}
 }
 
-func loadControllers(ctx context.Context, dynClient dynamic.Interface, mgr ctrl.Manager, logger *slog.Logger, controllerSet *frameworkbuilder.ControllerSet, controllerOpts []frameworkbuilder.Option) {
+func loadControllers(ctx context.Context, dynClient dynamic.Interface, clientset kubernetes.Interface, mgr ctrl.Manager, logger *slog.Logger, controllerSet *frameworkbuilder.ControllerSet, controllerOpts []frameworkbuilder.Option) {
 	logger.Info("Loading 'aruba' plugin set")
 
 	// Instantiate seca-specific read-only repositories. The handlers below read these SECA
@@ -159,8 +168,8 @@ func loadControllers(ctx context.Context, dynClient dynamic.Interface, mgr ctrl.
 	imgPlugin := arubahandler.NewImageHandler()
 
 	controllerSet.Add(bsk8s.NewController(mgr.GetClient(), dynClient, bsPlugin, controllerOpts...))
-	controllerSet.Add(wsk8s.NewController(mgr.GetClient(), dynClient, wsPlugin, controllerOpts...))
-	controllerSet.Add(netk8s.NewController(mgr.GetClient(), dynClient, netPlugin, controllerOpts...))
+	controllerSet.Add(wsk8s.NewController(mgr.GetClient(), dynClient, clientset, wsPlugin, controllerOpts...))
+	controllerSet.Add(netk8s.NewController(mgr.GetClient(), dynClient, clientset, netPlugin, controllerOpts...))
 	controllerSet.Add(subnetk8s.NewController(mgr.GetClient(), dynClient, subnetPlugin, controllerOpts...))
 	controllerSet.Add(pipk8s.NewController(mgr.GetClient(), dynClient, pipPlugin, controllerOpts...))
 	controllerSet.Add(igwk8s.NewController(mgr.GetClient(), dynClient, igwPlugin, controllerOpts...))

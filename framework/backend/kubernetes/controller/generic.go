@@ -41,6 +41,21 @@ type GenericController[D persistence.IdentifiableResource] struct {
 	requeueAfter        time.Duration
 	logger              *slog.Logger
 	maxStatusConditions int
+	cleanup             func(context.Context, D) error
+}
+
+// WithCleanup registers a hook invoked once the plugin has finished deleting the resource and
+// immediately before the finalizer is removed — the only window in which a resource can still
+// tear down something it owns outside its own CR.
+//
+// The hook must be idempotent: it is retried on the next reconcile if it fails, because the
+// finalizer stays on until it succeeds. That retry is the whole point — it is what makes an
+// external side effect survive a transient API error instead of being silently orphaned.
+//
+// Nil (the default) preserves the previous behaviour exactly.
+func (r *GenericController[D]) WithCleanup(cleanup func(context.Context, D) error) *GenericController[D] {
+	r.cleanup = cleanup
+	return r
 }
 
 // NewGenericController creates a new instance of GenericController.
@@ -149,6 +164,16 @@ func (r *GenericController[D]) Reconcile(ctx context.Context, req ctrl.Request) 
 	if !obj.GetDeletionTimestamp().IsZero() &&
 		getStateFromObject(obj) == stateDeleting &&
 		slices.Contains(obj.GetFinalizers(), finalizerName) {
+		// Reaching here means step 4 returned no requeue, so the plugin has finished deleting.
+		// Run the cleanup hook before dropping the finalizer; on failure keep the finalizer so
+		// the next reconcile retries rather than leaving the side effect orphaned.
+		if r.cleanup != nil {
+			if err := r.cleanup(ctx, domainResource); err != nil {
+				logger.Error("cleanup hook failed, keeping finalizer to retry", "error", err)
+				return ctrl.Result{RequeueAfter: r.requeueAfter}, err
+			}
+		}
+
 		obj.SetFinalizers(slices.DeleteFunc(obj.GetFinalizers(), func(v string) bool {
 			return strings.EqualFold(v, finalizerName)
 		}))

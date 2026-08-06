@@ -48,6 +48,8 @@ rules:
 - apiGroups: ["coordination.k8s.io"]
   resources: ["leases"]
   verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+# The workspace and network controllers delete the namespace they own for their children once
+# the plugin has finished deleting them.
 - apiGroups: [""]
   resources: ["namespaces"]
-  verbs: ["get", "list", "watch"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
