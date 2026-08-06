@@ -18,10 +18,6 @@ import (
 	publicipdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/public-ip"
 )
 
-// DefaultIPBlockLocation is the IONOS location IP blocks are reserved in.
-// POC: single fixed location; set to match the deployment's region/datacenter.
-const DefaultIPBlockLocation = "de/txl"
-
 var _ port.PublicIPStore = (*PublicIPStore)(nil)
 
 type PublicIPStore struct {
@@ -33,7 +29,11 @@ func NewPublicIPStore(c client.Client, logger *slog.Logger) *PublicIPStore {
 }
 
 func (a *PublicIPStore) Create(ctx context.Context, domain *publicipdom.PublicIp) error {
-	return a.createCR(ctx, newIPBlock(domain))
+	ipb, err := newIPBlock(domain)
+	if err != nil {
+		return err
+	}
+	return a.createCR(ctx, ipb)
 }
 
 func (a *PublicIPStore) Delete(ctx context.Context, domain *publicipdom.PublicIp) error {
@@ -44,7 +44,11 @@ func (a *PublicIPStore) Delete(ctx context.Context, domain *publicipdom.PublicIp
 	})
 }
 
-func newIPBlock(domain *publicipdom.PublicIp) *ionosv1alpha1.Ipblock {
+func newIPBlock(domain *publicipdom.PublicIp) (*ionosv1alpha1.Ipblock, error) {
+	location, err := translateLocation(domain.Region)
+	if err != nil {
+		return nil, err
+	}
 	namespace := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: domain.GetTenant()})
 	return &ionosv1alpha1.Ipblock{
 		TypeMeta: metav1.TypeMeta{
@@ -55,7 +59,7 @@ func newIPBlock(domain *publicipdom.PublicIp) *ionosv1alpha1.Ipblock {
 		Spec: ionosv1alpha1.IpblockSpec{
 			ForProvider: ionosv1alpha1.IpblockParameters{
 				Name:     new(domain.GetName()),
-				Location: new(DefaultIPBlockLocation),
+				Location: new(location),
 				Size:     new(float64(1)),
 			},
 			ManagedResourceSpec: v2.ManagedResourceSpec{
@@ -65,15 +69,20 @@ func newIPBlock(domain *publicipdom.PublicIp) *ionosv1alpha1.Ipblock {
 				},
 			},
 		},
-	}
+	}, nil
 }
 
 // readReservedIP returns the first public IP reserved on the IPBlock named `name`.
-// Returns ErrStillProcessing until the provider has assigned an address.
+// Returns ErrStillProcessing until the provider has assigned an address, or the
+// reconcile error if the provider has given up (e.g. region out of addresses),
+// so a failed IPBlock surfaces as an instance error instead of requeuing forever.
 func readReservedIP(ctx context.Context, c client.Client, namespace, name string) (string, error) {
 	ipb := &ionosv1alpha1.Ipblock{}
 	if err := c.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, ipb); err != nil {
 		return "", fmt.Errorf("read ipblock %q: %w", name, err)
+	}
+	if err := reconcileError(ipb); err != nil {
+		return "", fmt.Errorf("ipblock %q: %w", name, err)
 	}
 	ips := ipb.Status.AtProvider.Ips
 	if len(ips) == 0 || ips[0] == nil || *ips[0] == "" {

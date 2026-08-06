@@ -11,6 +11,7 @@ import (
 	ionosv1alpha1 "github.com/ionos-cloud/provider-upjet-ionoscloud/apis/namespaced/compute/v1alpha1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/eu-sovereign-cloud/ecp/csp/ionos/pkg/port"
@@ -206,13 +207,16 @@ func (a *InstanceStore) newBootVolume(domain *instancedom.Instance, ns, name, al
 	return vol
 }
 
-// ensureNic creates the primary NIC if it doesn't exist, or corrects spec.forProvider.ips if the
-// domain wants a specific reserved public IP that isn't (yet) reflected there. When publicIP is
-// empty (no reserved IP — DHCP fallback), ips is left untouched no matter its current value: the
-// upjet IONOS provider late-inits whatever address IONOS currently reports into spec on its own
-// reconcile schedule, entirely outside our control, so trying to force it back to nil here would
-// race that process and never converge — permanently blocking PowerOn (and the instance's power
-// state) instead of just letting DHCP do its job.
+// ensureNic creates the primary NIC if it doesn't exist, or re-asserts the current desired spec
+// (LAN, server/datacenter refs, DHCP, firewall) on an existing one — otherwise a NIC created
+// before a subnet/LAN change would keep pointing at the old LAN across a stop/start. Ips is
+// handled separately: it's only corrected when the domain wants a specific reserved public IP
+// that isn't (yet) reflected there. When publicIP is empty (no reserved IP — DHCP fallback), ips
+// is left untouched no matter its current value: the upjet IONOS provider late-inits whatever
+// address IONOS currently reports into spec on its own reconcile schedule, entirely outside our
+// control, so trying to force it back to nil here would race that process and never converge —
+// permanently blocking PowerOn (and the instance's power state) instead of just letting DHCP do
+// its job.
 func (a *InstanceStore) ensureNic(ctx context.Context, domain *instancedom.Instance, ns, name, lanName, publicIP string) error {
 	nic := &ionosv1alpha1.Nic{}
 	err := a.client.Get(ctx, client.ObjectKey{Namespace: ns, Name: name}, nic)
@@ -222,12 +226,29 @@ func (a *InstanceStore) ensureNic(ctx context.Context, domain *instancedom.Insta
 	case err != nil:
 		a.logger.Error("failed to get nic", "name", name, "error", err)
 		return err
-	case publicIP != "" && !nicHasReservedIP(nic.Spec.ForProvider.Ips, publicIP):
-		nic.Spec.ForProvider.Ips = []*string{new(publicIP)}
-		return a.updateCR(ctx, nic)
-	default:
-		return a.checkExisting(ctx, nic)
 	}
+
+	desired := a.newNic(domain, ns, name, lanName, publicIP)
+	changed := !ptr.Equal(nic.Spec.ForProvider.LanRef, desired.Spec.ForProvider.LanRef) ||
+		!ptr.Equal(nic.Spec.ForProvider.ServerIDRef, desired.Spec.ForProvider.ServerIDRef) ||
+		!ptr.Equal(nic.Spec.ForProvider.DatacenterIDRef, desired.Spec.ForProvider.DatacenterIDRef) ||
+		!ptr.Equal(nic.Spec.ForProvider.DHCP, desired.Spec.ForProvider.DHCP) ||
+		!ptr.Equal(nic.Spec.ForProvider.FirewallActive, desired.Spec.ForProvider.FirewallActive)
+	if changed {
+		nic.Spec.ForProvider.LanRef = desired.Spec.ForProvider.LanRef
+		nic.Spec.ForProvider.ServerIDRef = desired.Spec.ForProvider.ServerIDRef
+		nic.Spec.ForProvider.DatacenterIDRef = desired.Spec.ForProvider.DatacenterIDRef
+		nic.Spec.ForProvider.DHCP = desired.Spec.ForProvider.DHCP
+		nic.Spec.ForProvider.FirewallActive = desired.Spec.ForProvider.FirewallActive
+	}
+	if publicIP != "" && !nicHasReservedIP(nic.Spec.ForProvider.Ips, publicIP) {
+		nic.Spec.ForProvider.Ips = []*string{new(publicIP)}
+		changed = true
+	}
+	if changed {
+		return a.updateCR(ctx, nic)
+	}
+	return a.checkExisting(ctx, nic)
 }
 
 // nicHasReservedIP reports whether a Nic's current spec.forProvider.ips already reflects the

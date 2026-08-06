@@ -121,10 +121,11 @@ func (c *base) readNicNetworking(ctx context.Context, nicRef domain.Reference, d
 	}
 
 	// The IPBlock is a crossplane CR created by the PublicIP plugin at hash(tenant),
-	// not at the ECP CR namespace-derivation scheme.
-	ipNs := k8sadapter.ComputeNamespace(&kernelresource.Scope{Tenant: defaultTenant})
-	publicIPName := commonbackend.ParseReference(nic.Spec.PublicIpRefs[0], defaultTenant).Name
-	publicIP, err = readReservedIP(ctx, c.client, ipNs, publicIPName)
+	// not at the ECP CR namespace-derivation scheme. Use the reference's own tenant
+	// (which may differ from the instance's) rather than defaultTenant.
+	ipTarget := commonbackend.ParseReference(nic.Spec.PublicIpRefs[0], defaultTenant)
+	ipNs := k8sadapter.ComputeNamespace(&kernelresource.Scope{Tenant: ipTarget.Tenant})
+	publicIP, err = readReservedIP(ctx, c.client, ipNs, ipTarget.Name)
 	if err != nil {
 		return "", "", err
 	}

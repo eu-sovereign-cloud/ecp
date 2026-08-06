@@ -195,7 +195,14 @@ func TestPowerOnAcceptsDHCPAssignedNicIP(t *testing.T) {
 	nic := &ionosv1alpha1.Nic{
 		ObjectMeta: metav1.ObjectMeta{Name: "nic-1", Namespace: ns, Generation: 1},
 		Spec: ionosv1alpha1.NicSpec{
-			ForProvider: ionosv1alpha1.NicParameters_2{Ips: []*string{new("31.70.129.98")}},
+			ForProvider: ionosv1alpha1.NicParameters_2{
+				DatacenterIDRef: &v1.NamespacedReference{Name: "workspace-1", Namespace: ns},
+				ServerIDRef:     &v1.NamespacedReference{Name: "instance-1", Namespace: ns},
+				LanRef:          &v1.NamespacedReference{Name: "lan-1", Namespace: ns},
+				DHCP:            new(true),
+				FirewallActive:  new(false),
+				Ips:             []*string{new("31.70.129.98")},
+			},
 		},
 	}
 	nic.SetConditions(v1.Available().WithObservedGeneration(1))
@@ -213,6 +220,43 @@ func TestPowerOnAcceptsDHCPAssignedNicIP(t *testing.T) {
 	}
 	if len(got.Spec.ForProvider.Ips) != 1 || got.Spec.ForProvider.Ips[0] == nil || *got.Spec.ForProvider.Ips[0] != "31.70.129.98" {
 		t.Fatalf("nic ips = %v, want unchanged [31.70.129.98] (DHCP fallback must not touch it)", got.Spec.ForProvider.Ips)
+	}
+}
+
+// TestPowerOnReassertsStaleNicLan verifies that a restart (PowerOn -> ensureNic) corrects a NIC
+// still pointing at a LAN from before the instance's subnet reference changed, instead of only
+// ever touching Ips. Without this, a NIC created on lan-old would keep pointing at it forever
+// across stop/start even though the domain now resolves to lan-new.
+func TestPowerOnReassertsStaleNicLan(t *testing.T) {
+	ns := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: "tenant-1"})
+
+	nic := &ionosv1alpha1.Nic{
+		ObjectMeta: metav1.ObjectMeta{Name: "nic-1", Namespace: ns, Generation: 1},
+		Spec: ionosv1alpha1.NicSpec{
+			ForProvider: ionosv1alpha1.NicParameters_2{
+				DatacenterIDRef: &v1.NamespacedReference{Name: "workspace-1", Namespace: ns},
+				ServerIDRef:     &v1.NamespacedReference{Name: "instance-1", Namespace: ns},
+				LanRef:          &v1.NamespacedReference{Name: "lan-old", Namespace: ns},
+				DHCP:            new(true),
+				FirewallActive:  new(false),
+			},
+		},
+	}
+	nic.SetConditions(v1.Available().WithObservedGeneration(1))
+	c := fakeclient.NewClientBuilder().WithScheme(instanceScheme(t)).WithObjects(nic).Build()
+	store := NewInstanceStore(c, testLogger())
+
+	err := store.ensureNic(context.Background(), testInstance(), ns, "nic-1", "lan-new", "")
+	if !errors.Is(err, backend.ErrStillProcessing) {
+		t.Fatalf("ensureNic = %v, want ErrStillProcessing (spec just updated, not yet reconciled)", err)
+	}
+
+	got := &ionosv1alpha1.Nic{}
+	if err := c.Get(context.Background(), client.ObjectKey{Namespace: ns, Name: "nic-1"}, got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Spec.ForProvider.LanRef == nil || got.Spec.ForProvider.LanRef.Name != "lan-new" {
+		t.Fatalf("nic lanRef = %v, want lan-new", got.Spec.ForProvider.LanRef)
 	}
 }
 

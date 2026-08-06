@@ -21,6 +21,22 @@ func translateImage(base, version string) (string, error) {
 	return "", fmt.Errorf("unsupported image base=%q version=%q", base, version)
 }
 
+// locationAliases maps a SECA region name to the exact IONOS location it's deployed to.
+// IP blocks are region-bound, so a Workspace and a PublicIp must resolve to the same IONOS
+// location for the reserved address to attach to an instance's NIC.
+var locationAliases = map[string]string{
+	"regionBerlin":    "de/txl",
+	"regionFrankfurt": "de/fra",
+}
+
+// translateLocation resolves a SECA region name to an IONOS location.
+func translateLocation(secaRegion string) (string, error) {
+	if location, ok := locationAliases[secaRegion]; ok {
+		return location, nil
+	}
+	return "", fmt.Errorf("unsupported region %q", secaRegion)
+}
+
 // translateZone maps a SECA zone to an IONOS availability zone. ENTERPRISE servers
 // accept ZONE_1/ZONE_2; anything else falls back to AUTO.
 func translateZone(secaZone string) string {

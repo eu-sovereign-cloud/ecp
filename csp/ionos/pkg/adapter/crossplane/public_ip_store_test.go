@@ -7,7 +7,9 @@ import (
 	"log/slog"
 	"testing"
 
+	v1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	ionosv1alpha1 "github.com/ionos-cloud/provider-upjet-ionoscloud/apis/namespaced/compute/v1alpha1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -32,6 +34,7 @@ func newPublicIP() *publicipdom.PublicIp {
 	p := &publicipdom.PublicIp{}
 	p.Name = "public-ip-1"
 	p.Scope = resource.Scope{Tenant: "tenant-1", Workspace: "workspace-1"}
+	p.Region = "regionBerlin"
 	return p
 }
 
@@ -54,7 +57,38 @@ func TestPublicIPStoreCreateReservesIPBlock(t *testing.T) {
 	if ipb.Spec.ForProvider.Size == nil || *ipb.Spec.ForProvider.Size != 1 {
 		t.Fatalf("ipblock size = %v, want 1", ipb.Spec.ForProvider.Size)
 	}
-	if ipb.Spec.ForProvider.Location == nil || *ipb.Spec.ForProvider.Location != DefaultIPBlockLocation {
-		t.Fatalf("ipblock location = %v, want %q", ipb.Spec.ForProvider.Location, DefaultIPBlockLocation)
+	if ipb.Spec.ForProvider.Location == nil || *ipb.Spec.ForProvider.Location != "de/txl" {
+		t.Fatalf("ipblock location = %v, want %q", ipb.Spec.ForProvider.Location, "de/txl")
+	}
+}
+
+// TestPublicIPStoreCreateRejectsUnknownRegion verifies that an unmapped SECA region fails fast
+// instead of silently falling back to some default IONOS location, which would risk reserving
+// the address somewhere the instance's workspace datacenter isn't.
+func TestPublicIPStoreCreateRejectsUnknownRegion(t *testing.T) {
+	c := fakeclient.NewClientBuilder().WithScheme(ionosScheme(t)).Build()
+	store := NewPublicIPStore(c, testLogger())
+
+	p := newPublicIP()
+	p.Region = "regionAtlantis"
+	if err := store.Create(context.Background(), p); err == nil || errors.Is(err, backend.ErrStillProcessing) {
+		t.Fatalf("Create = %v, want a translation error for an unmapped region", err)
+	}
+}
+
+// TestReadReservedIPSurfacesReconcileError verifies that a failed IPBlock (region out of
+// addresses, quota exceeded, etc.) surfaces as an error instead of ErrStillProcessing forever —
+// otherwise PowerOn would requeue indefinitely on an IPBlock the provider has already given up on.
+func TestReadReservedIPSurfacesReconcileError(t *testing.T) {
+	ns := "ns-1"
+	ipb := &ionosv1alpha1.Ipblock{
+		ObjectMeta: metav1.ObjectMeta{Name: "public-ip-1", Namespace: ns},
+	}
+	ipb.SetConditions(v1.ReconcileError(errors.New("no available addresses in de/txl")))
+	c := fakeclient.NewClientBuilder().WithScheme(ionosScheme(t)).WithObjects(ipb).Build()
+
+	_, err := readReservedIP(context.Background(), c, ns, "public-ip-1")
+	if err == nil || errors.Is(err, backend.ErrStillProcessing) {
+		t.Fatalf("readReservedIP = %v, want a non-ErrStillProcessing reconcile error", err)
 	}
 }
