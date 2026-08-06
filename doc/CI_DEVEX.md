@@ -345,6 +345,7 @@ Stage 3 — parallel, per changed module, inside the builder container
   workspace-verify     make workspace-verify
   generate-api         make generate-api-verify
   test                 make <module>-test              (matrix over changed modules)
+  envtest              make test-envtest                (only when `resource` changed)
   lint                 make <module>-lint               (matrix)
   gofmt                make <module>-gofmt-check        (matrix)
   modernize            make <module>-modernize-check    (matrix)
