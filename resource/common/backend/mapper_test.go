@@ -105,6 +105,20 @@ func TestReferenceFromCRScopeOrder(t *testing.T) {
 			ref:      schemav1.Reference{Tenant: "t-1", Resource: "skus/fast-local"},
 			expected: "tenants/t-1/skus/fast-local",
 		},
+		{
+			// A client that holds only the target's URN sends the whole URN as the path,
+			// provider pair included. The scope belongs after that pair, not before it.
+			name:     "path opening with the provider URN",
+			ref:      schemav1.Reference{Tenant: "t-1", Workspace: "ws-1", Resource: "seca.network/v1/networks/n1/route-tables/rt1"},
+			expected: "seca.network/v1/tenants/t-1/workspaces/ws-1/networks/n1/route-tables/rt1",
+		},
+		{
+			// A dot alone is not a provider pair: "v1" must follow, or the path is a plain
+			// collection path and must be left alone.
+			name:     "collection segment containing a dot is not a provider",
+			ref:      schemav1.Reference{Tenant: "t-1", Resource: "my.things/thing-1"},
+			expected: "tenants/t-1/my.things/thing-1",
+		},
 	}
 
 	for _, tc := range testCases {
