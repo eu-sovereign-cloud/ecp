@@ -189,17 +189,18 @@ func arubaSpec(resource, name, ns string) map[string]any {
 	if err != nil {
 		return nil
 	}
+	spec, _, _ := unstructured.NestedMap(u.Object, "spec")
 
-	return u.Object
+	return spec
 }
 
 func arubaTags(resource, name, ns string) []string {
-	tags, _, _ := unstructured.NestedStringSlice(arubaSpec(resource, name, ns), "spec", "tags")
+	tags, _, _ := unstructured.NestedStringSlice(arubaSpec(resource, name, ns), "tags")
 	return tags
 }
 
 func arubaDescription(resource, name, ns string) string {
-	description, _, _ := unstructured.NestedString(arubaSpec(resource, name, ns), "spec", "description")
+	description, _, _ := unstructured.NestedString(arubaSpec(resource, name, ns), "description")
 	return description
 }
 
