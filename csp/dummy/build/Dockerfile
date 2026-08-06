@@ -4,7 +4,7 @@
 # image (with dlv) is what the e2e harness and chart-smoke build and side-load.
 # DLV_VERSION defaults to latest so chart-smoke can build it without the pinned
 # version the e2e Makefile passes.
-FROM golang:1.26.5-bookworm as builder
+FROM golang:1.26.5-bookworm AS builder
 
 ARG DLV_VERSION=latest
 

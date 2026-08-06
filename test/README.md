@@ -1,6 +1,6 @@
 # ECP test harness
 
-This module bundles the cluster-backed test suites for ECP and the tooling to run them, all driven from a single `Makefile`. There are four kinds of test:
+This module bundles the cluster-backed test suites for ECP and the tooling to run them, all driven from a single `Makefile`. There are five kinds of test:
 
 | Suite | What it covers | Where |
 |-------|----------------|-------|
@@ -8,6 +8,7 @@ This module bundles the cluster-backed test suites for ECP and the tooling to ru
 | **e2e** | The **whole stack in one run** — drives the SECA API on both gateways and asserts resources reconcile all the way to the delegator plugin. Single cluster. | [`e2e/`](e2e/) |
 | **multicluster e2e** | The **split topology** — global gateway in one cluster, regional gateway + delegator in another, joined only by the Region CR the global gateway advertises. | [`e2e/multicluster/`](e2e/multicluster/) |
 | **conformance** | Runs the SECA conformance suite (`secatest`) against the stack. | [`internal/build/conformance/`](internal/build/conformance/), [`internal/deploy/conformance/`](internal/deploy/conformance/) |
+| **load (k6)** | Black-box **API journeys** (smoke, create-workspace, …) against a deployed stack. Separate from Go `bench` / `TestBench`. | [`load/`](load/) |
 
 ## Layout
 
@@ -19,6 +20,7 @@ test/
   integration/          # isolated component suites (build tag `integration`)
   e2e/                  # single end-to-end suite (build tag `e2e`)
     multicluster/       # two-cluster suite (build tag `multicluster`)
+  load/                 # k6 functional API journeys (Makefile + scripts + JS)
   conformance/
     ionos/              # IONOS real-backend conformance (split global/regional demo)
       cluster/          #   manifests for the demo's two clusters
@@ -367,6 +369,31 @@ To skip auth assertions (e.g. against an auth-disabled gateway):
 ```sh
 E2E_AUTH_ENABLED=false make kind-integration-gateway-global
 ```
+
+---
+
+## k6 functional load journeys
+
+Black-box HTTP journeys live under [`load/`](load/) and run with k6 against the
+**same deployed stack** as integration/e2e. They are not a replacement for e2e
+reconcile checks, and they are separate from the Go `TestBench` / `benchreport`
+metrics workflow below.
+
+```sh
+# KIND: kind-start once, then kind-stack. Services expose port 80.
+make kind-start
+make kind-stack
+kubectl -n e2e-ecp port-forward svc/ecp-global-gateway-global 8080:80 &
+kubectl -n e2e-ecp port-forward svc/ecp-regional-gateway-regional 8081:80 &
+export BASE_URL_GLOBAL=http://127.0.0.1:8080
+export BASE_URL_REGIONAL=http://127.0.0.1:8081
+make load-smoke
+make load-create-workspace
+# or: make -C load smoke
+```
+
+Full env table, tenant ensure behaviour, and happy-path steps:
+[`load/README.md`](load/README.md).
 
 ---
 
