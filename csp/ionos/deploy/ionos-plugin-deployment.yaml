@@ -23,19 +23,19 @@ spec:
         ports:
         - containerPort: 8080
           name: http
-        - containerPort: 8082
+        - containerPort: 8081
           name: healthz
         - containerPort: 8083
           name: metrics
         readinessProbe:
           httpGet:
             path: /readyz
-            port: 8082
+            port: 8081
           initialDelaySeconds: 5
           periodSeconds: 5
         livenessProbe:
           httpGet:
             path: /healthz
-            port: 8082
+            port: 8081
           initialDelaySeconds: 10
           periodSeconds: 10

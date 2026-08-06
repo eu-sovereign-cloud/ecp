@@ -28,7 +28,11 @@ func NewWorkspaceStore(c client.Client, logger *slog.Logger) *WorkspaceStore {
 }
 
 func (a *WorkspaceStore) Create(ctx context.Context, domain *wsdom.Workspace) error {
-	return a.createCR(ctx, newDatacenter(domain))
+	dc, err := newDatacenter(domain)
+	if err != nil {
+		return err
+	}
+	return a.createCR(ctx, dc)
 }
 
 func (a *WorkspaceStore) Delete(ctx context.Context, domain *wsdom.Workspace) error {
@@ -39,7 +43,11 @@ func (a *WorkspaceStore) Delete(ctx context.Context, domain *wsdom.Workspace) er
 	})
 }
 
-func newDatacenter(domain *wsdom.Workspace) *ionosv1alpha1.Datacenter {
+func newDatacenter(domain *wsdom.Workspace) (*ionosv1alpha1.Datacenter, error) {
+	location, err := translateLocation(domain.Region)
+	if err != nil {
+		return nil, err
+	}
 	namespace := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: domain.GetTenant()})
 	return &ionosv1alpha1.Datacenter{
 		TypeMeta: metav1.TypeMeta{
@@ -60,8 +68,8 @@ func newDatacenter(domain *wsdom.Workspace) *ionosv1alpha1.Datacenter {
 			ForProvider: ionosv1alpha1.DatacenterParameters{
 				Name:        new(domain.GetName()),
 				Description: new("Workspace: " + domain.GetName()),
-				Location:    new("es/vit"),
+				Location:    new(location),
 			},
 		},
-	}
+	}, nil
 }
