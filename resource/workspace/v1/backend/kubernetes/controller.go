@@ -17,7 +17,6 @@ import (
 	securitygrouprulek8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group-rule/backend/kubernetes"
 	securitygroupk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group/backend/kubernetes"
 	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage/backend/kubernetes"
-	imgk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image/backend/kubernetes"
 	wsdom "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1"
 )
 
@@ -27,10 +26,11 @@ import (
 // namespace look empty when it is not — and the namespace delete cascades.
 //
 // Subnet and RouteTable are absent on purpose: they are network-scoped and live in the Network's
-// own child namespace. See network's ChildResourceGVRs.
+// own child namespace. See network's ChildResourceGVRs. Image is absent for the same reason in
+// the other direction: it is tenant-scoped and lives in sha3-224(tenant), which nothing cascades
+// from — listing it here would only ever return empty.
 var ChildResourceGVRs = []schema.GroupVersionResource{
 	bsk8s.BlockStorageGVR,
-	imgk8s.ImageGVR,
 	netk8s.NetworkGVR,
 	nick8s.NICGVR,
 	publicipk8s.PublicIPGVR,

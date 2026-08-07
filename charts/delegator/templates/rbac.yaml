@@ -29,7 +29,7 @@ rules:
   # finalizer is held, and the workspace never finishes deleting. Add new workspace- or
   # network-scoped resources here as well as to ChildResourceGVRs in the owning slice.
   - apiGroups: ["storage.v1.secapi.cloud"]
-    resources: ["block-storages", "images"]
+    resources: ["block-storages"]
     verbs: ["list"]
   - apiGroups: ["network.v1.secapi.cloud"]
     resources: ["networks", "nics", "public-ips", "internet-gateways", "security-groups", "security-group-rules", "route-tables", "subnets"]
