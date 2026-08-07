@@ -91,9 +91,11 @@ rules:
   # create: on write the gateway provisions the tenant namespace, plus the child namespace an
   # owning entity (Workspace, Network) creates for its children, so the first call for a new
   # tenant or workspace succeeds synchronously. Teardown is the delegator's job.
+  # patch: provisioning a namespace that already exists stamps the owner labels onto it, and
+  # without the verb every write into an already-provisioned namespace fails with 403.
   - apiGroups: [""]
     resources: ["namespaces"]
-    verbs: ["get", "list", "watch", "create"]
+    verbs: ["get", "list", "watch", "create", "patch"]
   # Required by both the reader-backed Checker and the CachedChecker informer.
   - apiGroups: ["authorization.v1.secapi.cloud"]
     resources: ["roles"]

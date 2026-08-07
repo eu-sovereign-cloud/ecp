@@ -431,6 +431,15 @@ func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
 			return nil, kubeToDomainError(fmt.Errorf("failed to update metadata and spec %s '%s': %w", a.gvr.Resource, m.GetName(), err))
 		}
 	} else {
+		// A versioned update is a full replace, and uobj carries only what the domain type
+		// models. Finalizers are not part of it, so replacing blind deletes them — and a
+		// resource whose deletion is already under way has nothing left holding it, so the API
+		// server reclaims it on the spot, before its controller's cleanup hook has run. That is
+		// silent: the plugin is mid-delete and simply never gets another reconcile.
+		if err := a.preserveFinalizers(ctx, resourceInterface, m.GetName(), uobj); err != nil {
+			return nil, err
+		}
+
 		if _, err = resourceInterface.Update(ctx, uobj, metav1.UpdateOptions{}); err != nil {
 			return nil, kubeToDomainError(fmt.Errorf("failed to update metadata and spec with version %s %s '%s': %w", m.GetVersion(), a.gvr.Resource, m.GetName(), err))
 		}
@@ -492,6 +501,33 @@ func (a *WriterAdapter[T]) UpdateStatus(ctx context.Context, m T) (*T, error) {
 	}
 
 	return &res, nil
+}
+
+// preserveFinalizers copies the stored object's finalizers onto desired, so a full-replace
+// update cannot drop them. Finalizers belong to whoever registered them — the controller, not
+// the caller of Update — and no domain type models them, so they can only be carried across
+// from the live object. A NotFound is left to the Update that follows, which reports it in the
+// caller's own terms.
+func (a *WriterAdapter[T]) preserveFinalizers(
+	ctx context.Context,
+	ri dynamic.ResourceInterface,
+	name string,
+	desired *unstructured.Unstructured,
+) error {
+	curr, err := ri.Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		if kerrs.IsNotFound(err) {
+			return nil
+		}
+
+		return kubeToDomainError(fmt.Errorf("failed to read %s '%s' before update: %w", a.gvr.Resource, name, err))
+	}
+
+	if fins := curr.GetFinalizers(); len(fins) > 0 {
+		desired.SetFinalizers(fins)
+	}
+
+	return nil
 }
 
 func (a *WriterAdapter[T]) updateMetadataAndSpecRetry(

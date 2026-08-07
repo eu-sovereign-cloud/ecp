@@ -769,12 +769,15 @@ func TestNamespaceCleanup(t *testing.T) {
 // key list is what KeyedToOriginal walks to rebuild them, so a write that drops commonData leaves
 // a newly added key unreachable even though its value made it onto the object.
 type testLabelled struct {
-	name   string
-	labels map[string]string
+	name string
+	// version is the resourceVersion the domain object carries. Empty is the common case and
+	// selects Update's read-modify-write arm; a non-empty one selects the full-replace arm.
+	version string
+	labels  map[string]string
 }
 
 func (t *testLabelled) GetName() string      { return t.name }
-func (t *testLabelled) GetVersion() string   { return "" }
+func (t *testLabelled) GetVersion() string   { return t.version }
 func (t *testLabelled) GetTenant() string    { return "t1" }
 func (t *testLabelled) GetWorkspace() string { return "w1" }
 
@@ -789,14 +792,21 @@ func testLabelledToCR(d *testLabelled) (client.Object, error) {
 		keys = append(keys, k)
 	}
 
+	meta := map[string]any{
+		"namespace": ComputeNamespace(&kernelresource.Scope{Tenant: "t1", Workspace: "w1"}),
+		"name":      d.name,
+		"labels":    crLabels,
+	}
+	if d.version != "" {
+		meta["resourceVersion"] = d.version
+	}
+
+	// Deliberately no "finalizers" key: no domain type models them, which is exactly why a
+	// full-replace update has to carry the stored ones across itself.
 	return &unstructured.Unstructured{Object: map[string]any{
 		"apiVersion": "network.test/v1",
 		"kind":       "RouteTable",
-		"metadata": map[string]any{
-			"namespace": ComputeNamespace(&kernelresource.Scope{Tenant: "t1", Workspace: "w1"}),
-			"name":      d.name,
-			"labels":    crLabels,
-		},
+		"metadata":   meta,
 		"commonData": map[string]any{"labels": keys},
 		"spec":       map[string]any{},
 	}}, nil
@@ -846,6 +856,45 @@ func TestWriterAdapter_Update_PropagatesCommonData(t *testing.T) {
 	keys, _, err := unstructured.NestedStringSlice(stored.Object, "commonData", "labels")
 	require.NoError(t, err)
 	require.ElementsMatch(t, []string{"env", "tier"}, keys, "the added label's key must reach commonData")
+}
+
+// TestWriterAdapter_Update_VersionedPreservesFinalizers pins the finalizer carry-over on the
+// full-replace arm of Update.
+//
+// It is not cosmetic. A plugin persists its progress through this path with the resourceVersion it
+// read, and uobj is built from a domain type that cannot express finalizers — so a blind replace
+// dropped the controller's cleanup finalizer. On a resource already carrying a deletionTimestamp
+// that is immediately fatal: nothing is left holding it, the API server reclaims it on the spot,
+// and the controller's cleanup hook never runs. The namespace a Workspace or Network owns then
+// leaks with no path back. Pinned here rather than in a controller test because the defect is in
+// the write path and every slice shares it.
+func TestWriterAdapter_Update_VersionedPreservesFinalizers(t *testing.T) {
+	namespace := ComputeNamespace(&kernelresource.Scope{Tenant: "t1", Workspace: "w1"})
+
+	created, err := testLabelledToCR(&testLabelled{name: "rt-1", labels: map[string]string{"env": "prod"}})
+	require.NoError(t, err)
+
+	stored := created.(*unstructured.Unstructured)
+	stored.SetFinalizers([]string{"secapi.cloud.foundation/cleanup"})
+	stored.SetResourceVersion("42")
+
+	dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), testListKinds(), stored)
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	writer := NewWriterAdapter[*testLabelled](dynFake, testGVR, logger, testLabelledToCR, testLabelledFromCR)
+
+	// A versioned domain object — what a plugin hands back after reading the CR.
+	_, err = writer.Update(context.Background(), &testLabelled{
+		name:    "rt-1",
+		version: "42",
+		labels:  map[string]string{"env": "prod", "tier": "frontend"},
+	})
+	require.NoError(t, err)
+
+	after, err := dynFake.Resource(testGVR).Namespace(namespace).
+		Get(context.Background(), "rt-1", metav1.GetOptions{})
+	require.NoError(t, err)
+	require.Equal(t, []string{"secapi.cloud.foundation/cleanup"}, after.GetFinalizers(),
+		"a full-replace update must not drop the finalizers it does not own")
 }
 
 // TestWriterAdapter_Update_NoOpDoesNotWrite pins the early return in updateMetadataAndSpecRetry: an

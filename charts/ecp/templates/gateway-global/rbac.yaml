@@ -11,11 +11,14 @@ rules:
     resources: ["regions"]
     verbs: ["get", "list", "watch"]
   # Role and RoleAssignment CRs live in the tenant namespace; the global cluster runs no
-  # controller, so the gateway provisions that namespace on write. Create only — namespace
+  # controller, so the gateway provisions that namespace on write. No delete — namespace
   # deletion is a controller concern and the global cluster has nothing to cascade from.
+  # patch is not optional: provisioning an existing namespace stamps the owner labels onto
+  # it, and without the verb every write into an already-provisioned tenant namespace fails
+  # with 403 rather than succeeding.
   - apiGroups: [""]
     resources: ["namespaces"]
-    verbs: ["get", "create"]
+    verbs: ["get", "create", "patch"]
   - apiGroups: ["authorization.v1.secapi.cloud"]
     resources: ["roles"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
