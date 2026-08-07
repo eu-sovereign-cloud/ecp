@@ -852,11 +852,11 @@ func NamespaceCleanup[T persistence.IdentifiableResource](
 // childResourceGVRs still list objects in that namespace, then deletes the CR — the namespace
 // itself is torn down by the owning controller's NamespaceCleanup finalizer.
 // It uses a typed clientset for Namespace operations when available.
+// The dynamic client and logger are read through the embedded WriterAdapter's Adapter — keeping
+// a second copy here would be two fields for one value, free to drift apart.
 type NamespaceManagingWriterAdapter[T persistence.IdentifiableResource] struct {
 	*WriterAdapter[T]
-	client            dynamic.Interface
 	clientset         kubernetes.Interface
-	logger            *slog.Logger
 	childNamespace    ChildNamespaceKind
 	childResourceGVRs []schema.GroupVersionResource
 }
@@ -885,9 +885,7 @@ func NewNamespaceManagingWriterAdapter[T persistence.IdentifiableResource](
 	base := NewWriterAdapter(dynClient, gvr, logger, domainToK8s, k8sToDomain)
 	return &NamespaceManagingWriterAdapter[T]{
 		WriterAdapter:     base,
-		client:            dynClient,
 		clientset:         clientset,
-		logger:            logger,
 		childNamespace:    childNamespace,
 		childResourceGVRs: childResourceGVRs,
 	}
