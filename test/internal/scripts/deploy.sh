@@ -57,6 +57,7 @@ if setup_chart_vars "${COMPONENT}"; then
         echo "Deploying ${COMPONENT} with auth plugin: ${AUTH_PLUGIN:=dummy}"
         HELM_ARGS+=(
             --values "${SCRIPT_DIR}/../deploy/gateway-values.yaml"
+            --set "auth.enabled=${E2E_AUTH_ENABLED:-true}"
             --set "auth.plugin=${AUTH_PLUGIN}"
         )
         # The RBAC checker to benchmark: the report workflow deploys the same
