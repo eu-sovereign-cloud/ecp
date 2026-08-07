@@ -383,9 +383,11 @@ func TestNamespaceManagingWriterAdapter_Create(t *testing.T) {
 			"an existing namespace must not be mutated by the write path; repair is the controller's job")
 	})
 
-	// Pins the removal of the create-then-rollback compensating transaction: an ensure is
-	// idempotent, so a namespace left behind by a failed CR create is inert, not garbage.
-	t.Run("does not roll back the namespace when the resource create fails", func(t *testing.T) {
+	// The child namespace is named by the caller and only ever reclaimed by the owning CR's
+	// finalizer, so a failed create must not leave one behind: without a CR nothing would ever
+	// delete it. The tenant namespace is shared and bounded by the authenticated tenant, so it
+	// stays.
+	t.Run("rolls back the child namespace when the resource create fails", func(t *testing.T) {
 		existing, err := parentDomainToK8s(parent)
 		require.NoError(t, err)
 		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(
@@ -399,7 +401,53 @@ func TestNamespaceManagingWriterAdapter_Create(t *testing.T) {
 		_, err = cs.CoreV1().Namespaces().Get(context.Background(), tenantNS, metav1.GetOptions{})
 		require.NoError(t, err, "the tenant namespace must survive a failed resource create")
 		_, err = cs.CoreV1().Namespaces().Get(context.Background(), childNS, metav1.GetOptions{})
-		require.NoError(t, err, "the child namespace must survive a failed resource create")
+		require.True(t, kerrs.IsNotFound(err), "the child namespace must be rolled back")
+	})
+
+	// A namespace this call did not create is not its to roll back — it may already hold the
+	// resources of an earlier successful create.
+	t.Run("leaves a pre-existing child namespace alone when the resource create fails", func(t *testing.T) {
+		existing, err := parentDomainToK8s(parent)
+		require.NoError(t, err)
+		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(
+			runtime.NewScheme(), parentListKinds(), existing.(*unstructured.Unstructured),
+		)
+		cs := k8sfake.NewClientset(&corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{Name: childNS, Labels: map[string]string{
+				labels.InternalTenantLabel:    "t1",
+				labels.InternalWorkspaceLabel: "w1",
+			}},
+		})
+
+		_, err = newWriter(cs, dynFake).Create(context.Background(), parent)
+		require.Error(t, err)
+
+		_, err = cs.CoreV1().Namespaces().Get(context.Background(), childNS, metav1.GetOptions{})
+		require.NoError(t, err, "a namespace this create did not provision must not be rolled back")
+	})
+
+	// Fabricating the workspace namespace would let a Network land in a Workspace that was never
+	// created, in a namespace no controller would ever reclaim. Namespace existence is the only
+	// referential-integrity check the write path has.
+	t.Run("does not fabricate the workspace namespace a network-owning resource writes into", func(t *testing.T) {
+		net := &testWorkspaceScopedIdentifiable{name: "n1", tenant: "t1", workspace: "missing-ws"}
+		workspaceNS := ComputeNamespace(&kernelresource.Scope{Tenant: "t1", Workspace: "missing-ws"})
+		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), parentListKinds())
+		cs := k8sfake.NewClientset()
+
+		writer := NewNamespaceManagingWriterAdapter[*testWorkspaceScopedIdentifiable](
+			dynFake, cs, testParentGVR, logger, parentDomainToK8s, parentK8sToDomain,
+			NetworkChildren, []schema.GroupVersionResource{testChildGVR},
+		)
+		// The CR write outcome is not what is under test here — against a real API server it is
+		// the NotFound this test exists to preserve. What matters is what was *not* provisioned.
+		_, _ = writer.Create(context.Background(), net)
+
+		_, err := cs.CoreV1().Namespaces().Get(context.Background(), workspaceNS, metav1.GetOptions{})
+		require.True(t, kerrs.IsNotFound(err),
+			"the parent workspace's namespace must not be created on behalf of its child")
+		_, err = cs.CoreV1().Namespaces().Get(context.Background(), tenantNS, metav1.GetOptions{})
+		require.True(t, kerrs.IsNotFound(err), "nor the tenant namespace above it")
 	})
 
 	// The global gateway's Role/RoleAssignment shape: owns no child namespace, but still has to

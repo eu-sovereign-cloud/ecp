@@ -184,19 +184,16 @@ func ComputeNetworkNamespace(obj persistence.NetworkScope) string {
 // dumb, explicit hash formulas with no branching on the caller's shape. A NetworkScope object
 // with an empty network is a caller bug, not a fallback case, so it errors instead of silently
 // resolving to the workspace-level namespace.
-//
-// It also returns the owner labels identifying the namespace it picked, so a caller provisioning
-// that namespace on demand stamps it exactly as the entity that owns it would.
-func resolveNamespace(obj persistence.Scope) (namespace string, ownerLabels map[string]string, err error) {
-	network := ""
+func resolveNamespace(obj persistence.Scope) (string, error) {
 	if networkScope, ok := obj.(persistence.NetworkScope); ok {
-		if network = networkScope.GetNetwork(); network == "" {
-			return "", nil, kernel.NewError(kernel.KindValidation, fmt.Errorf("network-scoped resource has empty network"))
+		if networkScope.GetNetwork() == "" {
+			return "", kernel.NewError(kernel.KindValidation, fmt.Errorf("network-scoped resource has empty network"))
 		}
+
+		return ComputeNetworkNamespace(networkScope), nil
 	}
 
-	namespace, ownerLabels = namespaceOwnerLabels(obj.GetTenant(), obj.GetWorkspace(), network)
-	return namespace, ownerLabels, nil
+	return ComputeNamespace(obj), nil
 }
 
 // CreateNamespace creates a Kubernetes Namespace.
@@ -270,7 +267,7 @@ func (a *ReaderAdapter[T]) List(ctx context.Context, params resource.ListFilter,
 		lo.LabelSelector = filter.K8sSelectorForAPI(selector)
 	}
 
-	namespace, _, err := resolveNamespace(params)
+	namespace, err := resolveNamespace(params)
 	if err != nil {
 		return nil, err
 	}
@@ -330,7 +327,7 @@ func (a *ReaderAdapter[T]) List(ctx context.Context, params resource.ListFilter,
 // Load implements the persistence.ReaderRepo interface.
 func (a *ReaderAdapter[T]) Load(ctx context.Context, obj *T) error {
 	v := *obj
-	namespace, _, err := resolveNamespace(v)
+	namespace, err := resolveNamespace(v)
 	if err != nil {
 		return err
 	}
@@ -357,7 +354,7 @@ func (a *ReaderAdapter[T]) Load(ctx context.Context, obj *T) error {
 
 // Create implements the persistence.WriterRepo interface.
 func (a *WriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
-	namespace, _, err := resolveNamespace(m)
+	namespace, err := resolveNamespace(m)
 	if err != nil {
 		return nil, err
 	}
@@ -394,7 +391,7 @@ func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
 		return nil, kernel.NewError(kernel.KindValidation, fmt.Errorf("failed to convert %s to unstructured: %w", a.gvr.Resource, err))
 	}
 
-	namespace, _, err := resolveNamespace(m)
+	namespace, err := resolveNamespace(m)
 	if err != nil {
 		return nil, err
 	}
@@ -442,7 +439,7 @@ func (a *WriterAdapter[T]) UpdateStatus(ctx context.Context, m T) (*T, error) {
 		return nil, kernel.NewError(kernel.KindValidation, fmt.Errorf("no status data provided for %s '%s'", a.gvr.Resource, m.GetName()))
 	}
 
-	namespace, _, err := resolveNamespace(m)
+	namespace, err := resolveNamespace(m)
 	if err != nil {
 		return nil, err
 	}
@@ -596,7 +593,7 @@ func (a *WriterAdapter[T]) updateStatusRetry(
 
 // Delete implements the persistence.WriterRepo interface.
 func (a *WriterAdapter[T]) Delete(ctx context.Context, m T) error {
-	namespace, _, err := resolveNamespace(m)
+	namespace, err := resolveNamespace(m)
 	if err != nil {
 		return err
 	}
@@ -712,7 +709,9 @@ func (a *WriterAdapter[T]) toUnstructured(m T) (*unstructured.Unstructured, erro
 type ChildNamespaceKind int
 
 const (
-	// NoChildNamespace opts out: Create delegates straight to the wrapped WriterAdapter.
+	// NoChildNamespace opts out of the child namespace: Create still ensures the tenant
+	// namespace the resource itself lives in (the global gateway's Role/RoleAssignment case),
+	// so it is not the same as a plain WriterAdapter.
 	NoChildNamespace ChildNamespaceKind = iota
 	// WorkspaceChildren provisions the tenant/workspace namespace, using the resource's own
 	// name as the workspace segment (there is no Tenant entity, so the Workspace is the only
@@ -814,8 +813,8 @@ func NamespaceCleanup[T persistence.IdentifiableResource](
 	}
 }
 
-// NamespaceManagingWriterAdapter wraps a WriterAdapter and, on Create, ensures both the namespace
-// the CR itself lands in and the one computed for childNamespace exist. On Delete it refuses when
+// NamespaceManagingWriterAdapter wraps a WriterAdapter and, on Create, ensures the tenant
+// namespace and the one computed for childNamespace exist. On Delete it refuses when
 // childResourceGVRs still list objects in that namespace, then deletes the CR — the namespace
 // itself is torn down by the owning controller's NamespaceCleanup finalizer.
 // It uses a typed clientset for Namespace operations when available.
@@ -835,8 +834,8 @@ type NamespaceManagingRepoAdapter[T persistence.IdentifiableResource] struct {
 	*WatcherAdapter[T]
 }
 
-// NewNamespaceManagingWriterAdapter creates a new writer adapter that ensures the namespace
-// selected by childNamespace exists before creating resources.
+// NewNamespaceManagingWriterAdapter creates a new writer adapter that ensures the tenant
+// namespace and the namespace selected by childNamespace exist before creating resources.
 // childResourceGVRs is the closed set of SECA types that may live in the child namespace;
 // Delete uses it for the emptiness check (empty/nil means no types to check).
 func NewNamespaceManagingWriterAdapter[T persistence.IdentifiableResource](
@@ -925,33 +924,46 @@ func namespaceOwnedBy(ctx context.Context, clientset kubernetes.Interface, nsNam
 	return true, nil
 }
 
-// Create ensures both the namespace the resource itself lives in and the namespace selected by
-// a.childNamespace exist, then creates the resource.
+// Create ensures the namespaces the resource needs exist, then creates it.
 //
-// Only entities that own a namespace go through this adapter, so provisioning the resource's own
-// namespace here never weakens the referential-integrity check a leaf resource gets for free: a
-// BlockStorage still fails with NotFound when its workspace namespace is absent, because a plain
-// WriterAdapter never creates one.
+// The resource's own namespace is provisioned only when it is the tenant namespace. There is no
+// Tenant entity, so nobody else would ever create it. Below that level a namespace is owned by a
+// parent entity and its absence *is* the referential-integrity check: fabricating it would let a
+// Network land in a Workspace that was never created, in a namespace no controller would ever
+// reclaim. A resource whose scope names a workspace therefore fails with NotFound, exactly as a
+// leaf resource on a plain WriterAdapter does.
 //
-// There is no rollback: CreateNamespace swallows AlreadyExists, so an empty namespace left behind
-// by a failed resource create is inert and is adopted by the next create that succeeds.
+// The child namespace is rolled back if this call created it and the CR create then fails —
+// without an owning CR nothing will ever reclaim it, and the caller picks its name.
 func (a *NamespaceManagingWriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
-	ownNS, ownLabels, err := resolveNamespace(m)
+	if m.GetWorkspace() == "" {
+		tenantNS, tenantLabels := namespaceOwnerLabels(m.GetTenant(), "", "")
+		if tenantNS != "" {
+			if _, err := CreateNamespace(ctx, a.clientset, tenantNS, tenantLabels); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	childNS, childLabels := childNamespaceFor(a.childNamespace, m)
+	if childNS == "" {
+		return a.WriterAdapter.Create(ctx, m)
+	}
+
+	createdNS, err := CreateNamespace(ctx, a.clientset, childNS, childLabels)
 	if err != nil {
 		return nil, err
 	}
 
-	if ownNS != "" {
-		if _, err := CreateNamespace(ctx, a.clientset, ownNS, ownLabels); err != nil {
-			return nil, err
+	res, err := a.WriterAdapter.Create(ctx, m)
+	if err != nil && createdNS {
+		if owned, ownErr := namespaceOwnedBy(ctx, a.clientset, childNS, childLabels); ownErr == nil && owned {
+			if delErr := DeleteNamespace(ctx, a.clientset, childNS); delErr != nil {
+				a.logger.ErrorContext(ctx, "failed to roll back namespace created for resource",
+					"namespace", childNS, "error", delErr)
+			}
 		}
 	}
 
-	if childNS, childLabels := childNamespaceFor(a.childNamespace, m); childNS != "" {
-		if _, err := CreateNamespace(ctx, a.clientset, childNS, childLabels); err != nil {
-			return nil, err
-		}
-	}
-
-	return a.WriterAdapter.Create(ctx, m)
+	return res, err
 }

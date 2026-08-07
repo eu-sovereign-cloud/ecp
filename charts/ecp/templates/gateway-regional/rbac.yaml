@@ -88,7 +88,8 @@ rules:
   - apiGroups: ["workspace.v1.secapi.cloud"]
     resources: ["workspaces/status"]
     verbs: ["get", "list", "watch"]
-  # create: the gateway provisions a resource's namespace on write, so the first call for a new
+  # create: on write the gateway provisions the tenant namespace, plus the child namespace an
+  # owning entity (Workspace, Network) creates for its children, so the first call for a new
   # tenant or workspace succeeds synchronously. Teardown is the delegator's job.
   - apiGroups: [""]
     resources: ["namespaces"]
