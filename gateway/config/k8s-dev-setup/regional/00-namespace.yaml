@@ -3,8 +3,9 @@
 #
 # The gateway provisions this namespace on the first tenant-scoped write, so it is NOT
 # hand-managed. It is declared here only so the storage SKU and image catalogs can be applied
-# before the gateway is up. The owner label must be secapi.cloud/tenant — the key
-# namespaceOwnedBy checks; with any other key the controller treats it as foreign.
+# before the gateway is up. Nothing ever deletes a tenant namespace — there is no Tenant entity
+# to cascade from — so the owner label below is cosmetic here; it just matches what the gateway
+# would stamp. Only workspace and network child namespaces are torn down, by their controllers.
 apiVersion: v1
 kind: Namespace
 metadata:
