@@ -15,12 +15,18 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/test/internal/testenv"
 )
 
+// networkSkuRefResource is the network's skuRef sent as the sku's full URN, the way a
+// client holding only that URN sends it. A sku is tenant-scoped, so the scope is stripped
+// into the CR's own fields and re-embedded on read — and the provider pair has to come
+// back ahead of it, not behind.
+const networkSkuRefResource = "seca.network/v1/tenants/" + testTenant + "/skus/network-sku-1"
+
 // newNetworkBody builds the request body for creating a network.
 func newNetworkBody(cidr string) schema.Network {
 	return schema.Network{
 		Spec: schema.NetworkSpec{
 			Cidr:   schema.Cidr{Ipv4: cidr},
-			SkuRef: schema.Reference{Resource: "network-sku-1"},
+			SkuRef: schema.Reference{Resource: networkSkuRefResource},
 		},
 	}
 }
@@ -56,6 +62,9 @@ func TestNetworkAPI(t *testing.T) {
 		)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, createResp.StatusCode())
+		require.NotNil(t, createResp.JSON200)
+		require.Equal(t, networkSkuRefResource, createResp.JSON200.Spec.SkuRef.Resource,
+			"the create response must echo the sku URN unchanged")
 
 		//
 		// Then it can be read back with the spec we sent
@@ -66,7 +75,8 @@ func TestNetworkAPI(t *testing.T) {
 		require.NotNil(t, getResp.JSON200.Metadata)
 		require.Equal(t, networkName, getResp.JSON200.Metadata.Name)
 		require.Equal(t, "10.30.0.0/16", getResp.JSON200.Spec.Cidr.Ipv4)
-		require.Equal(t, "network-sku-1", getResp.JSON200.Spec.SkuRef.Resource)
+		require.Equal(t, networkSkuRefResource, getResp.JSON200.Spec.SkuRef.Resource,
+			"the sku URN must survive the CR round-trip with its provider pair still in front")
 
 		//
 		// And it can be deleted
