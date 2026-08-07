@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -368,7 +369,10 @@ func TestNamespaceManagingWriterAdapter_Create(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("is idempotent and leaves foreign labels on an existing namespace alone", func(t *testing.T) {
+	// The namespace name is a hash of exactly this scope, so an existing one is always ours even
+	// when it predates the owner labels (hand-applied dev fixture, older release). Stamping it
+	// is what makes it reclaimable later — nothing else ever repairs the labels.
+	t.Run("is idempotent and stamps owner labels on an existing namespace without them", func(t *testing.T) {
 		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), parentListKinds())
 		cs := k8sfake.NewClientset(&corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{Name: tenantNS, Labels: map[string]string{"someone.else/owns": "this"}},
@@ -379,8 +383,10 @@ func TestNamespaceManagingWriterAdapter_Create(t *testing.T) {
 
 		tenant, err := cs.CoreV1().Namespaces().Get(context.Background(), tenantNS, metav1.GetOptions{})
 		require.NoError(t, err)
-		require.Equal(t, map[string]string{"someone.else/owns": "this"}, tenant.Labels,
-			"an existing namespace must not be mutated by the write path; repair is the controller's job")
+		require.Equal(t, map[string]string{
+			"someone.else/owns":        "this",
+			labels.InternalTenantLabel: "t1",
+		}, tenant.Labels, "the merge patch adds the owner label and leaves unrelated ones alone")
 	})
 
 	// The child namespace is named by the caller and only ever reclaimed by the owning CR's
@@ -740,6 +746,21 @@ func TestNamespaceCleanup(t *testing.T) {
 
 		_, err := cs.CoreV1().Namespaces().Get(context.Background(), childNS, metav1.GetOptions{})
 		require.NoError(t, err, "unowned namespace must not be deleted")
+	})
+
+	// Dropping the finalizer can conflict and replay the reconcile after the namespace is gone.
+	// That is the success path, not a foreign namespace: it must not warn about a leak.
+	t.Run("is a no-op when the namespace is already gone", func(t *testing.T) {
+		var buf bytes.Buffer
+		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), parentListKinds())
+		cs := k8sfake.NewClientset()
+
+		cleanup := NamespaceCleanup[*testWorkspaceScopedIdentifiable](
+			dynFake, cs, slog.New(slog.NewTextHandler(&buf, nil)), WorkspaceChildren, gvrs,
+		)
+		require.NoError(t, cleanup(context.Background(), parent))
+		require.NotContains(t, buf.String(), "owner labels do not match",
+			"a namespace that is already deleted must not be reported as a leak")
 	})
 }
 

@@ -159,7 +159,8 @@ func TestWorkspaceController_Reconcile(t *testing.T) {
 
 		require.ErrorIs(t, err, errHandler)
 		require.Contains(t, buf.String(), "handler failed to reconcile")
-		require.Equal(t, k8srt.Result{RequeueAfter: requeueAfter}, res)
+		require.Equal(t, k8srt.Result{}, res,
+			"a Result returned alongside an error is discarded by controller-runtime; the error alone drives the backoff requeue")
 	})
 
 	// The cleanup hook is the seam that lets a resource tear down the namespace it owns for its
@@ -226,20 +227,20 @@ func TestWorkspaceController_Reconcile(t *testing.T) {
 		require.True(t, kerrs.IsNotFound(fakeClient.Get(t.Context(), req.NamespacedName, &after)))
 	})
 
-	t.Run("should keep the finalizer and requeue when the cleanup hook fails", func(t *testing.T) {
+	t.Run("should keep the finalizer and surface the error when the cleanup hook fails", func(t *testing.T) {
 		fakeClient := fake.NewClientBuilder().
 			WithScheme(newScheme()).
 			WithObjects(newDeletingResource()).
 			Build()
 
 		errCleanup := errors.New("namespace still has children")
-		requeueAfter := 5 * time.Minute
-		gc := newDeletingController(t, fakeClient, requeueAfter)
+		gc := newDeletingController(t, fakeClient, 5*time.Minute)
 		gc.WithCleanup(func(context.Context, *wsdom.Workspace) error { return errCleanup })
 
 		res, err := gc.Reconcile(t.Context(), req)
 		require.ErrorIs(t, err, errCleanup)
-		require.Equal(t, k8srt.Result{RequeueAfter: requeueAfter}, res)
+		require.Equal(t, k8srt.Result{}, res,
+			"a Result returned alongside an error is discarded by controller-runtime; the error alone drives the backoff requeue")
 
 		var after Workspace
 		require.NoError(t, fakeClient.Get(t.Context(), req.NamespacedName, &after))

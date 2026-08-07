@@ -159,6 +159,7 @@ func TestSecurityGroupController_Reconcile(t *testing.T) {
 
 		require.ErrorIs(t, err, errHandler)
 		require.Contains(t, buf.String(), "handler failed to reconcile")
-		require.Equal(t, k8srt.Result{RequeueAfter: requeueAfter}, res)
+		require.Equal(t, k8srt.Result{}, res,
+			"a Result returned alongside an error is discarded by controller-runtime; the error alone drives the backoff requeue")
 	})
 }

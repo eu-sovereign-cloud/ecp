@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"context"
 	"crypto/sha3"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -14,6 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/retry"
@@ -214,14 +216,41 @@ func CreateNamespace(ctx context.Context, clientSet kubernetes.Interface, name s
 	}
 
 	if _, err := clientSet.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{}); err != nil {
-		if kerrs.IsAlreadyExists(err) {
-			return false, nil
+		if !kerrs.IsAlreadyExists(err) {
+			return false, kubeToDomainError(fmt.Errorf("failed to create namespace %s: %w", name, err))
 		}
 
-		return false, kubeToDomainError(fmt.Errorf("failed to create namespace %s: %w", name, err))
+		// The namespace exists but may predate the owner labels (a hand-applied dev fixture, a
+		// leftover from an older release). Without them the owning controller cannot prove the
+		// namespace is its own and refuses to delete it, so it would leak with no path back.
+		// The name is a hash of exactly this scope, so stamping is safe; the merge patch leaves
+		// any other label alone.
+		if len(ownerLabels) > 0 {
+			if err := patchNamespaceLabels(ctx, clientSet, name, ownerLabels); err != nil {
+				return false, err
+			}
+		}
+
+		return false, nil
 	}
 
 	return true, nil
+}
+
+// patchNamespaceLabels merges ownerLabels into the namespace's labels, leaving the rest untouched.
+func patchNamespaceLabels(ctx context.Context, clientSet kubernetes.Interface, name string, ownerLabels map[string]string) error {
+	patch, err := json.Marshal(map[string]any{"metadata": map[string]any{"labels": ownerLabels}})
+	if err != nil {
+		return kernel.NewError(kernel.KindInternal, fmt.Errorf("failed to build label patch for namespace %s: %w", name, err))
+	}
+
+	if _, err := clientSet.CoreV1().Namespaces().Patch(
+		ctx, name, types.MergePatchType, patch, metav1.PatchOptions{},
+	); err != nil && !kerrs.IsNotFound(err) {
+		return kubeToDomainError(fmt.Errorf("failed to stamp owner labels on namespace %s: %w", name, err))
+	}
+
+	return nil
 }
 
 // DeleteNamespace deletes the namespace. It does not error if NotFound.
@@ -798,6 +827,11 @@ func NamespaceCleanup[T persistence.IdentifiableResource](
 		}
 
 		owned, err := namespaceOwnedBy(ctx, clientset, namespace, ownerLabels)
+		if kerrs.IsNotFound(err) {
+			// Already gone — a retry after a successful delete, or a namespace that was never
+			// provisioned. Nothing to do, and nothing to warn about.
+			return nil
+		}
 		if err != nil {
 			return kubeToDomainError(fmt.Errorf("failed to verify ownership of namespace %q: %w", namespace, err))
 		}
@@ -897,6 +931,10 @@ func NewNamespaceManagingRepoAdapter[T persistence.IdentifiableResource](
 }
 
 // namespaceOwnedBy checks that the namespace contains all key/value pairs in expectedLabels.
+//
+// A missing namespace is returned as a NotFound error rather than "not owned": the two mean
+// opposite things to a caller deciding whether to delete, and conflating them makes an
+// already-deleted namespace look like someone else's.
 func namespaceOwnedBy(ctx context.Context, clientset kubernetes.Interface, nsName string, expectedLabels map[string]string) (bool, error) {
 	if clientset == nil {
 		return false, fmt.Errorf("clientset is nil")
@@ -904,10 +942,6 @@ func namespaceOwnedBy(ctx context.Context, clientset kubernetes.Interface, nsNam
 
 	ns, err := clientset.CoreV1().Namespaces().Get(ctx, nsName, metav1.GetOptions{})
 	if err != nil {
-		if kerrs.IsNotFound(err) {
-			return false, nil
-		}
-
 		return false, err
 	}
 
