@@ -41,34 +41,15 @@ type GenericController[D persistence.IdentifiableResource] struct {
 	requeueAfter        time.Duration
 	logger              *slog.Logger
 	maxStatusConditions int
-	ensure              func(context.Context, D) error
 	cleanup             func(context.Context, D) error
-}
-
-// WithEnsure registers a hook invoked on every reconcile of a live (non-deleting) resource,
-// before the plugin handler runs. It is the level-triggered counterpart of WithCleanup: where
-// cleanup tears a side effect down once, ensure converges it continuously, so drift introduced
-// out-of-band is repaired instead of persisting until someone notices.
-//
-// It runs before the handler so the plugin can rely on whatever it provisions. A failure requeues
-// and the handler does not run — treat that as intended: if the resource's preconditions cannot be
-// established there is no point reconciling it.
-//
-// Nil (the default) preserves the previous behaviour exactly.
-func (r *GenericController[D]) WithEnsure(ensure func(context.Context, D) error) *GenericController[D] {
-	r.ensure = ensure
-	return r
 }
 
 // WithCleanup registers a hook invoked once the plugin has finished deleting the resource and
 // immediately before the finalizer is removed — the only window in which a resource can still
 // tear down something it owns outside its own CR.
 //
-// The hook must be idempotent: it is retried on the next reconcile if it fails, because the
-// finalizer stays on until it succeeds. That retry is the whole point — it is what makes an
-// external side effect survive a transient API error instead of being silently orphaned.
-//
-// Nil (the default) preserves the previous behaviour exactly.
+// The hook must be idempotent: the finalizer stays on until it succeeds, so a failure is retried
+// on the next reconcile rather than silently orphaning the side effect.
 func (r *GenericController[D]) WithCleanup(cleanup func(context.Context, D) error) *GenericController[D] {
 	r.cleanup = cleanup
 	return r
@@ -155,16 +136,7 @@ func (r *GenericController[D]) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{}, nil
 	}
 
-	// 4. Converge the resource's own side effects, then delegate to the specific handler.
-	// Skipped once the resource is deleting: the cleanup hook is tearing those side effects
-	// down, and re-provisioning them here would race it.
-	if r.ensure != nil && obj.GetDeletionTimestamp().IsZero() {
-		if err := r.ensure(ctx, domainResource); err != nil {
-			logger.Error("ensure hook failed", "error", err)
-			return ctrl.Result{RequeueAfter: r.requeueAfter}, err
-		}
-	}
-
+	// 4. Delegate to the specific handler
 	requeue, err := r.handler.HandleReconcile(ctx, domainResource)
 	if err != nil {
 		if errors.Is(err, backend.ErrStillProcessing) {
@@ -185,39 +157,25 @@ func (r *GenericController[D]) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	// 7. Check if the resource deletion process is complete
+	// 7. Check if the resource deletion process is complete. Reaching here means the handler
+	// returned no requeue, so the plugin has finished deleting: this is the last moment the
+	// resource can tear down anything it owns outside its own CR.
 	if !obj.GetDeletionTimestamp().IsZero() &&
 		getStateFromObject(obj) == stateDeleting &&
 		slices.Contains(obj.GetFinalizers(), finalizerName) {
-		return r.releaseFinalizer(ctx, logger, obj, domainResource)
-	}
-
-	return ctrl.Result{}, nil
-}
-
-// releaseFinalizer runs the cleanup hook and then drops the finalizer, letting the API server
-// complete the delete. Reaching here means the handler returned no requeue, so the plugin has
-// finished deleting — this is the last moment the resource can tear down anything it owns outside
-// its own CR. A cleanup failure keeps the finalizer on and requeues, so the teardown is retried
-// rather than orphaned.
-func (r *GenericController[D]) releaseFinalizer(
-	ctx context.Context,
-	logger *slog.Logger,
-	obj schemav1.ConditionedObject,
-	domainResource D,
-) (ctrl.Result, error) {
-	if r.cleanup != nil {
-		if err := r.cleanup(ctx, domainResource); err != nil {
-			logger.Error("cleanup hook failed, keeping finalizer to retry", "error", err)
-			return ctrl.Result{RequeueAfter: r.requeueAfter}, err
+		if r.cleanup != nil {
+			if err := r.cleanup(ctx, domainResource); err != nil {
+				logger.Error("cleanup hook failed, keeping finalizer to retry", "error", err)
+				return ctrl.Result{RequeueAfter: r.requeueAfter}, err
+			}
 		}
-	}
 
-	obj.SetFinalizers(slices.DeleteFunc(obj.GetFinalizers(), func(v string) bool {
-		return strings.EqualFold(v, finalizerName)
-	}))
-	if err := r.client.Update(ctx, obj); err != nil {
-		return ctrl.Result{}, err
+		obj.SetFinalizers(slices.DeleteFunc(obj.GetFinalizers(), func(v string) bool {
+			return strings.EqualFold(v, finalizerName)
+		}))
+		if err := r.client.Update(ctx, obj); err != nil {
+			return ctrl.Result{}, err
+		}
 	}
 
 	return ctrl.Result{}, nil

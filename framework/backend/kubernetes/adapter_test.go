@@ -634,97 +634,6 @@ func TestNamespaceManagingWriterAdapter_Delete_NetworkChildren(t *testing.T) {
 	})
 }
 
-func TestNamespaceEnsure(t *testing.T) {
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	parent := &testWorkspaceScopedIdentifiable{name: "w1", tenant: "t1"}
-	childNS := ComputeNamespace(&kernelresource.Scope{Tenant: "t1", Workspace: "w1"})
-	ownerLabels := map[string]string{
-		labels.InternalTenantLabel:    "t1",
-		labels.InternalWorkspaceLabel: "w1",
-	}
-
-	t.Run("recreates the child namespace when it is missing", func(t *testing.T) {
-		cs := k8sfake.NewClientset()
-
-		ensure := NamespaceEnsure[*testWorkspaceScopedIdentifiable](cs, logger, WorkspaceChildren)
-		require.NoError(t, ensure(context.Background(), parent))
-
-		ns, err := cs.CoreV1().Namespaces().Get(context.Background(), childNS, metav1.GetOptions{})
-		require.NoError(t, err)
-		require.Equal(t, ownerLabels, ns.Labels)
-	})
-
-	// This is the adoption path: the dev and test fixtures shipped a namespace labelled
-	// secapi.cloud/tenant-id, which namespaceOwnedBy never matches. Repair makes it adoptable
-	// without disturbing whatever else is on it.
-	t.Run("adds missing owner labels without removing foreign ones", func(t *testing.T) {
-		cs := k8sfake.NewClientset(&corev1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{Name: childNS, Labels: map[string]string{
-				"secapi.cloud/tenant-id": "t1",
-				"someone.else/owns":      "this",
-			}},
-		})
-
-		ensure := NamespaceEnsure[*testWorkspaceScopedIdentifiable](cs, logger, WorkspaceChildren)
-		require.NoError(t, ensure(context.Background(), parent))
-
-		ns, err := cs.CoreV1().Namespaces().Get(context.Background(), childNS, metav1.GetOptions{})
-		require.NoError(t, err)
-		require.Equal(t, map[string]string{
-			labels.InternalTenantLabel:    "t1",
-			labels.InternalWorkspaceLabel: "w1",
-			"secapi.cloud/tenant-id":      "t1",
-			"someone.else/owns":           "this",
-		}, ns.Labels, "repair must be additive")
-	})
-
-	t.Run("corrects an owner label whose value drifted", func(t *testing.T) {
-		cs := k8sfake.NewClientset(&corev1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{Name: childNS, Labels: map[string]string{
-				labels.InternalTenantLabel:    "wrong",
-				labels.InternalWorkspaceLabel: "w1",
-			}},
-		})
-
-		ensure := NamespaceEnsure[*testWorkspaceScopedIdentifiable](cs, logger, WorkspaceChildren)
-		require.NoError(t, ensure(context.Background(), parent))
-
-		ns, err := cs.CoreV1().Namespaces().Get(context.Background(), childNS, metav1.GetOptions{})
-		require.NoError(t, err)
-		require.Equal(t, ownerLabels, ns.Labels)
-	})
-
-	// A converged namespace must not generate a write on every reconcile of every resource.
-	t.Run("does not write when the namespace is already correct", func(t *testing.T) {
-		cs := k8sfake.NewClientset(&corev1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{Name: childNS, Labels: ownerLabels},
-		})
-		var writes int
-		cs.PrependReactor("create", "namespaces", func(k8stesting.Action) (bool, runtime.Object, error) {
-			writes++
-			return false, nil, nil
-		})
-		cs.PrependReactor("patch", "namespaces", func(k8stesting.Action) (bool, runtime.Object, error) {
-			writes++
-			return false, nil, nil
-		})
-
-		ensure := NamespaceEnsure[*testWorkspaceScopedIdentifiable](cs, logger, WorkspaceChildren)
-		require.NoError(t, ensure(context.Background(), parent))
-		require.Zero(t, writes, "a converged namespace must cost a read and nothing more")
-	})
-
-	t.Run("NoChildNamespace is a no-op", func(t *testing.T) {
-		cs := k8sfake.NewClientset()
-
-		ensure := NamespaceEnsure[*testWorkspaceScopedIdentifiable](cs, logger, NoChildNamespace)
-		require.NoError(t, ensure(context.Background(), parent))
-
-		_, err := cs.CoreV1().Namespaces().Get(context.Background(), childNS, metav1.GetOptions{})
-		require.True(t, kerrs.IsNotFound(err))
-	})
-}
-
 func TestNamespaceCleanup(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	parent := &testWorkspaceScopedIdentifiable{name: "w1", tenant: "t1"}
@@ -783,19 +692,6 @@ func TestNamespaceCleanup(t *testing.T) {
 
 		_, err := cs.CoreV1().Namespaces().Get(context.Background(), childNS, metav1.GetOptions{})
 		require.NoError(t, err, "unowned namespace must not be deleted")
-	})
-
-	t.Run("NoChildNamespace is a no-op", func(t *testing.T) {
-		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), parentListKinds())
-		cs := k8sfake.NewClientset(&corev1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{Name: childNS, Labels: ownerLabels},
-		})
-
-		cleanup := NamespaceCleanup[*testWorkspaceScopedIdentifiable](dynFake, cs, logger, NoChildNamespace, gvrs)
-		require.NoError(t, cleanup(context.Background(), parent))
-
-		_, err := cs.CoreV1().Namespaces().Get(context.Background(), childNS, metav1.GetOptions{})
-		require.NoError(t, err)
 	})
 }
 

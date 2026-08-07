@@ -97,14 +97,11 @@ Three levels of namespace exist, and each is labeled with the internal `secapi.c
 
 ### Namespace lifecycle
 
-Creation is synchronous, on the write path, because a namespace must exist before a CR can be written into it and the API answers immediately. `NamespaceManagingWriterAdapter.Create` ensures two namespaces: the one the CR itself lands in, and — for the entities that own one — the one their children will land in. Both ensures are idempotent and there is no rollback: a namespace left behind by a failed create is inert and gets reclaimed.
+Creation is synchronous, on the write path, because a namespace must exist before a CR can be written into it and the API answers immediately. `NamespaceManagingWriterAdapter.Create` ensures two namespaces: the one the CR itself lands in, and — for the entities that own one — the one their children will land in. Both ensures are idempotent and there is no rollback: an empty namespace left behind by a failed create is inert and is adopted by the next create that succeeds.
 
 Only entities that own a namespace go through that adapter (`Workspace`, `Network`, and `Role`/`RoleAssignment` on the global gateway). Every other resource uses a plain `WriterAdapter`, which never creates a namespace — so a `BlockStorage` addressed to a workspace that was never created still fails with `NotFound`. Namespace existence *is* the referential-integrity check for leaf resources.
 
-Everything after creation belongs to the owning controller in the delegator, via two `GenericController` hooks:
-
-- **`WithEnsure`** (`NamespaceEnsure`) runs on every reconcile of a live resource: it recreates the child namespace if it went missing and additively patches its owner labels if they drifted. The patch carries only the keys it owns, so foreign labels survive — this is what makes a hand-created namespace adoptable.
-- **`WithCleanup`** (`NamespaceCleanup`) runs once, after the plugin has finished deleting and before the finalizer is dropped. It re-checks emptiness, verifies ownership, then deletes the namespace. Because the finalizer is still held, a failure is retried instead of orphaning the namespace.
+Teardown belongs to the owning controller in the delegator, via the `GenericController.WithCleanup` hook: `NamespaceCleanup` runs once, after the plugin has finished deleting and before the finalizer is dropped. It re-checks emptiness, verifies ownership, then deletes the namespace. Because the finalizer is still held, a failure is retried instead of orphaning the namespace. A namespace whose owner labels do not match is left in place and logged — deleting someone else's namespace is worse than leaking one.
 
 The lists of types that may live in each child namespace are `ChildResourceGVRs`, exported by the owning slice (`resource/workspace/v1/backend/kubernetes` and `resource/network/v1/network/backend/kubernetes`) and shared by the gateway's 409 check and the controller's re-check. A type missing from a list makes its namespace look empty when it is not.
 

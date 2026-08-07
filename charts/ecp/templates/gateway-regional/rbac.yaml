@@ -89,13 +89,10 @@ rules:
     resources: ["workspaces/status"]
     verbs: ["get", "list", "watch"]
   # create: the gateway provisions a resource's namespace on write, so the first call for a new
-  # tenant or workspace succeeds synchronously.
-  # delete: no longer used — namespace teardown moved to the delegator's Workspace and Network
-  # finalizers. Kept for one release so a rollback to the previous gateway image still works;
-  # drop it after that.
+  # tenant or workspace succeeds synchronously. Teardown is the delegator's job.
   - apiGroups: [""]
     resources: ["namespaces"]
-    verbs: ["get", "list", "watch", "create", "delete"]
+    verbs: ["get", "list", "watch", "create"]
   # Required by both the reader-backed Checker and the CachedChecker informer.
   - apiGroups: ["authorization.v1.secapi.cloud"]
     resources: ["roles"]

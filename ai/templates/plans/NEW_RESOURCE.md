@@ -106,7 +106,7 @@ the declared scope against it:
   `ComputeNetworkNamespace`, i.e. `sha3-224(tenant/workspace/network)` (see `Subnet` and
   `RouteTable`). The extra parent is *also* modeled as a Reference field in the domain/spec.
   If you add a network-scoped resource, add its GVR to `ChildResourceGVRs` in
-  `resource/network/v1/network/backend/kubernetes/children.go` and to the read-only grant in
+  `resource/network/v1/network/backend/kubernetes/controller.go` and to the read-only grant in
   `charts/delegator/templates/rbac.yaml`, or the Network's namespace will look empty when it is
   not. Note the split: the **REST handler params follow the *full* hierarchy** — the
   go-sdk `ServerInterface` method carries the extra path param (e.g.

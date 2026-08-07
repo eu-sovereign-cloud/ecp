@@ -6,8 +6,8 @@
 # The gateway provisions this namespace on the first tenant-scoped write, so it is NOT
 # hand-managed. It is declared here only because kustomize applies the catalog CRs (SKUs,
 # images) below before any request reaches the gateway, and they need somewhere to land.
-# The owner label must be secapi.cloud/tenant — the key namespaceOwnedBy checks. Any other
-# key makes the namespace un-adoptable, and therefore never repaired and never deleted.
+# The owner label must be secapi.cloud/tenant — the key namespaceOwnedBy checks. With any
+# other key the controller treats the namespace as foreign and never cleans it up.
 apiVersion: v1
 kind: Namespace
 metadata:
