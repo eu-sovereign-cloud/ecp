@@ -200,27 +200,20 @@ func ReferenceToCR(ref domain.Reference) schemav1.Reference {
 	return result
 }
 
-// embedScopeInResource inserts tenants/{tenant} and workspaces/{workspace} segments
-// into the resource path, just before the {collection}/{name} suffix.
-// e.g. "skus/fast-local" with tenant "t1" becomes "tenants/t1/skus/fast-local".
+// embedScopeInResource inserts the tenants/{tenant} and workspaces/{workspace} segments
+// into the resource path, matching the URN segment order
+// {provider}/{version}/tenants/{tenant}/workspaces/{workspace}/{resource}.
+// e.g. "skus/fast-local" with tenant "t1" becomes "tenants/t1/skus/fast-local", and the
+// nested "networks/n1/route-tables/rt1" becomes
+// "tenants/t1/workspaces/w1/networks/n1/route-tables/rt1" — the scope precedes the whole
+// path, never just its last two segments.
+//
+// A client holding only a resource's URN sends that URN as the reference path, so the path
+// may open with the "{provider}/{version}" pair. That pair stays in front: the scope goes
+// after it, never before it and never in the middle of the nested path, so the path handed
+// back is byte-identical to the URN the client sent.
 // Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 func embedScopeInResource(resourcePath, tenant, workspace string) string {
-	// Find the resource type/name (last two path segments)
-	lastSlash := strings.LastIndex(resourcePath, "/")
-	if lastSlash < 0 {
-		return resourcePath
-	}
-	secondLastSlash := strings.LastIndex(resourcePath[:lastSlash], "/")
-
-	var prefix, suffix string
-	if secondLastSlash >= 0 {
-		prefix = resourcePath[:secondLastSlash]
-		suffix = resourcePath[secondLastSlash+1:]
-	} else {
-		prefix = ""
-		suffix = resourcePath
-	}
-
 	var scopePath string
 	switch {
 	case tenant != "" && workspace != "":
@@ -231,10 +224,32 @@ func embedScopeInResource(resourcePath, tenant, workspace string) string {
 		scopePath = fmt.Sprintf("workspaces/%s", workspace)
 	}
 
-	if prefix != "" {
-		return prefix + "/" + scopePath + "/" + suffix
+	providerPath, rest := splitProviderPrefix(resourcePath)
+	segments := make([]string, 0, 3)
+	for _, s := range []string{providerPath, scopePath, rest} {
+		if s != "" {
+			segments = append(segments, s)
+		}
 	}
-	return scopePath + "/" + suffix
+	return strings.Join(segments, "/")
+}
+
+// splitProviderPrefix splits a leading "{provider}/{version}" pair (e.g. "seca.network/v1")
+// off a resource path, returning it and the remainder. A SECA provider id always carries a
+// dot and is followed by a v-prefixed version, neither of which a collection segment
+// ("networks", "route-tables", "tenants") ever has, so the pair is unambiguous. Returns an
+// empty prefix when the path does not open with one.
+// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
+func splitProviderPrefix(resourcePath string) (providerPath, rest string) {
+	provider, afterProvider, found := strings.Cut(resourcePath, "/")
+	if !found || !strings.Contains(provider, ".") {
+		return "", resourcePath
+	}
+	version, afterVersion, found := strings.Cut(afterProvider, "/")
+	if !found || len(version) < 2 || version[0] != 'v' || version[1] < '0' || version[1] > '9' {
+		return "", resourcePath
+	}
+	return provider + "/" + version, afterVersion
 }
 
 // extractAndStripSegment extracts the value following a segment prefix in a resource path

@@ -77,11 +77,11 @@ func TestSecurityGroupRuleToCR_MinimalSpec(t *testing.T) {
 // which commonbackend's scope embed/extract pair is a true inverse.
 //
 // ponytail: this is a known ceiling, not a tautology. extractAndStripSegment strips a scope
-// anchor from wherever it appears, while embedScopeInResource always re-inserts it before the
-// final two segments — so they only round-trip for paths carrying at most one "tenants/" and one
-// "workspaces/" anchor and no empty segments. Paths like "tenants/0/tenants//" drift on every
-// pass. Real SECA references are always canonical, so the gap is theoretical; widen this
-// predicate if the two helpers are ever reworked into true inverses.
+// anchor from wherever it appears, while embedScopeInResource always re-prefixes it to the whole
+// path — so they only round-trip for paths carrying at most one "tenants/" and one "workspaces/"
+// anchor and no empty segments. Paths like "tenants/0/tenants//" drift on every pass. Real SECA
+// references are always canonical, so the gap is theoretical; widen this predicate if the two
+// helpers are ever reworked into true inverses.
 func isWellFormedRefPath(p string) bool {
 	return !strings.Contains(p, "//") &&
 		strings.Count(p, "tenants") <= 1 &&

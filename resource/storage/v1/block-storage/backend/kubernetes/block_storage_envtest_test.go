@@ -118,7 +118,7 @@ func TestBlockStorageBackend_CreateAndGetBlockStorage(t *testing.T) {
 		created := *resultPtr
 		require.Equal(t, blockStorageName, created.Name)
 		require.Equal(t, 100, created.Spec.SizeGB)
-		require.Equal(t, "standard-ssd", created.Spec.SkuRef.Resource)
+		require.Equal(t, "skus/standard-ssd", created.Spec.SkuRef.Resource)
 
 		// Get the block storage and verify it matches.
 		getDomain := &bsdom.BlockStorage{
@@ -132,7 +132,7 @@ func TestBlockStorageBackend_CreateAndGetBlockStorage(t *testing.T) {
 		require.NotNil(t, getDomain)
 		require.Equal(t, blockStorageName, getDomain.Name)
 		require.Equal(t, 100, getDomain.Spec.SizeGB)
-		require.Equal(t, "standard-ssd", getDomain.Spec.SkuRef.Resource)
+		require.Equal(t, "skus/standard-ssd", getDomain.Spec.SkuRef.Resource)
 
 		// Update the block storage spec.
 		createDomain.Spec.SizeGB = 200

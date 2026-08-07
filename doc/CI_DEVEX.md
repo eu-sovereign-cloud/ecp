@@ -260,7 +260,7 @@ Minimal distroless base (`gcr.io/distroless/static-debian13`) for production dep
 | Category | Target(s) | Description |
 |----------|-----------|-------------|
 | **Verification** | `test`, `<module>-test` | Unit tests with race detector (`-race`). Optional `RUN=<regex>` filter. |
-| | `test-envtest` | Integration tests requiring a real kube-apiserver (envtest; `resource` module) |
+| | `test-envtest` | Integration tests requiring a real kube-apiserver (envtest; `resource` module). No Docker/KIND — the apiserver and etcd binaries are downloaded to `$TMPDIR/envtest-binaries` on first run. Part of `pre-commit` / `pre-merge` |
 | | `lint`, `<module>-lint` | golangci-lint with `.golangci.yml` config |
 | | `gofmt`, `<module>-gofmt` | Auto-fix formatting via `golangci-lint fmt` |
 | | `gofmt-check`, `<module>-gofmt-check` | Format check only (non-zero exit on diff; used by CI) |
@@ -276,7 +276,7 @@ Minimal distroless base (`gcr.io/distroless/static-debian13`) for production dep
 | | `workspace-verify` | `workspace-sync` + git-cleanliness gate (CI gate) |
 | | `go-sdk-update VERSION=<tag>` | Bump the go-sdk submodule and every dependent `go.mod` together |
 | | `go-sdk-verify` | Verify go-sdk submodule and `go.mod` pins agree (CI gate) |
-| **CI Gates** | `pre-commit` | `go-sdk-verify generate-api-verify test lint gofmt-check modernize-check vuln gosec` |
+| **CI Gates** | `pre-commit` | `go-sdk-verify generate-api-verify test test-envtest lint gofmt-check modernize-check vuln gosec` |
 | | `pre-merge` | Same, plus `gh-token-ensure branch-rebase-verify workspace-verify vet-integration` |
 | | `vet-integration`, `<module>-vet-integration` | `go vet -tags integration,envtest ./...` per module — compile-checks `//go:build integration` and `//go:build envtest` test files without running them (no KIND or envtest binaries needed) |
 | | `branch-rebase-verify` | Verify current branch is rebased onto its PR target |
@@ -345,6 +345,7 @@ Stage 3 — parallel, per changed module, inside the builder container
   workspace-verify     make workspace-verify
   generate-api         make generate-api-verify
   test                 make <module>-test              (matrix over changed modules)
+  envtest              make test-envtest                (only when `resource` changed)
   lint                 make <module>-lint               (matrix)
   gofmt                make <module>-gofmt-check        (matrix)
   modernize            make <module>-modernize-check    (matrix)
