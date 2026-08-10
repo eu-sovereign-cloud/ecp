@@ -1,7 +1,6 @@
 package backend
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -9,73 +8,29 @@ import (
 	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/schema/v1"
 )
 
-func TestExtractAndStripSegment(t *testing.T) {
+func TestExtractSegment(t *testing.T) {
 	testCases := []struct {
-		name              string
-		resource          string
-		segment           string
-		expectedValue     string
-		expectedRemaining string
+		name     string
+		resource string
+		segment  string
+		want     string
 	}{
-		{
-			name:              "segment at the beginning",
-			resource:          "workspaces/ws-1/block-storages/my-storage",
-			segment:           "workspaces/",
-			expectedValue:     "ws-1",
-			expectedRemaining: "block-storages/my-storage",
-		},
-		{
-			name:              "segment in the middle",
-			resource:          "tenants/t-1/workspaces/ws-1/block-storages/my-storage",
-			segment:           "workspaces/",
-			expectedValue:     "ws-1",
-			expectedRemaining: "tenants/t-1/block-storages/my-storage",
-		},
-		{
-			name:              "segment at the end",
-			resource:          "tenants/t-1/workspaces/ws-1",
-			segment:           "workspaces/",
-			expectedValue:     "ws-1",
-			expectedRemaining: "tenants/t-1",
-		},
-		{
-			name:              "segment is the only component",
-			resource:          "workspaces/ws-1",
-			segment:           "workspaces/",
-			expectedValue:     "ws-1",
-			expectedRemaining: "",
-		},
-		{
-			name:              "no segment found",
-			resource:          "block-storages/my-storage",
-			segment:           "workspaces/",
-			expectedValue:     "",
-			expectedRemaining: "",
-		},
-		{
-			name:              "empty resource string",
-			resource:          "",
-			segment:           "workspaces/",
-			expectedValue:     "",
-			expectedRemaining: "",
-		},
-		{
-			name: "multiple segments present",
-			// Reference.resource path with tenant/workspace scope:
-			// tenants/{tenant}/workspaces/{workspace}/{collection}/{name}
-			// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
-			resource:          "tenants/t-1/workspaces/ws-1/block-storages/my-storage",
-			segment:           "workspaces/",
-			expectedValue:     "ws-1",
-			expectedRemaining: "tenants/t-1/block-storages/my-storage",
-		},
+		// Reference.resource path with tenant/workspace scope:
+		// tenants/{tenant}/workspaces/{workspace}/{collection}/{name}
+		// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
+		{"segment at the beginning", "workspaces/ws-1/block-storages/my-storage", "workspaces/", "ws-1"},
+		{"segment in the middle", "seca.storage/v1/tenants/t-1/workspaces/ws-1/skus/s", "workspaces/", "ws-1"},
+		{"segment at the end", "tenants/t-1/workspaces/ws-1", "workspaces/", "ws-1"},
+		{"no segment found", "block-storages/my-storage", "workspaces/", ""},
+		{"empty resource string", "", "workspaces/", ""},
+		// A path boundary is required, so a collection whose name ends in the segment
+		// must not match: "workspaces/" is not the "sub-workspaces/" prefix.
+		{"segment is a suffix of another path element", "sub-workspaces/ws-1", "workspaces/", ""},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			value, remaining := extractAndStripSegment(tc.resource, tc.segment)
-			assert.Equal(t, tc.expectedValue, value)
-			assert.Equal(t, tc.expectedRemaining, remaining)
+			assert.Equal(t, tc.want, extractSegment(tc.resource, tc.segment))
 		})
 	}
 }
@@ -121,23 +76,4 @@ func TestReferenceRoundTripIsVerbatim(t *testing.T) {
 			assert.Equal(t, tc.ref, ReferenceToCR(ReferenceFromCR(tc.ref)))
 		})
 	}
-}
-
-// FuzzExtractAndStripSegment verifies that extractAndStripSegment never panics on arbitrary input.
-func FuzzExtractAndStripSegment(f *testing.F) {
-	f.Add("workspaces/ws-1/block-storages/my-storage", "workspaces/")
-	f.Add("tenants/t-1/workspaces/ws-1", "workspaces/")
-	f.Add("workspaces/ws-1", "workspaces/")
-	f.Add("providers/ionos/regions/de-fra", "regions/")
-	f.Add("", "workspaces/")
-	f.Add("/", "/")
-	f.Add("a/b/c", "b/")
-	// long paths around Kubernetes' 253-char DNS subdomain limit
-	f.Add(strings.Repeat("a", 253)+"/workspaces/ws-1", "workspaces/")
-	f.Add(strings.Repeat("a", 254)+"/workspaces/ws-1", "workspaces/")
-	f.Add("workspaces/"+strings.Repeat("b", 64), "workspaces/")
-
-	f.Fuzz(func(t *testing.T, resource, segment string) {
-		extractAndStripSegment(resource, segment)
-	})
 }

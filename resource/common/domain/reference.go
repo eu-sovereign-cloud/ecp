@@ -2,7 +2,12 @@ package domain
 
 // Reference is a domain type representing a reference to another resource.
 // It uses a structured object format that can reference resources across
-// workspaces or regions
+// workspaces or regions.
+//
+// The scope may arrive either as its own fields ({tenant: "t", resource: "skus/s"}) or spelled
+// out in the path ({resource: "seca.storage/v1/tenants/t/skus/s"}) - the same reference, two
+// representations. A reference is stored and echoed back exactly as written; use
+// backend.ParseReference to read the pieces.
 type Reference struct {
 	// Provider of the resource. If empty, inferred from context.
 	Provider string

@@ -2,7 +2,6 @@ package kubernetes_test
 
 import (
 	"reflect"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -73,21 +72,6 @@ func TestSecurityGroupRuleToCR_MinimalSpec(t *testing.T) {
 	require.Equal(t, commondomain.ResourceStatePending, out.Status.Conditions[0].State)
 }
 
-// isWellFormedRefPath reports whether a reference path is shaped like a SECA resource path, for
-// which commonbackend's scope embed/extract pair is a true inverse.
-//
-// ponytail: this is a known ceiling, not a tautology. extractAndStripSegment strips a scope
-// anchor from wherever it appears, while embedScopeInResource always re-prefixes it to the whole
-// path — so they only round-trip for paths carrying at most one "tenants/" and one "workspaces/"
-// anchor and no empty segments. Paths like "tenants/0/tenants//" drift on every pass. Real SECA
-// references are always canonical, so the gap is theoretical; widen this predicate if the two
-// helpers are ever reworked into true inverses.
-func isWellFormedRefPath(p string) bool {
-	return !strings.Contains(p, "//") &&
-		strings.Count(p, "tenants") <= 1 &&
-		strings.Count(p, "workspaces") <= 1
-}
-
 // FuzzSecurityGroupRuleSpecRoundTrip targets the nested optional spec — *IcmpConfig, *Ports and
 // the []Reference source list. Pointer and slice fields are where nil-vs-empty drift hides, and
 // SourceRef exercises ReferenceToCR, which must hand the reference back exactly as it was
@@ -123,9 +107,6 @@ func FuzzSecurityGroupRuleSpecRoundTrip(f *testing.F) {
 			spec.Ports = &securitygroupruledom.Ports{From: portFrom, To: portTo, List: []int{portFrom, portTo}}
 		}
 		if srcResource != "" {
-			if !isWellFormedRefPath(srcResource) {
-				return
-			}
 			spec.SourceRef = []commondomain.Reference{{Resource: srcResource, Provider: srcProvider}}
 		}
 

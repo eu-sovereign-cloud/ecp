@@ -313,31 +313,11 @@ jobs:
           submodules: 'recursive'
       - name: Run tests
         run: make ${{ matrix.module }}-test
-
-  # ===========================================================================
-  # Stage 3: Envtest integration tests (resource module, inside builder container)
-  #
-  # Runs the `envtest`-tagged tests against a real kube-apiserver. No KIND and no
-  # Docker: controller-runtime downloads the apiserver/etcd binaries at startup.
-  # Only the `resource` module has these tests, so the job is skipped unless that
-  # module is in the changed-module matrix.
-  # ===========================================================================
-  envtest:
-    needs: [module-diff, builder-publish-pr]
-    if: github.event.action != 'closed' && contains(fromJson(needs.module-diff.outputs.modules), 'resource')
-    runs-on: ubuntu-latest
-    name: Envtest (resource)
-    container:
-      image: ghcr.io/eu-sovereign-cloud/ecp-builder:pr-${{ github.event.pull_request.number }}
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          submodules: 'recursive'
+      # The `envtest`-tagged tests need a real kube-apiserver, which controller-runtime
+      # downloads at startup — no KIND, no Docker, so they ride along in this container.
+      # Only the `resource` module has them.
       - name: Run envtest integration tests
+        if: matrix.module == 'resource'
         run: make test-envtest
 
   # ===========================================================================
