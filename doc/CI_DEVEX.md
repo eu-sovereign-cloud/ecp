@@ -260,7 +260,7 @@ Minimal distroless base (`gcr.io/distroless/static-debian13`) for production dep
 | Category | Target(s) | Description |
 |----------|-----------|-------------|
 | **Verification** | `test`, `<module>-test` | Unit tests with race detector (`-race`). Optional `RUN=<regex>` filter. |
-| | `test-envtest` | Integration tests requiring a real kube-apiserver (envtest; `resource` module). No Docker/KIND — the apiserver and etcd binaries are downloaded to `$TMPDIR/envtest-binaries` on first run. Part of `pre-commit` / `pre-merge` |
+| | `test-envtest` | Integration tests requiring a real kube-apiserver (envtest; `resource` module). No Docker/KIND — the apiserver and etcd binaries are downloaded to `$TMPDIR/envtest-binaries` on first run, at the version `ENVTEST_K8S_VERSION` pins. Part of `pre-commit` / `pre-merge` |
 | | `lint`, `<module>-lint` | golangci-lint with `.golangci.yml` config |
 | | `gofmt`, `<module>-gofmt` | Auto-fix formatting via `golangci-lint fmt` |
 | | `gofmt-check`, `<module>-gofmt-check` | Format check only (non-zero exit on diff; used by CI) |
