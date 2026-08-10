@@ -430,6 +430,76 @@ func TestBlockStorage_increaseSize(t *testing.T) {
 	}
 }
 
+// A SKU is tenant-scoped, so a block storage in one tenant may legitimately reference a SKU
+// in another. The reference carries that tenant in either of the two representations the
+// SECA spec allows — its own field, or spelled out in the resource path — and the API stores
+// whichever the client sent verbatim, so both reach this handler and both must resolve to
+// the same SKU. Resolving against the block storage's own tenant instead silently loads the
+// wrong catalog entry (or none), which is why this is pinned rather than left to the
+// mappers.
+// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
+func TestBlockStorage_skuRefResolvesTenantAndName(t *testing.T) {
+	tests := []struct {
+		name       string
+		skuRef     refdom.Reference
+		wantTenant string
+		wantName   string
+	}{
+		{
+			name:       "bare name, tenant inferred from the block storage",
+			skuRef:     refdom.Reference{Resource: "skus/sku-id"},
+			wantTenant: "owner-tenant",
+			wantName:   "sku-id",
+		},
+		{
+			name:       "tenant as its own field",
+			skuRef:     refdom.Reference{Provider: "seca.storage/v1", Tenant: "catalog-tenant", Resource: "skus/sku-id"},
+			wantTenant: "catalog-tenant",
+			wantName:   "sku-id",
+		},
+		{
+			name:       "tenant spelled out in the resource path",
+			skuRef:     refdom.Reference{Resource: "seca.storage/v1/tenants/catalog-tenant/skus/sku-id"},
+			wantTenant: "catalog-tenant",
+			wantName:   "sku-id",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			m := newBsMocks(ctrl)
+
+			expectWorkspaceActive(m.wsRepo)
+
+			var loaded *bsdomsku.StorageSKU
+			m.skuRepo.EXPECT().
+				Load(gomock.Any(), gomock.Any()).
+				DoAndReturn(func(_ context.Context, sku **bsdomsku.StorageSKU) error {
+					loaded = *sku
+					return nil
+				}).AnyTimes()
+
+			m.wsConv.EXPECT().FromSECAToAruba(gomock.Any()).Return(activeProject(), nil).AnyTimes()
+			m.bsConv.EXPECT().FromSECAToAruba(gomock.Any()).Return(blockStorage(100, v1alpha1.ResourcePhaseCreating), nil).AnyTimes()
+			m.prjRepo.EXPECT().Load(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+			m.bsRepo.EXPECT().Load(gomock.Any(), gomock.Any()).Return(notFoundErr("block-storage")).AnyTimes()
+			m.bsRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+
+			bs := &bsdomblock.BlockStorage{Spec: bsdomblock.BlockStorageSpec{SizeGB: 100, SkuRef: tt.skuRef}}
+			bs.Tenant = "owner-tenant"
+
+			// The create does not complete on the first pass; the SKU lookup happens regardless.
+			assertErr(t, m.handler().Create(context.Background(), bs), true, "operation still in progress")
+
+			require.NotNil(t, loaded, "the handler must look the SKU up")
+			require.Equal(t, tt.wantName, loaded.Name)
+			require.Equal(t, tt.wantTenant, loaded.Tenant)
+		})
+	}
+}
+
 func assertErr(t *testing.T, err error, wantErr bool, errContains string) {
 	t.Helper()
 
