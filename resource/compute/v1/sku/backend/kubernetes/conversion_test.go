@@ -17,8 +17,11 @@ import (
 
 const (
 	testProvider = "seca.compute/v1"
-	testRegion   = "eu-central-1"
-	testTenant   = "tn-1"
+	// testProviderLabel is testProvider as it is stored on the CR: "/" is not a
+	// legal label value character, so it is encoded as "_".
+	testProviderLabel = "seca.compute_v1"
+	testRegion        = "eu-central-1"
+	testTenant        = "tn-1"
 )
 
 // newInstanceSKUCR builds an InstanceSKU CR with the given identity, internal labels
@@ -30,7 +33,7 @@ func newInstanceSKUCR(name, version string, vcpu, ram int, createdAt time.Time) 
 			Name:            name,
 			ResourceVersion: version,
 			Labels: map[string]string{
-				k8slabels.InternalProviderLabel: testProvider,
+				k8slabels.InternalProviderLabel: testProviderLabel,
 				k8slabels.InternalRegionLabel:   testRegion,
 				k8slabels.InternalTenantLabel:   testTenant,
 			},

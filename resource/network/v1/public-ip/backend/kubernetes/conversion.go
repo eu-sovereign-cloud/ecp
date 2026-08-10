@@ -99,7 +99,7 @@ func PublicIpToCR(p *publicipdom.PublicIp) (client.Object, error) {
 		CommonData: schemav1.CommonData{
 			Annotations: p.Annotations,
 			Extensions:  p.Extensions,
-			Labels:      slices.Collect(maps.Keys(p.Labels)),
+			Labels:      slices.Sorted(maps.Keys(p.Labels)),
 		},
 		Spec: PublicIpSpec{
 			Address: p.Spec.Address,

@@ -12,11 +12,14 @@ Each plugin is a separate Go module under `csp/`, keeping CSP-specific dependenc
 
 Plugin interfaces live in each resource slice at `resource/{group}/vN/{resource}/backend/kubernetes/plugin.go`. This co-locates the interface with the controller and handler that use it — no framework package ever names a concrete resource.
 
+Every interface has `Create`, `Delete` and `Update`. Some add operations of their own for state a resource carries beyond its lifecycle — `IncreaseSize` on a volume, `PowerOn`/`PowerOff` on an instance.
+
 **`WorkspacePlugin` interface** (`resource/workspace/v1/backend/kubernetes/plugin.go`):
 ```go
 type WorkspacePlugin interface {
     Create(ctx context.Context, resource *wsdom.Workspace) error
     Delete(ctx context.Context, resource *wsdom.Workspace) error
+    Update(ctx context.Context, resource *wsdom.Workspace) error
 }
 ```
 
@@ -25,6 +28,7 @@ type WorkspacePlugin interface {
 type BlockStoragePlugin interface {
     Create(ctx context.Context, resource *bsdom.BlockStorage) error
     Delete(ctx context.Context, resource *bsdom.BlockStorage) error
+    Update(ctx context.Context, resource *bsdom.BlockStorage) error
     IncreaseSize(ctx context.Context, resource *bsdom.BlockStorage) error
 }
 ```
@@ -34,10 +38,43 @@ type BlockStoragePlugin interface {
 type NetworkPlugin interface {
     Create(ctx context.Context, resource *netdom.Network) error
     Delete(ctx context.Context, resource *netdom.Network) error
+    Update(ctx context.Context, resource *netdom.Network) error
 }
 ```
 
 A CSP plugin implements these interfaces for each resource type it supports.
+
+## Update: reconciling an active resource
+
+`Create` and `Delete` are **edge-triggered** — the reconciler calls them once per lifecycle transition, on the edge into `creating` or `deleting`. `Update` is **level-triggered**: once a resource is active it has no transition left to make, so it is handed to `Update` on *every* reconcile, and the plugin decides for itself whether anything needs doing.
+
+This is why a plugin must:
+
+- **Be idempotent, and cheap when nothing changed.** Compare the desired state against the provider and return `nil` if they already agree. Do not write unconditionally — the controller reconciles on its own writes, so a write per pass never settles.
+- **Not assume it is told what changed.** Nothing diffs the resource for you. There is no observed copy of the spec to compare against, because the SECA spec publishes observed state for almost nothing (`status.sizeGB` and `status.powerState` are the exceptions, which is exactly why `IncreaseSize` and `PowerOn`/`PowerOff` can be edge-triggered and a generic update cannot).
+
+Where a resource has both, its own operation wins: a pending resize is routed to `IncreaseSize`, and a pending power change to `PowerOn`/`PowerOff`, before `Update` is considered.
+
+### Reporting the outcome
+
+| Return | Meaning | Reconciler does |
+|---|---|---|
+| `nil` | applied, or nothing to apply | clears any previous `UpdateFailed`; writes no status otherwise |
+| `backend.ErrStillProcessing` | in flight | requeues, leaves status untouched |
+| error wrapping `backend.ErrNotSupported` | the provider will never accept this | records the reason, **does not retry** |
+| any other error | assumed transient | records the reason and requeues |
+
+`ErrNotSupported` is for a change the provider cannot make at all, not one that has not finished. Cloud resources routinely have immutable fields — an Aruba VPC's region, an instance's flavor — and retrying those re-issues a request the provider has already refused. Wrap it so the reason reaches the user:
+
+```go
+return fmt.Errorf("%w: an Aruba VPC's region cannot be changed after creation", backend.ErrNotSupported)
+```
+
+**Only return it for a diff you have actually detected.** Because `Update` runs on every reconcile and not only after an edit, an unconditional `ErrNotSupported` reports a refusal on resources nobody touched — every one of them, forever. That is worse than saying nothing: it destroys the condition's signal value, since a reader can no longer tell "nothing to do" from "refused". A plugin that cannot diff at all should return `nil` and document the gap (see the IONOS plugin below).
+
+A failed update leaves the resource **active**, with an `UpdateFailed` condition carrying the message. It is still running and healthy; it just no longer matches its spec. Holding it active is also what keeps the failure recoverable — `error` matches no arm of the reconciler, so the resource would be stranded there and a corrected spec would never be retried.
+
+The condition is retracted as soon as an update succeeds — including when it has since been buried under later conditions, which is the normal case for a resource that also has its own post-active operation (a resize, a power transition).
 
 ## Builder Inversion
 
@@ -81,6 +118,8 @@ make -C csp/dummy kind-stop
 ### IONOS Plugin (`csp/ionos/`)
 
 Provisions IONOS Cloud resources using [Crossplane](https://crossplane.io/) with the `provider-upjet-ionoscloud` provider. The plugin introduces its own internal controller layer to bridge the ECP resource model and the Crossplane managed resource model.
+
+**Updates are not implemented.** Every `Update` is a no-op, so an edit to a live IONOS-backed resource is accepted and stored but never reaches the provider. It is deliberately *not* reported with `ErrNotSupported`: `Update` is level-triggered and the plugin has no observed state to diff against, so it cannot tell a resource nobody touched from one carrying a change it must refuse — returning `ErrNotSupported` would stamp `UpdateFailed` on every healthy IONOS-backed resource and leave the condition meaning nothing.
 
 **Prerequisites:**
 - Kubernetes cluster with Crossplane installed
@@ -207,7 +246,7 @@ the exclude list in `ci/scripts/go-modules.sh`).
    make workspace-sync
    ```
 
-4. **Implement the plugin interfaces** from each resource slice's `backend/kubernetes/plugin.go`. Use `csp/dummy/` as a reference — it is the simplest complete implementation.
+4. **Implement the plugin interfaces** from each resource slice's `backend/kubernetes/plugin.go`. Use `csp/dummy/` as a reference — it is the simplest complete implementation. `Update` is the one with a contract worth reading first (see above): it is level-triggered, so it must be idempotent and must not write when nothing has drifted. A plugin that cannot apply a given change should say so with `backend.ErrNotSupported` rather than returning `nil`, which would claim the change had been applied when nothing happened.
 
 5. **Wire controllers in `cmd/main.go`** using builder inversion: instantiate each plugin, call each slice's `NewController`, add to `frameworkbuilder.NewControllerSet()`, then call `SetupWithManager(mgr)`.
 

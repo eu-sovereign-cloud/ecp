@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"slices"
 
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -113,4 +114,26 @@ func (h *WorkspaceHandler) propagateDelete(ctx context.Context, project *v1alpha
 	}
 
 	return nil
+}
+
+// Update re-applies the Project's tags. The description is mutable on the Aruba side too, and the
+// converter derives both from the SECA workspace, so the two travel together here.
+func (h *WorkspaceHandler) Update(ctx context.Context, domain *wsdom.Workspace) error {
+	prj, err := h.converter.FromSECAToAruba(domain)
+	if err != nil {
+		return err
+	}
+
+	// Load overwrites prj with the live Project, taking the desired values with it.
+	tags, description := slices.Clone(prj.Spec.Tags), prj.Spec.Description
+
+	return syncSpec(ctx, h.repository, prj, func(prj *v1alpha1.Project) bool {
+		if slices.Equal(prj.Spec.Tags, tags) && prj.Spec.Description == description {
+			return false
+		}
+
+		prj.Spec.Tags, prj.Spec.Description = tags, description
+
+		return true
+	})
 }

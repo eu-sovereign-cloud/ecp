@@ -92,7 +92,7 @@ func SecurityGroupRuleToCR(sgr *securitygroupruledom.SecurityGroupRule) (client.
 		CommonData: schemav1.CommonData{
 			Annotations: sgr.Annotations,
 			Extensions:  sgr.Extensions,
-			Labels:      slices.Collect(maps.Keys(sgr.Labels)),
+			Labels:      slices.Sorted(maps.Keys(sgr.Labels)),
 		},
 		Spec: securityGroupRuleSpecToCR(sgr.Spec),
 	}

@@ -21,9 +21,11 @@ rules:
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
 {{- if eq $plugin "aruba" }}
   # Block storage, its read-only SKU lookup, and the arubacloud.com CRs the
-  # plugin writes for the arubacloud-resource-operator.
+  # plugin writes for the arubacloud-resource-operator. Images are a no-op (Aruba
+  # has no image object): the boot volume carries the OS template code instead, but
+  # the image resource is still reconciled to active so boot-from-image gating works.
   - apiGroups: ["storage.v1.secapi.cloud"]
-    resources: ["block-storages", "block-storages/status"]
+    resources: ["block-storages", "block-storages/status", "images", "images/status"]
     verbs: ["get", "list", "watch", "update", "patch", "create", "delete"]
   - apiGroups: ["storage.v1.secapi.cloud"]
     resources: ["skus"]
@@ -33,6 +35,27 @@ rules:
     verbs: ["get", "list", "watch", "update", "patch", "create", "delete"]
   - apiGroups: ["arubacloud.com"]
     resources: ["blockstorages", "blockstorages/status"]
+    verbs: ["get", "list", "watch", "update", "patch", "create", "delete"]
+  # Network and compute inputs the plugin reconciles: networks, subnets and public
+  # IPs map to arubacloud.com CRs; route tables, internet gateways, nics and
+  # security groups are accepted as-is, with the real security groups materialised
+  # per VPC when an instance attaches them.
+  - apiGroups: ["network.v1.secapi.cloud"]
+    resources: ["networks", "networks/status", "subnets", "subnets/status", "public-ips", "public-ips/status", "route-tables", "route-tables/status", "internet-gateways", "internet-gateways/status", "security-groups", "security-groups/status", "security-group-rules", "security-group-rules/status", "nics", "nics/status"]
+    verbs: ["get", "list", "watch", "update", "patch", "create", "delete"]
+  - apiGroups: ["compute.v1.secapi.cloud"]
+    resources: ["instances", "instances/status"]
+    verbs: ["get", "list", "watch", "update", "patch", "create", "delete"]
+  # The instance handler reads the compute SKU to map its vCPU/RAM to an Aruba flavor (read-only,
+  # like the storage SKU above); see csp/aruba/pkg/adapter/skumap.
+  - apiGroups: ["compute.v1.secapi.cloud"]
+    resources: ["skus"]
+    verbs: ["get", "list", "watch"]
+  # The remaining arubacloud.com CRs the plugin writes for the operator: a VPC,
+  # subnet and elastic IP directly, and a cloud server (with its key pair, security
+  # groups and rules) for an instance.
+  - apiGroups: ["arubacloud.com"]
+    resources: ["vpcs", "vpcs/status", "subnets", "subnets/status", "elasticips", "elasticips/status", "securitygroups", "securitygroups/status", "securityrules", "securityrules/status", "keypairs", "keypairs/status", "cloudservers", "cloudservers/status"]
     verbs: ["get", "list", "watch", "update", "patch", "create", "delete"]
 {{- else if eq $plugin "dummy" }}
   # The widest set: the dummy plugin reconciles every vertical in-process, with

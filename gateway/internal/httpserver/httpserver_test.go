@@ -109,7 +109,7 @@ func TestServe_NilServer(t *testing.T) {
 
 func TestLiveHandler_AlwaysOK(t *testing.T) {
 	t.Parallel()
-	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/healthz", nil)
 	rec := httptest.NewRecorder()
 	httpserver.LiveHandler().ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -133,7 +133,7 @@ func TestReadyHandler_ProcessGateAndChecks(t *testing.T) {
 
 	t.Run("not ready before Set", func(t *testing.T) {
 		rec := httptest.NewRecorder()
-		httpserver.ReadyHandler(gate, checkOK).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/readyz", nil))
+		httpserver.ReadyHandler(gate, checkOK).ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/readyz", nil))
 		if rec.Code != http.StatusServiceUnavailable {
 			t.Fatalf("status = %d, want 503", rec.Code)
 		}
@@ -146,7 +146,7 @@ func TestReadyHandler_ProcessGateAndChecks(t *testing.T) {
 
 	t.Run("ready when gate open and checks pass", func(t *testing.T) {
 		rec := httptest.NewRecorder()
-		httpserver.ReadyHandler(gate, checkOK).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/readyz", nil))
+		httpserver.ReadyHandler(gate, checkOK).ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/readyz", nil))
 		if rec.Code != http.StatusOK {
 			t.Fatalf("status = %d, want 200", rec.Code)
 		}
@@ -154,7 +154,7 @@ func TestReadyHandler_ProcessGateAndChecks(t *testing.T) {
 
 	t.Run("not ready when dependency fails", func(t *testing.T) {
 		rec := httptest.NewRecorder()
-		httpserver.ReadyHandler(gate, checkFail).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/readyz", nil))
+		httpserver.ReadyHandler(gate, checkFail).ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/readyz", nil))
 		if rec.Code != http.StatusServiceUnavailable {
 			t.Fatalf("status = %d, want 503", rec.Code)
 		}
@@ -163,7 +163,7 @@ func TestReadyHandler_ProcessGateAndChecks(t *testing.T) {
 	t.Run("not ready after gate closed", func(t *testing.T) {
 		gate.Set(false)
 		rec := httptest.NewRecorder()
-		httpserver.ReadyHandler(gate, checkOK).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/readyz", nil))
+		httpserver.ReadyHandler(gate, checkOK).ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/readyz", nil))
 		if rec.Code != http.StatusServiceUnavailable {
 			t.Fatalf("status = %d, want 503", rec.Code)
 		}
@@ -211,7 +211,7 @@ func TestRegisterProbes_Routes(t *testing.T) {
 
 func freeAddr(t *testing.T) string {
 	t.Helper()
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	ln, err := net.Listen("tcp", "127.0.0.1:0") //nolint:noctx // test helper
 	if err != nil {
 		t.Fatalf("listen: %v", err)
 	}
@@ -224,7 +224,7 @@ func waitUntilListening(t *testing.T, addr string) {
 	t.Helper()
 	deadline := time.Now().Add(2 * time.Second)
 	for {
-		conn, dialErr := net.DialTimeout("tcp", addr, 50*time.Millisecond)
+		conn, dialErr := net.DialTimeout("tcp", addr, 50*time.Millisecond) //nolint:noctx // test helper
 		if dialErr == nil {
 			_ = conn.Close()
 			return

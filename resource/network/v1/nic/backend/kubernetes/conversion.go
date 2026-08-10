@@ -128,7 +128,7 @@ func NicToCR(n *nicdom.Nic) (client.Object, error) {
 		CommonData: schemav1.CommonData{
 			Annotations: n.Annotations,
 			Extensions:  n.Extensions,
-			Labels:      slices.Collect(maps.Keys(n.Labels)),
+			Labels:      slices.Sorted(maps.Keys(n.Labels)),
 		},
 		Spec: spec,
 	}

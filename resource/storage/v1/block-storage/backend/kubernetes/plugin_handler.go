@@ -61,6 +61,14 @@ func NewBlockStoragePluginHandler(
 
 //nolint:gocyclo // keep locality of behavior: the two switches describe the full reconciliation state machine in one place
 func (h *BlockStoragePluginHandler) HandleReconcile(ctx context.Context, resource *bsdom.BlockStorage) (bool, error) {
+	// An active volume with no resize pending has no lifecycle edge left to fire, so it takes the
+	// update path instead of the state machine below. The resize outranks it: growing a volume is
+	// its own transition through "updating" with observed size in status, and routing it here
+	// would bypass that and never advance the state.
+	if isBlockStorageActive(resource) && !wantBlockStorageIncreaseSize(resource) {
+		return commonbackend.HandleUpdate(ctx, resource, &resource.Status.Status, h.plugin.Update, h.repo, h.MaxConditions)
+	}
+
 	var delegate backendport.DelegatedFunc[*bsdom.BlockStorage]
 
 	switch {
@@ -151,9 +159,7 @@ func (h *BlockStoragePluginHandler) setResourceState(ctx context.Context, resour
 	}
 
 	resource.Status.PushCondition(commonbackend.ConditionFromState(state))
-	for h.MaxConditions > 0 && len(resource.Status.Conditions) > h.MaxConditions {
-		resource.Status.PopCondition()
-	}
+	commonbackend.TrimConditions(&resource.Status.Status, h.MaxConditions)
 
 	if _, err := h.repo.UpdateStatus(ctx, resource); err != nil {
 		if errors.Is(err, kernel.ErrNotFound) {
@@ -172,9 +178,7 @@ func (h *BlockStoragePluginHandler) setResourceErrorState(ctx context.Context, r
 	}
 
 	resource.Status.PushCondition(commonbackend.ConditionFromError(err))
-	for h.MaxConditions > 0 && len(resource.Status.Conditions) > h.MaxConditions {
-		resource.Status.PopCondition()
-	}
+	commonbackend.TrimConditions(&resource.Status.Status, h.MaxConditions)
 
 	if _, updateErr := h.repo.UpdateStatus(ctx, resource); updateErr != nil {
 		if errors.Is(updateErr, kernel.ErrNotFound) {
@@ -239,9 +243,7 @@ func (h *BlockStoragePluginHandler) setResourceCondition(ctx context.Context, re
 	}
 
 	resource.Status.PushCondition(c)
-	for h.MaxConditions > 0 && len(resource.Status.Conditions) > h.MaxConditions {
-		resource.Status.PopCondition()
-	}
+	commonbackend.TrimConditions(&resource.Status.Status, h.MaxConditions)
 
 	if _, err := h.repo.UpdateStatus(ctx, resource); err != nil {
 		if errors.Is(err, kernel.ErrNotFound) {
@@ -262,6 +264,12 @@ func blockDecreaseSize(_ context.Context, resource *bsdom.BlockStorage) error {
 	}
 
 	return nil
+}
+
+func isBlockStorageActive(resource *bsdom.BlockStorage) bool {
+	return resource.DeletedAt == nil &&
+		resource.Status != nil &&
+		resource.Status.State == commondomain.ResourceStateActive
 }
 
 func isBlockStorageAccepted(resource *bsdom.BlockStorage) bool {

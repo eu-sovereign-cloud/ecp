@@ -41,6 +41,12 @@ func NewRolePluginHandler(
 
 // HandleReconcile implements the role lifecycle state machine.
 func (h *RolePluginHandler) HandleReconcile(ctx context.Context, resource *roledom.Role) (bool, error) {
+	// An active resource has no lifecycle transition left to make, so it takes the update
+	// path instead of the create/delete state machine below. See commonbackend.HandleUpdate.
+	if isRoleActive(resource) {
+		return commonbackend.HandleUpdate(ctx, resource, &resource.Status.Status, h.plugin.Update, h.repo, h.MaxConditions)
+	}
+
 	var delegate backendport.DelegatedFunc[*roledom.Role]
 
 	switch {
@@ -113,9 +119,7 @@ func (h *RolePluginHandler) setResourceState(ctx context.Context, resource *role
 	}
 
 	resource.Status.PushCondition(commonbackend.ConditionFromState(state))
-	for h.MaxConditions > 0 && len(resource.Status.Conditions) > h.MaxConditions {
-		resource.Status.PopCondition()
-	}
+	commonbackend.TrimConditions(&resource.Status.Status, h.MaxConditions)
 
 	if _, err := h.repo.UpdateStatus(ctx, resource); err != nil {
 		if errors.Is(err, kernel.ErrNotFound) {
@@ -134,9 +138,7 @@ func (h *RolePluginHandler) setResourceErrorState(ctx context.Context, resource 
 	}
 
 	resource.Status.PushCondition(commonbackend.ConditionFromError(err))
-	for h.MaxConditions > 0 && len(resource.Status.Conditions) > h.MaxConditions {
-		resource.Status.PopCondition()
-	}
+	commonbackend.TrimConditions(&resource.Status.Status, h.MaxConditions)
 
 	if _, updateErr := h.repo.UpdateStatus(ctx, resource); updateErr != nil {
 		if errors.Is(updateErr, kernel.ErrNotFound) {
@@ -147,6 +149,12 @@ func (h *RolePluginHandler) setResourceErrorState(ctx context.Context, resource 
 	}
 
 	return requeue, nil
+}
+
+func isRoleActive(resource *roledom.Role) bool {
+	return resource.DeletedAt == nil &&
+		resource.Status != nil &&
+		resource.Status.State == commondomain.ResourceStateActive
 }
 
 func isRoleAccepted(resource *roledom.Role) bool {

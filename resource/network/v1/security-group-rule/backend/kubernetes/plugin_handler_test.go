@@ -23,7 +23,7 @@ func TestSecurityGroupRulePluginHandler_HandleReconcile(t *testing.T) {
 		errRepo   = errors.New("repo error")
 	)
 
-	t.Run("should do nothing if resource is active", func(t *testing.T) {
+	t.Run("should call plugin update and write no status when resource is active and in sync", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
@@ -37,6 +37,7 @@ func TestSecurityGroupRulePluginHandler_HandleReconcile(t *testing.T) {
 
 		mockRepo := NewMockRepo[*securitygroupruledom.SecurityGroupRule](ctrl)
 		mockPlugin := NewMockSecurityGroupRulePlugin(ctrl)
+		mockPlugin.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil).Times(1)
 		handler := NewSecurityGroupRulePluginHandler(mockRepo, mockPlugin, 0)
 
 		requeue, err := handler.HandleReconcile(context.Background(), resource)

@@ -10,7 +10,7 @@ import (
 	"reflect"
 	"testing"
 
-	kernel "github.com/eu-sovereign-cloud/ecp/framework/kernel"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	authnport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/authn"
 	authzport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/authz"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
@@ -94,7 +94,7 @@ func TestNewAuthorization(t *testing.T) {
 			mw := NewAuthorization(tc.checker, tc.extractor, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 			w := httptest.NewRecorder()
-			r := httptest.NewRequest(http.MethodGet, "/", nil)
+			r := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
 
 			if tc.identity != nil {
 				r = r.WithContext(contextWithIdentity(r.Context(), tc.identity))
@@ -130,7 +130,7 @@ func TestNewAuthorization_TokenScopeFromIdentity(t *testing.T) {
 	mw := NewAuthorization(checker, fixedExtractor(authzport.AuthorizationClaim{}), discardLog)
 
 	w := httptest.NewRecorder()
-	r := httptest.NewRequest(http.MethodGet, "/", nil)
+	r := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
 	r = r.WithContext(contextWithIdentity(r.Context(), alice))
 	mw(okHandler).ServeHTTP(w, r)
 

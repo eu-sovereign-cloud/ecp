@@ -22,7 +22,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		errRepo   = errors.New("repo failed")
 	)
 
-	t.Run("should do nothing if resource is active and requires no changes", func(t *testing.T) {
+	t.Run("should call plugin update and write no status when resource is active and in sync", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
@@ -43,6 +43,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		// And a repo and plugin that are not expected to be called
 		mockRepo := NewMockRepo[*bsdom.BlockStorage](ctrl)
 		mockPlugin := NewMockBlockStoragePlugin(ctrl)
+		mockPlugin.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil).Times(1)
 
 		//
 		// And a block storage plugin handler

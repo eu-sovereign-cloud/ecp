@@ -13,7 +13,7 @@ import (
 	context "context"
 	reflect "reflect"
 
-	v1 "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role"
+	role "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -42,7 +42,7 @@ func (m *MockRolePlugin) EXPECT() *MockRolePluginMockRecorder {
 }
 
 // Create mocks base method.
-func (m *MockRolePlugin) Create(ctx context.Context, resource *v1.Role) error {
+func (m *MockRolePlugin) Create(ctx context.Context, resource *role.Role) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Create", ctx, resource)
 	ret0, _ := ret[0].(error)
@@ -56,7 +56,7 @@ func (mr *MockRolePluginMockRecorder) Create(ctx, resource any) *gomock.Call {
 }
 
 // Delete mocks base method.
-func (m *MockRolePlugin) Delete(ctx context.Context, resource *v1.Role) error {
+func (m *MockRolePlugin) Delete(ctx context.Context, resource *role.Role) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Delete", ctx, resource)
 	ret0, _ := ret[0].(error)
@@ -67,4 +67,18 @@ func (m *MockRolePlugin) Delete(ctx context.Context, resource *v1.Role) error {
 func (mr *MockRolePluginMockRecorder) Delete(ctx, resource any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockRolePlugin)(nil).Delete), ctx, resource)
+}
+
+// Update mocks base method.
+func (m *MockRolePlugin) Update(ctx context.Context, resource *role.Role) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Update", ctx, resource)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Update indicates an expected call of Update.
+func (mr *MockRolePluginMockRecorder) Update(ctx, resource any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockRolePlugin)(nil).Update), ctx, resource)
 }

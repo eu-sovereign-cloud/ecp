@@ -22,7 +22,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		errRepo   = errors.New("repo error")
 	)
 
-	t.Run("should do nothing if resource is active", func(t *testing.T) {
+	t.Run("should call plugin update and write no status when resource is active and in sync", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
@@ -41,6 +41,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 		// And a repo and plugin that are not expected to be called
 		mockRepo := NewMockRepo[*wsdom.Workspace](ctrl)
 		mockPlugin := NewMockWorkspacePlugin(ctrl)
+		mockPlugin.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil).Times(1)
 
 		//
 		// And a workspace plugin handler

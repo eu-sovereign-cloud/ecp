@@ -21,6 +21,7 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/generic/delegated"
 	mutator_bypass "github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/generic/mutator"
 	resolver_bypass "github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/generic/resolver"
+	"github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/skumap"
 	"github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/port/converter"
 	"github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/port/repository"
 )
@@ -275,6 +276,31 @@ func (h *BlockStorageHandler) FromSECABundleToAruba(from *SecaBlockStorageBundle
 		return nil, err // TODO: better error handling
 	}
 
+	// Everything below is create-only, gated on the storage SKU because that is what tells the two
+	// apart: the delete and resize chains resolve through BypassDependencyResolver and leave it
+	// nil. Neither needs any of it - a delete addresses the volume by name and namespace, and a
+	// resize reloads the live object over this one before updating it. Mapping the image on those
+	// paths would be worse than useless: an image the table below does not know would fail the
+	// convert step, which runs before propagate, leaving the volume impossible to delete.
+	if from.StorageSku != nil {
+		// Map the SECA storage SKU's capacity to an Aruba block-storage tier.
+		bs.Spec.Type = skumap.StorageType(from.StorageSku.Spec.IOPS)
+
+		// A block storage created from a source image is a boot disk: map the SECA image name to
+		// the Aruba OS template code and mark the volume bootable, so Aruba installs an OS on it.
+		// Without this a CloudServer booting from the volume is rejected by the CMP (semantic 400:
+		// no bootable OS). Aruba has no image object, so the image is a no-op there - only its name
+		// (the template code) matters, and it lands here on the volume.
+		if ref := from.BlockStorage.Spec.SourceImageRef; ref != nil {
+			image, err := skumap.ImageTemplate(lastSegment(ref.Resource))
+			if err != nil {
+				return nil, err
+			}
+			bs.Spec.Image = image
+			bs.Spec.Bootable = true
+		}
+	}
+
 	response.BlockStorage = bs
 
 	return response, nil
@@ -312,4 +338,16 @@ func (h *BlockStorageHandler) resolveBlockStorageDependencies(ctx context.Contex
 	return &ArubaBlockStorageBundle{
 		BlockStorage: main.BlockStorage,
 	}, err
+}
+
+// Update re-applies the BlockStorage's tags. Growing a volume is not handled here: it has its own
+// plugin operation (IncreaseSize) and its own state transition, which the reconciler routes ahead
+// of this one.
+func (h *BlockStorageHandler) Update(ctx context.Context, domain *bsdom.BlockStorage) error {
+	bs, err := h.bsConverter.FromSECAToAruba(domain)
+	if err != nil {
+		return err
+	}
+
+	return syncTags(ctx, h.bsRepository, bs, bs.Spec.Tags, func(b *v1alpha1.BlockStorage) *[]string { return &b.Spec.Tags })
 }

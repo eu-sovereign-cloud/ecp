@@ -118,7 +118,7 @@ func SubnetToCR(s *subnetdom.Subnet) (client.Object, error) {
 		CommonData: schemav1.CommonData{
 			Annotations: s.Annotations,
 			Extensions:  s.Extensions,
-			Labels:      slices.Collect(maps.Keys(s.Labels)),
+			Labels:      slices.Sorted(maps.Keys(s.Labels)),
 		},
 		Spec: spec,
 	}

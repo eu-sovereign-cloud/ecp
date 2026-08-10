@@ -21,7 +21,7 @@ func TestWorkspaceProjectConverter_FromSECAToAruba(t *testing.T) {
 		assert func(t *testing.T, project *v1alpha1.Project)
 	}{
 		{
-			name: "happy path with description tags and default",
+			name: "happy path with description labels and default",
 			input: &wsdom.Workspace{
 				RegionalMetadata: commondomain.RegionalMetadata{
 					Region: "region-1",
@@ -32,10 +32,10 @@ func TestWorkspaceProjectConverter_FromSECAToAruba(t *testing.T) {
 						Tenant:    "tenant-123",
 						Workspace: "workspace-abc",
 					},
+					Labels: map[string]string{"env": "prod", "app": "web"},
 				},
 				Spec: map[string]any{
 					"description": "My test project",
-					"tags":        []any{"tag1", "tag2"},
 					"default":     true,
 				},
 			},
@@ -61,11 +61,12 @@ func TestWorkspaceProjectConverter_FromSECAToAruba(t *testing.T) {
 					)
 				}
 
+				// Labels become sorted "key-value" tags - see converter.ArubaTags.
 				if len(project.Spec.Tags) != 2 ||
-					project.Spec.Tags[0] != "tag1" ||
-					project.Spec.Tags[1] != "tag2" {
+					project.Spec.Tags[0] != "app-web" ||
+					project.Spec.Tags[1] != "env-prod" {
 					t.Errorf(
-						"expected tags ['tag1', 'tag2'], got %v",
+						"expected tags ['app-web', 'env-prod'], got %v",
 						project.Spec.Tags,
 					)
 				}

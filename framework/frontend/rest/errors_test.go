@@ -1,6 +1,7 @@
 package rest
 
 import (
+	"context"
 	"errors"
 	"io"
 	"log/slog"
@@ -8,7 +9,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	kernel "github.com/eu-sovereign-cloud/ecp/framework/kernel"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 )
 
 func TestMapKindToHTTP(t *testing.T) {
@@ -42,7 +43,7 @@ func TestMapKindToHTTP(t *testing.T) {
 func TestWriteErrorResponse_Unauthorized(t *testing.T) {
 	t.Parallel()
 	w := httptest.NewRecorder()
-	r := httptest.NewRequest(http.MethodGet, "/some/path", nil)
+	r := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/some/path", nil)
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 
 	WriteErrorResponse(w, r, log, kernel.ErrUnauthorized)
@@ -58,7 +59,7 @@ func TestWriteErrorResponse_Unauthorized(t *testing.T) {
 func TestWriteErrorResponse_BadRequest(t *testing.T) {
 	t.Parallel()
 	w := httptest.NewRecorder()
-	r := httptest.NewRequest(http.MethodGet, "/", nil)
+	r := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 
 	WriteErrorResponse(w, r, log, errors.Join(ErrBadRequest, errors.New("field missing")))
@@ -71,7 +72,7 @@ func TestWriteErrorResponse_BadRequest(t *testing.T) {
 func TestWriteErrorResponse_RequestEntityTooLarge(t *testing.T) {
 	t.Parallel()
 	w := httptest.NewRecorder()
-	r := httptest.NewRequest(http.MethodPut, "/", nil)
+	r := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/", nil)
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 
 	WriteErrorResponse(w, r, log, errors.Join(ErrRequestEntityTooLarge, errors.New("limit exceeded")))

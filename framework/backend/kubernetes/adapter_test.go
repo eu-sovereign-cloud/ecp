@@ -2,8 +2,11 @@ package kubernetes
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
+	"maps"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -15,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic/fake"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
@@ -47,9 +51,13 @@ func TestComputeNetworkNamespace_DistinctPerNetwork(t *testing.T) {
 }
 
 func TestComputeNetworkNamespace_Deterministic(t *testing.T) {
+	// Two separately-built scopes with equal fields: passing the same value twice would assert
+	// nothing, since a function that returned a fresh random string each call would still pass.
 	scope := fakeNetworkScope{tenant: "t1", workspace: "w1", network: "n1"}
+	same := fakeNetworkScope{tenant: "t1", workspace: "w1", network: "n1"}
 
-	require.Equal(t, ComputeNetworkNamespace(scope), ComputeNetworkNamespace(scope))
+	require.Equal(t, ComputeNetworkNamespace(scope), ComputeNetworkNamespace(same),
+		"equal tenant/workspace/network must always map to the same namespace")
 }
 
 var testGVR = schema.GroupVersionResource{Group: "network.test", Version: "v1", Resource: "routetables"}
@@ -553,4 +561,124 @@ func TestNamespaceManagingWriterAdapter_Delete_NetworkChildren(t *testing.T) {
 		_, nsErr := cs.CoreV1().Namespaces().Get(context.Background(), networkChildNS, metav1.GetOptions{})
 		require.True(t, kerrs.IsNotFound(nsErr), "owned empty network child namespace should be deleted")
 	})
+}
+
+// testLabelled is a domain type carrying SECA labels the way the real ones do: the values live in
+// metadata.labels under hashed kl/<sha3> keys, and the key list lives in commonData.labels. The
+// key list is what KeyedToOriginal walks to rebuild them, so a write that drops commonData leaves
+// a newly added key unreachable even though its value made it onto the object.
+type testLabelled struct {
+	name   string
+	labels map[string]string
+}
+
+func (t *testLabelled) GetName() string      { return t.name }
+func (t *testLabelled) GetVersion() string   { return "" }
+func (t *testLabelled) GetTenant() string    { return "t1" }
+func (t *testLabelled) GetWorkspace() string { return "w1" }
+
+func testLabelledToCR(d *testLabelled) (client.Object, error) {
+	crLabels := map[string]any{}
+	for k, v := range labels.OriginalToKeyed(d.labels) {
+		crLabels[k] = v
+	}
+
+	keys := make([]any, 0, len(d.labels))
+	for _, k := range slices.Sorted(maps.Keys(d.labels)) {
+		keys = append(keys, k)
+	}
+
+	return &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "network.test/v1",
+		"kind":       "RouteTable",
+		"metadata": map[string]any{
+			"namespace": ComputeNamespace(&kernelresource.Scope{Tenant: "t1", Workspace: "w1"}),
+			"name":      d.name,
+			"labels":    crLabels,
+		},
+		"commonData": map[string]any{"labels": keys},
+		"spec":       map[string]any{},
+	}}, nil
+}
+
+func testLabelledFromCR(obj client.Object) (*testLabelled, error) {
+	u, ok := obj.(*unstructured.Unstructured)
+	if !ok {
+		return nil, fmt.Errorf("unexpected type %T", obj)
+	}
+
+	keys, _, err := unstructured.NestedStringSlice(u.Object, "commonData", "labels")
+	if err != nil {
+		return nil, err
+	}
+
+	return &testLabelled{name: u.GetName(), labels: labels.KeyedToOriginal(labels.GetKeyedLabels(u.GetLabels()), keys)}, nil
+}
+
+// TestWriterAdapter_Update_PropagatesCommonData is a regression test for a label added on update
+// going missing. commonData is a sibling of spec, not part of it, so an update that copied only
+// spec, labels and annotations wrote the new label's value but never its key - and the key list is
+// what the read path uses to find it again.
+func TestWriterAdapter_Update_PropagatesCommonData(t *testing.T) {
+	namespace := ComputeNamespace(&kernelresource.Scope{Tenant: "t1", Workspace: "w1"})
+
+	created, err := testLabelledToCR(&testLabelled{name: "rt-1", labels: map[string]string{"env": "prod"}})
+	require.NoError(t, err)
+
+	dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(
+		runtime.NewScheme(), testListKinds(), created.(*unstructured.Unstructured))
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	writer := NewWriterAdapter[*testLabelled](dynFake, testGVR, logger, testLabelledToCR, testLabelledFromCR)
+
+	// Add a second label, the case that used to be lost.
+	updated, err := writer.Update(context.Background(), &testLabelled{
+		name:   "rt-1",
+		labels: map[string]string{"env": "prod", "tier": "frontend"},
+	})
+	require.NoError(t, err)
+	require.Equal(t, map[string]string{"env": "prod", "tier": "frontend"}, (*updated).labels)
+
+	stored, err := dynFake.Resource(testGVR).Namespace(namespace).
+		Get(context.Background(), "rt-1", metav1.GetOptions{})
+	require.NoError(t, err)
+
+	keys, _, err := unstructured.NestedStringSlice(stored.Object, "commonData", "labels")
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{"env", "tier"}, keys, "the added label's key must reach commonData")
+}
+
+// TestWriterAdapter_Update_NoOpDoesNotWrite pins the early return in updateMetadataAndSpecRetry: an
+// update whose desired state already matches what is stored must not issue a write.
+//
+// It is not an optimisation. A write bumps resourceVersion, the controller watches its own writes,
+// and an active resource's reconcile hands the plugin a level-triggered Update - so a PUT that
+// changes nothing still costs a reconcile and a round trip to the provider. commonData is the part
+// worth guarding: it carries the label *key list*, which converters build from a Go map, and an
+// equal-but-reordered list compares unequal here and writes. That is why they sort it.
+func TestWriterAdapter_Update_NoOpDoesNotWrite(t *testing.T) {
+	labelled := &testLabelled{name: "rt-1", labels: map[string]string{"env": "prod", "tier": "frontend", "team": "platform"}}
+
+	created, err := testLabelledToCR(labelled)
+	require.NoError(t, err)
+
+	dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(
+		runtime.NewScheme(), testListKinds(), created.(*unstructured.Unstructured))
+
+	var writes int
+	dynFake.PrependReactor("update", "*", func(k8stesting.Action) (bool, runtime.Object, error) {
+		writes++
+		return false, nil, nil // Count it, then fall through to the tracker.
+	})
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	writer := NewWriterAdapter[*testLabelled](dynFake, testGVR, logger, testLabelledToCR, testLabelledFromCR)
+
+	// Repeated, because an unstable key ordering would only collide with the stored order some of
+	// the time - one pass could miss it by luck, ten will not.
+	for i := range 10 {
+		_, err := writer.Update(context.Background(), labelled)
+		require.NoErrorf(t, err, "no-op update %d should succeed", i)
+	}
+
+	require.Zerof(t, writes, "an update that changes nothing must not write, got %d writes", writes)
 }

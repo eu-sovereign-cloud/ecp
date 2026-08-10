@@ -5,7 +5,7 @@ This module bundles the cluster-backed test suites for ECP and the tooling to ru
 | Suite | What it covers | Where |
 |-------|----------------|-------|
 | **integration** | Each component (delegator, gateway-global, gateway-regional) in **isolation**. The gateway suites test only REST↔CR translation; the delegator suite tests reconciliation. | [`integration/`](integration/) |
-| **e2e** | The **whole stack in one run** — drives the SECA API on both gateways and asserts resources reconcile all the way to the delegator plugin. Single cluster. | [`e2e/`](e2e/) |
+| **e2e** | The **whole stack in one run** — drives the SECA API on both gateways and asserts resources reconcile all the way to the delegator plugin. Single cluster. Also the only place resource **updates** are covered end to end, since an update has to travel API → CR → delegator → plugin → back into what a GET returns ([`e2e/update_test.go`](e2e/update_test.go)). | [`e2e/`](e2e/) |
 | **multicluster e2e** | The **split topology** — global gateway in one cluster, regional gateway + delegator in another, joined only by the Region CR the global gateway advertises. | [`e2e/multicluster/`](e2e/multicluster/) |
 | **conformance** | Runs the SECA conformance suite (`secatest`) against the stack. | [`internal/build/conformance/`](internal/build/conformance/), [`internal/deploy/conformance/`](internal/deploy/conformance/) |
 | **load (k6)** | Black-box **API journeys** (smoke, create-workspace, …) against a deployed stack. Separate from Go `bench` / `TestBench`. | [`load/`](load/) |

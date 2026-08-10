@@ -22,7 +22,7 @@ func TestRoleAssignmentPluginHandler_HandleReconcile(t *testing.T) {
 		errRepo   = errors.New("repo failed")
 	)
 
-	t.Run("should do nothing if resource is active and requires no changes", func(t *testing.T) {
+	t.Run("should call plugin update and write no status when resource is active and in sync", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
@@ -42,6 +42,7 @@ func TestRoleAssignmentPluginHandler_HandleReconcile(t *testing.T) {
 		// And a repo and plugin that are not expected to be called
 		mockRepo := NewMockRepo[*radom.RoleAssignment](ctrl)
 		mockPlugin := NewMockRoleAssignmentPlugin(ctrl)
+		mockPlugin.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil).Times(1)
 
 		//
 		// And a role assignment plugin handler

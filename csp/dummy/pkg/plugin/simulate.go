@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sync"
 	"time"
 
 	"k8s.io/client-go/dynamic"
@@ -73,7 +74,15 @@ func simulate(
 	return nil
 }
 
-func newDynamicClient() (*dynamic.DynamicClient, error) {
+// sharedDynamicClient returns the one client every persist path here shares.
+//
+// Building it per call - which is what each simulate* and applyUpdate used to do - re-read the
+// kubeconfig from disk and re-negotiated TLS on the reconcile path, and handed back a fresh rate
+// limiter each time, so the QPS and burst configured below applied to a population of one request
+// and bounded nothing. The client is safe for concurrent use and the kubeconfig cannot change under
+// a running plugin, so once is enough. A failure is cached with it: if the kubeconfig cannot be
+// loaded at all, every later attempt would fail the same way.
+var sharedDynamicClient = sync.OnceValues(func() (*dynamic.DynamicClient, error) {
 	kubeconfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		clientcmd.NewDefaultClientConfigLoadingRules(),
 		&clientcmd.ConfigOverrides{},
@@ -86,12 +95,12 @@ func newDynamicClient() (*dynamic.DynamicClient, error) {
 	restConfig.Burst = 200
 
 	return dynamic.NewForConfig(restConfig)
-}
+})
 
 func simulateBS(ctx context.Context, op string, resource *bsdom.BlockStorage, delay time.Duration, logger *slog.Logger) error {
 	return simulate(ctx, op, &resource.Annotations, resource.GetName(), delay, logger,
 		func(ctx context.Context) error {
-			dynamicClient, err := newDynamicClient()
+			dynamicClient, err := sharedDynamicClient()
 			if err != nil {
 				return err
 			}
@@ -111,7 +120,7 @@ func simulateBS(ctx context.Context, op string, resource *bsdom.BlockStorage, de
 func simulateImage(ctx context.Context, op string, resource *imgdom.Image, delay time.Duration, logger *slog.Logger) error {
 	return simulate(ctx, op, &resource.Annotations, resource.GetName(), delay, logger,
 		func(ctx context.Context) error {
-			dynamicClient, err := newDynamicClient()
+			dynamicClient, err := sharedDynamicClient()
 			if err != nil {
 				return err
 			}
@@ -131,7 +140,7 @@ func simulateImage(ctx context.Context, op string, resource *imgdom.Image, delay
 func simulateWS(ctx context.Context, op string, resource *wsdom.Workspace, delay time.Duration, logger *slog.Logger) error {
 	return simulate(ctx, op, &resource.Annotations, resource.GetName(), delay, logger,
 		func(ctx context.Context) error {
-			dynamicClient, err := newDynamicClient()
+			dynamicClient, err := sharedDynamicClient()
 			if err != nil {
 				return err
 			}
@@ -151,7 +160,7 @@ func simulateWS(ctx context.Context, op string, resource *wsdom.Workspace, delay
 func simulateInstance(ctx context.Context, op string, resource *instancedom.Instance, delay time.Duration, logger *slog.Logger) error {
 	return simulate(ctx, op, &resource.Annotations, resource.GetName(), delay, logger,
 		func(ctx context.Context) error {
-			dynamicClient, err := newDynamicClient()
+			dynamicClient, err := sharedDynamicClient()
 			if err != nil {
 				return err
 			}
@@ -171,7 +180,7 @@ func simulateInstance(ctx context.Context, op string, resource *instancedom.Inst
 func simulateNic(ctx context.Context, op string, resource *nicdom.Nic, delay time.Duration, logger *slog.Logger) error {
 	return simulate(ctx, op, &resource.Annotations, resource.GetName(), delay, logger,
 		func(ctx context.Context) error {
-			dynamicClient, err := newDynamicClient()
+			dynamicClient, err := sharedDynamicClient()
 			if err != nil {
 				return err
 			}
@@ -191,7 +200,7 @@ func simulateNic(ctx context.Context, op string, resource *nicdom.Nic, delay tim
 func simulatePublicIp(ctx context.Context, op string, resource *publicipdom.PublicIp, delay time.Duration, logger *slog.Logger) error {
 	return simulate(ctx, op, &resource.Annotations, resource.GetName(), delay, logger,
 		func(ctx context.Context) error {
-			dynamicClient, err := newDynamicClient()
+			dynamicClient, err := sharedDynamicClient()
 			if err != nil {
 				return err
 			}
@@ -211,7 +220,7 @@ func simulatePublicIp(ctx context.Context, op string, resource *publicipdom.Publ
 func simulateInternetGateway(ctx context.Context, op string, resource *internetgatewaydom.InternetGateway, delay time.Duration, logger *slog.Logger) error {
 	return simulate(ctx, op, &resource.Annotations, resource.GetName(), delay, logger,
 		func(ctx context.Context) error {
-			dynamicClient, err := newDynamicClient()
+			dynamicClient, err := sharedDynamicClient()
 			if err != nil {
 				return err
 			}
@@ -231,7 +240,7 @@ func simulateInternetGateway(ctx context.Context, op string, resource *internetg
 func simulateNet(ctx context.Context, op string, resource *netdom.Network, delay time.Duration, logger *slog.Logger) error {
 	return simulate(ctx, op, &resource.Annotations, resource.GetName(), delay, logger,
 		func(ctx context.Context) error {
-			dynamicClient, err := newDynamicClient()
+			dynamicClient, err := sharedDynamicClient()
 			if err != nil {
 				return err
 			}
@@ -251,7 +260,7 @@ func simulateNet(ctx context.Context, op string, resource *netdom.Network, delay
 func simulateRouteTable(ctx context.Context, op string, resource *routetabledom.RouteTable, delay time.Duration, logger *slog.Logger) error {
 	return simulate(ctx, op, &resource.Annotations, resource.GetName(), delay, logger,
 		func(ctx context.Context) error {
-			dynamicClient, err := newDynamicClient()
+			dynamicClient, err := sharedDynamicClient()
 			if err != nil {
 				return err
 			}
@@ -271,7 +280,7 @@ func simulateRouteTable(ctx context.Context, op string, resource *routetabledom.
 func simulateSubnet(ctx context.Context, op string, resource *subnetdom.Subnet, delay time.Duration, logger *slog.Logger) error {
 	return simulate(ctx, op, &resource.Annotations, resource.GetName(), delay, logger,
 		func(ctx context.Context) error {
-			dynamicClient, err := newDynamicClient()
+			dynamicClient, err := sharedDynamicClient()
 			if err != nil {
 				return err
 			}
@@ -291,7 +300,7 @@ func simulateSubnet(ctx context.Context, op string, resource *subnetdom.Subnet, 
 func simulateSecurityGroup(ctx context.Context, op string, resource *securitygroupdom.SecurityGroup, delay time.Duration, logger *slog.Logger) error {
 	return simulate(ctx, op, &resource.Annotations, resource.GetName(), delay, logger,
 		func(ctx context.Context) error {
-			dynamicClient, err := newDynamicClient()
+			dynamicClient, err := sharedDynamicClient()
 			if err != nil {
 				return err
 			}
@@ -311,7 +320,7 @@ func simulateSecurityGroup(ctx context.Context, op string, resource *securitygro
 func simulateSecurityGroupRule(ctx context.Context, op string, resource *securitygroupruledom.SecurityGroupRule, delay time.Duration, logger *slog.Logger) error {
 	return simulate(ctx, op, &resource.Annotations, resource.GetName(), delay, logger,
 		func(ctx context.Context) error {
-			dynamicClient, err := newDynamicClient()
+			dynamicClient, err := sharedDynamicClient()
 			if err != nil {
 				return err
 			}

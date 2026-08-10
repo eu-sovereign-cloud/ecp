@@ -71,6 +71,29 @@ func TestBlockStorageConverter_FromSECAToAruba(t *testing.T) {
 				}
 			},
 		},
+		{
+			// A SECA reference carries a region only when it points at another one, so the common
+			// boot-from-image case leaves it empty. Forwarding that empty region makes Aruba reject
+			// the volume ("Size: invalid; DataCenter: invalid"), so it must fall back to the default.
+			name: "source image without a region falls back to the default region",
+			input: &bsdom.BlockStorage{
+				RegionalMetadata: commondomain.RegionalMetadata{
+					Scope:          res.Scope{Workspace: "test-workspace", Tenant: "test-tenant"},
+					CommonMetadata: commondomain.CommonMetadata{Name: "boot"},
+				},
+				Spec: bsdom.BlockStorageSpec{
+					SizeGB:         20,
+					SourceImageRef: &commondomain.Reference{Resource: "images/debian-12"},
+				},
+			},
+			assert: func(t *testing.T, bs *v1alpha1.BlockStorage) {
+				t.Helper()
+
+				if bs.Spec.Region != "ITBG-Bergamo" {
+					t.Errorf("expected the default region 'ITBG-Bergamo', got %q", bs.Spec.Region)
+				}
+			},
+		},
 	}
 
 	for _, tt := range tests {

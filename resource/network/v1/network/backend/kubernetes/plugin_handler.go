@@ -40,6 +40,12 @@ func NewNetworkPluginHandler(
 }
 
 func (h *NetworkPluginHandler) HandleReconcile(ctx context.Context, resource *netdom.Network) (bool, error) {
+	// An active resource has no lifecycle transition left to make, so it takes the update path
+	// instead of the create/delete state machine below. See commonbackend.HandleUpdate.
+	if isNetworkActive(resource) {
+		return commonbackend.HandleUpdate(ctx, resource, &resource.Status.Status, h.plugin.Update, h.repo, h.MaxConditions)
+	}
+
 	var delegate backendport.DelegatedFunc[*netdom.Network]
 
 	switch {
@@ -112,9 +118,7 @@ func (h *NetworkPluginHandler) setResourceState(ctx context.Context, resource *n
 	}
 
 	resource.Status.PushCondition(commonbackend.ConditionFromState(state))
-	for h.MaxConditions > 0 && len(resource.Status.Conditions) > h.MaxConditions {
-		resource.Status.PopCondition()
-	}
+	commonbackend.TrimConditions(&resource.Status.Status, h.MaxConditions)
 
 	if _, err := h.repo.UpdateStatus(ctx, resource); err != nil {
 		if errors.Is(err, kernel.ErrNotFound) {
@@ -133,9 +137,7 @@ func (h *NetworkPluginHandler) setResourceErrorState(ctx context.Context, resour
 	}
 
 	resource.Status.PushCondition(commonbackend.ConditionFromError(err))
-	for h.MaxConditions > 0 && len(resource.Status.Conditions) > h.MaxConditions {
-		resource.Status.PopCondition()
-	}
+	commonbackend.TrimConditions(&resource.Status.Status, h.MaxConditions)
 
 	if _, updateErr := h.repo.UpdateStatus(ctx, resource); updateErr != nil {
 		if errors.Is(updateErr, kernel.ErrNotFound) {
@@ -150,6 +152,12 @@ func (h *NetworkPluginHandler) setResourceErrorState(ctx context.Context, resour
 
 func isNetworkAccepted(resource *netdom.Network) bool {
 	return resource.Status == nil
+}
+
+func isNetworkActive(resource *netdom.Network) bool {
+	return resource.DeletedAt == nil &&
+		resource.Status != nil &&
+		resource.Status.State == commondomain.ResourceStateActive
 }
 
 func isNetworkPending(resource *netdom.Network) bool {

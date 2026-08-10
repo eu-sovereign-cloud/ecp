@@ -27,16 +27,7 @@ func (c *WorkspaceProjectConverter) FromSECAToAruba(from *wsdom.Workspace) (*v1a
 		Tenant: from.GetTenant(),
 	})
 
-	if v, ok := from.Spec["tags"].([]string); ok {
-		spec.Tags = v
-	} else if v, ok := from.Spec["tags"].([]any); ok {
-		for _, t := range v {
-			if s, ok := t.(string); ok {
-				spec.Tags = append(spec.Tags, s)
-			}
-		}
-	}
-
+	spec.Tags = ArubaTags(from.Labels)
 	spec.Tenant = from.GetTenant()
 
 	return &v1alpha1.Project{

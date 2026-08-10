@@ -471,7 +471,23 @@ func (a *WriterAdapter[T]) updateMetadataAndSpecRetry(
 ) error {
 	desiredLabels := desired.GetLabels()
 	desiredAnnotations := desired.GetAnnotations()
+
+	// Both subtrees are extracted once, up front, not per attempt. NestedMap deep-copies what it
+	// returns, so pulling them inside the closure would re-copy them on every conflict retry, and a
+	// structurally invalid desired object would only be caught after a Get round trip rather than
+	// failing immediately.
+	//
+	// commonData is a sibling of spec, not part of it, so it needs copying in its own right. It is
+	// not cosmetic: commonData.labels holds the *key list* that KeyedToOriginal walks to rebuild a
+	// resource's labels from the hashed kl/<sha3> entries in metadata.labels. Leaving it behind
+	// means a newly added label key never appears in the domain object - the value is written to
+	// metadata.labels but nothing knows to look it up again.
 	desiredSpec, specFound, err := unstructured.NestedMap(desired.Object, "spec")
+	if err != nil {
+		return err
+	}
+
+	desiredCommonData, commonDataFound, err := unstructured.NestedMap(desired.Object, "commonData")
 	if err != nil {
 		return err
 	}
@@ -486,38 +502,60 @@ func (a *WriterAdapter[T]) updateMetadataAndSpecRetry(
 			return nil
 		}
 
-		currSpec, currSpecFound, err := unstructured.NestedMap(currObj.Object, "spec")
+		specChanged, err := syncNestedMap(currObj, desiredSpec, specFound, "spec")
 		if err != nil {
 			return err
 		}
 
-		currLabels := currObj.GetLabels()
-		currAnnotations := currObj.GetAnnotations()
-
-		specChanged := specFound && (!currSpecFound || !cmp.Equal(currSpec, desiredSpec))
-		labelsChanged := !cmp.Equal(currLabels, desiredLabels)
-		annotationsChanged := !cmp.Equal(currAnnotations, desiredAnnotations)
-
-		if !specChanged && !labelsChanged && !annotationsChanged {
-			return nil
+		commonDataChanged, err := syncNestedMap(currObj, desiredCommonData, commonDataFound, "commonData")
+		if err != nil {
+			return err
 		}
 
-		if specChanged {
-			if err := unstructured.SetNestedMap(currObj.Object, desiredSpec, "spec"); err != nil {
-				return err
-			}
-		}
+		labelsChanged := !cmp.Equal(currObj.GetLabels(), desiredLabels)
 		if labelsChanged {
 			currObj.SetLabels(desiredLabels)
 		}
+
+		annotationsChanged := !cmp.Equal(currObj.GetAnnotations(), desiredAnnotations)
 		if annotationsChanged {
 			currObj.SetAnnotations(desiredAnnotations)
+		}
+
+		if !specChanged && !commonDataChanged && !labelsChanged && !annotationsChanged {
+			return nil
 		}
 
 		_, err = ri.Update(ctx, currObj, metav1.UpdateOptions{})
 
 		return err
 	})
+}
+
+// syncNestedMap copies an already-extracted desired value onto curr's named top-level field when
+// the two differ, reporting whether it wrote. spec and its sibling commonData get identical
+// treatment, so they share one path. A field absent from desired (found=false) is left alone rather
+// than cleared.
+//
+// The comparison is only as stable as what the converters produce: an equal-but-differently-ordered
+// value counts as a change here and costs a write, a resourceVersion bump, and the reconcile that
+// follows it. commonData.labels is a list built from a Go map, so the converters sort it - see
+// doc/CONVENTIONS.md.
+func syncNestedMap(curr *unstructured.Unstructured, desiredValue map[string]any, found bool, name string) (bool, error) {
+	if !found {
+		return false, nil
+	}
+
+	currValue, currFound, err := unstructured.NestedMap(curr.Object, name)
+	if err != nil {
+		return false, err
+	}
+
+	if currFound && cmp.Equal(currValue, desiredValue) {
+		return false, nil
+	}
+
+	return true, unstructured.SetNestedMap(curr.Object, desiredValue, name)
 }
 
 func (a *WriterAdapter[T]) updateStatusRetry(
@@ -716,6 +754,8 @@ func childNamespaceFor(kind ChildNamespaceKind, m persistence.IdentifiableResour
 		return childNamespaceLabels(m.GetTenant(), m.GetName(), "")
 	case NetworkChildren:
 		return childNamespaceLabels(m.GetTenant(), m.GetWorkspace(), m.GetName())
+	case NoChildNamespace:
+		return "", nil
 	default:
 		return "", nil
 	}
