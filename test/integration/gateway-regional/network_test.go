@@ -15,10 +15,8 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/test/internal/testenv"
 )
 
-// networkSkuRefResource is the network's skuRef sent as the sku's full URN, the way a
-// client holding only that URN sends it. A sku is tenant-scoped, so the scope is stripped
-// into the CR's own fields and re-embedded on read — and the provider pair has to come
-// back ahead of it, not behind.
+// networkSkuRefResource is the network's skuRef sent as the sku's full URN, the way a client
+// holding only that URN sends it. It must come back byte-identical, provider pair included.
 const networkSkuRefResource = "seca.network/v1/tenants/" + testTenant + "/skus/network-sku-1"
 
 // newNetworkBody builds the request body for creating a network.

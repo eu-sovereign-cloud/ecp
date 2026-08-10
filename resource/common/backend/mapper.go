@@ -128,12 +128,9 @@ func IPVersionFromCR(v schemav1.IPVersion) domain.IPVersion {
 
 // ReferenceFromCR converts a generated schemav1.Reference to a domain.Reference.
 //
-// A reference is stored and returned exactly as the client wrote it. Both representations
-// the spec allows — the scope as its own fields ({tenant: "t", resource: "skus/s"}) and the
-// scope spelled out in the path ({resource: "seca.network/v1/tenants/t/skus/s"}) — mean the
-// same thing, and rewriting one into the other loses whichever the client chose, so a read
-// no longer echoes the write. Anything that needs the pieces parses them at the point of
-// use; see ParseReference.
+// Do not normalize between the two representations the spec allows (see domain.Reference):
+// rewriting one into the other means a read no longer echoes the write. Whatever needs the
+// pieces parses them at the point of use; see ParseReference.
 // Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 func ReferenceFromCR(ref schemav1.Reference) domain.Reference {
 	return domain.Reference{
@@ -158,43 +155,18 @@ func ReferenceToCR(ref domain.Reference) schemav1.Reference {
 	}
 }
 
-// extractAndStripSegment extracts the value following a segment prefix in a resource path
-// and returns the remaining path with the segment removed.
-// For example, extractAndStripSegment("workspaces/ws-1/block-storages/my-storage", "workspaces/")
-// returns ("ws-1", "block-storages/my-storage").
-// Returns empty strings if the segment is not found.
-func extractAndStripSegment(resourcePath, segment string) (value, remaining string) {
-	var startIdx int
-	var prefixLen int
-
-	if strings.HasPrefix(resourcePath, segment) {
-		startIdx = len(segment)
-		prefixLen = 0
-	} else if idx := strings.Index(resourcePath, "/"+segment); idx >= 0 {
-		startIdx = idx + 1 + len(segment)
-		prefixLen = idx
-	} else {
-		return "", ""
-	}
-
-	// Find the end of the value (next "/" or end of string)
-	endIdx := strings.Index(resourcePath[startIdx:], "/")
-	if endIdx < 0 {
-		// Segment is at the end, return the value and prefix as remaining
-		value = resourcePath[startIdx:]
-		if prefixLen > 0 {
-			remaining = resourcePath[:prefixLen]
+// extractSegment returns the value following a segment prefix in a resource path, matched at a
+// path boundary. For example extractSegment("tenants/t-1/workspaces/ws-1/skus/s", "workspaces/")
+// returns "ws-1". Returns "" if the segment is not present.
+func extractSegment(resourcePath, segment string) string {
+	rest, ok := strings.CutPrefix(resourcePath, segment)
+	if !ok {
+		if _, after, found := strings.Cut(resourcePath, "/"+segment); found {
+			rest = after
+		} else {
+			return ""
 		}
-		return value, remaining
 	}
-
-	value = resourcePath[startIdx : startIdx+endIdx]
-	// Build remaining: prefix + suffix after the segment
-	suffix := resourcePath[startIdx+endIdx+1:]
-	if prefixLen > 0 {
-		remaining = resourcePath[:prefixLen] + "/" + suffix
-	} else {
-		remaining = suffix
-	}
-	return value, remaining
+	value, _, _ := strings.Cut(rest, "/")
+	return value
 }
