@@ -21,6 +21,7 @@ import (
 var (
 	bsGVR  = schema.GroupVersionResource{Group: "storage.test", Version: "v1", Resource: "blockstorages"}
 	imgGVR = schema.GroupVersionResource{Group: "storage.test", Version: "v1", Resource: "images"}
+	rtGVR  = schema.GroupVersionResource{Group: "network.test", Version: "v1", Resource: "routetables"}
 )
 
 func TestParseReference(t *testing.T) {
@@ -58,7 +59,15 @@ func TestParseReference(t *testing.T) {
 			// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 			ref:           commondomain.Reference{Resource: "seca.network/v1/tenants/t2/workspaces/w2/networks/n1/route-tables/rt1"},
 			defaultTenant: "t1",
-			want:          commonbackend.ReferenceTarget{Tenant: "t2", Workspace: "w2", Name: "rt1"},
+			want:          commonbackend.ReferenceTarget{Tenant: "t2", Workspace: "w2", Network: "n1", Name: "rt1"},
+		},
+		{
+			// The network itself is workspace-scoped: the networks/ segment names the target,
+			// not a scope around it, so it must not be read as a network dimension.
+			name:          "reference to the network itself carries no network scope",
+			ref:           commondomain.Reference{Workspace: "w1", Resource: "networks/n1"},
+			defaultTenant: "t1",
+			want:          commonbackend.ReferenceTarget{Tenant: "t1", Workspace: "w1", Name: "n1"},
 		},
 	}
 
@@ -75,7 +84,15 @@ func TestReferenceResolver_State(t *testing.T) {
 
 	bsActive := newRefObject("storage.test/v1", "BlockStorage", namespace, "bs1", "active", nil)
 
-	dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), listKinds(), bsActive)
+	// A route table is network-scoped: it is written to its network's own namespace, which is
+	// where a reference naming that network has to be resolved.
+	networkNamespace := k8sadapter.ComputeNetworkNamespace(&commondomain.RegionalNetworkMetadata{
+		RegionalMetadata: commondomain.RegionalMetadata{Scope: kernelresource.Scope{Tenant: tenant, Workspace: workspace}},
+		Network:          "n1",
+	})
+	rtActive := newRefObject("network.test/v1", "RouteTable", networkNamespace, "rt1", "active", nil)
+
+	dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), listKinds(), bsActive, rtActive)
 	resolver := commonbackend.NewReferenceResolver(dynFake)
 
 	t.Run("returns state of an existing reference", func(t *testing.T) {
@@ -95,6 +112,16 @@ func TestReferenceResolver_State(t *testing.T) {
 		require.False(t, exists)
 		require.Empty(t, state)
 	})
+
+	t.Run("resolves a network-scoped reference in the network's namespace", func(t *testing.T) {
+		// Reference.resource: {provider}/{version}/tenants/{t}/workspaces/{w}/networks/{n}/{collection}/{name}
+		// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
+		ref := commondomain.Reference{Resource: "seca.network/v1/tenants/t1/workspaces/w1/networks/n1/route-tables/rt1"}
+		exists, state, err := resolver.State(context.Background(), rtGVR, ref, tenant)
+		require.NoError(t, err)
+		require.True(t, exists)
+		require.Equal(t, commondomain.ResourceStateActive, state)
+	})
 }
 
 func TestReferenceResolver_Referrers(t *testing.T) {
@@ -103,23 +130,28 @@ func TestReferenceResolver_Referrers(t *testing.T) {
 
 	bsRef := map[string]any{"workspace": workspace, "resource": "block-storages/bs1"}
 	otherRef := map[string]any{"workspace": workspace, "resource": "block-storages/other"}
+	// An image is tenant-scoped, so it may name the block storage without a workspace to
+	// qualify it. That does not make it a non-referrer: the deletion guard must still hold.
+	bareRef := map[string]any{"resource": "block-storages/bs1"}
 
 	referring := newRefObject("storage.test/v1", "Image", imageNamespace, "img-referring", "active", bsRef)
 	unrelated := newRefObject("storage.test/v1", "Image", imageNamespace, "img-unrelated", "active", otherRef)
+	bare := newRefObject("storage.test/v1", "Image", imageNamespace, "img-bare", "active", bareRef)
 
-	dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), listKinds(), referring, unrelated)
+	dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), listKinds(), referring, unrelated, bare)
 	resolver := commonbackend.NewReferenceResolver(dynFake)
 
 	target := commonbackend.ReferenceTarget{Tenant: tenant, Workspace: workspace, Name: "bs1"}
 	names, err := resolver.Referrers(context.Background(), imgGVR, imageNamespace, []string{"spec", "blockStorageRef"}, target, tenant)
 	require.NoError(t, err)
-	require.Equal(t, []string{"img-referring"}, names)
+	require.ElementsMatch(t, []string{"img-referring", "img-bare"}, names)
 }
 
 func listKinds() map[schema.GroupVersionResource]string {
 	return map[schema.GroupVersionResource]string{
 		bsGVR:  "BlockStorageList",
 		imgGVR: "ImageList",
+		rtGVR:  "RouteTableList",
 	}
 }
 
