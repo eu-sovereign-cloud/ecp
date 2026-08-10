@@ -139,6 +139,7 @@ func TestEndToEnd(t *testing.T) {
 		resp, err := networkClient.CreateOrUpdateNetworkWithResponse(ctx, testTenant, testWorkspace, networkName, nil, body)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, resp.StatusCode())
+		require.NotNil(t, resp.JSON200)
 		require.Equal(t, skuRefResource, resp.JSON200.Spec.SkuRef.Resource,
 			"the create response must echo the sku URN unchanged")
 
@@ -161,8 +162,8 @@ func TestEndToEnd(t *testing.T) {
 	// Its routeTableRef is sent as the route table's full URN — provider pair, scope and
 	// nested path — which is what a client holding only that URN (terraform, which reads it
 	// straight out of the route table's metadata.ref) puts in the reference path. It must come
-	// back byte-identical, and the subnet only reaches active if the resolver found the route
-	// table behind that URN.
+	// back byte-identical. That is all this asserts: nothing resolves routeTableRef today, so
+	// the URN naming a route table that Step 6 has not created yet is not a gate on anything.
 	routeTableRefResource := "seca.network/v1/tenants/" + testTenant + "/workspaces/" + testWorkspace +
 		"/networks/" + networkName + "/route-tables/" + routeTableName
 	t.Run("subnet (network-scoped) created via API reconciles to active", func(t *testing.T) {
@@ -176,6 +177,7 @@ func TestEndToEnd(t *testing.T) {
 		resp, err := networkClient.CreateOrUpdateSubnetWithResponse(ctx, testTenant, testWorkspace, networkName, subnetName, nil, body)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, resp.StatusCode())
+		require.NotNil(t, resp.JSON200)
 		require.Equal(t, routeTableRefResource, resp.JSON200.Spec.RouteTableRef.Resource,
 			"the create response must echo the reference path unchanged")
 

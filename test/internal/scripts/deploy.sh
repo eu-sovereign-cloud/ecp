@@ -55,9 +55,17 @@ if setup_chart_vars "${COMPONENT}"; then
     # tokens, so deploy and test with the same value (see test/Makefile).
     if [[ "$COMPONENT" == gateway-* ]]; then
         echo "Deploying ${COMPONENT} with auth plugin: ${AUTH_PLUGIN:=dummy}"
+        # The literal "false" is the only value that turns auth off, because that is the
+        # only one the suites read as off (authhelper.AuthEnabled). Normalize here rather
+        # than forward the raw value: helm would take "0" or "no" as falsey too, deploy an
+        # unauthenticated gateway, and leave the 401/403 assertions still running.
+        auth_enabled=true
+        if [[ "${E2E_AUTH_ENABLED:-true}" == "false" ]]; then
+            auth_enabled=false
+        fi
         HELM_ARGS+=(
             --values "${SCRIPT_DIR}/../deploy/gateway-values.yaml"
-            --set "auth.enabled=${E2E_AUTH_ENABLED:-true}"
+            --set "auth.enabled=${auth_enabled}"
             --set "auth.plugin=${AUTH_PLUGIN}"
         )
         # The RBAC checker to benchmark: the report workflow deploys the same
