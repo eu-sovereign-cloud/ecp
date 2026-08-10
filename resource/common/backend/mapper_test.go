@@ -80,54 +80,45 @@ func TestExtractAndStripSegment(t *testing.T) {
 	}
 }
 
-// TestReferenceFromCRScopeOrder pins the URN segment order the SDK and the terraform provider
-// rebuild the full URN from: scope first, then the (possibly nested) resource path.
+// TestReferenceRoundTripIsVerbatim pins the property a client depends on: a reference is
+// handed back exactly as it was written, in whichever of the two representations the spec
+// allows the client picked. Rewriting one into the other made reads disagree with writes -
+// a terraform apply that sent {tenant, resource} got {resource: "tenants/.../..."} back and
+// failed with "produced an unexpected new value".
 // Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
-func TestReferenceFromCRScopeOrder(t *testing.T) {
+func TestReferenceRoundTripIsVerbatim(t *testing.T) {
 	testCases := []struct {
-		name     string
-		ref      schemav1.Reference
-		expected string
+		name string
+		ref  schemav1.Reference
 	}{
 		{
-			name:     "flat resource",
-			ref:      schemav1.Reference{Tenant: "t-1", Workspace: "ws-1", Resource: "block-storages/my-storage"},
-			expected: "tenants/t-1/workspaces/ws-1/block-storages/my-storage",
+			name: "scope as fields",
+			ref:  schemav1.Reference{Tenant: "t-1", Workspace: "ws-1", Resource: "block-storages/my-storage"},
 		},
 		{
-			// The nested case that used to land as networks/n1/tenants/t-1/...
-			name:     "network-scoped resource",
-			ref:      schemav1.Reference{Tenant: "t-1", Workspace: "ws-1", Resource: "networks/n1/route-tables/rt1"},
-			expected: "tenants/t-1/workspaces/ws-1/networks/n1/route-tables/rt1",
+			name: "scope as fields, nested path",
+			ref:  schemav1.Reference{Tenant: "t-1", Workspace: "ws-1", Resource: "networks/n1/route-tables/rt1"},
 		},
 		{
-			name:     "tenant only",
-			ref:      schemav1.Reference{Tenant: "t-1", Resource: "skus/fast-local"},
-			expected: "tenants/t-1/skus/fast-local",
+			// A tenant-scoped sku referenced from a workspace-scoped resource: the tenant
+			// cannot be inferred from context, so this is the shape that used to be rewritten.
+			name: "tenant field with a provider field",
+			ref:  schemav1.Reference{Provider: "seca.network/v1", Tenant: "t-1", Resource: "skus/fast-local"},
 		},
 		{
-			// A client that holds only the target's URN sends the whole URN as the path,
-			// provider pair included. The scope belongs after that pair, not before it.
-			name:     "path opening with the provider URN",
-			ref:      schemav1.Reference{Tenant: "t-1", Workspace: "ws-1", Resource: "seca.network/v1/networks/n1/route-tables/rt1"},
-			expected: "seca.network/v1/tenants/t-1/workspaces/ws-1/networks/n1/route-tables/rt1",
+			// A client that holds only the target's URN sends the whole URN as the path.
+			name: "scope spelled out in the path",
+			ref:  schemav1.Reference{Resource: "seca.network/v1/tenants/t-1/workspaces/ws-1/networks/n1/route-tables/rt1"},
 		},
 		{
-			// A dot alone is not a provider pair: "v1" must follow, or the path is a plain
-			// collection path and must be left alone.
-			name:     "collection segment containing a dot is not a provider",
-			ref:      schemav1.Reference{Tenant: "t-1", Resource: "my.things/thing-1"},
-			expected: "tenants/t-1/my.things/thing-1",
+			name: "no scope at all - inferred from context",
+			ref:  schemav1.Reference{Resource: "skus/fast-local"},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			out := ReferenceFromCR(tc.ref)
-			assert.Equal(t, tc.expected, out.Resource)
-
-			// The scope must be extracted back out unchanged, leaving the CR form untouched.
-			assert.Equal(t, tc.ref, ReferenceToCR(out))
+			assert.Equal(t, tc.ref, ReferenceToCR(ReferenceFromCR(tc.ref)))
 		})
 	}
 }
