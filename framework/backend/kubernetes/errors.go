@@ -2,11 +2,36 @@ package kubernetes
 
 import (
 	"errors"
+	"log/slog"
 
 	kerrs "k8s.io/apimachinery/pkg/api/errors"
 
 	kernel "github.com/eu-sovereign-cloud/ecp/framework/kernel"
 )
+
+// RetryLevel returns the level an error deserves when the caller is a control loop that will
+// retry it.
+//
+// A conflict there means "not yet", not "broken": a resourceVersion moved under an update, or a
+// namespace still holds children that are themselves terminating. The reconcile is requeued with
+// backoff and converges on its own, usually within seconds — so logging it at ERROR turns routine
+// convergence into something that looks pageable, and buries the failures that are not. Those keep
+// ERROR.
+//
+// Both spellings are matched because these sites straddle the conversion boundary: some log the
+// raw Kubernetes error, others the domain error it has already been wrapped into.
+func RetryLevel(err error) slog.Level {
+	if domainErr := kernel.AsError(err); domainErr != nil {
+		switch domainErr.Kind {
+		case kernel.KindConflict, kernel.KindPreconditionFailed:
+			return slog.LevelWarn
+		}
+	}
+	if kerrs.IsConflict(err) {
+		return slog.LevelWarn
+	}
+	return slog.LevelError
+}
 
 // kubeToDomainError converts a Kubernetes API error to a domain Error.
 func kubeToDomainError(err error) *kernel.Error {

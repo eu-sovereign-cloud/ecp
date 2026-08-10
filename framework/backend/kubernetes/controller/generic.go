@@ -142,7 +142,7 @@ func (r *GenericController[D]) Reconcile(ctx context.Context, req ctrl.Request) 
 		if errors.Is(err, backend.ErrStillProcessing) {
 			return ctrl.Result{RequeueAfter: r.requeueAfter}, nil
 		}
-		logger.Error("handler failed to reconcile", "error", err)
+		logger.Log(ctx, k8sadapter.RetryLevel(err), "handler failed to reconcile", "error", err)
 		// Error alone. controller-runtime discards a Result returned alongside a non-nil error
 		// (warning on every reconcile) and requeues with exponential backoff instead — which is
 		// what a failing reconcile wants, and it keeps the error in the reconcile-error metric.
@@ -168,7 +168,7 @@ func (r *GenericController[D]) Reconcile(ctx context.Context, req ctrl.Request) 
 		slices.Contains(obj.GetFinalizers(), finalizerName) {
 		if r.cleanup != nil {
 			if err := r.cleanup(ctx, domainResource); err != nil {
-				logger.Error("cleanup hook failed, keeping finalizer to retry", "error", err)
+				logger.Log(ctx, k8sadapter.RetryLevel(err), "cleanup hook failed, keeping finalizer to retry", "error", err)
 				return ctrl.Result{}, err
 			}
 		}

@@ -397,7 +397,15 @@ func (a *WriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
 
 	ures, err := ri.Create(ctx, uobj, metav1.CreateOptions{})
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to create resource", "name", m.GetName(), "resource", a.gvr.Resource, "error", err)
+		// AlreadyExists is not a failure here: SECA's PUT is create-or-update, so the REST
+		// layer calls Create first and falls through to Update when the object is already
+		// there (see frontend/rest.HandleUpsert), logging its own INFO as it does. Logging
+		// ERROR from this depth flags the upsert happy path as a fault — the caller decides
+		// what the error means, and callers that do not expect it still surface it through
+		// the returned error.
+		if !kerrs.IsAlreadyExists(err) {
+			a.logger.ErrorContext(ctx, "failed to create resource", "name", m.GetName(), "resource", a.gvr.Resource, "error", err)
+		}
 		return nil, kubeToDomainError(fmt.Errorf("failed to create resource %s '%s': %w", a.gvr.Resource, m.GetName(), err))
 	}
 
@@ -484,7 +492,7 @@ func (a *WriterAdapter[T]) UpdateStatus(ctx context.Context, m T) (*T, error) {
 	resourceInterface := a.client.Resource(a.gvr).Namespace(namespace)
 
 	if err := a.updateStatusRetry(ctx, resourceInterface, m, desiredStatus); err != nil {
-		a.logger.ErrorContext(ctx, "failed to update status", "resource", a.gvr.Resource, "error", err)
+		a.logger.Log(ctx, RetryLevel(err), "failed to update status", "resource", a.gvr.Resource, "error", err)
 		return nil, kubeToDomainError(fmt.Errorf("failed to update status with retry %s '%s': %w", a.gvr.Resource, m.GetName(), err))
 	}
 
