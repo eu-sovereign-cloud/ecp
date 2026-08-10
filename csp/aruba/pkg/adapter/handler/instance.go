@@ -242,7 +242,11 @@ func (h *ComputeInstanceHandler) resolveNetworking(ctx context.Context, domain *
 		return err
 	}
 	if domain.Spec.SecurityGroupRef != nil {
-		sgNames = appendUnique(sgNames, lastSegment(domain.Spec.SecurityGroupRef.Resource))
+		name, err := localRefName(*domain.Spec.SecurityGroupRef, tenant, workspace)
+		if err != nil {
+			return err
+		}
+		sgNames = appendUnique(sgNames, name)
 	}
 	if len(subnetNames) == 0 {
 		return backend.ErrStillProcessing // an Aruba CloudServer needs at least one subnet
@@ -295,8 +299,12 @@ func (h *ComputeInstanceHandler) resolveNetworking(ctx context.Context, domain *
 // request Aruba would reject.
 func (h *ComputeInstanceHandler) resolveVolumes(ctx context.Context, domain *instancedom.Instance, refs *adaptconverter.CloudServerRefs) error {
 	wsNamespace := k8sadapter.ComputeNamespace(domain)
+	tenant, workspace := domain.GetTenant(), domain.GetWorkspace()
 
-	bootName := lastSegment(domain.Spec.BootVolume.DeviceRef.Resource)
+	bootName, err := localRefName(domain.Spec.BootVolume.DeviceRef, tenant, workspace)
+	if err != nil {
+		return err
+	}
 	if bootName == "" {
 		return backend.ErrStillProcessing // BootVolumeReference is required
 	}
@@ -315,7 +323,10 @@ func (h *ComputeInstanceHandler) resolveVolumes(ctx context.Context, domain *ins
 
 	refs.DataVolumeReferences = []v1alpha1.ResourceReference{}
 	for _, dv := range domain.Spec.DataVolumes {
-		name := lastSegment(dv.DeviceRef.Resource)
+		name, err := localRefName(dv.DeviceRef, tenant, workspace)
+		if err != nil {
+			return err
+		}
 		if name == "" {
 			continue
 		}
@@ -338,11 +349,16 @@ func (h *ComputeInstanceHandler) resolveNics(ctx context.Context, domain *instan
 		refs = append([]commondomain.Reference{*domain.Spec.PrimaryNicRef}, refs...)
 	}
 
+	tenant, workspace := domain.GetTenant(), domain.GetWorkspace()
 	for _, ref := range refs {
+		nicName, err := localRefName(ref, tenant, workspace)
+		if err != nil {
+			return nil, nil, nil, err
+		}
 		nic := &nicdom.Nic{
 			RegionalMetadata: commondomain.RegionalMetadata{
-				CommonMetadata: commondomain.CommonMetadata{Name: lastSegment(ref.Resource)},
-				Scope:          res.Scope{Tenant: domain.GetTenant(), Workspace: domain.GetWorkspace()},
+				CommonMetadata: commondomain.CommonMetadata{Name: nicName},
+				Scope:          res.Scope{Tenant: tenant, Workspace: workspace},
 			},
 		}
 		if err := h.nicRepository.Load(ctx, &nic); err != nil {
@@ -351,12 +367,24 @@ func (h *ComputeInstanceHandler) resolveNics(ctx context.Context, domain *instan
 
 		// Kept whole rather than reduced to a name: a subnet reference may name the network it
 		// is scoped under, which is what resolveSubnet needs to pick between same-named subnets.
+		// The scope is still checked, since resolveSubnet lists in the instance's own.
+		if _, err := localRefName(nic.Spec.SubnetRef, tenant, workspace); err != nil {
+			return nil, nil, nil, err
+		}
 		subnets = appendUnique(subnets, nic.Spec.SubnetRef.Resource)
 		for _, sg := range nic.Spec.SecurityGroupRefs {
-			secGroups = appendUnique(secGroups, lastSegment(sg.Resource))
+			name, err := localRefName(sg, tenant, workspace)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+			secGroups = appendUnique(secGroups, name)
 		}
 		for _, pip := range nic.Spec.PublicIpRefs {
-			publicIps = appendUnique(publicIps, lastSegment(pip.Resource))
+			name, err := localRefName(pip, tenant, workspace)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+			publicIps = appendUnique(publicIps, name)
 		}
 	}
 	return subnets, secGroups, publicIps, nil
@@ -440,9 +468,13 @@ func (h *ComputeInstanceHandler) materializeSecurityGroup(ctx context.Context, t
 
 	rules := adaptconverter.NormalizeInlineRules(seca.Spec.Rules, seca.Labels)
 	for _, rr := range seca.Spec.RuleRefs {
+		ruleName, err := localRefName(rr, tenant, workspace)
+		if err != nil {
+			return v1alpha1.ResourceReference{}, err
+		}
 		standalone := &sgrdom.SecurityGroupRule{
 			RegionalMetadata: commondomain.RegionalMetadata{
-				CommonMetadata: commondomain.CommonMetadata{Name: lastSegment(rr.Resource)},
+				CommonMetadata: commondomain.CommonMetadata{Name: ruleName},
 				Scope:          res.Scope{Tenant: tenant, Workspace: workspace},
 			},
 		}
@@ -481,6 +513,26 @@ func lastSegment(resource string) string {
 		return resource[i+1:]
 	}
 	return resource
+}
+
+// localRefName returns the name a reference points at, refusing one that names a tenant or
+// workspace other than the referring resource's own.
+//
+// A reference carries its scope either as its own fields or spelled out in the resource path,
+// and both reach this adapter verbatim. Everything an instance names besides its SKU - nics,
+// volumes, security groups, public ips, rules - is resolved inside the instance's own Aruba
+// project, so a foreign scope cannot be honoured: taking the last path segment alone would
+// drop it and silently bind the same-named object in the wrong tenant. A SKU is the exception
+// and is parsed directly, because it is tenant-scoped and legitimately lives in a catalog
+// tenant of its own ("tenants/seca/skus/n1k" in the spec's own examples).
+// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
+func localRefName(ref commondomain.Reference, tenant, workspace string) (string, error) {
+	target := commonbackend.ParseReference(ref, tenant)
+	if target.Tenant != tenant || (target.Workspace != "" && target.Workspace != workspace) {
+		return "", fmt.Errorf("reference %q names tenant %q workspace %q, outside %q/%q: cross-scope references are not supported",
+			ref.Resource, target.Tenant, target.Workspace, tenant, workspace)
+	}
+	return target.Name, nil
 }
 
 // appendUnique appends v to s unless it is empty or already present.

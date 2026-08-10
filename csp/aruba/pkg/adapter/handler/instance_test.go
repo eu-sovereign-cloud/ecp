@@ -297,6 +297,32 @@ func TestComputeInstance_create(t *testing.T) {
 			wantErr:     true,
 			errContains: "operation still in progress",
 		},
+		{
+			// A reference is stored exactly as the client wrote it, so one naming another
+			// tenant reaches this handler intact. Aruba resolves the volume inside the
+			// instance's own project, where a volume of the same name may well exist: refuse
+			// instead of silently attaching the wrong disk.
+			name: "boot volume referenced in another tenant - error",
+			instance: func() *instancedom.Instance {
+				i := testInstance()
+				i.Spec.BootVolume.DeviceRef = commondomain.Reference{Tenant: "other-tenant", Resource: "block-storages/boot"}
+				return i
+			}(),
+			setupMocks: func(m *instMocks) {
+				expectWorkspaceActive(m.wsRepo)
+				expectProjectActive(m.prjRepo)
+				expectNic(m.nicRepo, "sub-1", "web")
+				expectActiveSubnet(m.subnetRepo, "sub-1", "my-network")
+				m.sgRepo.EXPECT().Load(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+				m.sgArubaRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+				expectActiveArubaSG(m.sgArubaRepo)
+				m.srArubaRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+				m.keyPairRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+				expectActiveKeyPair(m.keyPairRepo)
+			},
+			wantErr:     true,
+			errContains: "cross-scope references are not supported",
+		},
 	}
 
 	for _, tt := range tests {
