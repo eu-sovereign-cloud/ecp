@@ -21,7 +21,7 @@ func (h *Handler) ListSubnets(w http.ResponseWriter, r *http.Request, tenant sdk
 
 // DeleteSubnet handles DELETE /v1/tenants/{tenant}/workspaces/{workspace}/networks/{network}/subnets/{name}.
 func (h *Handler) DeleteSubnet(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, network sdkschema.NetworkPathParam, name sdkschema.ResourcePathParam, params sdknetwork.DeleteSubnetParams) {
-	logger := h.Logger.With("provider", "network", "resource", "subnet", "name", name)
+	logger := h.Logger.With("provider", "network", "resource", "subnet")
 	id := &SubnetIdentity{name: name, tenant: tenant, workspace: workspace, network: network}
 	if params.IfUnmodifiedSince != nil {
 		id.resourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
@@ -31,14 +31,14 @@ func (h *Handler) DeleteSubnet(w http.ResponseWriter, r *http.Request, tenant sd
 
 // GetSubnet handles GET /v1/tenants/{tenant}/workspaces/{workspace}/networks/{network}/subnets/{name}.
 func (h *Handler) GetSubnet(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, network sdkschema.NetworkPathParam, name sdkschema.ResourcePathParam) {
-	logger := h.Logger.With("provider", "network", "resource", "subnet", "name", name)
+	logger := h.Logger.With("provider", "network", "resource", "subnet")
 	ir := &SubnetIdentity{name: name, tenant: tenant, workspace: workspace, network: network}
 	frest.HandleGet(w, r, logger, ir, frest.GetterFromRepo(h.SubnetReader, newSubnetWithIdentity), subnetToAPIWithVerb(http.MethodGet))
 }
 
 // CreateOrUpdateSubnet handles PUT /v1/tenants/{tenant}/workspaces/{workspace}/networks/{network}/subnets/{name}.
 func (h *Handler) CreateOrUpdateSubnet(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, network sdkschema.NetworkPathParam, name sdkschema.ResourcePathParam, params sdknetwork.CreateOrUpdateSubnetParams) {
-	logger := h.Logger.With("provider", "network", "resource", "subnet", "name", name)
+	logger := h.Logger.With("provider", "network", "resource", "subnet")
 	id := &SubnetIdentity{name: name, tenant: tenant, workspace: workspace, network: network}
 	if params.IfUnmodifiedSince != nil {
 		id.resourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
