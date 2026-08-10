@@ -14,6 +14,7 @@ import (
 	backend "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
 	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	res "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
+	commonbackend "github.com/eu-sovereign-cloud/ecp/resource/common/backend"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	instancedom "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/instance"
 	instancek8s "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/instance/backend/kubernetes"
@@ -204,13 +205,16 @@ func (h *ComputeInstanceHandler) resolve(ctx context.Context, domain *instancedo
 	// The instance's SKU is a SECA InstanceSKU describing capacity (vCPU/RAM); Aruba needs a named
 	// flavor. Load the SKU and map its capacity to the Aruba flavor. A missing SKU CR is a not-ready
 	// gate (catalog still syncing); a capacity with no Aruba flavor is a real error.
-	skuName := lastSegment(domain.Spec.SkuRef.Resource)
-	if skuName == "" {
+	// A SKU is tenant-scoped, so the reference may name a tenant other than the instance's
+	// own — carried either as its own field or spelled out in the resource path.
+	// ParseReference reads both and falls back to the instance's tenant.
+	skuRef := commonbackend.ParseReference(domain.Spec.SkuRef, tenant)
+	if skuRef.Name == "" {
 		return nil, backend.ErrStillProcessing // SkuRef is required
 	}
 	sku := &computeskudom.InstanceSKU{RegionalMetadata: commondomain.RegionalMetadata{
-		CommonMetadata: commondomain.CommonMetadata{Name: skuName},
-		Scope:          res.Scope{Tenant: tenant},
+		CommonMetadata: commondomain.CommonMetadata{Name: skuRef.Name},
+		Scope:          res.Scope{Tenant: skuRef.Tenant},
 	}}
 	if err := h.computeSkuRepository.Load(ctx, &sku); err != nil {
 		return nil, backend.ErrStillProcessing // SKU catalog not ready yet
