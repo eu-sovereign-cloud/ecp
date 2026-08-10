@@ -52,6 +52,14 @@ func TestParseReference(t *testing.T) {
 			defaultTenant: "t1",
 			want:          commonbackend.ReferenceTarget{Tenant: "t1", Workspace: "", Name: "img1"},
 		},
+		{
+			name: "full URN in the path, as a client holding only the target's ref sends it",
+			// Reference.resource: {provider}/{version}/tenants/{tenant}/workspaces/{workspace}/...
+			// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
+			ref:           commondomain.Reference{Resource: "seca.network/v1/tenants/t2/workspaces/w2/networks/n1/route-tables/rt1"},
+			defaultTenant: "t1",
+			want:          commonbackend.ReferenceTarget{Tenant: "t2", Workspace: "w2", Name: "rt1"},
+		},
 	}
 
 	for _, tc := range tests {

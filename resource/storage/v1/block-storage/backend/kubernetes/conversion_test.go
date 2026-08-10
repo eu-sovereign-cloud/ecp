@@ -12,15 +12,14 @@ import (
 )
 
 // FuzzBlockStorageSpecRoundTrip verifies that a BlockStorage domain survives a
-// domain→CR→domain→CR→domain→CR round-trip. The interesting complexity is in
-// mapDomainReferenceToCR, which extracts "providers/", "regions/",
-// "tenants/", "workspaces/" from the Resource path — a normalizing transformation.
+// domain→CR→domain→CR→domain→CR round-trip. References are stored verbatim, so the
+// interesting complexity is elsewhere: label keying and the provider "/"↔"_" swap.
 //
 // Invariants:
 //   - SizeGB, Name, Provider, Tenant, Workspace, Region are stable after one round-trip
 //     (domain2 == domain3).
-//   - SkuRef CR fields are compared at cr2 vs cr3: the first pass normalizes embedded
-//     path segments; the second pass must produce an identical CR.
+//   - SkuRef CR fields are compared at cr2 vs cr3: the second pass must produce an
+//     identical CR.
 func FuzzBlockStorageSpecRoundTrip(f *testing.F) {
 	// (sizeGB, skuRefResource, skuRefProvider, skuRefRegion, skuRefTenant, skuRefWorkspace, name, provider, tenant, workspace, region)
 	f.Add(10, "block-storages/my-bs", "ionos", "de-fra", "t-1", "ws-1", "bs-1", "ionos/de", "t-1", "ws-1", "de-fra")

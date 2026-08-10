@@ -30,20 +30,27 @@ type ReferenceTarget struct {
 // Tenant and workspace are read from the reference, whether carried as explicit
 // fields or embedded in the resource path; an empty tenant falls back to defaultTenant.
 // The name is the last segment of the resource path (e.g. "block-storages/web" -> "web").
+//
+// References are stored exactly as written (see ReferenceToCR), so both representations
+// reach this point and the path is the fallback for whichever field the client left unset.
 func ParseReference(ref domain.Reference, defaultTenant string) ReferenceTarget {
-	cr := ReferenceToCR(ref)
-
-	tenant := cr.Tenant
+	tenant, workspace := ref.Tenant, ref.Workspace
+	if tenant == "" {
+		tenant, _ = extractAndStripSegment(ref.Resource, "tenants/")
+	}
+	if workspace == "" {
+		workspace, _ = extractAndStripSegment(ref.Resource, "workspaces/")
+	}
 	if tenant == "" {
 		tenant = defaultTenant
 	}
 
-	name := cr.Resource
+	name := ref.Resource
 	if idx := strings.LastIndex(name, "/"); idx >= 0 {
 		name = name[idx+1:]
 	}
 
-	return ReferenceTarget{Tenant: tenant, Workspace: cr.Workspace, Name: name}
+	return ReferenceTarget{Tenant: tenant, Workspace: workspace, Name: name}
 }
 
 // ReferenceResolver resolves cross-resource dependencies against the Kubernetes API

@@ -90,8 +90,8 @@ func isWellFormedRefPath(p string) bool {
 
 // FuzzSecurityGroupRuleSpecRoundTrip targets the nested optional spec — *IcmpConfig, *Ports and
 // the []Reference source list. Pointer and slice fields are where nil-vs-empty drift hides, and
-// SourceRef exercises ReferenceToCR's documented idempotence (it embeds tenant/workspace into
-// the resource path on the way out, then must leave that path alone on the next pass).
+// SourceRef exercises ReferenceToCR, which must hand the reference back exactly as it was
+// written rather than rewriting one of the two spec representations into the other.
 //
 // The invariant is stability, not identity: the first round-trip normalizes (unknown IP versions
 // collapse to "", provider "/"↔"_"), so domain2 and domain3 must be identical.

@@ -2,7 +2,6 @@
 package backend
 
 import (
-	"fmt"
 	"strings"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -128,128 +127,35 @@ func IPVersionFromCR(v schemav1.IPVersion) domain.IPVersion {
 }
 
 // ReferenceFromCR converts a generated schemav1.Reference to a domain.Reference.
-// Tenant and Workspace are embedded into the Resource path so the domain always
-// carries a fully-qualified resource path string
-// (e.g. "tenants/t/workspaces/w/block-storages/bs").
+//
+// A reference is stored and returned exactly as the client wrote it. Both representations
+// the spec allows — the scope as its own fields ({tenant: "t", resource: "skus/s"}) and the
+// scope spelled out in the path ({resource: "seca.network/v1/tenants/t/skus/s"}) — mean the
+// same thing, and rewriting one into the other loses whichever the client chose, so a read
+// no longer echoes the write. Anything that needs the pieces parses them at the point of
+// use; see ParseReference.
 // Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 func ReferenceFromCR(ref schemav1.Reference) domain.Reference {
-	resourcePath := ref.Resource
-	if ref.Tenant != "" || ref.Workspace != "" {
-		resourcePath = embedScopeInResource(resourcePath, ref.Tenant, ref.Workspace)
-	}
 	return domain.Reference{
-		Provider: ref.Provider,
-		Region:   ref.Region,
-		Resource: resourcePath,
+		Provider:  ref.Provider,
+		Region:    ref.Region,
+		Resource:  ref.Resource,
+		Tenant:    ref.Tenant,
+		Workspace: ref.Workspace,
 	}
 }
 
-// ReferenceToCR converts a domain.Reference to a generated schemav1.Reference.
-// It parses the Resource path to extract embedded segments (tenants, workspaces;
-// also legacy providers/regions) and sets the corresponding fields. Extracted
-// segments are stripped from the Resource path, leaving {collection}/{name}
-// (or nested network paths). If a segment is not in the path, it falls back to
-// the domain value.
+// ReferenceToCR converts a domain.Reference to a generated schemav1.Reference, storing it
+// verbatim. See ReferenceFromCR for why nothing is rewritten on the way in either.
 // Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 func ReferenceToCR(ref domain.Reference) schemav1.Reference {
-	resourcePath := ref.Resource
-	result := schemav1.Reference{}
-
-	// Populate each field from the Resource path only when the explicit domain field
-	// is not already set. This makes the function idempotent: on the first call the
-	// embedded path segments are extracted; on subsequent calls (after a round-trip
-	// through the CR) the explicit fields are already populated and path extraction
-	// is skipped, leaving the Resource unchanged.
-	if ref.Provider == "" {
-		if provider, remaining := extractAndStripSegment(resourcePath, "providers/"); provider != "" {
-			result.Provider = provider
-			resourcePath = remaining
-		}
-	} else {
-		result.Provider = ref.Provider
+	return schemav1.Reference{
+		Provider:  ref.Provider,
+		Region:    ref.Region,
+		Resource:  ref.Resource,
+		Tenant:    ref.Tenant,
+		Workspace: ref.Workspace,
 	}
-
-	if ref.Region == "" {
-		if region, remaining := extractAndStripSegment(resourcePath, "regions/"); region != "" {
-			result.Region = region
-			resourcePath = remaining
-		}
-	} else {
-		result.Region = ref.Region
-	}
-
-	if ref.Tenant == "" {
-		if tenant, remaining := extractAndStripSegment(resourcePath, "tenants/"); tenant != "" {
-			result.Tenant = tenant
-			resourcePath = remaining
-		}
-	} else {
-		result.Tenant = ref.Tenant
-	}
-
-	if ref.Workspace == "" {
-		if workspace, remaining := extractAndStripSegment(resourcePath, "workspaces/"); workspace != "" {
-			result.Workspace = workspace
-			resourcePath = remaining
-		}
-	} else {
-		result.Workspace = ref.Workspace
-	}
-
-	result.Resource = resourcePath
-	return result
-}
-
-// embedScopeInResource inserts the tenants/{tenant} and workspaces/{workspace} segments
-// into the resource path, matching the URN segment order
-// {provider}/{version}/tenants/{tenant}/workspaces/{workspace}/{resource}.
-// e.g. "skus/fast-local" with tenant "t1" becomes "tenants/t1/skus/fast-local", and the
-// nested "networks/n1/route-tables/rt1" becomes
-// "tenants/t1/workspaces/w1/networks/n1/route-tables/rt1" — the scope precedes the whole
-// path, never just its last two segments.
-//
-// A client holding only a resource's URN sends that URN as the reference path, so the path
-// may open with the "{provider}/{version}" pair. That pair stays in front: the scope goes
-// after it, never before it and never in the middle of the nested path, so the path handed
-// back is byte-identical to the URN the client sent.
-// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
-func embedScopeInResource(resourcePath, tenant, workspace string) string {
-	var scopePath string
-	switch {
-	case tenant != "" && workspace != "":
-		scopePath = fmt.Sprintf("tenants/%s/workspaces/%s", tenant, workspace)
-	case tenant != "":
-		scopePath = fmt.Sprintf("tenants/%s", tenant)
-	case workspace != "":
-		scopePath = fmt.Sprintf("workspaces/%s", workspace)
-	}
-
-	providerPath, rest := splitProviderPrefix(resourcePath)
-	segments := make([]string, 0, 3)
-	for _, s := range []string{providerPath, scopePath, rest} {
-		if s != "" {
-			segments = append(segments, s)
-		}
-	}
-	return strings.Join(segments, "/")
-}
-
-// splitProviderPrefix splits a leading "{provider}/{version}" pair (e.g. "seca.network/v1")
-// off a resource path, returning it and the remainder. A SECA provider id always carries a
-// dot and is followed by a v-prefixed version, neither of which a collection segment
-// ("networks", "route-tables", "tenants") ever has, so the pair is unambiguous. Returns an
-// empty prefix when the path does not open with one.
-// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
-func splitProviderPrefix(resourcePath string) (providerPath, rest string) {
-	provider, afterProvider, found := strings.Cut(resourcePath, "/")
-	if !found || !strings.Contains(provider, ".") {
-		return "", resourcePath
-	}
-	version, afterVersion, found := strings.Cut(afterProvider, "/")
-	if !found || len(version) < 2 || version[0] != 'v' || version[1] < '0' || version[1] > '9' {
-		return "", resourcePath
-	}
-	return provider + "/" + version, afterVersion
 }
 
 // extractAndStripSegment extracts the value following a segment prefix in a resource path
