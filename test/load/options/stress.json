@@ -36,6 +36,11 @@
   },
   "thresholds": {
     "http_req_failed": ["rate<0.05"],
-    "checks": ["rate>0.90"]
+    "checks": ["rate>0.90"],
+    "http_req_duration": ["p(95)<1500"],
+    "http_req_duration{name:global_healthz}": ["p(95)<800"],
+    "http_req_duration{name:regional_healthz}": ["p(95)<800"],
+    "http_req_duration{name:list_regions}": ["p(95)<1200"],
+    "http_req_duration{name:list_workspaces}": ["p(95)<1200"]
   }
 }

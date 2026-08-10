@@ -9,20 +9,21 @@
 //
 //   make -C test/load tf-net-storage
 
-import { check, sleep } from 'k6';
+import {check, sleep} from 'k6';
 
-import { loadConfig } from '../lib/config.js';
-import { get, logIfUnexpected } from '../lib/http.js';
+import {loadConfig} from '../lib/config.js';
+import {get, logIfUnexpected} from '../lib/http.js';
 import {
   tfApplyNetStorage,
   tfBootstrapWorkspacesSlow,
+  tfDeleteWorkspaces,
   tfDestroyNetStorage,
   tfExpectStatuses,
   tfFixedPollNetStorageUntil,
   tfPollTargets,
 } from '../lib/tf/apply.js';
-import { buildNetStoragePlan, netStoragePollTargets } from '../lib/tf/plan.js';
-import { tfUrls } from '../lib/tf/urls.js';
+import {buildNetStoragePlan, netStoragePollTargets} from '../lib/tf/plan.js';
+import {tfUrls} from '../lib/tf/urls.js';
 
 export { handleSummary } from '../lib/summary.js';
 
@@ -42,6 +43,13 @@ export function setup() {
 
   const boot = tfBootstrapWorkspacesSlow(cfg, USER_COUNT, runId);
   if (!boot.ok) {
+    if (boot.workspaces.length > 0) {
+      console.error(
+        `tf-net-storage setup: bootstrap failed; deleting ${boot.workspaces.length} ` +
+          'partially-created workspace(s) before aborting',
+      );
+      tfDeleteWorkspaces(cfg, boot.workspaces);
+    }
     throw new Error(
       'tf-net-storage setup: not all workspaces created; aborting before net/storage phase',
     );

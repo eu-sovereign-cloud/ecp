@@ -3,6 +3,13 @@
 LOAD_DIR := $(CURDIR)
 SCRIPTS  := $(LOAD_DIR)/scripts
 
+# Local gateway dev clusters (gateway/scripts/setup-dev-clusters.sh): 'global'
+# and 'regional' KIND clusters. setup-dev-clusters.sh hardcodes its
+# KUBECONFIG_DIR to ~/.kube/multi-cluster-demo, so this must match exactly —
+# not independently overridable, or the *-dev targets look in the wrong place.
+GATEWAY_SCRIPTS    := $(LOAD_DIR)/../../gateway/scripts
+DEV_KUBECONFIG_DIR := $(HOME)/.kube/multi-cluster-demo
+
 # Pin used when falling back to Docker (native k6 may be newer).
 K6_IMAGE ?= grafana/k6:0.57.0
 export K6_IMAGE
@@ -17,9 +24,12 @@ E2E_AUTH_ENABLED ?= true
 CREATE_IF_MISSING ?= 1
 # 1 = create_workspace polls until status.state is Active (needs delegator).
 WAIT_ACTIVE ?= 0
-# Public gateway bases for GKE load tests (setup_gke.sh + terraform LBs).
-BASE_URL_GLOBAL   ?= http://global.test.ecociel.com
-BASE_URL_REGIONAL ?= http://regional.test.ecociel.com
+# Public gateway bases (GKE, dev clusters, or local port-forward). No default —
+# an empty value here makes each target's own "set BASE_URL_*" guard fire with
+# a clear message, instead of a target silently defaulting to a placeholder
+# hostname that fails with a confusing DNS lookup error.
+BASE_URL_GLOBAL   ?=
+BASE_URL_REGIONAL ?=
 # Helm/gateway namespace for the GKE stack (distinct from KIND's e2e-ecp default).
 GKE_SYSTEM_NAMESPACE ?= ecp
 # Reports (see README "HTML reports"):
@@ -77,6 +87,46 @@ smoke: k6-start ## Run smoke journey (healthz, regions, list workspaces)
 	@$(MAKE) ensure-tenant
 	@$(SCRIPTS)/run-k6.sh run journeys/smoke.js --config options/smoke.json
 
+.PHONY: ensure-dev-clusters
+ensure-dev-clusters: ## Create local 'global'/'regional' gateway dev clusters if missing (build images + create-dev-clusters)
+	@$(GATEWAY_SCRIPTS)/ensure-dev-clusters.sh
+
+# Discover BASE_URL_GLOBAL/REGIONAL from the dev clusters' NodePorts, point
+# KUBECONFIG at the regional cluster (ensure-tenant and journeys' tenant CRs
+# live there, not on the host's ambient/default context), and use tenant
+# "seca" — the tenant setup-dev-clusters.sh's regional fixtures actually seed
+# (namespace + StorageSKU), not the GKE/e2e-cluster default "test-tenant".
+# Re-invoke $(MAKE) with these as environment overrides (env wins over the
+# `?=` defaults above).
+DEV_ENV = KUBECONFIG=$(DEV_KUBECONFIG_DIR)/regional-config \
+	E2E_TENANT=seca \
+	BASE_URL_GLOBAL=$$($(GATEWAY_SCRIPTS)/dev-url.sh global "$(DEV_KUBECONFIG_DIR)/global-config" global-api-service) \
+	BASE_URL_REGIONAL=$$($(GATEWAY_SCRIPTS)/dev-url.sh regional "$(DEV_KUBECONFIG_DIR)/regional-config" regional-server-svc)
+
+.PHONY: smoke-dev
+smoke-dev: k6-start ensure-dev-clusters ## Run smoke against local 'global'/'regional' gateway dev clusters (auto-creates clusters + discovers BASE_URL_*, no port-forward)
+	@$(DEV_ENV) $(MAKE) smoke
+
+.PHONY: create-workspace-dev
+create-workspace-dev: k6-start ensure-dev-clusters ## create-workspace against local gateway dev clusters (auto-creates clusters + discovers BASE_URL_*)
+	@$(DEV_ENV) $(MAKE) create-workspace
+
+.PHONY: stepwise-dev
+stepwise-dev: k6-start ensure-dev-clusters ## stepwise against local gateway dev clusters (auto-creates clusters + discovers BASE_URL_*)
+	@$(DEV_ENV) $(MAKE) stepwise
+
+.PHONY: stress-dev
+stress-dev: k6-start ensure-dev-clusters ## stress against local gateway dev clusters (auto-creates clusters + discovers BASE_URL_*)
+	@$(DEV_ENV) $(MAKE) stress
+
+.PHONY: tf-stress-dev
+tf-stress-dev: k6-start ensure-dev-clusters ## tf-stress against local gateway dev clusters (auto-creates clusters + discovers BASE_URL_*)
+	@$(DEV_ENV) $(MAKE) tf-stress
+
+.PHONY: tf-net-storage-dev
+tf-net-storage-dev: k6-start ensure-dev-clusters ## tf-net-storage against local gateway dev clusters (auto-creates clusters + discovers BASE_URL_*)
+	@$(DEV_ENV) $(MAKE) tf-net-storage
+
 .PHONY: create-workspace
 create-workspace: k6-start ## Create/get/delete a workspace via regional API
 	@if [ -z "$(BASE_URL_GLOBAL)" ] || [ -z "$(BASE_URL_REGIONAL)" ]; then \
@@ -103,6 +153,22 @@ stress: k6-start ## Stress load: 1 VU warmup then 12×5s phases VUs 30..360
 	fi
 	@$(MAKE) ensure-tenant
 	@$(SCRIPTS)/run-k6.sh run journeys/stress.js --config options/stress.json
+
+.PHONY: throughput
+throughput: k6-start ## Sustained-rate check (constant-arrival-rate; dropped_iterations + per-op duration SLOs)
+	@if [ -z "$(BASE_URL_GLOBAL)" ] || [ -z "$(BASE_URL_REGIONAL)" ]; then \
+		echo "throughput: set BASE_URL_GLOBAL and BASE_URL_REGIONAL (see test/load/README.md)" >&2; \
+		exit 1; \
+	fi
+	@$(MAKE) ensure-tenant
+	@K6_DASHBOARD_REPORT=reports/throughput-dashboard.html \
+		K6_REPORT_TITLE='ECP throughput' \
+		K6_HTML_REPORT=reports/throughput-report.html \
+		$(SCRIPTS)/run-k6.sh run journeys/throughput.js
+
+.PHONY: throughput-dev
+throughput-dev: k6-start ensure-dev-clusters ## throughput against local gateway dev clusters (auto-creates clusters + discovers BASE_URL_*)
+	@$(DEV_ENV) $(MAKE) throughput
 
 .PHONY: tf-stress
 tf-stress: k6-start ## Terraform-like apply ×10 workspaces (~5 min, fixed polls, destroy)

@@ -10,11 +10,11 @@
 //   make -C test/load stress
 
 import http from 'k6/http';
-import { check, sleep } from 'k6';
+import {check, sleep} from 'k6';
 
-import { checkStatus, parseJSON } from '../lib/checks.js';
-import { loadConfig } from '../lib/config.js';
-import { get, logIfUnexpected } from '../lib/http.js';
+import {checkStatus, parseJSON} from '../lib/checks.js';
+import {loadConfig} from '../lib/config.js';
+import {get, logIfUnexpected} from '../lib/http.js';
 
 export { handleSummary } from '../lib/summary.js';
 
@@ -26,16 +26,20 @@ export default function () {
   const t0 = Date.now();
 
   // --- Liveness (no auth) ----------------------------------------------------
-  const globalHealth = http.get(`${cfg.baseUrlGlobal}/healthz`);
+  const globalHealth = http.get(`${cfg.baseUrlGlobal}/healthz`, {
+    tags: { name: 'global_healthz' },
+  });
   logIfUnexpected(globalHealth, 200, 'global /healthz');
   checkStatus(globalHealth, 200, 'global healthz');
 
-  const regionalHealth = http.get(`${cfg.baseUrlRegional}/healthz`);
+  const regionalHealth = http.get(`${cfg.baseUrlRegional}/healthz`, {
+    tags: { name: 'regional_healthz' },
+  });
   logIfUnexpected(regionalHealth, 200, 'regional /healthz');
   checkStatus(regionalHealth, 200, 'regional healthz');
 
   // --- Regions (global) ------------------------------------------------------
-  const regionsRes = get(cfg.regionsListURL(), cfg);
+  const regionsRes = get(cfg.regionsListURL(), cfg, { tags: { name: 'list_regions' } });
   logIfUnexpected(regionsRes, 200, 'list regions');
   const regionsOK = checkStatus(regionsRes, 200, 'list regions');
   if (regionsOK) {
@@ -48,7 +52,7 @@ export default function () {
   }
 
   // --- Workspaces list (regional, tenant-scoped) -----------------------------
-  const wsRes = get(cfg.workspacesListURL(), cfg);
+  const wsRes = get(cfg.workspacesListURL(), cfg, { tags: { name: 'list_workspaces' } });
   logIfUnexpected(wsRes, 200, 'list workspaces');
   const wsOK = checkStatus(wsRes, 200, 'list workspaces');
   if (wsOK) {

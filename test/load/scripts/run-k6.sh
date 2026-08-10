@@ -43,6 +43,10 @@ pass_env=(
 	"ACTIVE_POLL_S=${ACTIVE_POLL_S:-2}"
 	"STEPWISE_PACE_S=${STEPWISE_PACE_S:-1}"
 	"STRESS_PACE_S=${STRESS_PACE_S:-1}"
+	"THROUGHPUT_RATE=${THROUGHPUT_RATE:-}"
+	"THROUGHPUT_DURATION_S=${THROUGHPUT_DURATION_S:-}"
+	"THROUGHPUT_PRE_VUS=${THROUGHPUT_PRE_VUS:-}"
+	"THROUGHPUT_MAX_VUS=${THROUGHPUT_MAX_VUS:-}"
 	"TF_JOURNEY_S=${TF_JOURNEY_S:-300}"
 	"TF_DESTROY_BUDGET_S=${TF_DESTROY_BUDGET_S:-45}"
 	"TF_RUN_ID=${TF_RUN_ID:-}"
@@ -109,6 +113,12 @@ ensure_report_dir() {
 			dir="$(dirname "${out}")"
 		fi
 		mkdir -p "${dir}"
+		# Docker mode runs k6 as a fixed non-host uid/gid (e.g. 12345:12345 in
+		# grafana/k6), so the mounted reports dir must be world-writable for
+		# handleSummary()/dashboard export to succeed.
+		if [[ "${mode}" == "docker" ]]; then
+			chmod 0777 "${dir}"
+		fi
 	done
 }
 

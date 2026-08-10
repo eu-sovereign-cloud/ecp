@@ -25,7 +25,7 @@ TAG=smoke
 REGION=itbg-bergamo
 
 cleanup() {
-    kill "${PF_PID:-}" 2>/dev/null || true
+    kill "${PF_PID:-}" "${PF_REGIONAL_PID:-}" 2>/dev/null || true
     if [ "${KEEP_CLUSTER:-}" != "true" ]; then
         kind delete cluster --name "${CLUSTER}" >/dev/null 2>&1 || true
     fi
@@ -61,6 +61,7 @@ helm install ecp charts/ecp \
     --set "gatewayRegional.image.tag=${TAG}" \
     --set auth.enabled=true \
     --set "auth.dummyUsers.users.smoke=smoke-pass" \
+    --set "auth.dummyUsers.users.admin=e2e-admin-pass" \
     --wait --timeout 5m
 
 echo "==> helm install ecp-delegator"
@@ -101,3 +102,33 @@ if [ "${anon}" != "401" ] || [ "${auth}" != "200" ]; then
 fi
 
 echo "==> OK: both charts install and the gateway enforces the configured auth"
+
+# ---------------------------------------------------------------------------
+# k6 smoke journey: healthz + list regions + list workspaces, via
+# test/load/journeys/smoke.js. Reuses test-data's tenant "test-tenant" / user
+# "admin" (test/load's own defaults) so no fixture changes were needed —
+# test-data already seeds the tenant Namespace, RBAC (ra-admin) and the
+# "itbg-bergamo" Region this job's REGION also uses. The Region CR's provider
+# URLs point at the e2e-cluster's service names, not this job's — harmless
+# here since smoke.js talks to BASE_URL_GLOBAL/REGIONAL directly and never
+# follows those URLs.
+# ---------------------------------------------------------------------------
+echo "==> Seeding test-data (tenant Namespace, RBAC, region ${REGION})"
+kubectl apply -k test/internal/deploy/test-data >/dev/null
+
+echo "==> Probing the regional gateway"
+kubectl -n "${NAMESPACE}" port-forward svc/ecp-gateway-regional 18081:80 >/dev/null 2>&1 &
+PF_REGIONAL_PID=$!
+for _ in $(seq 30); do
+    curl -so /dev/null "http://localhost:18081/healthz" && break
+    sleep 1
+done
+
+echo "==> Running test/load smoke journey"
+BASE_URL_GLOBAL=http://localhost:18080 \
+    BASE_URL_REGIONAL=http://localhost:18081 \
+    AUTH_USER=admin \
+    AUTH_PASS=e2e-admin-pass \
+    make -C test/load smoke
+
+echo "==> OK: test/load smoke journey passed against the installed charts"

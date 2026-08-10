@@ -103,7 +103,7 @@ exist (`global.test.ecociel.com` / `regional.test.ecociel.com`):
 make -C test/load gke-fixtures
 # overrides: GKE_SYSTEM_NAMESPACE=ecp BASE_URL_GLOBAL=… BASE_URL_REGIONAL=…
 
-# 2. Point journeys at the public gateways (defaults already match DNS names)
+# 2. Point journeys at the public gateways (no Makefile default — see below)
 export BASE_URL_GLOBAL=http://global.test.ecociel.com
 export BASE_URL_REGIONAL=http://regional.test.ecociel.com
 export SYSTEM_NAMESPACE=ecp
@@ -120,6 +120,44 @@ Parent aliases: `make -C test load-gke-fixtures`, `load-smoke`, …
 creates Region `europe-west1` with public regional provider URLs, rewrites
 in-cluster Service DNS on other Region CRs, and runs `ensure-tenant`.
 
+## Local dev-cluster path (`*-dev` targets, no port-forward)
+
+Every journey target has a `-dev` variant (`smoke-dev`, `create-workspace-dev`,
+`stepwise-dev`, `stress-dev`, `throughput-dev`, `tf-stress-dev`,
+`tf-net-storage-dev`) that runs against the **`gateway create-dev-clusters`**
+setup — two standalone KIND clusters named `global`/`regional`, distinct from
+`test`'s single `e2e-cluster` — with zero manual setup:
+
+```bash
+make -C test/load smoke-dev
+```
+
+Each `-dev` target:
+
+1. Runs `ensure-dev-clusters` — if the `global`/`regional` KIND clusters don't
+   already exist, builds the gateway images and bootstraps them
+   (`gateway/scripts/setup-dev-clusters.sh`; first run takes a few minutes,
+   later runs no-op).
+2. Discovers `BASE_URL_GLOBAL`/`BASE_URL_REGIONAL` from each cluster's
+   NodePort Service directly (`gateway/scripts/dev-url.sh`) — both services
+   are `type: NodePort`, reachable at
+   `http://<control-plane-container-ip>:<nodePort>` with no port-forward.
+3. Points `KUBECONFIG` at the **regional** cluster (where tenant/workspace CRs
+   live) and sets `E2E_TENANT=seca` — the tenant these dev clusters seed a
+   namespace + `StorageSKU`/`InstanceSKU` fixtures for
+   (`gateway/config/k8s-dev-setup/regional/`), **not** the GKE/e2e-cluster
+   default `test-tenant`.
+4. Re-invokes the plain target (e.g. `smoke`) with those as environment
+   overrides.
+
+`DEV_KUBECONFIG_DIR` (`~/.kube/multi-cluster-demo`) is fixed to match what
+`setup-dev-clusters.sh` itself hardcodes — it is **not** meant to be
+overridden independently.
+
+```bash
+kind delete cluster --name global && kind delete cluster --name regional
+```
+
 ## Make targets
 
 | Target | What it does |
@@ -132,10 +170,13 @@ in-cluster Service DNS on other Region CRs, and runs `ensure-tenant`.
 | `gke-fixtures` | Seed GKE fixtures (test-data + public Region URLs) |
 | `smoke` | Healthz + list regions + list workspaces |
 | `create-workspace` | PUT/GET/DELETE one workspace |
-| `stepwise` | Same reads as smoke; 1 VU warmup then 6×10s @ 2..12 VUs |
-| `stress` | Same reads; 1 VU warmup then 12×5s @ 30..360 VUs |
+| `stepwise` | Same reads as smoke; 1 VU warmup then 6×10s @ 2..12 VUs; per-op duration SLOs |
+| `stress` | Same reads; 1 VU warmup then 12×5s @ 30..360 VUs; per-op duration SLOs |
+| `throughput` | Constant-arrival-rate sustained-rate check; `dropped_iterations` + duration SLOs |
 | `tf-stress` | Terraform-like stack ×10 workspaces (~5 min, fixed polls, destroy) |
 | `tf-net-storage` | Slow workspace bootstrap, then network + block-storage only |
+| `ensure-dev-clusters` | Bootstrap local `global`/`regional` KIND dev clusters if missing |
+| `*-dev` | `-dev` suffix on any journey target above runs it against the dev clusters (see previous section) |
 | `help` | List targets |
 
 ## Journeys
@@ -166,7 +207,11 @@ client ramp (`options/stepwise.json`):
 | 6 | 10s | 12 | ~12/s |
 
 Total wall time ≈ 70s (+ graceful ramp-down). Thresholds allow a small check
-failure rate under load (`checks>95%`, `http_req_failed<1%`).
+failure rate under load (`checks>95%`, `http_req_failed<1%`), plus
+per-operation `http_req_duration` SLOs (`options/stepwise.json`) so a slow but
+*successful* response still fails the run — each request is tagged
+(`global_healthz`, `regional_healthz`, `list_regions`, `list_workspaces`) so
+thresholds and the summary breakdown are per-operation, not just aggregate.
 
 ```bash
 make -C test/load stepwise
@@ -185,13 +230,44 @@ with a steep client ramp (`options/stress.json`):
 | 1–12 | 5s each | 30, 60, … 360 (+30) | ~30–360/s |
 
 Total wall time ≈ 65s (+ graceful ramp-down). Thresholds are looser than
-stepwise under load (`checks>90%`, `http_req_failed<5%`).
+stepwise under load (`checks>90%`, `http_req_failed<5%`), plus looser
+per-operation `http_req_duration` SLOs than stepwise (`options/stress.json`) —
+same tagging (`global_healthz`, `regional_healthz`, `list_regions`,
+`list_workspaces`). At 360 VUs a single-node dev/KIND control-plane's own API
+server can legitimately breach these before the gateway does — that's a
+capacity limit of the test environment, not necessarily a gateway bug.
 
 ```bash
 make -C test/load stress
 # or: make -C test load-stress
 # STRESS_PACE_S=1  (default; seconds per VU iteration)
 ```
+
+### throughput
+
+**stepwise/stress ramp *VUs*, not request rate.** Each VU paces itself to
+~1 iteration/s; under rising latency, an iteration just takes longer and the
+*achieved* rate quietly drops below what the VU count implies — with only
+checks/`http_req_failed` gating pass/fail, that shortfall goes unnoticed.
+
+`throughput` fixes the **iteration rate** directly via k6's
+`constant-arrival-rate` executor: k6 scales VUs (up to `maxVUs`) to try to
+sustain the target rate, and any iteration it can't start in time counts
+toward `dropped_iterations` — the actual "we didn't sustain the rate" signal,
+gated by a threshold. Same light reads and per-operation tags as
+stepwise/stress.
+
+```bash
+make -C test/load throughput
+# THROUGHPUT_RATE=50            (default; iterations/s)
+# THROUGHPUT_DURATION_S=60      (default)
+# THROUGHPUT_PRE_VUS=<rate>     (default; preAllocatedVUs)
+# THROUGHPUT_MAX_VUS=<rate*4>   (default; maxVUs — headroom for latency spikes)
+```
+
+`preAllocatedVUs`/`maxVUs` must comfortably exceed `rate × p95-iteration-latency-in-seconds`,
+or the executor itself can't keep up and `dropped_iterations` rises regardless
+of API behavior — widen `THROUGHPUT_MAX_VUS` before concluding the API is slow.
 
 ### tf-stress
 
@@ -234,7 +310,10 @@ Lighter TF-like journey that **avoids 404 races**:
 1. **`setup()`** creates workspaces **slowly and serially** with a **unique
    `runId` in each name** (`tfns-<runId>-w01`…), so a prior destroy cannot leave
    K8s namespaces in `Terminating` for the same names. Each workspace must
-   **PUT + GET 200** before the next; setup **aborts** if any fail.
+   **PUT + GET 200** before the next; setup **aborts** if any fail — but first
+   **deletes whatever workspaces it did manage to create** (`tfDeleteWorkspaces`
+   in `lib/tf/apply.js`), so a failed bootstrap doesn't leak workspaces that
+   would otherwise affect (or collide with) later runs.
 2. **10 VUs** create only **1 network + 1–3 block storages**. Network create
    **retries** while the workspace child namespace is missing or Terminating
    (`TF_NS_READY_ATTEMPTS` / `TF_NS_READY_PAUSE_S`). Polls only created resources.
@@ -385,6 +464,10 @@ username/password). JWT is not implemented; extend `mintToken()` when needed.
 | `WAIT_ACTIVE` | `0` | `1` = poll workspace until `status.state` is Active |
 | `ACTIVE_TIMEOUT_S` | `60` | Active poll timeout (seconds) |
 | `ACTIVE_POLL_S` | `2` | Active poll interval (seconds) |
+| `THROUGHPUT_RATE` | `50` | `throughput`: target iterations/s (constant-arrival-rate) |
+| `THROUGHPUT_DURATION_S` | `60` | `throughput`: scenario duration (seconds) |
+| `THROUGHPUT_PRE_VUS` | `<rate>` | `throughput`: `preAllocatedVUs` |
+| `THROUGHPUT_MAX_VUS` | `<rate>×4` | `throughput`: `maxVUs` (headroom under latency) |
 | `K6_IMAGE` | `grafana/k6:0.57.0` | Docker image when native k6 is missing |
 | `K6_MIN_VERSION` | `0.54.0` | Minimum accepted native k6 version |
 | `KUBECONFIG` | ambient | Cluster used by `ensure-tenant` |
@@ -406,10 +489,14 @@ test/load/
   Makefile
   README.md
   scripts/        # k6-start, run-k6, ensure-tenant
-  lib/            # config, auth, http, checks
-  journeys/       # hello, _selfcheck, smoke, create_workspace
-  options/        # smoke.json, stepwise.json
+  lib/            # config, auth, http, checks, tf/ (apply, urls, bodies, plan)
+  journeys/       # hello, _selfcheck, smoke, create_workspace, stepwise,
+                  # stress, throughput, tf_stress, tf_net_storage
+  options/        # smoke.json, stepwise.json, stress.json, tf-*.json
   observability/  # Grafana dashboards for load-test Prometheus
+
+gateway/scripts/  # dev-url.sh, ensure-dev-clusters.sh, setup-dev-clusters.sh
+                  # — the *-dev targets' cluster/URL discovery, outside test/load
 ```
 
 ## Grafana dashboards
@@ -429,21 +516,26 @@ make -C test/load apply-dashboards
 
 Details: [`observability/README.md`](observability/README.md).
 
-## CI (follow-up)
+## CI
 
-No CI job is wired yet. A future job needs:
+`smoke` runs on every PR as part of the `chart-smoke` job
+(`.github/workflows/pre-merge.yaml` → `ci/scripts/chart-smoke.sh`): after
+installing both charts on a throwaway KIND cluster and probing auth, the
+script seeds `test/internal/deploy/test-data` (tenant `test-tenant`, RBAC,
+region `itbg-bergamo` — matching `test/load`'s own defaults), port-forwards
+both gateways, and runs `make -C test/load smoke` against them. `K6_IMAGE` is
+not pinned there today — the runner's Docker fallback pulls
+`grafana/k6:0.57.0` (this repo's default) fresh each run.
 
-- the same deployed stack as e2e (or a long-lived environment),
-- gateway reachability (in-cluster k6 Job, or port-forward/sidecar in the runner),
-- `BASE_URL_*` + dummy (or JWT) credentials,
-- `make -C test/load smoke` (and optionally `create-workspace`) as a gate.
-
-Prefer pinning `K6_IMAGE` in CI for reproducible runners.
+The heavier journeys (`stepwise`, `stress`, `throughput`, `tf-stress`,
+`tf-net-storage`) are **not** wired into CI — they run for minutes and their
+duration/rate thresholds can fail from the *test environment's* capacity
+(e.g. a single-node KIND control-plane under 360 VUs) rather than a real
+regression, which is a bad fit for blocking every PR. Follow-up: a
+scheduled/manually-triggered workflow for those, separate from `chart-smoke`.
 
 ## Out of scope (later)
 
-- Multi-VU load/stress profiles beyond stepwise/stress
 - JWT auth path
 - More resource journeys (network, block storage, …)
-- Auto port-forward helper
 - Replacing Go `TestBench` / `benchreport`

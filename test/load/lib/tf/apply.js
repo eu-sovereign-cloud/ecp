@@ -1,12 +1,12 @@
 // Create / poll / destroy helpers for tf-stress.
 
 import http from 'k6/http';
-import { check, sleep } from 'k6';
+import {check, sleep} from 'k6';
 
-import { checkStatus } from '../checks.js';
-import { authHeaders } from '../auth.js';
-import { logIfUnexpected } from '../http.js';
-import { recordResponse } from '../status.js';
+import {checkStatus} from '../checks.js';
+import {authHeaders} from '../auth.js';
+import {logIfUnexpected} from '../http.js';
+import {recordResponse} from '../status.js';
 import {
   blockStorageBody,
   instanceBody,
@@ -16,7 +16,8 @@ import {
   subnetBody,
   workspaceBody,
 } from './bodies.js';
-import { allPollTargets, netStoragePollTargets } from './plan.js';
+import {allPollTargets, netStoragePollTargets} from './plan.js';
+import {tfUrls} from './urls.js';
 
 // 404 is normal for poll-before-ready races and delete cleanup; 202 for DELETE.
 // Without this, k6 counts them as http_req_failed and trips thresholds.
@@ -339,6 +340,26 @@ export function tfBootstrapWorkspacesSlow(cfg, userCount, runId) {
     'all workspaces created in setup': () => ok && workspaces.length === userCount,
   });
   return { workspaces, ok, runId: rid };
+}
+
+/**
+ * Delete workspaces by name (setup-time cleanup). Used when
+ * tfBootstrapWorkspacesSlow only partially succeeds, so a failed bootstrap
+ * doesn't leak the workspaces it did manage to create into the next run.
+ *
+ * @param {import('../config.js').LoadConfig} cfg
+ * @param {string[]} workspaceNames
+ */
+export function tfDeleteWorkspaces(cfg, workspaceNames) {
+  for (const name of workspaceNames) {
+    const url = tfUrls(cfg, name).workspace();
+    const res = http.del(url, null, params(cfg, { tags: { name: 'tf_delete', resource: 'workspace' } }));
+    recordResponse(res, { name: 'tf_delete', resource: 'workspace' });
+    check(res, {
+      [`cleanup: del workspace ${name} ok`]: (r) =>
+        r.status === 202 || r.status === 200 || r.status === 404,
+    });
+  }
 }
 
 /**
