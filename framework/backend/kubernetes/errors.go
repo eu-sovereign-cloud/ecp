@@ -25,6 +25,11 @@ func RetryLevel(err error) slog.Level {
 		switch domainErr.Kind {
 		case kernel.KindConflict, kernel.KindPreconditionFailed:
 			return slog.LevelWarn
+		default:
+			// Every other kind is decided below, not here: a domain error can still wrap a raw
+			// Kubernetes conflict, so this falls through to the check rather than concluding
+			// ERROR early. Listing the remaining kinds individually would be a lie — they all
+			// take the same path.
 		}
 	}
 	if kerrs.IsConflict(err) {

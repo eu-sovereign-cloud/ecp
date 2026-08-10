@@ -105,6 +105,12 @@ linters:
     errcheck:
       check-type-assertions: false
       check-blank: false
+    exhaustive:
+      # A `default` clause counts as handling the rest. Without this, every switch on a domain
+      # enum has to name all members even when they share one outcome, which turns into a list
+      # that has to be edited whenever a member is added — and gets padded with cases nobody
+      # meant to write. The linter still catches a switch that silently drops a new member.
+      default-signifies-exhaustive: true
     goconst:
       min-len: 3
       min-occurrences: 5
