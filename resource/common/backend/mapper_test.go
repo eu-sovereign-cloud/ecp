@@ -1,11 +1,14 @@
 package backend
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
 	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/schema/v1"
+
+	"github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 )
 
 func TestExtractSegment(t *testing.T) {
@@ -35,11 +38,37 @@ func TestExtractSegment(t *testing.T) {
 	}
 }
 
+// FuzzExtractSegment checks that extractSegment never panics on arbitrary input. It is the
+// only code that recovers a scope from a reference path, and every namespace decision in
+// ReferenceResolver goes through it, on a path string that comes straight from a client.
+func FuzzExtractSegment(f *testing.F) {
+	f.Add("workspaces/ws-1/block-storages/my-storage", "workspaces/")
+	f.Add("tenants/t-1/workspaces/ws-1", "workspaces/")
+	f.Add("workspaces/ws-1", "workspaces/")
+	f.Add("seca.network/v1/tenants/t-1/workspaces/ws-1/networks/n1/route-tables/rt1", "networks/")
+	f.Add("", "workspaces/")
+	f.Add("/", "/")
+	f.Add("a/b/c", "b/")
+	// long paths around Kubernetes' 253-char DNS subdomain limit
+	f.Add(strings.Repeat("a", 253)+"/workspaces/ws-1", "workspaces/")
+	f.Add(strings.Repeat("a", 254)+"/workspaces/ws-1", "workspaces/")
+	f.Add("workspaces/"+strings.Repeat("b", 64), "workspaces/")
+
+	f.Fuzz(func(t *testing.T, resource, segment string) {
+		extractSegment(resource, segment)
+	})
+}
+
 // TestReferenceRoundTripIsVerbatim pins the property a client depends on: a reference is
 // handed back exactly as it was written, in whichever of the two representations the spec
 // allows the client picked. Rewriting one into the other made reads disagree with writes -
 // a terraform apply that sent {tenant, resource} got {resource: "tenants/.../..."} back and
 // failed with "produced an unexpected new value".
+//
+// The direction that carries the bug is write-then-read (domain -> CR -> domain): the write
+// stored the scope in the CR's own fields, and the read spliced them back into the path, so
+// what came out was not what went in. The reverse (CR -> domain -> CR) is asserted too, but
+// it survived the old code for every shape but a full URN - on its own it pins nothing.
 // Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 func TestReferenceRoundTripIsVerbatim(t *testing.T) {
 	testCases := []struct {
@@ -73,7 +102,15 @@ func TestReferenceRoundTripIsVerbatim(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.ref, ReferenceToCR(ReferenceFromCR(tc.ref)))
+			sent := domain.Reference{
+				Provider:  tc.ref.Provider,
+				Region:    tc.ref.Region,
+				Resource:  tc.ref.Resource,
+				Tenant:    tc.ref.Tenant,
+				Workspace: tc.ref.Workspace,
+			}
+			assert.Equal(t, sent, ReferenceFromCR(ReferenceToCR(sent)), "write then read")
+			assert.Equal(t, tc.ref, ReferenceToCR(ReferenceFromCR(tc.ref)), "read then write")
 		})
 	}
 }
