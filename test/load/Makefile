@@ -35,7 +35,7 @@ GKE_SYSTEM_NAMESPACE ?= ecp
 # Reports (see README "HTML reports"):
 #   REPORT_DASHBOARD=1 (default) — k6 web-dashboard HTML WITH graphs (needs ≥~30s run)
 #   REPORT_HTML=0 (default)      — k6-reporter tables/checks (opt-in; no time-series)
-REPORT_HTML         ?= 1
+REPORT_HTML         ?= 0
 K6_HTML_REPORT      ?= reports/k6-report.html
 K6_REPORT_TITLE     ?= ECP k6 report
 REPORT_DASHBOARD    ?= 1

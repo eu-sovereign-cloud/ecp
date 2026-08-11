@@ -24,10 +24,12 @@ export default function () {
 
   check(null, {
     'tenant default is set': () => cfg.tenant.length > 0,
-    'mintToken matches dummy encoding': () => token === expectedToken,
-    'authHeaders has Bearer': () =>
-      typeof headers.Authorization === 'string' &&
-      headers.Authorization.indexOf('Bearer ') === 0,
+    'mintToken matches expected auth mode': () =>
+      cfg.authEnabled ? token === expectedToken : token === '',
+    'authHeaders matches expected auth mode': () =>
+      cfg.authEnabled
+        ? typeof headers.Authorization === 'string' && headers.Authorization.indexOf('Bearer ') === 0
+        : headers.Authorization === undefined,
     'authHeaders has Content-Type': () => headers['Content-Type'] === 'application/json',
   });
 

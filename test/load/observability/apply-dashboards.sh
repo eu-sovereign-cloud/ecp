@@ -43,7 +43,11 @@ kubectl -n "${NAMESPACE}" create configmap "${CONFIGMAP}" \
 # Restart Grafana so the ConfigMap volume always remounts with new files.
 # File watchers alone can lag behind ConfigMap projected volumes.
 if kubectl -n "${NAMESPACE}" get deploy grafana >/dev/null 2>&1; then
-  checksum="$(cat "${files[@]}" | shasum -a 256 | awk '{print $1}')"
+  if command -v sha256sum >/dev/null 2>&1; then
+    checksum="$(cat "${files[@]}" | sha256sum | awk '{print $1}')"
+  else
+    checksum="$(cat "${files[@]}" | shasum -a 256 | awk '{print $1}')"
+  fi
   kubectl -n "${NAMESPACE}" annotate deploy grafana \
     "checksum/dashboards=${checksum}" --overwrite
   kubectl -n "${NAMESPACE}" rollout restart deploy/grafana

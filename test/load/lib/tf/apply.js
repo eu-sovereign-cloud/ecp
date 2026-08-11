@@ -61,8 +61,10 @@ export function tfPut(url, body, cfg, label, resource) {
     }
     break;
   }
-  logIfUnexpected(res, 200, label);
-  checkStatus(res, 200, label);
+  logIfUnexpected(res, [200, 201], label);
+  check(res, {
+    [`${label} status is 200|201`]: (r) => r.status === 200 || r.status === 201,
+  });
   return res;
 }
 
