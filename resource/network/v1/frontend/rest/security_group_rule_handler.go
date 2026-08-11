@@ -21,7 +21,7 @@ func (h *Handler) ListSecurityGroupRules(w http.ResponseWriter, r *http.Request,
 
 // DeleteSecurityGroupRule handles DELETE /v1/tenants/{tenant}/workspaces/{workspace}/security-group-rules/{name}.
 func (h *Handler) DeleteSecurityGroupRule(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdknetwork.DeleteSecurityGroupRuleParams) {
-	logger := h.Logger.With("provider", "network", "resource", "security-group-rule", "name", name)
+	logger := h.Logger.With("provider", "network", "resource", "security-group-rule")
 	id := &SecurityGroupRuleIdentity{name: name, tenant: tenant, workspace: workspace}
 	if params.IfUnmodifiedSince != nil {
 		id.resourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
@@ -31,14 +31,14 @@ func (h *Handler) DeleteSecurityGroupRule(w http.ResponseWriter, r *http.Request
 
 // GetSecurityGroupRule handles GET /v1/tenants/{tenant}/workspaces/{workspace}/security-group-rules/{name}.
 func (h *Handler) GetSecurityGroupRule(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam) {
-	logger := h.Logger.With("provider", "network", "resource", "security-group-rule", "name", name)
+	logger := h.Logger.With("provider", "network", "resource", "security-group-rule")
 	ir := &SecurityGroupRuleIdentity{name: name, tenant: tenant, workspace: workspace}
 	frest.HandleGet(w, r, logger, ir, frest.GetterFromRepo(h.SecurityGroupRuleReader, newSecurityGroupRuleWithIdentity), securityGroupRuleToAPIWithVerb(http.MethodGet))
 }
 
 // CreateOrUpdateSecurityGroupRule handles PUT /v1/tenants/{tenant}/workspaces/{workspace}/security-group-rules/{name}.
 func (h *Handler) CreateOrUpdateSecurityGroupRule(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdknetwork.CreateOrUpdateSecurityGroupRuleParams) {
-	logger := h.Logger.With("provider", "network", "resource", "security-group-rule", "name", name)
+	logger := h.Logger.With("provider", "network", "resource", "security-group-rule")
 	id := &SecurityGroupRuleIdentity{name: name, tenant: tenant, workspace: workspace}
 	if params.IfUnmodifiedSince != nil {
 		id.resourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)

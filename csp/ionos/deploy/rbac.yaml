@@ -45,6 +45,23 @@ rules:
 - apiGroups: ["network.v1.secapi.cloud"]
   resources: ["skus"]
   verbs: ["get", "list", "watch"]
+# Before the workspace and network controllers delete the namespace they own, they re-check that
+# it is empty. That check has to see every type that can live there, and the regional gateway
+# accepts all of them regardless of which plugin is installed — a resource this plugin never
+# reconciles still occupies the namespace. So this grant is deliberately plugin-independent and
+# wider than the blocks above; it is read-only.
+#
+# A missing CRD is tolerated by the check, but a Forbidden is not: it fails the cleanup, the
+# finalizer is held, and the workspace never finishes deleting.
+- apiGroups: ["storage.v1.secapi.cloud"]
+  resources: ["block-storages"]
+  verbs: ["list"]
+- apiGroups: ["network.v1.secapi.cloud"]
+  resources: ["networks", "nics", "public-ips", "internet-gateways", "security-groups", "security-group-rules", "route-tables", "subnets"]
+  verbs: ["list"]
+- apiGroups: ["compute.v1.secapi.cloud"]
+  resources: ["instances"]
+  verbs: ["list"]
 - apiGroups: [""]
   resources: ["namespaces", "events"]
   verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]

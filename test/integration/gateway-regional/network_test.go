@@ -11,6 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
+
+	"github.com/eu-sovereign-cloud/ecp/test/internal/testenv"
 )
 
 // newNetworkBody builds the request body for creating a network.
@@ -110,7 +112,9 @@ func TestNetworkAPI(t *testing.T) {
 
 		t.Cleanup(func() {
 			_, _ = networkClient.DeleteRouteTableWithResponse(context.Background(), testTenant, testWorkspace, networkName, rtName, nil)
-			_, _ = networkClient.DeleteNetworkWithResponse(context.Background(), testTenant, testWorkspace, networkName, nil)
+			testenv.DeleteUntilGone(context.Background(), func() (*http.Response, error) {
+				return networkClient.DeleteNetwork(context.Background(), testTenant, testWorkspace, networkName, nil)
+			})
 		})
 
 		//

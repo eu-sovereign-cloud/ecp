@@ -14,6 +14,7 @@ import (
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
 	dummyplugin "github.com/eu-sovereign-cloud/ecp/csp/dummy/pkg/plugin"
+	"github.com/eu-sovereign-cloud/ecp/test/internal/testenv"
 )
 
 // Updates to an already-active resource are the path these two tests cover. Creating and deleting
@@ -35,7 +36,9 @@ func TestUpdateLabelsReachThePlugin(t *testing.T) {
 	networkName := "e2e-upd-labels-" + uuid.New().String()[:8]
 
 	t.Cleanup(func() {
-		_, _ = networkClient.DeleteNetworkWithResponse(ctx, testTenant, testWorkspace, networkName, nil)
+		testenv.DeleteUntilGone(ctx, func() (*http.Response, error) {
+			return networkClient.DeleteNetwork(ctx, testTenant, testWorkspace, networkName, nil)
+		})
 	})
 
 	network := func(labels schema.Labels) schema.Network {

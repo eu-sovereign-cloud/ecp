@@ -3,8 +3,12 @@ kind: Kustomization
 
 # This kustomization is for applying test data resources.
 # It does not enforce a namespace, allowing the resources to create their own.
+#
+# The tenant namespace these CRs land in is not declared here: it belongs to the
+# gateway, which provisions it on the first tenant-scoped write. deploy.sh derives
+# it from E2E_TENANT and creates it bare, only because kustomize applies the CRs
+# below straight to the API server before any request reaches the gateway.
 resources:
-  - namespace.yaml
   - regions.yaml
   - storagesku.yaml
   - network-skus.yaml

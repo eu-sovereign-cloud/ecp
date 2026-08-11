@@ -11,3 +11,6 @@ gatewayGlobal:
 gatewayRegional:
   # Must match a region in test-data/regions.yaml.
   region: itbg-bergamo
+  service:
+    type: NodePort
+    nodePort: 30081

@@ -21,7 +21,7 @@ func (h *Handler) ListRoles(w http.ResponseWriter, r *http.Request, tenant sdksc
 
 // DeleteRole handles DELETE /v1/tenants/{tenant}/roles/{name}.
 func (h *Handler) DeleteRole(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam, params sdkauth.DeleteRoleParams) {
-	logger := h.Logger.With("provider", "authorization", "resource", "role", "name", name)
+	logger := h.Logger.With("provider", "authorization", "resource", "role")
 	id := &resource.Identity{Name: name, Scope: resource.Scope{Tenant: tenant}}
 	if params.IfUnmodifiedSince != nil {
 		id.Version = strconv.Itoa(*params.IfUnmodifiedSince)
@@ -31,14 +31,14 @@ func (h *Handler) DeleteRole(w http.ResponseWriter, r *http.Request, tenant sdks
 
 // GetRole handles GET /v1/tenants/{tenant}/roles/{name}.
 func (h *Handler) GetRole(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam) {
-	logger := h.Logger.With("provider", "authorization", "resource", "role", "name", name)
+	logger := h.Logger.With("provider", "authorization", "resource", "role")
 	id := &resource.Identity{Name: name, Scope: resource.Scope{Tenant: tenant}}
 	frest.HandleGet(w, r, logger, id, frest.GetterFromRepo(h.RoleReader, newRoleWithIdentity), roleToAPIWithVerb(http.MethodGet))
 }
 
 // CreateOrUpdateRole handles PUT /v1/tenants/{tenant}/roles/{name}.
 func (h *Handler) CreateOrUpdateRole(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam, params sdkauth.CreateOrUpdateRoleParams) {
-	logger := h.Logger.With("provider", "authorization", "resource", "role", "name", name)
+	logger := h.Logger.With("provider", "authorization", "resource", "role")
 	id := &resource.Identity{Name: name, Scope: resource.Scope{Tenant: tenant}}
 	if params.IfUnmodifiedSince != nil {
 		id.Version = strconv.Itoa(*params.IfUnmodifiedSince)

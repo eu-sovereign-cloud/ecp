@@ -16,6 +16,8 @@ import (
 
 	regionv1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
+
+	"github.com/eu-sovereign-cloud/ecp/test/internal/testenv"
 )
 
 const (
@@ -36,14 +38,21 @@ func TestEndToEnd(t *testing.T) {
 	instanceName := "e2e-instance-" + uuid.New().String()[:8]
 
 	// Best-effort teardown of everything this test creates, in reverse order. The
-	// network-scoped resources (subnet, route-table) are removed before their network.
+	// network-scoped resources (subnet, route-table) are removed before their network,
+	// and the network is retried: its children only disappear once a finalizer runs, so a
+	// single attempt races it and leaks the whole tree (see testenv.DeleteUntilGone).
+	//
+	// testWorkspace is deliberately absent. This test creates it, but the update tests
+	// that follow run inside it, so it is shared fixture and TestMain tears it down after
+	// the whole suite.
 	t.Cleanup(func() {
 		_, _ = computeClient.DeleteInstanceWithResponse(ctx, testTenant, testWorkspace, instanceName, nil)
 		_, _ = networkClient.DeleteSubnetWithResponse(ctx, testTenant, testWorkspace, networkName, subnetName, nil)
 		_, _ = networkClient.DeleteRouteTableWithResponse(ctx, testTenant, testWorkspace, networkName, routeTableName, nil)
-		_, _ = networkClient.DeleteNetworkWithResponse(ctx, testTenant, testWorkspace, networkName, nil)
+		testenv.DeleteUntilGone(ctx, func() (*http.Response, error) {
+			return networkClient.DeleteNetwork(ctx, testTenant, testWorkspace, networkName, nil)
+		})
 		_, _ = storageClient.DeleteBlockStorageWithResponse(ctx, testTenant, testWorkspace, blockStorageName, nil)
-		_, _ = workspaceClient.DeleteWorkspaceWithResponse(ctx, testTenant, testWorkspace, nil)
 	})
 
 	// Step 1: the global gateway serves the regions provisioned by test-data.

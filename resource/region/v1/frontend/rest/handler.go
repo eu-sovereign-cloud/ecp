@@ -29,7 +29,7 @@ func (h *Handler) ListRegions(w http.ResponseWriter, r *http.Request, params reg
 
 // GetRegion handles GET /v1/regions/{name}.
 func (h *Handler) GetRegion(w http.ResponseWriter, r *http.Request, name sdkschema.ResourcePathParam) {
-	logger := h.Logger.With("resource", "region", "name", name)
+	logger := h.Logger.With("resource", "region")
 	ir := &resource.Identity{Name: name}
 	frest.HandleGet(w, r, logger, ir, frest.GetterFromRepo(h.Repo, newRegionWithIdentity), regionToAPIForGet)
 }

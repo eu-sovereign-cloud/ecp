@@ -8,6 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -69,6 +70,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Typed client for the Namespace API: the Workspace and Network controllers tear down the
+	// namespace they own for their children once the plugin has finished deleting them.
+	clientset, err := kubernetes.NewForConfig(mgr.GetConfig())
+	if err != nil {
+		logger.Error("unable to create clientset", "error", err)
+		os.Exit(1)
+	}
+
 	bsPlugin := dummyplugin.NewBlockStorage(logger.With("plugin", "blockstorage"))
 	imgPlugin := dummyplugin.NewImage(logger.With("plugin", "image"))
 	wsPlugin := dummyplugin.NewWorkspace(logger.With("plugin", "workspace"))
@@ -90,7 +99,7 @@ func main() {
 	controllerSet := frameworkbuilder.NewControllerSet()
 	controllerSet.Add(bsk8s.NewController(mgr.GetClient(), dynClient, bsPlugin, controllerOpts...))
 	controllerSet.Add(imgk8s.NewController(mgr.GetClient(), dynClient, imgPlugin, controllerOpts...))
-	controllerSet.Add(netk8s.NewController(mgr.GetClient(), dynClient, netPlugin, controllerOpts...))
+	controllerSet.Add(netk8s.NewController(mgr.GetClient(), dynClient, clientset, netPlugin, controllerOpts...))
 	controllerSet.Add(nick8s.NewController(mgr.GetClient(), dynClient, nicPlugin, controllerOpts...))
 	controllerSet.Add(publicipk8s.NewController(mgr.GetClient(), dynClient, publicIpPlugin, controllerOpts...))
 	controllerSet.Add(internetgatewayk8s.NewController(mgr.GetClient(), dynClient, internetGatewayPlugin, controllerOpts...))
@@ -99,7 +108,7 @@ func main() {
 	controllerSet.Add(securitygroupk8s.NewController(mgr.GetClient(), dynClient, securityGroupPlugin, controllerOpts...))
 	controllerSet.Add(securitygrouprulek8s.NewController(mgr.GetClient(), dynClient, securityGroupRulePlugin, controllerOpts...))
 	controllerSet.Add(instancek8s.NewController(mgr.GetClient(), dynClient, instancePlugin, controllerOpts...))
-	controllerSet.Add(wsk8s.NewController(mgr.GetClient(), dynClient, wsPlugin, controllerOpts...))
+	controllerSet.Add(wsk8s.NewController(mgr.GetClient(), dynClient, clientset, wsPlugin, controllerOpts...))
 
 	if err := controllerSet.SetupWithManager(mgr); err != nil {
 		logger.Error("unable to setup controllers with manager", "error", err)

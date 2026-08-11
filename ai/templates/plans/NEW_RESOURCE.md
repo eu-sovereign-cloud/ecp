@@ -101,9 +101,11 @@ the declared scope against it:
 | `global` | `[]` | `Metadata` | `Cluster` | cluster-scoped | `(…)` no tenant/ws | global |
 
 - **Deeper hierarchies** (e.g. `[tenant, workspace, network]`) still map to
-  `regional-workspace`: the **k8s namespace caps at tenant+workspace**, and the extra parent
-  (e.g. `network`) is modeled as a **Reference field in the domain/spec**, not a deeper
-  namespace. Note the split: the **REST handler params follow the *full* hierarchy** — the
+  `regional-workspace` for the domain embed, but they **do** get a deeper namespace: a domain
+  type that also implements `persistence.NetworkScope` is routed by `resolveNamespace` to
+  `ComputeNetworkNamespace`, i.e. `sha3-224(tenant/workspace/network)` (see `Subnet` and
+  `RouteTable`). The extra parent is *also* modeled as a Reference field in the domain/spec.
+  Note the split: the **REST handler params follow the *full* hierarchy** — the
   go-sdk `ServerInterface` method carries the extra path param (e.g.
   `ListSubnets(…, tenant, workspace, network, params)`), which you use to set the parent
   reference — while the **namespace scope** stays tenant+workspace. There may be no
@@ -111,6 +113,18 @@ the declared scope against it:
   parent-reference handling is underspecified.**
 - **If the declared scope disagrees with the hierarchy, notify the user** and ask how to
   proceed before continuing.
+- **A workspace- or network-scoped resource must be registered in five places**, or the owning
+  namespace looks empty when it is not and the cleanup finalizer wedges on a `Forbidden`:
+  1. `ChildResourceGVRs` in the owning slice — `resource/workspace/v1/backend/kubernetes/controller.go`
+     for workspace-scoped, `resource/network/v1/network/backend/kubernetes/controller.go` for
+     network-scoped.
+  2. `charts/delegator/templates/rbac.yaml` — plugin-independent `list` grant (controller re-check).
+  3. `charts/ecp/templates/gateway-regional/rbac.yaml` — the gateway's synchronous 409 check.
+  4. `csp/dummy/deploy/clusterrole.yaml`.
+  5. `csp/ionos/deploy/rbac.yaml` — plugin-independent `list` block.
+
+  Tenant-scoped resources (e.g. `Image`) belong in none of them: they live in the tenant
+  namespace, which nothing cascades from.
 
 ### 1.4 Validate read-only
 

@@ -48,7 +48,16 @@ func DomainToAPIError(err error, requestPath string) schema.Error {
 func WriteErrorResponse(w http.ResponseWriter, r *http.Request, logger *slog.Logger, err error) {
 	sdkError := DomainToAPIError(err, r.URL.Path)
 
-	logger.ErrorContext(r.Context(), "request error",
+	// 4xx is the client's fault, not ours: a bad token, a missing resource, a parent that
+	// still has children. Those are ordinary API outcomes the suites assert on by design, so
+	// they log at WARN — loud enough to debug a request with, quiet enough that ERROR keeps
+	// meaning "the server is broken" and stays worth alerting on.
+	level := slog.LevelError
+	if sdkError.Status < http.StatusInternalServerError {
+		level = slog.LevelWarn
+	}
+
+	logger.Log(r.Context(), level, "request error",
 		slog.Int("status", int(sdkError.Status)),
 		slog.String("type", sdkError.Type),
 		slog.String("title", sdkError.Title),

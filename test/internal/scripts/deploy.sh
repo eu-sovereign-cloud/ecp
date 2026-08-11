@@ -127,12 +127,21 @@ fi
 # ComputeNamespace), so rewrite both the tenant string and its hashed namespace.
 if [ "$COMPONENT" == "test-data" ]; then
     E2E_TENANT="${E2E_TENANT:-test-tenant}"
+    old_ns=$(printf %s "test-tenant" | openssl dgst -sha3-224 | awk '{print $NF}')
+    tenant_ns=$(printf %s "$E2E_TENANT" | openssl dgst -sha3-224 | awk '{print $NF}')
     if [ "$E2E_TENANT" != "test-tenant" ]; then
         echo "Retargeting tenant to ${E2E_TENANT}"
-        old_ns=$(printf %s "test-tenant" | openssl dgst -sha3-224 | awk '{print $NF}')
-        new_ns=$(printf %s "$E2E_TENANT"  | openssl dgst -sha3-224 | awk '{print $NF}')
-        YAML_STREAM=$(echo "${YAML_STREAM}" | sed -e "s/${old_ns}/${new_ns}/g" -e "s/test-tenant/${E2E_TENANT}/g")
+        YAML_STREAM=$(echo "${YAML_STREAM}" | sed -e "s/${old_ns}/${tenant_ns}/g" -e "s/test-tenant/${E2E_TENANT}/g")
     fi
+
+    # The tenant namespace is the gateway's to provision, on the first tenant-scoped
+    # write — no fixture declares it. It is created here only because the catalog CRs
+    # below are applied straight to the API server and need somewhere to land, and it
+    # is created BARE: the owner label is stamped by that first write, which is the
+    # convergence path TestNamespaceOwnerLabelDrift asserts.
+    echo "Ensuring tenant namespace ${tenant_ns} for tenant ${E2E_TENANT}"
+    kubectl ${KUBECONFIG_ARG} create namespace "${tenant_ns}" --dry-run=client -o yaml |
+        kubectl ${KUBECONFIG_ARG} apply -f -
 fi
 
 # Apply the processed YAML stream
