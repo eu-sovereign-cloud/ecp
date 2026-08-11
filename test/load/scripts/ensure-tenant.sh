@@ -2,8 +2,8 @@
 # Ensure the ECP tenant Namespace exists in the current cluster.
 #
 # Tenant is not a REST resource: the gateway stores tenant-scoped CRs in a
-# Namespace named hex(sha3-224(tenant)), labelled secapi.cloud/tenant-id.
-# See test/internal/deploy/test-data/namespace.yaml and deploy.sh.
+# Namespace named hex(sha3-224(tenant)), labelled secapi.cloud/tenant (see
+# framework/backend/kubernetes/labels/constants.go InternalTenantLabel).
 #
 # Env:
 #   E2E_TENANT          tenant id (default: test-tenant)
@@ -13,7 +13,7 @@ set -euo pipefail
 
 TENANT="${E2E_TENANT:-test-tenant}"
 CREATE_IF_MISSING="${CREATE_IF_MISSING:-1}"
-TENANT_LABEL_KEY="secapi.cloud/tenant-id"
+TENANT_LABEL_KEY="secapi.cloud/tenant"
 
 if ! command -v kubectl >/dev/null 2>&1; then
 	echo "ensure-tenant: kubectl not found on PATH" >&2
@@ -53,7 +53,7 @@ EOF
 
 # Does the namespace exist?
 if kubectl get namespace "${NS}" >/dev/null 2>&1; then
-	label_val="$(kubectl get namespace "${NS}" -o jsonpath="{.metadata.labels['secapi\.cloud/tenant-id']}" 2>/dev/null || true)"
+	label_val="$(kubectl get namespace "${NS}" -o jsonpath="{.metadata.labels['secapi\.cloud/tenant']}" 2>/dev/null || true)"
 	if [[ -z "${label_val}" ]]; then
 		echo "ensure-tenant: namespace ${NS} exists but has no ${TENANT_LABEL_KEY} label" >&2
 		echo "ensure-tenant: refuse to clobber; set the label or pick another E2E_TENANT" >&2

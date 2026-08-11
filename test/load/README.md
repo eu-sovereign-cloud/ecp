@@ -4,10 +4,10 @@ Black-box **API journeys** run with [k6](https://k6.io/) against a **deployed**
 ECP stack (global + regional gateways). Each journey is a short user-shaped
 path through the SECA HTTP API (auth headers, tenant paths, create/get/delete).
 
-| This harness | Not this harness |
-|--------------|------------------|
-| HTTP only, outside the cluster process | Go unit / integration / e2e suites |
-| Journey scripts under `journeys/` | Component isolation or CR reconciliation asserts |
+| This harness                             | Not this harness                                    |
+|------------------------------------------|-----------------------------------------------------|
+| HTTP only, outside the cluster process   | Go unit / integration / e2e suites                  |
+| Journey scripts under `journeys/`        | Component isolation or CR reconciliation asserts    |
 | Thresholds on checks + `http_req_failed` | Go `TestBench` + `benchreport` (Prometheus latency) |
 
 Go **e2e** still owns full-stack reconcile guarantees. Go **bench** warms
