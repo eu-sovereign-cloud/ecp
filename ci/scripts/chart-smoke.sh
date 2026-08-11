@@ -114,12 +114,19 @@ echo "==> OK: both charts install and the gateway enforces the configured auth"
 #
 # test-data's kustomization deliberately doesn't declare the tenant
 # namespace (it's the gateway's to provision on first tenant-scoped write) —
-# it expects the caller to pre-create it bare, same as
-# test/internal/scripts/deploy.sh does for its "test-data" component.
+# it expects the caller to pre-create it, same as test/internal/scripts/
+# deploy.sh does for its "test-data" component. Unlike deploy.sh, this job
+# labels it immediately instead of leaving it bare: nothing here ever routes
+# a tenant-scoped write through the gateway to converge the label on its own
+# (test/load's ensure-tenant, which the smoke journey runs next, requires the
+# label to already be there and refuses to touch a namespace without it), and
+# the bare-then-converge case is what test/e2e's TestNamespaceOwnerLabelDrift
+# exists to exercise, not this job.
 # ---------------------------------------------------------------------------
 echo "==> Seeding test-data (tenant Namespace, RBAC, region ${REGION})"
 TENANT_NS=$(printf %s "test-tenant" | openssl dgst -sha3-224 | awk '{print $NF}')
 kubectl create namespace "${TENANT_NS}" --dry-run=client -o yaml | kubectl apply -f - >/dev/null
+kubectl label namespace "${TENANT_NS}" secapi.cloud/tenant=test-tenant --overwrite >/dev/null
 kubectl apply -k test/internal/deploy/test-data >/dev/null
 
 echo "==> Probing the regional gateway"
