@@ -107,13 +107,19 @@ echo "==> OK: both charts install and the gateway enforces the configured auth"
 # k6 smoke journey: healthz + list regions + list workspaces, via
 # test/load/journeys/smoke.js. Reuses test-data's tenant "test-tenant" / user
 # "admin" (test/load's own defaults) so no fixture changes were needed —
-# test-data already seeds the tenant Namespace, RBAC (ra-admin) and the
-# "itbg-bergamo" Region this job's REGION also uses. The Region CR's provider
-# URLs point at the e2e-cluster's service names, not this job's — harmless
-# here since smoke.js talks to BASE_URL_GLOBAL/REGIONAL directly and never
-# follows those URLs.
+# test-data seeds RBAC (ra-admin) and the "itbg-bergamo" Region this job's
+# REGION also uses. The Region CR's provider URLs point at the e2e-cluster's
+# service names, not this job's — harmless here since smoke.js talks to
+# BASE_URL_GLOBAL/REGIONAL directly and never follows those URLs.
+#
+# test-data's kustomization deliberately doesn't declare the tenant
+# namespace (it's the gateway's to provision on first tenant-scoped write) —
+# it expects the caller to pre-create it bare, same as
+# test/internal/scripts/deploy.sh does for its "test-data" component.
 # ---------------------------------------------------------------------------
 echo "==> Seeding test-data (tenant Namespace, RBAC, region ${REGION})"
+TENANT_NS=$(printf %s "test-tenant" | openssl dgst -sha3-224 | awk '{print $NF}')
+kubectl create namespace "${TENANT_NS}" --dry-run=client -o yaml | kubectl apply -f - >/dev/null
 kubectl apply -k test/internal/deploy/test-data >/dev/null
 
 echo "==> Probing the regional gateway"
