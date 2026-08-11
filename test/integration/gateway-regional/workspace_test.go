@@ -11,6 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
+
+	"github.com/eu-sovereign-cloud/ecp/test/internal/testenv"
 )
 
 // TestWorkspaceAPI exercises the regional gateway's workspace REST handler. Create,
@@ -78,7 +80,9 @@ func TestWorkspaceAPI(t *testing.T) {
 
 		t.Cleanup(func() {
 			_, _ = storageClient.DeleteBlockStorageWithResponse(context.Background(), testTenant, workspaceName, bsName, nil)
-			_, _ = workspaceClient.DeleteWorkspaceWithResponse(context.Background(), testTenant, workspaceName, nil)
+			testenv.DeleteUntilGone(context.Background(), func() (*http.Response, error) {
+				return workspaceClient.DeleteWorkspace(context.Background(), testTenant, workspaceName, nil)
+			})
 		})
 
 		//

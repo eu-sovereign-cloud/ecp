@@ -22,7 +22,7 @@ func (h *Handler) ListBlockStorages(w http.ResponseWriter, r *http.Request, tena
 
 // DeleteBlockStorage handles DELETE /v1/tenants/{tenant}/workspaces/{workspace}/block-storages/{name}.
 func (h *Handler) DeleteBlockStorage(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdkstorage.DeleteBlockStorageParams) {
-	logger := h.Logger.With("provider", "storage", "resource", "block-storage", "name", name)
+	logger := h.Logger.With("provider", "storage", "resource", "block-storage")
 	id := &resource.Identity{Name: name, Scope: resource.Scope{Tenant: tenant, Workspace: workspace}}
 	if params.IfUnmodifiedSince != nil {
 		id.Version = strconv.Itoa(*params.IfUnmodifiedSince)
@@ -32,14 +32,14 @@ func (h *Handler) DeleteBlockStorage(w http.ResponseWriter, r *http.Request, ten
 
 // GetBlockStorage handles GET /v1/tenants/{tenant}/workspaces/{workspace}/block-storages/{name}.
 func (h *Handler) GetBlockStorage(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam) {
-	logger := h.Logger.With("provider", "storage", "resource", "block-storage", "name", name)
+	logger := h.Logger.With("provider", "storage", "resource", "block-storage")
 	ir := &resource.Identity{Name: name, Scope: resource.Scope{Tenant: tenant, Workspace: workspace}}
 	frest.HandleGet(w, r, logger, ir, frest.GetterFromRepo(h.BlockStorageReader, newBlockStorageWithIdentity), blockStorageToAPIWithVerb(http.MethodGet))
 }
 
 // CreateOrUpdateBlockStorage handles PUT /v1/tenants/{tenant}/workspaces/{workspace}/block-storages/{name}.
 func (h *Handler) CreateOrUpdateBlockStorage(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdkstorage.CreateOrUpdateBlockStorageParams) {
-	logger := h.Logger.With("provider", "storage", "resource", "block-storage", "name", name)
+	logger := h.Logger.With("provider", "storage", "resource", "block-storage")
 	id := &resource.Identity{Name: name, Scope: resource.Scope{Tenant: tenant, Workspace: workspace}}
 	if params.IfUnmodifiedSince != nil {
 		id.Version = strconv.Itoa(*params.IfUnmodifiedSince)

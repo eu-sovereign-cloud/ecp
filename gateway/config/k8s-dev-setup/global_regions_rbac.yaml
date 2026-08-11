@@ -6,6 +6,14 @@ rules:
   - apiGroups: ["v1.secapi.cloud"]
     resources: ["regions"]
     verbs: ["get", "list", "watch"]
+  # Role and RoleAssignment CRs live in the tenant namespace; the global cluster runs no
+  # controller, so the gateway provisions that namespace on write. No delete — namespace
+  # deletion is a controller concern and the global cluster has nothing to cascade from.
+  # patch stamps the owner labels onto a namespace that already exists.
+  # Mirrors charts/ecp/templates/gateway-global/rbac.yaml.
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "create", "patch"]
   - apiGroups: ["authorization.v1.secapi.cloud"]
     resources: ["roles"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]

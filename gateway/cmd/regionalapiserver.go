@@ -12,7 +12,6 @@ import (
 	"syscall"
 
 	"github.com/spf13/cobra"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
@@ -232,10 +231,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) erro
 		netk8s.NetworkToCR,
 		netk8s.NetworkFromCR,
 		k8sadapter.NetworkChildren,
-		[]schema.GroupVersionResource{
-			routetablek8s.RouteTableGVR,
-			subnetk8s.SubnetGVR,
-		},
+		netk8s.ChildResourceGVRs,
 	)
 	netSKUReaderAdapter := k8sadapter.NewReaderAdapter[*netskudom.NetworkSKU](
 		client.Client,
@@ -425,17 +421,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) erro
 		wsk8s.WorkspaceToCR,
 		wsk8s.WorkspaceFromCR,
 		k8sadapter.WorkspaceChildren,
-		[]schema.GroupVersionResource{
-			bsk8s.BlockStorageGVR,
-			imgk8s.ImageGVR,
-			netk8s.NetworkGVR,
-			nick8s.NICGVR,
-			publicipk8s.PublicIPGVR,
-			internetgatewayk8s.InternetGatewayGVR,
-			securitygroupk8s.SecurityGroupGVR,
-			securitygrouprulek8s.SecurityGroupRuleGVR,
-			instancek8s.InstanceGVR,
-		},
+		wsk8s.ChildResourceGVRs,
 	)
 	wsReaderAdapter := k8sadapter.NewReaderAdapter[*wsdom.Workspace](
 		client.Client,

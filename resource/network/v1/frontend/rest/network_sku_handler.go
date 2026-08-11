@@ -35,7 +35,7 @@ func (h *Handler) ListSkus(w http.ResponseWriter, r *http.Request, tenant sdksch
 
 // GetSku handles GET /v1/tenants/{tenant}/skus/{name}.
 func (h *Handler) GetSku(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam) {
-	logger := h.Logger.With("provider", "network", "resource", "sku", "name", name)
+	logger := h.Logger.With("provider", "network", "resource", "sku")
 	ir := &resource.Identity{Name: name, Scope: resource.Scope{Tenant: tenant}}
 	frest.HandleGet(w, r, logger, ir, frest.GetterFromRepo(h.SKUReader, newNetworkSKUWithIdentity), networkSKUToAPI)
 }
