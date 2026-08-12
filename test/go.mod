@@ -3,6 +3,12 @@ module github.com/eu-sovereign-cloud/ecp/test
 go 1.26.5
 
 require (
+	github.com/Arubacloud/arubacloud-resource-operator v1.0.0
+	github.com/eu-sovereign-cloud/ecp/csp/aruba v0.0.1
+	github.com/eu-sovereign-cloud/ecp/csp/dummy v0.0.1
+	github.com/eu-sovereign-cloud/ecp/csp/ionos v0.0.1
+	github.com/eu-sovereign-cloud/ecp/framework v0.0.1
+	github.com/eu-sovereign-cloud/ecp/resource v0.0.1
 	github.com/eu-sovereign-cloud/go-sdk v0.4.3
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/google/uuid v1.6.0

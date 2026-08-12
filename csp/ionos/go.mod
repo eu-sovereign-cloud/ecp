@@ -4,6 +4,8 @@ go 1.26.5
 
 require (
 	github.com/crossplane/crossplane-runtime/v2 v2.2.0
+	github.com/eu-sovereign-cloud/ecp/framework v0.0.1
+	github.com/eu-sovereign-cloud/ecp/resource v0.0.1
 	github.com/ionos-cloud/provider-upjet-ionoscloud v0.6.0
 	k8s.io/api v0.35.0
 	k8s.io/apimachinery v0.35.0
