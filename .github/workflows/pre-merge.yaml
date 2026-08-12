@@ -167,7 +167,10 @@ jobs:
   # from the published Dockerfiles, not the debug ones the e2e stack uses.
   #
   # This is the only job that starts the software; the integration, e2e and
-  # conformance suites are run out of test/ by hand.
+  # conformance suites are run out of test/ by hand. It also runs test/load's
+  # k6 "smoke" journey (healthz + list regions + list workspaces) against the
+  # installed charts — the heavier load journeys (stepwise/stress/throughput/
+  # tf-*) stay out of per-PR CI; see test/load/README.md's CI section.
   # ===========================================================================
   chart-smoke:
     name: Smoke Test Helm Charts
@@ -182,7 +185,7 @@ jobs:
       - uses: helm/kind-action@v1
         with:
           install_only: true
-      - name: Install charts and probe the gateway
+      - name: Install charts, probe the gateway, run k6 smoke journey
         run: ci/scripts/chart-smoke.sh
 
   # ===========================================================================

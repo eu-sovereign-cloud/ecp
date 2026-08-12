@@ -384,6 +384,50 @@ conformance-ionos-scaffolding: ## Build images, create the demo clusters and ins
 
 conformance-ionos-clean: ## Tear down the IONOS conformance demo clusters
 	@$(MAKE) -C conformance/ionos secatest-clean
+
+# =====================================================================================
+# k6 functional load journeys — black-box API paths (see load/README.md).
+# Requires a deployed stack and BASE_URL_GLOBAL / BASE_URL_REGIONAL in the environment.
+# Not the same as "bench" below (Go TestBench + Prometheus metrics).
+#
+#   export BASE_URL_GLOBAL=http://127.0.0.1:8080
+#   export BASE_URL_REGIONAL=http://127.0.0.1:8081
+#   make load-smoke
+#   make load-create-workspace
+#
+# GKE (setup_gke.sh + public DNS LBs):
+#   make load-gke-fixtures
+#   make load-smoke
+# =====================================================================================
+.PHONY: load-smoke load-create-workspace load-stepwise load-stress load-tf-stress load-tf-net-storage load-k6-start load-ensure-tenant load-gke-fixtures
+load-k6-start: ## Ensure k6 is available (delegates to load/)
+	@$(MAKE) -C load k6-start
+
+load-ensure-tenant: ## Ensure tenant Namespace exists (delegates to load/)
+	@$(MAKE) -C load ensure-tenant
+
+load-gke-fixtures: ## Seed GKE load-test fixtures (test-data + public Region URLs)
+	@$(MAKE) -C load gke-fixtures
+
+load-smoke: ## Run k6 smoke journey (delegates to load/; needs BASE_URL_*)
+	@$(MAKE) -C load smoke
+
+load-create-workspace: ## Run k6 create-workspace journey (delegates to load/; needs BASE_URL_*)
+	@$(MAKE) -C load create-workspace
+
+load-stepwise: ## Run k6 stepwise load (warmup 1 VU, then 6×10s @ 2..12 VUs)
+	@$(MAKE) -C load stepwise
+
+load-stress: ## Run k6 stress load (warmup 1 VU, then 12×5s @ 30..360 VUs)
+	@$(MAKE) -C load stress
+
+load-tf-stress: ## Terraform-like apply ×10 workspaces (~5 min; delegates to load/)
+	@$(MAKE) -C load tf-stress
+
+load-tf-net-storage: ## TF-like: slow workspaces, then network+block-storage only
+	@$(MAKE) -C load tf-net-storage
+
+# =====================================================================================
 # Benchmark & report
 # =====================================================================================
 # bench — fire the load workload against the deployed gateway to populate metrics.

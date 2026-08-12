@@ -332,9 +332,11 @@ Stage 1 — cheap gates, run in parallel
   branch-rebase    Verify branch is rebased onto its target (make branch-rebase-verify)
   go-sdk-verify    Verify go-sdk submodule and go.mod pins agree (make go-sdk-verify)
   chart-lint       helm lint + template both charts (every delegator plugin)
-  chart-smoke      Install both charts on KIND from the published Dockerfiles and
-                   assert the gateway enforces the auth the values asked for
-                   (ci/scripts/chart-smoke.sh) — the only job that starts a pod
+  chart-smoke      Install both charts on KIND from the published Dockerfiles,
+                   assert the gateway enforces the auth the values asked for,
+                   then seed test-data and run the test/load k6 smoke journey
+                   against both gateways (ci/scripts/chart-smoke.sh) — the
+                   only job that starts a pod
 
 Stage 2 — depends on Stage 1
   builder-publish-pr   Ensure a builder image exists for this PR:

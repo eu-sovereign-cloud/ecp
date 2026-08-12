@@ -54,6 +54,25 @@ check_command() {
   fi
 }
 
+wait_for_http_ok() {
+  # Poll a URL until it returns any HTTP response (curl -f only cares that
+  # the server answered, not the status code — readiness endpoints may 200
+  # or 503 depending on backend wiring, but a refused/timed-out connection
+  # means the Service/Endpoints aren't routable yet).
+  local url="$1" label="$2" attempts="${3:-30}" pause_s="${4:-2}"
+  echo "Waiting for ${label} API to answer at ${url} ..."
+  local i
+  for ((i = 1; i <= attempts; i++)); do
+    if curl -s -o /dev/null --max-time 3 "${url}"; then
+      echo "${label} API answering (attempt ${i}/${attempts})"
+      return 0
+    fi
+    sleep "${pause_s}"
+  done
+  echo "Error: ${label} API at ${url} did not answer after $((attempts * pause_s))s" >&2
+  return 1
+}
+
 create_kind_cluster() {
   local name="$1"
 
@@ -85,6 +104,7 @@ EOF
 check_command "kind"
 check_command "kubectl"
 check_command "docker"
+check_command "curl"
 
 "${SCRIPT_DIR}/../../ci/scripts/kind-cgroup-preflight.sh"
 
@@ -143,8 +163,9 @@ kubectl --kubeconfig "${REGIONAL_KUBECONFIG_PATH}" apply -R -f "${REGIONAL_CONFI
 echo "--- Step 7: Applying deployments ---"
 kubectl --kubeconfig "${GLOBAL_KUBECONFIG_PATH}" apply -f "${GLOBAL_DEPLOYMENT_YAML}"
 kubectl --kubeconfig "${REGIONAL_KUBECONFIG_PATH}" apply -f "${REGIONAL_DEPLOYMENT_YAML}"
-echo "Deployments applied. Waiting for services to be ready..."
-sleep 15 # Give services and endpoints time to initialize
+echo "Deployments applied. Waiting for rollout..."
+kubectl --kubeconfig "${GLOBAL_KUBECONFIG_PATH}" rollout status deployment/global-api-deployment --timeout=180s
+kubectl --kubeconfig "${REGIONAL_KUBECONFIG_PATH}" rollout status deployment/regional-server --timeout=180s
 
 # 9. Discover the regional service endpoint
 echo "--- Step 8: Discovering regional service endpoint ---"
@@ -165,6 +186,12 @@ echo "Discovered Regional Service NodePort: ${NODE_PORT}"
 
 REGIONAL_API_ENDPOINT="http://${NODE_IP}:${NODE_PORT}"
 echo "Constructed Regional API Endpoint: ${REGIONAL_API_ENDPOINT}"
+
+# rollout status only confirms the pod passed its readinessProbe; the
+# NodePort's iptables rules can lag slightly behind that, and it's this
+# externally-reachable path (not the in-cluster probe) that journeys/CI
+# actually depend on — so confirm it directly before wiring the Region CR.
+wait_for_http_ok "${REGIONAL_API_ENDPOINT}/healthz" "regional" || exit 1
 
 # 10. Generate and apply the Region CR to the global cluster
 echo "--- Step 9: Registering regional cluster in the global cluster ---"
@@ -192,6 +219,27 @@ spec:
       version: "v1"
 EOF
 
+# 11. Discover the global service endpoint (both services are NodePort, so
+# they're reachable directly at <control-plane-container-ip>:<nodePort> —
+# no port-forward needed).
+echo "--- Step 10: Discovering global service endpoint ---"
+GLOBAL_NODE_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${GLOBAL_CLUSTER_NAME}-control-plane")
+if [ -z "$GLOBAL_NODE_IP" ]; then
+  echo "Error: Could not determine Node IP for the global cluster." >&2
+  exit 1
+fi
+
+GLOBAL_NODE_PORT=$(kubectl --kubeconfig "${GLOBAL_KUBECONFIG_PATH}" get svc global-api-service -n default -o jsonpath='{.spec.ports[0].nodePort}')
+if [ -z "$GLOBAL_NODE_PORT" ]; then
+  echo "Error: Could not determine NodePort for global-api-service." >&2
+  exit 1
+fi
+
+GLOBAL_API_ENDPOINT="http://${GLOBAL_NODE_IP}:${GLOBAL_NODE_PORT}"
+echo "Constructed Global API Endpoint: ${GLOBAL_API_ENDPOINT}"
+
+wait_for_http_ok "${GLOBAL_API_ENDPOINT}/healthz" "global" || exit 1
+
 echo "--- Setup Complete! ---"
 echo "To interact with the clusters, use:"
 echo "export KUBECONFIG=${GLOBAL_KUBECONFIG_PATH}"
@@ -200,11 +248,12 @@ echo ""
 echo "export KUBECONFIG=${REGIONAL_KUBECONFIG_PATH}"
 echo "kubectl get all"
 echo ""
-echo "To access the APIs locally via port-forwarding, run the following commands in separate terminals:"
-echo "# Forward Global API to localhost:8080"
-echo "kubectl --kubeconfig ${GLOBAL_KUBECONFIG_PATH} port-forward deployment/global-api-deployment 8080:8080"
+echo "Both APIs are exposed via NodePort on their control-plane container IP — reachable directly, no port-forward needed:"
+echo "Global API:   ${GLOBAL_API_ENDPOINT}"
+echo "Regional API: ${REGIONAL_API_ENDPOINT}"
 echo ""
-echo "# Forward Regional API to localhost:8081"
-echo "kubectl --kubeconfig ${REGIONAL_KUBECONFIG_PATH} port-forward svc/regional-server-svc 8081:80"
+echo "For test/load journeys:"
+echo "export BASE_URL_GLOBAL=${GLOBAL_API_ENDPOINT}"
+echo "export BASE_URL_REGIONAL=${REGIONAL_API_ENDPOINT}"
 echo ""
 echo "To delete the clusters, run: kind delete cluster --name ${GLOBAL_CLUSTER_NAME} && kind delete cluster --name ${REGIONAL_CLUSTER_NAME}"
