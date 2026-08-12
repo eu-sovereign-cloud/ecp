@@ -4,6 +4,7 @@ go 1.26.5
 
 require (
 	github.com/eu-sovereign-cloud/go-sdk v0.4.3
+	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/google/uuid v1.6.0
 	github.com/prometheus/client_model v0.6.2
 	github.com/prometheus/common v0.67.5
@@ -13,8 +14,6 @@ require (
 	k8s.io/client-go v0.35.0
 	sigs.k8s.io/controller-runtime v0.23.1
 )
-
-require github.com/google/pprof v0.0.0-20250820193118-f64d9cf942d6 // indirect
 
 require (
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
@@ -37,8 +36,8 @@ require (
 	github.com/go-openapi/swag/stringutils v0.25.4 // indirect
 	github.com/go-openapi/swag/typeutils v0.25.4 // indirect
 	github.com/go-openapi/swag/yamlutils v0.25.4 // indirect
-	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/google/gnostic-models v0.7.1 // indirect
+	github.com/google/pprof v0.0.0-20250820193118-f64d9cf942d6 // indirect
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/moby/spdystream v0.5.0 // indirect
