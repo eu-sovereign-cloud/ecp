@@ -1,9 +1,13 @@
 package kubernetes
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
+	"maps"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -14,7 +18,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic/fake"
+	"k8s.io/client-go/kubernetes"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
@@ -322,6 +328,156 @@ func TestNamespaceHasChildResources(t *testing.T) {
 	})
 }
 
+// --- NamespaceManagingWriterAdapter.Create: on-demand namespace provisioning ---
+
+func TestNamespaceManagingWriterAdapter_Create(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	parent := &testWorkspaceScopedIdentifiable{name: "w1", tenant: "t1"}
+	tenantNS := ComputeNamespace(&kernelresource.Scope{Tenant: "t1"})
+	// WorkspaceChildren uses GetName() as the workspace segment.
+	childNS := ComputeNamespace(&kernelresource.Scope{Tenant: "t1", Workspace: "w1"})
+
+	newWriter := func(cs kubernetes.Interface, dynFake *fake.FakeDynamicClient) *NamespaceManagingWriterAdapter[*testWorkspaceScopedIdentifiable] {
+		return NewNamespaceManagingWriterAdapter[*testWorkspaceScopedIdentifiable](
+			dynFake, cs, testParentGVR, logger, parentDomainToK8s, parentK8sToDomain,
+			WorkspaceChildren, []schema.GroupVersionResource{testChildGVR},
+		)
+	}
+
+	// The regression test for the bug this refactor fixes: before it, nothing created the tenant
+	// namespace, so the very first workspace of a brand-new tenant failed with NotFound.
+	t.Run("creates the tenant namespace it writes into, not only the child namespace", func(t *testing.T) {
+		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), parentListKinds())
+		cs := k8sfake.NewClientset()
+
+		_, err := newWriter(cs, dynFake).Create(context.Background(), parent)
+		require.NoError(t, err)
+
+		tenant, err := cs.CoreV1().Namespaces().Get(context.Background(), tenantNS, metav1.GetOptions{})
+		require.NoError(t, err, "the namespace the Workspace CR itself lives in must be provisioned")
+		require.Equal(t, map[string]string{labels.InternalTenantLabel: "t1"}, tenant.Labels,
+			"the tenant namespace must carry the owner label namespaceOwnedBy checks")
+
+		child, err := cs.CoreV1().Namespaces().Get(context.Background(), childNS, metav1.GetOptions{})
+		require.NoError(t, err, "the namespace the Workspace's children live in must still be provisioned")
+		require.Equal(t, map[string]string{
+			labels.InternalTenantLabel:    "t1",
+			labels.InternalWorkspaceLabel: "w1",
+		}, child.Labels)
+
+		_, err = dynFake.Resource(testParentGVR).Namespace(tenantNS).Get(context.Background(), "w1", metav1.GetOptions{})
+		require.NoError(t, err)
+	})
+
+	// The namespace name is a hash of exactly this scope, so an existing one is always ours even
+	// when it predates the owner labels (hand-applied dev fixture, older release). Stamping it
+	// is what makes it reclaimable later — nothing else ever repairs the labels.
+	t.Run("is idempotent and stamps owner labels on an existing namespace without them", func(t *testing.T) {
+		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), parentListKinds())
+		cs := k8sfake.NewClientset(&corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{Name: tenantNS, Labels: map[string]string{"someone.else/owns": "this"}},
+		})
+
+		_, err := newWriter(cs, dynFake).Create(context.Background(), parent)
+		require.NoError(t, err)
+
+		tenant, err := cs.CoreV1().Namespaces().Get(context.Background(), tenantNS, metav1.GetOptions{})
+		require.NoError(t, err)
+		require.Equal(t, map[string]string{
+			"someone.else/owns":        "this",
+			labels.InternalTenantLabel: "t1",
+		}, tenant.Labels, "the merge patch adds the owner label and leaves unrelated ones alone")
+	})
+
+	// The child namespace is named by the caller and only ever reclaimed by the owning CR's
+	// finalizer, so a failed create must not leave one behind: without a CR nothing would ever
+	// delete it. The tenant namespace is shared and bounded by the authenticated tenant, so it
+	// stays.
+	t.Run("rolls back the child namespace when the resource create fails", func(t *testing.T) {
+		existing, err := parentDomainToK8s(parent)
+		require.NoError(t, err)
+		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(
+			runtime.NewScheme(), parentListKinds(), existing.(*unstructured.Unstructured),
+		)
+		cs := k8sfake.NewClientset()
+
+		_, err = newWriter(cs, dynFake).Create(context.Background(), parent)
+		require.Error(t, err, "creating a resource that already exists must fail")
+
+		_, err = cs.CoreV1().Namespaces().Get(context.Background(), tenantNS, metav1.GetOptions{})
+		require.NoError(t, err, "the tenant namespace must survive a failed resource create")
+		_, err = cs.CoreV1().Namespaces().Get(context.Background(), childNS, metav1.GetOptions{})
+		require.True(t, kerrs.IsNotFound(err), "the child namespace must be rolled back")
+	})
+
+	// A namespace this call did not create is not its to roll back — it may already hold the
+	// resources of an earlier successful create.
+	t.Run("leaves a pre-existing child namespace alone when the resource create fails", func(t *testing.T) {
+		existing, err := parentDomainToK8s(parent)
+		require.NoError(t, err)
+		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(
+			runtime.NewScheme(), parentListKinds(), existing.(*unstructured.Unstructured),
+		)
+		cs := k8sfake.NewClientset(&corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{Name: childNS, Labels: map[string]string{
+				labels.InternalTenantLabel:    "t1",
+				labels.InternalWorkspaceLabel: "w1",
+			}},
+		})
+
+		_, err = newWriter(cs, dynFake).Create(context.Background(), parent)
+		require.Error(t, err)
+
+		_, err = cs.CoreV1().Namespaces().Get(context.Background(), childNS, metav1.GetOptions{})
+		require.NoError(t, err, "a namespace this create did not provision must not be rolled back")
+	})
+
+	// Fabricating the workspace namespace would let a Network land in a Workspace that was never
+	// created, in a namespace no controller would ever reclaim. Namespace existence is the only
+	// referential-integrity check the write path has.
+	t.Run("does not fabricate the workspace namespace a network-owning resource writes into", func(t *testing.T) {
+		net := &testWorkspaceScopedIdentifiable{name: "n1", tenant: "t1", workspace: "missing-ws"}
+		workspaceNS := ComputeNamespace(&kernelresource.Scope{Tenant: "t1", Workspace: "missing-ws"})
+		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), parentListKinds())
+		cs := k8sfake.NewClientset()
+
+		writer := NewNamespaceManagingWriterAdapter[*testWorkspaceScopedIdentifiable](
+			dynFake, cs, testParentGVR, logger, parentDomainToK8s, parentK8sToDomain,
+			NetworkChildren, []schema.GroupVersionResource{testChildGVR},
+		)
+		// The CR write outcome is not what is under test here — against a real API server it is
+		// the NotFound this test exists to preserve. What matters is what was *not* provisioned.
+		_, _ = writer.Create(context.Background(), net)
+
+		_, err := cs.CoreV1().Namespaces().Get(context.Background(), workspaceNS, metav1.GetOptions{})
+		require.True(t, kerrs.IsNotFound(err),
+			"the parent workspace's namespace must not be created on behalf of its child")
+		_, err = cs.CoreV1().Namespaces().Get(context.Background(), tenantNS, metav1.GetOptions{})
+		require.True(t, kerrs.IsNotFound(err), "nor the tenant namespace above it")
+	})
+
+	// The global gateway's Role/RoleAssignment shape: owns no child namespace, but still has to
+	// provision the tenant namespace it writes into.
+	t.Run("NoChildNamespace still provisions the resource's own namespace", func(t *testing.T) {
+		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), parentListKinds())
+		cs := k8sfake.NewClientset()
+
+		writer := NewNamespaceManagingWriterAdapter[*testWorkspaceScopedIdentifiable](
+			dynFake, cs, testParentGVR, logger, parentDomainToK8s, parentK8sToDomain,
+			NoChildNamespace, nil,
+		)
+
+		_, err := writer.Create(context.Background(), parent)
+		require.NoError(t, err)
+
+		_, err = cs.CoreV1().Namespaces().Get(context.Background(), tenantNS, metav1.GetOptions{})
+		require.NoError(t, err)
+
+		_, err = cs.CoreV1().Namespaces().Get(context.Background(), childNS, metav1.GetOptions{})
+		require.True(t, kerrs.IsNotFound(err), "NoChildNamespace must not provision a child namespace")
+	})
+}
+
 func TestNamespaceManagingWriterAdapter_Delete(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	parent := &testWorkspaceScopedIdentifiable{name: "w1", tenant: "t1"}
@@ -368,7 +524,10 @@ func TestNamespaceManagingWriterAdapter_Delete(t *testing.T) {
 		require.NoError(t, nsErr)
 	})
 
-	t.Run("deletes parent and owned empty child namespace", func(t *testing.T) {
+	// The write path deletes the CR and stops there: tearing the namespace down is the owning
+	// controller's finalizer job (NamespaceCleanup), which is what makes it retryable and what
+	// keeps it from racing ahead of the plugin's Delete.
+	t.Run("deletes the parent but leaves the child namespace to the controller", func(t *testing.T) {
 		parentObj := &unstructured.Unstructured{Object: map[string]any{
 			"apiVersion": "workspace.test/v1",
 			"kind":       "Workspace",
@@ -394,40 +553,10 @@ func TestNamespaceManagingWriterAdapter_Delete(t *testing.T) {
 		require.True(t, kerrs.IsNotFound(getErr), "parent CR should be deleted")
 
 		_, nsErr := cs.CoreV1().Namespaces().Get(context.Background(), childNS, metav1.GetOptions{})
-		require.True(t, kerrs.IsNotFound(nsErr), "owned empty child namespace should be deleted")
+		require.NoError(t, nsErr, "the write path must not delete the child namespace")
 	})
 
-	t.Run("does not delete child namespace that is not owned", func(t *testing.T) {
-		parentObj := &unstructured.Unstructured{Object: map[string]any{
-			"apiVersion": "workspace.test/v1",
-			"kind":       "Workspace",
-			"metadata":   map[string]any{"namespace": tenantNS, "name": "w1"},
-		}}
-		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(
-			runtime.NewScheme(), parentListKinds(), parentObj,
-		)
-		// Namespace exists but lacks ownership labels.
-		cs := k8sfake.NewClientset(&corev1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{Name: childNS},
-		})
-
-		writer := NewNamespaceManagingWriterAdapter[*testWorkspaceScopedIdentifiable](
-			dynFake, cs, testParentGVR, logger, parentDomainToK8s, parentK8sToDomain,
-			WorkspaceChildren, []schema.GroupVersionResource{testChildGVR},
-		)
-
-		require.NoError(t, writer.Delete(context.Background(), parent))
-
-		_, getErr := dynFake.Resource(testParentGVR).Namespace(tenantNS).Get(
-			context.Background(), "w1", metav1.GetOptions{},
-		)
-		require.True(t, kerrs.IsNotFound(getErr))
-
-		_, nsErr := cs.CoreV1().Namespaces().Get(context.Background(), childNS, metav1.GetOptions{})
-		require.NoError(t, nsErr, "unowned namespace must not be deleted")
-	})
-
-	t.Run("NoChildNamespace skips empty check and namespace cleanup", func(t *testing.T) {
+	t.Run("NoChildNamespace skips the empty check", func(t *testing.T) {
 		parentObj := &unstructured.Unstructured{Object: map[string]any{
 			"apiVersion": "workspace.test/v1",
 			"kind":       "Workspace",
@@ -529,7 +658,7 @@ func TestNamespaceManagingWriterAdapter_Delete_NetworkChildren(t *testing.T) {
 		require.NoError(t, nsErr, "network child namespace must remain when children exist")
 	})
 
-	t.Run("deletes network and owned empty network child namespace", func(t *testing.T) {
+	t.Run("deletes the network but leaves its child namespace to the controller", func(t *testing.T) {
 		parentObj := &unstructured.Unstructured{Object: map[string]any{
 			"apiVersion": "network.test/v1",
 			"kind":       "Network",
@@ -555,6 +684,251 @@ func TestNamespaceManagingWriterAdapter_Delete_NetworkChildren(t *testing.T) {
 		require.True(t, kerrs.IsNotFound(getErr), "network CR should be deleted")
 
 		_, nsErr := cs.CoreV1().Namespaces().Get(context.Background(), networkChildNS, metav1.GetOptions{})
-		require.True(t, kerrs.IsNotFound(nsErr), "owned empty network child namespace should be deleted")
+		require.NoError(t, nsErr, "the write path must not delete the network child namespace")
 	})
+}
+
+func TestNamespaceCleanup(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	parent := &testWorkspaceScopedIdentifiable{name: "w1", tenant: "t1"}
+	childNS := ComputeNamespace(&kernelresource.Scope{Tenant: "t1", Workspace: "w1"})
+	ownerLabels := map[string]string{
+		labels.InternalTenantLabel:    "t1",
+		labels.InternalWorkspaceLabel: "w1",
+	}
+	gvrs := []schema.GroupVersionResource{testChildGVR}
+
+	t.Run("deletes the owned empty child namespace", func(t *testing.T) {
+		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), parentListKinds())
+		cs := k8sfake.NewClientset(&corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{Name: childNS, Labels: ownerLabels},
+		})
+
+		cleanup := NamespaceCleanup[*testWorkspaceScopedIdentifiable](dynFake, cs, logger, WorkspaceChildren, gvrs)
+		require.NoError(t, cleanup(context.Background(), parent))
+
+		_, err := cs.CoreV1().Namespaces().Get(context.Background(), childNS, metav1.GetOptions{})
+		require.True(t, kerrs.IsNotFound(err), "owned empty child namespace should be deleted")
+	})
+
+	// The write path already refuses a non-empty delete with 409, but it ran in another process.
+	// Erroring here keeps the finalizer on rather than cascading the delete into live resources.
+	t.Run("refuses and errors when the namespace is not empty", func(t *testing.T) {
+		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(
+			runtime.NewScheme(), parentListKinds(), newChildObject(childNS, "bs-1"),
+		)
+		cs := k8sfake.NewClientset(&corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{Name: childNS, Labels: ownerLabels},
+		})
+
+		cleanup := NamespaceCleanup[*testWorkspaceScopedIdentifiable](dynFake, cs, logger, WorkspaceChildren, gvrs)
+		err := cleanup(context.Background(), parent)
+		require.Error(t, err)
+		var domainErr *kernel.Error
+		require.ErrorAs(t, err, &domainErr)
+		require.Equal(t, kernel.KindConflict, domainErr.Kind)
+
+		_, nsErr := cs.CoreV1().Namespaces().Get(context.Background(), childNS, metav1.GetOptions{})
+		require.NoError(t, nsErr, "a namespace with resources in it must not be deleted")
+	})
+
+	// Namespaces created by hand (e.g. the dev fixtures) carry no owner label. Skipping without
+	// an error is deliberate: erroring would wedge the finalizer on a condition that can never
+	// be satisfied.
+	t.Run("leaves a namespace it does not own in place without erroring", func(t *testing.T) {
+		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), parentListKinds())
+		cs := k8sfake.NewClientset(&corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{Name: childNS, Labels: map[string]string{"secapi.cloud/tenant-id": "t1"}},
+		})
+
+		cleanup := NamespaceCleanup[*testWorkspaceScopedIdentifiable](dynFake, cs, logger, WorkspaceChildren, gvrs)
+		require.NoError(t, cleanup(context.Background(), parent))
+
+		_, err := cs.CoreV1().Namespaces().Get(context.Background(), childNS, metav1.GetOptions{})
+		require.NoError(t, err, "unowned namespace must not be deleted")
+	})
+
+	// Dropping the finalizer can conflict and replay the reconcile after the namespace is gone.
+	// That is the success path, not a foreign namespace: it must not warn about a leak.
+	t.Run("is a no-op when the namespace is already gone", func(t *testing.T) {
+		var buf bytes.Buffer
+		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), parentListKinds())
+		cs := k8sfake.NewClientset()
+
+		cleanup := NamespaceCleanup[*testWorkspaceScopedIdentifiable](
+			dynFake, cs, slog.New(slog.NewTextHandler(&buf, nil)), WorkspaceChildren, gvrs,
+		)
+		require.NoError(t, cleanup(context.Background(), parent))
+		require.NotContains(t, buf.String(), "owner labels do not match",
+			"a namespace that is already deleted must not be reported as a leak")
+	})
+}
+
+// testLabelled is a domain type carrying SECA labels the way the real ones do: the values live in
+// metadata.labels under hashed kl/<sha3> keys, and the key list lives in commonData.labels. The
+// key list is what KeyedToOriginal walks to rebuild them, so a write that drops commonData leaves
+// a newly added key unreachable even though its value made it onto the object.
+type testLabelled struct {
+	name string
+	// version is the resourceVersion the domain object carries. Empty is the common case and
+	// selects Update's read-modify-write arm; a non-empty one selects the full-replace arm.
+	version string
+	labels  map[string]string
+}
+
+func (t *testLabelled) GetName() string      { return t.name }
+func (t *testLabelled) GetVersion() string   { return t.version }
+func (t *testLabelled) GetTenant() string    { return "t1" }
+func (t *testLabelled) GetWorkspace() string { return "w1" }
+
+func testLabelledToCR(d *testLabelled) (client.Object, error) {
+	crLabels := map[string]any{}
+	for k, v := range labels.OriginalToKeyed(d.labels) {
+		crLabels[k] = v
+	}
+
+	keys := make([]any, 0, len(d.labels))
+	for _, k := range slices.Sorted(maps.Keys(d.labels)) {
+		keys = append(keys, k)
+	}
+
+	meta := map[string]any{
+		"namespace": ComputeNamespace(&kernelresource.Scope{Tenant: "t1", Workspace: "w1"}),
+		"name":      d.name,
+		"labels":    crLabels,
+	}
+	if d.version != "" {
+		meta["resourceVersion"] = d.version
+	}
+
+	// Deliberately no "finalizers" key: no domain type models them, which is exactly why a
+	// full-replace update has to carry the stored ones across itself.
+	return &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "network.test/v1",
+		"kind":       "RouteTable",
+		"metadata":   meta,
+		"commonData": map[string]any{"labels": keys},
+		"spec":       map[string]any{},
+	}}, nil
+}
+
+func testLabelledFromCR(obj client.Object) (*testLabelled, error) {
+	u, ok := obj.(*unstructured.Unstructured)
+	if !ok {
+		return nil, fmt.Errorf("unexpected type %T", obj)
+	}
+
+	keys, _, err := unstructured.NestedStringSlice(u.Object, "commonData", "labels")
+	if err != nil {
+		return nil, err
+	}
+
+	return &testLabelled{name: u.GetName(), labels: labels.KeyedToOriginal(labels.GetKeyedLabels(u.GetLabels()), keys)}, nil
+}
+
+// TestWriterAdapter_Update_PropagatesCommonData is a regression test for a label added on update
+// going missing. commonData is a sibling of spec, not part of it, so an update that copied only
+// spec, labels and annotations wrote the new label's value but never its key - and the key list is
+// what the read path uses to find it again.
+func TestWriterAdapter_Update_PropagatesCommonData(t *testing.T) {
+	namespace := ComputeNamespace(&kernelresource.Scope{Tenant: "t1", Workspace: "w1"})
+
+	created, err := testLabelledToCR(&testLabelled{name: "rt-1", labels: map[string]string{"env": "prod"}})
+	require.NoError(t, err)
+
+	dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(
+		runtime.NewScheme(), testListKinds(), created.(*unstructured.Unstructured))
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	writer := NewWriterAdapter[*testLabelled](dynFake, testGVR, logger, testLabelledToCR, testLabelledFromCR)
+
+	// Add a second label, the case that used to be lost.
+	updated, err := writer.Update(context.Background(), &testLabelled{
+		name:   "rt-1",
+		labels: map[string]string{"env": "prod", "tier": "frontend"},
+	})
+	require.NoError(t, err)
+	require.Equal(t, map[string]string{"env": "prod", "tier": "frontend"}, (*updated).labels)
+
+	stored, err := dynFake.Resource(testGVR).Namespace(namespace).
+		Get(context.Background(), "rt-1", metav1.GetOptions{})
+	require.NoError(t, err)
+
+	keys, _, err := unstructured.NestedStringSlice(stored.Object, "commonData", "labels")
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{"env", "tier"}, keys, "the added label's key must reach commonData")
+}
+
+// TestWriterAdapter_Update_VersionedPreservesFinalizers pins the finalizer carry-over on the
+// full-replace arm of Update.
+//
+// It is not cosmetic. A plugin persists its progress through this path with the resourceVersion it
+// read, and uobj is built from a domain type that cannot express finalizers — so a blind replace
+// dropped the controller's cleanup finalizer. On a resource already carrying a deletionTimestamp
+// that is immediately fatal: nothing is left holding it, the API server reclaims it on the spot,
+// and the controller's cleanup hook never runs. The namespace a Workspace or Network owns then
+// leaks with no path back. Pinned here rather than in a controller test because the defect is in
+// the write path and every slice shares it.
+func TestWriterAdapter_Update_VersionedPreservesFinalizers(t *testing.T) {
+	namespace := ComputeNamespace(&kernelresource.Scope{Tenant: "t1", Workspace: "w1"})
+
+	created, err := testLabelledToCR(&testLabelled{name: "rt-1", labels: map[string]string{"env": "prod"}})
+	require.NoError(t, err)
+
+	stored := created.(*unstructured.Unstructured)
+	stored.SetFinalizers([]string{"secapi.cloud.foundation/cleanup"})
+	stored.SetResourceVersion("42")
+
+	dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), testListKinds(), stored)
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	writer := NewWriterAdapter[*testLabelled](dynFake, testGVR, logger, testLabelledToCR, testLabelledFromCR)
+
+	// A versioned domain object — what a plugin hands back after reading the CR.
+	_, err = writer.Update(context.Background(), &testLabelled{
+		name:    "rt-1",
+		version: "42",
+		labels:  map[string]string{"env": "prod", "tier": "frontend"},
+	})
+	require.NoError(t, err)
+
+	after, err := dynFake.Resource(testGVR).Namespace(namespace).
+		Get(context.Background(), "rt-1", metav1.GetOptions{})
+	require.NoError(t, err)
+	require.Equal(t, []string{"secapi.cloud.foundation/cleanup"}, after.GetFinalizers(),
+		"a full-replace update must not drop the finalizers it does not own")
+}
+
+// TestWriterAdapter_Update_NoOpDoesNotWrite pins the early return in updateMetadataAndSpecRetry: an
+// update whose desired state already matches what is stored must not issue a write.
+//
+// It is not an optimisation. A write bumps resourceVersion, the controller watches its own writes,
+// and an active resource's reconcile hands the plugin a level-triggered Update - so a PUT that
+// changes nothing still costs a reconcile and a round trip to the provider. commonData is the part
+// worth guarding: it carries the label *key list*, which converters build from a Go map, and an
+// equal-but-reordered list compares unequal here and writes. That is why they sort it.
+func TestWriterAdapter_Update_NoOpDoesNotWrite(t *testing.T) {
+	labelled := &testLabelled{name: "rt-1", labels: map[string]string{"env": "prod", "tier": "frontend", "team": "platform"}}
+
+	created, err := testLabelledToCR(labelled)
+	require.NoError(t, err)
+
+	dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(
+		runtime.NewScheme(), testListKinds(), created.(*unstructured.Unstructured))
+
+	var writes int
+	dynFake.PrependReactor("update", "*", func(k8stesting.Action) (bool, runtime.Object, error) {
+		writes++
+		return false, nil, nil // Count it, then fall through to the tracker.
+	})
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	writer := NewWriterAdapter[*testLabelled](dynFake, testGVR, logger, testLabelledToCR, testLabelledFromCR)
+
+	// Repeated, because an unstable key ordering would only collide with the stored order some of
+	// the time - one pass could miss it by luck, ten will not.
+	for i := range 10 {
+		_, err := writer.Update(context.Background(), labelled)
+		require.NoErrorf(t, err, "no-op update %d should succeed", i)
+	}
+
+	require.Zerof(t, writes, "an update that changes nothing must not write, got %d writes", writes)
 }

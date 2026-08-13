@@ -225,3 +225,14 @@ func (h *SubnetHandler) propagateDelete(ctx context.Context, from *ArubaSubnetBu
 
 	return nil
 }
+
+// Update re-applies the Subnet's tags. The CIDR, the VPC it sits in and its type are all fixed at
+// creation on the Aruba side, so tags are the only part of a SECA subnet edit that can land.
+func (h *SubnetHandler) Update(ctx context.Context, domain *subnetdom.Subnet) error {
+	subnet, err := h.subnetConverter.FromSECAToAruba(domain)
+	if err != nil {
+		return err
+	}
+
+	return syncTags(ctx, h.subnetRepository, subnet, subnet.Spec.Tags, func(s *v1alpha1.Subnet) *[]string { return &s.Spec.Tags })
+}

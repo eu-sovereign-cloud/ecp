@@ -21,7 +21,7 @@ func (h *Handler) ListInternetGateways(w http.ResponseWriter, r *http.Request, t
 
 // DeleteInternetGateway handles DELETE /v1/tenants/{tenant}/workspaces/{workspace}/internet-gateways/{name}.
 func (h *Handler) DeleteInternetGateway(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdknetwork.DeleteInternetGatewayParams) {
-	logger := h.Logger.With("provider", "network", "resource", "internet-gateway", "name", name)
+	logger := h.Logger.With("provider", "network", "resource", "internet-gateway")
 	id := &InternetGatewayIdentity{name: name, tenant: tenant, workspace: workspace}
 	if params.IfUnmodifiedSince != nil {
 		id.resourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
@@ -31,14 +31,14 @@ func (h *Handler) DeleteInternetGateway(w http.ResponseWriter, r *http.Request, 
 
 // GetInternetGateway handles GET /v1/tenants/{tenant}/workspaces/{workspace}/internet-gateways/{name}.
 func (h *Handler) GetInternetGateway(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam) {
-	logger := h.Logger.With("provider", "network", "resource", "internet-gateway", "name", name)
+	logger := h.Logger.With("provider", "network", "resource", "internet-gateway")
 	ir := &InternetGatewayIdentity{name: name, tenant: tenant, workspace: workspace}
 	frest.HandleGet(w, r, logger, ir, frest.GetterFromRepo(h.InternetGatewayReader, newInternetGatewayWithIdentity), internetGatewayToAPIWithVerb(http.MethodGet))
 }
 
 // CreateOrUpdateInternetGateway handles PUT /v1/tenants/{tenant}/workspaces/{workspace}/internet-gateways/{name}.
 func (h *Handler) CreateOrUpdateInternetGateway(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdknetwork.CreateOrUpdateInternetGatewayParams) {
-	logger := h.Logger.With("provider", "network", "resource", "internet-gateway", "name", name)
+	logger := h.Logger.With("provider", "network", "resource", "internet-gateway")
 	id := &InternetGatewayIdentity{name: name, tenant: tenant, workspace: workspace}
 	if params.IfUnmodifiedSince != nil {
 		id.resourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)

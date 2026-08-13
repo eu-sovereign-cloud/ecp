@@ -13,7 +13,7 @@ import (
 	context "context"
 	reflect "reflect"
 
-	v1 "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment"
+	roleassignment "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -42,7 +42,7 @@ func (m *MockRoleAssignmentPlugin) EXPECT() *MockRoleAssignmentPluginMockRecorde
 }
 
 // Create mocks base method.
-func (m *MockRoleAssignmentPlugin) Create(ctx context.Context, resource *v1.RoleAssignment) error {
+func (m *MockRoleAssignmentPlugin) Create(ctx context.Context, resource *roleassignment.RoleAssignment) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Create", ctx, resource)
 	ret0, _ := ret[0].(error)
@@ -56,7 +56,7 @@ func (mr *MockRoleAssignmentPluginMockRecorder) Create(ctx, resource any) *gomoc
 }
 
 // Delete mocks base method.
-func (m *MockRoleAssignmentPlugin) Delete(ctx context.Context, resource *v1.RoleAssignment) error {
+func (m *MockRoleAssignmentPlugin) Delete(ctx context.Context, resource *roleassignment.RoleAssignment) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Delete", ctx, resource)
 	ret0, _ := ret[0].(error)
@@ -67,4 +67,18 @@ func (m *MockRoleAssignmentPlugin) Delete(ctx context.Context, resource *v1.Role
 func (mr *MockRoleAssignmentPluginMockRecorder) Delete(ctx, resource any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockRoleAssignmentPlugin)(nil).Delete), ctx, resource)
+}
+
+// Update mocks base method.
+func (m *MockRoleAssignmentPlugin) Update(ctx context.Context, resource *roleassignment.RoleAssignment) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Update", ctx, resource)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Update indicates an expected call of Update.
+func (mr *MockRoleAssignmentPluginMockRecorder) Update(ctx, resource any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockRoleAssignmentPlugin)(nil).Update), ctx, resource)
 }

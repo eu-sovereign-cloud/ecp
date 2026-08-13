@@ -55,6 +55,12 @@ func NewImagePluginHandler(
 }
 
 func (h *ImagePluginHandler) HandleReconcile(ctx context.Context, resource *imgdom.Image) (bool, error) {
+	// An active resource has no lifecycle transition left to make, so it takes the update
+	// path instead of the create/delete state machine below. See commonbackend.HandleUpdate.
+	if isImageActive(resource) {
+		return commonbackend.HandleUpdate(ctx, resource, &resource.Status.Status, h.plugin.Update, h.repo, h.MaxConditions)
+	}
+
 	var delegate backendport.DelegatedFunc[*imgdom.Image]
 
 	switch {
@@ -127,9 +133,7 @@ func (h *ImagePluginHandler) setResourceState(ctx context.Context, resource *img
 	}
 
 	resource.Status.PushCondition(commonbackend.ConditionFromState(state))
-	for h.MaxConditions > 0 && len(resource.Status.Conditions) > h.MaxConditions {
-		resource.Status.PopCondition()
-	}
+	commonbackend.TrimConditions(&resource.Status.Status, h.MaxConditions)
 
 	if _, err := h.repo.UpdateStatus(ctx, resource); err != nil {
 		if errors.Is(err, kernel.ErrNotFound) {
@@ -148,9 +152,7 @@ func (h *ImagePluginHandler) setResourceErrorState(ctx context.Context, resource
 	}
 
 	resource.Status.PushCondition(commonbackend.ConditionFromError(err))
-	for h.MaxConditions > 0 && len(resource.Status.Conditions) > h.MaxConditions {
-		resource.Status.PopCondition()
-	}
+	commonbackend.TrimConditions(&resource.Status.Status, h.MaxConditions)
 
 	if _, updateErr := h.repo.UpdateStatus(ctx, resource); updateErr != nil {
 		if errors.Is(updateErr, kernel.ErrNotFound) {
@@ -189,9 +191,7 @@ func (h *ImagePluginHandler) setResourceCondition(ctx context.Context, resource 
 	}
 
 	resource.Status.PushCondition(c)
-	for h.MaxConditions > 0 && len(resource.Status.Conditions) > h.MaxConditions {
-		resource.Status.PopCondition()
-	}
+	commonbackend.TrimConditions(&resource.Status.Status, h.MaxConditions)
 
 	if _, err := h.repo.UpdateStatus(ctx, resource); err != nil {
 		if errors.Is(err, kernel.ErrNotFound) {
@@ -202,6 +202,12 @@ func (h *ImagePluginHandler) setResourceCondition(ctx context.Context, resource 
 	}
 
 	return requeue, nil
+}
+
+func isImageActive(resource *imgdom.Image) bool {
+	return resource.DeletedAt == nil &&
+		resource.Status != nil &&
+		resource.Status.State == commondomain.ResourceStateActive
 }
 
 func isImageAccepted(resource *imgdom.Image) bool {

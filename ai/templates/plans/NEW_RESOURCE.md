@@ -101,9 +101,11 @@ the declared scope against it:
 | `global` | `[]` | `Metadata` | `Cluster` | cluster-scoped | `(…)` no tenant/ws | global |
 
 - **Deeper hierarchies** (e.g. `[tenant, workspace, network]`) still map to
-  `regional-workspace`: the **k8s namespace caps at tenant+workspace**, and the extra parent
-  (e.g. `network`) is modeled as a **Reference field in the domain/spec**, not a deeper
-  namespace. Note the split: the **REST handler params follow the *full* hierarchy** — the
+  `regional-workspace` for the domain embed, but they **do** get a deeper namespace: a domain
+  type that also implements `persistence.NetworkScope` is routed by `resolveNamespace` to
+  `ComputeNetworkNamespace`, i.e. `sha3-224(tenant/workspace/network)` (see `Subnet` and
+  `RouteTable`). The extra parent is *also* modeled as a Reference field in the domain/spec.
+  Note the split: the **REST handler params follow the *full* hierarchy** — the
   go-sdk `ServerInterface` method carries the extra path param (e.g.
   `ListSubnets(…, tenant, workspace, network, params)`), which you use to set the parent
   reference — while the **namespace scope** stays tenant+workspace. There may be no
@@ -111,6 +113,18 @@ the declared scope against it:
   parent-reference handling is underspecified.**
 - **If the declared scope disagrees with the hierarchy, notify the user** and ask how to
   proceed before continuing.
+- **A workspace- or network-scoped resource must be registered in five places**, or the owning
+  namespace looks empty when it is not and the cleanup finalizer wedges on a `Forbidden`:
+  1. `ChildResourceGVRs` in the owning slice — `resource/workspace/v1/backend/kubernetes/controller.go`
+     for workspace-scoped, `resource/network/v1/network/backend/kubernetes/controller.go` for
+     network-scoped.
+  2. `charts/delegator/templates/rbac.yaml` — plugin-independent `list` grant (controller re-check).
+  3. `charts/ecp/templates/gateway-regional/rbac.yaml` — the gateway's synchronous 409 check.
+  4. `csp/dummy/deploy/clusterrole.yaml`.
+  5. `csp/ionos/deploy/rbac.yaml` — plugin-independent `list` block.
+
+  Tenant-scoped resources (e.g. `Image`) belong in none of them: they live in the tenant
+  namespace, which nothing cascades from.
 
 ### 1.4 Validate read-only
 
@@ -268,9 +282,13 @@ set here and encodes the scope** (§5). Ref: `resource/workspace/v1/backend/kube
 `resource/storage/v1/storage-sku/backend/kubernetes/conversion.go`.
 
 ### 4.7 Plugin interface — `resource/<group>/v1/<dir>/backend/kubernetes/plugin.go` *(read-write)*
-`type <Kind>Plugin interface { … }`. Methods follow the spec operations: `Create` + `Delete` at
-minimum, plus any resource-specific mutating verb. **Skip for read-only.** Ref: block-storage
-(extra verb) / workspace (create+delete only) `plugin.go`.
+`type <Kind>Plugin interface { … }`. Methods follow the spec operations: `Create`, `Delete` and
+`Update` at minimum, plus any resource-specific mutating verb. **Skip for read-only.** Ref:
+block-storage (extra verb) / workspace (the three base methods only) `plugin.go`.
+
+Copy the `Update` doc comment from an existing `plugin.go`: the level-triggered contract is not
+obvious from the signature. Full version in
+[PLUGINS.md](../../../../../doc/PLUGINS.md) §"Update: reconciling an active resource".
 
 ### 4.8 Plugin handler — `…/plugin_handler.go` *(read-write)*
 The reconciliation state machine. Embed the framework `GenericPluginHandler`; hold `repo` +
@@ -280,6 +298,19 @@ deleting when `DeletedAt == nil`. Use **workspace** (`resource/workspace/v1/back
 the template for create/delete-only resources, **block-storage**
 (`resource/storage/v1/block-storage/backend/kubernetes/`) when there is an extra mutating
 operation. **Skip for read-only.**
+
+`HandleReconcile` opens with the update arm, before the create/delete switch:
+
+```go
+if is<Kind>Active(resource) {
+    return commonbackend.HandleUpdate(ctx, resource, &resource.Status.Status, h.plugin.Update, h.repo, h.MaxConditions)
+}
+```
+
+plus an `is<Kind>Active` predicate (`DeletedAt == nil && Status != nil && State == Active`). If the
+resource has its own post-active operation, that operation wins — block-storage guards the arm with
+`&& !wantBlockStorageIncreaseSize(resource)` so a pending resize is not swallowed, and instance runs
+its power reconcile first.
 
 ### 4.9 Controller — `resource/<group>/v1/<dir>/backend/kubernetes/controller.go` *(read-write)*
 `NewController(ctrlClient, dynClient, plugin, opts...)` wiring a repo adapter, the plugin
@@ -310,10 +341,15 @@ resource (GVR + `FromCR`/`ToCR`), and either add them to the existing group hand
 `gateway/cmd/regionalapiserver.go`; the region block in `gateway/cmd/globalapiserver.go`.
 
 ### 4.12 Dummy plugin — `csp/dummy/pkg/plugin/<dir>.go` + `csp/dummy/cmd/main.go` *(read-write)*
-- New file `csp/dummy/pkg/plugin/<dir>.go`: a `type <Kind> struct{ logger }`, `New<Kind>`, and
-  the `<Kind>Plugin` methods, each delegating to a `simulate<Kind>` helper added to
+- New file `csp/dummy/pkg/plugin/<dir>.go`: a `type <Kind> struct{ logger }`, `New<Kind>`, and the
+  `Create`/`Delete` methods, each delegating to a `simulate<Kind>` helper added to
   `csp/dummy/pkg/plugin/simulate.go` (mirror `simulateBS`: stamp an expiry annotation, return
   `ErrStillProcessing` until it elapses).
+- `Update` goes in `csp/dummy/pkg/plugin/update.go` instead, alongside the others — it is one
+  behaviour shared by every resource, and keeping them together is what lets a single import block
+  reach every slice's GVR and converters. Mirror the existing one-liners; they all delegate to
+  `applyUpdate`. Do **not** give it a simulated delay: `Update` runs on every reconcile of an
+  active resource, so a delay would mean `ErrStillProcessing` forever.
 - In `csp/dummy/cmd/main.go`: add the `<k8s>` import (pointing to
   `resource/<group>/v1/<dir>/backend/kubernetes`), `utilruntime.Must(<k8s>.AddToScheme(scheme))`
   in `init()`, instantiate the plugin, and `controllerSet.Add(<k8s>.NewController(…))`.

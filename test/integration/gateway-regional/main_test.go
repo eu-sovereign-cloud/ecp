@@ -94,9 +94,13 @@ func TestMain(m *testing.M) {
 
 	exitCode := m.Run()
 
-	// Best-effort cleanup of the shared fixtures.
+	// Best-effort cleanup of the shared fixtures. The workspace is retried: the block
+	// storage above is only really gone once its finalizer runs, and until then the
+	// workspace delete comes back 409.
 	_, _ = storageClient.DeleteBlockStorageWithResponse(context.Background(), testTenant, testWorkspace, sourceBlockStorage, nil)
-	_, _ = workspaceClient.DeleteWorkspaceWithResponse(context.Background(), testTenant, testWorkspace, nil)
+	testenv.DeleteUntilGone(context.Background(), func() (*http.Response, error) {
+		return workspaceClient.DeleteWorkspace(context.Background(), testTenant, testWorkspace, nil)
+	})
 
 	pf.Close()
 	os.Exit(exitCode)

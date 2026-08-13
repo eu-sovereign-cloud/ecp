@@ -96,3 +96,17 @@ func (mr *MockInstancePluginMockRecorder) PowerOn(ctx, resource any) *gomock.Cal
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PowerOn", reflect.TypeOf((*MockInstancePlugin)(nil).PowerOn), ctx, resource)
 }
+
+// Update mocks base method.
+func (m *MockInstancePlugin) Update(ctx context.Context, resource *instance.Instance) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Update", ctx, resource)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Update indicates an expected call of Update.
+func (mr *MockInstancePluginMockRecorder) Update(ctx, resource any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockInstancePlugin)(nil).Update), ctx, resource)
+}

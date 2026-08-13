@@ -21,7 +21,7 @@ func (h *Handler) ListRoleAssignments(w http.ResponseWriter, r *http.Request, te
 
 // DeleteRoleAssignment handles DELETE /v1/tenants/{tenant}/role-assignments/{name}.
 func (h *Handler) DeleteRoleAssignment(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam, params sdkauth.DeleteRoleAssignmentParams) {
-	logger := h.Logger.With("provider", "authorization", "resource", "role-assignment", "name", name)
+	logger := h.Logger.With("provider", "authorization", "resource", "role-assignment")
 	id := &resource.Identity{Name: name, Scope: resource.Scope{Tenant: tenant}}
 	if params.IfUnmodifiedSince != nil {
 		id.Version = strconv.Itoa(*params.IfUnmodifiedSince)
@@ -31,14 +31,14 @@ func (h *Handler) DeleteRoleAssignment(w http.ResponseWriter, r *http.Request, t
 
 // GetRoleAssignment handles GET /v1/tenants/{tenant}/role-assignments/{name}.
 func (h *Handler) GetRoleAssignment(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam) {
-	logger := h.Logger.With("provider", "authorization", "resource", "role-assignment", "name", name)
+	logger := h.Logger.With("provider", "authorization", "resource", "role-assignment")
 	id := &resource.Identity{Name: name, Scope: resource.Scope{Tenant: tenant}}
 	frest.HandleGet(w, r, logger, id, frest.GetterFromRepo(h.RoleAssignmentReader, newRoleAssignmentWithIdentity), roleAssignmentToAPIWithVerb(http.MethodGet))
 }
 
 // CreateOrUpdateRoleAssignment handles PUT /v1/tenants/{tenant}/role-assignments/{name}.
 func (h *Handler) CreateOrUpdateRoleAssignment(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam, params sdkauth.CreateOrUpdateRoleAssignmentParams) {
-	logger := h.Logger.With("provider", "authorization", "resource", "role-assignment", "name", name)
+	logger := h.Logger.With("provider", "authorization", "resource", "role-assignment")
 	id := &resource.Identity{Name: name, Scope: resource.Scope{Tenant: tenant}}
 	if params.IfUnmodifiedSince != nil {
 		id.Version = strconv.Itoa(*params.IfUnmodifiedSince)

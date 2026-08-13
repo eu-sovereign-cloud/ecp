@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
+	wsdom "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1"
 )
 
 // TestArubaFlow drives every SECA resource the aruba plugin reconciles, in dependency order, and
@@ -155,6 +156,47 @@ func TestArubaFlow(t *testing.T) {
 	requireEventuallyActive(t, "securitygroups", sgName+"-"+network, wsNS) // materialised per VPC
 	requireEventuallyActive(t, "keypairs", instName+keyPairSuffix, wsNS)
 	requireEventuallyActive(t, "cloudservers", instName, wsNS)
+
+	// 13. update: editing a live SECA resource must reach its Aruba counterpart. Runs last, on the
+	// graph the steps above left Active, so it needs no fixtures of its own and nothing it edits can
+	// break a later step. Each edit is asserted twice: on the arubacloud.com CR, which is what the
+	// plugin writes, and on the phase coming back to Active, which is the operator confirming the
+	// CMP accepted it - a rejected change fails the CR rather than the write.
+	updateRetagsArubaResource(t)
+	updateSyncsWorkspaceDescription(t)
+}
+
+// A SECA label edit reaches Aruba as a tag change. Tags are the only field an Aruba update can
+// change on a VPC (see handler/update.go), so this is the whole visible surface of the update path
+// for every resource bar the workspace.
+//
+// "24.04" is deliberate: "." is not a legal character in an Aruba tag and the plugin sanitises it
+// to "version-24-04". Nothing else in the stack enforces that alphabet - the CMP rejects the whole
+// request over one bad character - so this suite is the only place the mapping is proven.
+func updateRetagsArubaResource(t *testing.T) {
+	net := newNetwork(network)
+	net.Labels = map[string]string{"env": "prod", "version": "24.04"}
+
+	_, err := netRepo.Update(ctx, net)
+	require.NoError(t, err)
+
+	requireArubaField(t, func() []string { return arubaTags("vpcs", network, wsNS) },
+		[]string{"env-prod", "version-24-04"}, "the VPC's tags should follow the network's labels")
+	requireEventuallyActive(t, "vpcs", network, wsNS)
+}
+
+// A workspace's description is the one non-tag field an Aruba update can change, so it is the only
+// place a plain spec edit is observable end to end.
+func updateSyncsWorkspaceDescription(t *testing.T) {
+	ws := newWorkspace(workspace)
+	ws.Spec = wsdom.WorkspaceSpec{"description": "updated by the integration suite"}
+
+	_, err := wsRepo.Update(ctx, ws)
+	require.NoError(t, err)
+
+	requireArubaField(t, func() string { return arubaDescription("projects", workspace, tenantNS) },
+		"updated by the integration suite", "the Project's description should follow the workspace's spec")
+	requireEventuallyActive(t, "projects", workspace, tenantNS)
 }
 
 // keyPairSuffix mirrors converter.KeyPairSuffix ("-key") without importing the plugin internals.

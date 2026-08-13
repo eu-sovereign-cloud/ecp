@@ -43,10 +43,15 @@ func NewInstancePluginHandler(
 func (h *InstancePluginHandler) HandleReconcile(ctx context.Context, resource *instancedom.Instance) (bool, error) {
 	// Power-state management applies only to active instances that are not being deleted.
 	// It is orthogonal to the create/delete lifecycle below.
-	if resource.DeletedAt == nil && isInstanceActive(resource) {
+	if isInstanceActive(resource) {
 		if handled, requeue, err := h.handlePowerReconcile(ctx, resource); handled {
 			return requeue, err
 		}
+
+		// No power transition is pending, so the instance has no lifecycle edge left to fire and
+		// takes the update path instead of the create/delete state machine below. Power ordering
+		// matters: a start or stop is an explicit request and outranks reconciling the spec.
+		return commonbackend.HandleUpdate(ctx, resource, &resource.Status.Status, h.plugin.Update, h.repo, h.MaxConditions)
 	}
 
 	var delegate backendport.DelegatedFunc[*instancedom.Instance]
@@ -302,9 +307,7 @@ func (h *InstancePluginHandler) recordPowerCondition(ctx context.Context, resour
 		Reason:  reason,
 		Message: msg,
 	})
-	for h.MaxConditions > 0 && len(resource.Status.Conditions) > h.MaxConditions {
-		resource.Status.PopCondition()
-	}
+	commonbackend.TrimConditions(&resource.Status.Status, h.MaxConditions)
 
 	if _, err := h.repo.UpdateStatus(ctx, resource); err != nil {
 		if errors.Is(err, kernel.ErrNotFound) {
@@ -317,7 +320,9 @@ func (h *InstancePluginHandler) recordPowerCondition(ctx context.Context, resour
 }
 
 func isInstanceActive(resource *instancedom.Instance) bool {
-	return resource.Status != nil && resource.Status.State == commondomain.ResourceStateActive
+	return resource.DeletedAt == nil &&
+		resource.Status != nil &&
+		resource.Status.State == commondomain.ResourceStateActive
 }
 
 func (h *InstancePluginHandler) setResourceState(ctx context.Context, resource *instancedom.Instance, state commondomain.ResourceState, requeue bool) (bool, error) {
@@ -326,9 +331,7 @@ func (h *InstancePluginHandler) setResourceState(ctx context.Context, resource *
 	}
 
 	resource.Status.PushCondition(commonbackend.ConditionFromState(state))
-	for h.MaxConditions > 0 && len(resource.Status.Conditions) > h.MaxConditions {
-		resource.Status.PopCondition()
-	}
+	commonbackend.TrimConditions(&resource.Status.Status, h.MaxConditions)
 
 	if _, err := h.repo.UpdateStatus(ctx, resource); err != nil {
 		if errors.Is(err, kernel.ErrNotFound) {
@@ -346,9 +349,7 @@ func (h *InstancePluginHandler) setResourceErrorState(ctx context.Context, resou
 	}
 
 	resource.Status.PushCondition(commonbackend.ConditionFromError(err))
-	for h.MaxConditions > 0 && len(resource.Status.Conditions) > h.MaxConditions {
-		resource.Status.PopCondition()
-	}
+	commonbackend.TrimConditions(&resource.Status.Status, h.MaxConditions)
 
 	if _, updateErr := h.repo.UpdateStatus(ctx, resource); updateErr != nil {
 		if errors.Is(updateErr, kernel.ErrNotFound) {

@@ -33,7 +33,7 @@ func (h *Handler) ListWorkspaces(w http.ResponseWriter, r *http.Request, tenant 
 
 // DeleteWorkspace handles DELETE /v1/tenants/{tenant}/workspaces/{name}.
 func (h *Handler) DeleteWorkspace(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam, params sdkworkspace.DeleteWorkspaceParams) {
-	logger := h.Logger.With("provider", "workspace", "resource", "workspace", "name", name)
+	logger := h.Logger.With("provider", "workspace", "resource", "workspace")
 	id := &resource.Identity{Name: name, Scope: resource.Scope{Tenant: tenant}}
 	if params.IfUnmodifiedSince != nil {
 		id.Version = strconv.Itoa(*params.IfUnmodifiedSince)
@@ -43,14 +43,14 @@ func (h *Handler) DeleteWorkspace(w http.ResponseWriter, r *http.Request, tenant
 
 // GetWorkspace handles GET /v1/tenants/{tenant}/workspaces/{name}.
 func (h *Handler) GetWorkspace(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam) {
-	logger := h.Logger.With("provider", "workspace", "resource", "workspace", "name", name)
+	logger := h.Logger.With("provider", "workspace", "resource", "workspace")
 	ir := &resource.Identity{Name: name, Scope: resource.Scope{Tenant: tenant}}
 	frest.HandleGet(w, r, logger, ir, frest.GetterFromRepo(h.Reader, newWorkspaceWithIdentity), workspaceToAPIWithVerb(http.MethodGet))
 }
 
 // CreateOrUpdateWorkspace handles PUT /v1/tenants/{tenant}/workspaces/{name}.
 func (h *Handler) CreateOrUpdateWorkspace(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam, params sdkworkspace.CreateOrUpdateWorkspaceParams) {
-	logger := h.Logger.With("provider", "workspace", "resource", "workspace", "name", name)
+	logger := h.Logger.With("provider", "workspace", "resource", "workspace")
 	id := &resource.Identity{Name: name, Scope: resource.Scope{Tenant: tenant}}
 	if params.IfUnmodifiedSince != nil {
 		id.Version = strconv.Itoa(*params.IfUnmodifiedSince)

@@ -1,6 +1,8 @@
 package kubernetes_test
 
 import (
+	"maps"
+	"slices"
 	"strings"
 	"testing"
 
@@ -100,6 +102,33 @@ func TestNetworkConversion_SkuRefOptional(t *testing.T) {
 func TestNetworkToCR_NilNetwork(t *testing.T) {
 	_, err := NetworkToCR(nil)
 	require.Error(t, err)
+}
+
+// TestNetworkToCR_LabelKeysAreSorted pins the ordering of commonData.labels, which every *ToCR in
+// every slice builds the same way and which is not cosmetic.
+//
+// The key list comes from a Go map, whose iteration order is deliberately randomised. The writer
+// adapter compares stored commonData against desired to decide whether an update needs to write at
+// all (see framework/backend/kubernetes/adapter.go), and an equal-but-reordered list compares
+// unequal - so an unsorted list makes a no-op PUT rewrite the CR, bump its resourceVersion, and
+// trigger a reconcile that hands the plugin a level-triggered Update for a request that changed
+// nothing. Nine keys, so an unsorted build has a 1-in-9! chance of passing by luck.
+func TestNetworkToCR_LabelKeysAreSorted(t *testing.T) {
+	in := &netdom.Network{Spec: netdom.NetworkSpec{CIDR: netdom.CIDR{IPv4: "10.0.0.0/16"}}}
+	in.Name = n1
+	in.Tenant = "t1"
+	in.Workspace = "w1"
+	in.Labels = map[string]string{
+		"team": "platform", "env": "prod", "tier": "frontend", "zone": "a", "app": "api",
+		"owner": "core", "stage": "live", "region": "eu", "billing": "cc1",
+	}
+
+	cr, err := NetworkToCR(in)
+	require.NoError(t, err)
+
+	keys := cr.(*Network).CommonData.Labels
+	require.True(t, slices.IsSorted(keys), "commonData.labels must be sorted, got %v", keys)
+	require.ElementsMatch(t, slices.Collect(maps.Keys(in.Labels)), keys, "every label key must be present")
 }
 
 // FuzzNetworkSpecRoundTrip fuzzes the label and CIDR input shapes, which the existing global and

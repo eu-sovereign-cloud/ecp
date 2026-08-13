@@ -7,9 +7,24 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 )
 
-// ErrStillProcessing is returned when an operation is still in progress
-// and the caller should requeue.
-var ErrStillProcessing = errors.New("operation still in progress")
+// Sentinels a CSP plugin returns to tell the handler how to treat a failure. Anything else is
+// assumed transient: the failure is recorded and the operation is retried on a later pass.
+var (
+	// ErrStillProcessing is returned when an operation is still in progress
+	// and the caller should requeue.
+	ErrStillProcessing = errors.New("operation still in progress")
+
+	// ErrNotSupported is returned when the provider cannot perform the operation at all - not
+	// "not yet", but never, for this resource in this state. Retrying would re-issue a request
+	// the provider has already rejected, so the handler records the reason and stops instead of
+	// spinning. Most providers hit this on update: cloud resources routinely have immutable
+	// fields (an Aruba VPC's region, an instance's flavor) that no amount of retrying will move.
+	//
+	// Wrap it to explain what was refused, so the reason reaches the resource's status:
+	//
+	//	fmt.Errorf("%w: an Aruba VPC's region cannot be changed after creation", backend.ErrNotSupported)
+	ErrNotSupported = errors.New("operation not supported by the provider")
+)
 
 // PluginHandler defines the contract for handling resource-specific logic.
 //

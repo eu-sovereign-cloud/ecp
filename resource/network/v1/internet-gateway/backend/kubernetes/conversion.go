@@ -94,7 +94,7 @@ func InternetGatewayToCR(ig *internetgatewaydom.InternetGateway) (client.Object,
 		CommonData: schemav1.CommonData{
 			Annotations: ig.Annotations,
 			Extensions:  ig.Extensions,
-			Labels:      slices.Collect(maps.Keys(ig.Labels)),
+			Labels:      slices.Sorted(maps.Keys(ig.Labels)),
 		},
 		Spec: InternetGatewaySpec{
 			EgressOnly: ig.Spec.EgressOnly,

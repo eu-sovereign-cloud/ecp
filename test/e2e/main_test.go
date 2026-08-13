@@ -9,8 +9,10 @@
 package e2e
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"testing"
 
@@ -107,6 +109,14 @@ func TestMain(m *testing.M) {
 
 	log.Println("End-to-end environment ready. Running tests...")
 	code := m.Run()
+
+	// testWorkspace is shared: TestEndToEnd creates it (and asserts it reconciles), the
+	// update tests then run inside it. So it is torn down here, once, after every test —
+	// not in the cleanup of whichever test happened to create it, which would delete the
+	// workspace out from under the tests that follow.
+	testenv.DeleteUntilGone(context.Background(), func() (*http.Response, error) {
+		return workspaceClient.DeleteWorkspace(context.Background(), testTenant, testWorkspace, nil)
+	})
 
 	regionalPF.Close()
 	globalPF.Close()

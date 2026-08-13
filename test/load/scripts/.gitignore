@@ -1,0 +1,2 @@
+# Resolved runner from k6-start.sh (native|path or docker|image).
+.k6-cmd

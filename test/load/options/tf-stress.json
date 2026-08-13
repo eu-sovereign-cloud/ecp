@@ -1,0 +1,18 @@
+{
+  "scenarios": {
+    "tf_users": {
+      "executor": "per-vu-iterations",
+      "vus": 10,
+      "iterations": 1,
+      "maxDuration": "12m",
+      "gracefulStop": "30s"
+    }
+  },
+  "thresholds": {
+    "http_req_failed": ["rate<0.35"],
+    "checks": ["rate>0.80"],
+    "http_req_duration{name:tf_poll}": ["p(95)<15000"],
+    "http_req_duration{name:tf_write}": ["p(95)<30000"]
+  },
+  "summaryTrendStats": ["avg", "min", "med", "max", "p(90)", "p(95)"]
+}

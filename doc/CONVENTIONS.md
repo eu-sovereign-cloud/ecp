@@ -254,6 +254,28 @@ guard: treat nil status as pending, and only consider deletion pending when `Del
 the resource was not explicitly deleted). See `resource/storage/v1/block-storage/backend/kubernetes/plugin_handler.go`
 as the authoritative template.
 
+**Active-state predicate and the update arm:** every `plugin_handler.go` carries an `isXActive`
+helper with the same three-part guard — `DeletedAt == nil && Status != nil && State == Active` —
+and `HandleReconcile` routes an active resource to `commonbackend.HandleUpdate` before the
+create/delete switch. The `DeletedAt` half is what keeps a delete request on an active resource on
+the lifecycle path instead of the update one. Where a resource has its own post-active operation,
+that operation is checked first (block-storage guards the arm with `!wantBlockStorageIncreaseSize`,
+instance runs its power reconcile ahead of it). `HandleUpdate` owns every status write on that arm —
+handlers pass it `h.repo` and never call `UpdateStatus` for an update themselves. See
+[PLUGINS.md](PLUGINS.md#update-reconciling-an-active-resource) for the contract this implements.
+
+**Trimming conditions is `commonbackend.TrimConditions`,** not a loop re-inlined beside each
+`PushCondition`. Every handler that pushes a condition then persists it needs the same bound, and a
+trim policy that lives in forty places can only be changed in forty places.
+
+**`commonData.labels` must be sorted.** Every `*ToCR` builds the key list with
+`slices.Sorted(maps.Keys(...))`, never `slices.Collect`. This is not cosmetic: the writer adapter
+compares stored `commonData` against desired to decide whether an update needs to write at all, and
+Go randomises map iteration order — so an unsorted list makes a no-op PUT rewrite the CR, bump its
+`resourceVersion`, and trigger a reconcile that hands the plugin a level-triggered `Update` for a
+request that changed nothing. Pinned by `TestNetworkToCR_LabelKeysAreSorted` and
+`TestWriterAdapter_Update_NoOpDoesNotWrite`.
+
 ---
 
 ## §9 — Test toolkit

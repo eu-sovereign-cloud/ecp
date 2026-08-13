@@ -40,6 +40,12 @@ func NewSubnetPluginHandler(
 }
 
 func (h *SubnetPluginHandler) HandleReconcile(ctx context.Context, resource *subnetdom.Subnet) (bool, error) {
+	// An active resource has no lifecycle transition left to make, so it takes the update
+	// path instead of the create/delete state machine below. See commonbackend.HandleUpdate.
+	if isSubnetActive(resource) {
+		return commonbackend.HandleUpdate(ctx, resource, &resource.Status.Status, h.plugin.Update, h.repo, h.MaxConditions)
+	}
+
 	var delegate backendport.DelegatedFunc[*subnetdom.Subnet]
 
 	switch {
@@ -95,9 +101,7 @@ func (h *SubnetPluginHandler) setResourceState(ctx context.Context, resource *su
 	}
 
 	resource.Status.PushCondition(commonbackend.ConditionFromState(state))
-	for h.MaxConditions > 0 && len(resource.Status.Conditions) > h.MaxConditions {
-		resource.Status.PopCondition()
-	}
+	commonbackend.TrimConditions(&resource.Status.Status, h.MaxConditions)
 
 	if _, err := h.repo.UpdateStatus(ctx, resource); err != nil {
 		if errors.Is(err, kernel.ErrNotFound) {
@@ -115,9 +119,7 @@ func (h *SubnetPluginHandler) setResourceErrorState(ctx context.Context, resourc
 	}
 
 	resource.Status.PushCondition(commonbackend.ConditionFromError(err))
-	for h.MaxConditions > 0 && len(resource.Status.Conditions) > h.MaxConditions {
-		resource.Status.PopCondition()
-	}
+	commonbackend.TrimConditions(&resource.Status.Status, h.MaxConditions)
 
 	if _, updateErr := h.repo.UpdateStatus(ctx, resource); updateErr != nil {
 		if errors.Is(updateErr, kernel.ErrNotFound) {
@@ -127,6 +129,12 @@ func (h *SubnetPluginHandler) setResourceErrorState(ctx context.Context, resourc
 	}
 
 	return requeue, nil
+}
+
+func isSubnetActive(resource *subnetdom.Subnet) bool {
+	return resource.DeletedAt == nil &&
+		resource.Status != nil &&
+		resource.Status.State == commondomain.ResourceStateActive
 }
 
 func isSubnetAccepted(resource *subnetdom.Subnet) bool {
