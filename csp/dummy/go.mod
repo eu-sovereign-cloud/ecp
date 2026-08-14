@@ -1,6 +1,6 @@
 module github.com/eu-sovereign-cloud/ecp/csp/dummy
 
-go 1.26.5
+go 1.26.6
 
 require (
 	github.com/eu-sovereign-cloud/ecp/framework v0.0.1

@@ -1,6 +1,6 @@
 module github.com/eu-sovereign-cloud/ecp/csp/aruba
 
-go 1.26.5
+go 1.26.6
 
 require (
 	github.com/Arubacloud/arubacloud-resource-operator v1.1.2
