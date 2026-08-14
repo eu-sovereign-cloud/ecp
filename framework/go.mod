@@ -1,6 +1,6 @@
 module github.com/eu-sovereign-cloud/ecp/framework
 
-go 1.26.5
+go 1.26.6
 
 tool sigs.k8s.io/controller-tools/cmd/controller-gen
 
