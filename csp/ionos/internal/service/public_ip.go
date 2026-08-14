@@ -17,7 +17,7 @@ type PublicIP struct {
 
 func (s *PublicIP) Update(ctx context.Context, resource *publicipdom.PublicIp) error {
 	// TODO implement me
-	panic("implement me")
+	return s.Creator.Do(ctx, resource)
 }
 
 func (s *PublicIP) Create(ctx context.Context, resource *publicipdom.PublicIp) error {

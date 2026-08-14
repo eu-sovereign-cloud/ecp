@@ -17,7 +17,7 @@ type Subnet struct {
 
 func (s *Subnet) Update(ctx context.Context, resource *subnetdom.Subnet) error {
 	// TODO implement me
-	panic("implement me")
+	return s.Creator.Do(ctx, resource)
 }
 
 func (s *Subnet) Create(ctx context.Context, resource *subnetdom.Subnet) error {

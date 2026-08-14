@@ -19,7 +19,7 @@ type Instance struct {
 
 func (s *Instance) Update(ctx context.Context, resource *instancedom.Instance) error {
 	// TODO implement me
-	panic("implement me")
+	return s.Creator.Do(ctx, resource)
 }
 
 func (s *Instance) Create(ctx context.Context, resource *instancedom.Instance) error {

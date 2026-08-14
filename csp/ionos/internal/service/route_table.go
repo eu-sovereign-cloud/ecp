@@ -17,7 +17,7 @@ type RouteTable struct {
 
 func (r *RouteTable) Update(ctx context.Context, resource *routetabledom.RouteTable) error {
 	// TODO implement me
-	panic("implement me")
+	return r.Creator.Do(ctx, resource)
 }
 
 func (r *RouteTable) Create(ctx context.Context, resource *routetabledom.RouteTable) error {

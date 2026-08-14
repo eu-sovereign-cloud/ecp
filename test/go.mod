@@ -9,7 +9,7 @@ require (
 	github.com/eu-sovereign-cloud/ecp/csp/ionos v0.0.1
 	github.com/eu-sovereign-cloud/ecp/framework v0.0.1
 	github.com/eu-sovereign-cloud/ecp/resource v0.0.1
-	github.com/eu-sovereign-cloud/go-sdk v0.4.3
+	github.com/eu-sovereign-cloud/go-sdk v0.4.1
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/google/uuid v1.6.0
 	github.com/prometheus/client_model v0.6.2
