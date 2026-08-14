@@ -2,6 +2,26 @@ apiVersion: v1
 entries:
   ecp-delegator:
   - apiVersion: v2
+    appVersion: v0.0.2-alpha
+    created: "2026-08-14T14:59:32.020368292Z"
+    description: ECP delegator — reconciles ECP Custom Resources through one CSP plugin
+      set (aruba, dummy or ionos, selected by the required `plugin` value). Requires
+      the ECP CRDs (see the ecp chart) in the same cluster as the regional gateway,
+      plus whatever backend the chosen plugin writes to.
+    digest: 17e8249d0a827eced776e34978fe3ff2b7442ddc790e813584f53fd210a8ae2a
+    home: https://github.com/eu-sovereign-cloud/ecp
+    keywords:
+    - seca
+    - sovereign-cloud
+    - control-plane
+    name: ecp-delegator
+    sources:
+    - https://github.com/eu-sovereign-cloud/ecp
+    type: application
+    urls:
+    - https://eu-sovereign-cloud.github.io/ecp/ecp-delegator-0.0.2-alpha.tgz
+    version: 0.0.2-alpha
+  - apiVersion: v2
     appVersion: v0.0.1-alpha
     created: "2026-08-14T14:00:53.057594565Z"
     description: ECP delegator — reconciles ECP Custom Resources through one CSP plugin
@@ -21,4 +41,4 @@ entries:
     urls:
     - https://eu-sovereign-cloud.github.io/ecp/ecp-delegator-0.0.1-alpha.tgz
     version: 0.0.1-alpha
-generated: "2026-08-14T14:00:53.057042326Z"
+generated: "2026-08-14T14:59:32.019829844Z"
