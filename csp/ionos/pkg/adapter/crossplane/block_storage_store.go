@@ -29,14 +29,16 @@ func NewBlockStorageStore(c client.Client, logger *slog.Logger) *BlockStorageSto
 }
 
 func (a *BlockStorageStore) Create(ctx context.Context, domain *bsdom.BlockStorage) error {
-	namespace := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: domain.GetTenant()})
-
 	// Image-backed volumes need SSH keys + user-data (only the Instance has them), so the
-	// real IONOS Volume is created by the Instance plugin at PowerOn. This CR is therefore an
-	// observer/declaration: if the Volume already exists (instance powered on) we observe its
-	// real state; otherwise the declaration is itself "ready" so the Instance — which depends
-	// on the boot volume — can be created. Provisioning is deferred to start.
+	// real IONOS Volume is created by the Instance plugin at PowerOn, at hash(tenant/workspace)
+	// (BlockStorage names are only workspace-unique, so the namespace must include workspace —
+	// same reason the Instance plugin no longer places the Server at hash(tenant) alone). This
+	// CR is therefore an observer/declaration: if the Volume already exists (instance powered
+	// on) we observe its real state; otherwise the declaration is itself "ready" so the
+	// Instance — which depends on the boot volume — can be created. Provisioning is deferred to
+	// start.
 	if domain.Spec.SourceImageRef != nil {
+		namespace := blockStorageNamespace(domain)
 		vol := &ionosv1alpha1.Volume{
 			TypeMeta:   metav1.TypeMeta{Kind: ionosv1alpha1.Volume_Kind},
 			ObjectMeta: metav1.ObjectMeta{Name: domain.GetName(), Namespace: namespace},
@@ -53,6 +55,7 @@ func (a *BlockStorageStore) Create(ctx context.Context, domain *bsdom.BlockStora
 	}
 
 	// Data volume: create it independently (no image, no SSH keys).
+	namespace := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: domain.GetTenant()})
 	datacenter := &ionosv1alpha1.Datacenter{
 		TypeMeta:   metav1.TypeMeta{Kind: ionosv1alpha1.Datacenter_Kind},
 		ObjectMeta: metav1.ObjectMeta{Name: domain.GetWorkspace(), Namespace: namespace},
@@ -64,7 +67,7 @@ func (a *BlockStorageStore) Create(ctx context.Context, domain *bsdom.BlockStora
 }
 
 func (a *BlockStorageStore) Delete(ctx context.Context, domain *bsdom.BlockStorage) error {
-	namespace := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: domain.GetTenant()})
+	namespace := blockStorageNamespace(domain)
 	return a.deleteCR(ctx, &ionosv1alpha1.Volume{
 		TypeMeta:   metav1.TypeMeta{Kind: ionosv1alpha1.Volume_Kind},
 		ObjectMeta: metav1.ObjectMeta{Name: domain.GetName(), Namespace: namespace},
@@ -72,7 +75,7 @@ func (a *BlockStorageStore) Delete(ctx context.Context, domain *bsdom.BlockStora
 }
 
 func (a *BlockStorageStore) IncreaseSize(ctx context.Context, domain *bsdom.BlockStorage) error {
-	namespace := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: domain.GetTenant()})
+	namespace := blockStorageNamespace(domain)
 	vol := &ionosv1alpha1.Volume{}
 	if err := a.client.Get(ctx, client.ObjectKey{Name: domain.GetName(), Namespace: namespace}, vol); err != nil {
 		a.logger.Error("failed to get volume", "name", domain.GetName(), "error", err)
@@ -84,6 +87,18 @@ func (a *BlockStorageStore) IncreaseSize(ctx context.Context, domain *bsdom.Bloc
 	}
 	vol.Spec.ForProvider.Size = new(desiredSize)
 	return a.updateCR(ctx, vol)
+}
+
+// blockStorageNamespace is where a BlockStorage's IONOS Volume lives. Image-backed volumes are
+// instance-owned and placed by the Instance plugin at hash(tenant/workspace) — BlockStorage names
+// are only workspace-unique, so the namespace must include workspace to avoid two workspaces'
+// same-named boot volumes colliding. Independently created data volumes stay at the tenant-wide
+// hash(tenant), matching their Datacenter reference.
+func blockStorageNamespace(domain *bsdom.BlockStorage) string {
+	if domain.Spec.SourceImageRef != nil {
+		return k8sadapter.ComputeNamespace(&resource.Scope{Tenant: domain.GetTenant(), Workspace: domain.GetWorkspace()})
+	}
+	return k8sadapter.ComputeNamespace(&resource.Scope{Tenant: domain.GetTenant()})
 }
 
 func newVolume(domain *bsdom.BlockStorage) *ionosv1alpha1.Volume {

@@ -28,9 +28,11 @@ func NewNicStore(c client.Client, logger *slog.Logger) *NicStore {
 // Create observes the instance-owned IONOS Nic. The real Nic (attached to the Server, on the
 // public LAN, with the reserved public IP) is created by the Instance plugin at PowerOn using
 // this NIC's name, so before power-on there is nothing to provision and the CR is a ready
-// declaration (observer). Once the instance is powered on we observe the real Nic's state.
+// declaration (observer). Once the instance is powered on we observe the real Nic's state. The
+// Instance plugin places it at hash(tenant/workspace) — not hash(tenant) alone — since NIC names
+// are only workspace-unique, so the namespace here must match.
 func (a *NicStore) Create(ctx context.Context, domain *nicdom.Nic) error {
-	ns := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: domain.GetTenant()})
+	ns := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: domain.GetTenant(), Workspace: domain.GetWorkspace()})
 	nic := &ionosv1alpha1.Nic{
 		TypeMeta:   metav1.TypeMeta{Kind: ionosv1alpha1.Nic_Kind},
 		ObjectMeta: metav1.ObjectMeta{Name: domain.GetName(), Namespace: ns},

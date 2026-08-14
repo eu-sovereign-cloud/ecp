@@ -32,11 +32,15 @@ func (c *base) readSKU(ctx context.Context, skuRef domain.Reference, defaultTena
 }
 
 // readBootImageAlias resolves the IONOS image alias + size for an image-backed block
-// storage. Namespaces for the block storage and the image it references are each
-// derived independently from their own references, since either may carry its own
-// tenant/workspace.
-func (c *base) readBootImageAlias(ctx context.Context, bootRef domain.Reference, defaultTenant string) (alias string, sizeGB int, err error) {
+// storage. The block storage reference falls back to the instance's own
+// tenant/workspace when it doesn't carry its own (same-workspace references omit
+// both). The image it references is resolved independently, since images are
+// tenant-scoped and the reference may carry its own tenant.
+func (c *base) readBootImageAlias(ctx context.Context, bootRef domain.Reference, defaultTenant, defaultWorkspace string) (alias string, sizeGB int, err error) {
 	t := commonbackend.ParseReference(bootRef, defaultTenant)
+	if t.Workspace == "" {
+		t.Workspace = defaultWorkspace
+	}
 	ns := k8sadapter.ComputeNamespace(&kernelresource.Scope{Tenant: t.Tenant, Workspace: t.Workspace})
 
 	bsCR := &bsk8s.BlockStorage{}
@@ -94,9 +98,14 @@ func networkFromSubnetRef(subnetRef domain.Reference) (string, error) {
 }
 
 // readNicNetworking resolves the LAN name (from the NIC's subnet reference path) and
-// the reserved public IP (via the NIC's public-ip ref -> IPBlock) for a NIC.
-func (c *base) readNicNetworking(ctx context.Context, nicRef domain.Reference, defaultTenant string) (lanName, publicIP string, err error) {
+// the reserved public IP (via the NIC's public-ip ref -> IPBlock) for a NIC. The NIC
+// reference falls back to the instance's own tenant/workspace when it doesn't carry
+// its own (same-workspace references omit both).
+func (c *base) readNicNetworking(ctx context.Context, nicRef domain.Reference, defaultTenant, defaultWorkspace string) (lanName, publicIP string, err error) {
 	t := commonbackend.ParseReference(nicRef, defaultTenant)
+	if t.Workspace == "" {
+		t.Workspace = defaultWorkspace
+	}
 	ns := k8sadapter.ComputeNamespace(&kernelresource.Scope{Tenant: t.Tenant, Workspace: t.Workspace})
 
 	nicCR := &nick8s.NIC{}

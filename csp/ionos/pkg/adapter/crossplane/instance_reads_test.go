@@ -120,8 +120,11 @@ func TestReadBootImageAlias(t *testing.T) {
 	c := fakeclient.NewClientBuilder().WithScheme(imageBlockStorageScheme(t)).WithObjects(imgCR, bsCR).Build()
 	b := &base{client: c, logger: testLogger()}
 
-	bootRef := commondomain.Reference{Resource: "block-storage/block-storage-1", Workspace: workspace}
-	alias, sizeGB, err := b.readBootImageAlias(context.Background(), bootRef, tenant)
+	// Same-workspace reference: no explicit Workspace, must fall back to the
+	// instance's own workspace (passed as defaultWorkspace) to find the
+	// workspace-scoped BlockStorage CR.
+	bootRef := commondomain.Reference{Resource: "block-storage/block-storage-1"}
+	alias, sizeGB, err := b.readBootImageAlias(context.Background(), bootRef, tenant, workspace)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -157,7 +160,10 @@ func TestReadNicNetworking(t *testing.T) {
 		workspace = "workspace-1"
 		lanName   = "lan-1"
 	)
-	nicRef := commondomain.Reference{Resource: "nic/nic-1", Workspace: workspace}
+	// Same-workspace reference: no explicit Workspace, must fall back to the
+	// instance's own workspace (passed as defaultWorkspace) to find the
+	// workspace-scoped NIC CR.
+	nicRef := commondomain.Reference{Resource: "nic/nic-1"}
 	ns := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: tenant, Workspace: workspace})
 	// The IPBlock is a crossplane CR created by the PublicIP plugin at hash(tenant).
 	ipNs := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: tenant})
@@ -196,7 +202,7 @@ func TestReadNicNetworking(t *testing.T) {
 			Build()
 		b := &base{client: c, logger: testLogger()}
 
-		gotLan, gotIP, err := b.readNicNetworking(context.Background(), nicRef, tenant)
+		gotLan, gotIP, err := b.readNicNetworking(context.Background(), nicRef, tenant, workspace)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -217,7 +223,7 @@ func TestReadNicNetworking(t *testing.T) {
 			Build()
 		b := &base{client: c, logger: testLogger()}
 
-		gotLan, gotIP, err := b.readNicNetworking(context.Background(), nicRef, tenant)
+		gotLan, gotIP, err := b.readNicNetworking(context.Background(), nicRef, tenant, workspace)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -37,6 +37,22 @@ func NewInstanceStore(c client.Client, logger *slog.Logger) *InstanceStore {
 	return &InstanceStore{base{client: c, logger: logger}}
 }
 
+// instanceNamespace is where the Server and its instance-owned boot Volume/primary Nic live.
+// Instance names (and BlockStorage/NIC names) are only workspace-unique, not tenant-unique, so
+// this must include the workspace: two workspaces in the same tenant can both name an instance
+// "web", and without the workspace in the namespace hash the second PowerOn would find and take
+// over the first workspace's Server (wrong datacenter and all).
+func instanceNamespace(domain *instancedom.Instance) string {
+	return k8sadapter.ComputeNamespace(&resource.Scope{Tenant: domain.GetTenant(), Workspace: domain.GetWorkspace()})
+}
+
+// datacenterNamespace is the tenant-wide namespace the Workspace's Datacenter (and Lan) CRs live
+// in — shared across all of a tenant's workspaces, since a Datacenter's own name (the workspace
+// name) is already tenant-unique.
+func datacenterNamespace(domain *instancedom.Instance) string {
+	return k8sadapter.ComputeNamespace(&resource.Scope{Tenant: domain.GetTenant()})
+}
+
 // Create is a no-op: real provisioning happens on PowerOn, when the full
 // Instance context (image, SSH keys, user-data, networking) is available.
 func (a *InstanceStore) Create(ctx context.Context, domain *instancedom.Instance) error {
@@ -47,7 +63,7 @@ func (a *InstanceStore) Create(ctx context.Context, domain *instancedom.Instance
 // Delete tears down NIC -> boot Volume -> Server, in order. The reserved IPBlock
 // is owned by the PublicIP plugin and is not deleted here.
 func (a *InstanceStore) Delete(ctx context.Context, domain *instancedom.Instance) error {
-	ns := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: domain.GetTenant()})
+	ns := instanceNamespace(domain)
 
 	if domain.Spec.PrimaryNicRef != nil {
 		nicName := commonbackend.ParseReference(*domain.Spec.PrimaryNicRef, "").Name
@@ -76,13 +92,18 @@ func (a *InstanceStore) Delete(ctx context.Context, domain *instancedom.Instance
 	return a.deleteCR(ctx, srv)
 }
 
+// PowerOn provisions the Server SHUTOFF, attaches the boot volume and primary NIC
+// while it's off, and only flips it to RUNNING once both are ready. A Server booted
+// RUNNING before its boot device is attached will not automatically boot from a
+// volume hot-attached afterwards, so the device must be in place before the first
+// boot.
 func (a *InstanceStore) PowerOn(ctx context.Context, domain *instancedom.Instance) error {
-	ns := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: domain.GetTenant()})
+	ns := instanceNamespace(domain)
 
 	// 1. Workspace datacenter must be ready.
 	dc := &ionosv1alpha1.Datacenter{
 		TypeMeta:   metav1.TypeMeta{Kind: ionosv1alpha1.Datacenter_Kind},
-		ObjectMeta: metav1.ObjectMeta{Name: domain.GetWorkspace(), Namespace: ns},
+		ObjectMeta: metav1.ObjectMeta{Name: domain.GetWorkspace(), Namespace: datacenterNamespace(domain)},
 	}
 	if err := a.checkExisting(ctx, dc); err != nil {
 		return err
@@ -94,14 +115,14 @@ func (a *InstanceStore) PowerOn(ctx context.Context, domain *instancedom.Instanc
 		return err
 	}
 
-	// 3. Server (ENTERPRISE, RUNNING). Idempotent; nil only when ready.
-	if err := a.ensureServerRunning(ctx, domain, ns, cores, ramMB); err != nil {
+	// 3. Server (ENTERPRISE, SHUTOFF). Idempotent; nil only when ready.
+	if err := a.ensureServer(ctx, domain, ns, cores, ramMB); err != nil {
 		return err
 	}
 
 	// 4. Boot volume attached to the server (image + SSH keys + user-data).
 	bootVolName := commonbackend.ParseReference(domain.Spec.BootVolume.DeviceRef, domain.GetTenant()).Name
-	alias, sizeGB, err := a.readBootImageAlias(ctx, domain.Spec.BootVolume.DeviceRef, domain.GetTenant())
+	alias, sizeGB, err := a.readBootImageAlias(ctx, domain.Spec.BootVolume.DeviceRef, domain.GetTenant(), domain.GetWorkspace())
 	if err != nil {
 		return err
 	}
@@ -110,21 +131,26 @@ func (a *InstanceStore) PowerOn(ctx context.Context, domain *instancedom.Instanc
 	}
 
 	// 5. Primary NIC on the public LAN with the reserved public IP.
-	if domain.Spec.PrimaryNicRef == nil {
-		return nil
+	if domain.Spec.PrimaryNicRef != nil {
+		nicName := commonbackend.ParseReference(*domain.Spec.PrimaryNicRef, domain.GetTenant()).Name
+		lanName, publicIP, err := a.readNicNetworking(ctx, *domain.Spec.PrimaryNicRef, domain.GetTenant(), domain.GetWorkspace())
+		if err != nil {
+			return err
+		}
+		if err := a.ensureNic(ctx, domain, ns, nicName, lanName, publicIP); err != nil {
+			return err
+		}
 	}
-	nicName := commonbackend.ParseReference(*domain.Spec.PrimaryNicRef, domain.GetTenant()).Name
-	lanName, publicIP, err := a.readNicNetworking(ctx, *domain.Spec.PrimaryNicRef, domain.GetTenant())
-	if err != nil {
-		return err
-	}
-	return a.ensureNic(ctx, domain, ns, nicName, lanName, publicIP)
+
+	// 6. Boot device (and NIC, if any) are attached and ready: flip the Server to
+	// RUNNING as the final step.
+	return a.ensureServerRunning(ctx, domain, ns)
 }
 
 // PowerOff shuts down the Server CR. Idempotent; nil only once the provider
 // reports the shutdown reconciled.
 func (a *InstanceStore) PowerOff(ctx context.Context, domain *instancedom.Instance) error {
-	ns := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: domain.GetTenant()})
+	ns := instanceNamespace(domain)
 	srv := &ionosv1alpha1.Server{}
 	if err := a.client.Get(ctx, client.ObjectKey{Namespace: ns, Name: domain.GetName()}, srv); err != nil {
 		a.logger.Error("failed to get server", "name", domain.GetName(), "error", err)
@@ -138,12 +164,12 @@ func (a *InstanceStore) PowerOff(ctx context.Context, domain *instancedom.Instan
 	return a.updateCR(ctx, srv)
 }
 
-// ensureServerRunning creates the Server if it doesn't exist yet, or flips an existing one back
-// to RUNNING if it was left SHUTOFF by a prior PowerOff. createCR's AlreadyExists fallback
-// (checkExisting) only checks the Ready condition — it would otherwise treat an already-existing,
-// still-Ready-but-SHUTOFF Server as "nothing to do", permanently stalling a restart even though
-// the domain layer already recorded the instance as powered on.
-func (a *InstanceStore) ensureServerRunning(ctx context.Context, domain *instancedom.Instance, ns string, cores, ramMB float64) error {
+// ensureServer creates the Server (SHUTOFF) if it doesn't exist yet, or just waits for it to
+// be Ready otherwise — regardless of its current VMState, since a restart's Server may already
+// be Ready-but-SHUTOFF (left that way by a prior PowerOff) and that's fine at this stage: the
+// boot volume and NIC only need the Server to exist, not to be RUNNING. Flipping to RUNNING is
+// ensureServerRunning's job, and only once those are attached.
+func (a *InstanceStore) ensureServer(ctx context.Context, domain *instancedom.Instance, ns string, cores, ramMB float64) error {
 	srv := &ionosv1alpha1.Server{}
 	err := a.client.Get(ctx, client.ObjectKey{Namespace: ns, Name: domain.GetName()}, srv)
 	switch {
@@ -152,14 +178,32 @@ func (a *InstanceStore) ensureServerRunning(ctx context.Context, domain *instanc
 	case err != nil:
 		a.logger.Error("failed to get server", "name", domain.GetName(), "error", err)
 		return err
-	case srv.Spec.ForProvider.VMState == nil || *srv.Spec.ForProvider.VMState != serverVMStateRunning:
-		srv.Spec.ForProvider.VMState = new(serverVMStateRunning)
-		return a.updateCR(ctx, srv)
 	default:
 		return a.checkExisting(ctx, srv)
 	}
 }
 
+// ensureServerRunning flips an existing, Ready Server to RUNNING — the final PowerOn step, run
+// only once the boot volume and NIC are attached. createCR's AlreadyExists fallback
+// (checkExisting) only checks the Ready condition — it would otherwise treat an already-existing,
+// still-Ready-but-SHUTOFF Server as "nothing to do", permanently stalling a restart even though
+// the domain layer already recorded the instance as powered on.
+func (a *InstanceStore) ensureServerRunning(ctx context.Context, domain *instancedom.Instance, ns string) error {
+	srv := &ionosv1alpha1.Server{}
+	if err := a.client.Get(ctx, client.ObjectKey{Namespace: ns, Name: domain.GetName()}, srv); err != nil {
+		a.logger.Error("failed to get server", "name", domain.GetName(), "error", err)
+		return err
+	}
+	if srv.Spec.ForProvider.VMState != nil && *srv.Spec.ForProvider.VMState == serverVMStateRunning {
+		return a.checkExisting(ctx, srv)
+	}
+	srv.Spec.ForProvider.VMState = new(serverVMStateRunning)
+	return a.updateCR(ctx, srv)
+}
+
+// newServer builds the Server SHUTOFF: it must exist so the boot Volume and NIC can
+// reference it, but must not boot until its boot device is attached. ensureServerRunning
+// flips it to RUNNING once that's done.
 func (a *InstanceStore) newServer(domain *instancedom.Instance, ns string, cores, ramMB float64) *ionosv1alpha1.Server {
 	sshKeys := toPtrSlice(domain.Spec.SshKeys)
 	return &ionosv1alpha1.Server{
@@ -172,8 +216,8 @@ func (a *InstanceStore) newServer(domain *instancedom.Instance, ns string, cores
 				Cores:            new(cores),
 				RAM:              new(ramMB),
 				AvailabilityZone: new(translateZone(domain.Spec.Zone)),
-				VMState:          new(serverVMStateRunning),
-				DatacenterIDRef:  &v1.NamespacedReference{Name: domain.GetWorkspace(), Namespace: ns},
+				VMState:          new(serverVMStateShutoff),
+				DatacenterIDRef:  &v1.NamespacedReference{Name: domain.GetWorkspace(), Namespace: datacenterNamespace(domain)},
 				SSHKeys:          sshKeys,
 			},
 			ManagedResourceSpec: providerConfig(),
@@ -187,7 +231,7 @@ func (a *InstanceStore) newBootVolume(domain *instancedom.Instance, ns, name, al
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: ns},
 		Spec: ionosv1alpha1.VolumeSpec{
 			ForProvider: ionosv1alpha1.VolumeParameters_2{
-				DatacenterIDRef:  &v1.NamespacedReference{Name: domain.GetWorkspace(), Namespace: ns},
+				DatacenterIDRef:  &v1.NamespacedReference{Name: domain.GetWorkspace(), Namespace: datacenterNamespace(domain)},
 				ServerIDRef:      &v1.NamespacedReference{Name: domain.GetName(), Namespace: ns},
 				Name:             new(name),
 				Size:             new(float64(sizeGB)),
@@ -262,9 +306,9 @@ func (a *InstanceStore) newNic(domain *instancedom.Instance, ns, name, lanName, 
 		Spec: ionosv1alpha1.NicSpec{
 			ForProvider: ionosv1alpha1.NicParameters_2{
 				Name:            new(name),
-				DatacenterIDRef: &v1.NamespacedReference{Name: domain.GetWorkspace(), Namespace: ns},
+				DatacenterIDRef: &v1.NamespacedReference{Name: domain.GetWorkspace(), Namespace: datacenterNamespace(domain)},
 				ServerIDRef:     &v1.NamespacedReference{Name: domain.GetName(), Namespace: ns},
-				LanRef:          &v1.NamespacedReference{Name: lanName, Namespace: ns},
+				LanRef:          &v1.NamespacedReference{Name: lanName, Namespace: datacenterNamespace(domain)},
 				DHCP:            new(true),
 				FirewallActive:  new(false),
 			},
