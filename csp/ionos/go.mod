@@ -1,6 +1,6 @@
 module github.com/eu-sovereign-cloud/ecp/csp/ionos
 
-go 1.26.5
+go 1.26.6
 
 require (
 	github.com/crossplane/crossplane-runtime/v2 v2.2.0
