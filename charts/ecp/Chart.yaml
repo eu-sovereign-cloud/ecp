@@ -20,13 +20,19 @@ keywords:
 # evaluates any condition — so `helm dependency update` must precede lint,
 # template, install and package. See .gitignore for why charts/ is not tracked.
 #
-# The version is a wildcard on purpose. This chart's own `version:` above is a
-# placeholder that helm-release.yaml overwrites from the git tag, so an exact
-# pin here would be a second placeholder to keep in sync for no gain — and it
-# would break the moment the delegator chart is bumped on its own. The
-# file:// repository resolves from the sibling directory regardless.
+# The version constraint matches anything on purpose. This chart's own
+# `version:` above is a placeholder that helm-release.yaml overwrites from the
+# git tag, so an exact pin here would be a second placeholder to keep in sync
+# for no gain — and it would break the moment the delegator chart is bumped on
+# its own. The file:// repository resolves from the sibling directory
+# regardless.
+#
+# It must be `>=0.0.0-0`, not `*`: semver constraints exclude prerelease
+# versions unless the constraint itself carries a prerelease part, and
+# helm-release.yaml stamps the delegator with the git tag — so a prerelease tag
+# (v0.0.1-alpha) makes `*` resolve to nothing and packaging fails.
 dependencies:
 - name: ecp-delegator
-  version: "*"
+  version: ">=0.0.0-0"
   repository: "file://../delegator"
   condition: ecp-delegator.enabled
