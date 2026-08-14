@@ -27,6 +27,7 @@ func translateImage(base, version string) (string, error) {
 var locationAliases = map[string]string{
 	"regionBerlin":    "de/txl",
 	"regionFrankfurt": "de/fra",
+	"itbg-bergamo":    "de/txl",
 }
 
 // translateLocation resolves a SECA region name to an IONOS location.

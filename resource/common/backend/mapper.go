@@ -2,7 +2,6 @@
 package backend
 
 import (
-	"fmt"
 	"strings"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -128,152 +127,43 @@ func IPVersionFromCR(v schemav1.IPVersion) domain.IPVersion {
 }
 
 // ReferenceFromCR converts a generated schemav1.Reference to a domain.Reference.
-// Tenant and Workspace are embedded into the Resource path so the domain always
-// carries a fully-qualified resource path string
-// (e.g. "tenants/t/workspaces/w/block-storages/bs").
+// Do not normalize between the two representations allowed by the API. Rewriting
+// a structured reference into a path makes a subsequent read differ from the
+// value written by the client.
 // Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 func ReferenceFromCR(ref schemav1.Reference) domain.Reference {
-	resourcePath := ref.Resource
-	if ref.Tenant != "" || ref.Workspace != "" {
-		resourcePath = embedScopeInResource(resourcePath, ref.Tenant, ref.Workspace)
-	}
 	return domain.Reference{
-		Provider: ref.Provider,
-		Region:   ref.Region,
-		Resource: resourcePath,
+		Provider:  ref.Provider,
+		Region:    ref.Region,
+		Resource:  ref.Resource,
+		Tenant:    ref.Tenant,
+		Workspace: ref.Workspace,
 	}
 }
 
-// ReferenceToCR converts a domain.Reference to a generated schemav1.Reference.
-// It parses the Resource path to extract embedded segments (tenants, workspaces;
-// also legacy providers/regions) and sets the corresponding fields. Extracted
-// segments are stripped from the Resource path, leaving {collection}/{name}
-// (or nested network paths). If a segment is not in the path, it falls back to
-// the domain value.
+// ReferenceToCR converts a domain.Reference to a generated schemav1.Reference
+// without changing its representation.
 // Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 func ReferenceToCR(ref domain.Reference) schemav1.Reference {
-	resourcePath := ref.Resource
-	result := schemav1.Reference{}
-
-	// Populate each field from the Resource path only when the explicit domain field
-	// is not already set. This makes the function idempotent: on the first call the
-	// embedded path segments are extracted; on subsequent calls (after a round-trip
-	// through the CR) the explicit fields are already populated and path extraction
-	// is skipped, leaving the Resource unchanged.
-	if ref.Provider == "" {
-		if provider, remaining := extractAndStripSegment(resourcePath, "providers/"); provider != "" {
-			result.Provider = provider
-			resourcePath = remaining
-		}
-	} else {
-		result.Provider = ref.Provider
+	return schemav1.Reference{
+		Provider:  ref.Provider,
+		Region:    ref.Region,
+		Resource:  ref.Resource,
+		Tenant:    ref.Tenant,
+		Workspace: ref.Workspace,
 	}
-
-	if ref.Region == "" {
-		if region, remaining := extractAndStripSegment(resourcePath, "regions/"); region != "" {
-			result.Region = region
-			resourcePath = remaining
-		}
-	} else {
-		result.Region = ref.Region
-	}
-
-	if ref.Tenant == "" {
-		if tenant, remaining := extractAndStripSegment(resourcePath, "tenants/"); tenant != "" {
-			result.Tenant = tenant
-			resourcePath = remaining
-		}
-	} else {
-		result.Tenant = ref.Tenant
-	}
-
-	if ref.Workspace == "" {
-		if workspace, remaining := extractAndStripSegment(resourcePath, "workspaces/"); workspace != "" {
-			result.Workspace = workspace
-			resourcePath = remaining
-		}
-	} else {
-		result.Workspace = ref.Workspace
-	}
-
-	result.Resource = resourcePath
-	return result
 }
 
-// embedScopeInResource inserts tenants/{tenant} and workspaces/{workspace} segments
-// into the resource path, just before the {collection}/{name} suffix.
-// e.g. "skus/fast-local" with tenant "t1" becomes "tenants/t1/skus/fast-local".
-// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
-func embedScopeInResource(resourcePath, tenant, workspace string) string {
-	// Find the resource type/name (last two path segments)
-	lastSlash := strings.LastIndex(resourcePath, "/")
-	if lastSlash < 0 {
-		return resourcePath
-	}
-	secondLastSlash := strings.LastIndex(resourcePath[:lastSlash], "/")
-
-	var prefix, suffix string
-	if secondLastSlash >= 0 {
-		prefix = resourcePath[:secondLastSlash]
-		suffix = resourcePath[secondLastSlash+1:]
-	} else {
-		prefix = ""
-		suffix = resourcePath
-	}
-
-	var scopePath string
-	switch {
-	case tenant != "" && workspace != "":
-		scopePath = fmt.Sprintf("tenants/%s/workspaces/%s", tenant, workspace)
-	case tenant != "":
-		scopePath = fmt.Sprintf("tenants/%s", tenant)
-	case workspace != "":
-		scopePath = fmt.Sprintf("workspaces/%s", workspace)
-	}
-
-	if prefix != "" {
-		return prefix + "/" + scopePath + "/" + suffix
-	}
-	return scopePath + "/" + suffix
-}
-
-// extractAndStripSegment extracts the value following a segment prefix in a resource path
-// and returns the remaining path with the segment removed.
-// For example, extractAndStripSegment("workspaces/ws-1/block-storages/my-storage", "workspaces/")
-// returns ("ws-1", "block-storages/my-storage").
-// Returns empty strings if the segment is not found.
-func extractAndStripSegment(resourcePath, segment string) (value, remaining string) {
-	var startIdx int
-	var prefixLen int
-
-	if strings.HasPrefix(resourcePath, segment) {
-		startIdx = len(segment)
-		prefixLen = 0
-	} else if idx := strings.Index(resourcePath, "/"+segment); idx >= 0 {
-		startIdx = idx + 1 + len(segment)
-		prefixLen = idx
-	} else {
-		return "", ""
-	}
-
-	// Find the end of the value (next "/" or end of string)
-	endIdx := strings.Index(resourcePath[startIdx:], "/")
-	if endIdx < 0 {
-		// Segment is at the end, return the value and prefix as remaining
-		value = resourcePath[startIdx:]
-		if prefixLen > 0 {
-			remaining = resourcePath[:prefixLen]
+// extractSegment returns the value following a segment prefix at a path boundary.
+func extractSegment(resourcePath, segment string) string {
+	rest, ok := strings.CutPrefix(resourcePath, segment)
+	if !ok {
+		if _, after, found := strings.Cut(resourcePath, "/"+segment); found {
+			rest = after
+		} else {
+			return ""
 		}
-		return value, remaining
 	}
-
-	value = resourcePath[startIdx : startIdx+endIdx]
-	// Build remaining: prefix + suffix after the segment
-	suffix := resourcePath[startIdx+endIdx+1:]
-	if prefixLen > 0 {
-		remaining = resourcePath[:prefixLen] + "/" + suffix
-	} else {
-		remaining = suffix
-	}
-	return value, remaining
+	value, _, _ := strings.Cut(rest, "/")
+	return value
 }

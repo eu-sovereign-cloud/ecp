@@ -17,6 +17,11 @@ type Instance struct {
 	PowerOffer *instancectrl.PowerOffInstance
 }
 
+func (s *Instance) Update(ctx context.Context, resource *instancedom.Instance) error {
+	// TODO implement me
+	panic("implement me")
+}
+
 func (s *Instance) Create(ctx context.Context, resource *instancedom.Instance) error {
 	return s.Creator.Do(ctx, resource)
 }

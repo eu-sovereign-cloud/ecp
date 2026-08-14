@@ -2,7 +2,10 @@ package domain
 
 // Reference is a domain type representing a reference to another resource.
 // It uses a structured object format that can reference resources across
-// workspaces or regions
+// workspaces or regions.
+//
+// Scope may be represented by the explicit fields or embedded in Resource.
+// Conversions preserve the representation supplied by the client.
 type Reference struct {
 	// Provider of the resource. If empty, inferred from context.
 	Provider string

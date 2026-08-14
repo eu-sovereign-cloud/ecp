@@ -128,10 +128,10 @@ Provisions IONOS Cloud resources using [Crossplane](https://crossplane.io/) with
 **Deployment:**
 ```bash
 # Install Crossplane + IONOS provider (requires Helm)
-make -C csp/ionos/deploy install-all
+make -C csp/ionos install-all
 
 # Or install on an existing regional cluster
-make -C csp/ionos/deploy install-on-regional
+make -C csp/ionos install-on-regional
 ```
 
 See `csp/ionos/README.md` for full deployment instructions, including token secret setup and provider configuration.

@@ -5,31 +5,42 @@ PLUGIN_IMAGE ?= ionos-plugin:dev
 # Name of the regional kind cluster (used by `kind load docker-image`)
 REGIONAL_CLUSTER_NAME ?= regional
 
-.PHONY: install-crossplane install-provider create-secret provider-config install-all verify-provider create-token-secret install-on-regional docker-build-plugin install-plugin-on-regional install-ecp-crds-on-regional
+.PHONY: build install-crossplane install-provider create-secret provider-config install-all verify-provider create-token-secret install-on-regional install-plugin-on-regional install-ecp-crds-on-regional
+
+# Build the ionos plugin Docker image
+# Build context is the repo root so go.work and local module replaces resolve correctly.
+# Usage:
+#   make build
+#   make build PLUGIN_IMAGE=my-registry/ionos-plugin:v1.0
+build:
+	docker build \
+		-f build/Dockerfile \
+		-t $(PLUGIN_IMAGE) \
+		../../
 
 # Crossplane install via Helm
 install-crossplane:
-	bash ./install-crossplane.sh
+	bash deploy/install-crossplane.sh
 
 # Install IONOS provider. Optional overrides:
 # make install-provider PROVIDER_PKG=xpkg.upbound.io/ionos-cloud/provider-upjet-ionoscloud:v0.5.0
 # make install-provider PROVIDER_PKG=... PROVIDER_NAME=my-provider
 install-provider:
-	PROVIDER_PKG=${PROVIDER_PKG} PROVIDER_NAME=${PROVIDER_NAME} bash ./install-provider.sh
+	PROVIDER_PKG=${PROVIDER_PKG} PROVIDER_NAME=${PROVIDER_NAME} bash deploy/install-provider.sh
 
 # Convenience target to install Crossplane, token secret, and provider on current kube target
 install-all: install-crossplane create-token-secret install-provider
 
 # Create a token-based Secret for the provider
 create-token-secret:
-	@IONOS_TOKEN=${IONOS_TOKEN} bash ./create-token-secret.sh
+	@IONOS_TOKEN=${IONOS_TOKEN} bash deploy/create-token-secret.sh
 
 # Create example secret + ProviderConfig (template)
 create-secret:
-	kubectl apply -f providerconfig-example.yaml
+	kubectl apply -f deploy/providerconfig-example.yaml
 
 provider-config:
-	kubectl apply -f providerconfig-example.yaml
+	kubectl apply -f deploy/providerconfig-example.yaml
 
 # Verify provider objects and health
 verify-provider:
@@ -43,34 +54,23 @@ verify-provider:
 install-on-regional:
 	@if [[ -z "$$KUBECONFIG" ]]; then echo "Error: KUBECONFIG must be set"; exit 1; fi
 	@if [[ -z "$$IONOS_TOKEN" ]]; then echo "Error: IONOS_TOKEN must be set"; exit 1; fi
-	KUBECONFIG=$$KUBECONFIG bash ./install-crossplane.sh
-	@KUBECONFIG=$$KUBECONFIG IONOS_TOKEN=$$IONOS_TOKEN bash ./create-token-secret.sh
-	KUBECONFIG=$$KUBECONFIG PROVIDER_PKG=$${PROVIDER_PKG} PROVIDER_NAME=$${PROVIDER_NAME} bash ./install-provider.sh
-	KUBECONFIG=$$KUBECONFIG kubectl apply -f providerconfig-example.yaml
-
-# Build the ionos plugin Docker image
-# Build context is the repo root so go.work and local module replaces resolve correctly.
-# Usage:
-#   make docker-build-plugin
-#   make docker-build-plugin PLUGIN_IMAGE=my-registry/ionos-plugin:v1.0
-docker-build-plugin:
-	docker build \
-		-f ../build/Dockerfile \
-		-t $(PLUGIN_IMAGE) \
-		../../../
+	KUBECONFIG=$$KUBECONFIG bash deploy/install-crossplane.sh
+	@KUBECONFIG=$$KUBECONFIG IONOS_TOKEN=$$IONOS_TOKEN bash deploy/create-token-secret.sh
+	KUBECONFIG=$$KUBECONFIG PROVIDER_PKG=$${PROVIDER_PKG} PROVIDER_NAME=$${PROVIDER_NAME} bash deploy/install-provider.sh
+	KUBECONFIG=$$KUBECONFIG kubectl apply -f deploy/providerconfig-example.yaml
 
 # Install ECP CRDs on the regional cluster (required for the plugin manager to sync caches)
 install-ecp-crds-on-regional:
 	@if [[ -z "$$REGIONAL_KUBECONFIG" ]]; then echo "Error: REGIONAL_KUBECONFIG must be set"; exit 1; fi
-	kubectl --kubeconfig $$REGIONAL_KUBECONFIG apply -f ../../../charts/ecp/crds
+	kubectl --kubeconfig $$REGIONAL_KUBECONFIG apply -f ../../charts/ecp/crds
 
 # Load the plugin image into the regional cluster and apply the Deployment manifest.
 # Requires REGIONAL_KUBECONFIG to point at the regional cluster kubeconfig.
 # Usage:
 #   make install-plugin-on-regional REGIONAL_KUBECONFIG=/path/to/regional.kubeconfig
-install-plugin-on-regional: docker-build-plugin install-ecp-crds-on-regional
+install-plugin-on-regional: build install-ecp-crds-on-regional
 	@if [[ -z "$$REGIONAL_KUBECONFIG" ]]; then echo "Error: REGIONAL_KUBECONFIG must be set"; exit 1; fi
 	kind load docker-image $(PLUGIN_IMAGE) --name $(REGIONAL_CLUSTER_NAME)
-	kubectl --kubeconfig $$REGIONAL_KUBECONFIG apply -f rbac.yaml
-	kubectl --kubeconfig $$REGIONAL_KUBECONFIG apply -f ionos-plugin-deployment.yaml
+	kubectl --kubeconfig $$REGIONAL_KUBECONFIG apply -f deploy/rbac.yaml
+	kubectl --kubeconfig $$REGIONAL_KUBECONFIG apply -f deploy/ionos-plugin-deployment.yaml
 	kubectl --kubeconfig $$REGIONAL_KUBECONFIG rollout status deployment/ionos-plugin

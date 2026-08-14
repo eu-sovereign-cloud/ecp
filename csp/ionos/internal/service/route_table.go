@@ -15,6 +15,11 @@ type RouteTable struct {
 	Deleter *routetablectrl.DeleteRouteTable
 }
 
+func (r *RouteTable) Update(ctx context.Context, resource *routetabledom.RouteTable) error {
+	// TODO implement me
+	panic("implement me")
+}
+
 func (r *RouteTable) Create(ctx context.Context, resource *routetabledom.RouteTable) error {
 	return r.Creator.Do(ctx, resource)
 }

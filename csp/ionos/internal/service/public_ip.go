@@ -15,6 +15,11 @@ type PublicIP struct {
 	Deleter *publicipctrl.DeletePublicIP
 }
 
+func (s *PublicIP) Update(ctx context.Context, resource *publicipdom.PublicIp) error {
+	// TODO implement me
+	panic("implement me")
+}
+
 func (s *PublicIP) Create(ctx context.Context, resource *publicipdom.PublicIp) error {
 	return s.Creator.Do(ctx, resource)
 }

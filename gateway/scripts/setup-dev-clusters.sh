@@ -44,7 +44,7 @@ ensure_dir "${API_CRDS_DIR}"
 ensure_dir "${REGIONAL_CONFIG_DIR}"
 
 # Region Details
-REGION_NAME="region"
+REGION_NAME="itbg-bergamo"
 
 # --- Helper Functions ---
 check_command() {

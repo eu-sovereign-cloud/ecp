@@ -5,84 +5,90 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/schema/v1"
+	"github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 )
 
-func TestExtractAndStripSegment(t *testing.T) {
+const workspaceSegment = "workspaces/"
+
+func TestExtractSegment(t *testing.T) {
 	testCases := []struct {
-		name              string
-		resource          string
-		segment           string
-		expectedValue     string
-		expectedRemaining string
+		name     string
+		resource string
+		segment  string
+		expected string
 	}{
 		{
-			name:              "segment at the beginning",
-			resource:          "workspaces/ws-1/block-storages/my-storage",
-			segment:           "workspaces/",
-			expectedValue:     "ws-1",
-			expectedRemaining: "block-storages/my-storage",
+			name:     "segment at the beginning",
+			resource: "workspaces/ws-1/block-storages/my-storage",
+			segment:  workspaceSegment,
+			expected: "ws-1",
 		},
 		{
-			name:              "segment in the middle",
-			resource:          "tenants/t-1/workspaces/ws-1/block-storages/my-storage",
-			segment:           "workspaces/",
-			expectedValue:     "ws-1",
-			expectedRemaining: "tenants/t-1/block-storages/my-storage",
+			name:     "segment in the middle",
+			resource: "tenants/t-1/workspaces/ws-1/block-storages/my-storage",
+			segment:  workspaceSegment,
+			expected: "ws-1",
 		},
 		{
-			name:              "segment at the end",
-			resource:          "tenants/t-1/workspaces/ws-1",
-			segment:           "workspaces/",
-			expectedValue:     "ws-1",
-			expectedRemaining: "tenants/t-1",
+			name:     "segment at the end",
+			resource: "tenants/t-1/workspaces/ws-1",
+			segment:  workspaceSegment,
+			expected: "ws-1",
 		},
 		{
-			name:              "segment is the only component",
-			resource:          "workspaces/ws-1",
-			segment:           "workspaces/",
-			expectedValue:     "ws-1",
-			expectedRemaining: "",
+			name:     "no segment found",
+			resource: "block-storages/my-storage",
+			segment:  workspaceSegment,
+			expected: "",
 		},
 		{
-			name:              "no segment found",
-			resource:          "block-storages/my-storage",
-			segment:           "workspaces/",
-			expectedValue:     "",
-			expectedRemaining: "",
+			name:     "empty resource string",
+			resource: "",
+			segment:  workspaceSegment,
+			expected: "",
 		},
 		{
-			name:              "empty resource string",
-			resource:          "",
-			segment:           "workspaces/",
-			expectedValue:     "",
-			expectedRemaining: "",
-		},
-		{
-			name: "multiple segments present",
-			// Reference.resource path with tenant/workspace scope:
-			// tenants/{tenant}/workspaces/{workspace}/{collection}/{name}
-			// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
-			resource:          "tenants/t-1/workspaces/ws-1/block-storages/my-storage",
-			segment:           "workspaces/",
-			expectedValue:     "ws-1",
-			expectedRemaining: "tenants/t-1/block-storages/my-storage",
+			name:     "segment is a suffix of another path element",
+			resource: "sub-workspaces/ws-1",
+			segment:  workspaceSegment,
+			expected: "",
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			value, remaining := extractAndStripSegment(tc.resource, tc.segment)
-			assert.Equal(t, tc.expectedValue, value)
-			assert.Equal(t, tc.expectedRemaining, remaining)
+			assert.Equal(t, tc.expected, extractSegment(tc.resource, tc.segment))
 		})
 	}
 }
 
-// FuzzExtractAndStripSegment verifies that extractAndStripSegment never panics on arbitrary input.
-func FuzzExtractAndStripSegment(f *testing.F) {
-	f.Add("workspaces/ws-1/block-storages/my-storage", "workspaces/")
-	f.Add("tenants/t-1/workspaces/ws-1", "workspaces/")
-	f.Add("workspaces/ws-1", "workspaces/")
+func TestReferenceRoundTripPreservesRepresentation(t *testing.T) {
+	refs := []schemav1.Reference{
+		{
+			Provider:  "seca.network/v1",
+			Resource:  "networks/poc-net/subnets/poc-subnet",
+			Tenant:    "test-tenant",
+			Workspace: "poc",
+		},
+		{
+			Provider: "seca.network/v1",
+			Resource: "seca.network/v1/tenants/test-tenant/workspaces/poc/networks/poc-net/subnets/poc-subnet",
+		},
+	}
+
+	for _, want := range refs {
+		got := ReferenceToCR(ReferenceFromCR(want))
+		assert.Equal(t, want, got)
+	}
+}
+
+// FuzzExtractSegment verifies that extractSegment never panics on arbitrary input.
+func FuzzExtractSegment(f *testing.F) {
+	f.Add("workspaces/ws-1/block-storages/my-storage", workspaceSegment)
+	f.Add("tenants/t-1/workspaces/ws-1", workspaceSegment)
+	f.Add("workspaces/ws-1", workspaceSegment)
 	f.Add("providers/ionos/regions/de-fra", "regions/")
 	f.Add("", "workspaces/")
 	f.Add("/", "/")
@@ -93,6 +99,15 @@ func FuzzExtractAndStripSegment(f *testing.F) {
 	f.Add("workspaces/"+strings.Repeat("b", 64), "workspaces/")
 
 	f.Fuzz(func(t *testing.T, resource, segment string) {
-		extractAndStripSegment(resource, segment)
+		extractSegment(resource, segment)
 	})
+}
+
+func TestParseReference(t *testing.T) {
+	ref := domain.Reference{Resource: "seca.network/v1/tenants/test-tenant/workspaces/poc/networks/poc-net/subnets/poc-subnet"}
+	assert.Equal(t, ReferenceTarget{
+		Tenant:    "test-tenant",
+		Workspace: "poc",
+		Name:      "poc-subnet",
+	}, ParseReference(ref, "fallback"))
 }

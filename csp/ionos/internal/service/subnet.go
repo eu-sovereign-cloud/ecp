@@ -15,6 +15,11 @@ type Subnet struct {
 	Deleter *subnetctrl.DeleteSubnet
 }
 
+func (s *Subnet) Update(ctx context.Context, resource *subnetdom.Subnet) error {
+	// TODO implement me
+	panic("implement me")
+}
+
 func (s *Subnet) Create(ctx context.Context, resource *subnetdom.Subnet) error {
 	return s.Creator.Do(ctx, resource)
 }

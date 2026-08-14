@@ -31,19 +31,25 @@ type ReferenceTarget struct {
 // fields or embedded in the resource path; an empty tenant falls back to defaultTenant.
 // The name is the last segment of the resource path (e.g. "block-storages/web" -> "web").
 func ParseReference(ref domain.Reference, defaultTenant string) ReferenceTarget {
-	cr := ReferenceToCR(ref)
-
-	tenant := cr.Tenant
+	tenant := ref.Tenant
+	if tenant == "" {
+		tenant = extractSegment(ref.Resource, "tenants/")
+	}
 	if tenant == "" {
 		tenant = defaultTenant
 	}
 
-	name := cr.Resource
+	workspace := ref.Workspace
+	if workspace == "" {
+		workspace = extractSegment(ref.Resource, "workspaces/")
+	}
+
+	name := ref.Resource
 	if idx := strings.LastIndex(name, "/"); idx >= 0 {
 		name = name[idx+1:]
 	}
 
-	return ReferenceTarget{Tenant: tenant, Workspace: cr.Workspace, Name: name}
+	return ReferenceTarget{Tenant: tenant, Workspace: workspace, Name: name}
 }
 
 // ReferenceResolver resolves cross-resource dependencies against the Kubernetes API

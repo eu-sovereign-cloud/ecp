@@ -19,7 +19,7 @@ spec:
           image: registry.secapi.cloud/regional-server:latest
           env:
             - name: REGION
-              value: "region"
+              value: "itbg-bergamo"
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080

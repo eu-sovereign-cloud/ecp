@@ -75,6 +75,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	controllerOpts := []frameworkbuilder.Option{
+		frameworkbuilder.WithLogger(logger.With("component", "controller-set")),
+		frameworkbuilder.WithRequeueAfter(1 * time.Second),
+		frameworkbuilder.WithMaxConditions(5),
+	}
 	// Typed client for the Namespace API: the Workspace and Network controllers tear down the
 	// namespace they own for their children once the plugin has finished deleting them.
 	clientset, err := kubernetes.NewForConfig(mgr.GetConfig())
@@ -82,13 +87,6 @@ func main() {
 		logger.Error("unable to create clientset", "error", err)
 		os.Exit(1)
 	}
-
-	controllerOpts := []frameworkbuilder.Option{
-		frameworkbuilder.WithLogger(logger.With("component", "controller-set")),
-		frameworkbuilder.WithRequeueAfter(1 * time.Second),
-		frameworkbuilder.WithMaxConditions(5),
-	}
-
 	controllerSet := frameworkbuilder.NewControllerSet()
 	controllerset.Add(controllerSet, mgr, dynClient, clientset, logger, controllerOpts...)
 

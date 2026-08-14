@@ -15,6 +15,11 @@ type Nic struct {
 	Deleter *nicctrl.DeleteNic
 }
 
+func (s *Nic) Update(ctx context.Context, resource *nicdom.Nic) error {
+	// TODO implement me
+	panic("implement me")
+}
+
 func (s *Nic) Create(ctx context.Context, resource *nicdom.Nic) error {
 	return s.Creator.Do(ctx, resource)
 }
