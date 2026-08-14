@@ -313,6 +313,12 @@ jobs:
           submodules: 'recursive'
       - name: Run tests
         run: make ${{ matrix.module }}-test
+      # The `envtest`-tagged tests need a real kube-apiserver, which controller-runtime
+      # downloads at startup — no KIND, no Docker, so they ride along in this container.
+      # Only the `resource` module has them.
+      - name: Run envtest integration tests
+        if: matrix.module == 'resource'
+        run: make test-envtest
 
   # ===========================================================================
   # Stage 3: Lint via golangci-lint (per changed module, inside builder container)

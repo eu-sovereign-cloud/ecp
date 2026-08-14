@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"strings"
@@ -14,42 +15,48 @@ import (
 
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/schema/v1"
-	kernelresource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	"github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 )
 
-// ReferenceTarget identifies a single resource resolved from a domain.Reference:
-// the namespace scope (tenant/workspace) and the resource name.
+// ReferenceTarget identifies a single resource resolved from a domain.Reference: the
+// namespace scope (tenant/workspace, plus the network a network-scoped resource lives under)
+// and the resource name. It implements persistence.NetworkScope, so the namespace helpers
+// hash it directly.
 type ReferenceTarget struct {
 	Tenant    string
 	Workspace string
+	Network   string
 	Name      string
 }
 
-// ParseReference resolves a domain.Reference into its tenant, workspace, and name.
-// Tenant and workspace are read from the reference, whether carried as explicit
-// fields or embedded in the resource path; an empty tenant falls back to defaultTenant.
-// The name is the last segment of the resource path (e.g. "block-storages/web" -> "web").
+func (t ReferenceTarget) GetTenant() string    { return t.Tenant }
+func (t ReferenceTarget) GetWorkspace() string { return t.Workspace }
+func (t ReferenceTarget) GetNetwork() string   { return t.Network }
+
+// ParseReference resolves a domain.Reference into its tenant, workspace, network, and name.
+// The scope is read from the reference, whether carried as explicit fields or spelled out in
+// the resource path; an empty tenant falls back to defaultTenant. The name is the last segment
+// of the resource path (e.g. "block-storages/web" -> "web").
 func ParseReference(ref domain.Reference, defaultTenant string) ReferenceTarget {
-	tenant := ref.Tenant
-	if tenant == "" {
-		tenant = extractSegment(ref.Resource, "tenants/")
-	}
-	if tenant == "" {
-		tenant = defaultTenant
-	}
-
-	workspace := ref.Workspace
-	if workspace == "" {
-		workspace = extractSegment(ref.Resource, "workspaces/")
-	}
-
 	name := ref.Resource
 	if idx := strings.LastIndex(name, "/"); idx >= 0 {
 		name = name[idx+1:]
 	}
 
-	return ReferenceTarget{Tenant: tenant, Workspace: workspace, Name: name}
+	// A path that stops at networks/{network} names the network itself, which is
+	// workspace-scoped; only one carrying further segments names a resource that lives in
+	// the network's own namespace (a route table, a subnet).
+	network := extractSegment(ref.Resource, "networks/")
+	if strings.HasSuffix(ref.Resource, "networks/"+network) {
+		network = ""
+	}
+
+	return ReferenceTarget{
+		Tenant:    cmp.Or(ref.Tenant, extractSegment(ref.Resource, "tenants/"), defaultTenant),
+		Workspace: cmp.Or(ref.Workspace, extractSegment(ref.Resource, "workspaces/")),
+		Network:   network,
+		Name:      name,
+	}
 }
 
 // ReferenceResolver resolves cross-resource dependencies against the Kubernetes API
@@ -75,7 +82,12 @@ func (rr *ReferenceResolver) State(
 	defaultTenant string,
 ) (bool, domain.ResourceState, error) {
 	target := ParseReference(ref, defaultTenant)
-	namespace := k8sadapter.ComputeNamespace(&kernelresource.Scope{Tenant: target.Tenant, Workspace: target.Workspace})
+	namespace := k8sadapter.ComputeNamespace(target)
+	if target.Network != "" {
+		// A network-scoped resource is written to its network's own namespace, not the
+		// workspace one, so a reference naming a network must be resolved there.
+		namespace = k8sadapter.ComputeNetworkNamespace(target)
+	}
 
 	obj, err := rr.client.Resource(gvr).Namespace(namespace).Get(ctx, target.Name, metav1.GetOptions{})
 	if err != nil {
@@ -127,9 +139,17 @@ func (rr *ReferenceResolver) Referrers(
 		}
 
 		got := ParseReference(ReferenceFromCR(crRef), defaultTenant)
-		if got.Tenant == target.Tenant && got.Workspace == target.Workspace && got.Name == target.Name {
-			names = append(names, item.GetName())
+		if got.Tenant != target.Tenant || got.Network != target.Network || got.Name != target.Name {
+			continue
 		}
+		// A referrer that spells out no workspace does not contradict the target: the
+		// referring resource may be tenant-scoped (an image is) and unable to infer one.
+		// Count it as a referrer - over-blocking a deletion is recoverable, letting the
+		// target go while something still points at it is not.
+		if got.Workspace != "" && got.Workspace != target.Workspace {
+			continue
+		}
+		names = append(names, item.GetName())
 	}
 
 	return names, nil

@@ -4,8 +4,10 @@ package domain
 // It uses a structured object format that can reference resources across
 // workspaces or regions.
 //
-// Scope may be represented by the explicit fields or embedded in Resource.
-// Conversions preserve the representation supplied by the client.
+// The scope may arrive either as its own fields ({tenant: "t", resource: "skus/s"}) or spelled
+// out in the path ({resource: "seca.storage/v1/tenants/t/skus/s"}) - the same reference, two
+// representations. A reference is stored and echoed back exactly as written; use
+// backend.ParseReference to read the pieces.
 type Reference struct {
 	// Provider of the resource. If empty, inferred from context.
 	Provider string

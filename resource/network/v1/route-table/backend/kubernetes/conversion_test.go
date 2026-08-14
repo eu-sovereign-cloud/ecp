@@ -2,7 +2,6 @@ package kubernetes_test
 
 import (
 	"reflect"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -97,24 +96,9 @@ func TestRouteTableToCR_UsesNetworkNamespace(t *testing.T) {
 		"different networks must map to different namespaces")
 }
 
-// isWellFormedRefPath reports whether a reference path is shaped like a SECA resource path, for
-// which commonbackend's scope embed/extract pair is a true inverse.
-//
-// ponytail: known ceiling, mirrored from the security-group-rule fuzz target.
-// extractAndStripSegment strips a scope anchor from wherever it appears while
-// embedScopeInResource always re-inserts it before the final two segments, so the pair only
-// round-trips for paths with at most one "tenants/" and one "workspaces/" anchor and no empty
-// segments. Real SECA references are always canonical; widen this if the helpers are reworked.
-func isWellFormedRefPath(p string) bool {
-	return !strings.Contains(p, "//") &&
-		strings.Count(p, "tenants") <= 1 &&
-		strings.Count(p, "workspaces") <= 1
-}
-
 // FuzzRouteTableSpecRoundTrip targets the repeated nested spec — a []RouteSpec where each entry
 // carries its own Reference. Slice-of-struct specs are where ordering instability and
-// nil-vs-empty drift hide, and the per-route TargetRef exercises the same scope embed/extract
-// path as a standalone reference but once per element.
+// nil-vs-empty drift hide, and the per-route TargetRef must come back verbatim once per element.
 //
 // The invariant is stability, not identity: the first round-trip normalizes, so domain2 and
 // domain3 must be identical.
@@ -130,10 +114,6 @@ func FuzzRouteTableSpecRoundTrip(f *testing.F) {
 	f.Add("rt", "", "n1", "10.0.0.0/24", "instances/i1", "10.1.0.0/24", "instances/i2", -1)
 
 	f.Fuzz(func(t *testing.T, name, provider, network, dest1, target1, dest2, target2 string, routeCount int) {
-		if !isWellFormedRefPath(target1) || !isWellFormedRefPath(target2) {
-			return
-		}
-
 		all := []routetabledom.RouteSpec{
 			{DestinationCidrBlock: dest1, TargetRef: commondomain.Reference{Resource: target1}},
 			{DestinationCidrBlock: dest2, TargetRef: commondomain.Reference{Resource: target2}},

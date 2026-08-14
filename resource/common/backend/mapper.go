@@ -127,9 +127,10 @@ func IPVersionFromCR(v schemav1.IPVersion) domain.IPVersion {
 }
 
 // ReferenceFromCR converts a generated schemav1.Reference to a domain.Reference.
-// Do not normalize between the two representations allowed by the API. Rewriting
-// a structured reference into a path makes a subsequent read differ from the
-// value written by the client.
+//
+// Do not normalize between the two representations the spec allows (see domain.Reference):
+// rewriting one into the other means a read no longer echoes the write. Whatever needs the
+// pieces parses them at the point of use; see ParseReference.
 // Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 func ReferenceFromCR(ref schemav1.Reference) domain.Reference {
 	return domain.Reference{
@@ -141,8 +142,8 @@ func ReferenceFromCR(ref schemav1.Reference) domain.Reference {
 	}
 }
 
-// ReferenceToCR converts a domain.Reference to a generated schemav1.Reference
-// without changing its representation.
+// ReferenceToCR converts a domain.Reference to a generated schemav1.Reference, storing it
+// verbatim. See ReferenceFromCR for why nothing is rewritten on the way in either.
 // Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 func ReferenceToCR(ref domain.Reference) schemav1.Reference {
 	return schemav1.Reference{
@@ -154,7 +155,9 @@ func ReferenceToCR(ref domain.Reference) schemav1.Reference {
 	}
 }
 
-// extractSegment returns the value following a segment prefix at a path boundary.
+// extractSegment returns the value following a segment prefix in a resource path, matched at a
+// path boundary. For example extractSegment("tenants/t-1/workspaces/ws-1/skus/s", "workspaces/")
+// returns "ws-1". Returns "" if the segment is not present.
 func extractSegment(resourcePath, segment string) string {
 	rest, ok := strings.CutPrefix(resourcePath, segment)
 	if !ok {

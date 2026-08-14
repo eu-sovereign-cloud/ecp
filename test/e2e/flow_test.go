@@ -125,16 +125,23 @@ func TestEndToEnd(t *testing.T) {
 	// Step 4: a workspace-scoped Network created through the regional gateway. Creating
 	// it provisions the network's own namespace (NetworkChildren), which the network-scoped
 	// resources below live in — so this step must precede the subnet and route table.
+	//
+	// Its skuRef is sent as the sku's full URN, the way a client holding only that URN sends
+	// it; the reference must come back byte-identical.
+	skuRefResource := "seca.network/v1/tenants/" + testTenant + "/skus/sku-1"
 	t.Run("network created via API reconciles to active", func(t *testing.T) {
 		body := schema.Network{
 			Spec: schema.NetworkSpec{
 				Cidr:   schema.Cidr{Ipv4: "10.20.0.0/16"},
-				SkuRef: schema.Reference{Resource: "sku-1"},
+				SkuRef: schema.Reference{Resource: skuRefResource},
 			},
 		}
 		resp, err := networkClient.CreateOrUpdateNetworkWithResponse(ctx, testTenant, testWorkspace, networkName, nil, body)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, resp.StatusCode())
+		require.NotNil(t, resp.JSON200)
+		require.Equal(t, skuRefResource, resp.JSON200.Spec.SkuRef.Resource,
+			"the create response must echo the sku URN unchanged")
 
 		waitForActive(t, "network", func(ctx context.Context) (schema.ResourceState, bool, error) {
 			r, err := networkClient.GetNetworkWithResponse(ctx, testTenant, testWorkspace, networkName)
@@ -151,17 +158,28 @@ func TestEndToEnd(t *testing.T) {
 	// Step 5 (network-scoped): a Subnet created under the network. Its URN carries the
 	// extra networks/{network} segment and it lands in the per-network namespace — the
 	// path the workspace-scoped resources above never exercise.
+	//
+	// Its routeTableRef is sent as the route table's full URN — provider pair, scope and
+	// nested path — which is what a client holding only that URN (terraform, which reads it
+	// straight out of the route table's metadata.ref) puts in the reference path. It must come
+	// back byte-identical. That is all this asserts: nothing resolves routeTableRef today, so
+	// the URN naming a route table that Step 6 has not created yet is not a gate on anything.
+	routeTableRefResource := "seca.network/v1/tenants/" + testTenant + "/workspaces/" + testWorkspace +
+		"/networks/" + networkName + "/route-tables/" + routeTableName
 	t.Run("subnet (network-scoped) created via API reconciles to active", func(t *testing.T) {
 		body := schema.Subnet{
 			Spec: schema.SubnetSpec{
 				Cidr:          schema.Cidr{Ipv4: "10.20.1.0/24"},
-				RouteTableRef: schema.Reference{Resource: "route-tables/" + routeTableName},
+				RouteTableRef: schema.Reference{Resource: routeTableRefResource},
 				Zone:          "itbg-1",
 			},
 		}
 		resp, err := networkClient.CreateOrUpdateSubnetWithResponse(ctx, testTenant, testWorkspace, networkName, subnetName, nil, body)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, resp.StatusCode())
+		require.NotNil(t, resp.JSON200)
+		require.Equal(t, routeTableRefResource, resp.JSON200.Spec.RouteTableRef.Resource,
+			"the create response must echo the reference path unchanged")
 
 		waitForActive(t, "subnet", func(ctx context.Context) (schema.ResourceState, bool, error) {
 			r, err := networkClient.GetSubnetWithResponse(ctx, testTenant, testWorkspace, networkName, subnetName)

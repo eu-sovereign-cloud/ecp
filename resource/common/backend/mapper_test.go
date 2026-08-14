@@ -7,89 +7,45 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/schema/v1"
+
 	"github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 )
-
-const workspaceSegment = "workspaces/"
 
 func TestExtractSegment(t *testing.T) {
 	testCases := []struct {
 		name     string
 		resource string
 		segment  string
-		expected string
+		want     string
 	}{
-		{
-			name:     "segment at the beginning",
-			resource: "workspaces/ws-1/block-storages/my-storage",
-			segment:  workspaceSegment,
-			expected: "ws-1",
-		},
-		{
-			name:     "segment in the middle",
-			resource: "tenants/t-1/workspaces/ws-1/block-storages/my-storage",
-			segment:  workspaceSegment,
-			expected: "ws-1",
-		},
-		{
-			name:     "segment at the end",
-			resource: "tenants/t-1/workspaces/ws-1",
-			segment:  workspaceSegment,
-			expected: "ws-1",
-		},
-		{
-			name:     "no segment found",
-			resource: "block-storages/my-storage",
-			segment:  workspaceSegment,
-			expected: "",
-		},
-		{
-			name:     "empty resource string",
-			resource: "",
-			segment:  workspaceSegment,
-			expected: "",
-		},
-		{
-			name:     "segment is a suffix of another path element",
-			resource: "sub-workspaces/ws-1",
-			segment:  workspaceSegment,
-			expected: "",
-		},
+		// Reference.resource path with tenant/workspace scope:
+		// tenants/{tenant}/workspaces/{workspace}/{collection}/{name}
+		// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
+		{"segment at the beginning", "workspaces/ws-1/block-storages/my-storage", "workspaces/", "ws-1"},
+		{"segment in the middle", "seca.storage/v1/tenants/t-1/workspaces/ws-1/skus/s", "workspaces/", "ws-1"},
+		{"segment at the end", "tenants/t-1/workspaces/ws-1", "workspaces/", "ws-1"},
+		{"no segment found", "block-storages/my-storage", "workspaces/", ""},
+		{"empty resource string", "", "workspaces/", ""},
+		// A path boundary is required, so a collection whose name ends in the segment
+		// must not match: "workspaces/" is not the "sub-workspaces/" prefix.
+		{"segment is a suffix of another path element", "sub-workspaces/ws-1", "workspaces/", ""},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.expected, extractSegment(tc.resource, tc.segment))
+			assert.Equal(t, tc.want, extractSegment(tc.resource, tc.segment))
 		})
 	}
 }
 
-func TestReferenceRoundTripPreservesRepresentation(t *testing.T) {
-	refs := []schemav1.Reference{
-		{
-			Provider:  "seca.network/v1",
-			Resource:  "networks/poc-net/subnets/poc-subnet",
-			Tenant:    "test-tenant",
-			Workspace: "poc",
-		},
-		{
-			Provider: "seca.network/v1",
-			Resource: "seca.network/v1/tenants/test-tenant/workspaces/poc/networks/poc-net/subnets/poc-subnet",
-		},
-	}
-
-	for _, want := range refs {
-		got := ReferenceToCR(ReferenceFromCR(want))
-		assert.Equal(t, want, got)
-	}
-}
-
-// FuzzExtractSegment verifies that extractSegment never panics on arbitrary input.
+// FuzzExtractSegment checks that extractSegment never panics on arbitrary input. It is the
+// only code that recovers a scope from a reference path, and every namespace decision in
+// ReferenceResolver goes through it, on a path string that comes straight from a client.
 func FuzzExtractSegment(f *testing.F) {
-	f.Add("workspaces/ws-1/block-storages/my-storage", workspaceSegment)
-	f.Add("tenants/t-1/workspaces/ws-1", workspaceSegment)
-	f.Add("workspaces/ws-1", workspaceSegment)
-	f.Add("providers/ionos/regions/de-fra", "regions/")
+	f.Add("workspaces/ws-1/block-storages/my-storage", "workspaces/")
+	f.Add("tenants/t-1/workspaces/ws-1", "workspaces/")
+	f.Add("workspaces/ws-1", "workspaces/")
+	f.Add("seca.network/v1/tenants/t-1/workspaces/ws-1/networks/n1/route-tables/rt1", "networks/")
 	f.Add("", "workspaces/")
 	f.Add("/", "/")
 	f.Add("a/b/c", "b/")
@@ -103,11 +59,58 @@ func FuzzExtractSegment(f *testing.F) {
 	})
 }
 
-func TestParseReference(t *testing.T) {
-	ref := domain.Reference{Resource: "seca.network/v1/tenants/test-tenant/workspaces/poc/networks/poc-net/subnets/poc-subnet"}
-	assert.Equal(t, ReferenceTarget{
-		Tenant:    "test-tenant",
-		Workspace: "poc",
-		Name:      "poc-subnet",
-	}, ParseReference(ref, "fallback"))
+// TestReferenceRoundTripIsVerbatim pins the property a client depends on: a reference is
+// handed back exactly as it was written, in whichever of the two representations the spec
+// allows the client picked. Rewriting one into the other made reads disagree with writes -
+// a terraform apply that sent {tenant, resource} got {resource: "tenants/.../..."} back and
+// failed with "produced an unexpected new value".
+//
+// The direction that carries the bug is write-then-read (domain -> CR -> domain): the write
+// stored the scope in the CR's own fields, and the read spliced them back into the path, so
+// what came out was not what went in. The reverse (CR -> domain -> CR) is asserted too, but
+// it survived the old code for every shape but a full URN - on its own it pins nothing.
+// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
+func TestReferenceRoundTripIsVerbatim(t *testing.T) {
+	testCases := []struct {
+		name string
+		ref  schemav1.Reference
+	}{
+		{
+			name: "scope as fields",
+			ref:  schemav1.Reference{Tenant: "t-1", Workspace: "ws-1", Resource: "block-storages/my-storage"},
+		},
+		{
+			name: "scope as fields, nested path",
+			ref:  schemav1.Reference{Tenant: "t-1", Workspace: "ws-1", Resource: "networks/n1/route-tables/rt1"},
+		},
+		{
+			// A tenant-scoped sku referenced from a workspace-scoped resource: the tenant
+			// cannot be inferred from context, so this is the shape that used to be rewritten.
+			name: "tenant field with a provider field",
+			ref:  schemav1.Reference{Provider: "seca.network/v1", Tenant: "t-1", Resource: "skus/fast-local"},
+		},
+		{
+			// A client that holds only the target's URN sends the whole URN as the path.
+			name: "scope spelled out in the path",
+			ref:  schemav1.Reference{Resource: "seca.network/v1/tenants/t-1/workspaces/ws-1/networks/n1/route-tables/rt1"},
+		},
+		{
+			name: "no scope at all - inferred from context",
+			ref:  schemav1.Reference{Resource: "skus/fast-local"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			sent := domain.Reference{
+				Provider:  tc.ref.Provider,
+				Region:    tc.ref.Region,
+				Resource:  tc.ref.Resource,
+				Tenant:    tc.ref.Tenant,
+				Workspace: tc.ref.Workspace,
+			}
+			assert.Equal(t, sent, ReferenceFromCR(ReferenceToCR(sent)), "write then read")
+			assert.Equal(t, tc.ref, ReferenceToCR(ReferenceFromCR(tc.ref)), "read then write")
+		})
+	}
 }

@@ -121,8 +121,8 @@ func TestNicBackend_CreateAndGetNic(t *testing.T) {
 		createdDomain := *result
 		require.Equal(t, nicName, createdDomain.Name)
 		require.Equal(t, []string{"10.0.0.5"}, createdDomain.Spec.Addresses)
-		require.Equal(t, "subnet-1", createdDomain.Spec.SubnetRef.Resource)
-		require.Equal(t, "standard-nic", createdDomain.Spec.SkuRef.Resource)
+		require.Equal(t, "subnets/subnet-1", createdDomain.Spec.SubnetRef.Resource)
+		require.Equal(t, "skus/standard-nic", createdDomain.Spec.SkuRef.Resource)
 
 		// Get the NIC and verify it matches
 		nic := &nicdom.Nic{}
@@ -133,8 +133,8 @@ func TestNicBackend_CreateAndGetNic(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, nic)
 		require.Equal(t, nicName, nic.Name)
-		require.Equal(t, "subnet-1", nic.Spec.SubnetRef.Resource)
-		require.Equal(t, "standard-nic", nic.Spec.SkuRef.Resource)
+		require.Equal(t, "subnets/subnet-1", nic.Spec.SubnetRef.Resource)
+		require.Equal(t, "skus/standard-nic", nic.Spec.SkuRef.Resource)
 
 		// Get current resource version for the update
 		nic2 := &nicdom.Nic{}
@@ -156,7 +156,7 @@ func TestNicBackend_CreateAndGetNic(t *testing.T) {
 		require.NotNil(t, updateResult)
 		updated := *updateResult
 		require.Len(t, updated.Spec.SecurityGroupRefs, 1)
-		require.Equal(t, "sg-1", updated.Spec.SecurityGroupRefs[0].Resource)
+		require.Equal(t, "security-groups/sg-1", updated.Spec.SecurityGroupRefs[0].Resource)
 
 		// Verify update with Get
 		nic3 := &nicdom.Nic{}
@@ -166,7 +166,7 @@ func TestNicBackend_CreateAndGetNic(t *testing.T) {
 		err = readerRepo.Load(ctx, &nic3)
 		require.NoError(t, err)
 		require.Len(t, nic3.Spec.SecurityGroupRefs, 1)
-		require.Equal(t, "sg-1", nic3.Spec.SecurityGroupRefs[0].Resource)
+		require.Equal(t, "security-groups/sg-1", nic3.Spec.SecurityGroupRefs[0].Resource)
 
 		// List NICs and verify ours exists
 		var nics []*nicdom.Nic
