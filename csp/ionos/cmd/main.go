@@ -20,8 +20,15 @@ import (
 
 	"github.com/eu-sovereign-cloud/ecp/csp/ionos/pkg/controllerset"
 	frameworkbuilder "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/builder"
+	instancek8s "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/instance/backend/kubernetes"
+	skuk8s "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/sku/backend/kubernetes"
 	netk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network/backend/kubernetes"
+	nick8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic/backend/kubernetes"
+	publicipk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/public-ip/backend/kubernetes"
+	routetablek8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/route-table/backend/kubernetes"
+	subnetk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/subnet/backend/kubernetes"
 	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage/backend/kubernetes"
+	imgk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image/backend/kubernetes"
 	wsk8s "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1/backend/kubernetes"
 )
 
@@ -31,7 +38,14 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(bsk8s.AddToScheme(scheme))
 	utilruntime.Must(netk8s.AddToScheme(scheme))
+	utilruntime.Must(publicipk8s.AddToScheme(scheme))
 	utilruntime.Must(wsk8s.AddToScheme(scheme))
+	utilruntime.Must(instancek8s.AddToScheme(scheme))
+	utilruntime.Must(skuk8s.AddToScheme(scheme))
+	utilruntime.Must(nick8s.AddToScheme(scheme))
+	utilruntime.Must(subnetk8s.AddToScheme(scheme))
+	utilruntime.Must(routetablek8s.AddToScheme(scheme))
+	utilruntime.Must(imgk8s.AddToScheme(scheme))
 	utilruntime.Must(ionosapis.AddToScheme(scheme))
 }
 
@@ -61,6 +75,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	controllerOpts := []frameworkbuilder.Option{
+		frameworkbuilder.WithLogger(logger.With("component", "controller-set")),
+		frameworkbuilder.WithRequeueAfter(1 * time.Second),
+		frameworkbuilder.WithMaxConditions(5),
+	}
 	// Typed client for the Namespace API: the Workspace and Network controllers tear down the
 	// namespace they own for their children once the plugin has finished deleting them.
 	clientset, err := kubernetes.NewForConfig(mgr.GetConfig())
@@ -68,13 +87,6 @@ func main() {
 		logger.Error("unable to create clientset", "error", err)
 		os.Exit(1)
 	}
-
-	controllerOpts := []frameworkbuilder.Option{
-		frameworkbuilder.WithLogger(logger.With("component", "controller-set")),
-		frameworkbuilder.WithRequeueAfter(1 * time.Second),
-		frameworkbuilder.WithMaxConditions(5),
-	}
-
 	controllerSet := frameworkbuilder.NewControllerSet()
 	controllerset.Add(controllerSet, mgr, dynClient, clientset, logger, controllerOpts...)
 

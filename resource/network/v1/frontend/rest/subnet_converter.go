@@ -102,7 +102,7 @@ func subnetToAPI(s *subnetdom.Subnet) *sdkschema.Subnet {
 		Extensions:  s.Extensions,
 		Spec: sdkschema.SubnetSpec{
 			Cidr:          cidrToAPI(netdom.CIDR(s.Spec.Cidr)),
-			RouteTableRef: commonfrontend.ReferenceToAPI(s.Spec.RouteTableRef),
+			RouteTableRef: new(commonfrontend.ReferenceToAPI(s.Spec.RouteTableRef)),
 			Zone:          s.Spec.Zone,
 		},
 	}
@@ -160,7 +160,7 @@ func subnetFromAPI(sdk sdkschema.Subnet, id *SubnetIdentity, region string) *sub
 	s := &subnetdom.Subnet{
 		Spec: subnetdom.SubnetSpec{
 			Cidr:          subnetdom.CIDR(cidrFromAPI(sdk.Spec.Cidr)),
-			RouteTableRef: commonfrontend.ReferenceFromAPI(sdk.Spec.RouteTableRef),
+			RouteTableRef: commonfrontend.ReferenceFromAPI(*sdk.Spec.RouteTableRef),
 			Zone:          sdk.Spec.Zone,
 		},
 	}

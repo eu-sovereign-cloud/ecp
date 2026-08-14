@@ -38,9 +38,9 @@ rules:
 - apiGroups: ["storage.v1.secapi.cloud"]
   resources: ["images", "images/status", "skus"]
   verbs: ["get", "list", "watch"]
-# SECA network CRs: networks/nics/subnets/public-ips (reconciled) + read-only SKU catalog.
+# SECA network CRs: networks/nics/subnets/public-ips/route-tables (reconciled) + read-only SKU catalog.
 - apiGroups: ["network.v1.secapi.cloud"]
-  resources: ["networks", "networks/status", "nics", "nics/status", "subnets", "subnets/status", "public-ips", "public-ips/status"]
+  resources: ["networks", "networks/status", "nics", "nics/status", "subnets", "subnets/status", "public-ips", "public-ips/status", "route-tables", "route-tables/status"]
   verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
 - apiGroups: ["network.v1.secapi.cloud"]
   resources: ["skus"]
