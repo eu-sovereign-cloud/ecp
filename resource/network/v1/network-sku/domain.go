@@ -6,7 +6,7 @@ import "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 // Identity constants for the network SKU resource.
 const (
 	Kind       = "NetworkSKU"
-	Resource   = "network-skus"
+	Resource   = "skus"
 	Group      = "network.v1.secapi.cloud"
 	Version    = "v1"
 	ProviderID = "seca.network/v1"

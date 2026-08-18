@@ -14,6 +14,7 @@ import (
 	backend "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
 	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	res "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
+	commonbackend "github.com/eu-sovereign-cloud/ecp/resource/common/backend"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	instancedom "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/instance"
 	instancek8s "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/instance/backend/kubernetes"
@@ -204,13 +205,16 @@ func (h *ComputeInstanceHandler) resolve(ctx context.Context, domain *instancedo
 	// The instance's SKU is a SECA InstanceSKU describing capacity (vCPU/RAM); Aruba needs a named
 	// flavor. Load the SKU and map its capacity to the Aruba flavor. A missing SKU CR is a not-ready
 	// gate (catalog still syncing); a capacity with no Aruba flavor is a real error.
-	skuName := lastSegment(domain.Spec.SkuRef.Resource)
-	if skuName == "" {
+	// A SKU is tenant-scoped, so the reference may name a tenant other than the instance's
+	// own — carried either as its own field or spelled out in the resource path.
+	// ParseReference reads both and falls back to the instance's tenant.
+	skuRef := commonbackend.ParseReference(domain.Spec.SkuRef, tenant)
+	if skuRef.Name == "" {
 		return nil, backend.ErrStillProcessing // SkuRef is required
 	}
 	sku := &computeskudom.InstanceSKU{RegionalMetadata: commondomain.RegionalMetadata{
-		CommonMetadata: commondomain.CommonMetadata{Name: skuName},
-		Scope:          res.Scope{Tenant: tenant},
+		CommonMetadata: commondomain.CommonMetadata{Name: skuRef.Name},
+		Scope:          res.Scope{Tenant: skuRef.Tenant},
 	}}
 	if err := h.computeSkuRepository.Load(ctx, &sku); err != nil {
 		return nil, backend.ErrStillProcessing // SKU catalog not ready yet
@@ -238,7 +242,11 @@ func (h *ComputeInstanceHandler) resolveNetworking(ctx context.Context, domain *
 		return err
 	}
 	if domain.Spec.SecurityGroupRef != nil {
-		sgNames = appendUnique(sgNames, lastSegment(domain.Spec.SecurityGroupRef.Resource))
+		name, err := localRefName(*domain.Spec.SecurityGroupRef, tenant, workspace)
+		if err != nil {
+			return err
+		}
+		sgNames = appendUnique(sgNames, name)
 	}
 	if len(subnetNames) == 0 {
 		return backend.ErrStillProcessing // an Aruba CloudServer needs at least one subnet
@@ -291,8 +299,12 @@ func (h *ComputeInstanceHandler) resolveNetworking(ctx context.Context, domain *
 // request Aruba would reject.
 func (h *ComputeInstanceHandler) resolveVolumes(ctx context.Context, domain *instancedom.Instance, refs *adaptconverter.CloudServerRefs) error {
 	wsNamespace := k8sadapter.ComputeNamespace(domain)
+	tenant, workspace := domain.GetTenant(), domain.GetWorkspace()
 
-	bootName := lastSegment(domain.Spec.BootVolume.DeviceRef.Resource)
+	bootName, err := localRefName(domain.Spec.BootVolume.DeviceRef, tenant, workspace)
+	if err != nil {
+		return err
+	}
 	if bootName == "" {
 		return backend.ErrStillProcessing // BootVolumeReference is required
 	}
@@ -311,7 +323,10 @@ func (h *ComputeInstanceHandler) resolveVolumes(ctx context.Context, domain *ins
 
 	refs.DataVolumeReferences = []v1alpha1.ResourceReference{}
 	for _, dv := range domain.Spec.DataVolumes {
-		name := lastSegment(dv.DeviceRef.Resource)
+		name, err := localRefName(dv.DeviceRef, tenant, workspace)
+		if err != nil {
+			return err
+		}
 		if name == "" {
 			continue
 		}
@@ -334,11 +349,16 @@ func (h *ComputeInstanceHandler) resolveNics(ctx context.Context, domain *instan
 		refs = append([]commondomain.Reference{*domain.Spec.PrimaryNicRef}, refs...)
 	}
 
+	tenant, workspace := domain.GetTenant(), domain.GetWorkspace()
 	for _, ref := range refs {
+		nicName, err := localRefName(ref, tenant, workspace)
+		if err != nil {
+			return nil, nil, nil, err
+		}
 		nic := &nicdom.Nic{
 			RegionalMetadata: commondomain.RegionalMetadata{
-				CommonMetadata: commondomain.CommonMetadata{Name: lastSegment(ref.Resource)},
-				Scope:          res.Scope{Tenant: domain.GetTenant(), Workspace: domain.GetWorkspace()},
+				CommonMetadata: commondomain.CommonMetadata{Name: nicName},
+				Scope:          res.Scope{Tenant: tenant, Workspace: workspace},
 			},
 		}
 		if err := h.nicRepository.Load(ctx, &nic); err != nil {
@@ -347,12 +367,24 @@ func (h *ComputeInstanceHandler) resolveNics(ctx context.Context, domain *instan
 
 		// Kept whole rather than reduced to a name: a subnet reference may name the network it
 		// is scoped under, which is what resolveSubnet needs to pick between same-named subnets.
+		// The scope is still checked, since resolveSubnet lists in the instance's own.
+		if _, err := localRefName(nic.Spec.SubnetRef, tenant, workspace); err != nil {
+			return nil, nil, nil, err
+		}
 		subnets = appendUnique(subnets, nic.Spec.SubnetRef.Resource)
 		for _, sg := range nic.Spec.SecurityGroupRefs {
-			secGroups = appendUnique(secGroups, lastSegment(sg.Resource))
+			name, err := localRefName(sg, tenant, workspace)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+			secGroups = appendUnique(secGroups, name)
 		}
 		for _, pip := range nic.Spec.PublicIpRefs {
-			publicIps = appendUnique(publicIps, lastSegment(pip.Resource))
+			name, err := localRefName(pip, tenant, workspace)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+			publicIps = appendUnique(publicIps, name)
 		}
 	}
 	return subnets, secGroups, publicIps, nil
@@ -436,9 +468,13 @@ func (h *ComputeInstanceHandler) materializeSecurityGroup(ctx context.Context, t
 
 	rules := adaptconverter.NormalizeInlineRules(seca.Spec.Rules, seca.Labels)
 	for _, rr := range seca.Spec.RuleRefs {
+		ruleName, err := localRefName(rr, tenant, workspace)
+		if err != nil {
+			return v1alpha1.ResourceReference{}, err
+		}
 		standalone := &sgrdom.SecurityGroupRule{
 			RegionalMetadata: commondomain.RegionalMetadata{
-				CommonMetadata: commondomain.CommonMetadata{Name: lastSegment(rr.Resource)},
+				CommonMetadata: commondomain.CommonMetadata{Name: ruleName},
 				Scope:          res.Scope{Tenant: tenant, Workspace: workspace},
 			},
 		}
@@ -479,6 +515,26 @@ func lastSegment(resource string) string {
 	return resource
 }
 
+// localRefName returns the name a reference points at, refusing one that names a tenant or
+// workspace other than the referring resource's own.
+//
+// A reference carries its scope either as its own fields or spelled out in the resource path,
+// and both reach this adapter verbatim. Everything an instance names besides its SKU - nics,
+// volumes, security groups, public ips, rules - is resolved inside the instance's own Aruba
+// project, so a foreign scope cannot be honoured: taking the last path segment alone would
+// drop it and silently bind the same-named object in the wrong tenant. A SKU is the exception
+// and is parsed directly, because it is tenant-scoped and legitimately lives in a catalog
+// tenant of its own ("tenants/seca/skus/n1k" in the spec's own examples).
+// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
+func localRefName(ref commondomain.Reference, tenant, workspace string) (string, error) {
+	target := commonbackend.ParseReference(ref, tenant)
+	if target.Tenant != tenant || (target.Workspace != "" && target.Workspace != workspace) {
+		return "", fmt.Errorf("reference %q names tenant %q workspace %q, outside %q/%q: cross-scope references are not supported",
+			ref.Resource, target.Tenant, target.Workspace, tenant, workspace)
+	}
+	return target.Name, nil
+}
+
 // appendUnique appends v to s unless it is empty or already present.
 func appendUnique(s []string, v string) []string {
 	if v == "" {
@@ -488,4 +544,32 @@ func appendUnique(s []string, v string) []string {
 		return s
 	}
 	return append(s, v)
+}
+
+// Update re-applies the tags of the two Aruba objects the instance owns: its CloudServer and the
+// KeyPair materialised from its ssh key. Everything else a SECA instance names - flavor, zone,
+// boot volume, subnets - is fixed at creation on the Aruba side.
+//
+// The security groups the instance attaches are deliberately left alone: they are shared between
+// instances and belong to their SECA security group, which retags them itself (see
+// security-group.go). Retagging them from here would stamp one instance's labels onto every other
+// instance using the same group.
+func (h *ComputeInstanceHandler) Update(ctx context.Context, domain *instancedom.Instance) error {
+	namespace := k8sadapter.ComputeNamespace(domain)
+	tags := adaptconverter.ArubaTags(domain.Labels)
+
+	cloudServer := &v1alpha1.CloudServer{
+		ObjectMeta: metav1.ObjectMeta{Name: domain.Name, Namespace: namespace},
+	}
+	if err := syncTags(ctx, h.cloudServerRepo, cloudServer, tags,
+		func(c *v1alpha1.CloudServer) *[]string { return &c.Spec.Tags }); err != nil {
+		return err
+	}
+
+	keyPair := &v1alpha1.KeyPair{
+		ObjectMeta: metav1.ObjectMeta{Name: domain.Name + adaptconverter.KeyPairSuffix, Namespace: namespace},
+	}
+
+	return syncTags(ctx, h.keyPairRepository, keyPair, tags,
+		func(k *v1alpha1.KeyPair) *[]string { return &k.Spec.Tags })
 }

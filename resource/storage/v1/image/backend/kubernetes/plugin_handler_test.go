@@ -23,7 +23,7 @@ func TestImagePluginHandler_HandleReconcile(t *testing.T) {
 		errDeps   = errors.New("deps failed")
 	)
 
-	t.Run("should do nothing if resource is active and requires no changes", func(t *testing.T) {
+	t.Run("should call plugin update and write no status when resource is active and in sync", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
@@ -43,6 +43,7 @@ func TestImagePluginHandler_HandleReconcile(t *testing.T) {
 		// And a repo, plugin and deps that are not expected to be called
 		mockRepo := NewMockRepo[*imgdom.Image](ctrl)
 		mockPlugin := NewMockImagePlugin(ctrl)
+		mockPlugin.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil).Times(1)
 		mockDeps := NewMockDependencyResolver(ctrl)
 
 		//

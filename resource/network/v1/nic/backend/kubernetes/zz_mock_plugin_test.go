@@ -68,3 +68,17 @@ func (mr *MockNicPluginMockRecorder) Delete(ctx, resource any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockNicPlugin)(nil).Delete), ctx, resource)
 }
+
+// Update mocks base method.
+func (m *MockNicPlugin) Update(ctx context.Context, resource *nic.Nic) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Update", ctx, resource)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Update indicates an expected call of Update.
+func (mr *MockNicPluginMockRecorder) Update(ctx, resource any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockNicPlugin)(nil).Update), ctx, resource)
+}

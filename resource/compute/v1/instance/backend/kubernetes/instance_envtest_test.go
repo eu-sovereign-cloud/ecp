@@ -121,7 +121,7 @@ func TestInstanceBackend_CreateAndGetInstance(t *testing.T) {
 		created := *result
 		require.Equal(t, instanceName, created.Name)
 		require.Equal(t, "zone-1", created.Spec.Zone)
-		require.Equal(t, "standard-instance", created.Spec.SkuRef.Resource)
+		require.Equal(t, "skus/standard-instance", created.Spec.SkuRef.Resource)
 
 		// Get the Instance and verify it matches.
 		inst := &instancedom.Instance{}

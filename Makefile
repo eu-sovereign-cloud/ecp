@@ -174,12 +174,23 @@ RUN ?=
 test: $(addsuffix -test,$(GO_MODULES))
 
 # test-envtest: run integration tests that require a real kube-apiserver (envtest).
-# Set KUBEBUILDER_ASSETS to a directory containing kube-apiserver + etcd binaries,
-# or leave it unset to let envtest download them automatically.
+# controller-runtime downloads kube-apiserver + etcd on first use into a shared cache
+# ($TMPDIR/envtest-binaries), so this needs egress the first time it runs on a machine.
+#
+# ENVTEST_K8S_VERSION pins that download: left to itself controller-runtime resolves
+# "latest stable" from the release index, which turns this gate red with no local change
+# the day a new one appears.
+#
+# -p 1 is load-bearing, not a speed knob: every package here starts its own apiserver and
+# they all extract into the same cache directory. Concurrently, the extractor skips a file
+# another process created (O_EXCL) and hands back the path regardless — possibly a
+# half-written binary. Serially, the first package populates the cache for the rest.
+ENVTEST_K8S_VERSION ?= 1.36.2
+
 .PHONY: test-envtest
 test-envtest:
 	@$(_REPO_ROOT)/ci/scripts/verify-run.sh "resource-envtest" "Envtest integration tests" -- \
-	  sh -c "cd $(_REPO_ROOT)/resource && go test -race -tags envtest -v $(if $(RUN),-run '$(RUN)') ./..."
+	  sh -c "cd $(_REPO_ROOT)/resource && ENVTEST_K8S_VERSION=$(ENVTEST_K8S_VERSION) go test -race -tags envtest -p 1 -v $(if $(RUN),-run '$(RUN)') ./..."
 
 ###############################################################################
 # Per-module vet-integration: compile-check tag-gated test files
@@ -506,10 +517,10 @@ branch-rebase-verify:
 ###############################################################################
 
 .PHONY: pre-commit
-pre-commit: go-sdk-verify generate-api-verify test lint gofmt-check modernize-check vuln gosec
+pre-commit: go-sdk-verify generate-api-verify test test-envtest lint gofmt-check modernize-check vuln gosec
 
 .PHONY: pre-merge
-pre-merge: gh-token-ensure branch-rebase-verify workspace-verify go-sdk-verify generate-api-verify test lint gofmt-check vet-integration modernize-check vuln gosec
+pre-merge: gh-token-ensure branch-rebase-verify workspace-verify go-sdk-verify generate-api-verify test test-envtest lint gofmt-check vet-integration modernize-check vuln gosec
 
 ###############################################################################
 # Workspace membership: add / remove a module from go.work

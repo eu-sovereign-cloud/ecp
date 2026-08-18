@@ -22,7 +22,7 @@ func (h *Handler) ListPublicIps(w http.ResponseWriter, r *http.Request, tenant s
 
 // DeletePublicIp handles DELETE /v1/tenants/{tenant}/workspaces/{workspace}/public-ips/{name}.
 func (h *Handler) DeletePublicIp(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdknetwork.DeletePublicIpParams) {
-	logger := h.Logger.With("provider", "network", "resource", "public-ip", "name", name)
+	logger := h.Logger.With("provider", "network", "resource", "public-ip")
 	id := &resource.Identity{Name: name, Scope: resource.Scope{Tenant: tenant, Workspace: workspace}}
 	if params.IfUnmodifiedSince != nil {
 		id.Version = strconv.Itoa(*params.IfUnmodifiedSince)
@@ -32,14 +32,14 @@ func (h *Handler) DeletePublicIp(w http.ResponseWriter, r *http.Request, tenant 
 
 // GetPublicIp handles GET /v1/tenants/{tenant}/workspaces/{workspace}/public-ips/{name}.
 func (h *Handler) GetPublicIp(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam) {
-	logger := h.Logger.With("provider", "network", "resource", "public-ip", "name", name)
+	logger := h.Logger.With("provider", "network", "resource", "public-ip")
 	ir := &resource.Identity{Name: name, Scope: resource.Scope{Tenant: tenant, Workspace: workspace}}
 	frest.HandleGet(w, r, logger, ir, frest.GetterFromRepo(h.PublicIpReader, newPublicIpWithIdentity), publicIpToAPIWithVerb(http.MethodGet))
 }
 
 // CreateOrUpdatePublicIp handles PUT /v1/tenants/{tenant}/workspaces/{workspace}/public-ips/{name}.
 func (h *Handler) CreateOrUpdatePublicIp(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdknetwork.CreateOrUpdatePublicIpParams) {
-	logger := h.Logger.With("provider", "network", "resource", "public-ip", "name", name)
+	logger := h.Logger.With("provider", "network", "resource", "public-ip")
 	id := &resource.Identity{Name: name, Scope: resource.Scope{Tenant: tenant, Workspace: workspace}}
 	if params.IfUnmodifiedSince != nil {
 		id.Version = strconv.Itoa(*params.IfUnmodifiedSince)

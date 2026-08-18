@@ -20,6 +20,7 @@ import (
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
 	wsk8s "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1/backend/kubernetes"
+	"github.com/eu-sovereign-cloud/ecp/test/internal/testenv"
 )
 
 const (
@@ -80,7 +81,9 @@ func TestMultiClusterRegistration(t *testing.T) {
 	require.NoError(t, err, "failed to build a workspace client from the advertised URL")
 
 	t.Cleanup(func() {
-		_, _ = workspaceClient.DeleteWorkspaceWithResponse(ctx, testTenant, testWorkspace, nil)
+		testenv.DeleteUntilGone(ctx, func() (*http.Response, error) {
+			return workspaceClient.DeleteWorkspace(ctx, testTenant, testWorkspace, nil)
+		})
 	})
 
 	t.Run("advertised regional endpoint serves the API", func(t *testing.T) {

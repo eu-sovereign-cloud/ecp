@@ -21,7 +21,7 @@ func (h *Handler) ListRouteTables(w http.ResponseWriter, r *http.Request, tenant
 
 // DeleteRouteTable handles DELETE /v1/tenants/{tenant}/workspaces/{workspace}/networks/{network}/route-tables/{name}.
 func (h *Handler) DeleteRouteTable(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, network sdkschema.NetworkPathParam, name sdkschema.ResourcePathParam, params sdknetwork.DeleteRouteTableParams) {
-	logger := h.Logger.With("provider", "network", "resource", "route-table", "name", name)
+	logger := h.Logger.With("provider", "network", "resource", "route-table")
 	id := &RouteTableIdentity{name: name, tenant: tenant, workspace: workspace, network: network}
 	if params.IfUnmodifiedSince != nil {
 		id.resourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
@@ -31,14 +31,14 @@ func (h *Handler) DeleteRouteTable(w http.ResponseWriter, r *http.Request, tenan
 
 // GetRouteTable handles GET /v1/tenants/{tenant}/workspaces/{workspace}/networks/{network}/route-tables/{name}.
 func (h *Handler) GetRouteTable(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, network sdkschema.NetworkPathParam, name sdkschema.ResourcePathParam) {
-	logger := h.Logger.With("provider", "network", "resource", "route-table", "name", name)
+	logger := h.Logger.With("provider", "network", "resource", "route-table")
 	ir := &RouteTableIdentity{name: name, tenant: tenant, workspace: workspace, network: network}
 	frest.HandleGet(w, r, logger, ir, frest.GetterFromRepo(h.RouteTableReader, newRouteTableWithIdentity), routeTableToAPIWithVerb(http.MethodGet))
 }
 
 // CreateOrUpdateRouteTable handles PUT /v1/tenants/{tenant}/workspaces/{workspace}/networks/{network}/route-tables/{name}.
 func (h *Handler) CreateOrUpdateRouteTable(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, network sdkschema.NetworkPathParam, name sdkschema.ResourcePathParam, params sdknetwork.CreateOrUpdateRouteTableParams) {
-	logger := h.Logger.With("provider", "network", "resource", "route-table", "name", name)
+	logger := h.Logger.With("provider", "network", "resource", "route-table")
 	id := &RouteTableIdentity{name: name, tenant: tenant, workspace: workspace, network: network}
 	if params.IfUnmodifiedSince != nil {
 		id.resourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)

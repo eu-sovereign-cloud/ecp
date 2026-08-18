@@ -1,6 +1,7 @@
 package kubernetes_test
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -69,4 +70,102 @@ func TestSecurityGroupRuleToCR_MinimalSpec(t *testing.T) {
 	require.Nil(t, out.Spec.Icmp)
 	require.Nil(t, out.Spec.Ports)
 	require.Equal(t, commondomain.ResourceStatePending, out.Status.Conditions[0].State)
+}
+
+// FuzzSecurityGroupRuleSpecRoundTrip targets the nested optional spec — *IcmpConfig, *Ports and
+// the []Reference source list. Pointer and slice fields are where nil-vs-empty drift hides, and
+// SourceRef exercises ReferenceToCR, which must hand the reference back exactly as it was
+// written rather than rewriting one of the two spec representations into the other.
+//
+// The invariant is stability, not identity: the first round-trip normalizes (unknown IP versions
+// collapse to "", provider "/"↔"_"), so domain2 and domain3 must be identical.
+func FuzzSecurityGroupRuleSpecRoundTrip(f *testing.F) {
+	// (name, direction, protocol, version, srcResource, srcProvider, hasIcmp, hasPorts,
+	//  icmpCode, icmpType, portFrom, portTo)
+	f.Add("sgr", "ingress", "tcp", "IPv4", "networks/net1", "", true, true, 1, 2, 80, 443)
+	f.Add("sgr", "egress", "", "", "", "", false, false, 0, 0, 0, 0)
+	f.Add("sgr", "ingress", "udp", "IPv6", "tenants/t/networks/n", "", true, false, 0, 0, 0, 0)
+	f.Add("sgr", "ingress", "icmp", "bogus-version", "networks/n", "seca.network/v1", false, true, 0, 0, -1, -1)
+	// already-qualified reference paths: the second pass must not re-embed the scope
+	f.Add("sgr", "ingress", "tcp", "IPv4", "seca.network/v1/tenants/t/workspaces/w/networks/n", "", false, false, 0, 0, 1, 65535)
+	f.Add("sgr", "ingress", "tcp", "IPv4", "tenants/t/workspaces/w/security-groups/sg", "", false, false, 0, 0, 0, 0)
+	// numeric edges
+	f.Add("sgr", "ingress", "tcp", "IPv4", "networks/n", "", true, true, -2147483648, 2147483647, -1, 65536)
+
+	f.Fuzz(func(t *testing.T, name, direction, protocol, version, srcResource, srcProvider string,
+		hasIcmp, hasPorts bool, icmpCode, icmpType, portFrom, portTo int,
+	) {
+		spec := securitygroupruledom.SecurityGroupRuleSpec{
+			Direction: direction,
+			Protocol:  protocol,
+			Version:   commondomain.IPVersion(version),
+		}
+		if hasIcmp {
+			spec.Icmp = &securitygroupruledom.IcmpConfig{Code: icmpCode, Type: icmpType}
+		}
+		if hasPorts {
+			spec.Ports = &securitygroupruledom.Ports{From: portFrom, To: portTo, List: []int{portFrom, portTo}}
+		}
+		if srcResource != "" {
+			spec.SourceRef = []commondomain.Reference{{Resource: srcResource, Provider: srcProvider}}
+		}
+
+		domain := &securitygroupruledom.SecurityGroupRule{Spec: spec}
+		domain.Name = name
+		domain.Tenant = "t"
+		domain.Workspace = "w"
+
+		cr1, err := SecurityGroupRuleToCR(domain)
+		if err != nil {
+			return
+		}
+
+		domain2, err := SecurityGroupRuleFromCR(cr1)
+		if err != nil {
+			t.Errorf("CR→domain failed after successful domain→CR: %v", err)
+			return
+		}
+
+		cr2, err := SecurityGroupRuleToCR(domain2)
+		if err != nil {
+			t.Errorf("second domain→CR failed: %v", err)
+			return
+		}
+
+		domain3, err := SecurityGroupRuleFromCR(cr2)
+		if err != nil {
+			t.Errorf("second CR→domain failed: %v", err)
+			return
+		}
+
+		// Optional sub-structs must keep their nil-ness, not flip to a zero value or back.
+		if (domain2.Spec.Icmp == nil) != (domain3.Spec.Icmp == nil) {
+			t.Errorf("Icmp nil-ness not stable: %v → %v", domain2.Spec.Icmp, domain3.Spec.Icmp)
+		}
+		if (domain2.Spec.Ports == nil) != (domain3.Spec.Ports == nil) {
+			t.Errorf("Ports nil-ness not stable: %v → %v", domain2.Spec.Ports, domain3.Spec.Ports)
+		}
+		if !reflect.DeepEqual(domain2.Spec.Icmp, domain3.Spec.Icmp) {
+			t.Errorf("Icmp not stable: %+v → %+v", domain2.Spec.Icmp, domain3.Spec.Icmp)
+		}
+		if !reflect.DeepEqual(domain2.Spec.Ports, domain3.Spec.Ports) {
+			t.Errorf("Ports not stable: %+v → %+v", domain2.Spec.Ports, domain3.Spec.Ports)
+		}
+		// SourceRef must neither grow, shrink, nor re-embed its scope segments.
+		if !reflect.DeepEqual(domain2.Spec.SourceRef, domain3.Spec.SourceRef) {
+			t.Errorf("SourceRef not stable: %+v → %+v", domain2.Spec.SourceRef, domain3.Spec.SourceRef)
+		}
+		if domain2.Spec.Direction != domain3.Spec.Direction {
+			t.Errorf("Direction not stable: %q → %q", domain2.Spec.Direction, domain3.Spec.Direction)
+		}
+		if domain2.Spec.Protocol != domain3.Spec.Protocol {
+			t.Errorf("Protocol not stable: %q → %q", domain2.Spec.Protocol, domain3.Spec.Protocol)
+		}
+		if domain2.Spec.Version != domain3.Spec.Version {
+			t.Errorf("Version not stable: %q → %q", domain2.Spec.Version, domain3.Spec.Version)
+		}
+		if domain2.Name != domain3.Name {
+			t.Errorf("Name not stable: %q → %q", domain2.Name, domain3.Name)
+		}
+	})
 }

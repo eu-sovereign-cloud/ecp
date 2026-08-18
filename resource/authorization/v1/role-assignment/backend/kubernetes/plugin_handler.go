@@ -40,6 +40,12 @@ func NewRoleAssignmentPluginHandler(
 }
 
 func (h *RoleAssignmentPluginHandler) HandleReconcile(ctx context.Context, resource *radom.RoleAssignment) (bool, error) {
+	// An active resource has no lifecycle transition left to make, so it takes the update
+	// path instead of the create/delete state machine below. See commonbackend.HandleUpdate.
+	if isRoleAssignmentActive(resource) {
+		return commonbackend.HandleUpdate(ctx, resource, &resource.Status.Status, h.plugin.Update, h.repo, h.MaxConditions)
+	}
+
 	var delegate backendport.DelegatedFunc[*radom.RoleAssignment]
 
 	switch {
@@ -112,9 +118,7 @@ func (h *RoleAssignmentPluginHandler) setResourceState(ctx context.Context, reso
 	}
 
 	resource.Status.PushCondition(commonbackend.ConditionFromState(state))
-	for h.MaxConditions > 0 && len(resource.Status.Conditions) > h.MaxConditions {
-		resource.Status.PopCondition()
-	}
+	commonbackend.TrimConditions(&resource.Status.Status, h.MaxConditions)
 
 	if _, err := h.repo.UpdateStatus(ctx, resource); err != nil {
 		if errors.Is(err, kernel.ErrNotFound) {
@@ -133,9 +137,7 @@ func (h *RoleAssignmentPluginHandler) setResourceErrorState(ctx context.Context,
 	}
 
 	resource.Status.PushCondition(commonbackend.ConditionFromError(err))
-	for h.MaxConditions > 0 && len(resource.Status.Conditions) > h.MaxConditions {
-		resource.Status.PopCondition()
-	}
+	commonbackend.TrimConditions(&resource.Status.Status, h.MaxConditions)
 
 	if _, updateErr := h.repo.UpdateStatus(ctx, resource); updateErr != nil {
 		if errors.Is(updateErr, kernel.ErrNotFound) {
@@ -146,6 +148,12 @@ func (h *RoleAssignmentPluginHandler) setResourceErrorState(ctx context.Context,
 	}
 
 	return requeue, nil
+}
+
+func isRoleAssignmentActive(resource *radom.RoleAssignment) bool {
+	return resource.DeletedAt == nil &&
+		resource.Status != nil &&
+		resource.Status.State == commondomain.ResourceStateActive
 }
 
 func isRoleAssignmentAccepted(resource *radom.RoleAssignment) bool {

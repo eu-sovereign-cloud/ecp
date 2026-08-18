@@ -4,6 +4,19 @@ This directory contains a template and example implementation of a Delegator wit
 
 By running this dummy implementation, you can observe the entire lifecycle of custom resources (`BlockStorage`, `Image`, `Role`, `RoleAssignment`, `Workspace`) as they are processed by the controller. The dummy plugin logs the actions it performs (like `Create`, `Delete`, `IncreaseSize`) without interacting with a real cloud provider, making it an excellent tool for understanding the resource handling flow.
 
+### How updates show up
+
+There is no cloud behind this plugin, so `Update` cannot write to a provider — instead it records what it was asked to apply, in the `dummy.csp/applied-labels` annotation on the resource itself. The annotation is served back through the API, which makes the whole round trip observable:
+
+```bash
+kubectl get network <name> -o jsonpath='{.commonData.annotations.dummy\.csp/applied-labels}'
+# env=prod,team=platform
+```
+
+A real CSP writes the labels onto the provider resource instead; the Aruba plugin turns them into tags on the Aruba CR.
+
+Two details are load-bearing rather than cosmetic. The record is **sorted**, because Go map iteration order is random and an unstable rendering would look like a change on every reconcile. And it is written **only when it is stale** — `Update` runs on every reconcile of an active resource, and the controller reconciles on its own writes, so an unconditional write would never settle. `test/e2e/update_test.go` asserts both ends of this.
+
 ## Directory Content
 
 -   `cmd/`: Contains the main application entrypoint for the delegator.

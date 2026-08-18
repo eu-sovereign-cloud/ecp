@@ -111,12 +111,18 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) error 
 		logger,
 		rolek8s.RoleFromCR,
 	)
-	roleWriterAdapter := k8sadapter.NewWriterAdapter[*roledom.Role](
+	// Role and RoleAssignment CRs live in the tenant namespace, and the global cluster has no
+	// other writer that would provision it — so these two ensure it themselves. NoChildNamespace:
+	// neither owns a namespace for children of its own.
+	roleWriterAdapter := k8sadapter.NewNamespaceManagingWriterAdapter[*roledom.Role](
 		client.Client,
+		client.ClientSet,
 		rolek8s.RoleGVR,
 		logger,
 		rolek8s.RoleToCR,
 		rolek8s.RoleFromCR,
+		k8sadapter.NoChildNamespace,
+		nil,
 	)
 	roleAssignmentReaderAdapter := k8sadapter.NewReaderAdapter[*radom.RoleAssignment](
 		client.Client,
@@ -124,12 +130,15 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) error 
 		logger,
 		rak8s.RoleAssignmentFromCR,
 	)
-	roleAssignmentWriterAdapter := k8sadapter.NewWriterAdapter[*radom.RoleAssignment](
+	roleAssignmentWriterAdapter := k8sadapter.NewNamespaceManagingWriterAdapter[*radom.RoleAssignment](
 		client.Client,
+		client.ClientSet,
 		rak8s.RoleAssignmentGVR,
 		logger,
 		rak8s.RoleAssignmentToCR,
 		rak8s.RoleAssignmentFromCR,
+		k8sadapter.NoChildNamespace,
+		nil,
 	)
 
 	// Build the authenticator and RBAC checker (both nil when --auth-enabled is not set).

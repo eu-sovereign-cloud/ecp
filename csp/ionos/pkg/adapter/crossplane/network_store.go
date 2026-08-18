@@ -93,7 +93,7 @@ func newLan(domain *netdom.Network) *ionosv1alpha1.Lan {
 					Name:      domain.GetWorkspace(),
 					Namespace: namespace,
 				},
-				Public: new(false),
+				Public: new(true),
 			},
 		},
 	}

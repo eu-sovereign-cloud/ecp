@@ -15,13 +15,13 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/eu-sovereign-cloud/ecp/framework/frontend/middleware"
-	kernel "github.com/eu-sovereign-cloud/ecp/framework/kernel"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	authnport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/authn"
 	authzport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/authz"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/auth"
 	gatewayauthn "github.com/eu-sovereign-cloud/ecp/gateway/internal/authn"
-	seca "github.com/eu-sovereign-cloud/ecp/gateway/internal/authz/seca"
+	"github.com/eu-sovereign-cloud/ecp/gateway/internal/authz/seca"
 	roledom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role"
 	radom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment"
 	commondom "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
@@ -120,7 +120,7 @@ func TestIntegration_ValidToken_Allowed(t *testing.T) {
 	a := gatewayauthn.NewDummyAuthenticator(map[string]string{"alice": "s3cr3t"})
 	h := buildChain(a, allowChecker)
 
-	req := httptest.NewRequest(http.MethodGet, "/instances", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/instances", nil)
 	req.Header.Set("Authorization", "Bearer "+bearerToken("alice", "s3cr3t", nil))
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, req)
@@ -137,7 +137,7 @@ func TestIntegration_MissingToken(t *testing.T) {
 	a := gatewayauthn.NewDummyAuthenticator(map[string]string{"alice": "s3cr3t"})
 	h := buildChain(a, allowChecker)
 
-	req := httptest.NewRequest(http.MethodGet, "/instances", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/instances", nil)
 	// no Authorization header
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, req)
@@ -154,7 +154,7 @@ func TestIntegration_WrongPassword(t *testing.T) {
 	a := gatewayauthn.NewDummyAuthenticator(map[string]string{"alice": "s3cr3t"})
 	h := buildChain(a, allowChecker)
 
-	req := httptest.NewRequest(http.MethodGet, "/instances", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/instances", nil)
 	req.Header.Set("Authorization", "Bearer "+bearerToken("alice", "wrongpass", nil))
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, req)
@@ -171,7 +171,7 @@ func TestIntegration_ValidToken_Denied(t *testing.T) {
 	a := gatewayauthn.NewDummyAuthenticator(map[string]string{"alice": "s3cr3t"})
 	h := buildChain(a, denyChecker)
 
-	req := httptest.NewRequest(http.MethodGet, "/instances", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/instances", nil)
 	req.Header.Set("Authorization", "Bearer "+bearerToken("alice", "s3cr3t", nil))
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, req)
@@ -190,7 +190,7 @@ func TestIntegration_CheckerTechnicalError(t *testing.T) {
 	a := gatewayauthn.NewDummyAuthenticator(map[string]string{"alice": "s3cr3t"})
 	h := buildChain(a, errorChecker)
 
-	req := httptest.NewRequest(http.MethodGet, "/instances", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/instances", nil)
 	req.Header.Set("Authorization", "Bearer "+bearerToken("alice", "s3cr3t", nil))
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, req)
@@ -212,7 +212,7 @@ func TestIntegration_AuthnOnly(t *testing.T) {
 	// No authzMW — checker nil simulates --authz-enabled=false.
 	h := authnMW(okHandler)
 
-	req := httptest.NewRequest(http.MethodGet, "/instances", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/instances", nil)
 	req.Header.Set("Authorization", "Bearer "+bearerToken("alice", "s3cr3t", nil))
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, req)
@@ -266,7 +266,7 @@ func TestIntegration_AuthzSkipProviders(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			req := httptest.NewRequest(http.MethodGet, tc.path, nil)
+			req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, tc.path, nil)
 			if tc.withToken {
 				req.Header.Set("Authorization", "Bearer "+bearerToken("alice", "s3cr3t", nil))
 			}
@@ -317,7 +317,7 @@ func TestIntegration_DownScopeFromToken(t *testing.T) {
 	h := authnMW(authzMW(okHandler))
 
 	scope := &resource.TokenScope{Tenants: []string{"t1"}, Regions: []string{"r1"}}
-	req := httptest.NewRequest(http.MethodGet, "/instances", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/instances", nil)
 	req.Header.Set("Authorization", "Bearer "+bearerToken("bob", "p@ss", scope))
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, req)
@@ -378,7 +378,7 @@ func TestIntegration_DownScope_ReducesAccess(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			req := httptest.NewRequest(http.MethodGet, "/instances", nil)
+			req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/instances", nil)
 			req.Header.Set("Authorization", "Bearer "+bearerToken("bob", "p@ss", tc.scope))
 			w := httptest.NewRecorder()
 			h.ServeHTTP(w, req)

@@ -9,7 +9,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/client-go/util/flowcontrol"
 	"k8s.io/client-go/util/homedir"
 )
 
@@ -18,8 +17,8 @@ import (
 // the case of automation (ie Terraform) runs with large amounts of state-check
 // GETs.
 const (
-	DefaultQPS       = 50  // Default in go-client is 5
-	DefaultBurst     = 100 // Default in go-client is 10
+	DefaultQPS       = 60 // Default in go-client is 5
+	DefaultBurst     = 90 // Default in go-client is 10
 	DefaultUserAgent = "ecp-gateway"
 )
 
@@ -41,18 +40,11 @@ func New() (*KubeClient, error) {
 // NewFromConfig creates a KubeClient using the provided rest.Config.
 // When QPS, Burst, or UserAgent are unset (zero/empty), gateway production
 // defaults are applied. Explicit non-zero caller values are preserved.
-//
-// Dynamic and typed clients share one RateLimiter so QPS/Burst is a single
-// process budget toward the apiserver. A caller-supplied RateLimiter is kept.
-// QPS less than 0 disables client-side rate limiting (RateLimiter stays nil).
 func NewFromConfig(cfg *rest.Config) (*KubeClient, error) {
 	if cfg == nil {
 		return nil, fmt.Errorf("rest.Config cannot be nil")
 	}
 	applyClientDefaults(cfg)
-	if err := ensureSharedRateLimiter(cfg); err != nil {
-		return nil, err
-	}
 
 	c := &KubeClient{}
 	client, err := dynamic.NewForConfig(cfg)
@@ -80,23 +72,6 @@ func applyClientDefaults(cfg *rest.Config) {
 	if cfg.UserAgent == "" {
 		cfg.UserAgent = DefaultUserAgent
 	}
-}
-
-// ensureSharedRateLimiter installs one token-bucket limiter on cfg when needed
-// so dynamic.NewForConfig and kubernetes.NewForConfig share the same budget.
-func ensureSharedRateLimiter(cfg *rest.Config) error {
-	if cfg.RateLimiter != nil {
-		return nil
-	}
-	// Negative QPS disables client-side throttling in client-go.
-	if cfg.QPS < 0 {
-		return nil
-	}
-	if cfg.Burst < 1 {
-		return fmt.Errorf("burst must be >= 1 when qps > 0 (got qps=%v burst=%d)", cfg.QPS, cfg.Burst)
-	}
-	cfg.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(cfg.QPS, cfg.Burst)
-	return nil
 }
 
 // CheckAPIServer probes apiserver reachability for readiness (discovery /version).

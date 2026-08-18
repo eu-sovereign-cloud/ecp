@@ -80,11 +80,32 @@ The control plane manages 18 resource slices — one CRD each, generated into `c
 
 ### Namespacing Strategy
 
-There is no `Tenant` CRD. Namespaces are derived deterministically from the resource's SECA scope by `ComputeNamespace` (`framework/backend/kubernetes/adapter.go`): the SHA3-224 hash of `<tenant>` for tenant-scoped resources, or of `<tenant>/<workspace>` for workspace-scoped ones.
+There is no `Tenant` CRD. Namespaces are derived deterministically from the resource's SECA scope (`framework/backend/kubernetes/adapter.go`), by one of two hash formulas selected in `resolveNamespace`:
 
-- Tenant-scoped resources (`Workspace`, `Role`, `RoleAssignment`, SKU catalogs) live in the tenant namespace `sha3-224(tenant)`.
-- Creating a `Workspace` also creates the namespace `sha3-224(tenant/workspace)` that holds the workspace's resources (e.g. `BlockStorage`), labeled with internal tenant/workspace owner labels; the namespace is rolled back if the workspace create fails.
-- An empty scope yields no namespace — that is the cluster-scoped `Region` case.
+- `ComputeNamespace` — `sha3-224(<tenant>)` for tenant-scoped resources, `sha3-224(<tenant>/<workspace>)` for workspace-scoped ones.
+- `ComputeNetworkNamespace` — `sha3-224(<tenant>/<workspace>/<network>)` for network-scoped resources (`Subnet`, `RouteTable`), so each network gets its own namespace and its children's names only have to be unique per network.
+
+An empty scope yields no namespace — that is the cluster-scoped `Region` case.
+
+Three levels of namespace exist, and each is labeled with the internal `secapi.cloud/{tenant,workspace,network}` owner labels that identify who provisioned it:
+
+| namespace | holds |
+|---|---|
+| `sha3-224(tenant)` | `Workspace`, `Role`, `RoleAssignment`, `Image`, SKU catalogs |
+| `sha3-224(tenant/workspace)` | `BlockStorage`, `Network`, `NIC`, `PublicIP`, `InternetGateway`, `SecurityGroup`, `SecurityGroupRule`, `Instance` |
+| `sha3-224(tenant/workspace/network)` | `Subnet`, `RouteTable` |
+
+### Namespace lifecycle
+
+Creation is synchronous, on the write path, because a namespace must exist before a CR can be written into it and the API answers immediately. `NamespaceManagingWriterAdapter.Create` ensures two namespaces: the tenant namespace, and — for the entities that own one — the one their children will land in.
+
+Only the **tenant** namespace is provisioned on a resource's own behalf, because there is no `Tenant` entity that would otherwise create it. Below that level a namespace is owned by a parent entity and its absence *is* the referential-integrity check: a `Network` addressed to a workspace that was never created fails with `NotFound` rather than fabricating `sha3-224(tenant/workspace)` and stranding resources in a workspace no listing will ever return. The same holds for every leaf resource, which uses a plain `WriterAdapter` and never creates a namespace at all.
+
+Only entities that own a namespace go through that adapter (`Workspace`, `Network`, and `Role`/`RoleAssignment` on the global gateway). The child-namespace ensure is rolled back if the CR create then fails: the caller names that namespace and only the owning CR's finalizer ever reclaims one, so without a CR it would leak permanently. The tenant namespace is not rolled back — it is shared, bounded by the authenticated tenant, and adopted by the next create.
+
+Teardown belongs to the owning controller in the delegator, via the `GenericController.WithCleanup` hook: `NamespaceCleanup` runs once, after the plugin has finished deleting and before the finalizer is dropped. It re-checks emptiness, verifies ownership, then deletes the namespace. Because the finalizer is still held, a failure is retried instead of orphaning the namespace. A namespace whose owner labels do not match is left in place and logged — deleting someone else's namespace is worse than leaking one.
+
+The lists of types that may live in each child namespace are `ChildResourceGVRs`, exported by the owning slice (`resource/workspace/v1/backend/kubernetes` and `resource/network/v1/network/backend/kubernetes`) and shared by the gateway's 409 check and the controller's re-check. A type missing from a list makes its namespace look empty when it is not.
 
 ## Authentication & Authorization
 
@@ -127,7 +148,10 @@ down-scoping, config flags, the RBAC algorithm, and a code layout map.
 
 ## Cascaded Deletion
 
-The SECA resource organization is hierarchical — Tenants 1—\* Workspaces 1—\* resources — and deletion is intended to cascade down this hierarchy. The building block for this is namespace ownership rather than Kubernetes owner references (none are set today):
+The SECA resource organization is hierarchical — Tenants 1—\* Workspaces 1—\* Networks 1—\* resources — and deletion is intended to cascade down this hierarchy. The building block for this is namespace ownership rather than Kubernetes owner references (none are set today):
 
-- A `Workspace`'s resources live in the workspace's dedicated namespace (see [Namespacing Strategy](#namespacing-strategy)), so deleting that namespace removes everything in the workspace at once.
-- `NamespaceManagingWriterAdapter.Delete` refuses delete when the child namespace still has SECA resources (empty check over injected GVRs), then deletes the CR and the owned child namespace. With no `Tenant` entity there is no tenant-level deletion to cascade from.
+- A `Workspace`'s resources live in the workspace's dedicated namespace, and a `Network`'s in its own (see [Namespacing Strategy](#namespacing-strategy)), so deleting that namespace removes everything under it at once.
+- The refusal and the teardown are split. `NamespaceManagingWriterAdapter.Delete` refuses the delete with 409 while the child namespace still holds SECA resources — a user-facing invariant that has to answer synchronously — and then deletes only the CR. Tearing the namespace down is the owning controller's `WithCleanup` finalizer, which re-checks emptiness before it acts.
+- With no `Tenant` entity there is no tenant-level deletion to cascade from.
+
+An owner reference cannot substitute for the finalizer here: `Namespace` is cluster-scoped while `Workspace` and `Network` are namespaced, and Kubernetes treats a cluster-scoped dependent with a namespaced owner as an unresolvable reference — the namespace is never garbage collected and the GC emits recurring `OwnerRefInvalidNamespace` events (before k8s 1.20 it deleted the dependent instead). Only a cluster-scoped owner would work, and there is no such object today.

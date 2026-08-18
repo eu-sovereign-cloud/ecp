@@ -18,7 +18,7 @@ ECP uses a **container-first** development model:
 | Docker or Podman | Container runtime | Auto-detected; both are fully supported |
 | `kubectl` | Kubernetes CLI | Required for cluster operations |
 | KIND | Local Kubernetes clusters | Required for integration tests |
-| Go 1.26.5+ | Build/test on host | Required only for bare-metal workflow |
+| Go 1.26.6+ | Build/test on host | Required only for bare-metal workflow |
 
 > **Podman users:** The Makefile handles SELinux volume labels (`:Z`), cgroupv2 delegation, rootless userns mapping, and KIND preflight automatically. See `.common.mk` for details.
 
@@ -29,7 +29,7 @@ The builder image is published to `ghcr.io/eu-sovereign-cloud/ecp-builder` and p
 The toolchain pulls from `docker.io` (builder base image) and `ghcr.io` (published builder image). Authenticating to both avoids rate-limit failures on first build.
 
 **`docker.io`** — Docker Hub enforces anonymous-pull rate limits. The builder
-base image (`golang:1.26.5-trixie`) is fetched from Docker Hub on a local
+base image (`golang:1.26.6-trixie`) is fetched from Docker Hub on a local
 builder build (`make builder-rebuild`):
 
 ```bash
@@ -74,7 +74,7 @@ The `framework ↛ resource` boundary is compiler-enforced: `framework` and `res
 
 ### Bare-Metal Development
 
-Running directly on the host requires Go 1.26.5+ and the dev tools installed locally.
+Running directly on the host requires Go 1.26.6+ and the dev tools installed locally.
 
 ```bash
 # Install pinned dev tools to ci/tools/bin/ (golangci-lint, controller-gen, etc.)
@@ -195,7 +195,7 @@ The 3 images form a layered chain. Each layer adds tooling on top of the previou
 
 | Attribute | Value |
 |-----------|-------|
-| Base | `golang:1.26.5-trixie` |
+| Base | `golang:1.26.6-trixie` |
 | Contains | Go toolchain, all codegen/lint/security tools (pinned versions) |
 | Published by | CI (`builder-publish.yaml`) to `ghcr.io/eu-sovereign-cloud/ecp-builder` |
 | Pinned at | `.builder-digest` (committed to git) |
@@ -215,7 +215,7 @@ make tools-build       # propagate downstream (auto on next -ctzd)
 |-----------|-------|
 | Base | `builder` |
 | Adds | Docker CLI (static binary), KIND, kubectl, GitHub CLI, bash completion, coloring |
-| Tag | `localhost/ecp/tools:<version>-trixie-go-v1.26.5` |
+| Tag | `localhost/ecp/tools:<version>-trixie-go-v1.26.6` |
 | Built by | `make tools-build` (auto-triggered by `-ctzd` targets if missing) |
 
 This image is what the `-ctzd` targets and the devcontainer use.
@@ -226,7 +226,7 @@ This image is what the `-ctzd` targets and the devcontainer use.
 |-----------|-------|
 | Base | `tools` |
 | Adds | OpenSSH server, neovim, gopls, sudo |
-| Tag | `localhost/ecp/dev:<version>-trixie-go-v1.26.5` |
+| Tag | `localhost/ecp/dev:<version>-trixie-go-v1.26.6` |
 | Built by | `make dev-build` (auto-triggered by `ctzdev-start` if missing) |
 
 ### Runner Image (`ci/container/runner/`)
@@ -260,7 +260,7 @@ Minimal distroless base (`gcr.io/distroless/static-debian13`) for production dep
 | Category | Target(s) | Description |
 |----------|-----------|-------------|
 | **Verification** | `test`, `<module>-test` | Unit tests with race detector (`-race`). Optional `RUN=<regex>` filter. |
-| | `test-envtest` | Integration tests requiring a real kube-apiserver (envtest; `resource` module) |
+| | `test-envtest` | Integration tests requiring a real kube-apiserver (envtest; `resource` module). No Docker/KIND — the apiserver and etcd binaries are downloaded to `$TMPDIR/envtest-binaries` on first run, at the version `ENVTEST_K8S_VERSION` pins. Part of `pre-commit` / `pre-merge` |
 | | `lint`, `<module>-lint` | golangci-lint with `.golangci.yml` config |
 | | `gofmt`, `<module>-gofmt` | Auto-fix formatting via `golangci-lint fmt` |
 | | `gofmt-check`, `<module>-gofmt-check` | Format check only (non-zero exit on diff; used by CI) |
@@ -276,7 +276,7 @@ Minimal distroless base (`gcr.io/distroless/static-debian13`) for production dep
 | | `workspace-verify` | `workspace-sync` + git-cleanliness gate (CI gate) |
 | | `go-sdk-update VERSION=<tag>` | Bump the go-sdk submodule and every dependent `go.mod` together |
 | | `go-sdk-verify` | Verify go-sdk submodule and `go.mod` pins agree (CI gate) |
-| **CI Gates** | `pre-commit` | `go-sdk-verify generate-api-verify test lint gofmt-check modernize-check vuln gosec` |
+| **CI Gates** | `pre-commit` | `go-sdk-verify generate-api-verify test test-envtest lint gofmt-check modernize-check vuln gosec` |
 | | `pre-merge` | Same, plus `gh-token-ensure branch-rebase-verify workspace-verify vet-integration` |
 | | `vet-integration`, `<module>-vet-integration` | `go vet -tags integration,envtest ./...` per module — compile-checks `//go:build integration` and `//go:build envtest` test files without running them (no KIND or envtest binaries needed) |
 | | `branch-rebase-verify` | Verify current branch is rebased onto its PR target |
@@ -316,7 +316,7 @@ Any target `FOO` defined at the root can be run as `FOO-ctzd`. The wrapper:
 |----------|-------------|
 | `csp/dummy/Makefile` | `build`, `deploy`, `kind-start`, `kind-stop`, `test-integration` |
 | `test/Makefile` | `test-all` (integration + e2e), `integration`, `integration-<component>`, `e2e`, `multicluster-e2e`, `conformance`, `conformance-ionos`, `deploy-stack` (+ `kind-*` variants, one-shot on KIND), `kind-multicluster-{start,stack,e2e,stop}`, `build-all`, `push-all`, `deploy-all`, `kind-start`, `kind-stop`, `kind-load-all`, `bench`, `report` |
-| `csp/ionos/deploy/Makefile` | `install-crossplane`, `install-provider`, `install-all`, `install-on-regional` |
+| `csp/ionos/Makefile` | `build`, `install-crossplane`, `install-provider`, `install-all`, `install-on-regional`, `install-plugin-on-regional` |
 | `test/conformance/ionos/Makefile` | `secatest-scaffolding`, `secatest`, `secatest-all`, `secatest-clean` |
 
 ## CI Pipeline (GitHub Actions)
@@ -332,9 +332,11 @@ Stage 1 — cheap gates, run in parallel
   branch-rebase    Verify branch is rebased onto its target (make branch-rebase-verify)
   go-sdk-verify    Verify go-sdk submodule and go.mod pins agree (make go-sdk-verify)
   chart-lint       helm lint + template both charts (every delegator plugin)
-  chart-smoke      Install both charts on KIND from the published Dockerfiles and
-                   assert the gateway enforces the auth the values asked for
-                   (ci/scripts/chart-smoke.sh) — the only job that starts a pod
+  chart-smoke      Install both charts on KIND from the published Dockerfiles,
+                   assert the gateway enforces the auth the values asked for,
+                   then seed test-data and run the test/load k6 smoke journey
+                   against both gateways (ci/scripts/chart-smoke.sh) — the
+                   only job that starts a pod
 
 Stage 2 — depends on Stage 1
   builder-publish-pr   Ensure a builder image exists for this PR:
@@ -345,6 +347,7 @@ Stage 3 — parallel, per changed module, inside the builder container
   workspace-verify     make workspace-verify
   generate-api         make generate-api-verify
   test                 make <module>-test              (matrix over changed modules)
+                       make test-envtest                (same job, resource module only)
   lint                 make <module>-lint               (matrix)
   gofmt                make <module>-gofmt-check        (matrix)
   modernize            make <module>-modernize-check    (matrix)

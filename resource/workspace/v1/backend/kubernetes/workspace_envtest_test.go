@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	k8sinterface "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -66,18 +67,15 @@ func TestWorkspaceBackend(t *testing.T) {
 
 	ctx := context.Background()
 
-	// Create the tenant namespace before creating workspace resources.
-	// The workspace CR is stored in the tenant namespace (hash of tenant),
-	// while the NamespaceManagingWriterAdapter only creates the workspace's
-	// child resource namespace (hash of tenant/workspace).
+	// The tenant namespace is deliberately NOT pre-created: against a real API server, a write
+	// into a missing namespace fails, so create_workspace below passing is the proof that the
+	// writer provisions the namespace the Workspace CR itself lives in.
 	namespace := k8sadapter.ComputeNamespace(&kernelresource.Scope{Tenant: tenant})
-	_, err = k8sadapter.CreateNamespace(ctx, clientset, namespace, map[string]string{
-		k8slabels.InternalTenantLabel: tenant,
-	})
-	require.NoError(t, err)
+	childNamespace := k8sadapter.ComputeNamespace(&kernelresource.Scope{Tenant: tenant, Workspace: workspaceName})
 
 	t.Cleanup(func() {
 		_ = k8sadapter.DeleteNamespace(context.Background(), clientset, namespace)
+		_ = k8sadapter.DeleteNamespace(context.Background(), clientset, childNamespace)
 	})
 
 	t.Run("create_workspace", func(t *testing.T) {
@@ -207,5 +205,38 @@ func TestWorkspaceBackend(t *testing.T) {
 		del.Tenant = tenant
 		err := writerRepo.Delete(ctx, del)
 		require.NoError(t, err)
+
+		// The write path deletes the CR only. Teardown moved to the controller finalizer, so
+		// the namespace must still be here.
+		_, err = clientset.CoreV1().Namespaces().Get(ctx, childNamespace, metav1.GetOptions{})
+		require.NoError(t, err, "the write path must leave the child namespace to the controller")
+	})
+
+	// The teardown half, against a real API server: the fake-client unit tests cannot catch a
+	// label key the write path and the ownership check disagree on, because both read the same
+	// constant. Here the labels make a full round trip through the API server.
+	t.Run("cleanup_deletes_the_owned_child_namespace", func(t *testing.T) {
+		ns, err := clientset.CoreV1().Namespaces().Get(ctx, childNamespace, metav1.GetOptions{})
+		require.NoError(t, err, "create_workspace must have provisioned the child namespace")
+		require.Equal(t, tenant, ns.Labels[k8slabels.InternalTenantLabel])
+		require.Equal(t, workspaceName, ns.Labels[k8slabels.InternalWorkspaceLabel])
+
+		del := &wsdom.Workspace{}
+		del.Name = workspaceName
+		del.Tenant = tenant
+
+		cleanup := k8sadapter.NamespaceCleanup[*wsdom.Workspace](
+			dynClient, clientset, slog.Default(), k8sadapter.WorkspaceChildren, nil,
+		)
+		require.NoError(t, cleanup(ctx, del))
+
+		// envtest runs no namespace controller, so a deleted namespace stays Terminating rather
+		// than disappearing — the deletionTimestamp is the proof the delete was accepted.
+		after, err := clientset.CoreV1().Namespaces().Get(ctx, childNamespace, metav1.GetOptions{})
+		require.NoError(t, err)
+		require.NotNil(t, after.DeletionTimestamp, "the owned child namespace must be deleted")
+
+		// Idempotent: the finalizer replays this hook whenever dropping it conflicts.
+		require.NoError(t, cleanup(ctx, del), "cleanup must tolerate a namespace already deleted")
 	})
 }

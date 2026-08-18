@@ -10,7 +10,7 @@ VERSION?=v0.1.0-alpha1-preview
 ###############################################################################
 
 # Go & toolchain version
-GO_VERSION?=1.26.5
+GO_VERSION?=1.26.6
 
 # Builder base image
 BUILDER_BASE_REGISTRY?=docker.io
@@ -103,9 +103,9 @@ GH_CLI_VERSION?=2.62.0
 
 CONTROLLER_GEN_VERSION ?= v0.20.0
 MOCKGEN_VERSION        ?= v0.6.0
-GOLANGCI_LINT_VERSION  ?= v2.1.6
-GOFUMPT_VERSION        ?= v0.8.0
+GOLANGCI_LINT_VERSION  ?= v2.11.4
+GOFUMPT_VERSION        ?= v0.9.2
 GOVULNCHECK_VERSION    ?= v1.1.4
-GOSEC_VERSION          ?= v2.22.3
+GOSEC_VERSION          ?= v2.28.0
 GOPLS_VERSION          ?= v0.21.1
 DLV_VERSION            ?= v1.26.1

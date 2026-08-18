@@ -1,0 +1,46 @@
+{
+  "scenarios": {
+    "stress": {
+      "executor": "ramping-vus",
+      "startVUs": 0,
+      "stages": [
+        { "duration": "0s", "target": 1 },
+        { "duration": "5s", "target": 1 },
+        { "duration": "0s", "target": 30 },
+        { "duration": "5s", "target": 30 },
+        { "duration": "0s", "target": 60 },
+        { "duration": "5s", "target": 60 },
+        { "duration": "0s", "target": 90 },
+        { "duration": "5s", "target": 90 },
+        { "duration": "0s", "target": 120 },
+        { "duration": "5s", "target": 120 },
+        { "duration": "0s", "target": 150 },
+        { "duration": "5s", "target": 150 },
+        { "duration": "0s", "target": 180 },
+        { "duration": "5s", "target": 180 },
+        { "duration": "0s", "target": 210 },
+        { "duration": "5s", "target": 210 },
+        { "duration": "0s", "target": 240 },
+        { "duration": "5s", "target": 240 },
+        { "duration": "0s", "target": 270 },
+        { "duration": "5s", "target": 270 },
+        { "duration": "0s", "target": 300 },
+        { "duration": "5s", "target": 300 },
+        { "duration": "0s", "target": 330 },
+        { "duration": "5s", "target": 330 },
+        { "duration": "0s", "target": 360 },
+        { "duration": "5s", "target": 360 }
+      ],
+      "gracefulRampDown": "10s"
+    }
+  },
+  "thresholds": {
+    "http_req_failed": ["rate<0.05"],
+    "checks": ["rate>0.90"],
+    "http_req_duration": ["p(95)<1500"],
+    "http_req_duration{name:global_healthz}": ["p(95)<800"],
+    "http_req_duration{name:regional_healthz}": ["p(95)<800"],
+    "http_req_duration{name:list_regions}": ["p(95)<1200"],
+    "http_req_duration{name:list_workspaces}": ["p(95)<1200"]
+  }
+}

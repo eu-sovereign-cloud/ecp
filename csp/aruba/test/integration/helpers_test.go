@@ -5,6 +5,7 @@ package integration
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"testing"
 	"time"
 
@@ -172,6 +173,18 @@ func requireArubaActive(t *testing.T, resource, name, ns string) {
 	t.Helper()
 	require.Equalf(t, "Active", arubaPhase(resource, name, ns),
 		"arubacloud.com %s/%s should be Active", resource, name)
+}
+
+// requireArubaField waits until read reports want, reporting what it saw last. Used for the update
+// path: the edit lands on the next reconcile of the SECA resource, not on the write that triggers it.
+func requireArubaField[V any](t *testing.T, read func() V, want V, msg string) {
+	t.Helper()
+	var last V
+	err := wait.PollUntilContextTimeout(ctx, pollInterval, updateTimeout, true, func(context.Context) (bool, error) {
+		last = read()
+		return reflect.DeepEqual(last, want), nil
+	})
+	require.NoErrorf(t, err, "%s: want %v, last observed %v", msg, want, last)
 }
 
 // requireNoArubaCR asserts a no-op SECA resource created no backing arubacloud.com CR.

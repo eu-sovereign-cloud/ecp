@@ -22,7 +22,7 @@ func (h *Handler) ListNetworks(w http.ResponseWriter, r *http.Request, tenant sd
 
 // DeleteNetwork handles DELETE /v1/tenants/{tenant}/workspaces/{workspace}/networks/{name}.
 func (h *Handler) DeleteNetwork(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdknetwork.DeleteNetworkParams) {
-	logger := h.Logger.With("provider", "network", "resource", "network", "name", name)
+	logger := h.Logger.With("provider", "network", "resource", "network")
 	id := &resource.Identity{Name: name, Scope: resource.Scope{Tenant: tenant, Workspace: workspace}}
 	if params.IfUnmodifiedSince != nil {
 		id.Version = strconv.Itoa(*params.IfUnmodifiedSince)
@@ -32,14 +32,14 @@ func (h *Handler) DeleteNetwork(w http.ResponseWriter, r *http.Request, tenant s
 
 // GetNetwork handles GET /v1/tenants/{tenant}/workspaces/{workspace}/networks/{name}.
 func (h *Handler) GetNetwork(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam) {
-	logger := h.Logger.With("provider", "network", "resource", "network", "name", name)
+	logger := h.Logger.With("provider", "network", "resource", "network")
 	ir := &resource.Identity{Name: name, Scope: resource.Scope{Tenant: tenant, Workspace: workspace}}
 	frest.HandleGet(w, r, logger, ir, frest.GetterFromRepo(h.NetworkReader, newNetworkWithIdentity), networkToAPIWithVerb(http.MethodGet))
 }
 
 // CreateOrUpdateNetwork handles PUT /v1/tenants/{tenant}/workspaces/{workspace}/networks/{name}.
 func (h *Handler) CreateOrUpdateNetwork(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdknetwork.CreateOrUpdateNetworkParams) {
-	logger := h.Logger.With("provider", "network", "resource", "network", "name", name)
+	logger := h.Logger.With("provider", "network", "resource", "network")
 	id := &resource.Identity{Name: name, Scope: resource.Scope{Tenant: tenant, Workspace: workspace}}
 	if params.IfUnmodifiedSince != nil {
 		id.Version = strconv.Itoa(*params.IfUnmodifiedSince)

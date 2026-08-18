@@ -41,6 +41,18 @@ type GenericController[D persistence.IdentifiableResource] struct {
 	requeueAfter        time.Duration
 	logger              *slog.Logger
 	maxStatusConditions int
+	cleanup             func(context.Context, D) error
+}
+
+// WithCleanup registers a hook invoked once the plugin has finished deleting the resource and
+// immediately before the finalizer is removed — the only window in which a resource can still
+// tear down something it owns outside its own CR.
+//
+// The hook must be idempotent: the finalizer stays on until it succeeds, so a failure is retried
+// on the next reconcile rather than silently orphaning the side effect.
+func (r *GenericController[D]) WithCleanup(cleanup func(context.Context, D) error) *GenericController[D] {
+	r.cleanup = cleanup
+	return r
 }
 
 // NewGenericController creates a new instance of GenericController.
@@ -130,8 +142,11 @@ func (r *GenericController[D]) Reconcile(ctx context.Context, req ctrl.Request) 
 		if errors.Is(err, backend.ErrStillProcessing) {
 			return ctrl.Result{RequeueAfter: r.requeueAfter}, nil
 		}
-		logger.Error("handler failed to reconcile", "error", err)
-		return ctrl.Result{RequeueAfter: r.requeueAfter}, err
+		logger.Log(ctx, k8sadapter.RetryLevel(err), "handler failed to reconcile", "error", err)
+		// Error alone. controller-runtime discards a Result returned alongside a non-nil error
+		// (warning on every reconcile) and requeues with exponential backoff instead — which is
+		// what a failing reconcile wants, and it keeps the error in the reconcile-error metric.
+		return ctrl.Result{}, err
 	}
 
 	// 5. Requeue the request if necessary
@@ -145,10 +160,19 @@ func (r *GenericController[D]) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	// 7. Check if the resource deletion process is complete
+	// 7. Check if the resource deletion process is complete. Reaching here means the handler
+	// returned no requeue, so the plugin has finished deleting: this is the last moment the
+	// resource can tear down anything it owns outside its own CR.
 	if !obj.GetDeletionTimestamp().IsZero() &&
 		getStateFromObject(obj) == stateDeleting &&
 		slices.Contains(obj.GetFinalizers(), finalizerName) {
+		if r.cleanup != nil {
+			if err := r.cleanup(ctx, domainResource); err != nil {
+				logger.Log(ctx, k8sadapter.RetryLevel(err), "cleanup hook failed, keeping finalizer to retry", "error", err)
+				return ctrl.Result{}, err
+			}
+		}
+
 		obj.SetFinalizers(slices.DeleteFunc(obj.GetFinalizers(), func(v string) bool {
 			return strings.EqualFold(v, finalizerName)
 		}))

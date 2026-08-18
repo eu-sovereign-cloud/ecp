@@ -77,8 +77,7 @@ func Serve(ctx context.Context, srv *http.Server, log *slog.Logger, readiness *R
 	if log == nil {
 		log = slog.Default()
 	}
-
-	ln, err := net.Listen("tcp", srv.Addr)
+	ln, err := new(net.ListenConfig).Listen(ctx, "tcp", srv.Addr)
 	if err != nil {
 		return fmt.Errorf("listen %s: %w", srv.Addr, err)
 	}

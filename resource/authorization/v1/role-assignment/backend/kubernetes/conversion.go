@@ -93,7 +93,7 @@ func RoleAssignmentToCR(ra *radom.RoleAssignment) (client.Object, error) {
 		CommonData: schemav1.CommonData{
 			Annotations: ra.Annotations,
 			Extensions:  ra.Extensions,
-			Labels:      slices.Collect(maps.Keys(ra.Labels)),
+			Labels:      slices.Sorted(maps.Keys(ra.Labels)),
 		},
 		Spec: RoleAssignmentSpec{
 			Subs:   ra.Spec.Subs,

@@ -22,7 +22,7 @@ func (h *Handler) ListImages(w http.ResponseWriter, r *http.Request, tenant sdks
 
 // DeleteImage handles DELETE /v1/tenants/{tenant}/images/{name}.
 func (h *Handler) DeleteImage(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam, params sdkstorage.DeleteImageParams) {
-	logger := h.Logger.With("provider", "storage", "resource", "image", "name", name)
+	logger := h.Logger.With("provider", "storage", "resource", "image")
 	id := &resource.Identity{Name: name, Scope: resource.Scope{Tenant: tenant}}
 	if params.IfUnmodifiedSince != nil {
 		id.Version = strconv.Itoa(*params.IfUnmodifiedSince)
@@ -32,14 +32,14 @@ func (h *Handler) DeleteImage(w http.ResponseWriter, r *http.Request, tenant sdk
 
 // GetImage handles GET /v1/tenants/{tenant}/images/{name}.
 func (h *Handler) GetImage(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam) {
-	logger := h.Logger.With("provider", "storage", "resource", "image", "name", name)
+	logger := h.Logger.With("provider", "storage", "resource", "image")
 	ir := &resource.Identity{Name: name, Scope: resource.Scope{Tenant: tenant}}
 	frest.HandleGet(w, r, logger, ir, frest.GetterFromRepo(h.ImageReader, newImageWithIdentity), imageToAPIWithVerb(http.MethodGet))
 }
 
 // CreateOrUpdateImage handles PUT /v1/tenants/{tenant}/images/{name}.
 func (h *Handler) CreateOrUpdateImage(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, name sdkschema.ResourcePathParam, params sdkstorage.CreateOrUpdateImageParams) {
-	logger := h.Logger.With("provider", "storage", "resource", "image", "name", name)
+	logger := h.Logger.With("provider", "storage", "resource", "image")
 	id := &resource.Identity{Name: name, Scope: resource.Scope{Tenant: tenant}}
 	if params.IfUnmodifiedSince != nil {
 		id.Version = strconv.Itoa(*params.IfUnmodifiedSince)

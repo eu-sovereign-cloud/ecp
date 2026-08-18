@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 	"errors"
-	"strings"
 
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -11,6 +10,7 @@ import (
 	backend "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
 	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	res "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
+	commonbackend "github.com/eu-sovereign-cloud/ecp/resource/common/backend"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage"
 	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage/backend/kubernetes"
@@ -205,24 +205,22 @@ func (h *BlockStorageHandler) resolveSecaBlockStorageDependencies(ctx context.Co
 		return nil, backend.ErrStillProcessing // TODO: better error handling
 	}
 
-	// The SKU reference may be a bare name ("sku-1") or a fully-qualified path
-	// such as "seca.storage/v1/tenants/<t>/skus/<name>"; the SKU name is the
-	// last path segment. See https://github.com/eu-sovereign-cloud/ecp/issues/216
-	skuName := domain.Spec.SkuRef.Resource
-	if idx := strings.LastIndex(skuName, "/"); idx != -1 {
-		skuName = skuName[idx+1:]
-	}
-	if skuName == "" {
+	// A SKU is tenant-scoped, so the reference may name a tenant other than this block
+	// storage's own — carried either as its own field or spelled out in the resource path
+	// ("seca.storage/v1/tenants/<t>/skus/<name>"). ParseReference reads both and falls back
+	// to this resource's tenant. See https://github.com/eu-sovereign-cloud/ecp/issues/216
+	skuRef := commonbackend.ParseReference(domain.Spec.SkuRef, domain.GetTenant())
+	if skuRef.Name == "" {
 		return nil, errors.New("invalid SKU reference")
 	}
 
 	storageSku := &ssdom.StorageSKU{
 		RegionalMetadata: commondomain.RegionalMetadata{
 			CommonMetadata: commondomain.CommonMetadata{
-				Name: skuName,
+				Name: skuRef.Name,
 			},
 			Scope: res.Scope{
-				Tenant: domain.GetTenant(),
+				Tenant: skuRef.Tenant,
 			},
 		},
 	}
@@ -338,4 +336,16 @@ func (h *BlockStorageHandler) resolveBlockStorageDependencies(ctx context.Contex
 	return &ArubaBlockStorageBundle{
 		BlockStorage: main.BlockStorage,
 	}, err
+}
+
+// Update re-applies the BlockStorage's tags. Growing a volume is not handled here: it has its own
+// plugin operation (IncreaseSize) and its own state transition, which the reconciler routes ahead
+// of this one.
+func (h *BlockStorageHandler) Update(ctx context.Context, domain *bsdom.BlockStorage) error {
+	bs, err := h.bsConverter.FromSECAToAruba(domain)
+	if err != nil {
+		return err
+	}
+
+	return syncTags(ctx, h.bsRepository, bs, bs.Spec.Tags, func(b *v1alpha1.BlockStorage) *[]string { return &b.Spec.Tags })
 }

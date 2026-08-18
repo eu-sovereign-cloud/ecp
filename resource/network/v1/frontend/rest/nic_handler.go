@@ -22,7 +22,7 @@ func (h *Handler) ListNics(w http.ResponseWriter, r *http.Request, tenant sdksch
 
 // DeleteNic handles DELETE /v1/tenants/{tenant}/workspaces/{workspace}/nics/{name}.
 func (h *Handler) DeleteNic(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdknetwork.DeleteNicParams) {
-	logger := h.Logger.With("provider", "network", "resource", "nic", "name", name)
+	logger := h.Logger.With("provider", "network", "resource", "nic")
 	id := &resource.Identity{Name: name, Scope: resource.Scope{Tenant: tenant, Workspace: workspace}}
 	if params.IfUnmodifiedSince != nil {
 		id.Version = strconv.Itoa(*params.IfUnmodifiedSince)
@@ -32,14 +32,14 @@ func (h *Handler) DeleteNic(w http.ResponseWriter, r *http.Request, tenant sdksc
 
 // GetNic handles GET /v1/tenants/{tenant}/workspaces/{workspace}/nics/{name}.
 func (h *Handler) GetNic(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam) {
-	logger := h.Logger.With("provider", "network", "resource", "nic", "name", name)
+	logger := h.Logger.With("provider", "network", "resource", "nic")
 	ir := &resource.Identity{Name: name, Scope: resource.Scope{Tenant: tenant, Workspace: workspace}}
 	frest.HandleGet(w, r, logger, ir, frest.GetterFromRepo(h.NicReader, newNicWithIdentity), nicToAPIWithVerb(http.MethodGet))
 }
 
 // CreateOrUpdateNic handles PUT /v1/tenants/{tenant}/workspaces/{workspace}/nics/{name}.
 func (h *Handler) CreateOrUpdateNic(w http.ResponseWriter, r *http.Request, tenant sdkschema.TenantPathParam, workspace sdkschema.WorkspacePathParam, name sdkschema.ResourcePathParam, params sdknetwork.CreateOrUpdateNicParams) {
-	logger := h.Logger.With("provider", "network", "resource", "nic", "name", name)
+	logger := h.Logger.With("provider", "network", "resource", "nic")
 	id := &resource.Identity{Name: name, Scope: resource.Scope{Tenant: tenant, Workspace: workspace}}
 	if params.IfUnmodifiedSince != nil {
 		id.Version = strconv.Itoa(*params.IfUnmodifiedSince)

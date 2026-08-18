@@ -74,6 +74,9 @@ const (
 	// A real VM boots an OS from its image, materialises its security group and clones a bootable
 	// disk - measurably slower than the other resources, so it gets a longer deadline.
 	vmActiveTimeout = 10 * time.Minute
+	// Editing a live SECA resource triggers a reconcile straight away, and the plugin's update only
+	// has to write the arubacloud.com CR - no provisioning - so it lands in seconds.
+	updateTimeout = 60 * time.Second
 
 	// Resource names shared across the suite. All >= 4 characters (Aruba rejects shorter names).
 	bootName = "boot"
@@ -161,11 +164,14 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+func arubaGVR(resource string) schema.GroupVersionResource {
+	return schema.GroupVersionResource{Group: "arubacloud.com", Version: "v1alpha1", Resource: resource}
+}
+
 // arubaPhase returns the phase of the arubacloud.com CR the plugin materialised, or a sentinel
 // ("NOTFOUND"/"ERR:...") - used to assert the plugin's output independently of provisioning.
 func arubaPhase(resource, name, ns string) string {
-	gvr := schema.GroupVersionResource{Group: "arubacloud.com", Version: "v1alpha1", Resource: resource}
-	u, err := dyn.Resource(gvr).Namespace(ns).Get(ctx, name, metav1.GetOptions{})
+	u, err := dyn.Resource(arubaGVR(resource)).Namespace(ns).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			return "NOTFOUND"
@@ -174,6 +180,28 @@ func arubaPhase(resource, name, ns string) string {
 	}
 	phase, _, _ := unstructured.NestedString(u.Object, "status", "phase")
 	return phase
+}
+
+// arubaSpec returns the spec of the arubacloud.com CR the plugin materialised, or nil when it
+// cannot be read. The update assertions poll, so a missing CR just means "not yet".
+func arubaSpec(resource, name, ns string) map[string]any {
+	u, err := dyn.Resource(arubaGVR(resource)).Namespace(ns).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return nil
+	}
+	spec, _, _ := unstructured.NestedMap(u.Object, "spec")
+
+	return spec
+}
+
+func arubaTags(resource, name, ns string) []string {
+	tags, _, _ := unstructured.NestedStringSlice(arubaSpec(resource, name, ns), "tags")
+	return tags
+}
+
+func arubaDescription(resource, name, ns string) string {
+	description, _, _ := unstructured.NestedString(arubaSpec(resource, name, ns), "description")
+	return description
 }
 
 func repo[T persistence.IdentifiableResource](gvr schema.GroupVersionResource,

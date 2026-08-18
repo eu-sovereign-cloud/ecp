@@ -9,7 +9,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	kernel "github.com/eu-sovereign-cloud/ecp/framework/kernel"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	authnport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/authn"
 )
 
@@ -92,7 +92,7 @@ func TestNewAuthentication(t *testing.T) {
 			})
 
 			w := httptest.NewRecorder()
-			r := httptest.NewRequest(http.MethodGet, "/", nil)
+			r := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
 			if tc.authHeader != "" {
 				r.Header.Set("Authorization", tc.authHeader)
 			}
@@ -132,7 +132,7 @@ func TestNewAuthentication_TechnicalError(t *testing.T) {
 	mw := NewAuthentication(&errAuthenticator{err: kernel.ErrInternal}, discardLog)
 
 	w := httptest.NewRecorder()
-	r := httptest.NewRequest(http.MethodGet, "/", nil)
+	r := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
 	r.Header.Set("Authorization", "Bearer some-token")
 	mw(okHandler).ServeHTTP(w, r)
 

@@ -192,7 +192,7 @@ func InstanceToCR(inst *instancedom.Instance) (client.Object, error) {
 		CommonData: schemav1.CommonData{
 			Annotations: inst.Annotations,
 			Extensions:  inst.Extensions,
-			Labels:      slices.Collect(maps.Keys(inst.Labels)),
+			Labels:      slices.Sorted(maps.Keys(inst.Labels)),
 		},
 		Spec: spec,
 	}

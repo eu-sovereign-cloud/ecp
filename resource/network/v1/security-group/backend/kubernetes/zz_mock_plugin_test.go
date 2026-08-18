@@ -68,3 +68,17 @@ func (mr *MockSecurityGroupPluginMockRecorder) Delete(ctx, resource any) *gomock
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockSecurityGroupPlugin)(nil).Delete), ctx, resource)
 }
+
+// Update mocks base method.
+func (m *MockSecurityGroupPlugin) Update(ctx context.Context, resource *securitygroup.SecurityGroup) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Update", ctx, resource)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Update indicates an expected call of Update.
+func (mr *MockSecurityGroupPluginMockRecorder) Update(ctx, resource any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockSecurityGroupPlugin)(nil).Update), ctx, resource)
+}

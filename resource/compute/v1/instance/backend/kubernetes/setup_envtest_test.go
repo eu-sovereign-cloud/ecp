@@ -21,7 +21,10 @@ func TestMain(m *testing.M) {
 		ErrorIfCRDPathMissing: true,
 		CRDDirectoryPaths:     []string{crdDir},
 		DownloadBinaryAssets:  true,
-		BinaryAssetsDirectory: filepath.Join(os.TempDir(), "envtest-binaries"),
+		// Pinned by the Makefile so a CI run cannot pick up a new upstream "latest stable"
+		// on its own; empty (a bare `go test`) keeps the download at latest stable.
+		DownloadBinaryAssetsVersion: os.Getenv("ENVTEST_K8S_VERSION"),
+		BinaryAssetsDirectory:       filepath.Join(os.TempDir(), "envtest-binaries"),
 	}
 
 	var err error

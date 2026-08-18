@@ -106,3 +106,27 @@ func NewNicHandler() *NicHandler { return &NicHandler{} }
 func (h *NicHandler) Create(_ context.Context, _ *nicdom.Nic) error { return nil }
 
 func (h *NicHandler) Delete(_ context.Context, _ *nicdom.Nic) error { return nil }
+
+// Update is a no-op on every handler in this file, for the same reason Create is: none of these
+// SECA resources has an Aruba object behind it, so there is nothing to carry a change to. Their
+// labels reach Aruba only indirectly, through the resources that do exist - a NIC's labels never
+// appear anywhere, while an image's OS template code is stamped on the boot volume that the
+// block-storage handler retags in its own right.
+func (h *ImageHandler) Update(_ context.Context, _ *imgdom.Image) error { return nil }
+
+func (h *InternetGatewayHandler) Update(_ context.Context, _ *igwdom.InternetGateway) error {
+	return nil
+}
+
+func (h *RouteTableHandler) Update(_ context.Context, _ *rtdom.RouteTable) error { return nil }
+
+// SecurityGroupRuleHandler.Update is a no-op with a sharper edge than the others: a standalone
+// rule's tags are stamped onto the Aruba SecurityRules built from it at instance-attach time, and
+// those rules are immutable in place here - the handler cannot find them, since they are named and
+// labelled after the materialised group rather than the rule. Editing a standalone rule's labels
+// therefore does not reach rules already materialised from it. See csp/aruba/README.md.
+func (h *SecurityGroupRuleHandler) Update(_ context.Context, _ *sgrdom.SecurityGroupRule) error {
+	return nil
+}
+
+func (h *NicHandler) Update(_ context.Context, _ *nicdom.Nic) error { return nil }

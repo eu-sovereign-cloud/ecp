@@ -40,6 +40,12 @@ func NewInternetGatewayPluginHandler(
 }
 
 func (h *InternetGatewayPluginHandler) HandleReconcile(ctx context.Context, resource *internetgatewaydom.InternetGateway) (bool, error) {
+	// An active resource has no lifecycle transition left to make, so it takes the update
+	// path instead of the create/delete state machine below. See commonbackend.HandleUpdate.
+	if isInternetGatewayActive(resource) {
+		return commonbackend.HandleUpdate(ctx, resource, &resource.Status.Status, h.plugin.Update, h.repo, h.MaxConditions)
+	}
+
 	var delegate backendport.DelegatedFunc[*internetgatewaydom.InternetGateway]
 
 	switch {
@@ -95,9 +101,7 @@ func (h *InternetGatewayPluginHandler) setResourceState(ctx context.Context, res
 	}
 
 	resource.Status.PushCondition(commonbackend.ConditionFromState(state))
-	for h.MaxConditions > 0 && len(resource.Status.Conditions) > h.MaxConditions {
-		resource.Status.PopCondition()
-	}
+	commonbackend.TrimConditions(&resource.Status.Status, h.MaxConditions)
 
 	if _, err := h.repo.UpdateStatus(ctx, resource); err != nil {
 		if errors.Is(err, kernel.ErrNotFound) {
@@ -115,9 +119,7 @@ func (h *InternetGatewayPluginHandler) setResourceErrorState(ctx context.Context
 	}
 
 	resource.Status.PushCondition(commonbackend.ConditionFromError(err))
-	for h.MaxConditions > 0 && len(resource.Status.Conditions) > h.MaxConditions {
-		resource.Status.PopCondition()
-	}
+	commonbackend.TrimConditions(&resource.Status.Status, h.MaxConditions)
 
 	if _, updateErr := h.repo.UpdateStatus(ctx, resource); updateErr != nil {
 		if errors.Is(updateErr, kernel.ErrNotFound) {
@@ -127,6 +129,12 @@ func (h *InternetGatewayPluginHandler) setResourceErrorState(ctx context.Context
 	}
 
 	return requeue, nil
+}
+
+func isInternetGatewayActive(resource *internetgatewaydom.InternetGateway) bool {
+	return resource.DeletedAt == nil &&
+		resource.Status != nil &&
+		resource.Status.State == commondomain.ResourceStateActive
 }
 
 func isInternetGatewayAccepted(resource *internetgatewaydom.InternetGateway) bool {
