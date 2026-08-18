@@ -391,9 +391,9 @@ func TestNamespaceManagingWriterAdapter_Create(t *testing.T) {
 
 	// The child namespace is named by the caller and only ever reclaimed by the owning CR's
 	// finalizer, so a failed create must not leave one behind: without a CR nothing would ever
-	// delete it. The tenant namespace is shared and bounded by the authenticated tenant, so it
-	// stays.
-	t.Run("rolls back the child namespace when the resource create fails", func(t *testing.T) {
+	// delete it. Creating it after the CR is what guarantees that, with no rollback to get wrong.
+	// The tenant namespace is shared and bounded by the authenticated tenant, so it stays.
+	t.Run("does not create the child namespace when the resource create fails", func(t *testing.T) {
 		existing, err := parentDomainToK8s(parent)
 		require.NoError(t, err)
 		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(
@@ -407,10 +407,10 @@ func TestNamespaceManagingWriterAdapter_Create(t *testing.T) {
 		_, err = cs.CoreV1().Namespaces().Get(context.Background(), tenantNS, metav1.GetOptions{})
 		require.NoError(t, err, "the tenant namespace must survive a failed resource create")
 		_, err = cs.CoreV1().Namespaces().Get(context.Background(), childNS, metav1.GetOptions{})
-		require.True(t, kerrs.IsNotFound(err), "the child namespace must be rolled back")
+		require.True(t, kerrs.IsNotFound(err), "the child namespace must not be provisioned for a CR that does not exist")
 	})
 
-	// A namespace this call did not create is not its to roll back — it may already hold the
+	// A namespace this call did not create is not its to touch — it may already hold the
 	// resources of an earlier successful create.
 	t.Run("leaves a pre-existing child namespace alone when the resource create fails", func(t *testing.T) {
 		existing, err := parentDomainToK8s(parent)
@@ -429,7 +429,41 @@ func TestNamespaceManagingWriterAdapter_Create(t *testing.T) {
 		require.Error(t, err)
 
 		_, err = cs.CoreV1().Namespaces().Get(context.Background(), childNS, metav1.GetOptions{})
-		require.NoError(t, err, "a namespace this create did not provision must not be rolled back")
+		require.NoError(t, err, "a namespace this create did not provision must not be removed")
+	})
+
+	// The reason the child namespace is created last. A gateway that cannot reach the Namespaces
+	// API must still write the CR: the CR is what NamespaceEnsure needs to repair the namespace,
+	// so failing here would trade a recoverable gap for an unrecoverable one.
+	t.Run("creates the resource even when the child namespace create fails", func(t *testing.T) {
+		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), parentListKinds())
+		cs := k8sfake.NewClientset()
+		cs.PrependReactor("create", "namespaces", func(action k8stesting.Action) (bool, runtime.Object, error) {
+			ns := action.(k8stesting.CreateAction).GetObject().(*corev1.Namespace)
+			if ns.Name != childNS {
+				return false, nil, nil
+			}
+			return true, nil, kerrs.NewServiceUnavailable("namespaces api is down")
+		})
+
+		_, err := newWriter(cs, dynFake).Create(context.Background(), parent)
+		require.NoError(t, err, "a child namespace the controller can repair must not fail the create")
+
+		_, err = dynFake.Resource(testParentGVR).Namespace(tenantNS).Get(context.Background(), "w1", metav1.GetOptions{})
+		require.NoError(t, err, "the CR must be written so the controller has something to reconcile")
+	})
+
+	// The tenant namespace is the opposite case: the CR is written into it, so there is no CR to
+	// repair it from and the failure has to reach the caller.
+	t.Run("fails when the namespace the resource itself lives in cannot be created", func(t *testing.T) {
+		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), parentListKinds())
+		cs := k8sfake.NewClientset()
+		cs.PrependReactor("create", "namespaces", func(action k8stesting.Action) (bool, runtime.Object, error) {
+			return true, nil, kerrs.NewServiceUnavailable("namespaces api is down")
+		})
+
+		_, err := newWriter(cs, dynFake).Create(context.Background(), parent)
+		require.Error(t, err)
 	})
 
 	// Fabricating the workspace namespace would let a Network land in a Workspace that was never
@@ -475,6 +509,63 @@ func TestNamespaceManagingWriterAdapter_Create(t *testing.T) {
 
 		_, err = cs.CoreV1().Namespaces().Get(context.Background(), childNS, metav1.GetOptions{})
 		require.True(t, kerrs.IsNotFound(err), "NoChildNamespace must not provision a child namespace")
+	})
+}
+
+// --- NamespaceEnsure: the controller-side backstop for the write path's opportunistic create ---
+
+func TestNamespaceEnsure(t *testing.T) {
+	parent := &testWorkspaceScopedIdentifiable{name: "w1", tenant: "t1"}
+	childNS := ComputeNamespace(&kernelresource.Scope{Tenant: "t1", Workspace: "w1"})
+	ownerLabels := map[string]string{
+		labels.InternalTenantLabel:    "t1",
+		labels.InternalWorkspaceLabel: "w1",
+	}
+
+	// The crash window this hook exists for: the CR was written, the namespace never was.
+	t.Run("creates the child namespace the write path did not", func(t *testing.T) {
+		cs := k8sfake.NewClientset()
+
+		ensure := NamespaceEnsure[*testWorkspaceScopedIdentifiable](cs, WorkspaceChildren)
+		require.NoError(t, ensure(context.Background(), parent))
+
+		ns, err := cs.CoreV1().Namespaces().Get(context.Background(), childNS, metav1.GetOptions{})
+		require.NoError(t, err)
+		require.Equal(t, ownerLabels, ns.Labels, "a repaired namespace must carry the labels teardown checks")
+	})
+
+	// It runs on every reconcile, so the common case is a namespace that is already there.
+	t.Run("is idempotent", func(t *testing.T) {
+		cs := k8sfake.NewClientset(&corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{Name: childNS, Labels: ownerLabels},
+		})
+
+		ensure := NamespaceEnsure[*testWorkspaceScopedIdentifiable](cs, WorkspaceChildren)
+		require.NoError(t, ensure(context.Background(), parent))
+		require.NoError(t, ensure(context.Background(), parent))
+	})
+
+	// The hook gates the reconcile, so the error has to come back rather than be swallowed —
+	// otherwise the resource goes active with no namespace and nothing left to retry.
+	t.Run("returns the error so the reconcile requeues", func(t *testing.T) {
+		cs := k8sfake.NewClientset()
+		cs.PrependReactor("create", "namespaces", func(k8stesting.Action) (bool, runtime.Object, error) {
+			return true, nil, kerrs.NewServiceUnavailable("namespaces api is down")
+		})
+
+		ensure := NamespaceEnsure[*testWorkspaceScopedIdentifiable](cs, WorkspaceChildren)
+		require.Error(t, ensure(context.Background(), parent))
+	})
+
+	t.Run("is a no-op for a resource that owns no child namespace", func(t *testing.T) {
+		cs := k8sfake.NewClientset()
+
+		ensure := NamespaceEnsure[*testWorkspaceScopedIdentifiable](cs, NoChildNamespace)
+		require.NoError(t, ensure(context.Background(), parent))
+
+		list, err := cs.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
+		require.NoError(t, err)
+		require.Empty(t, list.Items)
 	})
 }
 
