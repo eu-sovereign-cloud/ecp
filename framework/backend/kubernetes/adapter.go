@@ -553,7 +553,23 @@ func (a *WriterAdapter[T]) updateMetadataAndSpecRetry(
 ) error {
 	desiredLabels := desired.GetLabels()
 	desiredAnnotations := desired.GetAnnotations()
+
+	// Both subtrees are extracted once, up front, not per attempt. NestedMap deep-copies what it
+	// returns, so pulling them inside the closure would re-copy them on every conflict retry, and a
+	// structurally invalid desired object would only be caught after a Get round trip rather than
+	// failing immediately.
+	//
+	// commonData is a sibling of spec, not part of it, so it needs copying in its own right. It is
+	// not cosmetic: commonData.labels holds the *key list* that KeyedToOriginal walks to rebuild a
+	// resource's labels from the hashed kl/<sha3> entries in metadata.labels. Leaving it behind
+	// means a newly added label key never appears in the domain object - the value is written to
+	// metadata.labels but nothing knows to look it up again.
 	desiredSpec, specFound, err := unstructured.NestedMap(desired.Object, "spec")
+	if err != nil {
+		return err
+	}
+
+	desiredCommonData, commonDataFound, err := unstructured.NestedMap(desired.Object, "commonData")
 	if err != nil {
 		return err
 	}
@@ -568,32 +584,28 @@ func (a *WriterAdapter[T]) updateMetadataAndSpecRetry(
 			return nil
 		}
 
-		currSpec, currSpecFound, err := unstructured.NestedMap(currObj.Object, "spec")
+		specChanged, err := syncNestedMap(currObj, desiredSpec, specFound, "spec")
 		if err != nil {
 			return err
 		}
 
-		currLabels := currObj.GetLabels()
-		currAnnotations := currObj.GetAnnotations()
-
-		specChanged := specFound && (!currSpecFound || !cmp.Equal(currSpec, desiredSpec))
-		labelsChanged := !cmp.Equal(currLabels, desiredLabels)
-		annotationsChanged := !cmp.Equal(currAnnotations, desiredAnnotations)
-
-		if !specChanged && !labelsChanged && !annotationsChanged {
-			return nil
+		commonDataChanged, err := syncNestedMap(currObj, desiredCommonData, commonDataFound, "commonData")
+		if err != nil {
+			return err
 		}
 
-		if specChanged {
-			if err := unstructured.SetNestedMap(currObj.Object, desiredSpec, "spec"); err != nil {
-				return err
-			}
-		}
+		labelsChanged := !cmp.Equal(currObj.GetLabels(), desiredLabels)
 		if labelsChanged {
 			currObj.SetLabels(desiredLabels)
 		}
+
+		annotationsChanged := !cmp.Equal(currObj.GetAnnotations(), desiredAnnotations)
 		if annotationsChanged {
 			currObj.SetAnnotations(desiredAnnotations)
+		}
+
+		if !specChanged && !commonDataChanged && !labelsChanged && !annotationsChanged {
+			return nil
 		}
 
 		_, err = ri.Update(ctx, currObj, metav1.UpdateOptions{})
