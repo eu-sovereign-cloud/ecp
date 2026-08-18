@@ -182,28 +182,42 @@ func (r *GenericController[D]) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 
 	// 8. Check if the resource deletion process is complete. Reaching here means the handler
-	// returned no requeue, so the plugin has finished deleting: this is the last moment the
-	// resource can tear down anything it owns outside its own CR. A failing cleanup keeps the
-	// finalizer on, so the next reconcile retries it.
-	if !obj.GetDeletionTimestamp().IsZero() &&
-		getStateFromObject(obj) == stateDeleting &&
-		slices.Contains(obj.GetFinalizers(), finalizerName) {
-		if r.cleanup != nil {
-			if err := r.cleanup(ctx, domainResource); err != nil {
-				logger.Log(ctx, k8sadapter.RetryLevel(err), "cleanup hook failed, keeping finalizer to retry", "error", err)
-				return ctrl.Result{}, err
-			}
-		}
-
-		obj.SetFinalizers(slices.DeleteFunc(obj.GetFinalizers(), func(v string) bool {
-			return strings.EqualFold(v, finalizerName)
-		}))
-		if err := r.client.Update(ctx, obj); err != nil {
-			return ctrl.Result{}, err
-		}
+	// returned no requeue, so the plugin has finished deleting.
+	if err := r.finalizeDeletion(ctx, logger, domainResource, obj); err != nil {
+		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{}, nil
+}
+
+// finalizeDeletion drops the finalizer once the plugin has finished deleting, after giving the
+// resource its last moment to tear down anything it owns outside its own CR. A failing cleanup
+// keeps the finalizer on, so the next reconcile retries it. A no-op unless the resource is
+// actually being deleted.
+func (r *GenericController[D]) finalizeDeletion(
+	ctx context.Context,
+	logger *slog.Logger,
+	domainResource D,
+	obj schemav1.ConditionedObject,
+) error {
+	if obj.GetDeletionTimestamp().IsZero() ||
+		getStateFromObject(obj) != stateDeleting ||
+		!slices.Contains(obj.GetFinalizers(), finalizerName) {
+		return nil
+	}
+
+	if r.cleanup != nil {
+		if err := r.cleanup(ctx, domainResource); err != nil {
+			logger.Log(ctx, k8sadapter.RetryLevel(err), "cleanup hook failed, keeping finalizer to retry", "error", err)
+			return err
+		}
+	}
+
+	obj.SetFinalizers(slices.DeleteFunc(obj.GetFinalizers(), func(v string) bool {
+		return strings.EqualFold(v, finalizerName)
+	}))
+
+	return r.client.Update(ctx, obj)
 }
 
 // getStateFromObject reads the status.state field from any ConditionedObject via
