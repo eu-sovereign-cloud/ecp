@@ -864,6 +864,31 @@ func namespaceOwnerLabels(tenant, workspace, network string) (string, map[string
 	return ComputeNamespace(&resource.Scope{Tenant: tenant, Workspace: workspace}), ownerLabels
 }
 
+// NamespaceEnsure returns a controller reconcile hook (see controller.GenericController.WithEnsure)
+// that provisions the namespace a resource owns for its children.
+//
+// It is the backstop for the write path's opportunistic create: the gateway can die between
+// writing the CR and creating the namespace, or the namespace can be removed out of band, and in
+// both cases every child create would fail with NotFound forever with nothing to repair it. The
+// CR existing is the signal that the namespace should exist, so the controller that owns the CR
+// re-asserts it on every reconcile. CreateNamespace is idempotent and also stamps the owner
+// labels NamespaceCleanup later checks, so a repaired namespace stays reclaimable.
+func NamespaceEnsure[T persistence.IdentifiableResource](
+	clientset kubernetes.Interface,
+	childNamespace ChildNamespaceKind,
+) func(context.Context, T) error {
+	return func(ctx context.Context, m T) error {
+		namespace, ownerLabels := childNamespaceFor(childNamespace, m)
+		if namespace == "" {
+			return nil
+		}
+
+		_, err := CreateNamespace(ctx, clientset, namespace, ownerLabels)
+
+		return err
+	}
+}
+
 // NamespaceCleanup returns a controller cleanup hook (see controller.GenericController.WithCleanup)
 // that tears down the namespace a resource owns for its children.
 //
@@ -1029,17 +1054,23 @@ func namespaceOwnedBy(ctx context.Context, clientset kubernetes.Interface, nsNam
 	return true, nil
 }
 
-// Create ensures the namespaces the resource needs exist, then creates it.
+// Create creates the resource, then opportunistically provisions the namespace it owns for its
+// children.
 //
-// The resource's own namespace is provisioned only when it is the tenant namespace. There is no
-// Tenant entity, so nobody else would ever create it. Below that level a namespace is owned by a
-// parent entity and its absence *is* the referential-integrity check: fabricating it would let a
-// Network land in a Workspace that was never created, in a namespace no controller would ever
-// reclaim. A resource whose scope names a workspace therefore fails with NotFound, exactly as a
-// leaf resource on a plain WriterAdapter does.
+// The resource's own namespace is provisioned first, and only when it is the tenant namespace.
+// There is no Tenant entity, so nobody else would ever create it, and the CR write below would
+// fail with NotFound without it. Below that level a namespace is owned by a parent entity and its
+// absence *is* the referential-integrity check: fabricating it would let a Network land in a
+// Workspace that was never created, in a namespace no controller would ever reclaim. A resource
+// whose scope names a workspace therefore fails with NotFound, exactly as a leaf resource on a
+// plain WriterAdapter does.
 //
-// The child namespace is rolled back if this call created it and the CR create then fails —
-// without an owning CR nothing will ever reclaim it, and the caller picks its name.
+// The child namespace is created *after* the CR and its failure is not returned. The CR is what
+// makes the namespace recoverable: NamespaceEnsure recreates it on every reconcile, so a gateway
+// that dies — or a Namespaces API that is briefly unavailable — costs a delay, not a resource
+// stuck without its namespace. Ordering it after the CR is what buys that: a namespace created
+// first and then orphaned by a failed CR write has no owner left to reclaim it. Children created
+// before the controller catches up still fail with NotFound and are retried by their caller.
 func (a *NamespaceManagingWriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
 	if m.GetWorkspace() == "" {
 		tenantNS, tenantLabels := namespaceOwnerLabels(m.GetTenant(), "", "")
@@ -1050,25 +1081,17 @@ func (a *NamespaceManagingWriterAdapter[T]) Create(ctx context.Context, m T) (*T
 		}
 	}
 
-	childNS, childLabels := childNamespaceFor(a.childNamespace, m)
-	if childNS == "" {
-		return a.WriterAdapter.Create(ctx, m)
-	}
-
-	createdNS, err := CreateNamespace(ctx, a.clientset, childNS, childLabels)
-	if err != nil {
-		return nil, err
-	}
-
 	res, err := a.WriterAdapter.Create(ctx, m)
-	if err != nil && createdNS {
-		if owned, ownErr := namespaceOwnedBy(ctx, a.clientset, childNS, childLabels); ownErr == nil && owned {
-			if delErr := DeleteNamespace(ctx, a.clientset, childNS); delErr != nil {
-				a.logger.ErrorContext(ctx, "failed to roll back namespace created for resource",
-					"namespace", childNS, "error", delErr)
-			}
+	if err != nil {
+		return res, err
+	}
+
+	if childNS, childLabels := childNamespaceFor(a.childNamespace, m); childNS != "" {
+		if _, nsErr := CreateNamespace(ctx, a.clientset, childNS, childLabels); nsErr != nil {
+			a.logger.WarnContext(ctx, "failed to create child namespace, leaving it to the controller",
+				"namespace", childNS, "resource", m.GetName(), "error", nsErr)
 		}
 	}
 
-	return res, err
+	return res, nil
 }
