@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"testing"
+	"time"
 
 	authhelper "github.com/eu-sovereign-cloud/ecp/test/internal/authhelper"
 
@@ -30,6 +31,10 @@ const (
 	// reference via "block-storages/source-bs". This suite does not wait for it to
 	// reconcile — it only has to exist so the image reference resolves.
 	sourceBlockStorage = "source-bs"
+
+	// How long setup waits for the shared workspace namespace to become writable.
+	namespaceReadyTimeout  = 60 * time.Second
+	namespaceReadyInterval = 2 * time.Second
 )
 
 var (
@@ -121,6 +126,18 @@ func ensureTestWorkspace(ctx context.Context) error {
 
 // ensureSourceBlockStorage creates the workspace-scoped source block storage that
 // image tests reference. The create is an upsert, so it tolerates a leftover fixture.
+//
+// This is the first write into the workspace namespace, so it is where that namespace
+// being unusable shows up, and it retries on the two ways that happens. Both are
+// transient and neither is visible through the API the suite talks to:
+//
+//   - 403 "namespace is being terminated" — every suite shares test-tenant/test-workspace
+//     and deletes it on teardown, so this one's setup races the previous one's finalizer.
+//   - 404 — the gateway provisions the child namespace opportunistically after writing the
+//     workspace CR, leaving the delegator's ensure hook to converge it. A workspace create
+//     answering 200 therefore no longer proves its namespace is there yet.
+//
+// A real authorization failure still fails, just after the timeout, with its status intact.
 func ensureSourceBlockStorage(ctx context.Context) error {
 	body := schema.BlockStorage{
 		Spec: schema.BlockStorageSpec{
@@ -128,12 +145,30 @@ func ensureSourceBlockStorage(ctx context.Context) error {
 			SkuRef: schema.Reference{Resource: "sku-1"},
 		},
 	}
-	resp, err := storageClient.CreateOrUpdateBlockStorageWithResponse(ctx, testTenant, testWorkspace, sourceBlockStorage, nil, body)
-	if err != nil {
-		return err
+
+	deadline := time.Now().Add(namespaceReadyTimeout)
+	for {
+		resp, err := storageClient.CreateOrUpdateBlockStorageWithResponse(ctx, testTenant, testWorkspace, sourceBlockStorage, nil, body)
+		if err != nil {
+			return err
+		}
+		if resp.StatusCode() == http.StatusOK {
+			return nil
+		}
+		if !isNamespaceNotReady(resp.StatusCode()) || !time.Now().Before(deadline) {
+			return fmt.Errorf("unexpected status %d creating source block storage %q", resp.StatusCode(), sourceBlockStorage)
+		}
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(namespaceReadyInterval):
+		}
 	}
-	if resp.StatusCode() != http.StatusOK {
-		return fmt.Errorf("unexpected status %d creating source block storage %q", resp.StatusCode(), sourceBlockStorage)
-	}
-	return nil
+}
+
+// isNamespaceNotReady reports whether the status is one the workspace namespace produces
+// while it is still terminating (403) or not yet provisioned (404).
+func isNamespaceNotReady(status int) bool {
+	return status == http.StatusForbidden || status == http.StatusNotFound
 }
