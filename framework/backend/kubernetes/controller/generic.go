@@ -148,10 +148,13 @@ func (r *GenericController[D]) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{}, nil
 	}
 
-	// 4. Re-assert what the resource owns outside its own CR, while it is still live
-	if err := r.runEnsure(ctx, domainResource, obj); err != nil {
-		logger.Log(ctx, k8sadapter.RetryLevel(err), "ensure hook failed, requeueing", "error", err)
-		return ctrl.Result{}, err
+	// 4. Re-assert what the resource owns outside its own CR. Skipped once the resource is being
+	// deleted: it would race the cleanup hook tearing the same thing down.
+	if r.ensure != nil && obj.GetDeletionTimestamp().IsZero() {
+		if err := r.ensure(ctx, domainResource); err != nil {
+			logger.Log(ctx, k8sadapter.RetryLevel(err), "ensure hook failed, requeueing", "error", err)
+			return ctrl.Result{}, err
+		}
 	}
 
 	// 5. Delegate to the specific handler
@@ -179,51 +182,28 @@ func (r *GenericController[D]) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 
 	// 8. Check if the resource deletion process is complete. Reaching here means the handler
-	// returned no requeue, so the plugin has finished deleting.
-	if err := r.finalizeDeletion(ctx, logger, domainResource, obj); err != nil {
-		return ctrl.Result{}, err
-	}
+	// returned no requeue, so the plugin has finished deleting: this is the last moment the
+	// resource can tear down anything it owns outside its own CR. A failing cleanup keeps the
+	// finalizer on, so the next reconcile retries it.
+	if !obj.GetDeletionTimestamp().IsZero() &&
+		getStateFromObject(obj) == stateDeleting &&
+		slices.Contains(obj.GetFinalizers(), finalizerName) {
+		if r.cleanup != nil {
+			if err := r.cleanup(ctx, domainResource); err != nil {
+				logger.Log(ctx, k8sadapter.RetryLevel(err), "cleanup hook failed, keeping finalizer to retry", "error", err)
+				return ctrl.Result{}, err
+			}
+		}
 
-	return ctrl.Result{}, nil
-}
-
-// runEnsure invokes the ensure hook. It is skipped once the resource is being deleted: re-asserting
-// what a dying resource owns would race the cleanup hook that is tearing the same thing down.
-func (r *GenericController[D]) runEnsure(ctx context.Context, domainResource D, obj schemav1.ConditionedObject) error {
-	if r.ensure == nil || !obj.GetDeletionTimestamp().IsZero() {
-		return nil
-	}
-
-	return r.ensure(ctx, domainResource)
-}
-
-// finalizeDeletion drops the finalizer once the plugin has finished deleting, after giving the
-// cleanup hook the last moment in which the resource can still tear down anything it owns outside
-// its own CR. A failing hook keeps the finalizer on, so the next reconcile retries it.
-func (r *GenericController[D]) finalizeDeletion(
-	ctx context.Context,
-	logger *slog.Logger,
-	domainResource D,
-	obj schemav1.ConditionedObject,
-) error {
-	if obj.GetDeletionTimestamp().IsZero() ||
-		getStateFromObject(obj) != stateDeleting ||
-		!slices.Contains(obj.GetFinalizers(), finalizerName) {
-		return nil
-	}
-
-	if r.cleanup != nil {
-		if err := r.cleanup(ctx, domainResource); err != nil {
-			logger.Log(ctx, k8sadapter.RetryLevel(err), "cleanup hook failed, keeping finalizer to retry", "error", err)
-			return err
+		obj.SetFinalizers(slices.DeleteFunc(obj.GetFinalizers(), func(v string) bool {
+			return strings.EqualFold(v, finalizerName)
+		}))
+		if err := r.client.Update(ctx, obj); err != nil {
+			return ctrl.Result{}, err
 		}
 	}
 
-	obj.SetFinalizers(slices.DeleteFunc(obj.GetFinalizers(), func(v string) bool {
-		return strings.EqualFold(v, finalizerName)
-	}))
-
-	return r.client.Update(ctx, obj)
+	return ctrl.Result{}, nil
 }
 
 // getStateFromObject reads the status.state field from any ConditionedObject via

@@ -199,17 +199,16 @@ func TestNamespaceOwnerLabelDrift(t *testing.T) {
 	})
 
 	// Repair belongs to the delegator, not the write path: the gateway only touches the child
-	// namespace after a CR write it actually performed, so a create that fails with
-	// AlreadyExists no longer stamps anything. Every reconcile of the owning CR re-runs
-	// NamespaceEnsure instead, which is a stronger guarantee — it does not need anyone to
-	// re-issue a create — but an asynchronous one, so this polls.
+	// namespace after a CR write it actually performed, so a create that fails with AlreadyExists
+	// no longer stamps anything. Every reconcile of the owning CR re-runs NamespaceEnsure instead,
+	// which is a stronger guarantee — it needs nobody to re-issue a create — but an async one.
 	t.Run("stripped owner labels are restored by the owning controller", func(t *testing.T) {
 		stripOwnerLabels(t, workspaceNS)
 
 		// A settled resource is only resynced on the manager's default period, so nudge the CR
 		// to get a reconcile now rather than waiting on it.
 		touchWorkspace(t, testWorkspace)
-		requireNamespaceLabelsEventually(t, workspaceNS, map[string]string{
+		requireNamespaceLabels(t, workspaceNS, map[string]string{
 			labels.InternalTenantLabel:    testTenant,
 			labels.InternalWorkspaceLabel: testWorkspace,
 		})
@@ -231,15 +230,19 @@ func touchWorkspace(t *testing.T, name string) {
 	require.NoError(t, err)
 }
 
-// requireNamespaceLabelsEventually is requireNamespaceLabels for a repair that happens on a
-// reconcile rather than in the request the test just made.
-func requireNamespaceLabelsEventually(t *testing.T, name string, expected map[string]string) {
+// requireNamespaceLabels polls until the namespace carries every expected label. Other labels are
+// allowed: the check mirrors namespaceOwnedBy, which is a subset test. It polls because both the
+// namespace and its labels are now the owning controller's job, so they land on a reconcile rather
+// than in the request the test just made.
+func requireNamespaceLabels(t *testing.T, name string, expected map[string]string) {
 	t.Helper()
+	var seen map[string]string
 	err := wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
 		ns, err := clientset.CoreV1().Namespaces().Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
 			return false, nil
 		}
+		seen = ns.Labels
 		for k, v := range expected {
 			if ns.Labels[k] != v {
 				return false, nil
@@ -247,18 +250,7 @@ func requireNamespaceLabelsEventually(t *testing.T, name string, expected map[st
 		}
 		return true, nil
 	})
-	require.NoErrorf(t, err, "namespace %q should have its owner labels restored by the controller", name)
-}
-
-// requireNamespaceLabels asserts the namespace exists and carries every expected label.
-// Other labels are allowed: the check mirrors namespaceOwnedBy, which is a subset test.
-func requireNamespaceLabels(t *testing.T, name string, expected map[string]string) {
-	t.Helper()
-	ns, err := clientset.CoreV1().Namespaces().Get(t.Context(), name, metav1.GetOptions{})
-	require.NoErrorf(t, err, "namespace %q should exist", name)
-	for k, v := range expected {
-		require.Equalf(t, v, ns.Labels[k], "namespace %q should carry owner label %s", name, k)
-	}
+	require.NoErrorf(t, err, "namespace %q should carry owner labels %v, has %v", name, expected, seen)
 }
 
 func requireNamespaceExists(t *testing.T, name string) {
