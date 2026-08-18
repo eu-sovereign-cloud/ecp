@@ -6,8 +6,7 @@ ECP exposes a unified, declarative REST API for provisioning and managing cloud 
 
 ## Install with Helm
 
-Released charts are published to the repository at
-<https://eu-sovereign-cloud.github.io/ecp/>:
+Released charts are published to <https://eu-sovereign-cloud.github.io/ecp/>:
 
 ```bash
 helm repo add ecp https://eu-sovereign-cloud.github.io/ecp/
@@ -20,37 +19,21 @@ helm search repo ecp --devel
 | `ecp/ecp` | Global + regional gateways, and the ECP CRDs |
 | `ecp/ecp-delegator` | The delegator — reconciles the CRs through **one** CSP plugin. Also available as a subchart of `ecp/ecp` |
 
-> Releases so far are **prereleases** (`0.0.2-alpha`), which Helm skips unless
-> you ask for them: pass `--version 0.0.2-alpha` (as below) or `--devel`.
-
-### The common setup: gateways + delegator, one plugin
-
-Both gateways and the delegator in one cluster, with the delegator pulled in as
-a subchart so one release covers the whole stack. `ecp-delegator.plugin` is what
-picks the CSP — it selects both the delegator image and the RBAC the chart grants:
+Releases so far are **prereleases** (`0.0.2-alpha`), which Helm skips unless
+you ask for them with `--version 0.0.2-alpha` or `--devel`:
 
 ```bash
-# Aruba
 helm install ecp ecp/ecp --version 0.0.2-alpha \
   --namespace ecp --create-namespace \
   --set gatewayRegional.region=itbg-bergamo \
   --set ecp-delegator.enabled=true \
   --set ecp-delegator.plugin=aruba
-
-# IONOS — same install, different plugin
-helm install ecp ecp/ecp --version 0.0.2-alpha \
-  --namespace ecp --create-namespace \
-  --set gatewayRegional.region=<your-region> \
-  --set ecp-delegator.enabled=true \
-  --set ecp-delegator.plugin=ionos
 ```
 
-`gatewayRegional.region` is **required** and must be the region this gateway
-serves. Install `ecp/ecp-delegator` standalone instead of enabling the subchart
-if you want to version and upgrade it independently of the gateways.
-
-Each plugin reconciles into a backend you install **out of band** — until it is
-there, resources are accepted and stay pending:
+`gatewayRegional.region` is **required**. `ecp-delegator.plugin` picks the CSP —
+it selects both the delegator image and the RBAC the chart grants — and each
+plugin reconciles into a backend you install **out of band**; until it is there,
+resources are accepted and stay pending:
 
 | `plugin` | Reconciles by | Backend to install first |
 |----------|---------------|--------------------------|
@@ -58,53 +41,16 @@ there, resources are accepted and stay pending:
 | `ionos` | writing Crossplane managed resources | Crossplane + `provider-upjet-ionoscloud` + an IONOS token ([`csp/ionos/deploy`](csp/ionos/deploy)) |
 | `dummy` | nothing — marks resources Active in-process | none; development only, image not published |
 
-For the split topology (global gateway in one cluster, regional gateway +
-delegator in each region), install the chart once per cluster with
-`--set gatewayRegional.enabled=false` on the global one and
-`--set gatewayGlobal.enabled=false` on each regional one.
-
-Helm installs the CRDs on first install but never upgrades them; on an upgrade
-apply them yourself with `kubectl apply -f` from the chart's `crds/`.
-
-### Enabling JWT authentication
-
 **Auth is off by default** — the API is unauthenticated in that mode, so do not
-expose it outside the cluster until you turn it on. Turning it on enables bearer
-token authentication *and* SECA RBAC on **both** gateways.
+expose it outside the cluster until you turn it on with `auth.enabled=true`,
+which enables bearer token authentication *and* SECA RBAC on **both** gateways.
+Roles are never read from the token: entitlements come only from the `Role` /
+`RoleAssignment` CRs in the tenant namespace.
 
-The `jwt` plugin verifies standard signed JWTs against a key you supply, with
-the token's `alg` header pinned to `auth.jwt.signingMethod` (`ES256` by default)
-— the pin is what defeats algorithm confusion. Generate an ES256 pair and hand
-the gateways only the public half:
-
-```bash
-openssl ecparam -name prime256v1 -genkey -noout -out jwt-key.pem   # private — your issuer signs with it
-openssl ec -in jwt-key.pem -pubout -out jwt-key.pub                # public  — the gateways verify with it
-
-helm install ecp ecp/ecp --version 0.0.2-alpha \
-  --namespace ecp --create-namespace \
-  --set gatewayRegional.region=itbg-bergamo \
-  --set ecp-delegator.enabled=true \
-  --set ecp-delegator.plugin=aruba \
-  --set auth.enabled=true \
-  --set auth.plugin=jwt \
-  --set-file auth.jwt.key=jwt-key.pub
-```
-
-Callers then send the JWT verbatim: `Authorization: Bearer <header>.<payload>.<signature>`.
-It must carry `sub` (the subject RBAC is evaluated for) and `exp` (a
-never-expiring token is rejected), plus an optional `scope` object to narrow it
-further. Roles are **never** read from the token — entitlements come only from
-the `Role` / `RoleAssignment` CRs in the tenant namespace.
-
-Other knobs: `auth.jwt.existingSecret` to reference a Secret you already manage
-(key `jwt.pub`) instead of `--set-file`; `auth.authz.enabled=false` for
-authn-only. The `dummy` plugin (`auth.plugin=dummy`, the default) takes a
-`username → password` map in `auth.dummyUsers.users` and verifies no signature
-at all — development and testing only.
-
-See [doc/AUTH.md](doc/AUTH.md) for the token formats, down-scoping and the RBAC
-algorithm, and [charts/ecp/README.md](charts/ecp/README.md) for every value.
+See [charts/ecp/README.md](charts/ecp/README.md) for the auth plugins, the split
+topology, CRD upgrades and every value, [charts/delegator/README.md](charts/delegator/README.md)
+for the delegator on its own, and [doc/AUTH.md](doc/AUTH.md) for the token
+formats and the RBAC algorithm.
 
 ## Repository Layout
 
