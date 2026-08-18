@@ -88,9 +88,11 @@ rules:
   - apiGroups: ["workspace.v1.secapi.cloud"]
     resources: ["workspaces/status"]
     verbs: ["get", "list", "watch"]
-  # create: on write the gateway provisions the tenant namespace, plus the child namespace an
-  # owning entity (Workspace, Network) creates for its children, so the first call for a new
-  # tenant or workspace succeeds synchronously. Teardown is the delegator's job.
+  # create: on write the gateway provisions the tenant namespace, plus — opportunistically, once
+  # the CR is written — the child namespace an owning entity (Workspace, Network) creates for its
+  # children, so the first call for a new tenant or workspace usually succeeds synchronously.
+  # Losing the verb degrades rather than breaks: the delegator's ensure hook is the backstop.
+  # Teardown is the delegator's job.
   # patch: provisioning a namespace that already exists stamps the owner labels onto it, and
   # without the verb every write into an already-provisioned namespace fails with 403.
   - apiGroups: [""]
