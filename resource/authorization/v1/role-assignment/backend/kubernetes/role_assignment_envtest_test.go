@@ -70,8 +70,7 @@ func TestRoleAssignmentBackend_CreateAndGetRoleAssignment(t *testing.T) {
 		dynClient,
 		RoleAssignmentGVR,
 		slog.Default(),
-		RoleAssignmentToCR,
-		RoleAssignmentFromCR,
+		Converter,
 	)
 	readerRepo := k8sadapter.NewReaderAdapter[*radom.RoleAssignment](
 		dynClient,

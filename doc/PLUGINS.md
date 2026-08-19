@@ -64,6 +64,12 @@ Where a resource has both, its own operation wins: a pending resize is routed to
 | error wrapping `backend.ErrNotSupported` | the provider will never accept this | records the reason, **does not retry** |
 | any other error | assumed transient | records the reason and requeues |
 
+The two sentinels above are the plugin port's own vocabulary and are matched with `errors.Is`, so
+wrap them with `%w` rather than re-wording them. Everything else a plugin returns follows the
+repo-wide contract in [CONVENTIONS.md §10](CONVENTIONS.md#10--error-contract): wrap the cause, and
+use `kernel.NewError` where the failure leaves the plugin — the reason ends up verbatim in the
+resource's condition, so a stringified chain is a reason the operator cannot act on.
+
 `ErrNotSupported` is for a change the provider cannot make at all, not one that has not finished. Cloud resources routinely have immutable fields — an Aruba VPC's region, an instance's flavor — and retrying those re-issues a request the provider has already refused. Wrap it so the reason reaches the user:
 
 ```go

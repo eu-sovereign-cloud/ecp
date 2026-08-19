@@ -48,7 +48,7 @@ func (h *Handler) CreateOrUpdateRouteTable(w http.ResponseWriter, r *http.Reques
 		Params:  id,
 		Creator: frest.CreatorFromRepo(h.RouteTableWriter),
 		Updater: frest.UpdaterFromRepo(h.RouteTableWriter),
-		APIToDomain: func(sdk sdkschema.RouteTable, p persistencepkg.IdentifiableResource) *routetabledom.RouteTable {
+		APIToDomain: func(sdk sdkschema.RouteTable, p persistencepkg.IdentifiableResource) (*routetabledom.RouteTable, error) {
 			return routeTableFromAPI(sdk, p.(*RouteTableIdentity), region)
 		},
 		DomainToAPI: routeTableToAPIWithVerb(http.MethodPut),

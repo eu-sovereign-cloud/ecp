@@ -71,8 +71,7 @@ func TestImageBackend_CreateAndGetImage(t *testing.T) {
 		dynClient,
 		ImageGVR,
 		slog.Default(),
-		ImageToCR,
-		ImageFromCR,
+		Converter,
 	)
 	readerRepo := k8sadapter.NewReaderAdapter[*imgdom.Image](
 		dynClient,

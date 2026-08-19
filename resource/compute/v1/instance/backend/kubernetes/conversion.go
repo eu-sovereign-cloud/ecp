@@ -14,6 +14,7 @@ import (
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
 	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/schema/v1"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 
 	commonbackend "github.com/eu-sovereign-cloud/ecp/resource/common/backend"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
@@ -57,10 +58,10 @@ func InstanceFromCR(obj client.Object) (*instancedom.Instance, error) {
 		cr = *t
 	case *unstructured.Unstructured:
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(t.Object, &cr); err != nil {
-			return nil, fmt.Errorf("failed to convert unstructured to Instance: %w", err)
+			return nil, kernel.NewError(kernel.KindValidation, fmt.Errorf("failed to convert unstructured to Instance: %w", err))
 		}
 	default:
-		return nil, fmt.Errorf("unsupported object type %T", obj)
+		return nil, kernel.NewError(kernel.KindInternal, fmt.Errorf("unsupported object type %T", obj))
 	}
 
 	crLabels := cr.GetLabels()
@@ -114,8 +115,16 @@ func InstanceFromCR(obj client.Object) (*instancedom.Instance, error) {
 
 	inst.Status = &instancedom.InstanceStatus{}
 	if cr.Status != nil {
-		inst.Status.State = commonbackend.ResourceStateFromCR(cr.Status.State)
-		inst.Status.Conditions = commonbackend.ConditionsFromCR(cr.Status.Conditions)
+		state, err := commonbackend.ResourceStateFromCR(cr.Status.State)
+		if err != nil {
+			return nil, fmt.Errorf("instance %s: %w", cr.Name, err)
+		}
+		conds, err := commonbackend.ConditionsFromCR(cr.Status.Conditions)
+		if err != nil {
+			return nil, fmt.Errorf("instance %s: %w", cr.Name, err)
+		}
+		inst.Status.State = state
+		inst.Status.Conditions = conds
 		inst.Status.PowerState = instancedom.PowerState(cr.Status.PowerState)
 		if cr.Status.PowerStateSince != nil {
 			inst.Status.PowerStateSince = &cr.Status.PowerStateSince.Time
@@ -130,7 +139,7 @@ func InstanceFromCR(obj client.Object) (*instancedom.Instance, error) {
 // InstanceToCR converts an *instancedom.Instance to a Kubernetes Instance CR.
 func InstanceToCR(inst *instancedom.Instance) (client.Object, error) {
 	if inst == nil {
-		return nil, fmt.Errorf("instance is nil")
+		return nil, kernel.NewError(kernel.KindInternal, fmt.Errorf("instance is nil"))
 	}
 
 	crLabels := k8slabels.OriginalToKeyed(inst.Labels)
@@ -199,17 +208,21 @@ func InstanceToCR(inst *instancedom.Instance) (client.Object, error) {
 	cr.SetGroupVersionKind(InstanceGVK)
 
 	if inst.Status != nil && len(inst.Status.Conditions) > 0 {
-		state := commonbackend.ResourceStateToCR(inst.Status.State)
-		if state == nil {
-			return nil, fmt.Errorf("failed to convert resource state to CR")
+		state, err := commonbackend.ResourceStateToCR(inst.Status.State)
+		if err != nil {
+			return nil, fmt.Errorf("instance %s: %w", inst.Name, err)
+		}
+		conds, err := commonbackend.ConditionsToCR(inst.Status.Conditions)
+		if err != nil {
+			return nil, fmt.Errorf("instance %s: %w", inst.Name, err)
 		}
 		powerState := inst.Status.PowerState
 		if powerState == "" {
 			powerState = instancedom.PowerStateOff
 		}
 		cr.Status = &InstanceStatus{
-			Conditions: commonbackend.ConditionsToCR(inst.Status.Conditions),
-			State:      *state,
+			Conditions: conds,
+			State:      state,
 			PowerState: InstanceStatusPowerState(powerState),
 		}
 		if inst.Status.PowerStateSince != nil {
@@ -218,4 +231,11 @@ func InstanceToCR(inst *instancedom.Instance) (client.Object, error) {
 	}
 
 	return cr, nil
+}
+
+// Converter is the CR<->domain conversion pair for Instance, so a call site names one value
+// instead of pairing the two directions by hand. See doc/CONVENTIONS.md §2.
+var Converter = k8sadapter.TwoWayConverter[*instancedom.Instance]{
+	FromCR: InstanceFromCR,
+	ToCR:   InstanceToCR,
 }

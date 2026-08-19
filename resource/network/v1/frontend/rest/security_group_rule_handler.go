@@ -48,7 +48,7 @@ func (h *Handler) CreateOrUpdateSecurityGroupRule(w http.ResponseWriter, r *http
 		Params:  id,
 		Creator: frest.CreatorFromRepo(h.SecurityGroupRuleWriter),
 		Updater: frest.UpdaterFromRepo(h.SecurityGroupRuleWriter),
-		APIToDomain: func(sdk sdkschema.SecurityGroupRule, p persistencepkg.IdentifiableResource) *securitygroupruledom.SecurityGroupRule {
+		APIToDomain: func(sdk sdkschema.SecurityGroupRule, p persistencepkg.IdentifiableResource) (*securitygroupruledom.SecurityGroupRule, error) {
 			return securityGroupRuleFromAPI(sdk, p.(*SecurityGroupRuleIdentity), region)
 		},
 		DomainToAPI: securityGroupRuleToAPIWithVerb(http.MethodPut),

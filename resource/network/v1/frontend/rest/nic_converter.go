@@ -125,7 +125,7 @@ func nicIteratorToAPI(ns []*nicdom.Nic, nextSkipToken *string) *sdknetwork.NicIt
 }
 
 // nicFromAPI converts an SDK Nic to a Nic.
-func nicFromAPI(sdk sdkschema.Nic, id *resource.Identity, region string) *nicdom.Nic {
+func nicFromAPI(sdk sdkschema.Nic, id *resource.Identity, region string) (*nicdom.Nic, error) {
 	n := &nicdom.Nic{
 		Spec: nicdom.NicSpec{
 			Addresses: sdk.Spec.Addresses,
@@ -152,7 +152,7 @@ func nicFromAPI(sdk sdkschema.Nic, id *resource.Identity, region string) *nicdom
 	n.Annotations = sdk.Annotations
 	n.Extensions = sdk.Extensions
 
-	return n
+	return n, nil
 }
 
 // newNicWithIdentity returns a *nicdom.Nic populated with identity fields from ir.

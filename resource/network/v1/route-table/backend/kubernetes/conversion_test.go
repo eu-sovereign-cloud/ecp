@@ -2,13 +2,23 @@ package kubernetes_test
 
 import (
 	"reflect"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
+	corev1 "k8s.io/api/core/v1"
+
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	routetabledom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/route-table"
 	. "github.com/eu-sovereign-cloud/ecp/resource/network/v1/route-table/backend/kubernetes"
+)
+
+const (
+	testRouteTableName = "rt1"
+	// corruptState is a value no CRD enum allows — what a hand-edited CR looks like.
+	corruptState = "halfway"
 )
 
 func TestRouteTableConversionRoundTrip(t *testing.T) {
@@ -24,7 +34,7 @@ func TestRouteTableConversionRoundTrip(t *testing.T) {
 			},
 		},
 	}
-	in.Name = "rt1"
+	in.Name = testRouteTableName
 	in.Tenant = "t1"
 	in.Workspace = "w1"
 	in.Network = "n1"
@@ -63,7 +73,7 @@ func TestRouteTableToCR_DefaultPendingCondition(t *testing.T) {
 			Routes: []routetabledom.RouteSpec{{DestinationCidrBlock: "10.0.0.0/24"}},
 		},
 	}
-	in.Name = "rt1"
+	in.Name = testRouteTableName
 
 	cr, err := RouteTableToCR(in)
 	require.NoError(t, err)
@@ -75,7 +85,7 @@ func TestRouteTableToCR_DefaultPendingCondition(t *testing.T) {
 
 func TestRouteTableToCR_UsesNetworkNamespace(t *testing.T) {
 	withNetwork := &routetabledom.RouteTable{}
-	withNetwork.Name = "rt1"
+	withNetwork.Name = testRouteTableName
 	withNetwork.Tenant = "t1"
 	withNetwork.Workspace = "w1"
 	withNetwork.Network = "n1"
@@ -85,7 +95,7 @@ func TestRouteTableToCR_UsesNetworkNamespace(t *testing.T) {
 	require.NotEmpty(t, cr.GetNamespace())
 
 	other := &routetabledom.RouteTable{}
-	other.Name = "rt1"
+	other.Name = testRouteTableName
 	other.Tenant = "t1"
 	other.Workspace = "w1"
 	other.Network = "n2"
@@ -181,4 +191,158 @@ func FuzzRouteTableSpecRoundTrip(f *testing.F) {
 			t.Errorf("namespace not stable: %q → %q", cr1.GetNamespace(), cr2.GetNamespace())
 		}
 	})
+}
+
+// A route table carries a nested per-route status, so it has two arms that map a resource state.
+// Both used to answer "" for a value they did not know — the top-level one made an actively
+// broken route table look stateless, the nested one made a single bad route silently vanish.
+func TestRouteTableFromCR_RejectsCorruptState(t *testing.T) {
+	testCases := []struct {
+		name    string
+		mutate  func(cr *RouteTable)
+		wantMsg string
+	}{
+		{
+			name:    "top-level state",
+			mutate:  func(cr *RouteTable) { cr.Status.State = corruptState },
+			wantMsg: "route table rt1",
+		},
+		{
+			name:    "nested route state",
+			mutate:  func(cr *RouteTable) { cr.Status.Routes[0].State = corruptState },
+			wantMsg: "route table rt1",
+		},
+		{
+			name:    "condition state",
+			mutate:  func(cr *RouteTable) { cr.Status.Conditions[0].State = corruptState },
+			wantMsg: `condition`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			cr := activeRouteTableCR(t)
+			tc.mutate(cr)
+
+			out, err := RouteTableFromCR(cr)
+
+			require.Error(t, err)
+			require.Nil(t, out)
+			require.Contains(t, err.Error(), tc.wantMsg)
+
+			var domErr *kernel.Error
+			require.ErrorAs(t, err, &domErr, "must stay inspectable across the layer boundary")
+			require.Equal(t, kernel.KindValidation, domErr.Kind)
+		})
+	}
+}
+
+// The adapter is the only caller, and it only ever hands over this slice's own type or an
+// unstructured one. Anything else is a wiring bug, so it reports as internal rather than as
+// something the request could have caused.
+func TestRouteTableFromCR_RejectsForeignObject(t *testing.T) {
+	out, err := RouteTableFromCR(&corev1.Namespace{})
+
+	require.Error(t, err)
+	require.Nil(t, out)
+
+	var domErr *kernel.Error
+	require.ErrorAs(t, err, &domErr)
+	require.Equal(t, kernel.KindInternal, domErr.Kind)
+}
+
+func TestRouteTableToCR_RejectsNil(t *testing.T) {
+	out, err := RouteTableToCR(nil)
+
+	require.Error(t, err)
+	require.Nil(t, out)
+
+	var domErr *kernel.Error
+	require.ErrorAs(t, err, &domErr)
+	require.Equal(t, kernel.KindInternal, domErr.Kind)
+}
+
+// Converter is what every adapter is now handed instead of the two functions. Crossing the pair
+// would compile, so pin that each field is the direction it claims to be.
+func TestConverterPairsBothDirections(t *testing.T) {
+	in := &routetabledom.RouteTable{}
+	in.Name = testRouteTableName
+	in.Tenant = "t1"
+	in.Workspace = "w1"
+	in.Network = "n1"
+
+	cr, err := Converter.ToCR(in)
+	require.NoError(t, err)
+	require.Equal(t, testRouteTableName, cr.GetName())
+
+	out, err := Converter.FromCR(cr)
+	require.NoError(t, err)
+	require.Equal(t, in.Name, out.Name)
+	require.Equal(t, in.Network, out.Network)
+}
+
+// activeRouteTableCR builds a CR whose status is fully populated, so each test only has to
+// corrupt the one field it is about.
+func activeRouteTableCR(t *testing.T) *RouteTable {
+	t.Helper()
+
+	in := &routetabledom.RouteTable{}
+	in.Name = testRouteTableName
+	in.Tenant = "t1"
+	in.Workspace = "w1"
+	in.Network = "n1"
+	in.Status = &routetabledom.RouteTableStatus{
+		Status: commondomain.Status{State: commondomain.ResourceStateActive},
+		Routes: []routetabledom.RouteStatus{{State: commondomain.ResourceStateActive}},
+	}
+	in.Status.PushCondition(commondomain.StatusCondition{State: commondomain.ResourceStateActive})
+
+	obj, err := RouteTableToCR(in)
+	require.NoError(t, err)
+
+	cr, ok := obj.(*RouteTable)
+	require.True(t, ok)
+	require.NotNil(t, cr.Status)
+	require.NotEmpty(t, cr.Status.Routes)
+	require.NotEmpty(t, cr.Status.Conditions)
+	return cr
+}
+
+// The write direction used to signal "cannot map this state" with a nil pointer that each caller
+// re-reported as a bare string, so the offending value never reached the log.
+func TestRouteTableToCR_RejectsUnmappableState(t *testing.T) {
+	testCases := []struct {
+		name   string
+		mutate func(rt *routetabledom.RouteTable)
+	}{
+		{"top-level state", func(rt *routetabledom.RouteTable) { rt.Status.State = corruptState }},
+		{"nested route state", func(rt *routetabledom.RouteTable) { rt.Status.Routes[0].State = corruptState }},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			in := &routetabledom.RouteTable{}
+			in.Name = testRouteTableName
+			in.Tenant = "t1"
+			in.Workspace = "w1"
+			in.Network = "n1"
+			in.Status = &routetabledom.RouteTableStatus{
+				Status: commondomain.Status{State: commondomain.ResourceStateActive},
+				Routes: []routetabledom.RouteStatus{{State: commondomain.ResourceStateActive}},
+			}
+			in.Status.PushCondition(commondomain.StatusCondition{State: commondomain.ResourceStateActive})
+			tc.mutate(in)
+
+			out, err := RouteTableToCR(in)
+
+			require.Error(t, err)
+			require.Nil(t, out)
+			require.Contains(t, err.Error(), "route table rt1", "the error must name the resource it is about")
+			require.Contains(t, err.Error(), strconv.Quote(corruptState), "and the value that caused it")
+
+			var domErr *kernel.Error
+			require.ErrorAs(t, err, &domErr)
+			require.Equal(t, kernel.KindValidation, domErr.Kind)
+		})
+	}
 }

@@ -8,6 +8,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	res "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage"
@@ -100,7 +101,7 @@ func (c *BlockStorageConverter) FromArubaToSECA(from *v1alpha1.BlockStorage) (*b
 
 func SecaToArubaSize(in int) (int32, error) {
 	if in > math.MaxInt32 || in < math.MinInt32 {
-		return 0, errors.New("storage size out of range")
+		return 0, kernel.NewError(kernel.KindValidation, errors.New("storage size out of range"))
 	}
 
 	return int32(in), nil //nolint:gosec // boundaries checked above
@@ -134,7 +135,7 @@ func getTenantFromSpecOrError(from *v1alpha1.BlockStorage) (string, error) {
 		return from.Labels["seca.blockstorage/tenant"], nil
 	}
 
-	return "", errors.New("tenant is missing")
+	return "", kernel.NewError(kernel.KindValidation, errors.New("tenant is missing"))
 }
 
 // getWorkspaceFromSpecOrLabels
@@ -147,5 +148,5 @@ func getWorkspaceFromSpecOrError(from *v1alpha1.BlockStorage) (string, error) {
 		return from.Labels["seca.blockstorage/workspace"], nil
 	}
 
-	return "", errors.New("workspace is missing")
+	return "", kernel.NewError(kernel.KindValidation, errors.New("workspace is missing"))
 }

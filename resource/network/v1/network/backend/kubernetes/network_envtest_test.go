@@ -66,8 +66,7 @@ func TestNetworkBackend_CreateAndGetNetwork(t *testing.T) {
 		dynClient,
 		NetworkGVR,
 		slog.Default(),
-		NetworkToCR,
-		NetworkFromCR,
+		Converter,
 	)
 
 	readerRepo := k8sadapter.NewReaderAdapter[*netdom.Network](

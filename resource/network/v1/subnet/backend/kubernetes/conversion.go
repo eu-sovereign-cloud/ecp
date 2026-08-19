@@ -14,6 +14,7 @@ import (
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
 	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/schema/v1"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 
 	commonbackend "github.com/eu-sovereign-cloud/ecp/resource/common/backend"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
@@ -30,10 +31,10 @@ func SubnetFromCR(obj client.Object) (*subnetdom.Subnet, error) {
 		cr = *t
 	case *unstructured.Unstructured:
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(t.Object, &cr); err != nil {
-			return nil, fmt.Errorf("failed to convert unstructured to Subnet: %w", err)
+			return nil, kernel.NewError(kernel.KindValidation, fmt.Errorf("failed to convert unstructured to Subnet: %w", err))
 		}
 	default:
-		return nil, fmt.Errorf("unsupported object type %T", obj)
+		return nil, kernel.NewError(kernel.KindInternal, fmt.Errorf("unsupported object type %T", obj))
 	}
 
 	crLabels := cr.GetLabels()
@@ -69,8 +70,16 @@ func SubnetFromCR(obj client.Object) (*subnetdom.Subnet, error) {
 
 	s.Status = &subnetdom.SubnetStatus{}
 	if cr.Status != nil {
-		s.Status.State = commonbackend.ResourceStateFromCR(cr.Status.State)
-		s.Status.Conditions = commonbackend.ConditionsFromCR(cr.Status.Conditions)
+		state, err := commonbackend.ResourceStateFromCR(cr.Status.State)
+		if err != nil {
+			return nil, fmt.Errorf("subnet %s: %w", cr.Name, err)
+		}
+		conds, err := commonbackend.ConditionsFromCR(cr.Status.Conditions)
+		if err != nil {
+			return nil, fmt.Errorf("subnet %s: %w", cr.Name, err)
+		}
+		s.Status.State = state
+		s.Status.Conditions = conds
 		if cr.Status.Cidr != nil {
 			cidr := cidrFromCR(*cr.Status.Cidr)
 			s.Status.Cidr = &cidr
@@ -89,7 +98,7 @@ func SubnetFromCR(obj client.Object) (*subnetdom.Subnet, error) {
 // SubnetToCR converts a *subnetdom.Subnet to a Kubernetes Subnet CR.
 func SubnetToCR(s *subnetdom.Subnet) (client.Object, error) {
 	if s == nil {
-		return nil, fmt.Errorf("subnet is nil")
+		return nil, kernel.NewError(kernel.KindInternal, fmt.Errorf("subnet is nil"))
 	}
 
 	crLabels := k8slabels.OriginalToKeyed(s.Labels)
@@ -125,14 +134,18 @@ func SubnetToCR(s *subnetdom.Subnet) (client.Object, error) {
 	cr.SetGroupVersionKind(SubnetGVK)
 
 	if s.Status != nil && len(s.Status.Conditions) > 0 {
-		state := commonbackend.ResourceStateToCR(s.Status.State)
-		if state == nil {
-			return nil, fmt.Errorf("failed to convert resource state to CR")
+		state, err := commonbackend.ResourceStateToCR(s.Status.State)
+		if err != nil {
+			return nil, fmt.Errorf("subnet %s: %w", s.Name, err)
+		}
+		conds, err := commonbackend.ConditionsToCR(s.Status.Conditions)
+		if err != nil {
+			return nil, fmt.Errorf("subnet %s: %w", s.Name, err)
 		}
 
 		status := &SubnetStatus{
-			Conditions: commonbackend.ConditionsToCR(s.Status.Conditions),
-			State:      *state,
+			Conditions: conds,
+			State:      state,
 		}
 		if s.Status.Cidr != nil {
 			cidr := cidrToCR(*s.Status.Cidr)
@@ -160,4 +173,11 @@ func cidrToCR(c subnetdom.CIDR) schemav1.Cidr {
 		Ipv4: c.IPv4,
 		Ipv6: c.IPv6,
 	}
+}
+
+// Converter is the CR<->domain conversion pair for Subnet, so a call site names one value
+// instead of pairing the two directions by hand. See doc/CONVENTIONS.md §2.
+var Converter = k8sadapter.TwoWayConverter[*subnetdom.Subnet]{
+	FromCR: SubnetFromCR,
+	ToCR:   SubnetToCR,
 }

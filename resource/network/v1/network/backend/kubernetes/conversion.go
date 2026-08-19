@@ -14,6 +14,7 @@ import (
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
 	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/schema/v1"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 
 	commonbackend "github.com/eu-sovereign-cloud/ecp/resource/common/backend"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
@@ -30,10 +31,10 @@ func NetworkFromCR(obj client.Object) (*netdom.Network, error) {
 		cr = *t
 	case *unstructured.Unstructured:
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(t.Object, &cr); err != nil {
-			return nil, fmt.Errorf("failed to convert unstructured to Network: %w", err)
+			return nil, kernel.NewError(kernel.KindValidation, fmt.Errorf("failed to convert unstructured to Network: %w", err))
 		}
 	default:
-		return nil, fmt.Errorf("unsupported object type %T", obj)
+		return nil, kernel.NewError(kernel.KindInternal, fmt.Errorf("unsupported object type %T", obj))
 	}
 
 	crLabels := cr.GetLabels()
@@ -70,8 +71,16 @@ func NetworkFromCR(obj client.Object) (*netdom.Network, error) {
 	n.Status = &netdom.NetworkStatus{}
 	if cr.Status != nil {
 		n.Status = &netdom.NetworkStatus{}
-		n.Status.State = commonbackend.ResourceStateFromCR(cr.Status.State)
-		n.Status.Conditions = commonbackend.ConditionsFromCR(cr.Status.Conditions)
+		state, err := commonbackend.ResourceStateFromCR(cr.Status.State)
+		if err != nil {
+			return nil, fmt.Errorf("network %s: %w", cr.Name, err)
+		}
+		conds, err := commonbackend.ConditionsFromCR(cr.Status.Conditions)
+		if err != nil {
+			return nil, fmt.Errorf("network %s: %w", cr.Name, err)
+		}
+		n.Status.State = state
+		n.Status.Conditions = conds
 	} else {
 		n.Status.PushCondition(commondomain.DefaultPendingCondition)
 	}
@@ -82,7 +91,7 @@ func NetworkFromCR(obj client.Object) (*netdom.Network, error) {
 // NetworkToCR converts a *netdom.Network to a Kubernetes Network CR.
 func NetworkToCR(n *netdom.Network) (client.Object, error) {
 	if n == nil {
-		return nil, fmt.Errorf("network is nil")
+		return nil, kernel.NewError(kernel.KindInternal, fmt.Errorf("network is nil"))
 	}
 
 	crLabels := k8slabels.OriginalToKeyed(n.Labels)
@@ -117,13 +126,17 @@ func NetworkToCR(n *netdom.Network) (client.Object, error) {
 	cr.SetGroupVersionKind(NetworkGVK)
 
 	if n.Status != nil && len(n.Status.Conditions) > 0 {
-		state := commonbackend.ResourceStateToCR(n.Status.State)
-		if state == nil {
-			return nil, fmt.Errorf("failed to convert resource state to CR")
+		state, err := commonbackend.ResourceStateToCR(n.Status.State)
+		if err != nil {
+			return nil, fmt.Errorf("network %s: %w", n.Name, err)
+		}
+		conds, err := commonbackend.ConditionsToCR(n.Status.Conditions)
+		if err != nil {
+			return nil, fmt.Errorf("network %s: %w", n.Name, err)
 		}
 		cr.Status = &NetworkStatus{
-			Conditions: commonbackend.ConditionsToCR(n.Status.Conditions),
-			State:      *state,
+			Conditions: conds,
+			State:      state,
 		}
 	}
 
@@ -142,4 +155,11 @@ func cidrToCR(c netdom.CIDR) schemav1.Cidr {
 		Ipv4: c.IPv4,
 		Ipv6: c.IPv6,
 	}
+}
+
+// Converter is the CR<->domain conversion pair for Network, so a call site names one value
+// instead of pairing the two directions by hand. See doc/CONVENTIONS.md §2.
+var Converter = k8sadapter.TwoWayConverter[*netdom.Network]{
+	FromCR: NetworkFromCR,
+	ToCR:   NetworkToCR,
 }

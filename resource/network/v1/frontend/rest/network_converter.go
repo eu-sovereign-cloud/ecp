@@ -129,7 +129,7 @@ func networkIteratorToAPI(ns []*netdom.Network, nextSkipToken *string) *sdknetwo
 }
 
 // networkFromAPI converts an SDK Network to a Network.
-func networkFromAPI(sdk sdkschema.Network, id *resource.Identity, region string) *netdom.Network {
+func networkFromAPI(sdk sdkschema.Network, id *resource.Identity, region string) (*netdom.Network, error) {
 	n := &netdom.Network{
 		Spec: netdom.NetworkSpec{
 			CIDR:   cidrFromAPI(sdk.Spec.Cidr),
@@ -150,7 +150,7 @@ func networkFromAPI(sdk sdkschema.Network, id *resource.Identity, region string)
 		n.Spec.AdditionalCIDRs = append(n.Spec.AdditionalCIDRs, cidrFromAPI(c))
 	}
 
-	return n
+	return n, nil
 }
 
 // cidrToAPI converts a netdom.CIDR to an sdkschema.Cidr.

@@ -67,7 +67,8 @@ func (c *CachedChecker) Start(ctx context.Context) error {
 	synced := c.factory.WaitForCacheSync(ctx.Done())
 	for gvr, ok := range synced {
 		if !ok {
-			return fmt.Errorf("informer cache sync timed out for %s", gvr.Resource)
+			return kernel.NewError(kernel.KindUnavailable,
+				fmt.Errorf("informer cache sync timed out for %s", gvr.Resource))
 		}
 	}
 	return nil
@@ -148,7 +149,8 @@ func (c *CachedChecker) loadFromCache(tenant string) (map[string]*roledom.Role, 
 func toUnstructured(obj runtime.Object) (*unstructured.Unstructured, error) {
 	u, ok := obj.(*unstructured.Unstructured)
 	if !ok {
-		return nil, fmt.Errorf("unexpected object type in informer cache: %T", obj)
+		return nil, kernel.NewError(kernel.KindInternal,
+			fmt.Errorf("unexpected object type in informer cache: %T", obj))
 	}
 	return u, nil
 }

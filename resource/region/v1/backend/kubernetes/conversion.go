@@ -11,7 +11,9 @@ import (
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	rdom "github.com/eu-sovereign-cloud/ecp/resource/region/v1"
 
+	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 )
 
 // RegionFromCR converts either a concrete *Region or *unstructured.Unstructured into a *rdom.Region.
@@ -23,10 +25,10 @@ func RegionFromCR(obj client.Object) (*rdom.Region, error) {
 		cr = *t
 	case *unstructured.Unstructured:
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(t.Object, &cr); err != nil {
-			return nil, fmt.Errorf("failed to convert unstructured to Region: %w", err)
+			return nil, kernel.NewError(kernel.KindValidation, fmt.Errorf("failed to convert unstructured to Region: %w", err))
 		}
 	default:
-		return nil, fmt.Errorf("unsupported object type %T (expected *Region or *unstructured.Unstructured)", obj)
+		return nil, kernel.NewError(kernel.KindInternal, fmt.Errorf("unsupported object type %T (expected *Region or *unstructured.Unstructured)", obj))
 	}
 
 	if err := validateRegionSpec(cr); err != nil {
@@ -57,7 +59,7 @@ func RegionFromCR(obj client.Object) (*rdom.Region, error) {
 // handles re-serialisation for update paths.
 func RegionToCR(r *rdom.Region) (client.Object, error) {
 	if r == nil {
-		return nil, fmt.Errorf("region is nil")
+		return nil, kernel.NewError(kernel.KindInternal, fmt.Errorf("region is nil"))
 	}
 
 	cr := &Region{
@@ -112,4 +114,11 @@ func mapZones(cr Region) []rdom.Zone {
 		zones = append(zones, rdom.Zone(z))
 	}
 	return zones
+}
+
+// Converter is the CR<->domain conversion pair for Region, so a call site names one value
+// instead of pairing the two directions by hand. See doc/CONVENTIONS.md §2.
+var Converter = k8sadapter.TwoWayConverter[*rdom.Region]{
+	FromCR: RegionFromCR,
+	ToCR:   RegionToCR,
 }

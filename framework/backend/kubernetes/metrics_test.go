@@ -158,11 +158,13 @@ func TestWriterAdapter_Create_ObservesCreate(t *testing.T) {
 		dynFake,
 		testGVR,
 		logger,
-		func(d *testIdentifiable) (client.Object, error) {
-			return newTestObject("", d.name), nil
-		},
-		func(o client.Object) (*testIdentifiable, error) {
-			return &testIdentifiable{name: o.GetName()}, nil
+		TwoWayConverter[*testIdentifiable]{
+			FromCR: func(o client.Object) (*testIdentifiable, error) {
+				return &testIdentifiable{name: o.GetName()}, nil
+			},
+			ToCR: func(d *testIdentifiable) (client.Object, error) {
+				return newTestObject("", d.name), nil
+			},
 		},
 	)
 

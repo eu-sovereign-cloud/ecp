@@ -27,7 +27,11 @@ type Updater[T any] interface {
 }
 
 // APIToDomain defines the function type for mapping API objects to domain objects.
-type APIToDomain[In any, D any] func(sdk In, params persistence.IdentifiableResource) D
+//
+// It returns an error because this is the request boundary: the value came off the wire and
+// may not be one the domain has. A converter that cannot fail returns nil, and a failure is
+// answered as an RFC 7807 response rather than reaching persistence as a flattened zero value.
+type APIToDomain[In any, D any] func(sdk In, params persistence.IdentifiableResource) (D, error)
 
 // UpsertOptions contains the configuration for HandleUpsert.
 type UpsertOptions[In any, D any, Out any] struct {
@@ -85,7 +89,12 @@ func HandleUpsert[In any, D any, Out any](
 		return
 	}
 
-	domainObj := options.APIToDomain(apiObj, options.Params)
+	// WriteErrorResponse logs the failure with its resolved status, so nothing is logged here.
+	domainObj, err := options.APIToDomain(apiObj, options.Params)
+	if err != nil {
+		WriteErrorResponse(w, r, logger, err)
+		return
+	}
 
 	// Determine whether to create or update based on the presence of a resource version.
 	shouldUpdate := options.Params.GetVersion() != ""
@@ -125,5 +134,7 @@ func HandleUpsert[In any, D any, Out any](
 
 	w.Header().Set("Content-Type", string(schema.AcceptHeaderJson))
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(buf.Bytes())
+	if _, err := w.Write(buf.Bytes()); err != nil {
+		logger.ErrorContext(r.Context(), "failed to write response body", slog.Any("error", err))
+	}
 }

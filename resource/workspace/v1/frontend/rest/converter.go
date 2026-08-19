@@ -120,7 +120,7 @@ func workspaceToAPI(ws wsdom.Workspace, verb string) *sdkschema.Workspace {
 }
 
 // workspaceFromAPI converts an SDK Workspace to a Workspace.
-func workspaceFromAPI(api sdkschema.Workspace, id *resource.Identity, region string) *wsdom.Workspace {
+func workspaceFromAPI(api sdkschema.Workspace, id *resource.Identity, region string) (*wsdom.Workspace, error) {
 	ws := &wsdom.Workspace{
 		Spec: api.Spec,
 	}
@@ -133,5 +133,5 @@ func workspaceFromAPI(api sdkschema.Workspace, id *resource.Identity, region str
 	ws.Annotations = api.Annotations
 	ws.Extensions = api.Extensions
 
-	return ws
+	return ws, nil
 }

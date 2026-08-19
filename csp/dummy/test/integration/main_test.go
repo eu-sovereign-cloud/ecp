@@ -131,85 +131,73 @@ func TestMain(m *testing.M) {
 		dynamicClient,
 		netk8s.NetworkGVR,
 		testLogger,
-		netk8s.NetworkToCR,
-		netk8s.NetworkFromCR,
+		netk8s.Converter,
 	)
 	nicRepo = k8sadapter.NewRepoAdapter[*nicdom.Nic](
 		dynamicClient,
 		nick8s.NICGVR,
 		testLogger,
-		nick8s.NicToCR,
-		nick8s.NicFromCR,
+		nick8s.Converter,
 	)
 	publicIpRepo = k8sadapter.NewRepoAdapter[*publicipdom.PublicIp](
 		dynamicClient,
 		publicipk8s.PublicIPGVR,
 		testLogger,
-		publicipk8s.PublicIpToCR,
-		publicipk8s.PublicIpFromCR,
+		publicipk8s.Converter,
 	)
 	internetGatewayRepo = k8sadapter.NewRepoAdapter[*internetgatewaydom.InternetGateway](
 		dynamicClient,
 		internetgatewayk8s.InternetGatewayGVR,
 		testLogger,
-		internetgatewayk8s.InternetGatewayToCR,
-		internetgatewayk8s.InternetGatewayFromCR,
+		internetgatewayk8s.Converter,
 	)
 	routeTableRepo = k8sadapter.NewRepoAdapter[*routetabledom.RouteTable](
 		dynamicClient,
 		routetablek8s.RouteTableGVR,
 		testLogger,
-		routetablek8s.RouteTableToCR,
-		routetablek8s.RouteTableFromCR,
+		routetablek8s.Converter,
 	)
 	securityGroupRepo = k8sadapter.NewRepoAdapter[*securitygroupdom.SecurityGroup](
 		dynamicClient,
 		securitygroupk8s.SecurityGroupGVR,
 		testLogger,
-		securitygroupk8s.SecurityGroupToCR,
-		securitygroupk8s.SecurityGroupFromCR,
+		securitygroupk8s.Converter,
 	)
 	securityGroupRuleRepo = k8sadapter.NewRepoAdapter[*securitygroupruledom.SecurityGroupRule](
 		dynamicClient,
 		securitygrouprulek8s.SecurityGroupRuleGVR,
 		testLogger,
-		securitygrouprulek8s.SecurityGroupRuleToCR,
-		securitygrouprulek8s.SecurityGroupRuleFromCR,
+		securitygrouprulek8s.Converter,
 	)
 	subnetRepo = k8sadapter.NewRepoAdapter[*subnetdom.Subnet](
 		dynamicClient,
 		subnetk8s.SubnetGVR,
 		testLogger,
-		subnetk8s.SubnetToCR,
-		subnetk8s.SubnetFromCR,
+		subnetk8s.Converter,
 	)
 	instanceRepo = k8sadapter.NewRepoAdapter[*instancedom.Instance](
 		dynamicClient,
 		instancek8s.InstanceGVR,
 		testLogger,
-		instancek8s.InstanceToCR,
-		instancek8s.InstanceFromCR,
+		instancek8s.Converter,
 	)
 	blockStorageRepo = k8sadapter.NewRepoAdapter[*bsdom.BlockStorage](
 		dynamicClient,
 		bsk8s.BlockStorageGVR,
 		testLogger,
-		bsk8s.BlockStorageToCR,
-		bsk8s.BlockStorageFromCR,
+		bsk8s.Converter,
 	)
 	workspaceRepo = k8sadapter.NewRepoAdapter[*wsdom.Workspace](
 		dynamicClient,
 		wsk8s.WorkspaceGVR,
 		testLogger,
-		wsk8s.WorkspaceToCR,
-		wsk8s.WorkspaceFromCR,
+		wsk8s.Converter,
 	)
 	imageRepo = k8sadapter.NewRepoAdapter[*imgdom.Image](
 		dynamicClient,
 		imgk8s.ImageGVR,
 		testLogger,
-		imgk8s.ImageToCR,
-		imgk8s.ImageFromCR,
+		imgk8s.Converter,
 	)
 	if err := waitForNamespace(context.Background(), testNamespace); err != nil {
 		log.Fatalf("Failed to wait for namespace %s: %v", testNamespace, err)

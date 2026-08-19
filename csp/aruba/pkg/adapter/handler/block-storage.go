@@ -7,6 +7,7 @@ import (
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	backend "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
 	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	res "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
@@ -211,7 +212,7 @@ func (h *BlockStorageHandler) resolveSecaBlockStorageDependencies(ctx context.Co
 	// to this resource's tenant. See https://github.com/eu-sovereign-cloud/ecp/issues/216
 	skuRef := commonbackend.ParseReference(domain.Spec.SkuRef, domain.GetTenant())
 	if skuRef.Name == "" {
-		return nil, errors.New("invalid SKU reference")
+		return nil, kernel.NewError(kernel.KindValidation, errors.New("invalid SKU reference"))
 	}
 
 	storageSku := &ssdom.StorageSKU{

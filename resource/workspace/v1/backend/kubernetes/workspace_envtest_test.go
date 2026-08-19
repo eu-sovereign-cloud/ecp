@@ -52,8 +52,7 @@ func TestWorkspaceBackend(t *testing.T) {
 		clientset,
 		WorkspaceGVR,
 		slog.Default(),
-		WorkspaceToCR,
-		WorkspaceFromCR,
+		Converter,
 		k8sadapter.WorkspaceChildren,
 		nil, // no child GVRs in this suite; emptiness check is a no-op
 	)

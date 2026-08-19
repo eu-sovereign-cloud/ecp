@@ -162,7 +162,7 @@ For containerized development, persistent dev containers, and the full Makefile 
 | [doc/CODEGEN.md](doc/CODEGEN.md) | Code generation pipeline (OpenAPI types, CRDs, controller-gen) |
 | [doc/PLUGINS.md](doc/PLUGINS.md) | Plugin system: interface, builder inversion, writing a new CSP plugin |
 | [doc/CONTRIBUTING.md](doc/CONTRIBUTING.md) | Contribution guidelines, import alias convention, PR conventions |
-| [doc/CONVENTIONS.md](doc/CONVENTIONS.md) | Go style conventions — naming, initialisms, conversion functions, structural symmetry |
+| [doc/CONVENTIONS.md](doc/CONVENTIONS.md) | Go style conventions — naming, initialisms, conversion functions, structural symmetry, error contract |
 | [doc/AUTH-SPEC-REVIEW.md](doc/AUTH-SPEC-REVIEW.md) | Auth findings — token model and SECA spec alignment review (record) |
 | [charts/ecp/README.md](charts/ecp/README.md) | Gateway chart — topology toggles, auth values, CRDs, full value list |
 | [charts/delegator/README.md](charts/delegator/README.md) | Delegator chart — plugin selection, per-plugin RBAC and backends |

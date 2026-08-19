@@ -8,7 +8,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	skudom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/storage-sku"
 )
 
@@ -22,10 +24,10 @@ func StorageSKUFromCR(obj client.Object) (*skudom.StorageSKU, error) {
 		cr = *t
 	case *unstructured.Unstructured:
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(t.Object, &cr); err != nil {
-			return nil, fmt.Errorf("failed to convert unstructured to StorageSKU: %w", err)
+			return nil, kernel.NewError(kernel.KindValidation, fmt.Errorf("failed to convert unstructured to StorageSKU: %w", err))
 		}
 	default:
-		return nil, fmt.Errorf("unsupported object type %T", obj)
+		return nil, kernel.NewError(kernel.KindInternal, fmt.Errorf("unsupported object type %T", obj))
 	}
 
 	crLabels := cr.GetLabels()
@@ -57,7 +59,7 @@ func StorageSKUFromCR(obj client.Object) (*skudom.StorageSKU, error) {
 // StorageSKUs are read-only resources — this is provided for completeness.
 func StorageSKUToCR(sku *skudom.StorageSKU) (client.Object, error) {
 	if sku == nil {
-		return nil, fmt.Errorf("storage SKU is nil")
+		return nil, kernel.NewError(kernel.KindInternal, fmt.Errorf("storage SKU is nil"))
 	}
 
 	cr := &StorageSKU{
@@ -72,4 +74,11 @@ func StorageSKUToCR(sku *skudom.StorageSKU) (client.Object, error) {
 	cr.SetGroupVersionKind(StorageSKUGVK)
 
 	return cr, nil
+}
+
+// Converter is the CR<->domain conversion pair for StorageSKU, so a call site names one value
+// instead of pairing the two directions by hand. See doc/CONVENTIONS.md §2.
+var Converter = k8sadapter.TwoWayConverter[*skudom.StorageSKU]{
+	FromCR: StorageSKUFromCR,
+	ToCR:   StorageSKUToCR,
 }
