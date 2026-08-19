@@ -756,7 +756,7 @@ func namespaceHasChildResources(
 		list, err := dyn.Resource(gvr).Namespace(namespace).List(ctx, metav1.ListOptions{Limit: 1})
 		if err != nil {
 			if kerrs.IsNotFound(err) {
-				observeUpstream(gvr, OpList, listStart, nil)
+				observeUpstream(gvr, OpList, listStart, err)
 				continue
 			}
 			observeUpstream(gvr, OpList, listStart, err)
