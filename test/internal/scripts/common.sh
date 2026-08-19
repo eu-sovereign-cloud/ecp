@@ -108,9 +108,12 @@ GATEWAY_REGIONAL_SVC="ecp-regional-gateway-regional"
 # Two releases share the gateway chart, each disabling the other gateway, so a
 # component can still be deployed on its own. Their names must contain the chart
 # name ("ecp") for the fullname helper to use them verbatim.
+# CHART_ROOT points at the directory holding charts/ecp and charts/delegator.
+# Defaults to the repo, so the stack deploys from the working tree; set it to an
+# unpacked release (charts/<name> per tgz) to verify a published chart instead.
 setup_chart_vars() {
     local component=${1:?component is required}
-    local root="${SCRIPT_DIR}/../../.."
+    local root="${CHART_ROOT:-${SCRIPT_DIR}/../../..}"
 
     case "${component}" in
         gateway-global)

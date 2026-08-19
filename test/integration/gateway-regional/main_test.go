@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"testing"
+	"time"
 
 	authhelper "github.com/eu-sovereign-cloud/ecp/test/internal/authhelper"
 
@@ -17,6 +18,8 @@ import (
 	storagev1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	workspacev1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1"
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
+
+	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/eu-sovereign-cloud/ecp/test/internal/testenv"
 )
@@ -30,6 +33,10 @@ const (
 	// reference via "block-storages/source-bs". This suite does not wait for it to
 	// reconcile — it only has to exist so the image reference resolves.
 	sourceBlockStorage = "source-bs"
+
+	// How long setup waits for the shared workspace namespace to become writable.
+	namespaceReadyTimeout  = 60 * time.Second
+	namespaceReadyInterval = 2 * time.Second
 )
 
 var (
@@ -121,6 +128,9 @@ func ensureTestWorkspace(ctx context.Context) error {
 
 // ensureSourceBlockStorage creates the workspace-scoped source block storage that
 // image tests reference. The create is an upsert, so it tolerates a leftover fixture.
+//
+// This is the first write into the workspace namespace, so it is where that namespace
+// being unusable shows up, and it polls through the two transient ways that happens.
 func ensureSourceBlockStorage(ctx context.Context) error {
 	body := schema.BlockStorage{
 		Spec: schema.BlockStorageSpec{
@@ -128,12 +138,33 @@ func ensureSourceBlockStorage(ctx context.Context) error {
 			SkuRef: schema.Reference{Resource: "sku-1"},
 		},
 	}
-	resp, err := storageClient.CreateOrUpdateBlockStorageWithResponse(ctx, testTenant, testWorkspace, sourceBlockStorage, nil, body)
-	if err != nil {
-		return err
+
+	var lastStatus int
+	err := wait.PollUntilContextTimeout(ctx, namespaceReadyInterval, namespaceReadyTimeout, true,
+		func(ctx context.Context) (bool, error) {
+			resp, err := storageClient.CreateOrUpdateBlockStorageWithResponse(ctx, testTenant, testWorkspace, sourceBlockStorage, nil, body)
+			if err != nil {
+				return false, err
+			}
+			lastStatus = resp.StatusCode()
+
+			switch lastStatus {
+			case http.StatusOK:
+				return true, nil
+			// 403: every suite shares test-tenant/test-workspace and deletes it on teardown, so
+			// this setup races the previous one's finalizer ("namespace is being terminated").
+			// 404: the gateway provisions the child namespace opportunistically after writing
+			// the workspace CR, so a 200 there no longer proves the namespace exists yet.
+			// A real authorization failure is indistinguishable and fails at the timeout.
+			case http.StatusForbidden, http.StatusNotFound:
+				return false, nil
+			default:
+				return false, fmt.Errorf("unexpected status %d creating source block storage %q", lastStatus, sourceBlockStorage)
+			}
+		})
+	if wait.Interrupted(err) {
+		return fmt.Errorf("workspace namespace not writable after %s (last status %d)", namespaceReadyTimeout, lastStatus)
 	}
-	if resp.StatusCode() != http.StatusOK {
-		return fmt.Errorf("unexpected status %d creating source block storage %q", resp.StatusCode(), sourceBlockStorage)
-	}
-	return nil
+
+	return err
 }

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	corev1 "k8s.io/api/core/v1"
@@ -198,14 +199,18 @@ func resolveNamespace(obj persistence.Scope) (string, error) {
 	return ComputeNamespace(obj), nil
 }
 
-// CreateNamespace creates a Kubernetes Namespace.
-func CreateNamespace(ctx context.Context, clientSet kubernetes.Interface, name string, ownerLabels map[string]string) (created bool, err error) {
+// CreateNamespace creates a Kubernetes Namespace. It is idempotent: an existing namespace is
+// adopted rather than an error.
+func CreateNamespace(ctx context.Context, clientSet kubernetes.Interface, name string, ownerLabels map[string]string) (err error) {
+	start := time.Now()
+	defer func() { observeUpstream(namespaceGVR, OpCreate, start, err) }()
+
 	if name == "" {
-		return false, kernel.NewError(kernel.KindValidation, fmt.Errorf("cannot create namespace with empty name"))
+		return kernel.NewError(kernel.KindValidation, fmt.Errorf("cannot create namespace with empty name"))
 	}
 
 	if clientSet == nil {
-		return false, kernel.NewError(kernel.KindUnavailable, fmt.Errorf("cannot create namespace %q: clientSet is nil", name))
+		return kernel.NewError(kernel.KindUnavailable, fmt.Errorf("cannot create namespace %q: clientSet is nil", name))
 	}
 
 	ns := &corev1.Namespace{
@@ -217,7 +222,7 @@ func CreateNamespace(ctx context.Context, clientSet kubernetes.Interface, name s
 
 	if _, err := clientSet.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{}); err != nil {
 		if !kerrs.IsAlreadyExists(err) {
-			return false, kubeToDomainError(fmt.Errorf("failed to create namespace %s: %w", name, err))
+			return kubeToDomainError(fmt.Errorf("failed to create namespace %s: %w", name, err))
 		}
 
 		// The namespace exists but may predate the owner labels (a hand-applied dev fixture, a
@@ -226,15 +231,11 @@ func CreateNamespace(ctx context.Context, clientSet kubernetes.Interface, name s
 		// The name is a hash of exactly this scope, so stamping is safe; the merge patch leaves
 		// any other label alone.
 		if len(ownerLabels) > 0 {
-			if err := patchNamespaceLabels(ctx, clientSet, name, ownerLabels); err != nil {
-				return false, err
-			}
+			return patchNamespaceLabels(ctx, clientSet, name, ownerLabels)
 		}
-
-		return false, nil
 	}
 
-	return true, nil
+	return nil
 }
 
 // patchNamespaceLabels merges ownerLabels into the namespace's labels, leaving the rest untouched.
@@ -254,7 +255,10 @@ func patchNamespaceLabels(ctx context.Context, clientSet kubernetes.Interface, n
 }
 
 // DeleteNamespace deletes the namespace. It does not error if NotFound.
-func DeleteNamespace(ctx context.Context, clientSet kubernetes.Interface, name string) error {
+func DeleteNamespace(ctx context.Context, clientSet kubernetes.Interface, name string) (err error) {
+	start := time.Now()
+	defer func() { observeUpstream(namespaceGVR, OpDelete, start, err) }()
+
 	if name == "" {
 		return nil
 	}
@@ -278,7 +282,9 @@ func DeleteNamespace(ctx context.Context, clientSet kubernetes.Interface, name s
 // resource.ListFilter, so a resource with an extra scoping dimension (e.g. Network) can carry
 // it on its own local params type and have it picked up here via the NetworkScope assertion,
 // without that dimension living on the shared resource.ListParams struct.
-func (a *ReaderAdapter[T]) List(ctx context.Context, params resource.ListFilter, list *[]T) (*string, error) {
+func (a *ReaderAdapter[T]) List(ctx context.Context, params resource.ListFilter, list *[]T) (next *string, err error) {
+	start := time.Now()
+	defer func() { observeUpstream(a.gvr, OpList, start, err) }()
 	lo := metav1.ListOptions{}
 
 	if limit := params.GetLimit(); limit > 0 {
@@ -345,16 +351,18 @@ func (a *ReaderAdapter[T]) List(ctx context.Context, params resource.ListFilter,
 		*list = append(*list, converted)
 	}
 
-	next := ulist.GetContinue()
-	if next == "" {
+	cont := ulist.GetContinue()
+	if cont == "" {
 		return nil, nil
 	}
 
-	return &next, nil
+	return &cont, nil
 }
 
 // Load implements the persistence.ReaderRepo interface.
-func (a *ReaderAdapter[T]) Load(ctx context.Context, obj *T) error {
+func (a *ReaderAdapter[T]) Load(ctx context.Context, obj *T) (err error) {
+	start := time.Now()
+	defer func() { observeUpstream(a.gvr, OpGet, start, err) }()
 	v := *obj
 	namespace, err := resolveNamespace(v)
 	if err != nil {
@@ -382,7 +390,9 @@ func (a *ReaderAdapter[T]) Load(ctx context.Context, obj *T) error {
 }
 
 // Create implements the persistence.WriterRepo interface.
-func (a *WriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
+func (a *WriterAdapter[T]) Create(ctx context.Context, m T) (res *T, err error) {
+	start := time.Now()
+	defer func() { observeUpstream(a.gvr, OpCreate, start, err) }()
 	namespace, err := resolveNamespace(m)
 	if err != nil {
 		return nil, err
@@ -409,19 +419,22 @@ func (a *WriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
 		return nil, kubeToDomainError(fmt.Errorf("failed to create resource %s '%s': %w", a.gvr.Resource, m.GetName(), err))
 	}
 
-	res, err := a.k8sToDomain(ures)
+	converted, err := a.k8sToDomain(ures)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "conversion from k8s object failed", "resource", a.gvr.Resource, "error", err)
 		return nil, kernel.NewError(kernel.KindValidation, fmt.Errorf("failed to convert %s from k8s object: %w", a.gvr.Resource, err))
 	}
 
-	return &res, nil
+	return &converted, nil
 }
 
 // Update implements the persistence.WriterRepo interface. It updates the resource's
 // metadata (labels, annotations) and spec. Status updates are handled separately
 // by UpdateStatus.
-func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
+func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (res *T, err error) {
+	start := time.Now()
+	defer func() { observeUpstream(a.gvr, OpUpdate, start, err) }()
+
 	uobj, err := a.toUnstructured(m)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "conversion from T to unstructured failed", "resource", a.gvr.Resource, "error", err)
@@ -458,17 +471,20 @@ func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (*T, error) {
 		return nil, kubeToDomainError(fmt.Errorf("failed to get %s '%s' after update: %w", a.gvr.Resource, m.GetName(), err))
 	}
 
-	res, err := a.k8sToDomain(currObj)
+	converted, err := a.k8sToDomain(currObj)
 	if err != nil {
 		return nil, kernel.NewError(kernel.KindValidation, fmt.Errorf("failed to convert %s '%s' from k8s object: %w", a.gvr.Resource, m.GetName(), err))
 	}
 
-	return &res, nil
+	return &converted, nil
 }
 
 // UpdateStatus implements the persistence.WriterRepo interface. It updates only the
 // resource's status subresource, leaving metadata and spec unchanged.
-func (a *WriterAdapter[T]) UpdateStatus(ctx context.Context, m T) (*T, error) {
+func (a *WriterAdapter[T]) UpdateStatus(ctx context.Context, m T) (res *T, err error) {
+	start := time.Now()
+	defer func() { observeUpstream(a.gvr, OpUpdateStatus, start, err) }()
+
 	uobj, err := a.toUnstructured(m)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "conversion from T to unstructured failed", "resource", a.gvr.Resource, "error", err)
@@ -502,13 +518,13 @@ func (a *WriterAdapter[T]) UpdateStatus(ctx context.Context, m T) (*T, error) {
 		return nil, kubeToDomainError(fmt.Errorf("failed to get %s '%s' after status update: %w", a.gvr.Resource, m.GetName(), err))
 	}
 
-	res, err := a.k8sToDomain(currObj)
+	converted, err := a.k8sToDomain(currObj)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "conversion from k8s object failed", "resource", a.gvr.Resource, "error", err)
 		return nil, kernel.NewError(kernel.KindValidation, fmt.Errorf("failed to convert %s '%s' from k8s object after status update: %w", a.gvr.Resource, m.GetName(), err))
 	}
 
-	return &res, nil
+	return &converted, nil
 }
 
 // preserveFinalizers copies the stored object's finalizers onto desired, so a full-replace
@@ -665,7 +681,10 @@ func (a *WriterAdapter[T]) updateStatusRetry(
 }
 
 // Delete implements the persistence.WriterRepo interface.
-func (a *WriterAdapter[T]) Delete(ctx context.Context, m T) error {
+func (a *WriterAdapter[T]) Delete(ctx context.Context, m T) (err error) {
+	start := time.Now()
+	defer func() { observeUpstream(a.gvr, OpDelete, start, err) }()
+
 	namespace, err := resolveNamespace(m)
 	if err != nil {
 		return err
@@ -730,13 +749,17 @@ func namespaceHasChildResources(
 	}
 
 	for _, gvr := range gvrs {
+		listStart := time.Now()
 		list, err := dyn.Resource(gvr).Namespace(namespace).List(ctx, metav1.ListOptions{Limit: 1})
 		if err != nil {
 			if kerrs.IsNotFound(err) {
+				observeUpstream(gvr, OpList, listStart, err)
 				continue
 			}
+			observeUpstream(gvr, OpList, listStart, err)
 			return false, kubeToDomainError(fmt.Errorf("failed to list %s in namespace %q: %w", gvr.Resource, namespace, err))
 		}
+		observeUpstream(gvr, OpList, listStart, nil)
 		if len(list.Items) > 0 {
 			return true, nil
 		}
@@ -836,6 +859,25 @@ func namespaceOwnerLabels(tenant, workspace, network string) (string, map[string
 		return ComputeNetworkNamespace(namespaceScope{tenant: tenant, workspace: workspace, network: network}), ownerLabels
 	}
 	return ComputeNamespace(&resource.Scope{Tenant: tenant, Workspace: workspace}), ownerLabels
+}
+
+// NamespaceEnsure returns a controller reconcile hook (see controller.GenericController.WithEnsure)
+// that provisions the namespace a resource owns for its children.
+//
+// It is the backstop for the write path's opportunistic create, and the only thing that repairs a
+// namespace removed or relabelled out of band. See "Namespace lifecycle" in doc/ARCHITECTURE.md.
+func NamespaceEnsure[T persistence.IdentifiableResource](
+	clientset kubernetes.Interface,
+	childNamespace ChildNamespaceKind,
+) func(context.Context, T) error {
+	return func(ctx context.Context, m T) error {
+		namespace, ownerLabels := childNamespaceFor(childNamespace, m)
+		if namespace == "" {
+			return nil
+		}
+
+		return CreateNamespace(ctx, clientset, namespace, ownerLabels)
+	}
 }
 
 // NamespaceCleanup returns a controller cleanup hook (see controller.GenericController.WithCleanup)
@@ -977,7 +1019,10 @@ func NewNamespaceManagingRepoAdapter[T persistence.IdentifiableResource](
 // A missing namespace is returned as a NotFound error rather than "not owned": the two mean
 // opposite things to a caller deciding whether to delete, and conflating them makes an
 // already-deleted namespace look like someone else's.
-func namespaceOwnedBy(ctx context.Context, clientset kubernetes.Interface, nsName string, expectedLabels map[string]string) (bool, error) {
+func namespaceOwnedBy(ctx context.Context, clientset kubernetes.Interface, nsName string, expectedLabels map[string]string) (owned bool, err error) {
+	start := time.Now()
+	defer func() { observeUpstream(namespaceGVR, OpGet, start, err) }()
+
 	if clientset == nil {
 		return false, fmt.Errorf("clientset is nil")
 	}
@@ -1000,46 +1045,38 @@ func namespaceOwnedBy(ctx context.Context, clientset kubernetes.Interface, nsNam
 	return true, nil
 }
 
-// Create ensures the namespaces the resource needs exist, then creates it.
+// Create creates the resource, then opportunistically provisions the namespace it owns for its
+// children.
 //
-// The resource's own namespace is provisioned only when it is the tenant namespace. There is no
-// Tenant entity, so nobody else would ever create it. Below that level a namespace is owned by a
-// parent entity and its absence *is* the referential-integrity check: fabricating it would let a
-// Network land in a Workspace that was never created, in a namespace no controller would ever
-// reclaim. A resource whose scope names a workspace therefore fails with NotFound, exactly as a
-// leaf resource on a plain WriterAdapter does.
+// Only the tenant namespace is provisioned on the resource's own behalf, before the CR that lives
+// in it: there is no Tenant entity, so nobody else would ever create it. Below that level a
+// namespace is owned by a parent entity and its absence *is* the referential-integrity check, so
+// a resource whose scope names a workspace fails with NotFound instead of fabricating one.
 //
-// The child namespace is rolled back if this call created it and the CR create then fails —
-// without an owning CR nothing will ever reclaim it, and the caller picks its name.
+// The child namespace is created *after* the CR and its failure is only logged — the CR is what
+// makes it recoverable, so a namespace created first and orphaned by a failed CR write is the
+// worse trade. See "Namespace lifecycle" in doc/ARCHITECTURE.md.
 func (a *NamespaceManagingWriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
 	if m.GetWorkspace() == "" {
 		tenantNS, tenantLabels := namespaceOwnerLabels(m.GetTenant(), "", "")
 		if tenantNS != "" {
-			if _, err := CreateNamespace(ctx, a.clientset, tenantNS, tenantLabels); err != nil {
+			if err := CreateNamespace(ctx, a.clientset, tenantNS, tenantLabels); err != nil {
 				return nil, err
 			}
 		}
 	}
 
-	childNS, childLabels := childNamespaceFor(a.childNamespace, m)
-	if childNS == "" {
-		return a.WriterAdapter.Create(ctx, m)
-	}
-
-	createdNS, err := CreateNamespace(ctx, a.clientset, childNS, childLabels)
-	if err != nil {
-		return nil, err
-	}
-
 	res, err := a.WriterAdapter.Create(ctx, m)
-	if err != nil && createdNS {
-		if owned, ownErr := namespaceOwnedBy(ctx, a.clientset, childNS, childLabels); ownErr == nil && owned {
-			if delErr := DeleteNamespace(ctx, a.clientset, childNS); delErr != nil {
-				a.logger.ErrorContext(ctx, "failed to roll back namespace created for resource",
-					"namespace", childNS, "error", delErr)
-			}
+	if err != nil {
+		return res, err
+	}
+
+	if childNS, childLabels := childNamespaceFor(a.childNamespace, m); childNS != "" {
+		if nsErr := CreateNamespace(ctx, a.clientset, childNS, childLabels); nsErr != nil {
+			a.logger.WarnContext(ctx, "failed to create child namespace, leaving it to the controller",
+				"namespace", childNS, "resource", m.GetName(), "error", nsErr)
 		}
 	}
 
-	return res, err
+	return res, nil
 }

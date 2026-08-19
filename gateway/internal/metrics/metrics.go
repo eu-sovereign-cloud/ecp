@@ -1,9 +1,14 @@
 // Package metrics provides Prometheus instrumentation for the ECP gateway.
 //
-// Three histograms are registered on the default registry so that the standard
+// Histograms are registered on the default registry so that the standard
 // go_* and process_* collectors are also exported — useful for comparing memory
 // and CPU overhead between the direct and cached RBAC checker implementations.
 //
+//   - ecp_gateway_http_request_duration_seconds{method,status,route,provider} —
+//     end-to-end latency of every inbound HTTP request (mux-level). Use the
+//     histogram _count series for request rate; no separate counter is exported.
+//   - ecp_gateway_upstream_kube_request_duration_seconds{resource,group,operation,result} —
+//     latency of one gateway→apiserver call via the framework resource adapters.
 //   - ecp_gateway_auth_middleware_duration_seconds{provider} — end-to-end latency
 //     of the full authenticated request (authn + authz + provider handler). Metric (a).
 //   - ecp_gateway_authz_check_duration_seconds{impl} — latency of a single
@@ -12,8 +17,8 @@
 //     fetch (Kubernetes List for the direct checker; informer cache read for cached).
 //     Metric (c).
 //
-// Buckets span ≈50µs–3s (18 exponential steps, factor 2) to resolve both the
-// sub-millisecond cached path and the multi-millisecond direct path in detail.
+// Auth/RBAC buckets span ≈50µs–6.5s (18 exponential steps, factor 2). HTTP
+// request buckets use two extra steps (≈26s) for long tail under rate limiting.
 package metrics
 
 import (
@@ -25,8 +30,12 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-// buckets covers ~50µs to ~3.3s in 18 exponential steps (factor 2).
+// buckets covers ~50µs to ~6.5s in 18 exponential steps (factor 2).
 var buckets = prometheus.ExponentialBuckets(50e-6, 2, 18)
+
+// httpBuckets covers ~50µs to ~26s (20 exponential steps, factor 2) so tail
+// latency from client-go rate limiting remains visible.
+var httpBuckets = prometheus.ExponentialBuckets(50e-6, 2, 20)
 
 var (
 	authMiddlewareDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
