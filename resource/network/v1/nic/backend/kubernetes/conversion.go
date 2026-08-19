@@ -73,16 +73,11 @@ func NicFromCR(obj client.Object) (*nicdom.Nic, error) {
 
 	n.Status = &nicdom.NicStatus{}
 	if cr.Status != nil {
-		state, err := commonbackend.ResourceStateFromCR(cr.Status.State)
+		status, err := commonbackend.StatusFromCR(cr.Status.State, cr.Status.Conditions)
 		if err != nil {
 			return nil, fmt.Errorf("nic %s: %w", cr.Name, err)
 		}
-		conds, err := commonbackend.ConditionsFromCR(cr.Status.Conditions)
-		if err != nil {
-			return nil, fmt.Errorf("nic %s: %w", cr.Name, err)
-		}
-		n.Status.State = state
-		n.Status.Conditions = conds
+		n.Status.Status = status
 		n.Status.MacAddress = cr.Status.MacAddress
 		n.Status.Addresses = cr.Status.Addresses
 		for _, r := range cr.Status.PublicIpRefs {
@@ -144,11 +139,7 @@ func NicToCR(n *nicdom.Nic) (client.Object, error) {
 	cr.SetGroupVersionKind(NICGVK)
 
 	if n.Status != nil && len(n.Status.Conditions) > 0 {
-		state, err := commonbackend.ResourceStateToCR(n.Status.State)
-		if err != nil {
-			return nil, fmt.Errorf("nic %s: %w", n.Name, err)
-		}
-		conds, err := commonbackend.ConditionsToCR(n.Status.Conditions)
+		state, conds, err := commonbackend.StatusToCR(n.Status.Status)
 		if err != nil {
 			return nil, fmt.Errorf("nic %s: %w", n.Name, err)
 		}
@@ -168,8 +159,7 @@ func NicToCR(n *nicdom.Nic) (client.Object, error) {
 	return cr, nil
 }
 
-// Converter is the CR<->domain conversion pair for Nic, so a call site names one value
-// instead of pairing the two directions by hand. See doc/CONVENTIONS.md §2.
+// Converter is the CR<->domain conversion pair for Nic.
 var Converter = k8sadapter.TwoWayConverter[*nicdom.Nic]{
 	FromCR: NicFromCR,
 	ToCR:   NicToCR,

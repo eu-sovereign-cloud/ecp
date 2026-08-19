@@ -70,16 +70,11 @@ func ImageFromCR(obj client.Object) (*imgdom.Image, error) {
 		img.Status = &imgdom.ImageStatus{
 			SizeMB: cr.Status.SizeMB,
 		}
-		state, err := commonbackend.ResourceStateFromCR(cr.Status.State)
+		status, err := commonbackend.StatusFromCR(cr.Status.State, cr.Status.Conditions)
 		if err != nil {
 			return nil, fmt.Errorf("image %s: %w", cr.Name, err)
 		}
-		conds, err := commonbackend.ConditionsFromCR(cr.Status.Conditions)
-		if err != nil {
-			return nil, fmt.Errorf("image %s: %w", cr.Name, err)
-		}
-		img.Status.State = state
-		img.Status.Conditions = conds
+		img.Status.Status = status
 	} else {
 		img.Status.PushCondition(commondomain.DefaultPendingCondition)
 	}
@@ -120,11 +115,7 @@ func ImageToCR(img *imgdom.Image) (client.Object, error) {
 	cr.SetGroupVersionKind(ImageGVK)
 
 	if img.Status != nil && len(img.Status.Conditions) > 0 {
-		state, err := commonbackend.ResourceStateToCR(img.Status.State)
-		if err != nil {
-			return nil, fmt.Errorf("image %s: %w", img.Name, err)
-		}
-		conds, err := commonbackend.ConditionsToCR(img.Status.Conditions)
+		state, conds, err := commonbackend.StatusToCR(img.Status.Status)
 		if err != nil {
 			return nil, fmt.Errorf("image %s: %w", img.Name, err)
 		}
@@ -144,8 +135,7 @@ func tenantOnlyScope(tenant string) *kernelresource.Scope {
 	return &kernelresource.Scope{Tenant: tenant}
 }
 
-// Converter is the CR<->domain conversion pair for Image, so a call site names one value
-// instead of pairing the two directions by hand. See doc/CONVENTIONS.md §2.
+// Converter is the CR<->domain conversion pair for Image.
 var Converter = k8sadapter.TwoWayConverter[*imgdom.Image]{
 	FromCR: ImageFromCR,
 	ToCR:   ImageToCR,

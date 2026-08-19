@@ -73,30 +73,21 @@ func RouteTableFromCR(obj client.Object) (*routetabledom.RouteTable, error) {
 
 	rt.Status = &routetabledom.RouteTableStatus{}
 	if cr.Status != nil {
-		state, err := commonbackend.ResourceStateFromCR(cr.Status.State)
+		status, err := commonbackend.StatusFromCR(cr.Status.State, cr.Status.Conditions)
 		if err != nil {
 			return nil, fmt.Errorf("route table %s: %w", cr.Name, err)
 		}
-		conds, err := commonbackend.ConditionsFromCR(cr.Status.Conditions)
-		if err != nil {
-			return nil, fmt.Errorf("route table %s: %w", cr.Name, err)
-		}
-		rt.Status.State = state
-		rt.Status.Conditions = conds
+		rt.Status.Status = status
 
 		routeStatuses := make([]routetabledom.RouteStatus, len(cr.Status.Routes))
 		for i, rs := range cr.Status.Routes {
-			rsState, err := commonbackend.ResourceStateFromCR(rs.State)
-			if err != nil {
-				return nil, fmt.Errorf("route table %s: %w", cr.Name, err)
-			}
-			rsConds, err := commonbackend.ConditionsFromCR(rs.Conditions)
+			rsStatus, err := commonbackend.StatusFromCR(rs.State, rs.Conditions)
 			if err != nil {
 				return nil, fmt.Errorf("route table %s: %w", cr.Name, err)
 			}
 			routeStatuses[i] = routetabledom.RouteStatus{
-				State:      rsState,
-				Conditions: rsConds,
+				State:      rsStatus.State,
+				Conditions: rsStatus.Conditions,
 			}
 		}
 		rt.Status.Routes = routeStatuses
@@ -147,22 +138,14 @@ func RouteTableToCR(rt *routetabledom.RouteTable) (client.Object, error) {
 	cr.SetGroupVersionKind(RouteTableGVK)
 
 	if rt.Status != nil && len(rt.Status.Conditions) > 0 {
-		state, err := commonbackend.ResourceStateToCR(rt.Status.State)
-		if err != nil {
-			return nil, fmt.Errorf("route table %s: %w", rt.Name, err)
-		}
-		conds, err := commonbackend.ConditionsToCR(rt.Status.Conditions)
+		state, conds, err := commonbackend.StatusToCR(rt.Status.Status)
 		if err != nil {
 			return nil, fmt.Errorf("route table %s: %w", rt.Name, err)
 		}
 
 		routeStatuses := make([]RouteStatus, len(rt.Status.Routes))
 		for i, rs := range rt.Status.Routes {
-			rsState, err := commonbackend.ResourceStateToCR(rs.State)
-			if err != nil {
-				return nil, fmt.Errorf("route table %s: %w", rt.Name, err)
-			}
-			rsConds, err := commonbackend.ConditionsToCR(rs.Conditions)
+			rsState, rsConds, err := commonbackend.StatusToCR(commondomain.Status{State: rs.State, Conditions: rs.Conditions})
 			if err != nil {
 				return nil, fmt.Errorf("route table %s: %w", rt.Name, err)
 			}
@@ -182,8 +165,7 @@ func RouteTableToCR(rt *routetabledom.RouteTable) (client.Object, error) {
 	return cr, nil
 }
 
-// Converter is the CR<->domain conversion pair for RouteTable, so a call site names one value
-// instead of pairing the two directions by hand. See doc/CONVENTIONS.md §2.
+// Converter is the CR<->domain conversion pair for RouteTable.
 var Converter = k8sadapter.TwoWayConverter[*routetabledom.RouteTable]{
 	FromCR: RouteTableFromCR,
 	ToCR:   RouteTableToCR,

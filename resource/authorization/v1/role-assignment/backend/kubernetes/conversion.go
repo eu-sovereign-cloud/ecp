@@ -65,16 +65,11 @@ func RoleAssignmentFromCR(obj client.Object) (*radom.RoleAssignment, error) {
 
 	ra.Status = &radom.RoleAssignmentStatus{}
 	if cr.Status != nil {
-		state, err := commonbackend.ResourceStateFromCR(cr.Status.State)
+		status, err := commonbackend.StatusFromCR(cr.Status.State, cr.Status.Conditions)
 		if err != nil {
 			return nil, fmt.Errorf("role assignment %s: %w", cr.Name, err)
 		}
-		conds, err := commonbackend.ConditionsFromCR(cr.Status.Conditions)
-		if err != nil {
-			return nil, fmt.Errorf("role assignment %s: %w", cr.Name, err)
-		}
-		ra.Status.State = state
-		ra.Status.Conditions = conds
+		ra.Status.Status = status
 	} else {
 		ra.Status.PushCondition(commondomain.DefaultPendingCondition)
 	}
@@ -113,11 +108,7 @@ func RoleAssignmentToCR(ra *radom.RoleAssignment) (client.Object, error) {
 	cr.SetGroupVersionKind(RoleAssignmentGVK)
 
 	if ra.Status != nil && len(ra.Status.Conditions) > 0 {
-		state, err := commonbackend.ResourceStateToCR(ra.Status.State)
-		if err != nil {
-			return nil, fmt.Errorf("role assignment %s: %w", ra.Name, err)
-		}
-		conds, err := commonbackend.ConditionsToCR(ra.Status.Conditions)
+		state, conds, err := commonbackend.StatusToCR(ra.Status.Status)
 		if err != nil {
 			return nil, fmt.Errorf("role assignment %s: %w", ra.Name, err)
 		}
@@ -168,8 +159,7 @@ func tenantOnlyScope(tenant string) *kernelresource.Scope {
 	return &kernelresource.Scope{Tenant: tenant}
 }
 
-// Converter is the CR<->domain conversion pair for RoleAssignment, so a call site names one value
-// instead of pairing the two directions by hand. See doc/CONVENTIONS.md §2.
+// Converter is the CR<->domain conversion pair for RoleAssignment.
 var Converter = k8sadapter.TwoWayConverter[*radom.RoleAssignment]{
 	FromCR: RoleAssignmentFromCR,
 	ToCR:   RoleAssignmentToCR,

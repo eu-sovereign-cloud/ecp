@@ -69,16 +69,11 @@ func PublicIpFromCR(obj client.Object) (*publicipdom.PublicIp, error) {
 
 	p.Status = &publicipdom.PublicIpStatus{}
 	if cr.Status != nil {
-		state, err := commonbackend.ResourceStateFromCR(cr.Status.State)
+		status, err := commonbackend.StatusFromCR(cr.Status.State, cr.Status.Conditions)
 		if err != nil {
 			return nil, fmt.Errorf("public ip %s: %w", cr.Name, err)
 		}
-		conds, err := commonbackend.ConditionsFromCR(cr.Status.Conditions)
-		if err != nil {
-			return nil, fmt.Errorf("public ip %s: %w", cr.Name, err)
-		}
-		p.Status.State = state
-		p.Status.Conditions = conds
+		p.Status.Status = status
 		p.Status.IpAddress = cr.Status.IpAddress
 		if cr.Status.AttachedTo != nil {
 			ref := commonbackend.ReferenceFromCR(*cr.Status.AttachedTo)
@@ -123,11 +118,7 @@ func PublicIpToCR(p *publicipdom.PublicIp) (client.Object, error) {
 	cr.SetGroupVersionKind(PublicIPGVK)
 
 	if p.Status != nil && len(p.Status.Conditions) > 0 {
-		state, err := commonbackend.ResourceStateToCR(p.Status.State)
-		if err != nil {
-			return nil, fmt.Errorf("public ip %s: %w", p.Name, err)
-		}
-		conds, err := commonbackend.ConditionsToCR(p.Status.Conditions)
+		state, conds, err := commonbackend.StatusToCR(p.Status.Status)
 		if err != nil {
 			return nil, fmt.Errorf("public ip %s: %w", p.Name, err)
 		}
@@ -145,8 +136,7 @@ func PublicIpToCR(p *publicipdom.PublicIp) (client.Object, error) {
 	return cr, nil
 }
 
-// Converter is the CR<->domain conversion pair for PublicIp, so a call site names one value
-// instead of pairing the two directions by hand. See doc/CONVENTIONS.md §2.
+// Converter is the CR<->domain conversion pair for PublicIp.
 var Converter = k8sadapter.TwoWayConverter[*publicipdom.PublicIp]{
 	FromCR: PublicIpFromCR,
 	ToCR:   PublicIpToCR,

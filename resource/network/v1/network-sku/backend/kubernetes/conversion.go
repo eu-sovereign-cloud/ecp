@@ -8,7 +8,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	skudom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network-sku"
@@ -72,11 +71,4 @@ func NetworkSKUToCR(sku *skudom.NetworkSKU) (client.Object, error) {
 	cr.SetGroupVersionKind(NetworkSKUGVK)
 
 	return cr, nil
-}
-
-// Converter is the CR<->domain conversion pair for NetworkSKU, so a call site names one value
-// instead of pairing the two directions by hand. See doc/CONVENTIONS.md §2.
-var Converter = k8sadapter.TwoWayConverter[*skudom.NetworkSKU]{
-	FromCR: NetworkSKUFromCR,
-	ToCR:   NetworkSKUToCR,
 }

@@ -71,16 +71,11 @@ func WorkspaceFromCR(obj client.Object) (*wsdom.Workspace, error) {
 		ws.Status = &wsdom.WorkspaceStatus{
 			ResourceCount: cr.Status.ResourceCount,
 		}
-		state, err := commonbackend.ResourceStateFromCR(cr.Status.State)
+		status, err := commonbackend.StatusFromCR(cr.Status.State, cr.Status.Conditions)
 		if err != nil {
 			return nil, fmt.Errorf("workspace %s: %w", cr.Name, err)
 		}
-		conds, err := commonbackend.ConditionsFromCR(cr.Status.Conditions)
-		if err != nil {
-			return nil, fmt.Errorf("workspace %s: %w", cr.Name, err)
-		}
-		ws.Status.State = state
-		ws.Status.Conditions = conds
+		ws.Status.Status = status
 	} else {
 		ws.Status.PushCondition(commondomain.DefaultPendingCondition)
 	}
@@ -121,11 +116,7 @@ func WorkspaceToCR(ws *wsdom.Workspace) (client.Object, error) {
 	cr.SetGroupVersionKind(WorkspaceGVK)
 
 	if ws.Status != nil && (len(ws.Status.Conditions) > 0 || ws.Status.ResourceCount != nil) {
-		state, err := commonbackend.ResourceStateToCR(ws.Status.State)
-		if err != nil {
-			return nil, fmt.Errorf("workspace %s: %w", ws.Name, err)
-		}
-		conds, err := commonbackend.ConditionsToCR(ws.Status.Conditions)
+		state, conds, err := commonbackend.StatusToCR(ws.Status.Status)
 		if err != nil {
 			return nil, fmt.Errorf("workspace %s: %w", ws.Name, err)
 		}
@@ -145,8 +136,7 @@ func tenantOnlyScope(tenant string) *kernelresource.Scope {
 	return &kernelresource.Scope{Tenant: tenant}
 }
 
-// Converter is the CR<->domain conversion pair for Workspace, so a call site names one value
-// instead of pairing the two directions by hand. See doc/CONVENTIONS.md §2.
+// Converter is the CR<->domain conversion pair for Workspace.
 var Converter = k8sadapter.TwoWayConverter[*wsdom.Workspace]{
 	FromCR: WorkspaceFromCR,
 	ToCR:   WorkspaceToCR,

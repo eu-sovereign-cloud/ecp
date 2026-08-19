@@ -65,16 +65,11 @@ func SecurityGroupRuleFromCR(obj client.Object) (*securitygroupruledom.SecurityG
 
 	sgr.Status = &securitygroupruledom.SecurityGroupRuleStatus{}
 	if cr.Status != nil {
-		state, err := commonbackend.ResourceStateFromCR(cr.Status.State)
+		status, err := commonbackend.StatusFromCR(cr.Status.State, cr.Status.Conditions)
 		if err != nil {
 			return nil, fmt.Errorf("security group rule %s: %w", cr.Name, err)
 		}
-		conds, err := commonbackend.ConditionsFromCR(cr.Status.Conditions)
-		if err != nil {
-			return nil, fmt.Errorf("security group rule %s: %w", cr.Name, err)
-		}
-		sgr.Status.State = state
-		sgr.Status.Conditions = conds
+		sgr.Status.Status = status
 	} else {
 		sgr.Status.PushCondition(commondomain.DefaultPendingCondition)
 	}
@@ -111,11 +106,7 @@ func SecurityGroupRuleToCR(sgr *securitygroupruledom.SecurityGroupRule) (client.
 	cr.SetGroupVersionKind(SecurityGroupRuleGVK)
 
 	if sgr.Status != nil && len(sgr.Status.Conditions) > 0 {
-		state, err := commonbackend.ResourceStateToCR(sgr.Status.State)
-		if err != nil {
-			return nil, fmt.Errorf("security group rule %s: %w", sgr.Name, err)
-		}
-		conds, err := commonbackend.ConditionsToCR(sgr.Status.Conditions)
+		state, conds, err := commonbackend.StatusToCR(sgr.Status.Status)
 		if err != nil {
 			return nil, fmt.Errorf("security group rule %s: %w", sgr.Name, err)
 		}
@@ -171,8 +162,7 @@ func securityGroupRuleSpecToCR(spec securitygroupruledom.SecurityGroupRuleSpec) 
 	return cr
 }
 
-// Converter is the CR<->domain conversion pair for SecurityGroupRule, so a call site names one value
-// instead of pairing the two directions by hand. See doc/CONVENTIONS.md §2.
+// Converter is the CR<->domain conversion pair for SecurityGroupRule.
 var Converter = k8sadapter.TwoWayConverter[*securitygroupruledom.SecurityGroupRule]{
 	FromCR: SecurityGroupRuleFromCR,
 	ToCR:   SecurityGroupRuleToCR,

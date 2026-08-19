@@ -73,11 +73,18 @@ The same `FromCR`/`ToCR`/`FromAPI`/`ToAPI` suffixes apply to sub-object converte
 
 ```
 ReferenceFromCR / ReferenceToCR / ReferenceFromAPI / ReferenceToAPI / ReferencePtrToAPI
+StatusFromCR / StatusToCR
 StatusConditionFromCR / StatusConditionToCR / ConditionsFromCR / ConditionsToCR
 ResourceStateFromCR / ResourceStateToCR / ResourceStateToAPI
 IPVersionFromCR / IPVersionToCR / IPVersionFromAPI / IPVersionToAPI
 ConditionsToAPI / conditionToAPI   (conditionToAPI is unexported — lower-case is intentional)
 ```
+
+`StatusFromCR`/`StatusToCR` are what a slice actually calls (§8 shows the call site): a CR status is
+always a state plus a set of conditions, so mapping them together is one error to wrap instead of
+two, and the domain statuses embed `commondomain.Status` so the result assigns in one line. Reach
+for the narrower `ResourceStateFromCR`/`ConditionsFromCR` pair only where a status is not shaped
+like `commondomain.Status` — a nested per-route or per-rule status, say.
 
 The enum and condition helpers follow §10: the ones that read a stored or requested value
 (`…FromCR`, `…FromAPI`) return `(T, error)` and reject a value they do not recognise; the ones
@@ -86,11 +93,11 @@ the CRD requires the field, so there is no empty state to write and it reports o
 
 ### The exported pair — `Converter`
 
-Every slice's `backend/kubernetes/conversion.go` exports its two directions bundled as one value:
+Every read-write slice's `backend/kubernetes/conversion.go` exports its two directions bundled as
+one value:
 
 ```go
-// Converter is the CR<->domain conversion pair for BlockStorage, so a call site names one value
-// instead of pairing the two directions by hand.
+// Converter is the CR<->domain conversion pair for BlockStorage.
 var Converter = k8sadapter.TwoWayConverter[*bsdom.BlockStorage]{
 	FromCR: BlockStorageFromCR,
 	ToCR:   BlockStorageToCR,
@@ -102,7 +109,8 @@ var Converter = k8sadapter.TwoWayConverter[*bsdom.BlockStorage]{
 (`NewWriterAdapter`, `NewRepoAdapter`, and the two namespace-managing variants) takes it in place
 of two function arguments. Read-only adapters (`NewReaderAdapter`, `NewWatcherAdapter`) keep the
 bare `K8sToDomain[T]`: requiring a `ToCR` they never call would be an argument that exists only
-to be ignored.
+to be ignored. Read-only slices therefore export no `Converter` — nothing would consume it — even
+though they keep an `XToCR` for symmetry and tests.
 
 The win is at the call sites, not in the type. `gateway/cmd/regionalapiserver.go`,
 `csp/dummy/pkg/plugin/`, each slice's `controller.go` and every suite that builds a repo used to
@@ -272,15 +280,17 @@ Parallel operations on the same domain type must share the same code structure. 
 the same interface method must look the same: same helpers, same variable names, same error-string
 template, same flow.
 
-**Resource-state conversion:** always use the `ResourceStateFromCR` helper from
-`resource/common/backend`; never use a raw type cast.
+**Status conversion:** always use the `StatusFromCR`/`StatusToCR` helpers from
+`resource/common/backend` (or the narrower state/condition ones where the status is not shaped
+like `commondomain.Status`); never use a raw type cast.
 
 ```go
 // ✓ correct — uses the shared helper and keeps its chain
-state, err := commonbackend.ResourceStateFromCR(cr.Status.State)
+status, err := commonbackend.StatusFromCR(cr.Status.State, cr.Status.Conditions)
 if err != nil {
     return nil, fmt.Errorf("block storage %s: %w", cr.Name, err)
 }
+bs.Status.Status = status
 
 // ✗ wrong — raw cast bypasses validation and breaks structural symmetry
 state := domain.ResourceState(cr.Status.State)
@@ -381,9 +391,10 @@ generators. Wrapping those buys nothing and costs an import.
 ### Not swallowing
 
 `_ = f()` is allowed only where the discarded value cannot be acted on, and the line says why in
-a comment. Today that is: `hash.Hash.Write` (documented never to fail), a probe response body
-written after the status line, a force-close on an already-failing shutdown path, and a poll in a
-goroutine nobody joins. Anything else propagates or logs.
+a comment. Today that is: `hash.Hash.Write` (documented never to fail), any response body written
+after the status line is already on the wire (the REST handlers and the probes alike — a failure
+there is a client that hung up), a force-close on an already-failing shutdown path, and a poll in
+a goroutine nobody joins. Anything else propagates or logs.
 
 The same rule covers enum conversion. Returning the zero value for input you do not recognise is
 swallowing with extra steps: it makes a typo indistinguishable from an unset field, and pushes

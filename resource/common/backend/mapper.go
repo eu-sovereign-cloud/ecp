@@ -13,18 +13,40 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 )
 
-// The enum mappers below are deliberately asymmetric about what they reject.
-//
-// Inbound (FromCR) is a trust boundary: a CR can be edited out of band, so an unrecognised
-// value is corrupt input and is reported. It used to be flattened to the empty string, which
-// told every caller "this resource has no state" and made a typo indistinguishable from a
-// status that was never written. Empty itself is still carried through — a CR whose status
-// has not been written yet genuinely has nothing to map.
-//
-// Outbound (ToCR/ToAPI) trusts its input, because the only way a domain value gets there is
-// through the inbound mapper that already vetted it. ToCR still reports an unmappable state:
-// the CRD requires the field, so an empty state is a write that the API server would reject
-// with a message pointing at Kubernetes instead of at us.
+// The mappers below are asymmetric about what they reject: inbound rejects, outbound trusts.
+// See doc/CONVENTIONS.md §2 and §10 for why.
+
+// StatusFromCR maps a CR's state and conditions to a domain.Status. It is everything a slice's
+// XFromCR does with its CR status, so the slice wraps one error instead of two.
+func StatusFromCR(state schemav1.ResourceState, conds []schemav1.StatusCondition) (domain.Status, error) {
+	mappedState, err := ResourceStateFromCR(state)
+	if err != nil {
+		return domain.Status{}, err
+	}
+
+	mappedConds, err := ConditionsFromCR(conds)
+	if err != nil {
+		return domain.Status{}, err
+	}
+
+	return domain.Status{State: mappedState, Conditions: mappedConds}, nil
+}
+
+// StatusToCR maps a domain.Status to the state and conditions a CR status carries, the inverse
+// of StatusFromCR.
+func StatusToCR(s domain.Status) (schemav1.ResourceState, []schemav1.StatusCondition, error) {
+	state, err := ResourceStateToCR(s.State)
+	if err != nil {
+		return "", nil, err
+	}
+
+	conds, err := ConditionsToCR(s.Conditions)
+	if err != nil {
+		return "", nil, err
+	}
+
+	return state, conds, nil
+}
 
 // StatusConditionToCR maps a domain.StatusCondition to a schemav1.StatusCondition.
 func StatusConditionToCR(c domain.StatusCondition) (schemav1.StatusCondition, error) {

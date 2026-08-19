@@ -11,7 +11,6 @@ import (
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	rdom "github.com/eu-sovereign-cloud/ecp/resource/region/v1"
 
-	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 )
@@ -114,11 +113,4 @@ func mapZones(cr Region) []rdom.Zone {
 		zones = append(zones, rdom.Zone(z))
 	}
 	return zones
-}
-
-// Converter is the CR<->domain conversion pair for Region, so a call site names one value
-// instead of pairing the two directions by hand. See doc/CONVENTIONS.md §2.
-var Converter = k8sadapter.TwoWayConverter[*rdom.Region]{
-	FromCR: RegionFromCR,
-	ToCR:   RegionToCR,
 }

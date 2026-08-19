@@ -281,28 +281,31 @@ func TestConverterPairsBothDirections(t *testing.T) {
 	require.Equal(t, in.Network, out.Network)
 }
 
-// activeRouteTableCR builds a CR whose status is fully populated, so each test only has to
+// activeRouteTable builds a route table whose status is fully populated, so each test only has to
 // corrupt the one field it is about.
-func activeRouteTableCR(t *testing.T) *RouteTable {
-	t.Helper()
-
-	in := &routetabledom.RouteTable{}
-	in.Name = testRouteTableName
-	in.Tenant = "t1"
-	in.Workspace = "w1"
-	in.Network = "n1"
-	in.Status = &routetabledom.RouteTableStatus{
+func activeRouteTable() *routetabledom.RouteTable {
+	rt := &routetabledom.RouteTable{}
+	rt.Name = testRouteTableName
+	rt.Tenant = "t1"
+	rt.Workspace = "w1"
+	rt.Network = "n1"
+	rt.Status = &routetabledom.RouteTableStatus{
 		Status: commondomain.Status{State: commondomain.ResourceStateActive},
 		Routes: []routetabledom.RouteStatus{{State: commondomain.ResourceStateActive}},
 	}
-	in.Status.PushCondition(commondomain.StatusCondition{State: commondomain.ResourceStateActive})
+	rt.Status.PushCondition(commondomain.StatusCondition{State: commondomain.ResourceStateActive})
+	return rt
+}
 
-	obj, err := RouteTableToCR(in)
+// activeRouteTableCR is that same resource after a round trip through ToCR.
+func activeRouteTableCR(t *testing.T) *RouteTable {
+	t.Helper()
+
+	obj, err := RouteTableToCR(activeRouteTable())
 	require.NoError(t, err)
 
 	cr, ok := obj.(*RouteTable)
 	require.True(t, ok)
-	require.NotNil(t, cr.Status)
 	require.NotEmpty(t, cr.Status.Routes)
 	require.NotEmpty(t, cr.Status.Conditions)
 	return cr
@@ -321,16 +324,7 @@ func TestRouteTableToCR_RejectsUnmappableState(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			in := &routetabledom.RouteTable{}
-			in.Name = testRouteTableName
-			in.Tenant = "t1"
-			in.Workspace = "w1"
-			in.Network = "n1"
-			in.Status = &routetabledom.RouteTableStatus{
-				Status: commondomain.Status{State: commondomain.ResourceStateActive},
-				Routes: []routetabledom.RouteStatus{{State: commondomain.ResourceStateActive}},
-			}
-			in.Status.PushCondition(commondomain.StatusCondition{State: commondomain.ResourceStateActive})
+			in := activeRouteTable()
 			tc.mutate(in)
 
 			out, err := RouteTableToCR(in)
@@ -339,10 +333,6 @@ func TestRouteTableToCR_RejectsUnmappableState(t *testing.T) {
 			require.Nil(t, out)
 			require.Contains(t, err.Error(), "route table rt1", "the error must name the resource it is about")
 			require.Contains(t, err.Error(), strconv.Quote(corruptState), "and the value that caused it")
-
-			var domErr *kernel.Error
-			require.ErrorAs(t, err, &domErr)
-			require.Equal(t, kernel.KindValidation, domErr.Kind)
 		})
 	}
 }

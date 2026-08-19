@@ -46,10 +46,8 @@ func IPVersionToAPI(v domain.IPVersion) schema.IPVersion {
 
 // IPVersionFromAPI maps schema.IPVersion to domain.IPVersion.
 //
-// This is the request boundary, so an unrecognised value is rejected rather than flattened to
-// the empty string. Flattening pushed the failure down to the CRD's enum check, where the caller
-// got a Kubernetes validation message about a field they never named instead of a 422 about the
-// one they did. Empty is carried through: the field is optional on some specs.
+// It is the request boundary, so an unrecognised value is rejected rather than flattened; empty is
+// carried through, since the field is optional on some specs. See doc/CONVENTIONS.md §10.
 func IPVersionFromAPI(v schema.IPVersion) (domain.IPVersion, error) {
 	switch v {
 	case "":
