@@ -70,16 +70,11 @@ func SubnetFromCR(obj client.Object) (*subnetdom.Subnet, error) {
 
 	s.Status = &subnetdom.SubnetStatus{}
 	if cr.Status != nil {
-		state, err := commonbackend.ResourceStateFromCR(cr.Status.State)
+		status, err := commonbackend.StatusFromCR(cr.Status.State, cr.Status.Conditions)
 		if err != nil {
 			return nil, fmt.Errorf("subnet %s: %w", cr.Name, err)
 		}
-		conds, err := commonbackend.ConditionsFromCR(cr.Status.Conditions)
-		if err != nil {
-			return nil, fmt.Errorf("subnet %s: %w", cr.Name, err)
-		}
-		s.Status.State = state
-		s.Status.Conditions = conds
+		s.Status.Status = status
 		if cr.Status.Cidr != nil {
 			cidr := cidrFromCR(*cr.Status.Cidr)
 			s.Status.Cidr = &cidr
@@ -134,11 +129,7 @@ func SubnetToCR(s *subnetdom.Subnet) (client.Object, error) {
 	cr.SetGroupVersionKind(SubnetGVK)
 
 	if s.Status != nil && len(s.Status.Conditions) > 0 {
-		state, err := commonbackend.ResourceStateToCR(s.Status.State)
-		if err != nil {
-			return nil, fmt.Errorf("subnet %s: %w", s.Name, err)
-		}
-		conds, err := commonbackend.ConditionsToCR(s.Status.Conditions)
+		state, conds, err := commonbackend.StatusToCR(s.Status.Status)
 		if err != nil {
 			return nil, fmt.Errorf("subnet %s: %w", s.Name, err)
 		}
@@ -175,8 +166,7 @@ func cidrToCR(c subnetdom.CIDR) schemav1.Cidr {
 	}
 }
 
-// Converter is the CR<->domain conversion pair for Subnet, so a call site names one value
-// instead of pairing the two directions by hand. See doc/CONVENTIONS.md §2.
+// Converter is the CR<->domain conversion pair for Subnet.
 var Converter = k8sadapter.TwoWayConverter[*subnetdom.Subnet]{
 	FromCR: SubnetFromCR,
 	ToCR:   SubnetToCR,

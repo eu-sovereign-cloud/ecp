@@ -64,16 +64,11 @@ func InternetGatewayFromCR(obj client.Object) (*internetgatewaydom.InternetGatew
 
 	ig.Status = &internetgatewaydom.InternetGatewayStatus{}
 	if cr.Status != nil {
-		state, err := commonbackend.ResourceStateFromCR(cr.Status.State)
+		status, err := commonbackend.StatusFromCR(cr.Status.State, cr.Status.Conditions)
 		if err != nil {
 			return nil, fmt.Errorf("internet gateway %s: %w", cr.Name, err)
 		}
-		conds, err := commonbackend.ConditionsFromCR(cr.Status.Conditions)
-		if err != nil {
-			return nil, fmt.Errorf("internet gateway %s: %w", cr.Name, err)
-		}
-		ig.Status.State = state
-		ig.Status.Conditions = conds
+		ig.Status.Status = status
 	} else {
 		ig.Status.PushCondition(commondomain.DefaultPendingCondition)
 	}
@@ -112,11 +107,7 @@ func InternetGatewayToCR(ig *internetgatewaydom.InternetGateway) (client.Object,
 	cr.SetGroupVersionKind(InternetGatewayGVK)
 
 	if ig.Status != nil && len(ig.Status.Conditions) > 0 {
-		state, err := commonbackend.ResourceStateToCR(ig.Status.State)
-		if err != nil {
-			return nil, fmt.Errorf("internet gateway %s: %w", ig.Name, err)
-		}
-		conds, err := commonbackend.ConditionsToCR(ig.Status.Conditions)
+		state, conds, err := commonbackend.StatusToCR(ig.Status.Status)
 		if err != nil {
 			return nil, fmt.Errorf("internet gateway %s: %w", ig.Name, err)
 		}
@@ -129,8 +120,7 @@ func InternetGatewayToCR(ig *internetgatewaydom.InternetGateway) (client.Object,
 	return cr, nil
 }
 
-// Converter is the CR<->domain conversion pair for InternetGateway, so a call site names one value
-// instead of pairing the two directions by hand. See doc/CONVENTIONS.md §2.
+// Converter is the CR<->domain conversion pair for InternetGateway.
 var Converter = k8sadapter.TwoWayConverter[*internetgatewaydom.InternetGateway]{
 	FromCR: InternetGatewayFromCR,
 	ToCR:   InternetGatewayToCR,

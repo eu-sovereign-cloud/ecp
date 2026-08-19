@@ -74,9 +74,8 @@ func WriteErrorResponse(w http.ResponseWriter, r *http.Request, logger *slog.Log
 	if encodeErr := enc.Encode(sdkError); encodeErr != nil {
 		logger.ErrorContext(r.Context(), "failed to encode error response", slog.Any("error", encodeErr))
 	}
-	if _, writeErr := w.Write(buf.Bytes()); writeErr != nil {
-		logger.ErrorContext(r.Context(), "failed to write error response body", slog.Any("error", writeErr))
-	}
+	// The status line is already on the wire, so a failed body write is a client that hung up.
+	_, _ = w.Write(buf.Bytes())
 }
 
 // convertDomainError converts a kernel.Error to an SDK error with full context.

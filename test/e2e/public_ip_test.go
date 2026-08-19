@@ -15,19 +15,15 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/test/internal/testenv"
 )
 
-// A public IP is the shortest resource whose spec carries an enum the request, the CR and the
-// response all have to agree on. Its version crosses four converters — API→domain at the gateway,
-// domain→CR on the write, CR→domain in the delegator, domain→API on the read — and each of them
-// used to answer the empty string for a value it did not recognise. This suite is the only place
-// all four run in one process tree.
+// TestPublicIPVersionSurvivesTheStack pins a spec enum against the four converters it crosses —
+// API→domain at the gateway, domain→CR on the write, CR→domain in the delegator, domain→API on the
+// read — which each used to answer the empty string for a value they did not recognise. Rejection
+// is covered by the gateway integration suite; this is the only place all four run in one process
+// tree.
 //
 // Like the update tests, this runs inside the workspace TestEndToEnd creates (file order puts it
 // after flow_test.go and before update_test.go); TestMain tears that workspace down once, after
 // the whole suite.
-
-// TestPublicIPVersionSurvivesTheStack pins the positive half: a version the caller sends comes back
-// unchanged after the delegator has reconciled the resource, so no converter on the path flattened
-// it on the way through.
 func TestPublicIPVersionSurvivesTheStack(t *testing.T) {
 	ctx := context.Background()
 	publicIPName := "e2e-pip-" + uuid.New().String()[:8]
@@ -64,28 +60,4 @@ func TestPublicIPVersionSurvivesTheStack(t *testing.T) {
 	require.NotNil(t, getResp.JSON200)
 	require.Equal(t, schema.IPVersionIPv6, getResp.JSON200.Spec.Version,
 		"the version must survive the full API → CR → delegator → API round trip")
-}
-
-// TestPublicIPRejectsUnknownVersion pins the negative half: the stack refuses a version it cannot
-// represent at the gateway, naming the value the request carried, instead of writing a resource
-// with the field silently emptied.
-func TestPublicIPRejectsUnknownVersion(t *testing.T) {
-	ctx := context.Background()
-	publicIPName := "e2e-pip-bad-" + uuid.New().String()[:8]
-
-	t.Cleanup(func() {
-		_, _ = networkClient.DeletePublicIpWithResponse(ctx, testTenant, testWorkspace, publicIPName, nil)
-	})
-
-	body := schema.PublicIp{Spec: schema.PublicIpSpec{Version: schema.IPVersion("IPv9")}}
-	resp, err := networkClient.CreateOrUpdatePublicIpWithResponse(ctx, testTenant, testWorkspace, publicIPName, nil, body)
-	require.NoError(t, err)
-	require.Equal(t, http.StatusUnprocessableEntity, resp.StatusCode())
-	require.NotNil(t, resp.JSON422)
-	require.Contains(t, resp.JSON422.Detail, "IPv9",
-		"the rejection must name the value the request carried, not a downstream CRD field")
-
-	getResp, err := networkClient.GetPublicIpWithResponse(ctx, testTenant, testWorkspace, publicIPName)
-	require.NoError(t, err)
-	require.Equal(t, http.StatusNotFound, getResp.StatusCode(), "a rejected request must not have written anything")
 }

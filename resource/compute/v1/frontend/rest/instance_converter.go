@@ -141,10 +141,7 @@ func instanceIteratorToAPI(insts []*instancedom.Instance, nextSkipToken *string)
 
 // instanceFromAPI converts an SDK Instance to an Instance.
 //
-// The error is the rest.APIToDomain contract every sibling converter implements, not a result
-// this body happens to produce — instance has no enum field to reject yet.
-//
-//nolint:unparam // see above
+//nolint:unparam // the error is the rest.APIToDomain contract; instance has no enum to reject yet.
 func instanceFromAPI(sdk sdkschema.Instance, id *resource.Identity, region string) (*instancedom.Instance, error) {
 	inst := &instancedom.Instance{
 		Spec: instancedom.InstanceSpec{

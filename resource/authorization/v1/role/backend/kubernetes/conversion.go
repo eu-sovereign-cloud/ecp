@@ -61,16 +61,11 @@ func RoleFromCR(obj client.Object) (*roledom.Role, error) {
 
 	r.Status = &roledom.RoleStatus{}
 	if cr.Status != nil {
-		state, err := commonbackend.ResourceStateFromCR(cr.Status.State)
+		status, err := commonbackend.StatusFromCR(cr.Status.State, cr.Status.Conditions)
 		if err != nil {
 			return nil, fmt.Errorf("role %s: %w", cr.Name, err)
 		}
-		conds, err := commonbackend.ConditionsFromCR(cr.Status.Conditions)
-		if err != nil {
-			return nil, fmt.Errorf("role %s: %w", cr.Name, err)
-		}
-		r.Status.State = state
-		r.Status.Conditions = conds
+		r.Status.Status = status
 	} else {
 		r.Status.PushCondition(commondomain.DefaultPendingCondition)
 	}
@@ -105,11 +100,7 @@ func RoleToCR(r *roledom.Role) (client.Object, error) {
 	cr.SetGroupVersionKind(RoleGVK)
 
 	if r.Status != nil && len(r.Status.Conditions) > 0 {
-		state, err := commonbackend.ResourceStateToCR(r.Status.State)
-		if err != nil {
-			return nil, fmt.Errorf("role %s: %w", r.Name, err)
-		}
-		conds, err := commonbackend.ConditionsToCR(r.Status.Conditions)
+		state, conds, err := commonbackend.StatusToCR(r.Status.Status)
 		if err != nil {
 			return nil, fmt.Errorf("role %s: %w", r.Name, err)
 		}
@@ -162,8 +153,7 @@ func specToCR(spec roledom.RoleSpec) RoleSpec {
 	return RoleSpec{Permissions: permissions}
 }
 
-// Converter is the CR<->domain conversion pair for Role, so a call site names one value
-// instead of pairing the two directions by hand. See doc/CONVENTIONS.md §2.
+// Converter is the CR<->domain conversion pair for Role.
 var Converter = k8sadapter.TwoWayConverter[*roledom.Role]{
 	FromCR: RoleFromCR,
 	ToCR:   RoleToCR,

@@ -115,16 +115,11 @@ func InstanceFromCR(obj client.Object) (*instancedom.Instance, error) {
 
 	inst.Status = &instancedom.InstanceStatus{}
 	if cr.Status != nil {
-		state, err := commonbackend.ResourceStateFromCR(cr.Status.State)
+		status, err := commonbackend.StatusFromCR(cr.Status.State, cr.Status.Conditions)
 		if err != nil {
 			return nil, fmt.Errorf("instance %s: %w", cr.Name, err)
 		}
-		conds, err := commonbackend.ConditionsFromCR(cr.Status.Conditions)
-		if err != nil {
-			return nil, fmt.Errorf("instance %s: %w", cr.Name, err)
-		}
-		inst.Status.State = state
-		inst.Status.Conditions = conds
+		inst.Status.Status = status
 		inst.Status.PowerState = instancedom.PowerState(cr.Status.PowerState)
 		if cr.Status.PowerStateSince != nil {
 			inst.Status.PowerStateSince = &cr.Status.PowerStateSince.Time
@@ -208,11 +203,7 @@ func InstanceToCR(inst *instancedom.Instance) (client.Object, error) {
 	cr.SetGroupVersionKind(InstanceGVK)
 
 	if inst.Status != nil && len(inst.Status.Conditions) > 0 {
-		state, err := commonbackend.ResourceStateToCR(inst.Status.State)
-		if err != nil {
-			return nil, fmt.Errorf("instance %s: %w", inst.Name, err)
-		}
-		conds, err := commonbackend.ConditionsToCR(inst.Status.Conditions)
+		state, conds, err := commonbackend.StatusToCR(inst.Status.Status)
 		if err != nil {
 			return nil, fmt.Errorf("instance %s: %w", inst.Name, err)
 		}
@@ -233,8 +224,7 @@ func InstanceToCR(inst *instancedom.Instance) (client.Object, error) {
 	return cr, nil
 }
 
-// Converter is the CR<->domain conversion pair for Instance, so a call site names one value
-// instead of pairing the two directions by hand. See doc/CONVENTIONS.md §2.
+// Converter is the CR<->domain conversion pair for Instance.
 var Converter = k8sadapter.TwoWayConverter[*instancedom.Instance]{
 	FromCR: InstanceFromCR,
 	ToCR:   InstanceToCR,

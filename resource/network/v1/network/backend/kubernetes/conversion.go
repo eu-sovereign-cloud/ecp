@@ -71,16 +71,11 @@ func NetworkFromCR(obj client.Object) (*netdom.Network, error) {
 	n.Status = &netdom.NetworkStatus{}
 	if cr.Status != nil {
 		n.Status = &netdom.NetworkStatus{}
-		state, err := commonbackend.ResourceStateFromCR(cr.Status.State)
+		status, err := commonbackend.StatusFromCR(cr.Status.State, cr.Status.Conditions)
 		if err != nil {
 			return nil, fmt.Errorf("network %s: %w", cr.Name, err)
 		}
-		conds, err := commonbackend.ConditionsFromCR(cr.Status.Conditions)
-		if err != nil {
-			return nil, fmt.Errorf("network %s: %w", cr.Name, err)
-		}
-		n.Status.State = state
-		n.Status.Conditions = conds
+		n.Status.Status = status
 	} else {
 		n.Status.PushCondition(commondomain.DefaultPendingCondition)
 	}
@@ -126,11 +121,7 @@ func NetworkToCR(n *netdom.Network) (client.Object, error) {
 	cr.SetGroupVersionKind(NetworkGVK)
 
 	if n.Status != nil && len(n.Status.Conditions) > 0 {
-		state, err := commonbackend.ResourceStateToCR(n.Status.State)
-		if err != nil {
-			return nil, fmt.Errorf("network %s: %w", n.Name, err)
-		}
-		conds, err := commonbackend.ConditionsToCR(n.Status.Conditions)
+		state, conds, err := commonbackend.StatusToCR(n.Status.Status)
 		if err != nil {
 			return nil, fmt.Errorf("network %s: %w", n.Name, err)
 		}
@@ -157,8 +148,7 @@ func cidrToCR(c netdom.CIDR) schemav1.Cidr {
 	}
 }
 
-// Converter is the CR<->domain conversion pair for Network, so a call site names one value
-// instead of pairing the two directions by hand. See doc/CONVENTIONS.md §2.
+// Converter is the CR<->domain conversion pair for Network.
 var Converter = k8sadapter.TwoWayConverter[*netdom.Network]{
 	FromCR: NetworkFromCR,
 	ToCR:   NetworkToCR,

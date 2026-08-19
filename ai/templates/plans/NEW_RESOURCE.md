@@ -275,16 +275,18 @@ and the CRD validations per §3. Do not proceed until the CRD reflects the spec.
 ### 4.6 Conversion — `resource/<group>/v1/<dir>/backend/kubernetes/conversion.go`
 `<Kind>FromCR(obj client.Object) (*<dom>, error)` and `<Kind>ToCR(x *<dom>) (client.Object,
 error)` (read-only resources still need `FromCR` for the reader adapter; keep `ToCR` for
-symmetry/tests as the read-only exemplars do). Use `commonbackend.ResourceStateFromCR` /
-`ConditionsFromCR` and their `…ToCR` counterparts (never a raw cast) — **all of them return
-`(T, error)`**; propagate with the error template `"<resource> <name>: %w"`. **The CR namespace is
-set here and encodes the scope** (§5).
+symmetry/tests as the read-only exemplars do). Map the status with
+`commonbackend.StatusFromCR`/`StatusToCR` (never a raw cast; reach for the narrower
+`ResourceStateFromCR`/`ConditionsFromCR` pair only for a nested per-route or per-rule status) —
+**all of them return `(T, error)`**; propagate with the error template `"<resource> <name>: %w"`.
+**The CR namespace is set here and encodes the scope** (§5).
 
-End the file with the exported pair every adapter takes (CONVENTIONS §2):
+**Read-write only:** end the file with the exported pair every writing adapter takes
+(CONVENTIONS §2). Read-only slices export no `Converter` — nothing consumes it, since the reader
+adapter takes the bare `<Kind>FromCR`.
 
 ```go
-// Converter is the CR<->domain conversion pair for <Kind>, so a call site names one value
-// instead of pairing the two directions by hand. See doc/CONVENTIONS.md §2.
+// Converter is the CR<->domain conversion pair for <Kind>.
 var Converter = k8sadapter.TwoWayConverter[*<dom>]{
 	FromCR: <Kind>FromCR,
 	ToCR:   <Kind>ToCR,
@@ -443,8 +445,8 @@ in time and can drift):
 ## 6. Conventions (doc/CONVENTIONS.md — non-negotiable)
 
 - **Conversion naming:** `XFromCR`/`XToCR`, `XFromAPI`/`XToAPI`, `XIteratorToAPI`,
-  `XToAPIWithVerb` — never `Map`/`Domain`/`CR` as infix tokens. The slice exports the CR pair as
-  `Converter`.
+  `XToAPIWithVerb` — never `Map`/`Domain`/`CR` as infix tokens. A read-write slice exports the CR
+  pair as `Converter`.
 - **Errors:** wrap with `%w`, and use `kernel.NewError(kind, cause, sources…)` wherever the error
   leaves the layer (CONVENTIONS §10). Never return the zero value for input you do not recognise.
 - **Initialisms** always fully capitalised in hand-written names:
@@ -455,7 +457,7 @@ in time and can drift):
   alias (`domain`, `resource`). Consistent receiver per type.
 - **Structural symmetry:** parallel operations share helpers, names, and the error template
   `"<resource> <name>: <description>: %w"` (drop `<description>` when the wrapped error already
-  carries it). Use `commonbackend.ResourceStateFromCR`, not raw
+  carries it). Use `commonbackend.StatusFromCR`/`StatusToCR`, not raw
   casts. Match the `isXPending` predicate across handlers.
 - **Doc comment** on every exported symbol, beginning with its name; no package-name stutter
   (`const Kind`, not `const BlockStorageKind`, inside the slice package).
@@ -511,7 +513,7 @@ attribution (e.g. `feat(storage/image): implement image vertical`).
 - [ ] Slice present in the `framework/backend/kubernetes/Makefile` `generate-crds` loop (path form: `$(REPO_ROOT)/resource/<group>/v1/<dir>/backend/kubernetes`).
 - [ ] Generation run; `zz_generated_*` and `charts/ecp/crds/<apigroup>_<plural>.yaml` present **with
       the spec's validations**.
-- [ ] `conversion.go` present, exporting `Converter`; `plugin.go`/`plugin_handler.go`/`controller.go`
+- [ ] `conversion.go` present (exporting `Converter` for read-write); `plugin.go`/`plugin_handler.go`/`controller.go`
       present for read-write (skipped for read-only).
 - [ ] REST converter (+ handler methods on the group owner or a new handler) implemented.
 - [ ] Gateway wired (regional or global; reader always, writer for read-write).

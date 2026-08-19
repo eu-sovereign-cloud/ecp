@@ -76,30 +76,21 @@ func SecurityGroupFromCR(obj client.Object) (*securitygroupdom.SecurityGroup, er
 
 	sg.Status = &securitygroupdom.SecurityGroupStatus{}
 	if cr.Status != nil {
-		state, err := commonbackend.ResourceStateFromCR(cr.Status.State)
+		status, err := commonbackend.StatusFromCR(cr.Status.State, cr.Status.Conditions)
 		if err != nil {
 			return nil, fmt.Errorf("security group %s: %w", cr.Name, err)
 		}
-		conds, err := commonbackend.ConditionsFromCR(cr.Status.Conditions)
-		if err != nil {
-			return nil, fmt.Errorf("security group %s: %w", cr.Name, err)
-		}
-		sg.Status.State = state
-		sg.Status.Conditions = conds
+		sg.Status.Status = status
 
 		ruleStatuses := make([]securitygroupdom.SecurityGroupRuleStatus, len(cr.Status.Rules))
 		for i, rs := range cr.Status.Rules {
-			rsState, err := commonbackend.ResourceStateFromCR(rs.State)
-			if err != nil {
-				return nil, fmt.Errorf("security group %s: %w", cr.Name, err)
-			}
-			rsConds, err := commonbackend.ConditionsFromCR(rs.Conditions)
+			rsStatus, err := commonbackend.StatusFromCR(rs.State, rs.Conditions)
 			if err != nil {
 				return nil, fmt.Errorf("security group %s: %w", cr.Name, err)
 			}
 			ruleStatuses[i] = securitygroupdom.SecurityGroupRuleStatus{
-				State:      rsState,
-				Conditions: rsConds,
+				State:      rsStatus.State,
+				Conditions: rsStatus.Conditions,
 			}
 		}
 		sg.Status.Rules = ruleStatuses
@@ -151,22 +142,14 @@ func SecurityGroupToCR(sg *securitygroupdom.SecurityGroup) (client.Object, error
 	cr.SetGroupVersionKind(SecurityGroupGVK)
 
 	if sg.Status != nil && len(sg.Status.Conditions) > 0 {
-		state, err := commonbackend.ResourceStateToCR(sg.Status.State)
-		if err != nil {
-			return nil, fmt.Errorf("security group %s: %w", sg.Name, err)
-		}
-		conds, err := commonbackend.ConditionsToCR(sg.Status.Conditions)
+		state, conds, err := commonbackend.StatusToCR(sg.Status.Status)
 		if err != nil {
 			return nil, fmt.Errorf("security group %s: %w", sg.Name, err)
 		}
 
 		ruleStatuses := make([]SecurityGroupRuleStatus, len(sg.Status.Rules))
 		for i, rs := range sg.Status.Rules {
-			rsState, err := commonbackend.ResourceStateToCR(rs.State)
-			if err != nil {
-				return nil, fmt.Errorf("security group %s: %w", sg.Name, err)
-			}
-			rsConds, err := commonbackend.ConditionsToCR(rs.Conditions)
+			rsState, rsConds, err := commonbackend.StatusToCR(commondomain.Status{State: rs.State, Conditions: rs.Conditions})
 			if err != nil {
 				return nil, fmt.Errorf("security group %s: %w", sg.Name, err)
 			}
@@ -229,8 +212,7 @@ func securityGroupRuleSpecToCR(spec securitygroupdom.SecurityGroupRuleSpec) Secu
 	return cr
 }
 
-// Converter is the CR<->domain conversion pair for SecurityGroup, so a call site names one value
-// instead of pairing the two directions by hand. See doc/CONVENTIONS.md §2.
+// Converter is the CR<->domain conversion pair for SecurityGroup.
 var Converter = k8sadapter.TwoWayConverter[*securitygroupdom.SecurityGroup]{
 	FromCR: SecurityGroupFromCR,
 	ToCR:   SecurityGroupToCR,

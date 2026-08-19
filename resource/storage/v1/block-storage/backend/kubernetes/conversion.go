@@ -74,16 +74,11 @@ func BlockStorageFromCR(obj client.Object) (*bsdom.BlockStorage, error) {
 		bs.Status = &bsdom.BlockStorageStatus{
 			SizeGB: cr.Status.SizeGB,
 		}
-		state, err := commonbackend.ResourceStateFromCR(cr.Status.State)
+		status, err := commonbackend.StatusFromCR(cr.Status.State, cr.Status.Conditions)
 		if err != nil {
 			return nil, fmt.Errorf("block storage %s: %w", cr.Name, err)
 		}
-		conds, err := commonbackend.ConditionsFromCR(cr.Status.Conditions)
-		if err != nil {
-			return nil, fmt.Errorf("block storage %s: %w", cr.Name, err)
-		}
-		bs.Status.State = state
-		bs.Status.Conditions = conds
+		bs.Status.Status = status
 		if cr.Status.AttachedTo != nil {
 			ref := commonbackend.ReferenceFromCR(*cr.Status.AttachedTo)
 			bs.Status.AttachedTo = &ref
@@ -132,11 +127,7 @@ func BlockStorageToCR(bs *bsdom.BlockStorage) (client.Object, error) {
 	}
 
 	if bs.Status != nil && len(bs.Status.Conditions) > 0 {
-		state, err := commonbackend.ResourceStateToCR(bs.Status.State)
-		if err != nil {
-			return nil, fmt.Errorf("block storage %s: %w", bs.Name, err)
-		}
-		conds, err := commonbackend.ConditionsToCR(bs.Status.Conditions)
+		state, conds, err := commonbackend.StatusToCR(bs.Status.Status)
 		if err != nil {
 			return nil, fmt.Errorf("block storage %s: %w", bs.Name, err)
 		}
@@ -154,8 +145,7 @@ func BlockStorageToCR(bs *bsdom.BlockStorage) (client.Object, error) {
 	return cr, nil
 }
 
-// Converter is the CR<->domain conversion pair for BlockStorage, so a call site names one value
-// instead of pairing the two directions by hand. See doc/CONVENTIONS.md §2.
+// Converter is the CR<->domain conversion pair for BlockStorage.
 var Converter = k8sadapter.TwoWayConverter[*bsdom.BlockStorage]{
 	FromCR: BlockStorageFromCR,
 	ToCR:   BlockStorageToCR,

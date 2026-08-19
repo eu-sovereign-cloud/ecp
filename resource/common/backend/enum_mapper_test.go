@@ -135,6 +135,34 @@ func TestConditionsRoundTrip(t *testing.T) {
 	assert.Equal(t, conds[0].Occurrences, back[0].Occurrences)
 }
 
+// StatusFromCR/StatusToCR are what the slices call: they map the state and the conditions
+// together, so one wrapped error covers both halves of a CR status.
+func TestStatusRoundTripsAndPropagates(t *testing.T) {
+	in := domain.Status{
+		State:      domain.ResourceStateActive,
+		Conditions: []domain.StatusCondition{{Type: "Reconcile", State: domain.ResourceStateActive}},
+	}
+
+	state, conds, err := StatusToCR(in)
+	require.NoError(t, err)
+
+	back, err := StatusFromCR(state, conds)
+	require.NoError(t, err)
+	assert.Equal(t, in.State, back.State)
+	require.Len(t, back.Conditions, 1)
+	assert.Equal(t, in.Conditions[0].Type, back.Conditions[0].Type)
+
+	// A value neither half recognises fails the whole status, with the kind intact.
+	_, err = StatusFromCR(schemav1.ResourceState("halfway"), nil)
+	require.ErrorIs(t, err, kernel.ErrValidation)
+
+	_, _, err = StatusToCR(domain.Status{
+		State:      domain.ResourceStateActive,
+		Conditions: []domain.StatusCondition{{Type: "Broken", State: domain.ResourceState("halfway")}},
+	})
+	require.ErrorIs(t, err, kernel.ErrValidation)
+}
+
 func TestIPVersionFromCR(t *testing.T) {
 	testCases := []struct {
 		name    string
