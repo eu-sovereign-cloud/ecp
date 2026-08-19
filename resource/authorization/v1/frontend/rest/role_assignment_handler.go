@@ -47,7 +47,7 @@ func (h *Handler) CreateOrUpdateRoleAssignment(w http.ResponseWriter, r *http.Re
 		Params:  id,
 		Creator: activeCreator(h.RoleAssignmentWriter, markRoleAssignmentActive),
 		Updater: activeUpdater(h.RoleAssignmentWriter, markRoleAssignmentActive),
-		APIToDomain: func(sdk sdkschema.RoleAssignment, p persistencepkg.IdentifiableResource) *radom.RoleAssignment {
+		APIToDomain: func(sdk sdkschema.RoleAssignment, p persistencepkg.IdentifiableResource) (*radom.RoleAssignment, error) {
 			return roleAssignmentFromAPI(sdk, p.(*resource.Identity))
 		},
 		DomainToAPI: roleAssignmentToAPIWithVerb(http.MethodPut),

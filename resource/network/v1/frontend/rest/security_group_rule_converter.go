@@ -1,6 +1,7 @@
 package rest
 
 import (
+	"fmt"
 	"strconv"
 
 	sdknetwork "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.network.v1"
@@ -122,10 +123,13 @@ func securityGroupRuleIteratorToAPI(sgrs []*securitygroupruledom.SecurityGroupRu
 }
 
 // securityGroupRuleFromAPI converts an SDK SecurityGroupRule to a SecurityGroupRule.
-func securityGroupRuleFromAPI(sdk sdkschema.SecurityGroupRule, id *SecurityGroupRuleIdentity, region string) *securitygroupruledom.SecurityGroupRule {
-	sgr := &securitygroupruledom.SecurityGroupRule{
-		Spec: securityGroupRuleSpecFromAPI(sdk.Spec),
+func securityGroupRuleFromAPI(sdk sdkschema.SecurityGroupRule, id *SecurityGroupRuleIdentity, region string) (*securitygroupruledom.SecurityGroupRule, error) {
+	spec, err := securityGroupRuleSpecFromAPI(sdk.Spec)
+	if err != nil {
+		return nil, fmt.Errorf("security group rule %s: %w", id.GetName(), err)
 	}
+
+	sgr := &securitygroupruledom.SecurityGroupRule{Spec: spec}
 	sgr.Name = id.GetName()
 	sgr.ResourceVersion = id.GetVersion()
 	sgr.Provider = securitygroupruledom.ProviderID
@@ -136,7 +140,7 @@ func securityGroupRuleFromAPI(sdk sdkschema.SecurityGroupRule, id *SecurityGroup
 	sgr.Annotations = sdk.Annotations
 	sgr.Extensions = sdk.Extensions
 
-	return sgr
+	return sgr, nil
 }
 
 // newSecurityGroupRuleWithIdentity returns a *securitygroupruledom.SecurityGroupRule populated with identity fields from ir.
@@ -169,11 +173,16 @@ func securityGroupRuleSpecToAPI(spec securitygroupruledom.SecurityGroupRuleSpec)
 }
 
 // securityGroupRuleSpecFromAPI converts an SDK SecurityGroupRuleSpec to a domain SecurityGroupRuleSpec.
-func securityGroupRuleSpecFromAPI(sdk sdkschema.SecurityGroupRuleSpec) securitygroupruledom.SecurityGroupRuleSpec {
+func securityGroupRuleSpecFromAPI(sdk sdkschema.SecurityGroupRuleSpec) (securitygroupruledom.SecurityGroupRuleSpec, error) {
+	version, err := commonfrontend.IPVersionFromAPI(sdk.Version)
+	if err != nil {
+		return securitygroupruledom.SecurityGroupRuleSpec{}, err
+	}
+
 	spec := securitygroupruledom.SecurityGroupRuleSpec{
 		Direction: string(sdk.Direction),
 		Protocol:  string(sdk.Protocol),
-		Version:   commonfrontend.IPVersionFromAPI(sdk.Version),
+		Version:   version,
 	}
 	if sdk.Icmp != nil {
 		spec.Icmp = &securitygroupruledom.IcmpConfig{Code: sdk.Icmp.Code, Type: sdk.Icmp.Type}
@@ -184,5 +193,5 @@ func securityGroupRuleSpecFromAPI(sdk sdkschema.SecurityGroupRuleSpec) securityg
 	for _, r := range sdk.SourceRef {
 		spec.SourceRef = append(spec.SourceRef, commonfrontend.ReferenceFromAPI(r))
 	}
-	return spec
+	return spec, nil
 }

@@ -27,8 +27,7 @@ func NewController(
 		dynClient,
 		InternetGatewayGVR,
 		options.Logger,
-		InternetGatewayToCR,
-		InternetGatewayFromCR,
+		Converter,
 	)
 	handler := NewInternetGatewayPluginHandler(repo, plugin, options.MaxConditions)
 	return &Controller{

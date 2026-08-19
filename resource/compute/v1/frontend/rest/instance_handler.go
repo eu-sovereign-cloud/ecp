@@ -71,14 +71,17 @@ func (h *Handler) CreateOrUpdateInstance(w http.ResponseWriter, r *http.Request,
 		Params:  id,
 		Creator: frest.CreatorFromRepo(h.InstanceWriter),
 		Updater: frest.UpdaterFromRepo(h.InstanceWriter),
-		APIToDomain: func(sdk sdkschema.Instance, p persistencepkg.IdentifiableResource) *instancedom.Instance {
-			dom := instanceFromAPI(sdk, p.(*resource.Identity), region)
+		APIToDomain: func(sdk sdkschema.Instance, p persistencepkg.IdentifiableResource) (*instancedom.Instance, error) {
+			dom, err := instanceFromAPI(sdk, p.(*resource.Identity), region)
+			if err != nil {
+				return nil, err
+			}
 			if preserve != nil {
 				dom.DesiredPowerState = preserve.DesiredPowerState
 				dom.RestartID = preserve.RestartID
 				dom.RestartPhase = preserve.RestartPhase
 			}
-			return dom
+			return dom, nil
 		},
 		DomainToAPI: instanceToAPIWithVerb(http.MethodPut),
 	})

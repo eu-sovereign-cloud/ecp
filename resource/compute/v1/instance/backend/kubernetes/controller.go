@@ -27,8 +27,7 @@ func NewController(
 		dynClient,
 		InstanceGVR,
 		options.Logger,
-		InstanceToCR,
-		InstanceFromCR,
+		Converter,
 	)
 	handler := NewInstancePluginHandler(repo, plugin, options.MaxConditions)
 	return &Controller{

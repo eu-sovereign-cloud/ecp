@@ -133,7 +133,7 @@ func blockStorageIteratorToAPI(bss []*bsdom.BlockStorage, nextSkipToken *string)
 }
 
 // blockStorageFromAPI converts an SDK BlockStorage to a BlockStorage.
-func blockStorageFromAPI(sdk sdkschema.BlockStorage, id *resource.Identity, region string) *bsdom.BlockStorage {
+func blockStorageFromAPI(sdk sdkschema.BlockStorage, id *resource.Identity, region string) (*bsdom.BlockStorage, error) {
 	bs := &bsdom.BlockStorage{
 		Spec: bsdom.BlockStorageSpec{
 			SizeGB: sdk.Spec.SizeGB,
@@ -155,5 +155,5 @@ func blockStorageFromAPI(sdk sdkschema.BlockStorage, id *resource.Identity, regi
 		bs.Spec.SourceImageRef = &ref
 	}
 
-	return bs
+	return bs, nil
 }

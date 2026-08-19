@@ -14,6 +14,7 @@ import (
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
 	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/schema/v1"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	kernelresource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 
 	roledom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role"
@@ -31,10 +32,10 @@ func RoleFromCR(obj client.Object) (*roledom.Role, error) {
 		cr = *t
 	case *unstructured.Unstructured:
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(t.Object, &cr); err != nil {
-			return nil, fmt.Errorf("failed to convert unstructured to Role: %w", err)
+			return nil, kernel.NewError(kernel.KindValidation, fmt.Errorf("failed to convert unstructured to Role: %w", err))
 		}
 	default:
-		return nil, fmt.Errorf("unsupported object type %T", obj)
+		return nil, kernel.NewError(kernel.KindInternal, fmt.Errorf("unsupported object type %T", obj))
 	}
 
 	crLabels := cr.GetLabels()
@@ -60,8 +61,16 @@ func RoleFromCR(obj client.Object) (*roledom.Role, error) {
 
 	r.Status = &roledom.RoleStatus{}
 	if cr.Status != nil {
-		r.Status.State = commonbackend.ResourceStateFromCR(cr.Status.State)
-		r.Status.Conditions = commonbackend.ConditionsFromCR(cr.Status.Conditions)
+		state, err := commonbackend.ResourceStateFromCR(cr.Status.State)
+		if err != nil {
+			return nil, fmt.Errorf("role %s: %w", cr.Name, err)
+		}
+		conds, err := commonbackend.ConditionsFromCR(cr.Status.Conditions)
+		if err != nil {
+			return nil, fmt.Errorf("role %s: %w", cr.Name, err)
+		}
+		r.Status.State = state
+		r.Status.Conditions = conds
 	} else {
 		r.Status.PushCondition(commondomain.DefaultPendingCondition)
 	}
@@ -72,7 +81,7 @@ func RoleFromCR(obj client.Object) (*roledom.Role, error) {
 // RoleToCR converts a *roledom.Role to a Kubernetes Role CR.
 func RoleToCR(r *roledom.Role) (client.Object, error) {
 	if r == nil {
-		return nil, fmt.Errorf("role is nil")
+		return nil, kernel.NewError(kernel.KindInternal, fmt.Errorf("role is nil"))
 	}
 
 	crLabels := k8slabels.OriginalToKeyed(r.Labels)
@@ -96,13 +105,17 @@ func RoleToCR(r *roledom.Role) (client.Object, error) {
 	cr.SetGroupVersionKind(RoleGVK)
 
 	if r.Status != nil && len(r.Status.Conditions) > 0 {
-		state := commonbackend.ResourceStateToCR(r.Status.State)
-		if state == nil {
-			return nil, fmt.Errorf("role %s: failed to map resource state domain to CR", r.Name)
+		state, err := commonbackend.ResourceStateToCR(r.Status.State)
+		if err != nil {
+			return nil, fmt.Errorf("role %s: %w", r.Name, err)
+		}
+		conds, err := commonbackend.ConditionsToCR(r.Status.Conditions)
+		if err != nil {
+			return nil, fmt.Errorf("role %s: %w", r.Name, err)
 		}
 		cr.Status = &RoleStatus{
-			State:      *state,
-			Conditions: commonbackend.ConditionsToCR(r.Status.Conditions),
+			State:      state,
+			Conditions: conds,
 		}
 	}
 
@@ -147,4 +160,11 @@ func specToCR(spec roledom.RoleSpec) RoleSpec {
 		}
 	}
 	return RoleSpec{Permissions: permissions}
+}
+
+// Converter is the CR<->domain conversion pair for Role, so a call site names one value
+// instead of pairing the two directions by hand. See doc/CONVENTIONS.md §2.
+var Converter = k8sadapter.TwoWayConverter[*roledom.Role]{
+	FromCR: RoleFromCR,
+	ToCR:   RoleToCR,
 }

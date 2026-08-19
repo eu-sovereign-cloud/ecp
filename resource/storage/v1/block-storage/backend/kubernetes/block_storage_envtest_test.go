@@ -71,8 +71,7 @@ func TestBlockStorageBackend_CreateAndGetBlockStorage(t *testing.T) {
 		dynClient,
 		BlockStorageGVR,
 		slog.Default(),
-		BlockStorageToCR,
-		BlockStorageFromCR,
+		Converter,
 	)
 	readerRepo := k8sadapter.NewReaderAdapter[*bsdom.BlockStorage](
 		dynClient,

@@ -14,6 +14,7 @@ import (
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
 	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/schema/v1"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 
 	commonbackend "github.com/eu-sovereign-cloud/ecp/resource/common/backend"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
@@ -29,19 +30,24 @@ func PublicIpFromCR(obj client.Object) (*publicipdom.PublicIp, error) {
 		cr = *t
 	case *unstructured.Unstructured:
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(t.Object, &cr); err != nil {
-			return nil, fmt.Errorf("failed to convert unstructured to PublicIP: %w", err)
+			return nil, kernel.NewError(kernel.KindValidation, fmt.Errorf("failed to convert unstructured to PublicIP: %w", err))
 		}
 	default:
-		return nil, fmt.Errorf("unsupported object type %T", obj)
+		return nil, kernel.NewError(kernel.KindInternal, fmt.Errorf("unsupported object type %T", obj))
 	}
 
 	crLabels := cr.GetLabels()
 	internalLabels := k8slabels.GetInternalLabels(crLabels)
 	keyedLabels := k8slabels.GetKeyedLabels(crLabels)
 
+	version, err := commonbackend.IPVersionFromCR(cr.Spec.Version)
+	if err != nil {
+		return nil, fmt.Errorf("public ip %s: %w", cr.Name, err)
+	}
+
 	spec := publicipdom.PublicIpSpec{
 		Address: cr.Spec.Address,
-		Version: commonbackend.IPVersionFromCR(cr.Spec.Version),
+		Version: version,
 	}
 
 	p := &publicipdom.PublicIp{Spec: spec}
@@ -63,8 +69,16 @@ func PublicIpFromCR(obj client.Object) (*publicipdom.PublicIp, error) {
 
 	p.Status = &publicipdom.PublicIpStatus{}
 	if cr.Status != nil {
-		p.Status.State = commonbackend.ResourceStateFromCR(cr.Status.State)
-		p.Status.Conditions = commonbackend.ConditionsFromCR(cr.Status.Conditions)
+		state, err := commonbackend.ResourceStateFromCR(cr.Status.State)
+		if err != nil {
+			return nil, fmt.Errorf("public ip %s: %w", cr.Name, err)
+		}
+		conds, err := commonbackend.ConditionsFromCR(cr.Status.Conditions)
+		if err != nil {
+			return nil, fmt.Errorf("public ip %s: %w", cr.Name, err)
+		}
+		p.Status.State = state
+		p.Status.Conditions = conds
 		p.Status.IpAddress = cr.Status.IpAddress
 		if cr.Status.AttachedTo != nil {
 			ref := commonbackend.ReferenceFromCR(*cr.Status.AttachedTo)
@@ -80,7 +94,7 @@ func PublicIpFromCR(obj client.Object) (*publicipdom.PublicIp, error) {
 // PublicIpToCR converts a *publicipdom.PublicIp to a Kubernetes PublicIP CR.
 func PublicIpToCR(p *publicipdom.PublicIp) (client.Object, error) {
 	if p == nil {
-		return nil, fmt.Errorf("public ip is nil")
+		return nil, kernel.NewError(kernel.KindInternal, fmt.Errorf("public ip is nil"))
 	}
 
 	crLabels := k8slabels.OriginalToKeyed(p.Labels)
@@ -109,13 +123,17 @@ func PublicIpToCR(p *publicipdom.PublicIp) (client.Object, error) {
 	cr.SetGroupVersionKind(PublicIPGVK)
 
 	if p.Status != nil && len(p.Status.Conditions) > 0 {
-		state := commonbackend.ResourceStateToCR(p.Status.State)
-		if state == nil {
-			return nil, fmt.Errorf("failed to convert resource state to CR")
+		state, err := commonbackend.ResourceStateToCR(p.Status.State)
+		if err != nil {
+			return nil, fmt.Errorf("public ip %s: %w", p.Name, err)
+		}
+		conds, err := commonbackend.ConditionsToCR(p.Status.Conditions)
+		if err != nil {
+			return nil, fmt.Errorf("public ip %s: %w", p.Name, err)
 		}
 		cr.Status = &PublicIpStatus{
-			Conditions: commonbackend.ConditionsToCR(p.Status.Conditions),
-			State:      *state,
+			Conditions: conds,
+			State:      state,
 			IpAddress:  p.Status.IpAddress,
 		}
 		if p.Status.AttachedTo != nil {
@@ -125,4 +143,11 @@ func PublicIpToCR(p *publicipdom.PublicIp) (client.Object, error) {
 	}
 
 	return cr, nil
+}
+
+// Converter is the CR<->domain conversion pair for PublicIp, so a call site names one value
+// instead of pairing the two directions by hand. See doc/CONVENTIONS.md §2.
+var Converter = k8sadapter.TwoWayConverter[*publicipdom.PublicIp]{
+	FromCR: PublicIpFromCR,
+	ToCR:   PublicIpToCR,
 }

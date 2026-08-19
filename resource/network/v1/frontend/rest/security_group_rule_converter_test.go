@@ -22,7 +22,8 @@ func TestSecurityGroupRuleFromAPIToAPIRoundTrip(t *testing.T) {
 	}
 	id := &SecurityGroupRuleIdentity{name: "sgr1", tenant: "t1", workspace: "w1"}
 
-	dom := securityGroupRuleFromAPI(sdk, id, "r1")
+	dom, err := securityGroupRuleFromAPI(sdk, id, "r1")
+	require.NoError(t, err)
 	require.Equal(t, "sgr1", dom.Name)
 	require.Equal(t, "t1", dom.Tenant)
 	require.Equal(t, "w1", dom.Workspace)

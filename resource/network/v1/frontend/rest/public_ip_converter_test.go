@@ -22,7 +22,8 @@ func TestPublicIpFromAPIToAPIRoundTrip(t *testing.T) {
 	}
 	id := &resource.Identity{Name: "ip1", Scope: resource.Scope{Tenant: "t1", Workspace: "w1"}}
 
-	dom := publicIpFromAPI(sdk, id, "r1")
+	dom, err := publicIpFromAPI(sdk, id, "r1")
+	require.NoError(t, err)
 	require.Equal(t, "ip1", dom.Name)
 	require.Equal(t, "t1", dom.Tenant)
 	require.Equal(t, "w1", dom.Workspace)

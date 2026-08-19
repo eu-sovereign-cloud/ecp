@@ -48,7 +48,7 @@ func (h *Handler) CreateOrUpdateSubnet(w http.ResponseWriter, r *http.Request, t
 		Params:  id,
 		Creator: frest.CreatorFromRepo(h.SubnetWriter),
 		Updater: frest.UpdaterFromRepo(h.SubnetWriter),
-		APIToDomain: func(sdk sdkschema.Subnet, p persistencepkg.IdentifiableResource) *subnetdom.Subnet {
+		APIToDomain: func(sdk sdkschema.Subnet, p persistencepkg.IdentifiableResource) (*subnetdom.Subnet, error) {
 			return subnetFromAPI(sdk, p.(*SubnetIdentity), region)
 		},
 		DomainToAPI: subnetToAPIWithVerb(http.MethodPut),

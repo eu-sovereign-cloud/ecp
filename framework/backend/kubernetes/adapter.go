@@ -35,6 +35,20 @@ type K8sToDomain[T any] func(object client.Object) (T, error)
 // DomainToK8s defines a function that converts a domain type T to a Kubernetes client.Object.
 type DomainToK8s[T any] func(domain T) (client.Object, error)
 
+// TwoWayConverter bundles both directions of a slice's CR<->domain conversion. A slice exports
+// the pair once (see doc/CONVENTIONS.md §2 for the XFromCR/XToCR naming it is built from) and
+// every adapter that needs both directions takes one argument instead of two, so a call site
+// cannot pair one resource's reader with another's writer.
+//
+// Read-only adapters (ReaderAdapter, WatcherAdapter) still take a bare K8sToDomain: requiring a
+// ToCR they never call would be an argument that exists only to be ignored.
+type TwoWayConverter[T any] struct {
+	// FromCR converts a Kubernetes object into the domain type.
+	FromCR K8sToDomain[T]
+	// ToCR converts the domain type into a Kubernetes object.
+	ToCR DomainToK8s[T]
+}
+
 // Adapter is the base struct for Kubernetes adapters.
 type Adapter struct {
 	client dynamic.Interface
@@ -73,28 +87,26 @@ func NewRepoAdapter[T persistence.IdentifiableResource](
 	client dynamic.Interface,
 	gvr schema.GroupVersionResource,
 	logger *slog.Logger,
-	domainToK8s DomainToK8s[T],
-	k8sToDomain K8sToDomain[T],
+	conv TwoWayConverter[T],
 ) *RepoAdapter[T] {
 	return &RepoAdapter[T]{
 		ReaderAdapter: NewReaderAdapter(
 			client,
 			gvr,
 			logger,
-			k8sToDomain,
+			conv.FromCR,
 		),
 		WriterAdapter: NewWriterAdapter(
 			client,
 			gvr,
 			logger,
-			domainToK8s,
-			k8sToDomain,
+			conv,
 		),
 		WatcherAdapter: NewWatcherAdapter(
 			client,
 			gvr,
 			logger,
-			k8sToDomain,
+			conv.FromCR,
 		),
 	}
 }
@@ -121,8 +133,7 @@ func NewWriterAdapter[T persistence.IdentifiableResource](
 	client dynamic.Interface,
 	gvr schema.GroupVersionResource,
 	logger *slog.Logger,
-	domainToK8s DomainToK8s[T],
-	k8sToDomain K8sToDomain[T],
+	conv TwoWayConverter[T],
 ) *WriterAdapter[T] {
 	return &WriterAdapter[T]{
 		Adapter: Adapter{
@@ -130,8 +141,8 @@ func NewWriterAdapter[T persistence.IdentifiableResource](
 			gvr:    gvr,
 			logger: logger,
 		},
-		domainToK8s: domainToK8s,
-		k8sToDomain: k8sToDomain,
+		domainToK8s: conv.ToCR,
+		k8sToDomain: conv.FromCR,
 	}
 }
 
@@ -160,6 +171,8 @@ func ComputeNamespace(obj persistence.Scope) string {
 		return ""
 	}
 
+	// hash.Hash.Write never returns an error (documented on the interface), so these writes have
+	// no failure to report — the drop is the contract, not a swallowed error.
 	hasher := sha3.New224()
 	if obj.GetTenant() != "" && obj.GetWorkspace() == "" {
 		_, _ = fmt.Fprintf(hasher, "%s", obj.GetTenant())
@@ -963,12 +976,11 @@ func NewNamespaceManagingWriterAdapter[T persistence.IdentifiableResource](
 	clientset kubernetes.Interface,
 	gvr schema.GroupVersionResource,
 	logger *slog.Logger,
-	domainToK8s DomainToK8s[T],
-	k8sToDomain K8sToDomain[T],
+	conv TwoWayConverter[T],
 	childNamespace ChildNamespaceKind,
 	childResourceGVRs []schema.GroupVersionResource,
 ) *NamespaceManagingWriterAdapter[T] {
-	base := NewWriterAdapter(dynClient, gvr, logger, domainToK8s, k8sToDomain)
+	base := NewWriterAdapter(dynClient, gvr, logger, conv)
 	return &NamespaceManagingWriterAdapter[T]{
 		WriterAdapter:     base,
 		clientset:         clientset,
@@ -983,8 +995,7 @@ func NewNamespaceManagingRepoAdapter[T persistence.IdentifiableResource](
 	clientset kubernetes.Interface,
 	gvr schema.GroupVersionResource,
 	logger *slog.Logger,
-	domainToK8s DomainToK8s[T],
-	k8sToDomain K8sToDomain[T],
+	conv TwoWayConverter[T],
 	childNamespace ChildNamespaceKind,
 	childResourceGVRs []schema.GroupVersionResource,
 ) *NamespaceManagingRepoAdapter[T] {
@@ -993,15 +1004,14 @@ func NewNamespaceManagingRepoAdapter[T persistence.IdentifiableResource](
 			dynClient,
 			gvr,
 			logger,
-			k8sToDomain,
+			conv.FromCR,
 		),
 		NamespaceManagingWriterAdapter: NewNamespaceManagingWriterAdapter[T](
 			dynClient,
 			clientset,
 			gvr,
 			logger,
-			domainToK8s,
-			k8sToDomain,
+			conv,
 			childNamespace,
 			childResourceGVRs,
 		),
@@ -1009,7 +1019,7 @@ func NewNamespaceManagingRepoAdapter[T persistence.IdentifiableResource](
 			dynClient,
 			gvr,
 			logger,
-			k8sToDomain,
+			conv.FromCR,
 		),
 	}
 }
@@ -1024,7 +1034,8 @@ func namespaceOwnedBy(ctx context.Context, clientset kubernetes.Interface, nsNam
 	defer func() { observeUpstream(namespaceGVR, OpGet, start, err) }()
 
 	if clientset == nil {
-		return false, fmt.Errorf("clientset is nil")
+		return false, kernel.NewError(kernel.KindUnavailable,
+			fmt.Errorf("cannot check ownership of namespace %q: clientSet is nil", nsName))
 	}
 
 	ns, err := clientset.CoreV1().Namespaces().Get(ctx, nsName, metav1.GetOptions{})

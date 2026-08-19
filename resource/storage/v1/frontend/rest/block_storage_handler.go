@@ -49,7 +49,7 @@ func (h *Handler) CreateOrUpdateBlockStorage(w http.ResponseWriter, r *http.Requ
 		Params:  id,
 		Creator: frest.CreatorFromRepo(h.BlockStorageWriter),
 		Updater: frest.UpdaterFromRepo(h.BlockStorageWriter),
-		APIToDomain: func(sdk sdkschema.BlockStorage, p persistencepkg.IdentifiableResource) *bsdom.BlockStorage {
+		APIToDomain: func(sdk sdkschema.BlockStorage, p persistencepkg.IdentifiableResource) (*bsdom.BlockStorage, error) {
 			return blockStorageFromAPI(sdk, p.(*resource.Identity), region)
 		},
 		DomainToAPI: blockStorageToAPIWithVerb(http.MethodPut),

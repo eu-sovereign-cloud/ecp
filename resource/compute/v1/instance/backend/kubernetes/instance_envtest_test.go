@@ -70,8 +70,7 @@ func TestInstanceBackend_CreateAndGetInstance(t *testing.T) {
 		dynClient,
 		InstanceGVR,
 		slog.Default(),
-		InstanceToCR,
-		InstanceFromCR,
+		Converter,
 	)
 
 	readerRepo := k8sadapter.NewReaderAdapter[*instancedom.Instance](

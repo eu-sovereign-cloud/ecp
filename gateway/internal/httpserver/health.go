@@ -57,6 +57,9 @@ func LiveHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
+		// The status is already on the wire and the only reader is a kubelet that has hung up.
+		// Nothing here can act on the write failing, and these handlers take no logger precisely
+		// so a probe stays free of dependencies.
 		_, _ = w.Write([]byte("ok\n"))
 	})
 }
@@ -84,6 +87,9 @@ func ReadyHandler(gate *Readiness, checks ...CheckFunc) http.Handler {
 		}
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
+		// The status is already on the wire and the only reader is a kubelet that has hung up.
+		// Nothing here can act on the write failing, and these handlers take no logger precisely
+		// so a probe stays free of dependencies.
 		_, _ = w.Write([]byte("ok\n"))
 	})
 }

@@ -7,6 +7,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	res "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	subnetdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/subnet"
@@ -42,7 +43,7 @@ func (c *SubnetConverter) FromSECAToAruba(from *subnetdom.Subnet) (*v1alpha1.Sub
 	// Aruba subnets are IPv4-only (the CRD's CIDR field is validated against a dotted-quad
 	// pattern), so an IPv6-only SECA subnet has nothing to map onto.
 	if from.Spec.Cidr.IPv4 == "" {
-		return nil, errors.New("subnet requires an IPv4 CIDR: Aruba does not support IPv6-only subnets")
+		return nil, kernel.NewError(kernel.KindValidation, errors.New("subnet requires an IPv4 CIDR: Aruba does not support IPv6-only subnets"))
 	}
 
 	tenant := from.GetTenant()
@@ -96,7 +97,7 @@ func (c *SubnetConverter) FromArubaToSECA(from *v1alpha1.Subnet) (*subnetdom.Sub
 		tenant = from.Labels["seca.subnet/tenant"]
 	}
 	if tenant == "" {
-		return nil, errors.New("tenant is missing")
+		return nil, kernel.NewError(kernel.KindValidation, errors.New("tenant is missing"))
 	}
 
 	workspace := from.Spec.ProjectReference.Name
@@ -104,7 +105,7 @@ func (c *SubnetConverter) FromArubaToSECA(from *v1alpha1.Subnet) (*subnetdom.Sub
 		workspace = from.Labels["seca.subnet/workspace"]
 	}
 	if workspace == "" {
-		return nil, errors.New("workspace is missing")
+		return nil, kernel.NewError(kernel.KindValidation, errors.New("workspace is missing"))
 	}
 
 	network := from.Spec.VPCReference.Name
@@ -112,7 +113,7 @@ func (c *SubnetConverter) FromArubaToSECA(from *v1alpha1.Subnet) (*subnetdom.Sub
 		network = from.Labels["seca.subnet/network"]
 	}
 	if network == "" {
-		return nil, errors.New("network is missing")
+		return nil, kernel.NewError(kernel.KindValidation, errors.New("network is missing"))
 	}
 
 	return &subnetdom.Subnet{

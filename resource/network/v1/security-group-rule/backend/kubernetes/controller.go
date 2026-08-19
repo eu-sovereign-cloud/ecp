@@ -27,8 +27,7 @@ func NewController(
 		dynClient,
 		SecurityGroupRuleGVR,
 		options.Logger,
-		SecurityGroupRuleToCR,
-		SecurityGroupRuleFromCR,
+		Converter,
 	)
 	handler := NewSecurityGroupRulePluginHandler(repo, plugin, options.MaxConditions)
 	return &Controller{

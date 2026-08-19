@@ -51,5 +51,7 @@ func HandleList[D any, Out any](
 
 	w.Header().Set("Content-Type", string(schema.AcceptHeaderJson))
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(buf.Bytes())
+	if _, err := w.Write(buf.Bytes()); err != nil {
+		logger.ErrorContext(r.Context(), "failed to write response body", slog.Any("error", err))
+	}
 }

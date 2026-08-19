@@ -27,7 +27,8 @@ func TestNicFromAPIToAPIRoundTrip(t *testing.T) {
 	}
 	id := &resource.Identity{Name: "nic1", Scope: resource.Scope{Tenant: "t1", Workspace: "w1"}}
 
-	dom := nicFromAPI(sdk, id, "r1")
+	dom, err := nicFromAPI(sdk, id, "r1")
+	require.NoError(t, err)
 	require.Equal(t, "nic1", dom.Name)
 	require.Equal(t, "t1", dom.Tenant)
 	require.Equal(t, "w1", dom.Workspace)
@@ -68,7 +69,8 @@ func TestNicFromAPI_NilSkuRef(t *testing.T) {
 			SubnetRef: sdkschema.Reference{Resource: "networks/n1/subnets/sn1"},
 		},
 	}
-	dom := nicFromAPI(sdk, &resource.Identity{Name: "nic1"}, "r1")
+	dom, err := nicFromAPI(sdk, &resource.Identity{Name: "nic1"}, "r1")
+	require.NoError(t, err)
 	require.Equal(t, commondomain.Reference{}, dom.Spec.SkuRef)
 
 	out := nicToAPIWithVerb(http.MethodPut)(dom)

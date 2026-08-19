@@ -49,7 +49,7 @@ func (h *Handler) CreateOrUpdateImage(w http.ResponseWriter, r *http.Request, te
 		Params:  id,
 		Creator: frest.CreatorFromRepo(h.ImageWriter),
 		Updater: frest.UpdaterFromRepo(h.ImageWriter),
-		APIToDomain: func(sdk sdkschema.Image, p persistencepkg.IdentifiableResource) *imgdom.Image {
+		APIToDomain: func(sdk sdkschema.Image, p persistencepkg.IdentifiableResource) (*imgdom.Image, error) {
 			return imageFromAPI(sdk, p.(*resource.Identity), region)
 		},
 		DomainToAPI: imageToAPIWithVerb(http.MethodPut),
