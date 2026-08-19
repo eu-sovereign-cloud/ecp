@@ -183,9 +183,8 @@ func TestCreateNamespace_ObservesNamespaces(t *testing.T) {
 	t.Cleanup(func() { SetUpstreamObserver(nil) })
 
 	cs := k8sfake.NewClientset()
-	created, err := CreateNamespace(context.Background(), cs, "ns-observe", map[string]string{"k": "v"})
+	err := CreateNamespace(context.Background(), cs, "ns-observe", map[string]string{"k": "v"})
 	require.NoError(t, err)
-	require.True(t, created)
 
 	obs := rec.snapshot()
 	require.Len(t, obs, 1)

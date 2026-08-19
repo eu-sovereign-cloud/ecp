@@ -17,7 +17,7 @@ func TestRegisterUpstreamObserver_RecordsHistogram(t *testing.T) {
 	before := upstreamSampleCount(t, "namespaces", "core", "create", "ok")
 
 	cs := k8sfake.NewClientset()
-	if _, err := k8sadapter.CreateNamespace(context.Background(), cs, "ns-observe", nil); err != nil {
+	if err := k8sadapter.CreateNamespace(context.Background(), cs, "ns-observe", nil); err != nil {
 		t.Fatalf("CreateNamespace: %v", err)
 	}
 
