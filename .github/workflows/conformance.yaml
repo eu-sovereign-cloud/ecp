@@ -1,15 +1,15 @@
 name: Conformance
 
 # Runs the SECA conformance suite (secatest, dummy plugin) against a fresh KIND
-# cluster on every push to main.
+# cluster on every pull request targeting main.
 
 on:
-  #push:
+  #pull_request:
     #branches: [main]
   workflow_dispatch:
 
 concurrency:
-  group: conformance-${{ github.ref_name }}
+  group: conformance-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref_name }}
   cancel-in-progress: true
 
 permissions:
