@@ -5,46 +5,43 @@ import (
 	"strings"
 )
 
-// Fixed path segments that appear in SECA OpenAPI routes. Anything else between
-// vocabulary segments is treated as a path parameter (low-cardinality template).
-var routeVocabulary = map[string]struct{}{
-	"providers":            {},
-	"v1":                   {},
-	"v1beta1":              {},
-	"tenants":              {},
-	"workspaces":           {},
-	"regions":              {},
-	"roles":                {},
-	"role-assignments":     {},
-	"instances":            {},
-	"skus":                 {},
-	"block-storages":       {},
-	"images":               {},
-	"networks":             {},
-	"subnets":              {},
-	"nics":                 {},
-	"public-ips":           {},
-	"route-tables":         {},
-	"internet-gateways":    {},
-	"security-groups":      {},
-	"security-group-rules": {},
-	"healthz":              {},
-	"readyz":               {},
-	"metrics":              {},
+// routeOther is the catch-all route label. Every SECA route is registered on the
+// shared http.ServeMux with a method+template pattern, so a matched request always
+// carries r.Pattern; the fallback below only ever sees unmatched paths. Those are
+// caller-controlled and unauthenticated, so they must never contribute a label
+// value derived from the request beyond the closed sets in this file.
+const routeOther = "{other}"
+
+// secaProviders is the closed set of providers this gateway serves (the BaseURLs
+// registered in cmd/globalapiserver.go and cmd/regionalapiserver.go, mirroring
+// go-sdk's pkg/constants provider names). Used as an allowlist for the provider
+// label so an arbitrary "seca.<random>" segment cannot mint a new series.
+var secaProviders = map[string]struct{}{
+	"seca.authorization": {},
+	"seca.region":        {},
+	"seca.workspace":     {},
+	"seca.storage":       {},
+	"seca.compute":       {},
+	"seca.network":       {},
 }
 
-// scopePlaceholder maps a parent collection to its OpenAPI scope parameter when
-// more path segments follow the value (e.g. workspaces/{workspace}/instances/...).
-var scopePlaceholder = map[string]string{
-	"tenants":    "{tenant}",
-	"workspaces": "{workspace}",
-	"networks":   "{network}",
-	"clusters":   "{cluster}",
+// apiVersions is the closed set of API versions that may appear after the
+// provider. Matched exactly — a prefix test would accept "v1<random>".
+var apiVersions = map[string]struct{}{
+	"v1":      {},
+	"v1beta1": {},
+}
+
+// systemPaths are served outside the provider namespace.
+var systemPaths = map[string]struct{}{
+	"/healthz": {},
+	"/readyz":  {},
+	"/metrics": {},
 }
 
 // routeFromRequest returns a low-cardinality route template and provider label.
-// Prefer r.Pattern (set by http.ServeMux after a match); fall back to normalizing
-// the URL path so unmatched or non-mux handlers still have bounded cardinality.
+// Prefer r.Pattern (set by http.ServeMux after a match); fall back to
+// normalizePath so unmatched requests still have bounded cardinality.
 func routeFromRequest(r *http.Request) (route, provider string) {
 	if pattern := r.Pattern; pattern != "" {
 		route = stripMethodPrefix(pattern)
@@ -69,91 +66,43 @@ func stripMethodPrefix(pattern string) string {
 	}
 }
 
-// normalizePath rewrites concrete path parameter values to placeholders.
-// Unknown shapes become route "{other}" with provider "unknown".
+// normalizePath maps an unmatched request path to a bounded (route, provider)
+// pair. Only literals from the closed allowlists above are preserved: the rest of
+// the path collapses to {other}, so the label set is at most
+// len(secaProviders)*len(apiVersions)+1 routes plus the system paths.
 func normalizePath(path string) (route, provider string) {
-	if path == "" {
-		return "{other}", "unknown"
-	}
-	if path == "/healthz" || path == "/readyz" {
+	if _, ok := systemPaths[path]; ok {
 		return path, "system"
 	}
 
 	parts := strings.Split(strings.Trim(path, "/"), "/")
-	if len(parts) == 0 || parts[0] == "" {
-		return "{other}", "unknown"
-	}
-
-	if parts[0] != "providers" || len(parts) < 2 || !strings.HasPrefix(parts[1], "seca.") {
-		return "{other}", "unknown"
+	if len(parts) < 2 || parts[0] != "providers" {
+		return routeOther, "unknown"
 	}
 
 	provider = parts[1]
-	out := make([]string, 0, len(parts))
-	for i := range parts {
-		seg := parts[i]
-		if isFixedSegment(seg) {
-			out = append(out, seg)
-			continue
-		}
-		// Variable value: choose placeholder from the preceding collection segment.
-		prev := ""
-		if i > 0 {
-			prev = parts[i-1]
-		}
-		out = append(out, pathPlaceholder(prev, isLeafParam(parts, i)))
+	if _, ok := secaProviders[provider]; !ok {
+		return routeOther, "unknown"
+	}
+	if len(parts) < 3 {
+		return routeOther, provider
+	}
+	if _, ok := apiVersions[parts[2]]; !ok {
+		return routeOther, provider
 	}
 
-	return "/" + strings.Join(out, "/"), provider
+	return "/providers/" + provider + "/" + parts[2] + "/" + routeOther, provider
 }
 
-// isFixedSegment reports whether seg is kept literally in the route template.
-func isFixedSegment(seg string) bool {
-	if strings.HasPrefix(seg, "seca.") || isVersion(seg) {
-		return true
-	}
-	_, ok := routeVocabulary[seg]
-	return ok
-}
-
-// isLeafParam reports whether the path parameter at index i is terminal for its
-// collection (no further vocabulary segments after it). Leaf params use {name}
-// to match OpenAPI resource routes; non-leaf use scope placeholders.
-func isLeafParam(parts []string, i int) bool {
-	for j := i + 1; j < len(parts); j++ {
-		if isFixedSegment(parts[j]) && !strings.HasPrefix(parts[j], "seca.") && !isVersion(parts[j]) {
-			// A later vocabulary segment means this value is a parent scope.
-			if _, ok := routeVocabulary[parts[j]]; ok {
-				return false
-			}
-		}
-	}
-	return true
-}
-
-func pathPlaceholder(collection string, leaf bool) string {
-	if collection == "tenants" {
-		return "{tenant}"
-	}
-	if !leaf {
-		if p, ok := scopePlaceholder[collection]; ok {
-			return p
-		}
-	}
-	return "{name}"
-}
-
-func isVersion(seg string) bool {
-	return strings.HasPrefix(seg, "v1") || strings.HasPrefix(seg, "v2")
-}
-
-// providerFromPath extracts seca.<group> from a route template or path.
+// providerFromPath extracts an allowlisted provider from a route template or path.
 func providerFromPath(path string) string {
 	parts := strings.Split(strings.Trim(path, "/"), "/")
-	if len(parts) >= 2 && parts[0] == "providers" && strings.HasPrefix(parts[1], "seca.") {
-		return parts[1]
+	if len(parts) >= 2 && parts[0] == "providers" {
+		if _, ok := secaProviders[parts[1]]; ok {
+			return parts[1]
+		}
 	}
-	if path == "/healthz" || path == "/readyz" || path == "/metrics" {
+	if _, ok := systemPaths[path]; ok {
 		return "system"
 	}
 	return "unknown"

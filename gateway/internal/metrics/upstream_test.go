@@ -1,10 +1,11 @@
 package metrics
 
 import (
+	"context"
 	"testing"
-	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
 
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 )
@@ -13,12 +14,14 @@ func TestRegisterUpstreamObserver_RecordsHistogram(t *testing.T) {
 	RegisterUpstreamObserver()
 	t.Cleanup(func() { k8sadapter.SetUpstreamObserver(nil) })
 
-	before := upstreamSampleCount(t, "workspaces", "workspace.v1.secapi.cloud", "create", "ok")
+	before := upstreamSampleCount(t, "namespaces", "core", "create", "ok")
 
-	k8sadapter.SetUpstreamObserver(promUpstreamObserver{})
-	promUpstreamObserver{}.Observe("workspaces", "workspace.v1.secapi.cloud", "create", "ok", 5*time.Millisecond)
+	cs := k8sfake.NewClientset()
+	if _, err := k8sadapter.CreateNamespace(context.Background(), cs, "ns-observe", nil); err != nil {
+		t.Fatalf("CreateNamespace: %v", err)
+	}
 
-	after := upstreamSampleCount(t, "workspaces", "workspace.v1.secapi.cloud", "create", "ok")
+	after := upstreamSampleCount(t, "namespaces", "core", "create", "ok")
 	if after < before+1 {
 		t.Fatalf("expected sample count to increase, before=%v after=%v", before, after)
 	}
