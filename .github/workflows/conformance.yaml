@@ -1,0 +1,66 @@
+name: Conformance
+
+# Runs the SECA conformance suite (secatest, dummy plugin) against a fresh KIND
+# cluster on every push to main.
+
+on:
+  push:
+    branches: [feat/conformance-workflow]
+  workflow_dispatch:
+
+concurrency:
+  group: conformance-${{ github.ref_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  conformance:
+    name: Run Conformance Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      E2E_AUTH_ENABLED: "false"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install helm
+        uses: azure/setup-helm@v4
+
+      - name: Install kind
+        uses: helm/kind-action@v1
+        with:
+          install_only: true
+
+      - name: Build component images
+        working-directory: test
+        run: make build-all
+
+      - name: Start KIND cluster
+        working-directory: test
+        run: make kind-start
+
+      - name: Load images into KIND
+        working-directory: test
+        run: make kind-load-all
+
+      - name: Deploy test stack
+        working-directory: test
+        run: make kind-stack
+
+      - name: Deploy conformance stack
+        working-directory: test
+        run: CONFORMANCE_PLUGIN=dummy make kind-conformance-deploy
+
+      - name: Run conformance suite
+        working-directory: test
+        run: CONFORMANCE_SCENARIOS='.*' USE_KIND=true make conformance
+
+      - name: Collect diagnostics on failure
+        if: failure()
+        run: |
+          kubectl --context kind-e2e-cluster -n e2e-ecp get pods -o wide
+          kubectl --context kind-e2e-cluster -n e2e-ecp describe pods
+          kubectl --context kind-e2e-cluster -n e2e-ecp logs -l app=conformance --tail=-1 || true
