@@ -44,17 +44,9 @@ func JWTAuth() bool {
 // Identity.Subject, so RBAC resolves identically either way.
 func Token(username, password string, scope *resource.TokenScope) string {
 	if JWTAuth() {
-		return SignJWT(JWTKey(), username, scope, time.Now().Add(time.Hour))
+		return SignJWT(JWTKey(), username, scope, nil, time.Now().Add(time.Hour))
 	}
-	return MakeBearerToken(username, password, scope)
-}
-
-// MakeBearerToken encodes a Dummy authenticator bearer token.
-// The token is base64(JSON{"username":…,"password":…,"scope":…}); the optional scope reuses
-// [resource.TokenScope] and its json tags. Roles are never carried by the token — they are
-// resolved from RoleAssignments in the caller's tenant namespace.
-func MakeBearerToken(username, password string, scope *resource.TokenScope) string {
-	return dummyToken(username, password, scope, nil)
+	return MakeBearerToken(username, password, scope, nil)
 }
 
 // MemberToken mints a token for the deployed authenticator carrying the issuer-asserted
@@ -63,9 +55,9 @@ func MakeBearerToken(username, password string, scope *resource.TokenScope) stri
 // grants the subject, and unlike the token scope it also caps a subs: ["*"] assignment.
 func MemberToken(username, password string, tenants []string) string {
 	if JWTAuth() {
-		return signJWT(JWTKey(), username, nil, tenants, time.Now().Add(time.Hour))
+		return SignJWT(JWTKey(), username, nil, tenants, time.Now().Add(time.Hour))
 	}
-	return dummyToken(username, password, nil, tenants)
+	return MakeBearerToken(username, password, nil, tenants)
 }
 
 // MemberEditor returns a request editor for a token carrying the given tenant membership.
@@ -73,8 +65,12 @@ func MemberEditor(username, password string, tenants []string) func(ctx context.
 	return bearerEditor(MemberToken(username, password, tenants))
 }
 
-// dummyToken encodes the Dummy authenticator's base64 JSON payload.
-func dummyToken(username, password string, scope *resource.TokenScope, tenants []string) string {
+// MakeBearerToken encodes a Dummy authenticator bearer token: base64(JSON{"username":…,
+// "password":…,"scope":…,"tenants":…}); the optional scope reuses [resource.TokenScope]
+// and its json tags, and the optional tenants list stands in for the membership a real
+// issuer stamps. Roles are never carried by the token — they are resolved from
+// RoleAssignments in the caller's tenant namespace.
+func MakeBearerToken(username, password string, scope *resource.TokenScope, tenants []string) string {
 	type payload struct {
 		Username string               `json:"username"`
 		Password string               `json:"password"`
@@ -156,17 +152,12 @@ const (
 	JWTAudience = "ecp-e2e"
 )
 
-// SignJWT builds a standard signed JWT for the given subject. The subject becomes
-// Identity.Subject and is matched against RoleAssignment.Spec.Subs, exactly as the
-// dummy token's username is; the optional scope down-scopes the caller. Pass a key
-// other than JWTKey() to forge a token the gateway must reject.
-func SignJWT(key *ecdsa.PrivateKey, subject string, scope *resource.TokenScope, exp time.Time) string {
-	return signJWT(key, subject, scope, nil, exp)
-}
-
-// signJWT signs the token both SignJWT and MemberToken hand out: registered claims plus
-// the deployed iss/aud, the optional down-scope and the optional tenant membership.
-func signJWT(key *ecdsa.PrivateKey, subject string, scope *resource.TokenScope, tenants []string, exp time.Time) string {
+// SignJWT builds a standard signed JWT for the given subject: registered claims plus the
+// deployed iss/aud, the optional down-scope and the optional tenant membership. The
+// subject becomes Identity.Subject and is matched against RoleAssignment.Spec.Subs,
+// exactly as the dummy token's username is. Pass a key other than JWTKey() to forge a
+// token the gateway must reject.
+func SignJWT(key *ecdsa.PrivateKey, subject string, scope *resource.TokenScope, tenants []string, exp time.Time) string {
 	claims := jwt.MapClaims{
 		"sub": subject,
 		"exp": exp.Unix(),

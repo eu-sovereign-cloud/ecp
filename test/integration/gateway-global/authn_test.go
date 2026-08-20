@@ -49,7 +49,7 @@ func TestAuthn(t *testing.T) {
 	// and forged/expired signatures are covered by the e2e TestJWTAuthn suite.
 	if !authhelper.JWTAuth() {
 		t.Run("wrong password returns 401", func(t *testing.T) {
-			token := authhelper.MakeBearerToken(authhelper.DefaultAuthUser, "wrong-password", nil)
+			token := authhelper.MakeBearerToken(authhelper.DefaultAuthUser, "wrong-password", nil, nil)
 			req, _ := http.NewRequest(http.MethodGet, listRegionsURL, nil)
 			req.Header.Set("Authorization", "Bearer "+token)
 			resp, err := http.DefaultClient.Do(req)

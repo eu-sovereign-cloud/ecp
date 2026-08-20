@@ -44,7 +44,7 @@ func TestJWTAuthn(t *testing.T) {
 	hour := time.Now().Add(time.Hour)
 
 	t.Run("valid JWT is accepted", func(t *testing.T) {
-		token := authhelper.SignJWT(authhelper.JWTKey(), authhelper.DefaultAuthUser, nil, hour)
+		token := authhelper.SignJWT(authhelper.JWTKey(), authhelper.DefaultAuthUser, nil, nil, hour)
 		requireStatus(t, http.MethodGet, listRegionsURL, token, http.StatusOK)
 	})
 
@@ -52,7 +52,7 @@ func TestJWTAuthn(t *testing.T) {
 		// admin holds ra-admin, so the subject carried by the JWT resolves to the
 		// same roles a dummy token's username would: proof the plugins are
 		// interchangeable from the authorization layer's point of view.
-		token := authhelper.SignJWT(authhelper.JWTKey(), authhelper.DefaultAuthUser, nil, hour)
+		token := authhelper.SignJWT(authhelper.JWTKey(), authhelper.DefaultAuthUser, nil, nil, hour)
 		requireStatus(t, http.MethodGet, listRolesURL, token, http.StatusOK)
 	})
 
@@ -65,12 +65,12 @@ func TestJWTAuthn(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to generate key: %v", err)
 		}
-		token := authhelper.SignJWT(forged, authhelper.DefaultAuthUser, nil, hour)
+		token := authhelper.SignJWT(forged, authhelper.DefaultAuthUser, nil, nil, hour)
 		requireStatus(t, http.MethodGet, listRegionsURL, token, http.StatusUnauthorized)
 	})
 
 	t.Run("expired JWT is rejected", func(t *testing.T) {
-		token := authhelper.SignJWT(authhelper.JWTKey(), authhelper.DefaultAuthUser, nil, time.Now().Add(-time.Hour))
+		token := authhelper.SignJWT(authhelper.JWTKey(), authhelper.DefaultAuthUser, nil, nil, time.Now().Add(-time.Hour))
 		requireStatus(t, http.MethodGet, listRegionsURL, token, http.StatusUnauthorized)
 	})
 
@@ -106,7 +106,7 @@ func TestJWTAuthn(t *testing.T) {
 		// The same credentials the regional gateway accepts must not open the
 		// global one: proof it really switched plugins rather than accepting
 		// anything that looks like a bearer token.
-		token := authhelper.MakeBearerToken(authhelper.DefaultAuthUser, authhelper.DefaultAuthPassword, nil)
+		token := authhelper.MakeBearerToken(authhelper.DefaultAuthUser, authhelper.DefaultAuthPassword, nil, nil)
 		requireStatus(t, http.MethodGet, listRegionsURL, token, http.StatusUnauthorized)
 	})
 
@@ -114,7 +114,7 @@ func TestJWTAuthn(t *testing.T) {
 		// "nobody" authenticates but holds no RoleAssignment: authn-only providers
 		// answer, RBAC-governed ones deny. A 403 (not 401) proves the JWT's subject
 		// reached the authorization layer.
-		token := authhelper.SignJWT(authhelper.JWTKey(), "nobody", nil, hour)
+		token := authhelper.SignJWT(authhelper.JWTKey(), "nobody", nil, nil, hour)
 		requireStatus(t, http.MethodGet, listRegionsURL, token, http.StatusOK)
 		requireStatus(t, http.MethodGet, listRolesURL, token, http.StatusForbidden)
 	})
@@ -122,28 +122,16 @@ func TestJWTAuthn(t *testing.T) {
 	t.Run("JWT from another issuer is rejected", func(t *testing.T) {
 		// Signed with the key the gateway trusts, but minted by someone else: the
 		// --jwt-issuer check is the only thing standing between the two, so a 401
-		// here proves the flag reached the authenticator.
-		token := signClaims(t, jwt.MapClaims{
+		// here proves the flag reached the deployed authenticator. The claim matrix
+		// itself (wrong/missing iss and aud) is covered in gateway/internal/authn.
+		claims := jwt.MapClaims{
 			"sub": authhelper.DefaultAuthUser, "exp": hour.Unix(),
 			"iss": "https://evil.example", "aud": authhelper.JWTAudience,
-		})
-		requireStatus(t, http.MethodGet, listRegionsURL, token, http.StatusUnauthorized)
-	})
-
-	t.Run("JWT for another audience is rejected", func(t *testing.T) {
-		// The same key can legitimately sign tokens for other services; --jwt-audience
-		// is what stops one of them being replayed against this API.
-		token := signClaims(t, jwt.MapClaims{
-			"sub": authhelper.DefaultAuthUser, "exp": hour.Unix(),
-			"iss": authhelper.JWTIssuer, "aud": "some-other-api",
-		})
-		requireStatus(t, http.MethodGet, listRegionsURL, token, http.StatusUnauthorized)
-	})
-
-	t.Run("JWT without iss/aud is rejected", func(t *testing.T) {
-		// Configuring either claim also makes it mandatory, so a token that simply
-		// omits them is no better than one carrying the wrong values.
-		token := signClaims(t, jwt.MapClaims{"sub": authhelper.DefaultAuthUser, "exp": hour.Unix()})
+		}
+		token, err := jwt.NewWithClaims(authhelper.JWTSigningMethod, claims).SignedString(authhelper.JWTKey())
+		if err != nil {
+			t.Fatalf("failed to sign token: %v", err)
+		}
 		requireStatus(t, http.MethodGet, listRegionsURL, token, http.StatusUnauthorized)
 	})
 
@@ -164,24 +152,13 @@ func TestJWTAuthn(t *testing.T) {
 		// admin is unrestricted by RBAC, so any denial here comes from the token's
 		// own scope cap travelling from the JWT into the authorization claim.
 		capped := &resource.TokenScope{Tenants: []string{"other-tenant"}}
-		token := authhelper.SignJWT(authhelper.JWTKey(), authhelper.DefaultAuthUser, capped, hour)
+		token := authhelper.SignJWT(authhelper.JWTKey(), authhelper.DefaultAuthUser, capped, nil, hour)
 		requireStatus(t, http.MethodGet, listRolesURL, token, http.StatusForbidden)
 
 		inScope := &resource.TokenScope{Tenants: []string{testTenant}}
-		token = authhelper.SignJWT(authhelper.JWTKey(), authhelper.DefaultAuthUser, inScope, hour)
+		token = authhelper.SignJWT(authhelper.JWTKey(), authhelper.DefaultAuthUser, inScope, nil, hour)
 		requireStatus(t, http.MethodGet, listRolesURL, token, http.StatusOK)
 	})
-}
-
-// signClaims signs an arbitrary claim set with the fixture key, for the cases that
-// need a token authhelper deliberately never mints (wrong or missing iss/aud).
-func signClaims(t *testing.T, claims jwt.MapClaims) string {
-	t.Helper()
-	token, err := jwt.NewWithClaims(authhelper.JWTSigningMethod, claims).SignedString(authhelper.JWTKey())
-	if err != nil {
-		t.Fatalf("failed to sign token: %v", err)
-	}
-	return token
 }
 
 // requireStatus issues the request with the given bearer token (omitted when
