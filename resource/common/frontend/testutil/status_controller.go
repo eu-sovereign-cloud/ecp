@@ -20,6 +20,8 @@ import (
 // merged into the status object alongside "state" and "conditions".
 func SimulateStatusController(ctx context.Context, dynClient dynamic.Interface, gvr schema.GroupVersionResource, namespace, name string, extraStatus map[string]any) {
 	ri := dynClient.Resource(gvr).Namespace(namespace)
+	// Every caller runs this in a goroutine it never joins, so there is nobody to return a poll
+	// failure to. It surfaces where it matters instead: the test waiting on the status times out.
 	_ = wait.PollUntilContextTimeout(ctx, 50*time.Millisecond, 10*time.Second, true, func(ctx context.Context) (bool, error) {
 		obj, err := ri.Get(ctx, name, metav1.GetOptions{})
 		if kerrs.IsNotFound(err) {

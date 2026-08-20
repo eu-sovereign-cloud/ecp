@@ -51,8 +51,7 @@ func applyUpdate[D persistence.IdentifiableResource](
 	annotations *map[string]string,
 	labels map[string]string,
 	gvr schema.GroupVersionResource,
-	toCR kubernetesadapter.DomainToK8s[D],
-	fromCR kubernetesadapter.K8sToDomain[D],
+	conv kubernetesadapter.TwoWayConverter[D],
 	logger *slog.Logger,
 ) error {
 	return recordAppliedLabels(ctx, resource, annotations, labels, func(ctx context.Context, r D) error {
@@ -61,7 +60,7 @@ func applyUpdate[D persistence.IdentifiableResource](
 			return err
 		}
 
-		if _, err := kubernetesadapter.NewRepoAdapter(dynamicClient, gvr, logger, toCR, fromCR).Update(ctx, r); err != nil {
+		if _, err := kubernetesadapter.NewRepoAdapter(dynamicClient, gvr, logger, conv).Update(ctx, r); err != nil {
 			return err
 		}
 
@@ -110,60 +109,60 @@ func formatLabels(labels map[string]string) string {
 
 func (b *BlockStorage) Update(ctx context.Context, resource *bsdom.BlockStorage) error {
 	return applyUpdate(ctx, resource, &resource.Annotations, resource.Labels,
-		storageconv.BlockStorageGVR, storageconv.BlockStorageToCR, storageconv.BlockStorageFromCR, b.logger)
+		storageconv.BlockStorageGVR, storageconv.Converter, b.logger)
 }
 
 func (i *Image) Update(ctx context.Context, resource *imgdom.Image) error {
 	return applyUpdate(ctx, resource, &resource.Annotations, resource.Labels,
-		imageconv.ImageGVR, imageconv.ImageToCR, imageconv.ImageFromCR, i.logger)
+		imageconv.ImageGVR, imageconv.Converter, i.logger)
 }
 
 func (i *Instance) Update(ctx context.Context, resource *instancedom.Instance) error {
 	return applyUpdate(ctx, resource, &resource.Annotations, resource.Labels,
-		instanceconv.InstanceGVR, instanceconv.InstanceToCR, instanceconv.InstanceFromCR, i.logger)
+		instanceconv.InstanceGVR, instanceconv.Converter, i.logger)
 }
 
 func (ig *InternetGateway) Update(ctx context.Context, resource *internetgatewaydom.InternetGateway) error {
 	return applyUpdate(ctx, resource, &resource.Annotations, resource.Labels,
-		internetgatewayconv.InternetGatewayGVR, internetgatewayconv.InternetGatewayToCR, internetgatewayconv.InternetGatewayFromCR, ig.logger)
+		internetgatewayconv.InternetGatewayGVR, internetgatewayconv.Converter, ig.logger)
 }
 
 func (n *Network) Update(ctx context.Context, resource *netdom.Network) error {
 	return applyUpdate(ctx, resource, &resource.Annotations, resource.Labels,
-		networkconv.NetworkGVR, networkconv.NetworkToCR, networkconv.NetworkFromCR, n.logger)
+		networkconv.NetworkGVR, networkconv.Converter, n.logger)
 }
 
 func (n *Nic) Update(ctx context.Context, resource *nicdom.Nic) error {
 	return applyUpdate(ctx, resource, &resource.Annotations, resource.Labels,
-		nicconv.NICGVR, nicconv.NicToCR, nicconv.NicFromCR, n.logger)
+		nicconv.NICGVR, nicconv.Converter, n.logger)
 }
 
 func (p *PublicIp) Update(ctx context.Context, resource *publicipdom.PublicIp) error {
 	return applyUpdate(ctx, resource, &resource.Annotations, resource.Labels,
-		publicipconv.PublicIPGVR, publicipconv.PublicIpToCR, publicipconv.PublicIpFromCR, p.logger)
+		publicipconv.PublicIPGVR, publicipconv.Converter, p.logger)
 }
 
 func (rt *RouteTable) Update(ctx context.Context, resource *routetabledom.RouteTable) error {
 	return applyUpdate(ctx, resource, &resource.Annotations, resource.Labels,
-		routetableconv.RouteTableGVR, routetableconv.RouteTableToCR, routetableconv.RouteTableFromCR, rt.logger)
+		routetableconv.RouteTableGVR, routetableconv.Converter, rt.logger)
 }
 
 func (sg *SecurityGroup) Update(ctx context.Context, resource *securitygroupdom.SecurityGroup) error {
 	return applyUpdate(ctx, resource, &resource.Annotations, resource.Labels,
-		securitygroupconv.SecurityGroupGVR, securitygroupconv.SecurityGroupToCR, securitygroupconv.SecurityGroupFromCR, sg.logger)
+		securitygroupconv.SecurityGroupGVR, securitygroupconv.Converter, sg.logger)
 }
 
 func (sgr *SecurityGroupRule) Update(ctx context.Context, resource *securitygroupruledom.SecurityGroupRule) error {
 	return applyUpdate(ctx, resource, &resource.Annotations, resource.Labels,
-		securitygroupruleconv.SecurityGroupRuleGVR, securitygroupruleconv.SecurityGroupRuleToCR, securitygroupruleconv.SecurityGroupRuleFromCR, sgr.logger)
+		securitygroupruleconv.SecurityGroupRuleGVR, securitygroupruleconv.Converter, sgr.logger)
 }
 
 func (s *Subnet) Update(ctx context.Context, resource *subnetdom.Subnet) error {
 	return applyUpdate(ctx, resource, &resource.Annotations, resource.Labels,
-		subnetconv.SubnetGVR, subnetconv.SubnetToCR, subnetconv.SubnetFromCR, s.logger)
+		subnetconv.SubnetGVR, subnetconv.Converter, s.logger)
 }
 
 func (w *Workspace) Update(ctx context.Context, resource *wsdom.Workspace) error {
 	return applyUpdate(ctx, resource, &resource.Annotations, resource.Labels,
-		workspaceconv.WorkspaceGVR, workspaceconv.WorkspaceToCR, workspaceconv.WorkspaceFromCR, w.logger)
+		workspaceconv.WorkspaceGVR, workspaceconv.Converter, w.logger)
 }

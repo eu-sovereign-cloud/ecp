@@ -27,8 +27,7 @@ func NewController(
 		dynClient,
 		NICGVR,
 		options.Logger,
-		NicToCR,
-		NicFromCR,
+		Converter,
 	)
 	handler := NewNicPluginHandler(repo, plugin, options.MaxConditions)
 	return &Controller{

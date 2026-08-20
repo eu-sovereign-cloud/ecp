@@ -14,6 +14,7 @@ import (
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
 	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/schema/v1"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 
 	commonbackend "github.com/eu-sovereign-cloud/ecp/resource/common/backend"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
@@ -30,17 +31,20 @@ func SecurityGroupRuleFromCR(obj client.Object) (*securitygroupruledom.SecurityG
 		cr = *t
 	case *unstructured.Unstructured:
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(t.Object, &cr); err != nil {
-			return nil, fmt.Errorf("failed to convert unstructured to SecurityGroupRule: %w", err)
+			return nil, kernel.NewError(kernel.KindValidation, fmt.Errorf("failed to convert unstructured to SecurityGroupRule: %w", err))
 		}
 	default:
-		return nil, fmt.Errorf("unsupported object type %T", obj)
+		return nil, kernel.NewError(kernel.KindInternal, fmt.Errorf("unsupported object type %T", obj))
 	}
 
 	crLabels := cr.GetLabels()
 	internalLabels := k8slabels.GetInternalLabels(crLabels)
 	keyedLabels := k8slabels.GetKeyedLabels(crLabels)
 
-	spec := securityGroupRuleSpecFromCR(cr.Spec)
+	spec, err := securityGroupRuleSpecFromCR(cr.Spec)
+	if err != nil {
+		return nil, fmt.Errorf("security group rule %s: %w", cr.Name, err)
+	}
 
 	sgr := &securitygroupruledom.SecurityGroupRule{Spec: spec}
 	sgr.Name = cr.GetName()
@@ -61,8 +65,11 @@ func SecurityGroupRuleFromCR(obj client.Object) (*securitygroupruledom.SecurityG
 
 	sgr.Status = &securitygroupruledom.SecurityGroupRuleStatus{}
 	if cr.Status != nil {
-		sgr.Status.State = commonbackend.ResourceStateFromCR(cr.Status.State)
-		sgr.Status.Conditions = commonbackend.ConditionsFromCR(cr.Status.Conditions)
+		status, err := commonbackend.StatusFromCR(cr.Status.State, cr.Status.Conditions)
+		if err != nil {
+			return nil, fmt.Errorf("security group rule %s: %w", cr.Name, err)
+		}
+		sgr.Status.Status = status
 	} else {
 		sgr.Status.PushCondition(commondomain.DefaultPendingCondition)
 	}
@@ -73,7 +80,7 @@ func SecurityGroupRuleFromCR(obj client.Object) (*securitygroupruledom.SecurityG
 // SecurityGroupRuleToCR converts a *securitygroupruledom.SecurityGroupRule to a Kubernetes SecurityGroupRule CR.
 func SecurityGroupRuleToCR(sgr *securitygroupruledom.SecurityGroupRule) (client.Object, error) {
 	if sgr == nil {
-		return nil, fmt.Errorf("security group rule is nil")
+		return nil, kernel.NewError(kernel.KindInternal, fmt.Errorf("security group rule is nil"))
 	}
 
 	crLabels := k8slabels.OriginalToKeyed(sgr.Labels)
@@ -99,13 +106,13 @@ func SecurityGroupRuleToCR(sgr *securitygroupruledom.SecurityGroupRule) (client.
 	cr.SetGroupVersionKind(SecurityGroupRuleGVK)
 
 	if sgr.Status != nil && len(sgr.Status.Conditions) > 0 {
-		state := commonbackend.ResourceStateToCR(sgr.Status.State)
-		if state == nil {
-			return nil, fmt.Errorf("failed to convert resource state to CR")
+		state, conds, err := commonbackend.StatusToCR(sgr.Status.Status)
+		if err != nil {
+			return nil, fmt.Errorf("security group rule %s: %w", sgr.Name, err)
 		}
 		cr.Status = &SecurityGroupRuleStatus{
-			Conditions: commonbackend.ConditionsToCR(sgr.Status.Conditions),
-			State:      *state,
+			Conditions: conds,
+			State:      state,
 		}
 	}
 
@@ -113,11 +120,16 @@ func SecurityGroupRuleToCR(sgr *securitygroupruledom.SecurityGroupRule) (client.
 }
 
 // securityGroupRuleSpecFromCR converts a CR SecurityGroupRuleSpec to a domain SecurityGroupRuleSpec.
-func securityGroupRuleSpecFromCR(cr SecurityGroupRuleSpec) securitygroupruledom.SecurityGroupRuleSpec {
+func securityGroupRuleSpecFromCR(cr SecurityGroupRuleSpec) (securitygroupruledom.SecurityGroupRuleSpec, error) {
+	version, err := commonbackend.IPVersionFromCR(cr.Version)
+	if err != nil {
+		return securitygroupruledom.SecurityGroupRuleSpec{}, err
+	}
+
 	spec := securitygroupruledom.SecurityGroupRuleSpec{
 		Direction: string(cr.Direction),
 		Protocol:  string(cr.Protocol),
-		Version:   commonbackend.IPVersionFromCR(cr.Version),
+		Version:   version,
 	}
 	if cr.Icmp != nil {
 		spec.Icmp = &securitygroupruledom.IcmpConfig{Code: cr.Icmp.Code, Type: cr.Icmp.Type}
@@ -128,7 +140,7 @@ func securityGroupRuleSpecFromCR(cr SecurityGroupRuleSpec) securitygroupruledom.
 	for _, r := range cr.SourceRef {
 		spec.SourceRef = append(spec.SourceRef, commonbackend.ReferenceFromCR(r))
 	}
-	return spec
+	return spec, nil
 }
 
 // securityGroupRuleSpecToCR converts a domain SecurityGroupRuleSpec to a CR SecurityGroupRuleSpec.
@@ -148,4 +160,10 @@ func securityGroupRuleSpecToCR(spec securitygroupruledom.SecurityGroupRuleSpec) 
 		cr.SourceRef = append(cr.SourceRef, commonbackend.ReferenceToCR(r))
 	}
 	return cr
+}
+
+// Converter is the CR<->domain conversion pair for SecurityGroupRule.
+var Converter = k8sadapter.TwoWayConverter[*securitygroupruledom.SecurityGroupRule]{
+	FromCR: SecurityGroupRuleFromCR,
+	ToCR:   SecurityGroupRuleToCR,
 }

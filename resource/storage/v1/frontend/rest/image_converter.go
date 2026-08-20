@@ -136,7 +136,7 @@ func imageIteratorToAPI(imgs []*imgdom.Image, nextSkipToken *string) *sdkstorage
 }
 
 // imageFromAPI converts an SDK Image to an Image.
-func imageFromAPI(sdk sdkschema.Image, id *resource.Identity, region string) *imgdom.Image {
+func imageFromAPI(sdk sdkschema.Image, id *resource.Identity, region string) (*imgdom.Image, error) {
 	img := &imgdom.Image{
 		Spec: imgdom.ImageSpec{
 			BlockStorageRef: commonfrontend.ReferenceFromAPI(sdk.Spec.BlockStorageRef),
@@ -154,5 +154,5 @@ func imageFromAPI(sdk sdkschema.Image, id *resource.Identity, region string) *im
 	img.Annotations = sdk.Annotations
 	img.Extensions = sdk.Extensions
 
-	return img
+	return img, nil
 }

@@ -34,6 +34,7 @@ func main() {
 
 	cmd.Flags().StringSliceVar(&paths, "paths", nil,
 		"package path pattern(s) to process; may be repeated or comma-separated (e.g. ./v1/...)")
+	// Fails only if "paths" is not a registered flag, which the line above guarantees.
 	_ = cmd.MarkFlagRequired("paths")
 
 	cmd.Flags().StringVar(&headerFile, "header-file", "",

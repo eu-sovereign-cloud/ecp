@@ -17,7 +17,9 @@ import (
 // since the SDK client encodes it verbatim).
 //
 // Only username and password are mandatory. An optional "scope" object down-scopes the
-// caller's permissions and unmarshals directly into [resource.TokenScope]. Roles are NOT
+// caller's permissions and unmarshals directly into [resource.TokenScope], and an optional
+// "tenants" list stands in for the tenant membership a real issuer would stamp (both are
+// self-asserted here, which is exactly why this authenticator is dev-only). Roles are NOT
 // read from the token: they are resolved entirely from the RoleAssignment/Role resources in
 // the caller's tenant namespace. Any other field (including a client-supplied verification
 // endpoint) is ignored.
@@ -25,6 +27,7 @@ type tokenPayload struct {
 	Username string               `json:"username"`
 	Password string               `json:"password"`
 	Scope    *resource.TokenScope `json:"scope,omitempty"`
+	Tenants  []string             `json:"tenants,omitempty"`
 }
 
 // DummyAuthenticator validates bearer tokens using a static user→password map.
@@ -80,7 +83,8 @@ func (d *DummyAuthenticator) Authenticate(_ context.Context, token string) (*aut
 	}
 
 	return &authnport.Identity{
-		Subject:    payload.Username,
-		TokenScope: scope,
+		Subject:       payload.Username,
+		TokenScope:    scope,
+		MemberTenants: payload.Tenants,
 	}, nil
 }

@@ -1,6 +1,7 @@
 package rest
 
 import (
+	"fmt"
 	"strconv"
 
 	sdknetwork "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.network.v1"
@@ -128,10 +129,13 @@ func securityGroupIteratorToAPI(sgs []*securitygroupdom.SecurityGroup, nextSkipT
 }
 
 // securityGroupFromAPI converts an SDK SecurityGroup to a SecurityGroup.
-func securityGroupFromAPI(sdk sdkschema.SecurityGroup, id *SecurityGroupIdentity, region string) *securitygroupdom.SecurityGroup {
-	sg := &securitygroupdom.SecurityGroup{
-		Spec: securityGroupSpecFromAPI(sdk.Spec),
+func securityGroupFromAPI(sdk sdkschema.SecurityGroup, id *SecurityGroupIdentity, region string) (*securitygroupdom.SecurityGroup, error) {
+	spec, err := securityGroupSpecFromAPI(sdk.Spec)
+	if err != nil {
+		return nil, fmt.Errorf("security group %s: %w", id.GetName(), err)
 	}
+
+	sg := &securitygroupdom.SecurityGroup{Spec: spec}
 	sg.Name = id.GetName()
 	sg.ResourceVersion = id.GetVersion()
 	sg.Provider = securitygroupdom.ProviderID
@@ -142,7 +146,7 @@ func securityGroupFromAPI(sdk sdkschema.SecurityGroup, id *SecurityGroupIdentity
 	sg.Annotations = sdk.Annotations
 	sg.Extensions = sdk.Extensions
 
-	return sg
+	return sg, nil
 }
 
 // newSecurityGroupWithIdentity returns a *securitygroupdom.SecurityGroup populated with identity fields from ir.
@@ -168,15 +172,19 @@ func securityGroupSpecToAPI(spec securitygroupdom.SecurityGroupSpec) sdkschema.S
 }
 
 // securityGroupSpecFromAPI converts an SDK SecurityGroupSpec to a domain SecurityGroupSpec.
-func securityGroupSpecFromAPI(sdk sdkschema.SecurityGroupSpec) securitygroupdom.SecurityGroupSpec {
+func securityGroupSpecFromAPI(sdk sdkschema.SecurityGroupSpec) (securitygroupdom.SecurityGroupSpec, error) {
 	spec := securitygroupdom.SecurityGroupSpec{}
 	for _, r := range sdk.RuleRefs {
 		spec.RuleRefs = append(spec.RuleRefs, commonfrontend.ReferenceFromAPI(r))
 	}
 	for _, rule := range sdk.Rules {
-		spec.Rules = append(spec.Rules, securityGroupRuleSpecInlineFromAPI(rule))
+		ruleSpec, err := securityGroupRuleSpecInlineFromAPI(rule)
+		if err != nil {
+			return securitygroupdom.SecurityGroupSpec{}, err
+		}
+		spec.Rules = append(spec.Rules, ruleSpec)
 	}
-	return spec
+	return spec, nil
 }
 
 // securityGroupRuleSpecInlineToAPI converts a domain SecurityGroup inline rule spec to its SDK representation.
@@ -199,11 +207,16 @@ func securityGroupRuleSpecInlineToAPI(spec securitygroupdom.SecurityGroupRuleSpe
 }
 
 // securityGroupRuleSpecInlineFromAPI converts an SDK inline rule spec to the domain SecurityGroup representation.
-func securityGroupRuleSpecInlineFromAPI(sdk sdkschema.SecurityGroupRuleSpec) securitygroupdom.SecurityGroupRuleSpec {
+func securityGroupRuleSpecInlineFromAPI(sdk sdkschema.SecurityGroupRuleSpec) (securitygroupdom.SecurityGroupRuleSpec, error) {
+	version, err := commonfrontend.IPVersionFromAPI(sdk.Version)
+	if err != nil {
+		return securitygroupdom.SecurityGroupRuleSpec{}, err
+	}
+
 	spec := securitygroupdom.SecurityGroupRuleSpec{
 		Direction: string(sdk.Direction),
 		Protocol:  string(sdk.Protocol),
-		Version:   commonfrontend.IPVersionFromAPI(sdk.Version),
+		Version:   version,
 	}
 	if sdk.Icmp != nil {
 		spec.Icmp = &securitygroupdom.IcmpConfig{Code: sdk.Icmp.Code, Type: sdk.Icmp.Type}
@@ -214,5 +227,5 @@ func securityGroupRuleSpecInlineFromAPI(sdk sdkschema.SecurityGroupRuleSpec) sec
 	for _, r := range sdk.SourceRef {
 		spec.SourceRef = append(spec.SourceRef, commonfrontend.ReferenceFromAPI(r))
 	}
-	return spec
+	return spec, nil
 }

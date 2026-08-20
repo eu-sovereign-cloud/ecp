@@ -170,8 +170,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) erro
 		client.Client,
 		instancek8s.InstanceGVR,
 		logger,
-		instancek8s.InstanceToCR,
-		instancek8s.InstanceFromCR,
+		instancek8s.Converter,
 	)
 	instanceSKUReaderAdapter := k8sadapter.NewReaderAdapter[*computeskudom.InstanceSKU](
 		client.Client,
@@ -239,8 +238,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) erro
 		client.ClientSet,
 		netk8s.NetworkGVR,
 		logger,
-		netk8s.NetworkToCR,
-		netk8s.NetworkFromCR,
+		netk8s.Converter,
 		k8sadapter.NetworkChildren,
 		netk8s.ChildResourceGVRs,
 	)
@@ -260,8 +258,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) erro
 		client.Client,
 		nick8s.NICGVR,
 		logger,
-		nick8s.NicToCR,
-		nick8s.NicFromCR,
+		nick8s.Converter,
 	)
 	publicIpReaderAdapter := k8sadapter.NewReaderAdapter[*publicipdom.PublicIp](
 		client.Client,
@@ -273,8 +270,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) erro
 		client.Client,
 		publicipk8s.PublicIPGVR,
 		logger,
-		publicipk8s.PublicIpToCR,
-		publicipk8s.PublicIpFromCR,
+		publicipk8s.Converter,
 	)
 	internetGatewayReaderAdapter := k8sadapter.NewReaderAdapter[*internetgatewaydom.InternetGateway](
 		client.Client,
@@ -286,8 +282,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) erro
 		client.Client,
 		internetgatewayk8s.InternetGatewayGVR,
 		logger,
-		internetgatewayk8s.InternetGatewayToCR,
-		internetgatewayk8s.InternetGatewayFromCR,
+		internetgatewayk8s.Converter,
 	)
 	routeTableReaderAdapter := k8sadapter.NewReaderAdapter[*routetabledom.RouteTable](
 		client.Client,
@@ -299,8 +294,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) erro
 		client.Client,
 		routetablek8s.RouteTableGVR,
 		logger,
-		routetablek8s.RouteTableToCR,
-		routetablek8s.RouteTableFromCR,
+		routetablek8s.Converter,
 	)
 	subnetReaderAdapter := k8sadapter.NewReaderAdapter[*subnetdom.Subnet](
 		client.Client,
@@ -312,8 +306,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) erro
 		client.Client,
 		subnetk8s.SubnetGVR,
 		logger,
-		subnetk8s.SubnetToCR,
-		subnetk8s.SubnetFromCR,
+		subnetk8s.Converter,
 	)
 	securityGroupReaderAdapter := k8sadapter.NewReaderAdapter[*securitygroupdom.SecurityGroup](
 		client.Client,
@@ -325,8 +318,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) erro
 		client.Client,
 		securitygroupk8s.SecurityGroupGVR,
 		logger,
-		securitygroupk8s.SecurityGroupToCR,
-		securitygroupk8s.SecurityGroupFromCR,
+		securitygroupk8s.Converter,
 	)
 	securityGroupRuleReaderAdapter := k8sadapter.NewReaderAdapter[*securitygroupruledom.SecurityGroupRule](
 		client.Client,
@@ -338,8 +330,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) erro
 		client.Client,
 		securitygrouprulek8s.SecurityGroupRuleGVR,
 		logger,
-		securitygrouprulek8s.SecurityGroupRuleToCR,
-		securitygrouprulek8s.SecurityGroupRuleFromCR,
+		securitygrouprulek8s.Converter,
 	)
 
 	sdknetworkapi.HandlerWithOptions(
@@ -382,8 +373,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) erro
 		client.Client,
 		bsk8s.BlockStorageGVR,
 		logger,
-		bsk8s.BlockStorageToCR,
-		bsk8s.BlockStorageFromCR,
+		bsk8s.Converter,
 	)
 	skuReaderAdapter := k8sadapter.NewReaderAdapter[*skudom.StorageSKU](
 		client.Client,
@@ -401,8 +391,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) erro
 		client.Client,
 		imgk8s.ImageGVR,
 		logger,
-		imgk8s.ImageToCR,
-		imgk8s.ImageFromCR,
+		imgk8s.Converter,
 	)
 
 	sdkstorageapi.HandlerWithOptions(
@@ -429,8 +418,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) erro
 		client.ClientSet,
 		wsk8s.WorkspaceGVR,
 		logger,
-		wsk8s.WorkspaceToCR,
-		wsk8s.WorkspaceFromCR,
+		wsk8s.Converter,
 		k8sadapter.WorkspaceChildren,
 		wsk8s.ChildResourceGVRs,
 	)

@@ -70,8 +70,7 @@ func TestNicBackend_CreateAndGetNic(t *testing.T) {
 		dynClient,
 		NICGVR,
 		slog.Default(),
-		NicToCR,
-		NicFromCR,
+		Converter,
 	)
 
 	readerRepo := k8sadapter.NewReaderAdapter[*nicdom.Nic](

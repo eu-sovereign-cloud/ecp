@@ -260,7 +260,7 @@ func blockDecreaseSize(_ context.Context, resource *bsdom.BlockStorage) error {
 	if resource.Status != nil &&
 		resource.Status.State != commondomain.ResourceStateCreating &&
 		resource.Spec.SizeGB < resource.Status.SizeGB {
-		return errors.New("decrease storage size is not allowed")
+		return kernel.NewError(kernel.KindValidation, errors.New("decrease storage size is not allowed"))
 	}
 
 	return nil

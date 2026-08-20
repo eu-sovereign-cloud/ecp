@@ -27,8 +27,7 @@ func NewController(
 		dynClient,
 		SubnetGVR,
 		options.Logger,
-		SubnetToCR,
-		SubnetFromCR,
+		Converter,
 	)
 	handler := NewSubnetPluginHandler(repo, plugin, options.MaxConditions)
 	return &Controller{

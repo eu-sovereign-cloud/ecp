@@ -137,18 +137,18 @@ func TestMain(m *testing.M) {
 		log.Fatalf("clientset: %v", err)
 	}
 
-	wsRepo = repo[*wsdom.Workspace](wsk8s.WorkspaceGVR, wsk8s.WorkspaceToCR, wsk8s.WorkspaceFromCR)
-	bsRepo = repo[*bsdom.BlockStorage](bsk8s.BlockStorageGVR, bsk8s.BlockStorageToCR, bsk8s.BlockStorageFromCR)
-	imgRepo = repo[*imgdom.Image](imgk8s.ImageGVR, imgk8s.ImageToCR, imgk8s.ImageFromCR)
-	igwRepo = repo[*igwdom.InternetGateway](igwk8s.InternetGatewayGVR, igwk8s.InternetGatewayToCR, igwk8s.InternetGatewayFromCR)
-	rtRepo = repo[*rtdom.RouteTable](rtk8s.RouteTableGVR, rtk8s.RouteTableToCR, rtk8s.RouteTableFromCR)
-	netRepo = repo[*netdom.Network](netk8s.NetworkGVR, netk8s.NetworkToCR, netk8s.NetworkFromCR)
-	subRepo = repo[*subdom.Subnet](subk8s.SubnetGVR, subk8s.SubnetToCR, subk8s.SubnetFromCR)
-	pipRepo = repo[*pipdom.PublicIp](pipk8s.PublicIPGVR, pipk8s.PublicIpToCR, pipk8s.PublicIpFromCR)
-	sgRepo = repo[*sgdom.SecurityGroup](sgk8s.SecurityGroupGVR, sgk8s.SecurityGroupToCR, sgk8s.SecurityGroupFromCR)
-	sgrRepo = repo[*sgrdom.SecurityGroupRule](sgrk8s.SecurityGroupRuleGVR, sgrk8s.SecurityGroupRuleToCR, sgrk8s.SecurityGroupRuleFromCR)
-	nicRepo = repo[*nicdom.Nic](nick8s.NICGVR, nick8s.NicToCR, nick8s.NicFromCR)
-	instRepo = repo[*instdom.Instance](instk8s.InstanceGVR, instk8s.InstanceToCR, instk8s.InstanceFromCR)
+	wsRepo = repo[*wsdom.Workspace](wsk8s.WorkspaceGVR, wsk8s.Converter)
+	bsRepo = repo[*bsdom.BlockStorage](bsk8s.BlockStorageGVR, bsk8s.Converter)
+	imgRepo = repo[*imgdom.Image](imgk8s.ImageGVR, imgk8s.Converter)
+	igwRepo = repo[*igwdom.InternetGateway](igwk8s.InternetGatewayGVR, igwk8s.Converter)
+	rtRepo = repo[*rtdom.RouteTable](rtk8s.RouteTableGVR, rtk8s.Converter)
+	netRepo = repo[*netdom.Network](netk8s.NetworkGVR, netk8s.Converter)
+	subRepo = repo[*subdom.Subnet](subk8s.SubnetGVR, subk8s.Converter)
+	pipRepo = repo[*pipdom.PublicIp](pipk8s.PublicIPGVR, pipk8s.Converter)
+	sgRepo = repo[*sgdom.SecurityGroup](sgk8s.SecurityGroupGVR, sgk8s.Converter)
+	sgrRepo = repo[*sgrdom.SecurityGroupRule](sgrk8s.SecurityGroupRuleGVR, sgrk8s.Converter)
+	nicRepo = repo[*nicdom.Nic](nick8s.NICGVR, nick8s.Converter)
+	instRepo = repo[*instdom.Instance](instk8s.InstanceGVR, instk8s.Converter)
 
 	// The gateway normally provisions the tenant/workspace/network namespaces; this suite has no
 	// gateway, so create them (mirrors csp/dummy/test/integration TestMain).
@@ -205,8 +205,8 @@ func arubaDescription(resource, name, ns string) string {
 }
 
 func repo[T persistence.IdentifiableResource](gvr schema.GroupVersionResource,
-	toCR k8sadapter.DomainToK8s[T], fromCR k8sadapter.K8sToDomain[T]) *k8sadapter.RepoAdapter[T] {
-	return k8sadapter.NewRepoAdapter[T](dyn, gvr, logger, toCR, fromCR)
+	conv k8sadapter.TwoWayConverter[T]) *k8sadapter.RepoAdapter[T] {
+	return k8sadapter.NewRepoAdapter[T](dyn, gvr, logger, conv)
 }
 
 func ensureNamespace(ns string) error {

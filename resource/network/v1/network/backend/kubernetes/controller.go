@@ -44,8 +44,7 @@ func NewController(
 		dynClient,
 		NetworkGVR,
 		options.Logger,
-		NetworkToCR,
-		NetworkFromCR,
+		Converter,
 	)
 	handler := NewNetworkPluginHandler(repo, plugin, options.MaxConditions)
 	c := &Controller{

@@ -25,6 +25,12 @@ type Identity struct {
 	// request is denied. An empty TokenScope imposes no restriction. Down-scoping can only
 	// narrow the permissions granted by RBAC; it never grants anything.
 	TokenScope resource.TokenScope
+	// MemberTenants is the tenant membership the issuer asserts about the subject (the
+	// token's "tenants" claim). It is a gate, not a grant: when non-empty, the request's
+	// tenant must be listed or authorization denies the request. Unlike TokenScope the
+	// caller cannot omit it, so it also caps a subs: ["*"] assignment — see doc/AUTH.md
+	// § Tenant membership.
+	MemberTenants []string
 }
 
 // Authenticator validates a raw bearer token and returns the caller's Identity.

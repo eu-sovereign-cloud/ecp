@@ -67,8 +67,7 @@ func TestRoleBackend_CreateAndGetRole(t *testing.T) {
 		dynClient,
 		RoleGVR,
 		slog.Default(),
-		RoleToCR,
-		RoleFromCR,
+		Converter,
 	)
 	readerRepo := k8sadapter.NewReaderAdapter[*roledom.Role](
 		dynClient,

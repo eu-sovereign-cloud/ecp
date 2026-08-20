@@ -123,7 +123,7 @@ func roleAssignmentIteratorToAPI(ras []*radom.RoleAssignment, nextSkipToken *str
 }
 
 // roleAssignmentFromAPI converts an SDK RoleAssignment to a RoleAssignment.
-func roleAssignmentFromAPI(sdk sdkschema.RoleAssignment, id *resource.Identity) *radom.RoleAssignment {
+func roleAssignmentFromAPI(sdk sdkschema.RoleAssignment, id *resource.Identity) (*radom.RoleAssignment, error) {
 	ra := &radom.RoleAssignment{
 		Spec: radom.RoleAssignmentSpec{
 			Subs:   sdk.Spec.Subs,
@@ -139,7 +139,7 @@ func roleAssignmentFromAPI(sdk sdkschema.RoleAssignment, id *resource.Identity) 
 	ra.Annotations = sdk.Annotations
 	ra.Extensions = sdk.Extensions
 
-	return ra
+	return ra, nil
 }
 
 // scopesToAPI converts domain role assignment scopes into their SDK representation.

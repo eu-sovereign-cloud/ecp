@@ -27,8 +27,7 @@ func NewController(
 		dynClient,
 		RouteTableGVR,
 		options.Logger,
-		RouteTableToCR,
-		RouteTableFromCR,
+		Converter,
 	)
 	handler := NewRouteTablePluginHandler(repo, plugin, options.MaxConditions)
 	return &Controller{

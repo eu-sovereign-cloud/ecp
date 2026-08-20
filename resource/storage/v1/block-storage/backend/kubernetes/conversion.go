@@ -14,6 +14,7 @@ import (
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
 	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/schema/v1"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 
 	commonbackend "github.com/eu-sovereign-cloud/ecp/resource/common/backend"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
@@ -30,10 +31,10 @@ func BlockStorageFromCR(obj client.Object) (*bsdom.BlockStorage, error) {
 		cr = *t
 	case *unstructured.Unstructured:
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(t.Object, &cr); err != nil {
-			return nil, fmt.Errorf("failed to convert unstructured to BlockStorage: %w", err)
+			return nil, kernel.NewError(kernel.KindValidation, fmt.Errorf("failed to convert unstructured to BlockStorage: %w", err))
 		}
 	default:
-		return nil, fmt.Errorf("unsupported object type %T", obj)
+		return nil, kernel.NewError(kernel.KindInternal, fmt.Errorf("unsupported object type %T", obj))
 	}
 
 	crLabels := cr.GetLabels()
@@ -73,8 +74,11 @@ func BlockStorageFromCR(obj client.Object) (*bsdom.BlockStorage, error) {
 		bs.Status = &bsdom.BlockStorageStatus{
 			SizeGB: cr.Status.SizeGB,
 		}
-		bs.Status.State = commonbackend.ResourceStateFromCR(cr.Status.State)
-		bs.Status.Conditions = commonbackend.ConditionsFromCR(cr.Status.Conditions)
+		status, err := commonbackend.StatusFromCR(cr.Status.State, cr.Status.Conditions)
+		if err != nil {
+			return nil, fmt.Errorf("block storage %s: %w", cr.Name, err)
+		}
+		bs.Status.Status = status
 		if cr.Status.AttachedTo != nil {
 			ref := commonbackend.ReferenceFromCR(*cr.Status.AttachedTo)
 			bs.Status.AttachedTo = &ref
@@ -89,7 +93,7 @@ func BlockStorageFromCR(obj client.Object) (*bsdom.BlockStorage, error) {
 // BlockStorageToCR converts a *bsdom.BlockStorage to a Kubernetes BlockStorage CR.
 func BlockStorageToCR(bs *bsdom.BlockStorage) (client.Object, error) {
 	if bs == nil {
-		return nil, fmt.Errorf("block storage is nil")
+		return nil, kernel.NewError(kernel.KindInternal, fmt.Errorf("block storage is nil"))
 	}
 
 	crLabels := k8slabels.OriginalToKeyed(bs.Labels)
@@ -123,14 +127,14 @@ func BlockStorageToCR(bs *bsdom.BlockStorage) (client.Object, error) {
 	}
 
 	if bs.Status != nil && len(bs.Status.Conditions) > 0 {
-		state := commonbackend.ResourceStateToCR(bs.Status.State)
-		if state == nil {
-			return nil, fmt.Errorf("failed to convert resource state to CR")
+		state, conds, err := commonbackend.StatusToCR(bs.Status.Status)
+		if err != nil {
+			return nil, fmt.Errorf("block storage %s: %w", bs.Name, err)
 		}
 		cr.Status = &BlockStorageStatus{
 			SizeGB:     bs.Status.SizeGB,
-			Conditions: commonbackend.ConditionsToCR(bs.Status.Conditions),
-			State:      *state,
+			Conditions: conds,
+			State:      state,
 		}
 		if bs.Status.AttachedTo != nil {
 			ref := commonbackend.ReferenceToCR(*bs.Status.AttachedTo)
@@ -139,4 +143,10 @@ func BlockStorageToCR(bs *bsdom.BlockStorage) (client.Object, error) {
 	}
 
 	return cr, nil
+}
+
+// Converter is the CR<->domain conversion pair for BlockStorage.
+var Converter = k8sadapter.TwoWayConverter[*bsdom.BlockStorage]{
+	FromCR: BlockStorageFromCR,
+	ToCR:   BlockStorageToCR,
 }

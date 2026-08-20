@@ -48,7 +48,7 @@ func (h *Handler) CreateOrUpdateSecurityGroup(w http.ResponseWriter, r *http.Req
 		Params:  id,
 		Creator: frest.CreatorFromRepo(h.SecurityGroupWriter),
 		Updater: frest.UpdaterFromRepo(h.SecurityGroupWriter),
-		APIToDomain: func(sdk sdkschema.SecurityGroup, p persistencepkg.IdentifiableResource) *securitygroupdom.SecurityGroup {
+		APIToDomain: func(sdk sdkschema.SecurityGroup, p persistencepkg.IdentifiableResource) (*securitygroupdom.SecurityGroup, error) {
 			return securityGroupFromAPI(sdk, p.(*SecurityGroupIdentity), region)
 		},
 		DomainToAPI: securityGroupToAPIWithVerb(http.MethodPut),

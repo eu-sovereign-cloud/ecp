@@ -7,6 +7,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	res "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network"
@@ -62,7 +63,7 @@ func (c *NetworkVPCConverter) FromArubaToSECA(from *v1alpha1.VPC) (*netdom.Netwo
 		tenant = from.Labels["seca.network/tenant"]
 	}
 	if tenant == "" {
-		return nil, errors.New("tenant is missing")
+		return nil, kernel.NewError(kernel.KindValidation, errors.New("tenant is missing"))
 	}
 
 	workspace := from.Spec.ProjectReference.Name
@@ -70,7 +71,7 @@ func (c *NetworkVPCConverter) FromArubaToSECA(from *v1alpha1.VPC) (*netdom.Netwo
 		workspace = from.Labels["seca.network/workspace"]
 	}
 	if workspace == "" {
-		return nil, errors.New("workspace is missing")
+		return nil, kernel.NewError(kernel.KindValidation, errors.New("workspace is missing"))
 	}
 
 	return &netdom.Network{

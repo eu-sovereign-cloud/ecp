@@ -74,6 +74,7 @@ func WriteErrorResponse(w http.ResponseWriter, r *http.Request, logger *slog.Log
 	if encodeErr := enc.Encode(sdkError); encodeErr != nil {
 		logger.ErrorContext(r.Context(), "failed to encode error response", slog.Any("error", encodeErr))
 	}
+	// The status line is already on the wire, so a failed body write is a client that hung up.
 	_, _ = w.Write(buf.Bytes())
 }
 

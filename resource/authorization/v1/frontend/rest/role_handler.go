@@ -47,7 +47,7 @@ func (h *Handler) CreateOrUpdateRole(w http.ResponseWriter, r *http.Request, ten
 		Params:  id,
 		Creator: activeCreator(h.RoleWriter, markRoleActive),
 		Updater: activeUpdater(h.RoleWriter, markRoleActive),
-		APIToDomain: func(sdk sdkschema.Role, p persistencepkg.IdentifiableResource) *roledom.Role {
+		APIToDomain: func(sdk sdkschema.Role, p persistencepkg.IdentifiableResource) (*roledom.Role, error) {
 			return roleFromAPI(sdk, p.(*resource.Identity))
 		},
 		DomainToAPI: roleToAPIWithVerb(http.MethodPut),

@@ -14,6 +14,7 @@ import (
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
 	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/schema/v1"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	kernelresource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 
 	radom "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role-assignment"
@@ -31,10 +32,10 @@ func RoleAssignmentFromCR(obj client.Object) (*radom.RoleAssignment, error) {
 		cr = *t
 	case *unstructured.Unstructured:
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(t.Object, &cr); err != nil {
-			return nil, fmt.Errorf("failed to convert unstructured to RoleAssignment: %w", err)
+			return nil, kernel.NewError(kernel.KindValidation, fmt.Errorf("failed to convert unstructured to RoleAssignment: %w", err))
 		}
 	default:
-		return nil, fmt.Errorf("unsupported object type %T", obj)
+		return nil, kernel.NewError(kernel.KindInternal, fmt.Errorf("unsupported object type %T", obj))
 	}
 
 	crLabels := cr.GetLabels()
@@ -64,8 +65,11 @@ func RoleAssignmentFromCR(obj client.Object) (*radom.RoleAssignment, error) {
 
 	ra.Status = &radom.RoleAssignmentStatus{}
 	if cr.Status != nil {
-		ra.Status.State = commonbackend.ResourceStateFromCR(cr.Status.State)
-		ra.Status.Conditions = commonbackend.ConditionsFromCR(cr.Status.Conditions)
+		status, err := commonbackend.StatusFromCR(cr.Status.State, cr.Status.Conditions)
+		if err != nil {
+			return nil, fmt.Errorf("role assignment %s: %w", cr.Name, err)
+		}
+		ra.Status.Status = status
 	} else {
 		ra.Status.PushCondition(commondomain.DefaultPendingCondition)
 	}
@@ -76,7 +80,7 @@ func RoleAssignmentFromCR(obj client.Object) (*radom.RoleAssignment, error) {
 // RoleAssignmentToCR converts a *radom.RoleAssignment to a Kubernetes RoleAssignment CR.
 func RoleAssignmentToCR(ra *radom.RoleAssignment) (client.Object, error) {
 	if ra == nil {
-		return nil, fmt.Errorf("role assignment is nil")
+		return nil, kernel.NewError(kernel.KindInternal, fmt.Errorf("role assignment is nil"))
 	}
 
 	crLabels := k8slabels.OriginalToKeyed(ra.Labels)
@@ -104,13 +108,13 @@ func RoleAssignmentToCR(ra *radom.RoleAssignment) (client.Object, error) {
 	cr.SetGroupVersionKind(RoleAssignmentGVK)
 
 	if ra.Status != nil && len(ra.Status.Conditions) > 0 {
-		state := commonbackend.ResourceStateToCR(ra.Status.State)
-		if state == nil {
-			return nil, fmt.Errorf("failed to convert resource state to CR")
+		state, conds, err := commonbackend.StatusToCR(ra.Status.Status)
+		if err != nil {
+			return nil, fmt.Errorf("role assignment %s: %w", ra.Name, err)
 		}
 		cr.Status = &RoleAssignmentStatus{
-			Conditions: commonbackend.ConditionsToCR(ra.Status.Conditions),
-			State:      *state,
+			Conditions: conds,
+			State:      state,
 		}
 	}
 
@@ -153,4 +157,10 @@ func scopesToCR(scopes []radom.RoleAssignmentScope) []RoleAssignmentScope {
 // RoleAssignment CRs live in the tenant namespace (role assignments are tenant-scoped).
 func tenantOnlyScope(tenant string) *kernelresource.Scope {
 	return &kernelresource.Scope{Tenant: tenant}
+}
+
+// Converter is the CR<->domain conversion pair for RoleAssignment.
+var Converter = k8sadapter.TwoWayConverter[*radom.RoleAssignment]{
+	FromCR: RoleAssignmentFromCR,
+	ToCR:   RoleAssignmentToCR,
 }

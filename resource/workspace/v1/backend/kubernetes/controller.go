@@ -61,8 +61,7 @@ func NewController(
 		dynClient,
 		WorkspaceGVR,
 		options.Logger,
-		WorkspaceToCR,
-		WorkspaceFromCR,
+		Converter,
 	)
 	handler := NewWorkspacePluginHandler(repo, plugin, options.MaxConditions)
 	c := &Controller{

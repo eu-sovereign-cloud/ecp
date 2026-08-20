@@ -70,8 +70,7 @@ func TestSecurityGroupBackend_CreateAndGetSecurityGroup(t *testing.T) {
 		dynClient,
 		SecurityGroupGVR,
 		slog.Default(),
-		SecurityGroupToCR,
-		SecurityGroupFromCR,
+		Converter,
 	)
 
 	readerRepo := k8sadapter.NewReaderAdapter[*securitygroupdom.SecurityGroup](

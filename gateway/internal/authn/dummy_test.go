@@ -33,8 +33,16 @@ func TestDummyAuthenticator(t *testing.T) {
 		token       string
 		wantSubject string
 		wantScope   resource.TokenScope
+		wantTenants []string
 		wantErr     bool
 	}{
+		{
+			// The "tenants" list stands in for the membership a real issuer stamps.
+			name:        "tenants claim becomes the identity's membership",
+			token:       base64.StdEncoding.EncodeToString([]byte(`{"username":"alice","password":"s3cr3t","tenants":["t1","t2"]}`)),
+			wantSubject: "alice",
+			wantTenants: []string{"t1", "t2"},
+		},
 		{
 			name:        "valid credentials without scope",
 			token:       makeToken("alice", "s3cr3t", nil),
@@ -107,6 +115,9 @@ func TestDummyAuthenticator(t *testing.T) {
 			}
 			if id.Subject != tc.wantSubject {
 				t.Errorf("subject = %q, want %q", id.Subject, tc.wantSubject)
+			}
+			if !reflect.DeepEqual(id.MemberTenants, tc.wantTenants) {
+				t.Errorf("member tenants = %v, want %v", id.MemberTenants, tc.wantTenants)
 			}
 			if !reflect.DeepEqual(id.TokenScope, tc.wantScope) {
 				t.Errorf("token scope = %+v, want %+v", id.TokenScope, tc.wantScope)

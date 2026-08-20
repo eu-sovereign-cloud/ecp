@@ -275,9 +275,25 @@ and the CRD validations per §3. Do not proceed until the CRD reflects the spec.
 ### 4.6 Conversion — `resource/<group>/v1/<dir>/backend/kubernetes/conversion.go`
 `<Kind>FromCR(obj client.Object) (*<dom>, error)` and `<Kind>ToCR(x *<dom>) (client.Object,
 error)` (read-only resources still need `FromCR` for the reader adapter; keep `ToCR` for
-symmetry/tests as the read-only exemplars do). Use `commonbackend.ResourceStateFromCR` (never a
-raw cast) and the error template `"<resource> <name>: <description>: %w"`. **The CR namespace is
-set here and encodes the scope** (§5). Ref: `resource/workspace/v1/backend/kubernetes/conversion.go` /
+symmetry/tests as the read-only exemplars do). Map the status with
+`commonbackend.StatusFromCR`/`StatusToCR` (never a raw cast; reach for the narrower
+`ResourceStateFromCR`/`ConditionsFromCR` pair only for a nested per-route or per-rule status) —
+**all of them return `(T, error)`**; propagate with the error template `"<resource> <name>: %w"`.
+**The CR namespace is set here and encodes the scope** (§5).
+
+**Read-write only:** end the file with the exported pair every writing adapter takes
+(CONVENTIONS §2). Read-only slices export no `Converter` — nothing consumes it, since the reader
+adapter takes the bare `<Kind>FromCR`.
+
+```go
+// Converter is the CR<->domain conversion pair for <Kind>.
+var Converter = k8sadapter.TwoWayConverter[*<dom>]{
+	FromCR: <Kind>FromCR,
+	ToCR:   <Kind>ToCR,
+}
+```
+
+Ref: `resource/workspace/v1/backend/kubernetes/conversion.go` /
 `resource/storage/v1/block-storage/backend/kubernetes/conversion.go` /
 `resource/storage/v1/storage-sku/backend/kubernetes/conversion.go`.
 
@@ -323,6 +339,11 @@ by all resources in that group.
 - Always add `<dir>_converter.go`: `<Kind>ToAPI`/`<Kind>ToAPIWithVerb`, `<Kind>IteratorToAPI`, a
   list-param helper, and (read-write only) `<Kind>FromAPI`. Read-only converters expose list/get
   shapes only (no `FromAPI`).
+- `<Kind>FromAPI` returns `(*<dom>, error)` — it is the request boundary, and
+  `frest.APIToDomain` is typed for it. Return `nil` for the error when the body has nothing to
+  reject; do **not** drop the result from the signature. Anything that maps a spec enum
+  (`commonfrontend.IPVersionFromAPI`) reports an unrecognised value rather than flattening it to
+  the zero value — see CONVENTIONS §2 and §10.
 - **New resource in an existing group:** implement its `List/Get` (+ `CreateOrUpdate/Delete`
   for read-write) methods in `<dir>_handler.go` on the **group's** shared handler struct, and add
   a reader (and, for read-write, writer) field to that handler struct. **Match the go-sdk
@@ -334,8 +355,9 @@ by all resources in that group.
   `ServerInterface`; per-resource methods go in their `<dir>_handler.go` file.
 
 ### 4.11 Gateway wiring — `gateway/cmd/regionalapiserver.go` (regional) / `globalapiserver.go` (global)
-Build `k8sadapter.NewReaderAdapter` (always) and `NewWriterAdapter` (read-write only) for the
-resource (GVR + `FromCR`/`ToCR`), and either add them to the existing group handler struct
+Build `k8sadapter.NewReaderAdapter` (always, GVR + `<pkg>.<Kind>FromCR`) and `NewWriterAdapter`
+(read-write only, GVR + `<pkg>.Converter`) for the
+resource, and either add them to the existing group handler struct
 (`resource/<group>/v1/frontend/rest/`), or register a new `…api.HandlerWithOptions(&<group>rest.Handler{…},
 …BaseURL: "/providers/seca.<group>")` block for a new group. Ref: the storage block in
 `gateway/cmd/regionalapiserver.go`; the region block in `gateway/cmd/globalapiserver.go`.
@@ -423,7 +445,10 @@ in time and can drift):
 ## 6. Conventions (doc/CONVENTIONS.md — non-negotiable)
 
 - **Conversion naming:** `XFromCR`/`XToCR`, `XFromAPI`/`XToAPI`, `XIteratorToAPI`,
-  `XToAPIWithVerb` — never `Map`/`Domain`/`CR` as infix tokens.
+  `XToAPIWithVerb` — never `Map`/`Domain`/`CR` as infix tokens. A read-write slice exports the CR
+  pair as `Converter`.
+- **Errors:** wrap with `%w`, and use `kernel.NewError(kind, cause, sources…)` wherever the error
+  leaves the layer (CONVENTIONS §10). Never return the zero value for input you do not recognise.
 - **Initialisms** always fully capitalised in hand-written names:
   `API CR CIDR GB HTTP ID IOPS IP IPv4 IPv6 SKU URL` (`StorageSKU`, `PublicIP`, `NIC`, not
   `StorageSku`/`PublicIp`/`Nic`). Generated `…Spec`/`…Status` lowercase tails are an accepted
@@ -431,7 +456,8 @@ in time and can drift):
 - **Typed-short variables/receivers** (`bs`, `ws`, `n`, `r`, `sku`); never shadow an import
   alias (`domain`, `resource`). Consistent receiver per type.
 - **Structural symmetry:** parallel operations share helpers, names, and the error template
-  `"<resource> <name>: <description>: %w"`. Use `commonbackend.ResourceStateFromCR`, not raw
+  `"<resource> <name>: <description>: %w"` (drop `<description>` when the wrapped error already
+  carries it). Use `commonbackend.StatusFromCR`/`StatusToCR`, not raw
   casts. Match the `isXPending` predicate across handlers.
 - **Doc comment** on every exported symbol, beginning with its name; no package-name stutter
   (`const Kind`, not `const BlockStorageKind`, inside the slice package).
@@ -487,8 +513,8 @@ attribution (e.g. `feat(storage/image): implement image vertical`).
 - [ ] Slice present in the `framework/backend/kubernetes/Makefile` `generate-crds` loop (path form: `$(REPO_ROOT)/resource/<group>/v1/<dir>/backend/kubernetes`).
 - [ ] Generation run; `zz_generated_*` and `charts/ecp/crds/<apigroup>_<plural>.yaml` present **with
       the spec's validations**.
-- [ ] `conversion.go` present; `plugin.go`/`plugin_handler.go`/`controller.go` present for
-      read-write (skipped for read-only).
+- [ ] `conversion.go` present (exporting `Converter` for read-write); `plugin.go`/`plugin_handler.go`/`controller.go`
+      present for read-write (skipped for read-only).
 - [ ] REST converter (+ handler methods on the group owner or a new handler) implemented.
 - [ ] Gateway wired (regional or global; reader always, writer for read-write).
 - [ ] Dummy plugin file + `main.go` registration done (read-write only).

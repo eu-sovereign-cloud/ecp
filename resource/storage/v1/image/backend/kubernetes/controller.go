@@ -30,8 +30,7 @@ func NewController(
 		dynClient,
 		ImageGVR,
 		options.Logger,
-		ImageToCR,
-		ImageFromCR,
+		Converter,
 	)
 	deps := commonbackend.NewReferenceResolver(dynClient)
 	handler := NewImagePluginHandler(repo, plugin, options.MaxConditions, deps)

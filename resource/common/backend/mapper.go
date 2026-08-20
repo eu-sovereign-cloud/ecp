@@ -2,20 +2,57 @@
 package backend
 
 import (
+	"fmt"
 	"strings"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/schema/v1"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 
 	"github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 )
 
+// The mappers below are asymmetric about what they reject: inbound rejects, outbound trusts.
+// See doc/CONVENTIONS.md §2 and §10 for why.
+
+// StatusFromCR maps a CR's state and conditions to a domain.Status. It is everything a slice's
+// XFromCR does with its CR status, so the slice wraps one error instead of two.
+func StatusFromCR(state schemav1.ResourceState, conds []schemav1.StatusCondition) (domain.Status, error) {
+	mappedState, err := ResourceStateFromCR(state)
+	if err != nil {
+		return domain.Status{}, err
+	}
+
+	mappedConds, err := ConditionsFromCR(conds)
+	if err != nil {
+		return domain.Status{}, err
+	}
+
+	return domain.Status{State: mappedState, Conditions: mappedConds}, nil
+}
+
+// StatusToCR maps a domain.Status to the state and conditions a CR status carries, the inverse
+// of StatusFromCR.
+func StatusToCR(s domain.Status) (schemav1.ResourceState, []schemav1.StatusCondition, error) {
+	state, err := ResourceStateToCR(s.State)
+	if err != nil {
+		return "", nil, err
+	}
+
+	conds, err := ConditionsToCR(s.Conditions)
+	if err != nil {
+		return "", nil, err
+	}
+
+	return state, conds, nil
+}
+
 // StatusConditionToCR maps a domain.StatusCondition to a schemav1.StatusCondition.
-func StatusConditionToCR(c domain.StatusCondition) schemav1.StatusCondition {
-	var state schemav1.ResourceState
-	if mappedState := ResourceStateToCR(c.State); mappedState != nil {
-		state = *mappedState
+func StatusConditionToCR(c domain.StatusCondition) (schemav1.StatusCondition, error) {
+	state, err := ResourceStateToCR(c.State)
+	if err != nil {
+		return schemav1.StatusCondition{}, fmt.Errorf("condition %q: %w", c.Type, err)
 	}
 
 	return schemav1.StatusCondition{
@@ -25,81 +62,96 @@ func StatusConditionToCR(c domain.StatusCondition) schemav1.StatusCondition {
 		Reason:           c.Reason,
 		Message:          c.Message,
 		Occurrences:      c.Occurrences,
-	}
+	}, nil
 }
 
 // ConditionsToCR maps a slice of domain.StatusCondition to a slice of schemav1.StatusCondition.
-func ConditionsToCR(conds []domain.StatusCondition) []schemav1.StatusCondition {
+func ConditionsToCR(conds []domain.StatusCondition) ([]schemav1.StatusCondition, error) {
 	conditions := make([]schemav1.StatusCondition, len(conds))
-	for i, cond := range conds {
-		conditions[i] = StatusConditionToCR(cond)
+	for i, c := range conds {
+		converted, err := StatusConditionToCR(c)
+		if err != nil {
+			return nil, err
+		}
+		conditions[i] = converted
 	}
-	return conditions
+	return conditions, nil
 }
 
 // ResourceStateToCR maps domain.ResourceState to schemav1.ResourceState.
-func ResourceStateToCR(state domain.ResourceState) *schemav1.ResourceState {
-	var out schemav1.ResourceState
+func ResourceStateToCR(state domain.ResourceState) (schemav1.ResourceState, error) {
 	switch state {
 	case domain.ResourceStatePending:
-		out = schemav1.ResourceStatePending
+		return schemav1.ResourceStatePending, nil
 	case domain.ResourceStateCreating:
-		out = schemav1.ResourceStateCreating
+		return schemav1.ResourceStateCreating, nil
 	case domain.ResourceStateActive:
-		out = schemav1.ResourceStateActive
+		return schemav1.ResourceStateActive, nil
 	case domain.ResourceStateUpdating:
-		out = schemav1.ResourceStateUpdating
+		return schemav1.ResourceStateUpdating, nil
 	case domain.ResourceStateDeleting:
-		out = schemav1.ResourceStateDeleting
+		return schemav1.ResourceStateDeleting, nil
 	case domain.ResourceStateError:
-		out = schemav1.ResourceStateError
+		return schemav1.ResourceStateError, nil
 	default:
-		return nil
+		return "", kernel.NewError(kernel.KindValidation,
+			fmt.Errorf("unmappable resource state %q", state),
+			kernel.ErrorSource{Name: "status.state", Value: string(state)})
 	}
-	return &out
 }
 
 // StatusConditionFromCR maps a schemav1.StatusCondition to a domain.StatusCondition.
-func StatusConditionFromCR(c schemav1.StatusCondition) domain.StatusCondition {
+func StatusConditionFromCR(c schemav1.StatusCondition) (domain.StatusCondition, error) {
+	state, err := ResourceStateFromCR(c.State)
+	if err != nil {
+		return domain.StatusCondition{}, fmt.Errorf("condition %q: %w", c.Type, err)
+	}
+
 	return domain.StatusCondition{
 		Type:             c.Type,
-		State:            ResourceStateFromCR(c.State),
+		State:            state,
 		LastTransitionAt: c.LastTransitionAt.Time,
 		Reason:           c.Reason,
 		Message:          c.Message,
 		Occurrences:      c.Occurrences,
-	}
+	}, nil
 }
 
 // ConditionsFromCR maps a slice of schemav1.StatusCondition to a slice of domain.StatusCondition.
-func ConditionsFromCR(conds []schemav1.StatusCondition) []domain.StatusCondition {
+func ConditionsFromCR(conds []schemav1.StatusCondition) ([]domain.StatusCondition, error) {
 	conditions := make([]domain.StatusCondition, len(conds))
-	for i, cond := range conds {
-		conditions[i] = StatusConditionFromCR(cond)
+	for i, c := range conds {
+		converted, err := StatusConditionFromCR(c)
+		if err != nil {
+			return nil, err
+		}
+		conditions[i] = converted
 	}
-	return conditions
+	return conditions, nil
 }
 
 // ResourceStateFromCR maps schemav1.ResourceState to domain.ResourceState.
-func ResourceStateFromCR(state schemav1.ResourceState) domain.ResourceState {
-	var out domain.ResourceState
+func ResourceStateFromCR(state schemav1.ResourceState) (domain.ResourceState, error) {
 	switch state {
+	case "":
+		return "", nil
 	case schemav1.ResourceStatePending:
-		out = domain.ResourceStatePending
+		return domain.ResourceStatePending, nil
 	case schemav1.ResourceStateCreating:
-		out = domain.ResourceStateCreating
+		return domain.ResourceStateCreating, nil
 	case schemav1.ResourceStateActive:
-		out = domain.ResourceStateActive
+		return domain.ResourceStateActive, nil
 	case schemav1.ResourceStateUpdating:
-		out = domain.ResourceStateUpdating
+		return domain.ResourceStateUpdating, nil
 	case schemav1.ResourceStateDeleting:
-		out = domain.ResourceStateDeleting
+		return domain.ResourceStateDeleting, nil
 	case schemav1.ResourceStateError:
-		out = domain.ResourceStateError
+		return domain.ResourceStateError, nil
 	default:
-		out = ""
+		return "", kernel.NewError(kernel.KindValidation,
+			fmt.Errorf("unknown resource state %q", state),
+			kernel.ErrorSource{Name: "status.state", Value: string(state)})
 	}
-	return out
 }
 
 // IPVersionToCR maps domain.IPVersion to schemav1.IPVersion.
@@ -115,14 +167,18 @@ func IPVersionToCR(v domain.IPVersion) schemav1.IPVersion {
 }
 
 // IPVersionFromCR maps schemav1.IPVersion to domain.IPVersion.
-func IPVersionFromCR(v schemav1.IPVersion) domain.IPVersion {
+func IPVersionFromCR(v schemav1.IPVersion) (domain.IPVersion, error) {
 	switch v {
+	case "":
+		return "", nil
 	case schemav1.IPVersionIPv4:
-		return domain.IPVersionIPv4
+		return domain.IPVersionIPv4, nil
 	case schemav1.IPVersionIPv6:
-		return domain.IPVersionIPv6
+		return domain.IPVersionIPv6, nil
 	default:
-		return ""
+		return "", kernel.NewError(kernel.KindValidation,
+			fmt.Errorf("unknown ip version %q", v),
+			kernel.ErrorSource{Name: "version", Value: string(v)})
 	}
 }
 

@@ -45,6 +45,13 @@ backend/kubernetes → kernel
 frontend           → kernel
 ```
 
+Errors travel **up** that DAG unchanged. `kernel.Error` carries a `Kind` and the fields that
+caused the failure, every layer wraps rather than re-formats (`%w`), and the REST layer is the
+only place that turns a kind into an HTTP status — so a conversion failure deep in a slice
+reaches the caller as the right status without any layer in between knowing about HTTP. The
+contract, and where a plain error is still correct, is in
+[CONVENTIONS.md §10](CONVENTIONS.md#10--error-contract).
+
 ## Per-Resource Slice (vertical hexagon)
 
 Each resource slice at `resource/{group}/vN/{resource}/` contains:
@@ -52,6 +59,8 @@ Each resource slice at `resource/{group}/vN/{resource}/` contains:
 - **`domain.go`** (`package <resource>`) — the canonical domain type, `RegionalMetadata` embed, and identity consts (`Kind`, `Resource`, `Group`, `Version`, and a provider identifier). No k8s imports.
 - **`frontend/rest/`** — REST↔domain converters and, for the group owner, HTTP handlers implementing the go-sdk `ServerInterface`. One handler per API group (shared across sibling resources); per-resource files are `<resource>_handler.go` and `<resource>_converter.go`. Registered into the gateway mux.
 - **`backend/kubernetes/`** — CR wrapper types, GVR/GVK, CR↔domain adapter (`conversion.go`), plugin interface (`plugin.go`), plugin handler (`plugin_handler.go`), and controller wiring (`controller.go`). The `NewController` factory performs **builder inversion**: it assembles the `framework/backend/kubernetes` repo adapter from this slice's own GVR and mappers, wraps it in `framework/backend/kubernetes/controller.GenericController[D]`, and returns a `framework/backend/kubernetes/builder.Reconciler` — no `framework` package ever names a concrete resource.
+
+  A read-write `conversion.go` exports its two directions as one value, `Converter` (a `k8sadapter.TwoWayConverter[D]`), and every adapter that writes takes that instead of a `ToCR`/`FromCR` pair. It is what the controller, the gateway wiring and the test suites all name, so a slice that changes how it converts changes one line rather than one per call site. Read-only slices export no `Converter`: their reader adapter takes the bare `FromCR`. See [CONVENTIONS.md §2](CONVENTIONS.md#2--conversion-function-naming).
 
 ## Module DAG
 
@@ -118,7 +127,8 @@ chain. When enabled (`--auth-enabled`), every request must carry a valid
 `Authorization: Bearer <token>` header and the decoded identity must be
 authorised by the RBAC policy before the request reaches the handler. A caller's
 roles are resolved from `RoleAssignment`/`Role` in the tenant namespace — never
-from the token, which carries only the subject and an optional down-scope.
+from the token, which carries only the subject, the issuer-asserted tenant
+membership and an optional down-scope (the last two cap the request, never grant).
 
 ```
 HTTP request
@@ -147,7 +157,8 @@ All framework-layer types (`Authenticator`, `Checker`, `ClaimExtractor`,
 resource-agnostic. Concrete implementations (`DummyAuthenticator`, SECA RBAC
 `Checker`, `CachedChecker`) live in `gateway/` and may import `resource/`.
 
-See [doc/AUTH.md](AUTH.md) for the full reference — bearer-token format, token
+See [doc/AUTH.md](AUTH.md) for the full reference — bearer-token formats (dummy and
+signed JWT), issuer/audience verification, the tenant-membership gate, token
 down-scoping, config flags, the RBAC algorithm, and a code layout map.
 
 ## Cascaded Deletion

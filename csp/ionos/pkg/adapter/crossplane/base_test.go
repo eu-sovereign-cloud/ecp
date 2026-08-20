@@ -17,6 +17,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/stretchr/testify/require"
+
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	delegator "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
 )
 
@@ -315,4 +318,35 @@ func assertErr(t *testing.T, got, wantIs error, wantContains string) {
 			t.Fatalf("want nil error, got %v", got)
 		}
 	}
+}
+
+// reconcileError used to rebuild the provider's failure as a plain string, so a caller upstream
+// could neither errors.As it to a kind nor errors.Is it against the cause. The message crosses the
+// wire as a string on the Synced condition — there is no original error value to keep — so the fix
+// is to turn it back into one and wrap it, not to keep formatting it into a sentence.
+func TestReconcileErrorPreservesTheChain(t *testing.T) {
+	obj := &testCR{}
+	obj.SetGroupVersionKind(schema.GroupVersionKind{Group: "compute.ionos.crossplane.io", Version: "v1alpha1", Kind: "Volume"})
+	obj.SetName("vol-1")
+	obj.SetConditions(v1.ReconcileError(errors.New("quota exceeded")))
+
+	err := reconcileError(obj)
+	require.Error(t, err)
+
+	var domErr *kernel.Error
+	require.ErrorAs(t, err, &domErr, "the provider's failure must stay inspectable upstream")
+	require.Equal(t, kernel.KindUnavailable, domErr.Kind)
+	require.Equal(t, []kernel.ErrorSource{{Name: "Volume", Value: "vol-1"}}, domErr.Sources)
+
+	// The cause is wrapped, not stringified: unwrapping reaches the provider's own message.
+	require.Contains(t, err.Error(), "provider failed to reconcile Volume")
+	require.Equal(t, "quota exceeded", errors.Unwrap(errors.Unwrap(err)).Error())
+}
+
+// A managed resource that is synced carries no failure, and reconcileError must not invent one.
+func TestReconcileErrorIsNilWhenSynced(t *testing.T) {
+	obj := &testCR{}
+	obj.SetConditions(v1.ReconcileSuccess())
+
+	require.NoError(t, reconcileError(obj))
 }

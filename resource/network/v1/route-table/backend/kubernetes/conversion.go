@@ -14,6 +14,7 @@ import (
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
 	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/schema/v1"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 
 	commonbackend "github.com/eu-sovereign-cloud/ecp/resource/common/backend"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
@@ -30,10 +31,10 @@ func RouteTableFromCR(obj client.Object) (*routetabledom.RouteTable, error) {
 		cr = *t
 	case *unstructured.Unstructured:
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(t.Object, &cr); err != nil {
-			return nil, fmt.Errorf("failed to convert unstructured to RouteTable: %w", err)
+			return nil, kernel.NewError(kernel.KindValidation, fmt.Errorf("failed to convert unstructured to RouteTable: %w", err))
 		}
 	default:
-		return nil, fmt.Errorf("unsupported object type %T", obj)
+		return nil, kernel.NewError(kernel.KindInternal, fmt.Errorf("unsupported object type %T", obj))
 	}
 
 	crLabels := cr.GetLabels()
@@ -72,14 +73,21 @@ func RouteTableFromCR(obj client.Object) (*routetabledom.RouteTable, error) {
 
 	rt.Status = &routetabledom.RouteTableStatus{}
 	if cr.Status != nil {
-		rt.Status.State = commonbackend.ResourceStateFromCR(cr.Status.State)
-		rt.Status.Conditions = commonbackend.ConditionsFromCR(cr.Status.Conditions)
+		status, err := commonbackend.StatusFromCR(cr.Status.State, cr.Status.Conditions)
+		if err != nil {
+			return nil, fmt.Errorf("route table %s: %w", cr.Name, err)
+		}
+		rt.Status.Status = status
 
 		routeStatuses := make([]routetabledom.RouteStatus, len(cr.Status.Routes))
 		for i, rs := range cr.Status.Routes {
+			rsStatus, err := commonbackend.StatusFromCR(rs.State, rs.Conditions)
+			if err != nil {
+				return nil, fmt.Errorf("route table %s: %w", cr.Name, err)
+			}
 			routeStatuses[i] = routetabledom.RouteStatus{
-				State:      commonbackend.ResourceStateFromCR(rs.State),
-				Conditions: commonbackend.ConditionsFromCR(rs.Conditions),
+				State:      rsStatus.State,
+				Conditions: rsStatus.Conditions,
 			}
 		}
 		rt.Status.Routes = routeStatuses
@@ -93,7 +101,7 @@ func RouteTableFromCR(obj client.Object) (*routetabledom.RouteTable, error) {
 // RouteTableToCR converts a *routetabledom.RouteTable to a Kubernetes RouteTable CR.
 func RouteTableToCR(rt *routetabledom.RouteTable) (client.Object, error) {
 	if rt == nil {
-		return nil, fmt.Errorf("route table is nil")
+		return nil, kernel.NewError(kernel.KindInternal, fmt.Errorf("route table is nil"))
 	}
 
 	crLabels := k8slabels.OriginalToKeyed(rt.Labels)
@@ -130,29 +138,35 @@ func RouteTableToCR(rt *routetabledom.RouteTable) (client.Object, error) {
 	cr.SetGroupVersionKind(RouteTableGVK)
 
 	if rt.Status != nil && len(rt.Status.Conditions) > 0 {
-		state := commonbackend.ResourceStateToCR(rt.Status.State)
-		if state == nil {
-			return nil, fmt.Errorf("failed to convert resource state to CR")
+		state, conds, err := commonbackend.StatusToCR(rt.Status.Status)
+		if err != nil {
+			return nil, fmt.Errorf("route table %s: %w", rt.Name, err)
 		}
 
 		routeStatuses := make([]RouteStatus, len(rt.Status.Routes))
 		for i, rs := range rt.Status.Routes {
-			rsState := commonbackend.ResourceStateToCR(rs.State)
-			if rsState == nil {
-				return nil, fmt.Errorf("failed to convert route status state to CR")
+			rsState, rsConds, err := commonbackend.StatusToCR(commondomain.Status{State: rs.State, Conditions: rs.Conditions})
+			if err != nil {
+				return nil, fmt.Errorf("route table %s: %w", rt.Name, err)
 			}
 			routeStatuses[i] = RouteStatus{
-				Conditions: commonbackend.ConditionsToCR(rs.Conditions),
-				State:      *rsState,
+				Conditions: rsConds,
+				State:      rsState,
 			}
 		}
 
 		cr.Status = &RouteTableStatus{
-			Conditions: commonbackend.ConditionsToCR(rt.Status.Conditions),
-			State:      *state,
+			Conditions: conds,
+			State:      state,
 			Routes:     routeStatuses,
 		}
 	}
 
 	return cr, nil
+}
+
+// Converter is the CR<->domain conversion pair for RouteTable.
+var Converter = k8sadapter.TwoWayConverter[*routetabledom.RouteTable]{
+	FromCR: RouteTableFromCR,
+	ToCR:   RouteTableToCR,
 }

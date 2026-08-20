@@ -7,6 +7,8 @@ import (
 	"time"
 
 	ctrl "sigs.k8s.io/controller-runtime"
+
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 )
 
 const (
@@ -44,11 +46,11 @@ func (cs *ControllerSet) Add(r Reconciler) *ControllerSet {
 // It returns the first error encountered, if any.
 func (cs *ControllerSet) SetupWithManager(mgr ctrl.Manager) error {
 	if cs == nil {
-		return errors.New("controller set cannot be nil")
+		return kernel.NewError(kernel.KindValidation, errors.New("controller set cannot be nil"))
 	}
 
 	if len(cs.reconcilers) == 0 {
-		return fmt.Errorf("controller set has no reconcilers registered")
+		return kernel.NewError(kernel.KindValidation, errors.New("controller set has no reconcilers registered"))
 	}
 
 	for _, r := range cs.reconcilers {

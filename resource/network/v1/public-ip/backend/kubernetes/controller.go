@@ -27,8 +27,7 @@ func NewController(
 		dynClient,
 		PublicIPGVR,
 		options.Logger,
-		PublicIpToCR,
-		PublicIpFromCR,
+		Converter,
 	)
 	handler := NewPublicIpPluginHandler(repo, plugin, options.MaxConditions)
 	return &Controller{

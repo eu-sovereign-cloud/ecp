@@ -9,6 +9,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	skudom "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/sku"
 )
 
@@ -22,10 +23,10 @@ func InstanceSKUFromCR(obj client.Object) (*skudom.InstanceSKU, error) {
 		cr = *t
 	case *unstructured.Unstructured:
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(t.Object, &cr); err != nil {
-			return nil, fmt.Errorf("failed to convert unstructured to InstanceSKU: %w", err)
+			return nil, kernel.NewError(kernel.KindValidation, fmt.Errorf("failed to convert unstructured to InstanceSKU: %w", err))
 		}
 	default:
-		return nil, fmt.Errorf("unsupported object type %T", obj)
+		return nil, kernel.NewError(kernel.KindInternal, fmt.Errorf("unsupported object type %T", obj))
 	}
 
 	crLabels := cr.GetLabels()
@@ -56,7 +57,7 @@ func InstanceSKUFromCR(obj client.Object) (*skudom.InstanceSKU, error) {
 // InstanceSKUs are read-only resources — this is provided for completeness.
 func InstanceSKUToCR(sku *skudom.InstanceSKU) (client.Object, error) {
 	if sku == nil {
-		return nil, fmt.Errorf("instance SKU is nil")
+		return nil, kernel.NewError(kernel.KindInternal, fmt.Errorf("instance SKU is nil"))
 	}
 
 	cr := &InstanceSKU{

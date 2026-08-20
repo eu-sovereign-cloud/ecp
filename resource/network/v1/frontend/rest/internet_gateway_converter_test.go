@@ -20,7 +20,8 @@ func TestInternetGatewayFromAPIToAPIRoundTrip(t *testing.T) {
 	}
 	id := &InternetGatewayIdentity{name: "ig1", tenant: "t1", workspace: "w1"}
 
-	dom := internetGatewayFromAPI(sdk, id, "r1")
+	dom, err := internetGatewayFromAPI(sdk, id, "r1")
+	require.NoError(t, err)
 	require.Equal(t, "ig1", dom.Name)
 	require.Equal(t, "t1", dom.Tenant)
 	require.Equal(t, "w1", dom.Workspace)

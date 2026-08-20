@@ -102,7 +102,12 @@ func (rr *ReferenceResolver) State(
 		return false, "", fmt.Errorf("%s %s: failed to read status state: %w", gvr.Resource, target.Name, err)
 	}
 
-	return true, ResourceStateFromCR(schemav1.ResourceState(raw)), nil
+	state, err := ResourceStateFromCR(schemav1.ResourceState(raw))
+	if err != nil {
+		return false, "", fmt.Errorf("%s %s: %w", gvr.Resource, target.Name, err)
+	}
+
+	return true, state, nil
 }
 
 // Referrers lists resources of the given GVR in namespace and returns the names of

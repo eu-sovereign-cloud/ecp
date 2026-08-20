@@ -12,6 +12,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 
 	frest "github.com/eu-sovereign-cloud/ecp/framework/frontend/rest"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
@@ -126,8 +127,8 @@ func domainToTestOut(d TestDomain) TestOut {
 	return TestOut(d)
 }
 
-func apiToTestDomain(sdk TestIn, params persistence.IdentifiableResource) TestDomain {
-	return TestDomain{ID: params.GetName(), Data: sdk.Data}
+func apiToTestDomain(sdk TestIn, params persistence.IdentifiableResource) (TestDomain, error) {
+	return TestDomain{ID: params.GetName(), Data: sdk.Data}, nil
 }
 
 // errBodyReader is an io.ReadCloser that always returns an error on Read.
@@ -326,12 +327,10 @@ func TestHandleUpsert_EncodeResponseFails(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	frest.HandleUpsert(recorder, newUpsertRequest(`{"data":"hello"}`), discardLogger(),
 		frest.UpsertOptions[TestIn, TestDomain, badOut]{
-			Params:  upsertParams,
-			Creator: creator,
-			Updater: updater,
-			APIToDomain: func(sdk TestIn, params persistence.IdentifiableResource) TestDomain {
-				return TestDomain{ID: params.GetName(), Data: sdk.Data}
-			},
+			Params:      upsertParams,
+			Creator:     creator,
+			Updater:     updater,
+			APIToDomain: apiToTestDomain,
 			// DomainToAPI returns an un-serializable type (channel field).
 			DomainToAPI: func(_ TestDomain) badOut { return badOut{C: make(chan int)} },
 		},
@@ -477,4 +476,41 @@ func TestHandleUpsert_UpdateFailsValidation(t *testing.T) {
 	assert.Contains(t, string(body), "\"type\":\"http://secapi.cloud/errors/validation-error\"")
 	creator.AssertNotCalled(t, "Do")
 	updater.AssertExpectations(t)
+}
+
+// A converter that rejects its input must stop the request at the boundary. Before APIToDomain
+// could report a failure, a value the domain had no representation for was flattened to a zero
+// value and written, and whatever rejected it downstream — a CRD enum, usually — answered the
+// caller with a message about a field the request never mentioned.
+func TestHandleUpsert_APIToDomainRejectsTheRequest(t *testing.T) {
+	creator := &MockCreator[TestDomain]{}
+	updater := &MockUpdater[TestDomain]{}
+
+	recorder := httptest.NewRecorder()
+	frest.HandleUpsert(recorder, newUpsertRequest(`{"data":"hello"}`), discardLogger(),
+		frest.UpsertOptions[TestIn, TestDomain, TestOut]{
+			Params:  upsertParams,
+			Creator: creator,
+			Updater: updater,
+			APIToDomain: func(_ TestIn, _ persistence.IdentifiableResource) (TestDomain, error) {
+				return TestDomain{}, kernel.NewError(kernel.KindValidation,
+					errors.New("unknown ip version \"IPv9\""),
+					kernel.ErrorSource{Name: "version", Value: "IPv9"})
+			},
+			DomainToAPI: domainToTestOut,
+		},
+	)
+
+	resp := recorder.Result()
+	defer resp.Body.Close()
+
+	// The kind survives all the way into the status line and the RFC 7807 body.
+	assert.Equal(t, http.StatusUnprocessableEntity, resp.StatusCode)
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(body), "IPv9")
+
+	// Nothing reached persistence.
+	creator.AssertNotCalled(t, "Do")
+	updater.AssertNotCalled(t, "Do")
 }

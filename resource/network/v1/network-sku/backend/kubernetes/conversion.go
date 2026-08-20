@@ -9,6 +9,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	skudom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network-sku"
 )
 
@@ -22,10 +23,10 @@ func NetworkSKUFromCR(obj client.Object) (*skudom.NetworkSKU, error) {
 		cr = *t
 	case *unstructured.Unstructured:
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(t.Object, &cr); err != nil {
-			return nil, fmt.Errorf("failed to convert unstructured to NetworkSKU: %w", err)
+			return nil, kernel.NewError(kernel.KindValidation, fmt.Errorf("failed to convert unstructured to NetworkSKU: %w", err))
 		}
 	default:
-		return nil, fmt.Errorf("unsupported object type %T", obj)
+		return nil, kernel.NewError(kernel.KindInternal, fmt.Errorf("unsupported object type %T", obj))
 	}
 
 	crLabels := cr.GetLabels()
@@ -56,7 +57,7 @@ func NetworkSKUFromCR(obj client.Object) (*skudom.NetworkSKU, error) {
 // NetworkSKUs are read-only resources — this is provided for completeness.
 func NetworkSKUToCR(sku *skudom.NetworkSKU) (client.Object, error) {
 	if sku == nil {
-		return nil, fmt.Errorf("network SKU is nil")
+		return nil, kernel.NewError(kernel.KindInternal, fmt.Errorf("network SKU is nil"))
 	}
 
 	cr := &NetworkSKU{

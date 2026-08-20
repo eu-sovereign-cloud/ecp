@@ -117,7 +117,7 @@ func roleToAPI(r roledom.Role, verb string) *sdkschema.Role {
 }
 
 // roleFromAPI converts an SDK Role to a domain Role.
-func roleFromAPI(api sdkschema.Role, id *resource.Identity) *roledom.Role {
+func roleFromAPI(api sdkschema.Role, id *resource.Identity) (*roledom.Role, error) {
 	r := &roledom.Role{
 		Spec: roleSpecFromAPI(api.Spec),
 	}
@@ -129,7 +129,7 @@ func roleFromAPI(api sdkschema.Role, id *resource.Identity) *roledom.Role {
 	r.Annotations = api.Annotations
 	r.Extensions = api.Extensions
 
-	return r
+	return r, nil
 }
 
 // roleSpecToAPI converts a domain RoleSpec to an SDK RoleSpec.
