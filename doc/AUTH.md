@@ -26,7 +26,7 @@ HTTP request
 ┌─────────────────────────────────────────────┐
 │  Authorization middleware                   │
 │  builds AuthorizationClaim from request     │
-│  merges Subject + TokenScope into claim     │
+│  merges identity (subject + caps) into it   │
 │  calls Checker.Authorize(ctx, claim)        │
 └─────────┬───────────────────────────────────┘
           │ DecisionAllowed → next handler
@@ -191,18 +191,13 @@ every request at runtime.
 
 #### Token lifetime and revocation
 
-The gateway verifies tokens **offline** — one signature check against a key it already
-holds, no call to the issuer — so a token stays valid until it expires no matter what
-happens to the account behind it. The strategy that closes the gap is therefore
-**short-lived tokens plus refresh at the issuer**, and `exp` is mandatory
-(`jwt.WithExpirationRequired`) so a token cannot opt out of it: revocation latency is
-whatever TTL your issuer mints, and a revoked user stops being served once their current
-token expires. Removing their `RoleAssignment` is immediate by comparison — RBAC is read
-per request — so it is the faster lever when a caller must lose access *now*.
-
-The alternative, an introspection call to the issuer per request, buys instant revocation
-at the price of a network round-trip on the hot path (and a hard dependency on the IdP's
-availability). It is deliberately not implemented; short TTLs cover the common case.
+Verification is **offline** — one signature check against a key the gateway already holds
+— so a token stays valid until it expires whatever happens to the account behind it. Use
+**short-lived tokens plus refresh at the issuer**: revocation latency is whatever TTL your
+issuer mints, and `exp` is mandatory (`jwt.WithExpirationRequired`) so a token cannot opt
+out. Removing the caller's `RoleAssignment` is immediate by comparison — RBAC is read per
+request. Per-request introspection is deliberately not implemented
+([AUTH-SPEC-REVIEW.md](AUTH-SPEC-REVIEW.md) §6).
 
 ### Tenant membership (the `tenants` claim)
 

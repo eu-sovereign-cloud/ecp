@@ -346,7 +346,7 @@ The region catalog (`seca.region`) is served **authn-only**: `--authz-skip-provi
 | `MemberToken(user, password, tenants)` / `MemberEditor(…)` | Same, but carrying the issuer-asserted `tenants` membership instead of a down-scope. Backs the membership-gate cases in both suites; under either plugin the gate denies (403) a tenant the list omits. |
 | `JWTAuth()` | Whether the stack runs the jwt plugin; plugin-specific tests skip on it. |
 | `JWTKey()` | The fixture ES256 private key. Pass a freshly generated key instead to forge a token the gateway must reject. |
-| `SignJWT(key, subject, scope, exp)` | Sign a token for a subject, with an optional down-scope and an explicit expiry (pass a past time for an expired token). Always stamps the deployed `iss`/`aud`; the suite signs its own claim sets when it needs a token without them. |
+| `SignJWT(key, subject, scope, tenants, exp)` | Sign a token for a subject, with an optional down-scope, an optional `tenants` membership and an explicit expiry (pass a past time for an expired token). Always stamps the deployed `iss`/`aud`; the suite signs its own claim set when it needs a token carrying different ones. |
 | `JWTIssuer` / `JWTAudience` | The `iss`/`aud` the gateways are deployed to require — the same values as `auth.jwt.issuer`/`audience` above. |
 
 The key pair is a committed fixture: the private half is a constant in `authhelper`, the public half is `auth.jwt.key` in `internal/deploy/gateway-values.yaml`. The chart renders it into a Secret, mounts it at `/etc/ecp/jwt/jwt.pub` and passes that path as `--jwt-secret`. It is a Secret rather than a ConfigMap because the same value serves `signingMethod: HS*`, where the file is the shared HMAC secret that mints tokens — see [Verification key](../doc/AUTH.md#verification-key---jwt-secret). To rotate it, regenerate both halves and update both places:
@@ -368,7 +368,7 @@ make kind-integration-gateway-global    # dummy tokens (the default)
 make kind-test-all AUTH_PLUGIN=jwt      # the same suites, signed JWTs
 ```
 
-`TestJWTAuthn` (`e2e/jwt_test.go`) is the JWT-specific suite: valid/expired/unsigned-by-us tokens, algorithm-confusion attempts, wrong/missing `iss`/`aud`, dummy tokens rejected by the JWT gateway, and the `sub`/`tenants`/`scope` claims driving RBAC. It runs only under `AUTH_PLUGIN=jwt` and is the only test that covers the `--jwt-secret` file → `ParseVerifyKey` → authenticator wiring and the `--jwt-issuer`/`--jwt-audience` flags reaching the parser, since the unit tests build the authenticator from an already-parsed key.
+`TestJWTAuthn` (`e2e/jwt_test.go`) is the JWT-specific suite: valid/expired/unsigned-by-us tokens, algorithm-confusion attempts, a token from another issuer, dummy tokens rejected by the JWT gateway, and the `sub`/`tenants`/`scope` claims driving RBAC. It runs only under `AUTH_PLUGIN=jwt` and is the only test that covers the `--jwt-secret` file → `ParseVerifyKey` → authenticator wiring and the `--jwt-issuer`/`--jwt-audience` flags reaching the parser, since the unit tests build the authenticator from an already-parsed key — the full wrong/missing `iss`/`aud` matrix lives there (`gateway/internal/authn`).
 
 To skip auth assertions (e.g. against an auth-disabled gateway):
 

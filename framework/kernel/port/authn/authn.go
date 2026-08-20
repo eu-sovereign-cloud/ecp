@@ -27,13 +27,9 @@ type Identity struct {
 	TokenScope resource.TokenScope
 	// MemberTenants is the tenant membership the issuer asserts about the subject (the
 	// token's "tenants" claim). It is a gate, not a grant: when non-empty, the request's
-	// tenant must be listed or authorization denies the request.
-	//
-	// It differs from TokenScope.Tenants in who asserts it. The token scope is the cap the
-	// *caller* asked for and may simply omit, so it cannot constrain a RoleAssignment with
-	// subs: ["*"]; membership is stamped by the issuer on every token it mints, so a
-	// wildcard assignment reaches only subjects the issuer places in that tenant. Both are
-	// enforced, so the effective set is their intersection.
+	// tenant must be listed or authorization denies the request. Unlike TokenScope the
+	// caller cannot omit it, so it also caps a subs: ["*"] assignment — see doc/AUTH.md
+	// § Tenant membership.
 	MemberTenants []string
 }
 
