@@ -5,14 +5,18 @@ see [AUTH.md](AUTH.md)) against the SECA specification: what the bearer token mu
 carry, where authentication and authorization decisions belong, and where the current
 implementation diverges from the spec.
 
-> **Status — implemented on `feat/gateway-auth-middleware`.** The final model:
-> the bearer token carries the **subject** (`subs`) plus an optional **`scope`**
-> down-scope (`tenants`/`regions`/`workspaces`) only. **Roles are resolved entirely from
+> **Status — implemented** (`feat/gateway-auth-middleware`, [#316](https://github.com/eu-sovereign-cloud/ecp/pull/316); the
+> signature-verifying authenticator followed in [#334](https://github.com/eu-sovereign-cloud/ecp/pull/334) and the §6
+> checklist was finished after it). The final model:
+> the bearer token carries the **subject** (`sub`), the issuer-asserted **`tenants`**
+> membership gate and an optional **`scope`** down-scope
+> (`tenants`/`regions`/`workspaces`) — nothing else. **Roles are resolved entirely from
 > `RoleAssignment`/`Role` in the tenant namespace and are never read from the token.**
 > The `scope` object can only *narrow* what a token may exercise (see [AUTH.md](AUTH.md)
 > § Token down-scoping). Authentication verifies token authenticity against a **fixed,
-> operator-configured endpoint** — any endpoint named inside the token is ignored; the
-> shipped Dummy authenticator validates username/password. **Region is a tenant-less
+> operator-configured endpoint** — any endpoint named inside the token is ignored, as are
+> its `iss`/`aud` unless the operator configured what to expect; the shipped Dummy
+> authenticator validates username/password. **Region is a tenant-less
 > catalog resource by design** — upstream confirmed the current path shape is correct,
 > so no spec-side correction is coming. Tenant-scoped RBAC cannot govern it: the gateway
 > serves `seca.region` authn-only via the configurable `--authz-skip-providers` list
@@ -86,8 +90,9 @@ The rule that decides what belongs in the token (**grant vs cap**):
 |---|---|---|
 | `sub` | **Required** | The only claim the spec's usage guide requires: *"The JWT must contain a `sub` claim that identifies you"*. Matched against `RoleAssignment.spec.subs` ("subject IDs (from JWT)"). |
 | Signature, `iss`, `aud`, `exp` | **Required** | Standard JWT validation; spec also lists a *revocation check* (needs short TTLs or an introspection endpoint — offline verification alone cannot satisfy it). |
-| `scope.tenants` | **Optional (cap)** | Part of the down-scope; a non-empty list caps which tenants the token may act in. Caller-asserted (narrows only). A *signed* IdP-asserted tenant membership gate remains future work (see §5). |
+| `scope.tenants` | **Optional (cap)** | Part of the down-scope; a non-empty list caps which tenants the token may act in. Caller-asserted (narrows only); the issuer-asserted gate is the `tenants` claim below, and both are enforced. |
 | `scope.regions` / `scope.workspaces` | **Optional (cap)** | The other down-scope dimensions, matched against the request's region/workspace. Absent = no restriction; skipped when the request has no value for that dimension. |
+| `tenants` | **Optional (gate)** | Issuer-asserted tenant membership → `Identity.MemberTenants`. Non-empty ⇒ the request's tenant must be listed. Unlike `scope.tenants` the caller cannot omit it, so it is what makes a `subs: ["*"]` grant mean "every member of this tenant" (see §5). |
 | `roles` | **Removed — never read** | Entitlement assertion — resolved solely from the RoleAssignment store. Any `roles` field in the token is ignored. See §4. |
 | `permissions` | **Must NOT appear** | Worse than roles: inlines policy itself, bypassing even the Role indirection — the IdP would own *what a role means*, not just who has it. |
 
@@ -106,8 +111,8 @@ Supporting spec language:
 
 **Authentication (→ 401)** — validates the credential, produces identity:
 
-- Verify signature / issuer / audience / expiry; revocation strategy TBD.
-- Output: `Identity{Subject, Tenant(s)}`. Nothing else is needed from the token.
+- Verify signature / issuer / audience / expiry; revocation via short token TTLs (§6).
+- Output: `Identity{Subject, MemberTenants, TokenScope}`. Nothing else is needed from the token.
 - Tenant-mismatch placement depends on the IdP topology:
   - **Per-tenant issuer** (e.g. Keycloak realm per tenant): wrong-tenant token fails issuer
     validation → **401**, check lives in authn.
@@ -125,9 +130,11 @@ Supporting spec language:
 **Technical failure (→ 500)** — RBAC store unreachable, cache read failure. Never
 disguised as a denial; already implemented correctly in the current middleware.
 
-Current implementation status: chain, error categories, and RBAC evaluation exist and
-match this placement. Missing: real JWT verification (dummy authenticator only), tenant
-claim in `Identity` + membership gate, and the roles-claim divergence below.
+Current implementation status: all of it. The chain, error categories and RBAC evaluation
+match this placement; the `jwt` plugin verifies signature, `alg`, `exp` and the configured
+`iss`/`aud`; the tenant claim reaches `Identity.MemberTenants` and is gated in the
+evaluator (**403**, the single-shared-issuer placement — this deployment has one JWKS-less
+configured key, not an issuer per tenant); and the roles-claim divergence below is gone.
 
 ---
 
@@ -176,12 +183,13 @@ still shrink its own blast radius without the IdP ever needing to know a caller'
 
 ## 5. Other sharp edges
 
-- **`subs: ["*"]` wildcard**: schema says *"all users of the tenant scopes"*, but the
-  implementation grants it to **every authenticated principal**. The token's `scope`
-  down-scope is *caller-asserted*, so it does **not** constrain the wildcard — a wildcard
-  assignment genuinely grants everyone. A real membership gate would have to come from a
-  signed, IdP-asserted tenant claim in the future authenticator; until then `*` is a
-  footgun on a shared issuer. (The e2e fixtures used to need a wildcard assignment so
+- **`subs: ["*"]` wildcard (resolved)**: schema says *"all users of the tenant scopes"*,
+  but on its own the implementation grants it to **every authenticated principal** — the
+  token's `scope` down-scope is *caller-asserted*, so it does not constrain the wildcard.
+  The `tenants` claim closes this: an issuer that stamps membership on every token it
+  mints turns `*` into "every member of this tenant", because the gate runs before the
+  assignment loop. An issuer that stamps nothing leaves the old footgun, so `*` still
+  wants care on a shared issuer. (The e2e fixtures used to need a wildcard assignment so
   every caller could list regions; serving `seca.region` authn-only removed that need,
   and the `ra-wildcard` fixture with it.)
 - **Tenant-less routes**: an empty tenant makes `ComputeNamespace` return `""`, which
@@ -214,12 +222,26 @@ Done on `feat/gateway-auth-middleware`:
 - [x] Serve the tenant-less region catalog authn-only — authorization layer skipped per
       provider via the configurable `--authz-skip-providers` (default `seca.region`).
 
-Remaining for the real (signature-verifying) authenticator:
+Done for the real (signature-verifying) `jwt` authenticator:
 
-- [ ] Verify signature via the operator-configured verification endpoint / JWKS, plus
-      `iss`, `aud`, `exp`; ignore any endpoint named inside the token.
-- [ ] Decide the subject claim (`sub` vs `email`) — it must match the identifier
-      convention used in `RoleAssignment.spec.subs` platform-wide.
-- [ ] Optionally add a *signed*, IdP-asserted tenant-membership gate (distinct from the
-      caller-asserted `scope.tenants` cap, which cannot constrain a `subs: ["*"]` grant).
-- [ ] Pick a revocation strategy: short-lived tokens + refresh, or an introspection call.
+- [x] Verify the signature against the operator-configured key (`--jwt-secret`) with the
+      `alg` pinned to `--jwt-signing-method`, plus mandatory `exp` and the configured
+      `iss`/`aud` (`--jwt-issuer`, `--jwt-audience` — each enforced *and* required in the
+      token when set). Nothing named inside the token selects how it is verified.
+- [x] Subject claim: **`sub`**, platform-wide — it is what `RoleAssignment.spec.subs`
+      lists, so an issuer identifying users by email puts the email in `sub`.
+- [x] Signed, IdP-asserted tenant-membership gate: the `tenants` claim →
+      `Identity.MemberTenants`, enforced in `Evaluate` before any assignment is
+      considered, so it caps `subs: ["*"]` where the caller-asserted `scope.tenants`
+      cannot. Both caps apply, so the effective set is their intersection.
+- [x] Revocation strategy: **short-lived tokens + refresh at the issuer**, with `exp`
+      mandatory so a token cannot opt out. Per-request introspection was rejected — a
+      network round-trip on the hot path and a hard dependency on IdP availability. See
+      [AUTH.md](AUTH.md) § Token lifetime and revocation.
+
+Deliberately not implemented (no current deployment needs it):
+
+- **JWKS / OIDC discovery.** The key is a mounted file, rotated by rotating the file. An
+  issuer that rotates keys on its own schedule would want discovery plus a key cache.
+- **A configurable name for the tenant-membership claim** (`tid`, `org_id`, …). Map it to
+  `tenants` on the issuer instead.

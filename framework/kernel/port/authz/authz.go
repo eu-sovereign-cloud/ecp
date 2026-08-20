@@ -45,6 +45,11 @@ type AuthorizationClaim struct {
 	// identity. When a dimension is non-empty the request's tenant/region/workspace must
 	// be listed; it can only narrow the permissions granted by RBAC, never grant them.
 	TokenScope resource.TokenScope
+	// MemberTenants is the issuer-asserted tenant membership copied from
+	// [authnport.Identity.MemberTenants]. When non-empty, Tenant must be listed or the
+	// claim is denied — a gate applied before any RoleAssignment is considered, so it
+	// also constrains assignments granted to subs: ["*"].
+	MemberTenants []string
 
 	// Provider identifies the SECA provider being accessed (e.g. "seca.compute").
 	Provider string

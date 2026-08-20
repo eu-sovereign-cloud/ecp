@@ -43,6 +43,12 @@ auth:
     # WARNING: the private half is published in this repository, so anyone can
     # mint a token these gateways accept. Never use this key pair in production.
     signingMethod: ES256
+    # Expected iss/aud, mirrored by internal/authhelper (JWTIssuer/JWTAudience) so
+    # every token the suites mint carries them. They make the e2e run cover the
+    # --jwt-issuer/--jwt-audience path: a token signed with the fixture key but
+    # minted for anything else comes back 401.
+    issuer: https://issuer.e2e.ecp.local
+    audience: ecp-e2e
     key: |
       -----BEGIN PUBLIC KEY-----
       MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEACNi0y/+o+9tCWzA7H6N+dJZm74M

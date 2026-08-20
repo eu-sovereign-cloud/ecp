@@ -127,7 +127,8 @@ chain. When enabled (`--auth-enabled`), every request must carry a valid
 `Authorization: Bearer <token>` header and the decoded identity must be
 authorised by the RBAC policy before the request reaches the handler. A caller's
 roles are resolved from `RoleAssignment`/`Role` in the tenant namespace — never
-from the token, which carries only the subject and an optional down-scope.
+from the token, which carries only the subject, the issuer-asserted tenant
+membership and an optional down-scope (the last two cap the request, never grant).
 
 ```
 HTTP request
@@ -156,7 +157,8 @@ All framework-layer types (`Authenticator`, `Checker`, `ClaimExtractor`,
 resource-agnostic. Concrete implementations (`DummyAuthenticator`, SECA RBAC
 `Checker`, `CachedChecker`) live in `gateway/` and may import `resource/`.
 
-See [doc/AUTH.md](AUTH.md) for the full reference — bearer-token format, token
+See [doc/AUTH.md](AUTH.md) for the full reference — bearer-token formats (dummy and
+signed JWT), issuer/audience verification, the tenant-membership gate, token
 down-scoping, config flags, the RBAC algorithm, and a code layout map.
 
 ## Cascaded Deletion

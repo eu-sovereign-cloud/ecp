@@ -41,6 +41,12 @@ type Flags struct {
 	JwtSigningMethod string
 	// JwtSecretFile is the path to a file holding the verification key for JWTs when AuthPlugin is "jwt". Required when AuthPlugin is "jwt". For HS* the file content is the raw HMAC secret; for all other methods it is a PEM-encoded PKIX public key.
 	JwtSecretFile string
+	// JwtIssuer is the expected "iss" claim. Empty accepts any issuer; when set, a token
+	// with a different or missing issuer is rejected.
+	JwtIssuer string
+	// JwtAudience is the expected "aud" claim. Empty accepts any audience; when set, a
+	// token whose audience does not include it (or omits the claim) is rejected.
+	JwtAudience string
 	// DummyUsersFile is the path to a JSON file containing username→password pairs.
 	// Required when Enabled is true. Example file content: {"alice":"s3cr3t","bob":"p@ss"}
 	DummyUsersFile string
@@ -70,6 +76,8 @@ func RegisterFlags(cmd *cobra.Command, f *Flags) {
 			"(required when --auth-enabled is set)")
 	cmd.Flags().StringVar(&f.JwtSigningMethod, "jwt-signing-method", "ES256", "Expected JWT signing method when --auth-plugin is 'jwt' (required when --auth-plugin is 'jwt')")
 	cmd.Flags().StringVar(&f.JwtSecretFile, "jwt-secret", "", "Path to a file containing the JWT verification key: the raw HMAC secret for HS*, a PEM public key otherwise (required when --auth-plugin is 'jwt')")
+	cmd.Flags().StringVar(&f.JwtIssuer, "jwt-issuer", "", "Expected JWT 'iss' claim; when set, tokens from another issuer (or without the claim) are rejected (empty accepts any issuer)")
+	cmd.Flags().StringVar(&f.JwtAudience, "jwt-audience", "", "Expected JWT 'aud' claim; when set, tokens for another audience (or without the claim) are rejected (empty accepts any audience)")
 	cmd.Flags().BoolVar(&f.AuthzCache, "authz-cache", false,
 		"Use the informer-backed CachedChecker instead of the per-request RBAC checker "+
 			"(requires --auth-enabled; reduces API-server load on hot paths)")
@@ -242,7 +250,7 @@ func buildAuthenticator(flags *Flags) (authnport.Authenticator, error) {
 		if err != nil {
 			return nil, fmt.Errorf("parse JWT key from %q: %w", flags.JwtSecretFile, err)
 		}
-		return gatewayauthn.NewJWTAuthenticator(key, flags.JwtSigningMethod), nil
+		return gatewayauthn.NewJWTAuthenticator(key, flags.JwtSigningMethod, flags.JwtIssuer, flags.JwtAudience), nil
 	}
 	return nil, fmt.Errorf("unknown auth plugin %q", flags.AuthPlugin)
 }

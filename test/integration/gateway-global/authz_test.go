@@ -133,4 +133,36 @@ func TestAuthz(t *testing.T) {
 			t.Errorf("admin down-scoped to test-tenant: want 200, got %d", resp2.StatusCode())
 		}
 	})
+
+	t.Run("admin outside the token's tenant membership is denied (membership gate)", func(t *testing.T) {
+		// The "tenants" claim is the membership a real issuer stamps on every token it
+		// mints. Unlike the down-scope above it is not something the caller opts into,
+		// so it also caps assignments granted to subs: ["*"]. admin holds ra-admin
+		// (all-access), so a 403 here can only come from the gate.
+		denied := authhelper.MemberEditor(authhelper.DefaultAuthUser, authhelper.DefaultAuthPassword, []string{"other-tenant"})
+		client, err := authv1.NewClientWithResponses(baseURL+"/providers/seca.authorization", authv1.WithRequestEditorFn(denied))
+		if err != nil {
+			t.Fatalf("create client: %v", err)
+		}
+		resp, err := client.ListRolesWithResponse(context.Background(), testTenant, &authv1.ListRolesParams{})
+		if err != nil {
+			t.Fatalf("list roles (outside membership): %v", err)
+		}
+		if resp.StatusCode() != http.StatusForbidden {
+			t.Errorf("admin outside tenant membership: want 403 in test-tenant, got %d", resp.StatusCode())
+		}
+
+		allowed := authhelper.MemberEditor(authhelper.DefaultAuthUser, authhelper.DefaultAuthPassword, []string{testTenant, "other-tenant"})
+		client2, err := authv1.NewClientWithResponses(baseURL+"/providers/seca.authorization", authv1.WithRequestEditorFn(allowed))
+		if err != nil {
+			t.Fatalf("create client: %v", err)
+		}
+		resp2, err := client2.ListRolesWithResponse(context.Background(), testTenant, &authv1.ListRolesParams{})
+		if err != nil {
+			t.Fatalf("list roles (member): %v", err)
+		}
+		if resp2.StatusCode() != http.StatusOK {
+			t.Errorf("admin member of test-tenant: want 200, got %d", resp2.StatusCode())
+		}
+	})
 }

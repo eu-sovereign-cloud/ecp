@@ -317,6 +317,40 @@ func TestEvaluate(t *testing.T) {
 			},
 			want: false, // admin grants everything, but the token cap excludes t1
 		},
+
+		// ── Issuer-asserted tenant membership (claim.MemberTenants) ───────────
+		{
+			name:        "membership covers request tenant",
+			claim:       with(baseClaim, func(c *authzport.AuthorizationClaim) { c.MemberTenants = []string{"t1", "t9"} }),
+			assignments: []*radom.RoleAssignment{assign([]string{"viewer"}, allScope)},
+			want:        true,
+		},
+		{
+			name:        "membership excludes request tenant → denied",
+			claim:       with(baseClaim, func(c *authzport.AuthorizationClaim) { c.MemberTenants = []string{"t9"} }),
+			assignments: []*radom.RoleAssignment{assign([]string{"viewer"}, allScope)},
+			want:        false,
+		},
+		{
+			name: "membership gates a subs:[*] wildcard grant the token scope cannot",
+			claim: with(baseClaim, func(c *authzport.AuthorizationClaim) {
+				c.Subject = "outsider"
+				c.MemberTenants = []string{"t9"}
+			}),
+			// assign() builds Subs:["*"], so without the membership gate every
+			// authenticated caller would be granted admin here.
+			assignments: []*radom.RoleAssignment{assign([]string{"admin"}, allScope)},
+			want:        false,
+		},
+		{
+			name: "membership and token scope are both enforced (intersection)",
+			claim: with(baseClaim, func(c *authzport.AuthorizationClaim) {
+				c.MemberTenants = []string{"t1", "t2"}
+				c.TokenScope.Tenants = []string{"t2"}
+			}),
+			assignments: []*radom.RoleAssignment{assign([]string{"viewer"}, allScope)},
+			want:        false, // member of t1, but the token narrowed itself to t2
+		},
 	}
 
 	for _, tc := range tests {
