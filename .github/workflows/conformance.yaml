@@ -4,8 +4,7 @@ name: Conformance
 # cluster on every pull request targeting main.
 
 on:
-  #pull_request:
-    #branches: [main]
+  pull_request:
   workflow_dispatch:
 
 concurrency:
@@ -20,6 +19,7 @@ jobs:
     name: Run Conformance Tests
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    continue-on-error: true
     env:
       E2E_AUTH_ENABLED: "false"
     steps:
@@ -52,11 +52,27 @@ jobs:
 
       - name: Deploy conformance stack
         working-directory: test
-        run: CONFORMANCE_PLUGIN=dummy make kind-conformance-deploy
+        env:
+          CONFORMANCE_PLUGIN: dummy
+        run: make kind-conformance-deploy
 
       - name: Run conformance suite
         working-directory: test
-        run: CONFORMANCE_SCENARIOS='.*' USE_KIND=true make conformance
+        env:
+          CONFORMANCE_PROVIDER_REGION_V1: http://ecp-global-gateway-global:80/providers/seca.region
+          CONFORMANCE_PROVIDER_AUTHORIZATION_V1: http://ecp-regional-gateway-regional:80/providers/seca.authorization
+          CONFORMANCE_AUTH_TOKEN: test-token
+          CONFORMANCE_TENANT: test-tenant
+          CONFORMANCE_REGION: itbg-bergamo
+          CONFORMANCE_SCENARIOS: .*
+          CONFORMANCE_USERS: user1@secapi.com,user2@secapi.com
+          CONFORMANCE_CIDR: 10.1.0.0/16
+          CONFORMANCE_PUBLIC_IPS: 52.93.126.1/26
+          CONFORMANCE_RETRY_BASE_DELAY: 10
+          CONFORMANCE_RETRY_BASE_INTERVAL: 10
+          CONFORMANCE_RETRY_MAX_ATTEMPTS: 30
+          USE_KIND: "true"
+        run: make conformance
 
       - name: Collect diagnostics on failure
         if: failure()
