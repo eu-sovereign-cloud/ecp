@@ -69,7 +69,7 @@ resource/             # Data vocabulary + per-resource slices (vertical axis)
     ├── frontend/rest/#   REST↔domain converters + HTTP handlers (per-group, shared handler)
     └── backend/kubernetes/ # CR types, adapters, controller, plugin interface + handler
 gateway/              # Global and regional REST API server binary
-├── internal/authn/   #   DummyAuthenticator (bearer-token dev/test auth)
+├── internal/authn/   #   Dummy (dev/test) and JWT (signature-verifying) authenticators
 ├── internal/authz/   #   seca/ — SECA RBAC Checker + CachedChecker
 └── internal/auth/    #   Build, ProviderMWs, StartChecker — opt-in wiring
 csp/

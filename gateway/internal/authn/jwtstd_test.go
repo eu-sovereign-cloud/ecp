@@ -65,9 +65,9 @@ func TestJWTAuthenticator(t *testing.T) {
 		t.Fatalf("failed to generate RSA key: %v", err)
 	}
 
-	aES := NewJWTAuthenticator(&keyES.PublicKey, jwt.SigningMethodES256.Alg())
-	aHS := NewJWTAuthenticator(keyHS, jwt.SigningMethodHS256.Alg())
-	aRS := NewJWTAuthenticator(&keyRS.PublicKey, jwt.SigningMethodRS512.Alg())
+	aES := NewJWTAuthenticator(&keyES.PublicKey, jwt.SigningMethodES256.Alg(), "", "")
+	aHS := NewJWTAuthenticator(keyHS, jwt.SigningMethodHS256.Alg(), "", "")
+	aRS := NewJWTAuthenticator(&keyRS.PublicKey, jwt.SigningMethodRS512.Alg(), "", "")
 
 	// Helper to build a signed token from a payload. additionalClaims may
 	// override the defaults (e.g. "exp").
@@ -151,6 +151,14 @@ func TestJWTAuthenticator(t *testing.T) {
 			signingMethod: jwt.SigningMethodES256,
 			wantErr:       true,
 		},
+		{
+			// iss/aud are not enforced by these authenticators (both configured
+			// empty), so a token carrying them is accepted unchanged.
+			name:          "unconfigured issuer and audience are not enforced",
+			token:         makeToken(keyES, jwt.SigningMethodES256, "alice", nil, jwt.MapClaims{"iss": "https://other", "aud": "other-api"}),
+			signingMethod: jwt.SigningMethodES256,
+			wantSubject:   "alice",
+		},
 	}
 
 	for _, tc := range tests {
@@ -189,5 +197,128 @@ func TestJWTAuthenticator(t *testing.T) {
 				t.Errorf("token scope = %+v, want %+v", id.TokenScope, tc.wantScope)
 			}
 		})
+	}
+}
+
+// TestJWTAuthenticatorIssuerAudience covers the operator-configured iss/aud checks:
+// each is enforced only when configured, and configuring it also makes the claim
+// mandatory — a token signed with the right key but minted for another service (or by
+// another issuer sharing the key) must not be accepted on its signature alone.
+func TestJWTAuthenticatorIssuerAudience(t *testing.T) {
+	t.Parallel()
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("failed to generate key: %v", err)
+	}
+	const issuer, audience = "https://idp.example", "seca-api"
+
+	sign := func(extra jwt.MapClaims) string {
+		claims := jwt.MapClaims{"sub": "alice", "exp": time.Now().Add(time.Hour).Unix()}
+		maps.Copy(claims, extra)
+		s, err := jwt.NewWithClaims(jwt.SigningMethodES256, claims).SignedString(key)
+		if err != nil {
+			t.Fatalf("failed to sign token: %v", err)
+		}
+		return s
+	}
+
+	a := NewJWTAuthenticator(&key.PublicKey, jwt.SigningMethodES256.Alg(), issuer, audience)
+
+	tests := []struct {
+		name    string
+		token   string
+		wantErr bool
+	}{
+		{
+			name:  "matching issuer and audience",
+			token: sign(jwt.MapClaims{"iss": issuer, "aud": audience}),
+		},
+		{
+			name:  "audience list containing the expected value",
+			token: sign(jwt.MapClaims{"iss": issuer, "aud": []string{"other-api", audience}}),
+		},
+		{
+			name:    "wrong issuer",
+			token:   sign(jwt.MapClaims{"iss": "https://evil.example", "aud": audience}),
+			wantErr: true,
+		},
+		{
+			name:    "missing issuer",
+			token:   sign(jwt.MapClaims{"aud": audience}),
+			wantErr: true,
+		},
+		{
+			name:    "wrong audience",
+			token:   sign(jwt.MapClaims{"iss": issuer, "aud": "other-api"}),
+			wantErr: true,
+		},
+		{
+			name:    "missing audience",
+			token:   sign(jwt.MapClaims{"iss": issuer}),
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			id, err := a.Authenticate(context.Background(), tc.token)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				if !isUnauthorized(err) {
+					t.Errorf("expected ErrUnauthorized, got %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if id.Subject != "alice" {
+				t.Errorf("subject = %q, want %q", id.Subject, "alice")
+			}
+		})
+	}
+}
+
+// TestJWTAuthenticatorTenantsClaim covers the issuer-asserted tenant membership: the
+// "tenants" claim reaches Identity.MemberTenants verbatim, where the authorization
+// layer turns it into a gate on the request's tenant.
+func TestJWTAuthenticatorTenantsClaim(t *testing.T) {
+	t.Parallel()
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("failed to generate key: %v", err)
+	}
+	a := NewJWTAuthenticator(&key.PublicKey, jwt.SigningMethodES256.Alg(), "", "")
+
+	sign := func(extra jwt.MapClaims) string {
+		claims := jwt.MapClaims{"sub": "alice", "exp": time.Now().Add(time.Hour).Unix()}
+		maps.Copy(claims, extra)
+		s, err := jwt.NewWithClaims(jwt.SigningMethodES256, claims).SignedString(key)
+		if err != nil {
+			t.Fatalf("failed to sign token: %v", err)
+		}
+		return s
+	}
+
+	id, err := a.Authenticate(context.Background(), sign(jwt.MapClaims{"tenants": []string{"t1", "t2"}}))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !reflect.DeepEqual(id.MemberTenants, []string{"t1", "t2"}) {
+		t.Errorf("member tenants = %v, want [t1 t2]", id.MemberTenants)
+	}
+
+	// Absent claim leaves membership unset, i.e. no gate.
+	id, err = a.Authenticate(context.Background(), sign(nil))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if id.MemberTenants != nil {
+		t.Errorf("member tenants = %v, want nil", id.MemberTenants)
 	}
 }

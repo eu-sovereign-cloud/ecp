@@ -54,12 +54,34 @@ func Token(username, password string, scope *resource.TokenScope) string {
 // [resource.TokenScope] and its json tags. Roles are never carried by the token — they are
 // resolved from RoleAssignments in the caller's tenant namespace.
 func MakeBearerToken(username, password string, scope *resource.TokenScope) string {
+	return dummyToken(username, password, scope, nil)
+}
+
+// MemberToken mints a token for the deployed authenticator carrying the issuer-asserted
+// tenant membership (the "tenants" claim) instead of a caller-requested down-scope. The
+// gateway gates every request on it: a tenant outside the list is denied even when RBAC
+// grants the subject, and unlike the token scope it also caps a subs: ["*"] assignment.
+func MemberToken(username, password string, tenants []string) string {
+	if JWTAuth() {
+		return signJWT(JWTKey(), username, nil, tenants, time.Now().Add(time.Hour))
+	}
+	return dummyToken(username, password, nil, tenants)
+}
+
+// MemberEditor returns a request editor for a token carrying the given tenant membership.
+func MemberEditor(username, password string, tenants []string) func(ctx context.Context, req *http.Request) error {
+	return bearerEditor(MemberToken(username, password, tenants))
+}
+
+// dummyToken encodes the Dummy authenticator's base64 JSON payload.
+func dummyToken(username, password string, scope *resource.TokenScope, tenants []string) string {
 	type payload struct {
 		Username string               `json:"username"`
 		Password string               `json:"password"`
 		Scope    *resource.TokenScope `json:"scope,omitempty"`
+		Tenants  []string             `json:"tenants,omitempty"`
 	}
-	b, err := json.Marshal(payload{Username: username, Password: password, Scope: scope})
+	b, err := json.Marshal(payload{Username: username, Password: password, Scope: scope, Tenants: tenants})
 	if err != nil {
 		panic("MakeBearerToken: marshal failed: " + err.Error())
 	}
@@ -126,14 +148,36 @@ func JWTKey() *ecdsa.PrivateKey {
 	return key
 }
 
+// JWTIssuer and JWTAudience are the iss/aud the gateways are deployed to require
+// (auth.jwt.issuer / auth.jwt.audience in internal/deploy/gateway-values.yaml). Every
+// token the suites mint carries them; a token with either wrong or missing is a 401.
+const (
+	JWTIssuer   = "https://issuer.e2e.ecp.local"
+	JWTAudience = "ecp-e2e"
+)
+
 // SignJWT builds a standard signed JWT for the given subject. The subject becomes
 // Identity.Subject and is matched against RoleAssignment.Spec.Subs, exactly as the
 // dummy token's username is; the optional scope down-scopes the caller. Pass a key
 // other than JWTKey() to forge a token the gateway must reject.
 func SignJWT(key *ecdsa.PrivateKey, subject string, scope *resource.TokenScope, exp time.Time) string {
-	claims := jwt.MapClaims{"sub": subject, "exp": exp.Unix()}
+	return signJWT(key, subject, scope, nil, exp)
+}
+
+// signJWT signs the token both SignJWT and MemberToken hand out: registered claims plus
+// the deployed iss/aud, the optional down-scope and the optional tenant membership.
+func signJWT(key *ecdsa.PrivateKey, subject string, scope *resource.TokenScope, tenants []string, exp time.Time) string {
+	claims := jwt.MapClaims{
+		"sub": subject,
+		"exp": exp.Unix(),
+		"iss": JWTIssuer,
+		"aud": JWTAudience,
+	}
 	if scope != nil {
 		claims["scope"] = scope
+	}
+	if len(tenants) > 0 {
+		claims["tenants"] = tenants
 	}
 	signed, err := jwt.NewWithClaims(JWTSigningMethod, claims).SignedString(key)
 	if err != nil {

@@ -64,12 +64,14 @@ after it apply to both.
 ### Dummy authenticator (`--auth-plugin=dummy`)
 
 The token is a **Base64-encoded JSON payload**. Only `username` and `password` are
-mandatory; the optional `scope` object down-scopes the caller (see below):
+mandatory; the optional `scope` object down-scopes the caller and the optional `tenants`
+list stands in for the membership a real issuer would stamp (see below):
 
 ```json
 {
   "username": "alice",
   "password": "s3cr3t",
+  "tenants": ["my-tenant"],
   "scope": { "tenants": ["my-tenant"], "regions": ["itbg-bergamo"] }
 }
 ```
@@ -102,14 +104,20 @@ The payload uses registered claims plus the same optional `scope` object:
 {
   "sub": "alice",
   "exp": 1893456000,
+  "iss": "https://idp.example",
+  "aud": "seca-api",
+  "tenants": ["my-tenant"],
   "scope": { "tenants": ["my-tenant"], "regions": ["itbg-bergamo"] }
 }
 ```
 
 | Claim | Required | Meaning |
 |-------|----------|---------|
-| `sub` | yes | Becomes `Identity.Subject` — the same role of the dummy token's `username`. A token without it is rejected. |
+| `sub` | yes | Becomes `Identity.Subject` — the same role of the dummy token's `username`. A token without it is rejected. The subject claim is `sub`, platform-wide: it is what `RoleAssignment.Spec.Subs` lists, so an issuer that identifies users by email must put the email in `sub`. |
 | `exp` | yes | Expiry. Enforced with `jwt.WithExpirationRequired`, so a token that never expires is rejected rather than honoured forever. |
+| `iss` | when `--jwt-issuer` is set | Must equal the configured issuer. Setting the flag also makes the claim mandatory. |
+| `aud` | when `--jwt-audience` is set | Must contain the configured audience. Setting the flag also makes the claim mandatory. |
+| `tenants` | no | Issuer-asserted tenant membership — see [Tenant membership](#tenant-membership-the-tenants-claim). |
 | `scope` | no | Token down-scope, identical to the dummy token's (see below). |
 
 A token is accepted only when its signature verifies **and** its `alg` header
@@ -120,6 +128,27 @@ and have it verify. Any algorithm `golang-jwt` supports may be configured.
 
 As with the dummy plugin, **roles are never carried by the token** — a `roles`
 claim is ignored, and entitlements come only from RoleAssignments.
+
+#### Issuer and audience (`--jwt-issuer`, `--jwt-audience`)
+
+A valid signature only says *this key signed it*. It does not say who minted the
+token or which service it was minted for, and the same key routinely signs tokens
+for other audiences. Both checks are therefore configuration, not claims to be
+trusted from the token itself:
+
+- `--jwt-issuer` — the expected `iss`. A token from another issuer sharing the key
+  is rejected.
+- `--jwt-audience` — the expected `aud` (matched against the claim's list). A token
+  minted for a different service and replayed here is rejected.
+
+Each is enforced only when set, and setting it also makes that claim **mandatory** —
+a token that simply omits `iss`/`aud` is rejected exactly like one carrying the wrong
+value, so an issuer cannot opt out of the check by dropping the claim. Leave them
+empty only when a single issuer mints tokens for this gateway alone.
+
+Nothing named *inside* the token selects how it is verified: the key, the signing
+method, the issuer and the audience all come from flags. A token that names its own
+verification endpoint is verifying itself.
 
 #### Verification key (`--jwt-secret`)
 
@@ -160,6 +189,51 @@ every request at runtime.
 > openssl ec -in jwt-key.pem -pubout -out jwt-key.pub                # public key for --jwt-secret
 > ```
 
+#### Token lifetime and revocation
+
+The gateway verifies tokens **offline** — one signature check against a key it already
+holds, no call to the issuer — so a token stays valid until it expires no matter what
+happens to the account behind it. The strategy that closes the gap is therefore
+**short-lived tokens plus refresh at the issuer**, and `exp` is mandatory
+(`jwt.WithExpirationRequired`) so a token cannot opt out of it: revocation latency is
+whatever TTL your issuer mints, and a revoked user stops being served once their current
+token expires. Removing their `RoleAssignment` is immediate by comparison — RBAC is read
+per request — so it is the faster lever when a caller must lose access *now*.
+
+The alternative, an introspection call to the issuer per request, buys instant revocation
+at the price of a network round-trip on the hot path (and a hard dependency on the IdP's
+availability). It is deliberately not implemented; short TTLs cover the common case.
+
+### Tenant membership (the `tenants` claim)
+
+The optional `tenants` claim is the tenant membership the **issuer** asserts about the
+subject — static onboarding data the CSP's IdP genuinely owns (see
+[AUTH-SPEC-REVIEW.md](AUTH-SPEC-REVIEW.md) §1). It reaches the authorization layer as
+`Identity.MemberTenants` and gates every request: when the list is non-empty, the
+request's tenant must appear in it or the request is denied with **403**.
+
+It looks like `scope.tenants` and matches identically, but the two differ in who asserts
+them, which is the whole point:
+
+| | `tenants` | `scope.tenants` |
+|---|---|---|
+| Asserted by | the issuer, on every token it mints | the caller, when requesting the token |
+| Can be omitted by the caller | no | yes |
+| Caps a `subs: ["*"]` assignment | yes | no — the caller just omits it |
+
+Both are enforced, so the effective cap is their intersection: an issuer-stamped
+membership of `["a","b"]` with a self-requested scope of `["b"]` reaches only `b`.
+
+The claim is a **gate, not a grant**: being a member of a tenant authorizes nothing on
+its own — a RoleAssignment in that tenant's namespace still has to grant the operation.
+An absent claim imposes no gate, which is what keeps pre-existing issuers (and every
+fixture token) working; deploy an issuer that always stamps it if you rely on the gate.
+Like the down-scope, it is skipped on a request that carries no tenant at all — the only
+such path today is the region catalog, which is served authn-only anyway.
+
+> The claim name is fixed (`tenants`). An IdP that names it otherwise (`tid`, `org_id`, …)
+> needs a claim mapping on the issuer side.
+
 ### Token down-scoping
 
 The optional `scope` object caps what the token may exercise, per SECA scope
@@ -196,6 +270,8 @@ In code the `scope` object unmarshals into the shared `resource.TokenScope` type
 | `--dummy-auth-users <file>` | `""` | Path to a JSON file mapping `username→password`. Required when `--auth-plugin=dummy`. |
 | `--jwt-signing-method` | `ES256` | Expected JWT `alg`; tokens signed with anything else are rejected. Any `golang-jwt` method is accepted. Required when `--auth-plugin=jwt`. |
 | `--jwt-secret <file>` | `""` | Path to the verification key file: the raw HMAC secret for `HS*`, a PEM public key otherwise. Required when `--auth-plugin=jwt`. |
+| `--jwt-issuer` | `""` | Expected `iss`. Enforced (and required in the token) only when set. |
+| `--jwt-audience` | `""` | Expected `aud`. Enforced (and required in the token) only when set. |
 | `--authz-enabled` | `true` | Install the RBAC authorization middleware. Requires `--auth-enabled`. Set to `false` for authn-only mode (every authenticated caller is let through without a RBAC check). |
 | `--authz-skip-providers` | `seca.region` | Comma-separated provider IDs whose routes skip the authorization middleware (authn-only). Neither RBAC nor token down-scoping applies to these providers. |
 | `--authz-cache` | `false` | Use the informer-backed `CachedChecker` instead of the per-request `Checker`. |
@@ -270,7 +346,9 @@ openssl ec -in /tmp/jwt-key.pem -pubout -out /tmp/jwt-key.pub
     --auth-enabled \
     --auth-plugin jwt \
     --jwt-signing-method ES256 \
-    --jwt-secret /tmp/jwt-key.pub
+    --jwt-secret /tmp/jwt-key.pub \
+    --jwt-issuer https://idp.example \
+    --jwt-audience seca-api
 
 # mint a token with your issuer (or the e2e helper, authhelper.SignJWT) and send it as-is
 curl -H "Authorization: Bearer $JWT" http://localhost:8080/providers/seca.region/v1/regions
@@ -287,7 +365,8 @@ all `Role` and `RoleAssignment` resources in the claim's tenant namespace.
 
 ```
 authorized =
-    tokenScopeCovers(claim.TokenScope, claim.Tenant, claim.Region, claim.Workspace)
+    tokenScopeCovers(claim.MemberTenants, claim.Tenant)
+  ∧ tokenScopeCovers(claim.TokenScope, claim.Tenant, claim.Region, claim.Workspace)
   ∧ ∃ ra ∈ RoleAssignments:
         scopeCovers(ra.Spec.Scopes, claim.Tenant, claim.Region, claim.Workspace)
       ∧ subsGrant(ra.Spec.Subs, claim.Subject)
@@ -300,8 +379,10 @@ authorized =
 ```
 
 Roles are taken solely from the matched `RoleAssignment`; the token never carries
-roles. `claim.TokenScope` is the optional token cap applied first — a non-empty
-dimension must cover the request, or the whole claim is denied.
+roles. `claim.MemberTenants` (issuer-asserted membership) and `claim.TokenScope`
+(the caller's down-scope) are the optional caps applied first — a non-empty one must
+cover the request, or the whole claim is denied. Being applied before the assignment
+loop is what lets the membership gate constrain a `subs: ["*"]` grant.
 
 ### Subject matching
 
@@ -310,7 +391,7 @@ The SECA spec makes it **mandatory** (`minItems: 1`). Matching rules:
 
 | Value | Meaning |
 |-------|---------|
-| `"*"` | Wildcard — covers any authenticated caller. |
+| `"*"` | Wildcard — covers any authenticated caller, narrowed to the token's `tenants` membership when the issuer stamps one. |
 | `"user1@example.com"` | Exact match against `claim.Subject`. |
 | _(empty list)_ | Grants **nobody** — fail-closed (not a wildcard). |
 

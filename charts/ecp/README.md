@@ -117,6 +117,12 @@ cluster in that mode. Two authentication plugins exist (`auth.plugin`):
   too). The plugin applies to **both** gateways — the binary registers the
   same auth flags on the global and the regional server.
 
+  Set `auth.jwt.issuer` and `auth.jwt.audience` to your IdP's issuer URL and
+  this API's identifier. Each is enforced only when set — and enforcing one
+  also makes that claim mandatory — so a token minted for another service, or
+  by another issuer sharing the key, is rejected rather than accepted on its
+  signature alone.
+
 Every auth value becomes a **command-line flag** on the gateway container: the
 images are the bare binary, and it reads only `APP_ENV` from the environment.
 Adding a knob to this chart therefore means adding it to `ecp.authArgs` in
@@ -139,6 +145,7 @@ See [values.yaml](values.yaml) for the full commented list. The notable ones:
 | `auth.plugin` | `dummy` | Authenticator for both gateways: `dummy` or `jwt` |
 | `auth.jwt.signingMethod` | `ES256` | Pinned JWT `alg` when `auth.plugin=jwt` |
 | `auth.jwt.key` | `""` | PEM public key / raw HS\* secret (required for `jwt` unless `auth.jwt.existingSecret`) |
+| `auth.jwt.issuer` / `auth.jwt.audience` | `""` | Expected `iss` / `aud`; each is enforced (and required in the token) only when set |
 | `auth.authz.impl` | `cached` | `cached` (informer) or `direct` (per-request) checker |
 | `auth.dummyUsers.users` | `{}` | username → password map (required when `auth.plugin=dummy`) |
 | `*.image.repository` | `ghcr.io/eu-sovereign-cloud/ecp/...` | Override only to mirror the images into your own registry |

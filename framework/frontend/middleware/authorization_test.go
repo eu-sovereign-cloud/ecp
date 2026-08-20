@@ -120,6 +120,7 @@ func TestNewAuthorization_TokenScopeFromIdentity(t *testing.T) {
 			Regions:    []string{"r1"},
 			Workspaces: []string{"w1"},
 		},
+		MemberTenants: []string{"t1", "t2"},
 	}
 
 	var gotClaim authzport.AuthorizationClaim
@@ -144,6 +145,9 @@ func TestNewAuthorization_TokenScopeFromIdentity(t *testing.T) {
 	}
 	if gotClaim.Subject != "alice" {
 		t.Errorf("subject = %q, want %q", gotClaim.Subject, "alice")
+	}
+	if !reflect.DeepEqual(gotClaim.MemberTenants, []string{"t1", "t2"}) {
+		t.Errorf("member tenants = %v, want [t1 t2]", gotClaim.MemberTenants)
 	}
 }
 
