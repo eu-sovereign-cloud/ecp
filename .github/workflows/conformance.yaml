@@ -1,0 +1,82 @@
+name: Conformance
+
+# Runs the SECA conformance suite (secatest, dummy plugin) against a fresh KIND
+# cluster on every pull request targeting main.
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: conformance-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  conformance:
+    name: Run Conformance Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    env:
+      E2E_AUTH_ENABLED: "false"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install helm
+        uses: azure/setup-helm@v4
+
+      - name: Install kind
+        uses: helm/kind-action@v1
+        with:
+          install_only: true
+
+      - name: Build component images
+        working-directory: test
+        run: make build-all
+
+      - name: Start KIND cluster
+        working-directory: test
+        run: make kind-start
+
+      - name: Load images into KIND
+        working-directory: test
+        run: make kind-load-all
+
+      - name: Deploy test stack
+        working-directory: test
+        run: make kind-stack
+
+      - name: Deploy conformance stack
+        working-directory: test
+        env:
+          CONFORMANCE_PLUGIN: dummy
+        run: make kind-conformance-deploy
+
+      - name: Run conformance suite
+        working-directory: test
+        env:
+          CONFORMANCE_PROVIDER_REGION_V1: http://ecp-global-gateway-global:80/providers/seca.region
+          CONFORMANCE_PROVIDER_AUTHORIZATION_V1: http://ecp-regional-gateway-regional:80/providers/seca.authorization
+          CONFORMANCE_AUTH_TOKEN: test-token
+          CONFORMANCE_TENANT: test-tenant
+          CONFORMANCE_REGION: itbg-bergamo
+          CONFORMANCE_SCENARIOS: .*
+          CONFORMANCE_USERS: user1@secapi.com,user2@secapi.com
+          CONFORMANCE_CIDR: 10.1.0.0/16
+          CONFORMANCE_PUBLIC_IPS: 52.93.126.1/26
+          CONFORMANCE_RETRY_BASE_DELAY: 10
+          CONFORMANCE_RETRY_BASE_INTERVAL: 10
+          CONFORMANCE_RETRY_MAX_ATTEMPTS: 30
+          USE_KIND: "true"
+        run: make conformance
+
+      - name: Collect diagnostics on failure
+        if: failure()
+        run: |
+          kubectl --context kind-e2e-cluster -n e2e-ecp get pods -o wide
+          kubectl --context kind-e2e-cluster -n e2e-ecp describe pods
+          kubectl --context kind-e2e-cluster -n e2e-ecp logs -l app=conformance --tail=-1 || true

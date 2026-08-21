@@ -22,14 +22,17 @@ DEPLOY_DIR="${SCRIPT_DIR}/../deploy/conformance"
 
 # Defaults target the in-cluster global gateway with the dummy test-data tenant.
 : "${CONFORMANCE_PROVIDER_REGION_V1:=http://${GATEWAY_GLOBAL_SVC}:80/providers/seca.region}"
-: "${CONFORMANCE_PROVIDER_AUTHORIZATION_V1:=}"
+: "${CONFORMANCE_PROVIDER_AUTHORIZATION_V1:=http://${GATEWAY_REGIONAL_SVC}:80/providers/seca.authorization}}"
 : "${CONFORMANCE_AUTH_TOKEN:=test-token}"
 : "${CONFORMANCE_TENANT:=test-tenant}"
 : "${CONFORMANCE_REGION:=itbg-bergamo}"
-: "${CONFORMANCE_SCENARIOS:=Workspace.V1.List}"
+: "${CONFORMANCE_SCENARIOS:=.*}"
 : "${CONFORMANCE_USERS:=}"
 : "${CONFORMANCE_CIDR:=}"
 : "${CONFORMANCE_PUBLIC_IPS:=}"
+: "${CONFORMANCE_RETRY_BASE_DELAY:=10}"
+: "${CONFORMANCE_RETRY_BASE_INTERVAL:=10}"
+: "${CONFORMANCE_RETRY_MAX_ATTEMPTS:=9}"
 
 echo "Rendering conformance runner (image ${IMAGE_NAME}, scenarios ${CONFORMANCE_SCENARIOS})..."
 YAML=$(kubectl kustomize "${DEPLOY_DIR}")
@@ -44,6 +47,9 @@ YAML=${YAML//'##SCENARIOS_FILTER##'/${CONFORMANCE_SCENARIOS}}
 YAML=${YAML//'##SCENARIOS_USERS##'/${CONFORMANCE_USERS}}
 YAML=${YAML//'##SCENARIOS_CIDR##'/${CONFORMANCE_CIDR}}
 YAML=${YAML//'##SCENARIOS_PUBLIC_IPS##'/${CONFORMANCE_PUBLIC_IPS}}
+YAML=${YAML//'##RETRY_BASE_DELAY##'/${CONFORMANCE_RETRY_BASE_DELAY}}
+YAML=${YAML//'##RETRY_BASE_INTERVAL##'/${CONFORMANCE_RETRY_BASE_INTERVAL}}
+YAML=${YAML//'##RETRY_MAX_ATTEMPTS##'/${CONFORMANCE_RETRY_MAX_ATTEMPTS}}
 if [[ -n "$USE_KIND" && "$USE_KIND" == "true" ]]; then
     YAML=${YAML//imagePullPolicy: Always/imagePullPolicy: IfNotPresent}
 fi
