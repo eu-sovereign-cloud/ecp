@@ -48,15 +48,20 @@ func HandleUpdate[D persistence.IdentifiableResource](
 	case updateErr == nil:
 		return clearUpdateFailure(ctx, resource, status, repo, maxConditions)
 
-	case errors.Is(updateErr, backendport.StillProcessing):
-		// In flight, not failed. Leave the status alone and come back to it.
-		return backendport.StillProcessing
-
 	case errors.Is(updateErr, backendport.ErrNotSupported):
 		// A provider that cannot apply the change at all is not retried: re-issuing an operation
 		// it has already refused would spin forever, and the reason it gave is more useful to the
 		// user than another attempt.
+		//
+		// Checked before StillProcessing: a RequeueError's Is matches any progress signal
+		// regardless of cause, so a refusal wrapped in one would otherwise be swallowed and
+		// retried forever instead of being recorded and stopped.
 		return recordUpdateFailure(ctx, resource, status, repo, maxConditions, updateErr)
+
+	case errors.Is(updateErr, backendport.StillProcessing):
+		// In flight, not failed. Leave the status alone and come back to it, preserving whatever
+		// cadence and cause the plugin asked for rather than collapsing it to the bare sentinel.
+		return updateErr
 
 	default:
 		// Assumed transient. Recording the failure is what the user sees; the signal carries the
