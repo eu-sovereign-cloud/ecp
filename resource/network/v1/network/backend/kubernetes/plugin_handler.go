@@ -5,7 +5,6 @@ import (
 	"errors"
 	"log"
 
-	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	backendport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 
@@ -79,24 +78,21 @@ func (h *NetworkPluginHandler) HandleReconcile(ctx context.Context, resource *ne
 			return err
 		}
 
-		if stateErr := h.setResourceErrorState(ctx, resource, err); stateErr != nil {
-			return stateErr
-		}
-
-		// The failure is recorded on the resource; retry it on the next pass.
-		return backendport.StillProcessing
+		// The failure is recorded on the resource; retry it on the next pass, unless it is
+		// already gone, in which case there is nothing left to reconcile.
+		return commonbackend.RequeueAfterState(h.setResourceErrorState(ctx, resource, err))
 	}
 
 	switch {
 
 	case isNetworkAccepted(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStatePending)
+		return commonbackend.IgnoreNotFound(h.setResourceState(ctx, resource, commondomain.ResourceStatePending))
 
 	case isNetworkPending(resource):
 		return commonbackend.RequeueAfterState(h.setResourceState(ctx, resource, commondomain.ResourceStateCreating))
 
 	case isNetworkCreating(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStateActive)
+		return commonbackend.IgnoreNotFound(h.setResourceState(ctx, resource, commondomain.ResourceStateActive))
 
 	case wantNetworkDelete(resource):
 		return commonbackend.RequeueAfterState(h.setResourceState(ctx, resource, commondomain.ResourceStateDeleting))
@@ -123,16 +119,9 @@ func (h *NetworkPluginHandler) setResourceState(ctx context.Context, resource *n
 	resource.Status.PushCondition(commonbackend.ConditionFromState(state))
 	commonbackend.TrimConditions(&resource.Status.Status, h.MaxConditions)
 
-	if _, err := h.repo.UpdateStatus(ctx, resource); err != nil {
-		if errors.Is(err, kernel.ErrNotFound) {
-			// The resource is gone; there is nothing left to reconcile.
-			return nil
-		}
+	_, err := h.repo.UpdateStatus(ctx, resource)
 
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func (h *NetworkPluginHandler) setResourceErrorState(ctx context.Context, resource *netdom.Network, err error) error {
@@ -143,16 +132,9 @@ func (h *NetworkPluginHandler) setResourceErrorState(ctx context.Context, resour
 	resource.Status.PushCondition(commonbackend.ConditionFromError(err))
 	commonbackend.TrimConditions(&resource.Status.Status, h.MaxConditions)
 
-	if _, updateErr := h.repo.UpdateStatus(ctx, resource); updateErr != nil {
-		if errors.Is(updateErr, kernel.ErrNotFound) {
-			// The resource is gone; there is nothing left to reconcile.
-			return nil
-		}
+	_, updateErr := h.repo.UpdateStatus(ctx, resource)
 
-		return updateErr
-	}
-
-	return nil
+	return updateErr
 }
 
 func isNetworkAccepted(resource *netdom.Network) bool {

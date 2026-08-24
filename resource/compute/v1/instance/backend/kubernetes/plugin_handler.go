@@ -80,21 +80,18 @@ func (h *InstancePluginHandler) HandleReconcile(ctx context.Context, resource *i
 			return err
 		}
 
-		if stateErr := h.setResourceErrorState(ctx, resource, err); stateErr != nil {
-			return stateErr
-		}
-
-		// The failure is recorded on the resource; retry it on the next pass.
-		return backendport.StillProcessing
+		// The failure is recorded on the resource; retry it on the next pass, unless it is
+		// already gone, in which case there is nothing left to reconcile.
+		return commonbackend.RequeueAfterState(h.setResourceErrorState(ctx, resource, err))
 	}
 
 	switch {
 	case isInstanceAccepted(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStatePending)
+		return commonbackend.IgnoreNotFound(h.setResourceState(ctx, resource, commondomain.ResourceStatePending))
 	case isInstancePending(resource):
 		return commonbackend.RequeueAfterState(h.setResourceState(ctx, resource, commondomain.ResourceStateCreating))
 	case isInstanceCreating(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStateActive)
+		return commonbackend.IgnoreNotFound(h.setResourceState(ctx, resource, commondomain.ResourceStateActive))
 	case wantInstanceDelete(resource):
 		return commonbackend.RequeueAfterState(h.setResourceState(ctx, resource, commondomain.ResourceStateDeleting))
 	case isInstanceDeleting(resource):
@@ -245,8 +242,10 @@ func (h *InstancePluginHandler) persistPowerState(ctx context.Context, resource 
 
 	if _, err := h.repo.UpdateStatus(ctx, resource); err != nil {
 		if errors.Is(err, kernel.ErrNotFound) {
+			// The resource is gone; there is nothing left to reconcile.
 			return nil
 		}
+
 		return err
 	}
 
@@ -292,6 +291,11 @@ func (h *InstancePluginHandler) updateRestartIfCurrent(ctx context.Context, reso
 // resource. If recording itself fails, that error is returned instead.
 func (h *InstancePluginHandler) recordPowerError(ctx context.Context, resource *instancedom.Instance, opErr error) error {
 	if err := h.recordPowerCondition(ctx, resource, "PowerOperationFailed", opErr.Error()); err != nil {
+		if errors.Is(err, kernel.ErrNotFound) {
+			// The resource is gone; there is nothing left to reconcile.
+			return nil
+		}
+
 		return err
 	}
 	return opErr
@@ -311,14 +315,9 @@ func (h *InstancePluginHandler) recordPowerCondition(ctx context.Context, resour
 	})
 	commonbackend.TrimConditions(&resource.Status.Status, h.MaxConditions)
 
-	if _, err := h.repo.UpdateStatus(ctx, resource); err != nil {
-		if errors.Is(err, kernel.ErrNotFound) {
-			return nil
-		}
-		return err
-	}
+	_, err := h.repo.UpdateStatus(ctx, resource)
 
-	return nil
+	return err
 }
 
 func isInstanceActive(resource *instancedom.Instance) bool {
@@ -335,15 +334,9 @@ func (h *InstancePluginHandler) setResourceState(ctx context.Context, resource *
 	resource.Status.PushCondition(commonbackend.ConditionFromState(state))
 	commonbackend.TrimConditions(&resource.Status.Status, h.MaxConditions)
 
-	if _, err := h.repo.UpdateStatus(ctx, resource); err != nil {
-		if errors.Is(err, kernel.ErrNotFound) {
-			// The resource is gone; there is nothing left to reconcile.
-			return nil
-		}
-		return err
-	}
+	_, err := h.repo.UpdateStatus(ctx, resource)
 
-	return nil
+	return err
 }
 
 func (h *InstancePluginHandler) setResourceErrorState(ctx context.Context, resource *instancedom.Instance, err error) error {
@@ -354,15 +347,9 @@ func (h *InstancePluginHandler) setResourceErrorState(ctx context.Context, resou
 	resource.Status.PushCondition(commonbackend.ConditionFromError(err))
 	commonbackend.TrimConditions(&resource.Status.Status, h.MaxConditions)
 
-	if _, updateErr := h.repo.UpdateStatus(ctx, resource); updateErr != nil {
-		if errors.Is(updateErr, kernel.ErrNotFound) {
-			// The resource is gone; there is nothing left to reconcile.
-			return nil
-		}
-		return updateErr
-	}
+	_, updateErr := h.repo.UpdateStatus(ctx, resource)
 
-	return nil
+	return updateErr
 }
 
 func isInstanceAccepted(resource *instancedom.Instance) bool {

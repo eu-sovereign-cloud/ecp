@@ -107,18 +107,15 @@ func (h *BlockStoragePluginHandler) HandleReconcile(ctx context.Context, resourc
 			return err
 		}
 
-		if stateErr := h.setResourceErrorState(ctx, resource, err); stateErr != nil {
-			return stateErr
-		}
-
-		// The failure is recorded on the resource; retry it on the next pass.
-		return backendport.StillProcessing
+		// The failure is recorded on the resource; retry it on the next pass, unless it is
+		// already gone, in which case there is nothing left to reconcile.
+		return commonbackend.RequeueAfterState(h.setResourceErrorState(ctx, resource, err))
 	}
 
 	switch {
 
 	case isBlockStorageAccepted(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStatePending)
+		return commonbackend.IgnoreNotFound(h.setResourceState(ctx, resource, commondomain.ResourceStatePending))
 
 	case isBlockStoragePending(resource):
 		return h.ensureSourceImageReady(ctx, resource)
@@ -126,7 +123,7 @@ func (h *BlockStoragePluginHandler) HandleReconcile(ctx context.Context, resourc
 	case isBlockStorageCreating(resource):
 		resource.Status.SizeGB = resource.Spec.SizeGB
 
-		return h.setResourceState(ctx, resource, commondomain.ResourceStateActive)
+		return commonbackend.IgnoreNotFound(h.setResourceState(ctx, resource, commondomain.ResourceStateActive))
 
 	case wantBlockStorageDelete(resource):
 		return h.ensureNoImageReferrers(ctx, resource)
@@ -141,7 +138,7 @@ func (h *BlockStoragePluginHandler) HandleReconcile(ctx context.Context, resourc
 	case isBlockStorageIncreasingSize(resource):
 		resource.Status.SizeGB = resource.Spec.SizeGB
 
-		return h.setResourceState(ctx, resource, commondomain.ResourceStateActive)
+		return commonbackend.IgnoreNotFound(h.setResourceState(ctx, resource, commondomain.ResourceStateActive))
 
 	case wantBlockStorageRetryCreate(resource):
 		return commonbackend.RequeueAfterState(h.setResourceState(ctx, resource, commondomain.ResourceStateCreating))
@@ -164,16 +161,9 @@ func (h *BlockStoragePluginHandler) setResourceState(ctx context.Context, resour
 	resource.Status.PushCondition(commonbackend.ConditionFromState(state))
 	commonbackend.TrimConditions(&resource.Status.Status, h.MaxConditions)
 
-	if _, err := h.repo.UpdateStatus(ctx, resource); err != nil {
-		if errors.Is(err, kernel.ErrNotFound) {
-			// The resource is gone; there is nothing left to reconcile.
-			return nil
-		}
+	_, err := h.repo.UpdateStatus(ctx, resource)
 
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func (h *BlockStoragePluginHandler) setResourceErrorState(ctx context.Context, resource *bsdom.BlockStorage, err error) error {
@@ -184,16 +174,9 @@ func (h *BlockStoragePluginHandler) setResourceErrorState(ctx context.Context, r
 	resource.Status.PushCondition(commonbackend.ConditionFromError(err))
 	commonbackend.TrimConditions(&resource.Status.Status, h.MaxConditions)
 
-	if _, updateErr := h.repo.UpdateStatus(ctx, resource); updateErr != nil {
-		if errors.Is(updateErr, kernel.ErrNotFound) {
-			// The resource is gone; there is nothing left to reconcile.
-			return nil
-		}
+	_, updateErr := h.repo.UpdateStatus(ctx, resource)
 
-		return updateErr
-	}
-
-	return nil
+	return updateErr
 }
 
 // ensureSourceImageReady gates the block storage's transition to creating on its optional
@@ -252,16 +235,9 @@ func (h *BlockStoragePluginHandler) setResourceCondition(ctx context.Context, re
 	resource.Status.PushCondition(c)
 	commonbackend.TrimConditions(&resource.Status.Status, h.MaxConditions)
 
-	if _, err := h.repo.UpdateStatus(ctx, resource); err != nil {
-		if errors.Is(err, kernel.ErrNotFound) {
-			// The resource is gone; there is nothing left to reconcile.
-			return nil
-		}
+	_, err := h.repo.UpdateStatus(ctx, resource)
 
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func blockDecreaseSize(_ context.Context, resource *bsdom.BlockStorage) error {

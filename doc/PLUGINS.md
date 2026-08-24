@@ -70,10 +70,9 @@ Where a resource has both, its own operation wins: a pending resize is routed to
 
 `HandleUpdate` converts ordinary update failures to `RevisitBecause(0, cause)`, preserving the controller's configured retry cadence while carrying the cause to status and logs. Outside this update path, return a plain error when exponential backoff is required.
 
-A progress signal must be the **outermost** error. Never wrap a failure inside one: the reconciler classifies failures first, so a wrapped `ErrNotSupported` still stops, but anything else you hide in there becomes a quiet reschedule.
+A progress signal must be the **outermost** error. Never wrap a failure inside one: the reconciler classifies failures first, so a wrapped `ErrNotSupported` still stops, but anything else you hide in there becomes a quiet reschedule. Don't build one with `fmt.Errorf("%w: ...", backend.StillProcessing)` either — that just re-hides a failure the same way. If a progress signal needs to carry a cause, use `backend.RevisitBecause(d, cause)`; it is already the outermost error and the cause is only ever a log explanation, never something the reconciler must classify.
 
-The two sentinels above are the plugin port's own vocabulary and are matched with `errors.Is`, so
-wrap them with `%w` rather than re-wording them. Everything else a plugin returns follows the
+`ErrNotSupported`, by contrast, *is* a failure, and it is the plugin port's own vocabulary for one — it's matched with `errors.Is`, so wrap it with `%w` rather than re-wording it. Everything else a plugin returns follows the
 repo-wide contract in [CONVENTIONS.md §10](CONVENTIONS.md#10--error-contract): wrap the cause, and
 use `kernel.NewError` where the failure leaves the plugin — the reason ends up verbatim in the
 resource's condition, so a stringified chain is a reason the operator cannot act on.

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"log"
 
-	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	backendport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 
@@ -72,21 +71,18 @@ func (h *SecurityGroupPluginHandler) HandleReconcile(ctx context.Context, resour
 			return err
 		}
 
-		if stateErr := h.setResourceErrorState(ctx, resource, err); stateErr != nil {
-			return stateErr
-		}
-
-		// The failure is recorded on the resource; retry it on the next pass.
-		return backendport.StillProcessing
+		// The failure is recorded on the resource; retry it on the next pass, unless it is
+		// already gone, in which case there is nothing left to reconcile.
+		return commonbackend.RequeueAfterState(h.setResourceErrorState(ctx, resource, err))
 	}
 
 	switch {
 	case isSecurityGroupAccepted(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStatePending)
+		return commonbackend.IgnoreNotFound(h.setResourceState(ctx, resource, commondomain.ResourceStatePending))
 	case isSecurityGroupPending(resource):
 		return commonbackend.RequeueAfterState(h.setResourceState(ctx, resource, commondomain.ResourceStateCreating))
 	case isSecurityGroupCreating(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStateActive)
+		return commonbackend.IgnoreNotFound(h.setResourceState(ctx, resource, commondomain.ResourceStateActive))
 	case wantSecurityGroupDelete(resource):
 		return commonbackend.RequeueAfterState(h.setResourceState(ctx, resource, commondomain.ResourceStateDeleting))
 	case isSecurityGroupDeleting(resource):
@@ -108,15 +104,9 @@ func (h *SecurityGroupPluginHandler) setResourceState(ctx context.Context, resou
 	resource.Status.PushCondition(commonbackend.ConditionFromState(state))
 	commonbackend.TrimConditions(&resource.Status.Status, h.MaxConditions)
 
-	if _, err := h.repo.UpdateStatus(ctx, resource); err != nil {
-		if errors.Is(err, kernel.ErrNotFound) {
-			// The resource is gone; there is nothing left to reconcile.
-			return nil
-		}
-		return err
-	}
+	_, err := h.repo.UpdateStatus(ctx, resource)
 
-	return nil
+	return err
 }
 
 func (h *SecurityGroupPluginHandler) setResourceErrorState(ctx context.Context, resource *securitygroupdom.SecurityGroup, err error) error {
@@ -127,15 +117,9 @@ func (h *SecurityGroupPluginHandler) setResourceErrorState(ctx context.Context, 
 	resource.Status.PushCondition(commonbackend.ConditionFromError(err))
 	commonbackend.TrimConditions(&resource.Status.Status, h.MaxConditions)
 
-	if _, updateErr := h.repo.UpdateStatus(ctx, resource); updateErr != nil {
-		if errors.Is(updateErr, kernel.ErrNotFound) {
-			// The resource is gone; there is nothing left to reconcile.
-			return nil
-		}
-		return updateErr
-	}
+	_, updateErr := h.repo.UpdateStatus(ctx, resource)
 
-	return nil
+	return updateErr
 }
 
 func isSecurityGroupActive(resource *securitygroupdom.SecurityGroup) bool {
