@@ -119,8 +119,7 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) error 
 		client.ClientSet,
 		rolek8s.RoleGVR,
 		logger,
-		rolek8s.RoleToCR,
-		rolek8s.RoleFromCR,
+		rolek8s.Converter,
 		k8sadapter.NoChildNamespace,
 		nil,
 	)
@@ -135,8 +134,7 @@ func startGlobal(logger *slog.Logger, addr string, kubeconfigPath string) error 
 		client.ClientSet,
 		rak8s.RoleAssignmentGVR,
 		logger,
-		rak8s.RoleAssignmentToCR,
-		rak8s.RoleAssignmentFromCR,
+		rak8s.Converter,
 		k8sadapter.NoChildNamespace,
 		nil,
 	)

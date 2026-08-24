@@ -51,5 +51,6 @@ func HandleList[D any, Out any](
 
 	w.Header().Set("Content-Type", string(schema.AcceptHeaderJson))
 	w.WriteHeader(http.StatusOK)
+	// The status line is already on the wire, so a failed body write is a client that hung up.
 	_, _ = w.Write(buf.Bytes())
 }

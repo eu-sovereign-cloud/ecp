@@ -117,6 +117,12 @@ defaults to seca.region.
 {{- if eq .Values.auth.plugin "jwt" }}
 - --jwt-signing-method={{ .Values.auth.jwt.signingMethod }}
 - --jwt-secret=/etc/ecp/jwt/jwt.pub
+{{- with .Values.auth.jwt.issuer }}
+- --jwt-issuer={{ . }}
+{{- end }}
+{{- with .Values.auth.jwt.audience }}
+- --jwt-audience={{ . }}
+{{- end }}
 {{- else }}
 - --dummy-auth-users=/etc/ecp/auth/users.json
 {{- end }}

@@ -61,8 +61,7 @@ func NewController(
 		dynClient,
 		WorkspaceGVR,
 		options.Logger,
-		WorkspaceToCR,
-		WorkspaceFromCR,
+		Converter,
 	)
 	handler := NewWorkspacePluginHandler(repo, plugin, options.MaxConditions)
 	c := &Controller{
@@ -76,6 +75,10 @@ func NewController(
 			options.MaxConditions,
 		),
 	}
+	c.WithEnsure(k8sadapter.NamespaceEnsure[*wsdom.Workspace](
+		clientset,
+		k8sadapter.WorkspaceChildren,
+	))
 	c.WithCleanup(k8sadapter.NamespaceCleanup[*wsdom.Workspace](
 		dynClient,
 		clientset,

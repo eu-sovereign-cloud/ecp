@@ -5,7 +5,7 @@ This module bundles the cluster-backed test suites for ECP and the tooling to ru
 | Suite | What it covers | Where |
 |-------|----------------|-------|
 | **integration** | Each component (delegator, gateway-global, gateway-regional) in **isolation**. The gateway suites test only REST↔CR translation; the delegator suite tests reconciliation. | [`integration/`](integration/) |
-| **e2e** | The **whole stack in one run** — drives the SECA API on both gateways and asserts resources reconcile all the way to the delegator plugin. Single cluster. Also the only place resource **updates** are covered end to end, since an update has to travel API → CR → delegator → plugin → back into what a GET returns ([`e2e/update_test.go`](e2e/update_test.go)). | [`e2e/`](e2e/) |
+| **e2e** | The **whole stack in one run** — drives the SECA API on both gateways and asserts resources reconcile all the way to the delegator plugin. Single cluster. Also the only place resource **updates** are covered end to end, since an update has to travel API → CR → delegator → plugin → back into what a GET returns ([`e2e/update_test.go`](e2e/update_test.go)), and the only place a **spec enum** is watched across all four converters on that path ([`e2e/public_ip_test.go`](e2e/public_ip_test.go)). | [`e2e/`](e2e/) |
 | **multicluster e2e** | The **split topology** — global gateway in one cluster, regional gateway + delegator in another, joined only by the Region CR the global gateway advertises. | [`e2e/multicluster/`](e2e/multicluster/) |
 | **conformance** | Runs the SECA conformance suite (`secatest`) against the stack. | [`internal/build/conformance/`](internal/build/conformance/), [`internal/deploy/conformance/`](internal/deploy/conformance/) |
 | **load (k6)** | Black-box **API journeys** (smoke, create-workspace, …) against a deployed stack. Separate from Go `bench` / `TestBench`. | [`load/`](load/) |
@@ -298,6 +298,8 @@ Set in [`internal/deploy/gateway-values.yaml`](internal/deploy/gateway-values.ya
 | `auth.plugin` | `dummy` | `--auth-plugin` | Authenticator to run: `dummy` or `jwt`. Overridden per deployment from `AUTH_PLUGIN` and read by the suites, so it is a single setting for the whole stack. |
 | `auth.jwt.signingMethod` | `ES256` | `--jwt-signing-method` | Expected JWT `alg` when the plugin is `jwt`. Must match what the suite signs with (`authhelper.JWTSigningMethod`). |
 | `auth.jwt.key` | committed fixture | `--jwt-secret` | Verification key, rendered into a Secret and mounted at `/etc/ecp/jwt/jwt.pub`. |
+| `auth.jwt.issuer` | `https://issuer.e2e.ecp.local` | `--jwt-issuer` | Expected `iss`. Mirrored by `authhelper.JWTIssuer`, so every minted token carries it and a token from elsewhere is a 401. |
+| `auth.jwt.audience` | `ecp-e2e` | `--jwt-audience` | Expected `aud`. Mirrored by `authhelper.JWTAudience`. Setting either also makes that claim mandatory in the token. |
 | `auth.authz.enabled` | `true` | `--authz-enabled` | Set to `false` for authn-only (identity checked, no RBAC). Requires `auth.enabled`. |
 | `auth.authz.impl` | `cached` | `--authz-cache` | `cached` uses the informer-backed checker (zero K8s round-trips on hot path); `direct` uses the per-request reader (2 K8s List calls per request). |
 | `auth.authz.skipProviders` | `seca.region` | `--authz-skip-providers` | Comma-separated provider IDs served authn-only (no RBAC check, no token down-scoping). The region catalog is tenant-less by spec. |
@@ -317,6 +319,8 @@ Set in [`internal/deploy/gateway-values.yaml`](internal/deploy/gateway-values.ya
 The files in `internal/deploy/test-data/` define the RBAC state used by the auth tests. Roles are **not** carried by the token — each subject's roles come entirely from the RoleAssignment named below (the token carries only the subject and an optional down-scope). The table maps the token subject to the RoleAssignment that covers them and the net access they should receive.
 
 The subject is the dummy token's `username` or the JWT's `sub` claim; both plugins feed the same `Identity.Subject`, so **every row applies unchanged to either plugin** — the password column is simply unused for JWTs, which are trusted by signature instead.
+
+No fixture token carries a `tenants` membership, so the issuer-asserted gate is inert for every row below; the membership cases mint their own tokens with `authhelper.MemberToken`/`MemberEditor`.
 
 | Subject | Password | RoleAssignment | Roles (from assignment) | Scope | Expected result |
 |---------|----------|----------------|-------------------------|-------|-----------------|
@@ -339,9 +343,11 @@ The region catalog (`seca.region`) is served **authn-only**: `--authz-skip-provi
 | Helper | Use |
 |--------|-----|
 | `Token(user, password, scope)` | The token for the **deployed** plugin — a signed JWT under `AUTH_PLUGIN=jwt`, a dummy token otherwise. Backs `AdminEditor` / `IdentityEditor` / `ScopedEditor`, so the suites are plugin-agnostic. |
+| `MemberToken(user, password, tenants)` / `MemberEditor(…)` | Same, but carrying the issuer-asserted `tenants` membership instead of a down-scope. Backs the membership-gate cases in both suites; under either plugin the gate denies (403) a tenant the list omits. |
 | `JWTAuth()` | Whether the stack runs the jwt plugin; plugin-specific tests skip on it. |
 | `JWTKey()` | The fixture ES256 private key. Pass a freshly generated key instead to forge a token the gateway must reject. |
-| `SignJWT(key, subject, scope, exp)` | Sign a token for a subject, with an optional down-scope and an explicit expiry (pass a past time for an expired token). |
+| `SignJWT(key, subject, scope, tenants, exp)` | Sign a token for a subject, with an optional down-scope, an optional `tenants` membership and an explicit expiry (pass a past time for an expired token). Always stamps the deployed `iss`/`aud`; the suite signs its own claim set when it needs a token carrying different ones. |
+| `JWTIssuer` / `JWTAudience` | The `iss`/`aud` the gateways are deployed to require — the same values as `auth.jwt.issuer`/`audience` above. |
 
 The key pair is a committed fixture: the private half is a constant in `authhelper`, the public half is `auth.jwt.key` in `internal/deploy/gateway-values.yaml`. The chart renders it into a Secret, mounts it at `/etc/ecp/jwt/jwt.pub` and passes that path as `--jwt-secret`. It is a Secret rather than a ConfigMap because the same value serves `signingMethod: HS*`, where the file is the shared HMAC secret that mints tokens — see [Verification key](../doc/AUTH.md#verification-key---jwt-secret). To rotate it, regenerate both halves and update both places:
 
@@ -362,7 +368,7 @@ make kind-integration-gateway-global    # dummy tokens (the default)
 make kind-test-all AUTH_PLUGIN=jwt      # the same suites, signed JWTs
 ```
 
-`TestJWTAuthn` (`e2e/jwt_test.go`) is the JWT-specific suite: valid/expired/unsigned-by-us tokens, algorithm-confusion attempts, dummy tokens rejected by the JWT gateway, and the `sub`/`scope` claims driving RBAC. It runs only under `AUTH_PLUGIN=jwt` and is the only test that covers the `--jwt-secret` file → `ParseVerifyKey` → authenticator wiring, since the unit tests build the authenticator from an already-parsed key.
+`TestJWTAuthn` (`e2e/jwt_test.go`) is the JWT-specific suite: valid/expired/unsigned-by-us tokens, algorithm-confusion attempts, a token from another issuer, dummy tokens rejected by the JWT gateway, and the `sub`/`tenants`/`scope` claims driving RBAC. It runs only under `AUTH_PLUGIN=jwt` and is the only test that covers the `--jwt-secret` file → `ParseVerifyKey` → authenticator wiring and the `--jwt-issuer`/`--jwt-audience` flags reaching the parser, since the unit tests build the authenticator from an already-parsed key — the full wrong/missing `iss`/`aud` matrix lives there (`gateway/internal/authn`).
 
 To skip auth assertions (e.g. against an auth-disabled gateway):
 

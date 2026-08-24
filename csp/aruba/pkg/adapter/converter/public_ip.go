@@ -7,6 +7,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	res "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	publicipdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/public-ip"
@@ -25,11 +26,11 @@ func NewPublicIpElasticIpConverter() *PublicIpElasticIpConverter {
 
 func (c *PublicIpElasticIpConverter) FromSECAToAruba(from *publicipdom.PublicIp) (*v1alpha1.ElasticIP, error) {
 	if from.Spec.Address != "" {
-		return nil, errors.New("public ip address cannot be requested: Aruba does not support bring-your-own-IP")
+		return nil, kernel.NewError(kernel.KindValidation, errors.New("public ip address cannot be requested: Aruba does not support bring-your-own-IP"))
 	}
 
 	if from.Spec.Version == commondomain.IPVersionIPv6 {
-		return nil, errors.New("IPv6 public ip is not supported by Aruba")
+		return nil, kernel.NewError(kernel.KindValidation, errors.New("IPv6 public ip is not supported by Aruba"))
 	}
 
 	tenant := from.GetTenant()
@@ -72,7 +73,7 @@ func (c *PublicIpElasticIpConverter) FromArubaToSECA(from *v1alpha1.ElasticIP) (
 		tenant = from.Labels["seca.publicip/tenant"]
 	}
 	if tenant == "" {
-		return nil, errors.New("tenant is missing")
+		return nil, kernel.NewError(kernel.KindValidation, errors.New("tenant is missing"))
 	}
 
 	workspace := from.Spec.ProjectReference.Name
@@ -80,7 +81,7 @@ func (c *PublicIpElasticIpConverter) FromArubaToSECA(from *v1alpha1.ElasticIP) (
 		workspace = from.Labels["seca.publicip/workspace"]
 	}
 	if workspace == "" {
-		return nil, errors.New("workspace is missing")
+		return nil, kernel.NewError(kernel.KindValidation, errors.New("workspace is missing"))
 	}
 
 	return &publicipdom.PublicIp{

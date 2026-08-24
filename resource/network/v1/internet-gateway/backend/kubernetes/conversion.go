@@ -14,6 +14,7 @@ import (
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
 	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/schema/v1"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 
 	commonbackend "github.com/eu-sovereign-cloud/ecp/resource/common/backend"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
@@ -30,10 +31,10 @@ func InternetGatewayFromCR(obj client.Object) (*internetgatewaydom.InternetGatew
 		cr = *t
 	case *unstructured.Unstructured:
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(t.Object, &cr); err != nil {
-			return nil, fmt.Errorf("failed to convert unstructured to InternetGateway: %w", err)
+			return nil, kernel.NewError(kernel.KindValidation, fmt.Errorf("failed to convert unstructured to InternetGateway: %w", err))
 		}
 	default:
-		return nil, fmt.Errorf("unsupported object type %T", obj)
+		return nil, kernel.NewError(kernel.KindInternal, fmt.Errorf("unsupported object type %T", obj))
 	}
 
 	crLabels := cr.GetLabels()
@@ -63,8 +64,11 @@ func InternetGatewayFromCR(obj client.Object) (*internetgatewaydom.InternetGatew
 
 	ig.Status = &internetgatewaydom.InternetGatewayStatus{}
 	if cr.Status != nil {
-		ig.Status.State = commonbackend.ResourceStateFromCR(cr.Status.State)
-		ig.Status.Conditions = commonbackend.ConditionsFromCR(cr.Status.Conditions)
+		status, err := commonbackend.StatusFromCR(cr.Status.State, cr.Status.Conditions)
+		if err != nil {
+			return nil, fmt.Errorf("internet gateway %s: %w", cr.Name, err)
+		}
+		ig.Status.Status = status
 	} else {
 		ig.Status.PushCondition(commondomain.DefaultPendingCondition)
 	}
@@ -75,7 +79,7 @@ func InternetGatewayFromCR(obj client.Object) (*internetgatewaydom.InternetGatew
 // InternetGatewayToCR converts a *internetgatewaydom.InternetGateway to a Kubernetes InternetGateway CR.
 func InternetGatewayToCR(ig *internetgatewaydom.InternetGateway) (client.Object, error) {
 	if ig == nil {
-		return nil, fmt.Errorf("internet gateway is nil")
+		return nil, kernel.NewError(kernel.KindInternal, fmt.Errorf("internet gateway is nil"))
 	}
 
 	crLabels := k8slabels.OriginalToKeyed(ig.Labels)
@@ -103,15 +107,21 @@ func InternetGatewayToCR(ig *internetgatewaydom.InternetGateway) (client.Object,
 	cr.SetGroupVersionKind(InternetGatewayGVK)
 
 	if ig.Status != nil && len(ig.Status.Conditions) > 0 {
-		state := commonbackend.ResourceStateToCR(ig.Status.State)
-		if state == nil {
-			return nil, fmt.Errorf("failed to convert resource state to CR")
+		state, conds, err := commonbackend.StatusToCR(ig.Status.Status)
+		if err != nil {
+			return nil, fmt.Errorf("internet gateway %s: %w", ig.Name, err)
 		}
 		cr.Status = &InternetGatewayStatus{
-			Conditions: commonbackend.ConditionsToCR(ig.Status.Conditions),
-			State:      *state,
+			Conditions: conds,
+			State:      state,
 		}
 	}
 
 	return cr, nil
+}
+
+// Converter is the CR<->domain conversion pair for InternetGateway.
+var Converter = k8sadapter.TwoWayConverter[*internetgatewaydom.InternetGateway]{
+	FromCR: InternetGatewayFromCR,
+	ToCR:   InternetGatewayToCR,
 }

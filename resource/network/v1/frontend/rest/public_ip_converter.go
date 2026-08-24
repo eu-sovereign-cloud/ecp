@@ -1,6 +1,7 @@
 package rest
 
 import (
+	"fmt"
 	"strconv"
 
 	sdknetwork "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.network.v1"
@@ -112,11 +113,16 @@ func publicIpIteratorToAPI(ps []*publicipdom.PublicIp, nextSkipToken *string) *s
 }
 
 // publicIpFromAPI converts an SDK PublicIp to a PublicIp.
-func publicIpFromAPI(sdk sdkschema.PublicIp, id *resource.Identity, region string) *publicipdom.PublicIp {
+func publicIpFromAPI(sdk sdkschema.PublicIp, id *resource.Identity, region string) (*publicipdom.PublicIp, error) {
+	version, err := commonfrontend.IPVersionFromAPI(sdk.Spec.Version)
+	if err != nil {
+		return nil, fmt.Errorf("public ip %s: %w", id.GetName(), err)
+	}
+
 	p := &publicipdom.PublicIp{
 		Spec: publicipdom.PublicIpSpec{
 			Address: sdk.Spec.Address,
-			Version: commonfrontend.IPVersionFromAPI(sdk.Spec.Version),
+			Version: version,
 		},
 	}
 
@@ -130,7 +136,7 @@ func publicIpFromAPI(sdk sdkschema.PublicIp, id *resource.Identity, region strin
 	p.Annotations = sdk.Annotations
 	p.Extensions = sdk.Extensions
 
-	return p
+	return p, nil
 }
 
 // newPublicIpWithIdentity returns a *publicipdom.PublicIp populated with identity fields from ir.

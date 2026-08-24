@@ -15,6 +15,7 @@ import (
 	convert "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/convert"
 	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
 	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/schema/v1"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	kernelresource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 
 	commonbackend "github.com/eu-sovereign-cloud/ecp/resource/common/backend"
@@ -32,10 +33,10 @@ func WorkspaceFromCR(obj client.Object) (*wsdom.Workspace, error) {
 		cr = *t
 	case *unstructured.Unstructured:
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(t.Object, &cr); err != nil {
-			return nil, fmt.Errorf("failed to convert unstructured to Workspace: %w", err)
+			return nil, kernel.NewError(kernel.KindValidation, fmt.Errorf("failed to convert unstructured to Workspace: %w", err))
 		}
 	default:
-		return nil, fmt.Errorf("unsupported object type %T", obj)
+		return nil, kernel.NewError(kernel.KindInternal, fmt.Errorf("unsupported object type %T", obj))
 	}
 
 	spec := make(wsdom.WorkspaceSpec, len(cr.Spec))
@@ -70,8 +71,11 @@ func WorkspaceFromCR(obj client.Object) (*wsdom.Workspace, error) {
 		ws.Status = &wsdom.WorkspaceStatus{
 			ResourceCount: cr.Status.ResourceCount,
 		}
-		ws.Status.State = commonbackend.ResourceStateFromCR(cr.Status.State)
-		ws.Status.Conditions = commonbackend.ConditionsFromCR(cr.Status.Conditions)
+		status, err := commonbackend.StatusFromCR(cr.Status.State, cr.Status.Conditions)
+		if err != nil {
+			return nil, fmt.Errorf("workspace %s: %w", cr.Name, err)
+		}
+		ws.Status.Status = status
 	} else {
 		ws.Status.PushCondition(commondomain.DefaultPendingCondition)
 	}
@@ -82,7 +86,7 @@ func WorkspaceFromCR(obj client.Object) (*wsdom.Workspace, error) {
 // WorkspaceToCR converts a *wsdom.Workspace to a Kubernetes Workspace CR.
 func WorkspaceToCR(ws *wsdom.Workspace) (client.Object, error) {
 	if ws == nil {
-		return nil, fmt.Errorf("workspace is nil")
+		return nil, kernel.NewError(kernel.KindInternal, fmt.Errorf("workspace is nil"))
 	}
 
 	spec := make(WorkspaceSpec, len(ws.Spec))
@@ -112,13 +116,13 @@ func WorkspaceToCR(ws *wsdom.Workspace) (client.Object, error) {
 	cr.SetGroupVersionKind(WorkspaceGVK)
 
 	if ws.Status != nil && (len(ws.Status.Conditions) > 0 || ws.Status.ResourceCount != nil) {
-		state := commonbackend.ResourceStateToCR(ws.Status.State)
-		if state == nil {
-			return nil, fmt.Errorf("failed to map resource state domain to CR")
+		state, conds, err := commonbackend.StatusToCR(ws.Status.Status)
+		if err != nil {
+			return nil, fmt.Errorf("workspace %s: %w", ws.Name, err)
 		}
 		cr.Status = &WorkspaceStatus{
-			State:         *state,
-			Conditions:    commonbackend.ConditionsToCR(ws.Status.Conditions),
+			State:         state,
+			Conditions:    conds,
 			ResourceCount: ws.Status.ResourceCount,
 		}
 	}
@@ -130,4 +134,10 @@ func WorkspaceToCR(ws *wsdom.Workspace) (client.Object, error) {
 // Workspace CRs live in the tenant namespace (not in the workspace namespace).
 func tenantOnlyScope(tenant string) *kernelresource.Scope {
 	return &kernelresource.Scope{Tenant: tenant}
+}
+
+// Converter is the CR<->domain conversion pair for Workspace.
+var Converter = k8sadapter.TwoWayConverter[*wsdom.Workspace]{
+	FromCR: WorkspaceFromCR,
+	ToCR:   WorkspaceToCR,
 }

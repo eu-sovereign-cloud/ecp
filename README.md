@@ -4,6 +4,54 @@ A Kubernetes-native distributed control plane for managing cloud resources acros
 
 ECP exposes a unified, declarative REST API for provisioning and managing cloud resources. All state is persisted as Kubernetes Custom Resources, enabling compatibility with existing Kubernetes tooling and GitOps workflows. See [doc/ARCHITECTURE.md](doc/ARCHITECTURE.md) for the full design.
 
+## Install with Helm
+
+Released charts are published to <https://eu-sovereign-cloud.github.io/ecp/>:
+
+```bash
+helm repo add ecp https://eu-sovereign-cloud.github.io/ecp/
+helm repo update
+helm search repo ecp --devel
+```
+
+| Chart | Contains |
+|-------|----------|
+| `ecp/ecp` | Global + regional gateways, and the ECP CRDs |
+| `ecp/ecp-delegator` | The delegator — reconciles the CRs through **one** CSP plugin. Also available as a subchart of `ecp/ecp` |
+
+Releases so far are **prereleases** (`0.0.2-alpha`), which Helm skips unless
+you ask for them with `--version 0.0.2-alpha` or `--devel`:
+
+```bash
+helm install ecp ecp/ecp --version 0.0.2-alpha \
+  --namespace ecp --create-namespace \
+  --set gatewayRegional.region=itbg-bergamo \
+  --set ecp-delegator.enabled=true \
+  --set ecp-delegator.plugin=aruba
+```
+
+`gatewayRegional.region` is **required**. `ecp-delegator.plugin` picks the CSP —
+it selects both the delegator image and the RBAC the chart grants — and each
+plugin reconciles into a backend you install **out of band**; until it is there,
+resources are accepted and stay pending:
+
+| `plugin` | Reconciles by | Backend to install first |
+|----------|---------------|--------------------------|
+| `aruba` | writing `arubacloud.com` CRs | [arubacloud-resource-operator](https://github.com/Arubacloud/arubacloud-resource-operator) + Aruba credentials |
+| `ionos` | writing Crossplane managed resources | Crossplane + `provider-upjet-ionoscloud` + an IONOS token ([`csp/ionos/deploy`](csp/ionos/deploy)) |
+| `dummy` | nothing — marks resources Active in-process | none; development only, image not published |
+
+**Auth is off by default** — the API is unauthenticated in that mode, so do not
+expose it outside the cluster until you turn it on with `auth.enabled=true`,
+which enables bearer token authentication *and* SECA RBAC on **both** gateways.
+Roles are never read from the token: entitlements come only from the `Role` /
+`RoleAssignment` CRs in the tenant namespace.
+
+See [charts/ecp/README.md](charts/ecp/README.md) for the auth plugins, the split
+topology, CRD upgrades and every value, [charts/delegator/README.md](charts/delegator/README.md)
+for the delegator on its own, and [doc/AUTH.md](doc/AUTH.md) for the token
+formats and the RBAC algorithm.
+
 ## Repository Layout
 
 ```
@@ -21,7 +69,7 @@ resource/             # Data vocabulary + per-resource slices (vertical axis)
     ├── frontend/rest/#   REST↔domain converters + HTTP handlers (per-group, shared handler)
     └── backend/kubernetes/ # CR types, adapters, controller, plugin interface + handler
 gateway/              # Global and regional REST API server binary
-├── internal/authn/   #   DummyAuthenticator (bearer-token dev/test auth)
+├── internal/authn/   #   Dummy (dev/test) and JWT (signature-verifying) authenticators
 ├── internal/authz/   #   seca/ — SECA RBAC Checker + CachedChecker
 └── internal/auth/    #   Build, ProviderMWs, StartChecker — opt-in wiring
 csp/
@@ -114,12 +162,16 @@ For containerized development, persistent dev containers, and the full Makefile 
 | [doc/CODEGEN.md](doc/CODEGEN.md) | Code generation pipeline (OpenAPI types, CRDs, controller-gen) |
 | [doc/PLUGINS.md](doc/PLUGINS.md) | Plugin system: interface, builder inversion, writing a new CSP plugin |
 | [doc/CONTRIBUTING.md](doc/CONTRIBUTING.md) | Contribution guidelines, import alias convention, PR conventions |
-| [doc/CONVENTIONS.md](doc/CONVENTIONS.md) | Go style conventions — naming, initialisms, conversion functions, structural symmetry |
+| [doc/CONVENTIONS.md](doc/CONVENTIONS.md) | Go style conventions — naming, initialisms, conversion functions, structural symmetry, error contract |
 | [doc/AUTH-SPEC-REVIEW.md](doc/AUTH-SPEC-REVIEW.md) | Auth findings — token model and SECA spec alignment review (record) |
+| [charts/ecp/README.md](charts/ecp/README.md) | Gateway chart — topology toggles, auth values, CRDs, full value list |
+| [charts/delegator/README.md](charts/delegator/README.md) | Delegator chart — plugin selection, per-plugin RBAC and backends |
 
 ## Current Version
 
-`v0.1.0-alpha1-preview` — API surface and CRD schemas are subject to breaking changes before v1.0.
+`v0.0.2-alpha` — the latest release, and the version the charts and images above
+are published under. API surface and CRD schemas are subject to breaking changes
+before v1.0.
 
 ---
 

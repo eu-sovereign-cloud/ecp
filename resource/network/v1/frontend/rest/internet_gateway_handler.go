@@ -48,7 +48,7 @@ func (h *Handler) CreateOrUpdateInternetGateway(w http.ResponseWriter, r *http.R
 		Params:  id,
 		Creator: frest.CreatorFromRepo(h.InternetGatewayWriter),
 		Updater: frest.UpdaterFromRepo(h.InternetGatewayWriter),
-		APIToDomain: func(sdk sdkschema.InternetGateway, p persistencepkg.IdentifiableResource) *internetgatewaydom.InternetGateway {
+		APIToDomain: func(sdk sdkschema.InternetGateway, p persistencepkg.IdentifiableResource) (*internetgatewaydom.InternetGateway, error) {
 			return internetGatewayFromAPI(sdk, p.(*InternetGatewayIdentity), region)
 		},
 		DomainToAPI: internetGatewayToAPIWithVerb(http.MethodPut),

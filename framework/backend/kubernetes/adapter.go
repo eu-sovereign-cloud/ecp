@@ -35,6 +35,20 @@ type K8sToDomain[T any] func(object client.Object) (T, error)
 // DomainToK8s defines a function that converts a domain type T to a Kubernetes client.Object.
 type DomainToK8s[T any] func(domain T) (client.Object, error)
 
+// TwoWayConverter bundles both directions of a slice's CR<->domain conversion. A slice exports
+// the pair once (see doc/CONVENTIONS.md §2 for the XFromCR/XToCR naming it is built from) and
+// every adapter that needs both directions takes one argument instead of two, so a call site
+// cannot pair one resource's reader with another's writer.
+//
+// Read-only adapters (ReaderAdapter, WatcherAdapter) still take a bare K8sToDomain: requiring a
+// ToCR they never call would be an argument that exists only to be ignored.
+type TwoWayConverter[T any] struct {
+	// FromCR converts a Kubernetes object into the domain type.
+	FromCR K8sToDomain[T]
+	// ToCR converts the domain type into a Kubernetes object.
+	ToCR DomainToK8s[T]
+}
+
 // Adapter is the base struct for Kubernetes adapters.
 type Adapter struct {
 	client dynamic.Interface
@@ -73,28 +87,26 @@ func NewRepoAdapter[T persistence.IdentifiableResource](
 	client dynamic.Interface,
 	gvr schema.GroupVersionResource,
 	logger *slog.Logger,
-	domainToK8s DomainToK8s[T],
-	k8sToDomain K8sToDomain[T],
+	conv TwoWayConverter[T],
 ) *RepoAdapter[T] {
 	return &RepoAdapter[T]{
 		ReaderAdapter: NewReaderAdapter(
 			client,
 			gvr,
 			logger,
-			k8sToDomain,
+			conv.FromCR,
 		),
 		WriterAdapter: NewWriterAdapter(
 			client,
 			gvr,
 			logger,
-			domainToK8s,
-			k8sToDomain,
+			conv,
 		),
 		WatcherAdapter: NewWatcherAdapter(
 			client,
 			gvr,
 			logger,
-			k8sToDomain,
+			conv.FromCR,
 		),
 	}
 }
@@ -121,8 +133,7 @@ func NewWriterAdapter[T persistence.IdentifiableResource](
 	client dynamic.Interface,
 	gvr schema.GroupVersionResource,
 	logger *slog.Logger,
-	domainToK8s DomainToK8s[T],
-	k8sToDomain K8sToDomain[T],
+	conv TwoWayConverter[T],
 ) *WriterAdapter[T] {
 	return &WriterAdapter[T]{
 		Adapter: Adapter{
@@ -130,8 +141,8 @@ func NewWriterAdapter[T persistence.IdentifiableResource](
 			gvr:    gvr,
 			logger: logger,
 		},
-		domainToK8s: domainToK8s,
-		k8sToDomain: k8sToDomain,
+		domainToK8s: conv.ToCR,
+		k8sToDomain: conv.FromCR,
 	}
 }
 
@@ -160,6 +171,8 @@ func ComputeNamespace(obj persistence.Scope) string {
 		return ""
 	}
 
+	// hash.Hash.Write never returns an error (documented on the interface), so these writes have
+	// no failure to report — the drop is the contract, not a swallowed error.
 	hasher := sha3.New224()
 	if obj.GetTenant() != "" && obj.GetWorkspace() == "" {
 		_, _ = fmt.Fprintf(hasher, "%s", obj.GetTenant())
@@ -199,17 +212,18 @@ func resolveNamespace(obj persistence.Scope) (string, error) {
 	return ComputeNamespace(obj), nil
 }
 
-// CreateNamespace creates a Kubernetes Namespace.
-func CreateNamespace(ctx context.Context, clientSet kubernetes.Interface, name string, ownerLabels map[string]string) (created bool, err error) {
+// CreateNamespace creates a Kubernetes Namespace. It is idempotent: an existing namespace is
+// adopted rather than an error.
+func CreateNamespace(ctx context.Context, clientSet kubernetes.Interface, name string, ownerLabels map[string]string) (err error) {
 	start := time.Now()
 	defer func() { observeUpstream(namespaceGVR, OpCreate, start, err) }()
 
 	if name == "" {
-		return false, kernel.NewError(kernel.KindValidation, fmt.Errorf("cannot create namespace with empty name"))
+		return kernel.NewError(kernel.KindValidation, fmt.Errorf("cannot create namespace with empty name"))
 	}
 
 	if clientSet == nil {
-		return false, kernel.NewError(kernel.KindUnavailable, fmt.Errorf("cannot create namespace %q: clientSet is nil", name))
+		return kernel.NewError(kernel.KindUnavailable, fmt.Errorf("cannot create namespace %q: clientSet is nil", name))
 	}
 
 	ns := &corev1.Namespace{
@@ -221,7 +235,7 @@ func CreateNamespace(ctx context.Context, clientSet kubernetes.Interface, name s
 
 	if _, err := clientSet.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{}); err != nil {
 		if !kerrs.IsAlreadyExists(err) {
-			return false, kubeToDomainError(fmt.Errorf("failed to create namespace %s: %w", name, err))
+			return kubeToDomainError(fmt.Errorf("failed to create namespace %s: %w", name, err))
 		}
 
 		// The namespace exists but may predate the owner labels (a hand-applied dev fixture, a
@@ -230,15 +244,11 @@ func CreateNamespace(ctx context.Context, clientSet kubernetes.Interface, name s
 		// The name is a hash of exactly this scope, so stamping is safe; the merge patch leaves
 		// any other label alone.
 		if len(ownerLabels) > 0 {
-			if err := patchNamespaceLabels(ctx, clientSet, name, ownerLabels); err != nil {
-				return false, err
-			}
+			return patchNamespaceLabels(ctx, clientSet, name, ownerLabels)
 		}
-
-		return false, nil
 	}
 
-	return true, nil
+	return nil
 }
 
 // patchNamespaceLabels merges ownerLabels into the namespace's labels, leaving the rest untouched.
@@ -864,6 +874,25 @@ func namespaceOwnerLabels(tenant, workspace, network string) (string, map[string
 	return ComputeNamespace(&resource.Scope{Tenant: tenant, Workspace: workspace}), ownerLabels
 }
 
+// NamespaceEnsure returns a controller reconcile hook (see controller.GenericController.WithEnsure)
+// that provisions the namespace a resource owns for its children.
+//
+// It is the backstop for the write path's opportunistic create, and the only thing that repairs a
+// namespace removed or relabelled out of band. See "Namespace lifecycle" in doc/ARCHITECTURE.md.
+func NamespaceEnsure[T persistence.IdentifiableResource](
+	clientset kubernetes.Interface,
+	childNamespace ChildNamespaceKind,
+) func(context.Context, T) error {
+	return func(ctx context.Context, m T) error {
+		namespace, ownerLabels := childNamespaceFor(childNamespace, m)
+		if namespace == "" {
+			return nil
+		}
+
+		return CreateNamespace(ctx, clientset, namespace, ownerLabels)
+	}
+}
+
 // NamespaceCleanup returns a controller cleanup hook (see controller.GenericController.WithCleanup)
 // that tears down the namespace a resource owns for its children.
 //
@@ -947,12 +976,11 @@ func NewNamespaceManagingWriterAdapter[T persistence.IdentifiableResource](
 	clientset kubernetes.Interface,
 	gvr schema.GroupVersionResource,
 	logger *slog.Logger,
-	domainToK8s DomainToK8s[T],
-	k8sToDomain K8sToDomain[T],
+	conv TwoWayConverter[T],
 	childNamespace ChildNamespaceKind,
 	childResourceGVRs []schema.GroupVersionResource,
 ) *NamespaceManagingWriterAdapter[T] {
-	base := NewWriterAdapter(dynClient, gvr, logger, domainToK8s, k8sToDomain)
+	base := NewWriterAdapter(dynClient, gvr, logger, conv)
 	return &NamespaceManagingWriterAdapter[T]{
 		WriterAdapter:     base,
 		clientset:         clientset,
@@ -967,8 +995,7 @@ func NewNamespaceManagingRepoAdapter[T persistence.IdentifiableResource](
 	clientset kubernetes.Interface,
 	gvr schema.GroupVersionResource,
 	logger *slog.Logger,
-	domainToK8s DomainToK8s[T],
-	k8sToDomain K8sToDomain[T],
+	conv TwoWayConverter[T],
 	childNamespace ChildNamespaceKind,
 	childResourceGVRs []schema.GroupVersionResource,
 ) *NamespaceManagingRepoAdapter[T] {
@@ -977,15 +1004,14 @@ func NewNamespaceManagingRepoAdapter[T persistence.IdentifiableResource](
 			dynClient,
 			gvr,
 			logger,
-			k8sToDomain,
+			conv.FromCR,
 		),
 		NamespaceManagingWriterAdapter: NewNamespaceManagingWriterAdapter[T](
 			dynClient,
 			clientset,
 			gvr,
 			logger,
-			domainToK8s,
-			k8sToDomain,
+			conv,
 			childNamespace,
 			childResourceGVRs,
 		),
@@ -993,7 +1019,7 @@ func NewNamespaceManagingRepoAdapter[T persistence.IdentifiableResource](
 			dynClient,
 			gvr,
 			logger,
-			k8sToDomain,
+			conv.FromCR,
 		),
 	}
 }
@@ -1008,7 +1034,8 @@ func namespaceOwnedBy(ctx context.Context, clientset kubernetes.Interface, nsNam
 	defer func() { observeUpstream(namespaceGVR, OpGet, start, err) }()
 
 	if clientset == nil {
-		return false, fmt.Errorf("clientset is nil")
+		return false, kernel.NewError(kernel.KindUnavailable,
+			fmt.Errorf("cannot check ownership of namespace %q: clientSet is nil", nsName))
 	}
 
 	ns, err := clientset.CoreV1().Namespaces().Get(ctx, nsName, metav1.GetOptions{})
@@ -1029,46 +1056,38 @@ func namespaceOwnedBy(ctx context.Context, clientset kubernetes.Interface, nsNam
 	return true, nil
 }
 
-// Create ensures the namespaces the resource needs exist, then creates it.
+// Create creates the resource, then opportunistically provisions the namespace it owns for its
+// children.
 //
-// The resource's own namespace is provisioned only when it is the tenant namespace. There is no
-// Tenant entity, so nobody else would ever create it. Below that level a namespace is owned by a
-// parent entity and its absence *is* the referential-integrity check: fabricating it would let a
-// Network land in a Workspace that was never created, in a namespace no controller would ever
-// reclaim. A resource whose scope names a workspace therefore fails with NotFound, exactly as a
-// leaf resource on a plain WriterAdapter does.
+// Only the tenant namespace is provisioned on the resource's own behalf, before the CR that lives
+// in it: there is no Tenant entity, so nobody else would ever create it. Below that level a
+// namespace is owned by a parent entity and its absence *is* the referential-integrity check, so
+// a resource whose scope names a workspace fails with NotFound instead of fabricating one.
 //
-// The child namespace is rolled back if this call created it and the CR create then fails —
-// without an owning CR nothing will ever reclaim it, and the caller picks its name.
+// The child namespace is created *after* the CR and its failure is only logged — the CR is what
+// makes it recoverable, so a namespace created first and orphaned by a failed CR write is the
+// worse trade. See "Namespace lifecycle" in doc/ARCHITECTURE.md.
 func (a *NamespaceManagingWriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
 	if m.GetWorkspace() == "" {
 		tenantNS, tenantLabels := namespaceOwnerLabels(m.GetTenant(), "", "")
 		if tenantNS != "" {
-			if _, err := CreateNamespace(ctx, a.clientset, tenantNS, tenantLabels); err != nil {
+			if err := CreateNamespace(ctx, a.clientset, tenantNS, tenantLabels); err != nil {
 				return nil, err
 			}
 		}
 	}
 
-	childNS, childLabels := childNamespaceFor(a.childNamespace, m)
-	if childNS == "" {
-		return a.WriterAdapter.Create(ctx, m)
-	}
-
-	createdNS, err := CreateNamespace(ctx, a.clientset, childNS, childLabels)
-	if err != nil {
-		return nil, err
-	}
-
 	res, err := a.WriterAdapter.Create(ctx, m)
-	if err != nil && createdNS {
-		if owned, ownErr := namespaceOwnedBy(ctx, a.clientset, childNS, childLabels); ownErr == nil && owned {
-			if delErr := DeleteNamespace(ctx, a.clientset, childNS); delErr != nil {
-				a.logger.ErrorContext(ctx, "failed to roll back namespace created for resource",
-					"namespace", childNS, "error", delErr)
-			}
+	if err != nil {
+		return res, err
+	}
+
+	if childNS, childLabels := childNamespaceFor(a.childNamespace, m); childNS != "" {
+		if nsErr := CreateNamespace(ctx, a.clientset, childNS, childLabels); nsErr != nil {
+			a.logger.WarnContext(ctx, "failed to create child namespace, leaving it to the controller",
+				"namespace", childNS, "resource", m.GetName(), "error", nsErr)
 		}
 	}
 
-	return res, err
+	return res, nil
 }

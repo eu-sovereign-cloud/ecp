@@ -49,7 +49,7 @@ func (h *Handler) CreateOrUpdatePublicIp(w http.ResponseWriter, r *http.Request,
 		Params:  id,
 		Creator: frest.CreatorFromRepo(h.PublicIpWriter),
 		Updater: frest.UpdaterFromRepo(h.PublicIpWriter),
-		APIToDomain: func(sdk sdkschema.PublicIp, p persistencepkg.IdentifiableResource) *publicipdom.PublicIp {
+		APIToDomain: func(sdk sdkschema.PublicIp, p persistencepkg.IdentifiableResource) (*publicipdom.PublicIp, error) {
 			return publicIpFromAPI(sdk, p.(*resource.Identity), region)
 		},
 		DomainToAPI: publicIpToAPIWithVerb(http.MethodPut),

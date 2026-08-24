@@ -124,7 +124,7 @@ func internetGatewayIteratorToAPI(igs []*internetgatewaydom.InternetGateway, nex
 }
 
 // internetGatewayFromAPI converts an SDK InternetGateway to an InternetGateway.
-func internetGatewayFromAPI(sdk sdkschema.InternetGateway, id *InternetGatewayIdentity, region string) *internetgatewaydom.InternetGateway {
+func internetGatewayFromAPI(sdk sdkschema.InternetGateway, id *InternetGatewayIdentity, region string) (*internetgatewaydom.InternetGateway, error) {
 	ig := &internetgatewaydom.InternetGateway{
 		Spec: internetgatewaydom.InternetGatewaySpec{
 			EgressOnly: sdk.Spec.EgressOnly,
@@ -140,7 +140,7 @@ func internetGatewayFromAPI(sdk sdkschema.InternetGateway, id *InternetGatewayId
 	ig.Annotations = sdk.Annotations
 	ig.Extensions = sdk.Extensions
 
-	return ig
+	return ig, nil
 }
 
 // newInternetGatewayWithIdentity returns a *internetgatewaydom.InternetGateway populated with identity fields from ir.

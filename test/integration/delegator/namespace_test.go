@@ -23,6 +23,7 @@ import (
 	subnetdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/subnet"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage"
 	wsdom "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1"
+	wsk8s "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1/backend/kubernetes"
 )
 
 // TestWorkspaceNamespaceLifecycle covers the namespace a Workspace owns for its children,
@@ -197,14 +198,16 @@ func TestNamespaceOwnerLabelDrift(t *testing.T) {
 		})
 	})
 
-	t.Run("stripped owner labels are restored on the next create", func(t *testing.T) {
+	// Repair belongs to the delegator, not the write path: the gateway only touches the child
+	// namespace after a CR write it actually performed, so a create that fails with AlreadyExists
+	// no longer stamps anything. Every reconcile of the owning CR re-runs NamespaceEnsure instead,
+	// which is a stronger guarantee — it needs nobody to re-issue a create — but an async one.
+	t.Run("stripped owner labels are restored by the owning controller", func(t *testing.T) {
 		stripOwnerLabels(t, workspaceNS)
 
-		// The CR already exists, so this create only re-runs the namespace ensure — which is
-		// exactly the path being tested.
-		_, err := workspaceRepo.Create(t.Context(), newTestWorkspace())
-		require.ErrorIs(t, err, kernel.ErrAlreadyExists)
-
+		// A settled resource is only resynced on the manager's default period, so nudge the CR
+		// to get a reconcile now rather than waiting on it.
+		touchWorkspace(t, testWorkspace)
 		requireNamespaceLabels(t, workspaceNS, map[string]string{
 			labels.InternalTenantLabel:    testTenant,
 			labels.InternalWorkspaceLabel: testWorkspace,
@@ -212,15 +215,42 @@ func TestNamespaceOwnerLabelDrift(t *testing.T) {
 	})
 }
 
-// requireNamespaceLabels asserts the namespace exists and carries every expected label.
-// Other labels are allowed: the check mirrors namespaceOwnedBy, which is a subset test.
+// touchWorkspace annotates the Workspace CR so the controller reconciles it now. The value is
+// unique per call: an identical patch is a no-op that generates no watch event.
+func touchWorkspace(t *testing.T, name string) {
+	t.Helper()
+	patch, err := json.Marshal(map[string]any{"metadata": map[string]any{"annotations": map[string]any{
+		"test.secapi.cloud/touch": uuid.New().String(),
+	}}})
+	require.NoError(t, err)
+
+	_, err = dynamicClient.Resource(wsk8s.WorkspaceGVR).
+		Namespace(k8sadapter.ComputeNamespace(&resource.Scope{Tenant: testTenant})).
+		Patch(t.Context(), name, types.MergePatchType, patch, metav1.PatchOptions{})
+	require.NoError(t, err)
+}
+
+// requireNamespaceLabels polls until the namespace carries every expected label. Other labels are
+// allowed: the check mirrors namespaceOwnedBy, which is a subset test. It polls because both the
+// namespace and its labels are now the owning controller's job, so they land on a reconcile rather
+// than in the request the test just made.
 func requireNamespaceLabels(t *testing.T, name string, expected map[string]string) {
 	t.Helper()
-	ns, err := clientset.CoreV1().Namespaces().Get(t.Context(), name, metav1.GetOptions{})
-	require.NoErrorf(t, err, "namespace %q should exist", name)
-	for k, v := range expected {
-		require.Equalf(t, v, ns.Labels[k], "namespace %q should carry owner label %s", name, k)
-	}
+	var seen map[string]string
+	err := wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
+		ns, err := clientset.CoreV1().Namespaces().Get(ctx, name, metav1.GetOptions{})
+		if err != nil {
+			return false, nil
+		}
+		seen = ns.Labels
+		for k, v := range expected {
+			if ns.Labels[k] != v {
+				return false, nil
+			}
+		}
+		return true, nil
+	})
+	require.NoErrorf(t, err, "namespace %q should carry owner labels %v, has %v", name, expected, seen)
 }
 
 func requireNamespaceExists(t *testing.T, name string) {

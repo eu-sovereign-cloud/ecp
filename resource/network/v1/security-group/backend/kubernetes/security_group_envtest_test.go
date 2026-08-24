@@ -57,7 +57,7 @@ func TestSecurityGroupBackend_CreateAndGetSecurityGroup(t *testing.T) {
 
 	// Create the namespace before creating SecurityGroup resources. The WriterAdapter
 	// does not manage namespaces automatically, so it must exist in advance.
-	_, err = k8sadapter.CreateNamespace(ctx, clientset, namespace, map[string]string{
+	err = k8sadapter.CreateNamespace(ctx, clientset, namespace, map[string]string{
 		k8slabels.InternalTenantLabel: tenant,
 	})
 	require.NoError(t, err)
@@ -70,8 +70,7 @@ func TestSecurityGroupBackend_CreateAndGetSecurityGroup(t *testing.T) {
 		dynClient,
 		SecurityGroupGVR,
 		slog.Default(),
-		SecurityGroupToCR,
-		SecurityGroupFromCR,
+		Converter,
 	)
 
 	readerRepo := k8sadapter.NewReaderAdapter[*securitygroupdom.SecurityGroup](

@@ -26,7 +26,8 @@ import (
 // Authorization algorithm:
 //
 //	authorized =
-//	    tokenScopeCovers(claim.TokenScope, tenant, region, workspace)
+//	    tokenScopeCovers(claim.MemberTenants, tenant)
+//	  ∧ tokenScopeCovers(claim.TokenScope, tenant, region, workspace)
 //	  ∧ ∃ ra ∈ assignments:
 //	        scopeCovers(ra.Scopes, tenant, region, workspace)
 //	      ∧ subsGrant(ra.Subs, claim.Subject)
@@ -42,14 +43,17 @@ import (
 // RoleAssignment.Subs restrict the grant to named subjects; "*" covers all subjects.
 // An empty Subs grants nobody (fail-closed; unlike scope slices, empty ≠ wildcard).
 //
-// claim.TokenScope is an optional token cap applied first: a non-empty dimension must cover
-// the request or the whole claim is denied. It can only narrow access, never grant it.
+// claim.MemberTenants (issuer-asserted membership) and claim.TokenScope (the caller's
+// optional down-scope) are caps applied first: a non-empty one must cover the request or
+// the whole claim is denied. Both can only narrow access, never grant it — and because
+// they run before the assignment loop, they also constrain a subs: ["*"] wildcard grant.
 func Evaluate(
 	claim authzport.AuthorizationClaim,
 	rolesByName map[string]*roledom.Role,
 	assignments []*radom.RoleAssignment,
 ) bool {
-	if !tokenScopeCovers(claim.TokenScope.Tenants, claim.Tenant) ||
+	if !tokenScopeCovers(claim.MemberTenants, claim.Tenant) ||
+		!tokenScopeCovers(claim.TokenScope.Tenants, claim.Tenant) ||
 		!tokenScopeCovers(claim.TokenScope.Regions, claim.Region) ||
 		!tokenScopeCovers(claim.TokenScope.Workspaces, claim.Workspace) {
 		return false
@@ -79,8 +83,9 @@ func Evaluate(
 	return false
 }
 
-// tokenScopeCovers reports whether an optional token-scope cap permits the request's
-// value for one dimension (tenant, region, or workspace).
+// tokenScopeCovers reports whether an optional token cap — a token-scope dimension
+// (tenant, region, or workspace) or the issuer-asserted tenant membership — permits the
+// request's value for that dimension.
 //
 // A cap denies only when it is non-empty AND the request's value is present but not listed.
 // An empty cap imposes no restriction. An empty request value means the dimension does not

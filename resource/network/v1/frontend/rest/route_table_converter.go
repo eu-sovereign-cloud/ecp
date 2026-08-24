@@ -157,7 +157,7 @@ func routeTableIteratorToAPI(rts []*routetabledom.RouteTable, nextSkipToken *str
 }
 
 // routeTableFromAPI converts an SDK RouteTable to a RouteTable.
-func routeTableFromAPI(sdk sdkschema.RouteTable, id *RouteTableIdentity, region string) *routetabledom.RouteTable {
+func routeTableFromAPI(sdk sdkschema.RouteTable, id *RouteTableIdentity, region string) (*routetabledom.RouteTable, error) {
 	routes := make([]routetabledom.RouteSpec, len(sdk.Spec.Routes))
 	for i, route := range sdk.Spec.Routes {
 		routes[i] = routetabledom.RouteSpec{
@@ -182,7 +182,7 @@ func routeTableFromAPI(sdk sdkschema.RouteTable, id *RouteTableIdentity, region 
 	rt.Annotations = sdk.Annotations
 	rt.Extensions = sdk.Extensions
 
-	return rt
+	return rt, nil
 }
 
 // newRouteTableWithIdentity returns a *routetabledom.RouteTable populated with identity fields from ir.

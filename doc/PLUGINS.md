@@ -72,6 +72,12 @@ Choosing a progress signal opts out of the workqueue's exponential backoff in fa
 
 A progress signal must be the **outermost** error. Never wrap a failure inside one: the reconciler classifies failures first, so a wrapped `ErrNotSupported` still stops, but anything else you hide in there becomes a quiet reschedule.
 
+The two sentinels above are the plugin port's own vocabulary and are matched with `errors.Is`, so
+wrap them with `%w` rather than re-wording them. Everything else a plugin returns follows the
+repo-wide contract in [CONVENTIONS.md §10](CONVENTIONS.md#10--error-contract): wrap the cause, and
+use `kernel.NewError` where the failure leaves the plugin — the reason ends up verbatim in the
+resource's condition, so a stringified chain is a reason the operator cannot act on.
+
 `ErrNotSupported` is for a change the provider cannot make at all, not one that has not finished. Cloud resources routinely have immutable fields — an Aruba VPC's region, an instance's flavor — and retrying those re-issues a request the provider has already refused. Wrap it so the reason reaches the user:
 
 ```go

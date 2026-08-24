@@ -42,6 +42,12 @@ spec:
             value: "##SCENARIOS_CIDR##"
           - name: SCENARIOS_PUBLIC_IPS
             value: "##SCENARIOS_PUBLIC_IPS##"
+          - name: RETRY_BASE_DELAY
+            value: "##RETRY_BASE_DELAY##"
+          - name: RETRY_BASE_INTERVAL
+            value: "##RETRY_BASE_INTERVAL##"
+          - name: RETRY_MAX_ATTEMPTS
+            value: "##RETRY_MAX_ATTEMPTS##"
         # Stay alive so scripts/conformance.sh can exec run-conformance.sh on demand.
         command: [ "sleep", "infinity" ]
         resources: {}

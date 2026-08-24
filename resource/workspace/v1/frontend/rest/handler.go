@@ -60,7 +60,7 @@ func (h *Handler) CreateOrUpdateWorkspace(w http.ResponseWriter, r *http.Request
 		Params:  id,
 		Creator: frest.CreatorFromRepo(h.Writer),
 		Updater: frest.UpdaterFromRepo(h.Writer),
-		APIToDomain: func(sdk sdkschema.Workspace, p persistencepkg.IdentifiableResource) *wsdom.Workspace {
+		APIToDomain: func(sdk sdkschema.Workspace, p persistencepkg.IdentifiableResource) (*wsdom.Workspace, error) {
 			return workspaceFromAPI(sdk, p.(*resource.Identity), region)
 		},
 		DomainToAPI: workspaceToAPIWithVerb(http.MethodPut),

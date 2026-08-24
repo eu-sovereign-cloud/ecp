@@ -158,11 +158,13 @@ func TestWriterAdapter_Create_ObservesCreate(t *testing.T) {
 		dynFake,
 		testGVR,
 		logger,
-		func(d *testIdentifiable) (client.Object, error) {
-			return newTestObject("", d.name), nil
-		},
-		func(o client.Object) (*testIdentifiable, error) {
-			return &testIdentifiable{name: o.GetName()}, nil
+		TwoWayConverter[*testIdentifiable]{
+			FromCR: func(o client.Object) (*testIdentifiable, error) {
+				return &testIdentifiable{name: o.GetName()}, nil
+			},
+			ToCR: func(d *testIdentifiable) (client.Object, error) {
+				return newTestObject("", d.name), nil
+			},
 		},
 	)
 
@@ -183,9 +185,8 @@ func TestCreateNamespace_ObservesNamespaces(t *testing.T) {
 	t.Cleanup(func() { SetUpstreamObserver(nil) })
 
 	cs := k8sfake.NewClientset()
-	created, err := CreateNamespace(context.Background(), cs, "ns-observe", map[string]string{"k": "v"})
+	err := CreateNamespace(context.Background(), cs, "ns-observe", map[string]string{"k": "v"})
 	require.NoError(t, err)
-	require.True(t, created)
 
 	obs := rec.snapshot()
 	require.Len(t, obs, 1)

@@ -49,7 +49,7 @@ func (h *Handler) CreateOrUpdateNetwork(w http.ResponseWriter, r *http.Request, 
 		Params:  id,
 		Creator: frest.CreatorFromRepo(h.NetworkWriter),
 		Updater: frest.UpdaterFromRepo(h.NetworkWriter),
-		APIToDomain: func(sdk sdkschema.Network, p persistencepkg.IdentifiableResource) *netdom.Network {
+		APIToDomain: func(sdk sdkschema.Network, p persistencepkg.IdentifiableResource) (*netdom.Network, error) {
 			return networkFromAPI(sdk, p.(*resource.Identity), region)
 		},
 		DomainToAPI: networkToAPIWithVerb(http.MethodPut),

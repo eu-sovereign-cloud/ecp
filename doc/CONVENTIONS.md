@@ -53,10 +53,19 @@ infix tokens in function names.
 
 | Direction | Signature shape |
 |-----------|----------------|
-| API → domain | `XFromAPI(sdk …, id, region string) *dom.X` |
+| API → domain | `XFromAPI(sdk …, id, region string) (*dom.X, error)` |
 | domain → API | `XToAPI(x *dom.X) *sdk.X` |
 | domain list → API list | `XIteratorToAPI(iter …) []sdk.X` |
 | domain → API with HTTP verb | `XToAPIWithVerb(x *dom.X, verb string) *sdk.X` |
+
+**Only the inbound direction returns an error**, and the asymmetry is deliberate. `XFromAPI` is
+the request boundary: its input came off the wire and may name something the domain has no
+representation for, so it has to be able to say so — `framework/frontend/rest.APIToDomain` is
+typed for it and `HandleUpsert` turns the failure into an RFC 7807 response. `XToAPI` converts a
+value that already passed a boundary check (`XFromAPI` on the write path, `XFromCR` on the read
+path), so an error return there would be a branch no input can reach. A converter whose body has
+nothing to reject still carries the error in its signature — the contract belongs to the layer,
+not to whichever resource currently happens to have an enum field.
 
 ### Sub-object helpers in `resource/common`
 
@@ -64,10 +73,49 @@ The same `FromCR`/`ToCR`/`FromAPI`/`ToAPI` suffixes apply to sub-object converte
 
 ```
 ReferenceFromCR / ReferenceToCR / ReferenceFromAPI / ReferenceToAPI / ReferencePtrToAPI
-StatusConditionFromCR / StatusConditionToCR
+StatusFromCR / StatusToCR
+StatusConditionFromCR / StatusConditionToCR / ConditionsFromCR / ConditionsToCR
 ResourceStateFromCR / ResourceStateToCR / ResourceStateToAPI
+IPVersionFromCR / IPVersionToCR / IPVersionFromAPI / IPVersionToAPI
 ConditionsToAPI / conditionToAPI   (conditionToAPI is unexported — lower-case is intentional)
 ```
+
+`StatusFromCR`/`StatusToCR` are what a slice actually calls (§8 shows the call site): a CR status is
+always a state plus a set of conditions, so mapping them together is one error to wrap instead of
+two, and the domain statuses embed `commondomain.Status` so the result assigns in one line. Reach
+for the narrower `ResourceStateFromCR`/`ConditionsFromCR` pair only where a status is not shaped
+like `commondomain.Status` — a nested per-route or per-rule status, say.
+
+The enum and condition helpers follow §10: the ones that read a stored or requested value
+(`…FromCR`, `…FromAPI`) return `(T, error)` and reject a value they do not recognise; the ones
+that write it out (`…ToAPI`) are total. `ResourceStateToCR` is the exception on the write side —
+the CRD requires the field, so there is no empty state to write and it reports one.
+
+### The exported pair — `Converter`
+
+Every read-write slice's `backend/kubernetes/conversion.go` exports its two directions bundled as
+one value:
+
+```go
+// Converter is the CR<->domain conversion pair for BlockStorage.
+var Converter = k8sadapter.TwoWayConverter[*bsdom.BlockStorage]{
+	FromCR: BlockStorageFromCR,
+	ToCR:   BlockStorageToCR,
+}
+```
+
+`TwoWayConverter[T]` lives in `framework/backend/kubernetes` — the only layer where
+`client.Object` is legal — and every adapter that needs both directions
+(`NewWriterAdapter`, `NewRepoAdapter`, and the two namespace-managing variants) takes it in place
+of two function arguments. Read-only adapters (`NewReaderAdapter`, `NewWatcherAdapter`) keep the
+bare `K8sToDomain[T]`: requiring a `ToCR` they never call would be an argument that exists only
+to be ignored. Read-only slices therefore export no `Converter` — nothing would consume it — even
+though they keep an `XToCR` for symmetry and tests.
+
+The win is at the call sites, not in the type. `gateway/cmd/regionalapiserver.go`,
+`csp/dummy/pkg/plugin/`, each slice's `controller.go` and every suite that builds a repo used to
+name `XToCR` and `XFromCR` separately at each of them; now they name `Converter` once, and a slice
+that changes how it converts changes one line.
 
 ### Rationale
 
@@ -232,22 +280,28 @@ Parallel operations on the same domain type must share the same code structure. 
 the same interface method must look the same: same helpers, same variable names, same error-string
 template, same flow.
 
-**Resource-state conversion:** always use the `ResourceStateFromCR` helper from
-`resource/common/backend`; never use a raw type cast.
+**Status conversion:** always use the `StatusFromCR`/`StatusToCR` helpers from
+`resource/common/backend` (or the narrower state/condition ones where the status is not shaped
+like `commondomain.Status`); never use a raw type cast.
 
 ```go
-// ✓ correct — uses the shared helper
-state, err := commonbackend.ResourceStateFromCR(cr.Status.State)
+// ✓ correct — uses the shared helper and keeps its chain
+status, err := commonbackend.StatusFromCR(cr.Status.State, cr.Status.Conditions)
 if err != nil {
-    return nil, fmt.Errorf("block storage %s: invalid resource state: %w", cr.Name, err)
+    return nil, fmt.Errorf("block storage %s: %w", cr.Name, err)
 }
+bs.Status.Status = status
 
 // ✗ wrong — raw cast bypasses validation and breaks structural symmetry
 state := domain.ResourceState(cr.Status.State)
 ```
 
 **Error strings:** follow the template `"<resource> <name>: <description>: %w"` for all conversion
-errors in a given slice. Use the same template across `FromCR`, `ToCR`, `FromAPI`, `ToAPI`.
+errors in a given slice, and use the same template across `FromCR`, `ToCR`, `FromAPI`, `ToAPI`.
+Drop `<description>` when the wrapped error already carries it — `"block storage bs-1: unknown
+resource state \"halfway\""` says everything twice if the caller prefixes "invalid resource
+state" as well. **Always carry the name**: `<resource>` alone cannot tell two failing resources
+apart in a delegator log that is reconciling hundreds.
 
 **Pending-state predicate:** the `isXPending` helper in every `plugin_handler.go` must apply the same
 guard: treat nil status as pending, and only consider deletion pending when `DeletedAt == nil` (i.e.
@@ -293,6 +347,59 @@ learn a new assertion vocabulary to move between two test files.
 Competing toolkits (`gomega`, `ginkgo`, `gotest.tools`, `go-cmp` as an assertion) are denied in test
 files by the `test-toolkit` depguard rule in `.golangci.yml`. `go-cmp` remains allowed in non-test
 code, where it is a diffing library rather than an assertion library.
+
+---
+
+## §10 — Error contract
+
+There is one error type that crosses a layer boundary: `kernel.Error` (`framework/kernel`). A
+caller on the other side of a boundary must be able to `errors.As` an error to `*kernel.Error`,
+read its `Kind`, and get an HTTP status or a retry decision out of it without string matching.
+
+### Where `kernel.Error` is required
+
+Wrap with `kernel.NewError(kind, cause, sources…)` at the point where the failure **leaves its
+layer** — conversion (`XFromCR`/`XToCR`/`XFromAPI`), persistence adapters, plugin handlers, and
+anything a REST handler can reach. Pick the kind by who is at fault:
+
+| Kind | Use for | Status |
+|---|---|---|
+| `KindValidation` | a value the caller or a stored CR carries that the domain has no representation for | 422 |
+| `KindInternal` | a wiring or programming fault — a nil argument, an object type this slice never converts | 500 |
+| `KindUnavailable` | an upstream that is not answering — a provider, an informer that will not sync | 500 |
+| `KindNotFound` / `KindConflict` / `KindAlreadyExists` / `KindPreconditionFailed` / `KindForbidden` / `KindUnauthorized` | as their names say; `framework/backend/kubernetes` already maps the Kubernetes equivalents | — |
+
+Attach a `kernel.ErrorSource{Name, Value}` when a specific field caused it. It is rendered into
+the RFC 7807 response's `sources`, which is what tells a caller *which* field to fix.
+
+### Where a plain error is still correct
+
+A leaf whose only caller wraps it, and startup or CLI errors that are printed to an operator and
+never inspected — `gateway/cmd`, `kubeclient`, the `framework/backend/kubernetes/cmd/*` code
+generators. Wrapping those buys nothing and costs an import.
+
+### Preserving the chain
+
+- **Always `%w`.** `fmt.Errorf("…: %v", err)` and `errors.New(err.Error())` both sever
+  `errors.Is`/`errors.As` at that line, and every layer above loses the kind.
+- **Never re-derive an error from a string.** Where a cause genuinely arrives as text — a
+  Crossplane `Synced` condition, say — turn it back into an error and wrap *that*, so the chain
+  exists even though the original value does not (`csp/ionos/pkg/adapter/crossplane.reconcileError`).
+- **Rendering is not wrapping.** `err.Error()` is correct when the destination is a human-readable
+  field: a `StatusCondition.Message`, an RFC 7807 `detail`.
+
+### Not swallowing
+
+`_ = f()` is allowed only where the discarded value cannot be acted on, and the line says why in
+a comment. Today that is: `hash.Hash.Write` (documented never to fail), any response body written
+after the status line is already on the wire (the REST handlers and the probes alike — a failure
+there is a client that hung up), a force-close on an already-failing shutdown path, and a poll in
+a goroutine nobody joins. Anything else propagates or logs.
+
+The same rule covers enum conversion. Returning the zero value for input you do not recognise is
+swallowing with extra steps: it makes a typo indistinguishable from an unset field, and pushes
+the rejection to whatever validates next — usually a CRD, which answers the caller with a message
+about a field they never wrote. See §2 for which direction rejects and which one trusts.
 
 ---
 

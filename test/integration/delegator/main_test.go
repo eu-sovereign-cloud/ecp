@@ -126,16 +126,14 @@ func TestMain(m *testing.M) {
 		dynamicClient,
 		bsk8s.BlockStorageGVR,
 		testLogger,
-		bsk8s.BlockStorageToCR,
-		bsk8s.BlockStorageFromCR,
+		bsk8s.Converter,
 	)
 
 	imageRepo = k8sadapter.NewRepoAdapter(
 		dynamicClient,
 		imgk8s.ImageGVR,
 		testLogger,
-		imgk8s.ImageToCR,
-		imgk8s.ImageFromCR,
+		imgk8s.Converter,
 	)
 
 	// Namespace-managing, exactly as the regional gateway wires it: creating a Network
@@ -146,8 +144,7 @@ func TestMain(m *testing.M) {
 		clientset,
 		netk8s.NetworkGVR,
 		testLogger,
-		netk8s.NetworkToCR,
-		netk8s.NetworkFromCR,
+		netk8s.Converter,
 		k8sadapter.NetworkChildren,
 		netk8s.ChildResourceGVRs,
 	)
@@ -156,24 +153,21 @@ func TestMain(m *testing.M) {
 		dynamicClient,
 		subnetk8s.SubnetGVR,
 		testLogger,
-		subnetk8s.SubnetToCR,
-		subnetk8s.SubnetFromCR,
+		subnetk8s.Converter,
 	)
 
 	routeTableRepo = k8sadapter.NewRepoAdapter(
 		dynamicClient,
 		routetablek8s.RouteTableGVR,
 		testLogger,
-		routetablek8s.RouteTableToCR,
-		routetablek8s.RouteTableFromCR,
+		routetablek8s.Converter,
 	)
 
 	instanceRepo = k8sadapter.NewRepoAdapter(
 		dynamicClient,
 		instancek8s.InstanceGVR,
 		testLogger,
-		instancek8s.InstanceToCR,
-		instancek8s.InstanceFromCR,
+		instancek8s.Converter,
 	)
 
 	workspaceRepo = k8sadapter.NewNamespaceManagingRepoAdapter(
@@ -181,8 +175,7 @@ func TestMain(m *testing.M) {
 		clientset,
 		wsk8s.WorkspaceGVR,
 		testLogger,
-		wsk8s.WorkspaceToCR,
-		wsk8s.WorkspaceFromCR,
+		wsk8s.Converter,
 		k8sadapter.WorkspaceChildren,
 		wsk8s.ChildResourceGVRs,
 	)

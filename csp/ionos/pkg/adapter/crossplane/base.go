@@ -12,7 +12,8 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
+	backend "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
 )
 
 const (
@@ -98,10 +99,23 @@ func (c *base) checkExisting(ctx context.Context, obj xpconditions.ObjectWithCon
 	return backend.StillProcessing
 }
 
+// reconcileError reports the provider's own reconcile failure, if the Crossplane managed resource
+// is carrying one.
+//
+// The cause arrives as a string on the Synced condition — Crossplane serialises it over the wire,
+// so there is no original error value to unwrap. It is turned back into an error and wrapped in a
+// kernel.Error rather than flattened into a message, so a caller can errors.As it like every other
+// failure crossing this boundary; the provider being unable to converge is an upstream outage from
+// here, hence KindUnavailable.
 func reconcileError(obj xpconditions.ObjectWithConditions) error {
 	synced := obj.GetCondition(v1.TypeSynced)
-	if synced.Equal(v1.ReconcileError(errors.New(synced.Message))) {
-		return fmt.Errorf("provider failed to reconcile %s: %s", obj.GetObjectKind().GroupVersionKind().Kind, synced.Message)
+	cause := errors.New(synced.Message)
+	if !synced.Equal(v1.ReconcileError(cause)) {
+		return nil
 	}
-	return nil
+
+	kind := obj.GetObjectKind().GroupVersionKind().Kind
+	return kernel.NewError(kernel.KindUnavailable,
+		fmt.Errorf("provider failed to reconcile %s: %w", kind, cause),
+		kernel.ErrorSource{Name: kind, Value: obj.GetName()})
 }

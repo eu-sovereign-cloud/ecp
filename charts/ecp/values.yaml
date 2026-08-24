@@ -32,6 +32,13 @@ auth:
     # Name of a pre-existing Secret with a "jwt.pub" key. Takes precedence
     # over key.
     existingSecret: ""
+    # Expected "iss" claim. Empty accepts any issuer; set it to your IdP's
+    # issuer URL so a token minted elsewhere is rejected even when it is
+    # signed with a key this gateway trusts.
+    issuer: ""
+    # Expected "aud" claim. Empty accepts any audience; set it to this API's
+    # identifier so a token issued for another service is rejected.
+    audience: ""
   authz:
     # RBAC authorization (only effective when auth.enabled).
     enabled: true

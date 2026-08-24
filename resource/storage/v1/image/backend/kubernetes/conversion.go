@@ -14,6 +14,7 @@ import (
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
 	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/schema/v1"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	kernelresource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 
 	commonbackend "github.com/eu-sovereign-cloud/ecp/resource/common/backend"
@@ -31,10 +32,10 @@ func ImageFromCR(obj client.Object) (*imgdom.Image, error) {
 		cr = *t
 	case *unstructured.Unstructured:
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(t.Object, &cr); err != nil {
-			return nil, fmt.Errorf("failed to convert unstructured to Image: %w", err)
+			return nil, kernel.NewError(kernel.KindValidation, fmt.Errorf("failed to convert unstructured to Image: %w", err))
 		}
 	default:
-		return nil, fmt.Errorf("unsupported object type %T", obj)
+		return nil, kernel.NewError(kernel.KindInternal, fmt.Errorf("unsupported object type %T", obj))
 	}
 
 	crLabels := cr.GetLabels()
@@ -69,8 +70,11 @@ func ImageFromCR(obj client.Object) (*imgdom.Image, error) {
 		img.Status = &imgdom.ImageStatus{
 			SizeMB: cr.Status.SizeMB,
 		}
-		img.Status.State = commonbackend.ResourceStateFromCR(cr.Status.State)
-		img.Status.Conditions = commonbackend.ConditionsFromCR(cr.Status.Conditions)
+		status, err := commonbackend.StatusFromCR(cr.Status.State, cr.Status.Conditions)
+		if err != nil {
+			return nil, fmt.Errorf("image %s: %w", cr.Name, err)
+		}
+		img.Status.Status = status
 	} else {
 		img.Status.PushCondition(commondomain.DefaultPendingCondition)
 	}
@@ -81,7 +85,7 @@ func ImageFromCR(obj client.Object) (*imgdom.Image, error) {
 // ImageToCR converts a *imgdom.Image to a Kubernetes Image CR.
 func ImageToCR(img *imgdom.Image) (client.Object, error) {
 	if img == nil {
-		return nil, fmt.Errorf("image is nil")
+		return nil, kernel.NewError(kernel.KindInternal, fmt.Errorf("image is nil"))
 	}
 
 	crLabels := k8slabels.OriginalToKeyed(img.Labels)
@@ -111,14 +115,14 @@ func ImageToCR(img *imgdom.Image) (client.Object, error) {
 	cr.SetGroupVersionKind(ImageGVK)
 
 	if img.Status != nil && len(img.Status.Conditions) > 0 {
-		state := commonbackend.ResourceStateToCR(img.Status.State)
-		if state == nil {
-			return nil, fmt.Errorf("failed to convert resource state to CR")
+		state, conds, err := commonbackend.StatusToCR(img.Status.Status)
+		if err != nil {
+			return nil, fmt.Errorf("image %s: %w", img.Name, err)
 		}
 		cr.Status = &ImageStatus{
 			SizeMB:     img.Status.SizeMB,
-			Conditions: commonbackend.ConditionsToCR(img.Status.Conditions),
-			State:      *state,
+			Conditions: conds,
+			State:      state,
 		}
 	}
 
@@ -129,4 +133,10 @@ func ImageToCR(img *imgdom.Image) (client.Object, error) {
 // Image CRs live in the tenant namespace (images are tenant-scoped, not workspace-scoped).
 func tenantOnlyScope(tenant string) *kernelresource.Scope {
 	return &kernelresource.Scope{Tenant: tenant}
+}
+
+// Converter is the CR<->domain conversion pair for Image.
+var Converter = k8sadapter.TwoWayConverter[*imgdom.Image]{
+	FromCR: ImageFromCR,
+	ToCR:   ImageToCR,
 }

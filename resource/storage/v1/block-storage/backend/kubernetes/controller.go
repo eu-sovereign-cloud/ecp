@@ -30,8 +30,7 @@ func NewController(
 		dynClient,
 		BlockStorageGVR,
 		options.Logger,
-		BlockStorageToCR,
-		BlockStorageFromCR,
+		Converter,
 	)
 	deps := commonbackend.NewReferenceResolver(dynClient)
 	handler := NewBlockStoragePluginHandler(repo, plugin, options.MaxConditions, deps)

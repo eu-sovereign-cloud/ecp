@@ -53,7 +53,7 @@ func TestNetworkBackend_CreateAndGetNetwork(t *testing.T) {
 
 	// Create the namespace before creating network resources. The WriterAdapter
 	// does not manage namespaces automatically, so it must exist in advance.
-	_, err = k8sadapter.CreateNamespace(ctx, clientset, namespace, map[string]string{
+	err = k8sadapter.CreateNamespace(ctx, clientset, namespace, map[string]string{
 		k8slabels.InternalTenantLabel: tenant,
 	})
 	require.NoError(t, err)
@@ -66,8 +66,7 @@ func TestNetworkBackend_CreateAndGetNetwork(t *testing.T) {
 		dynClient,
 		NetworkGVR,
 		slog.Default(),
-		NetworkToCR,
-		NetworkFromCR,
+		Converter,
 	)
 
 	readerRepo := k8sadapter.NewReaderAdapter[*netdom.Network](

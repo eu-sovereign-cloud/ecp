@@ -39,7 +39,8 @@ func TestInstanceFromAPIToAPIRoundTrip(t *testing.T) {
 	}
 	id := &resource.Identity{Name: "inst1", Scope: resource.Scope{Tenant: "t1", Workspace: "w1"}}
 
-	dom := instanceFromAPI(sdk, id, "r1")
+	dom, err := instanceFromAPI(sdk, id, "r1")
+	require.NoError(t, err)
 	require.Equal(t, "inst1", dom.Name)
 	require.Equal(t, "t1", dom.Tenant)
 	require.Equal(t, "w1", dom.Workspace)

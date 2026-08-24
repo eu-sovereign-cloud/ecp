@@ -5,6 +5,8 @@ import (
 
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
+
 	"github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 )
 
@@ -43,14 +45,21 @@ func IPVersionToAPI(v domain.IPVersion) schema.IPVersion {
 }
 
 // IPVersionFromAPI maps schema.IPVersion to domain.IPVersion.
-func IPVersionFromAPI(v schema.IPVersion) domain.IPVersion {
+//
+// It is the request boundary, so an unrecognised value is rejected rather than flattened; empty is
+// carried through, since the field is optional on some specs. See doc/CONVENTIONS.md §10.
+func IPVersionFromAPI(v schema.IPVersion) (domain.IPVersion, error) {
 	switch v {
+	case "":
+		return "", nil
 	case schema.IPVersionIPv4:
-		return domain.IPVersionIPv4
+		return domain.IPVersionIPv4, nil
 	case schema.IPVersionIPv6:
-		return domain.IPVersionIPv6
+		return domain.IPVersionIPv6, nil
 	default:
-		return ""
+		return "", kernel.NewError(kernel.KindValidation,
+			fmt.Errorf("unknown ip version %q", v),
+			kernel.ErrorSource{Name: "version", Value: string(v)})
 	}
 }
 

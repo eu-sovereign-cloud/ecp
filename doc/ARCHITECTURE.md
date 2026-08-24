@@ -45,6 +45,13 @@ backend/kubernetes → kernel
 frontend           → kernel
 ```
 
+Errors travel **up** that DAG unchanged. `kernel.Error` carries a `Kind` and the fields that
+caused the failure, every layer wraps rather than re-formats (`%w`), and the REST layer is the
+only place that turns a kind into an HTTP status — so a conversion failure deep in a slice
+reaches the caller as the right status without any layer in between knowing about HTTP. The
+contract, and where a plain error is still correct, is in
+[CONVENTIONS.md §10](CONVENTIONS.md#10--error-contract).
+
 ## Per-Resource Slice (vertical hexagon)
 
 Each resource slice at `resource/{group}/vN/{resource}/` contains:
@@ -52,6 +59,8 @@ Each resource slice at `resource/{group}/vN/{resource}/` contains:
 - **`domain.go`** (`package <resource>`) — the canonical domain type, `RegionalMetadata` embed, and identity consts (`Kind`, `Resource`, `Group`, `Version`, and a provider identifier). No k8s imports.
 - **`frontend/rest/`** — REST↔domain converters and, for the group owner, HTTP handlers implementing the go-sdk `ServerInterface`. One handler per API group (shared across sibling resources); per-resource files are `<resource>_handler.go` and `<resource>_converter.go`. Registered into the gateway mux.
 - **`backend/kubernetes/`** — CR wrapper types, GVR/GVK, CR↔domain adapter (`conversion.go`), plugin interface (`plugin.go`), plugin handler (`plugin_handler.go`), and controller wiring (`controller.go`). The `NewController` factory performs **builder inversion**: it assembles the `framework/backend/kubernetes` repo adapter from this slice's own GVR and mappers, wraps it in `framework/backend/kubernetes/controller.GenericController[D]`, and returns a `framework/backend/kubernetes/builder.Reconciler` — no `framework` package ever names a concrete resource.
+
+  A read-write `conversion.go` exports its two directions as one value, `Converter` (a `k8sadapter.TwoWayConverter[D]`), and every adapter that writes takes that instead of a `ToCR`/`FromCR` pair. It is what the controller, the gateway wiring and the test suites all name, so a slice that changes how it converts changes one line rather than one per call site. Read-only slices export no `Converter`: their reader adapter takes the bare `FromCR`. See [CONVENTIONS.md §2](CONVENTIONS.md#2--conversion-function-naming).
 
 ## Module DAG
 
@@ -97,11 +106,15 @@ Three levels of namespace exist, and each is labeled with the internal `secapi.c
 
 ### Namespace lifecycle
 
-Creation is synchronous, on the write path, because a namespace must exist before a CR can be written into it and the API answers immediately. `NamespaceManagingWriterAdapter.Create` ensures two namespaces: the tenant namespace, and — for the entities that own one — the one their children will land in.
+Creation is split between the write path and the delegator. `NamespaceManagingWriterAdapter.Create` provisions the tenant namespace *before* the CR, because the CR itself lives in it and the write would otherwise fail with `NotFound`. The namespace an entity owns for its **children** is provisioned *after* the CR and opportunistically: nothing is waiting on it inside that request, so its failure is logged rather than returned and the create still succeeds.
 
 Only the **tenant** namespace is provisioned on a resource's own behalf, because there is no `Tenant` entity that would otherwise create it. Below that level a namespace is owned by a parent entity and its absence *is* the referential-integrity check: a `Network` addressed to a workspace that was never created fails with `NotFound` rather than fabricating `sha3-224(tenant/workspace)` and stranding resources in a workspace no listing will ever return. The same holds for every leaf resource, which uses a plain `WriterAdapter` and never creates a namespace at all.
 
-Only entities that own a namespace go through that adapter (`Workspace`, `Network`, and `Role`/`RoleAssignment` on the global gateway). The child-namespace ensure is rolled back if the CR create then fails: the caller names that namespace and only the owning CR's finalizer ever reclaims one, so without a CR it would leak permanently. The tenant namespace is not rolled back — it is shared, bounded by the authenticated tenant, and adopted by the next create.
+Only entities that own a namespace go through that adapter (`Workspace`, `Network`, and `Role`/`RoleAssignment` on the global gateway). Ordering the child namespace after the CR is what makes it recoverable: the CR is the namespace's only owner, so one created first and then orphaned by a failed CR write leaks permanently, while a CR written without its namespace is repaired on the next reconcile. The tenant namespace needs no such care — it is shared, bounded by the authenticated tenant, and adopted by the next create.
+
+The owning controller in the delegator is the backstop, via the `GenericController.WithEnsure` hook: `NamespaceEnsure` runs before the plugin handler on every reconcile of a live resource, and gates it — a failure requeues with backoff instead of letting the resource go `active` without its namespace. That closes the crash window completely — a gateway that dies after writing the CR leaves a *new* CR, which always reconciles — and it is what repairs a namespace deleted or relabelled out of band, which nothing else ever did. The second case is prompt only if something reconciles the CR: the manager sets no `SyncPeriod`, so a settled resource is otherwise resynced on controller-runtime's default period. `CreateNamespace` is idempotent and stamps the owner labels teardown checks, so a repaired namespace stays reclaimable. The hook is skipped once the resource is being deleted, so it cannot race `NamespaceCleanup` back into existence.
+
+The child namespace is therefore eventually consistent while the CR is not: a child resource created in the window between the two fails with `NotFound` and has to be retried by its caller.
 
 Teardown belongs to the owning controller in the delegator, via the `GenericController.WithCleanup` hook: `NamespaceCleanup` runs once, after the plugin has finished deleting and before the finalizer is dropped. It re-checks emptiness, verifies ownership, then deletes the namespace. Because the finalizer is still held, a failure is retried instead of orphaning the namespace. A namespace whose owner labels do not match is left in place and logged — deleting someone else's namespace is worse than leaking one.
 
@@ -114,7 +127,8 @@ chain. When enabled (`--auth-enabled`), every request must carry a valid
 `Authorization: Bearer <token>` header and the decoded identity must be
 authorised by the RBAC policy before the request reaches the handler. A caller's
 roles are resolved from `RoleAssignment`/`Role` in the tenant namespace — never
-from the token, which carries only the subject and an optional down-scope.
+from the token, which carries only the subject, the issuer-asserted tenant
+membership and an optional down-scope (the last two cap the request, never grant).
 
 ```
 HTTP request
@@ -143,7 +157,8 @@ All framework-layer types (`Authenticator`, `Checker`, `ClaimExtractor`,
 resource-agnostic. Concrete implementations (`DummyAuthenticator`, SECA RBAC
 `Checker`, `CachedChecker`) live in `gateway/` and may import `resource/`.
 
-See [doc/AUTH.md](AUTH.md) for the full reference — bearer-token format, token
+See [doc/AUTH.md](AUTH.md) for the full reference — bearer-token formats (dummy and
+signed JWT), issuer/audience verification, the tenant-membership gate, token
 down-scoping, config flags, the RBAC algorithm, and a code layout map.
 
 ## Cascaded Deletion

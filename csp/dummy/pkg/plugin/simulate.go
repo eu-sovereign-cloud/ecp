@@ -108,8 +108,7 @@ func simulateBS(ctx context.Context, op string, resource *bsdom.BlockStorage, de
 				dynamicClient,
 				storageconv.BlockStorageGVR,
 				logger,
-				storageconv.BlockStorageToCR,
-				storageconv.BlockStorageFromCR,
+				storageconv.Converter,
 			)
 			_, err = repo.Update(ctx, resource)
 			return err
@@ -128,8 +127,7 @@ func simulateImage(ctx context.Context, op string, resource *imgdom.Image, delay
 				dynamicClient,
 				imageconv.ImageGVR,
 				logger,
-				imageconv.ImageToCR,
-				imageconv.ImageFromCR,
+				imageconv.Converter,
 			)
 			_, err = repo.Update(ctx, resource)
 			return err
@@ -148,8 +146,7 @@ func simulateWS(ctx context.Context, op string, resource *wsdom.Workspace, delay
 				dynamicClient,
 				workspaceconv.WorkspaceGVR,
 				logger,
-				workspaceconv.WorkspaceToCR,
-				workspaceconv.WorkspaceFromCR,
+				workspaceconv.Converter,
 			)
 			_, err = repo.Update(ctx, resource)
 			return err
@@ -168,8 +165,7 @@ func simulateInstance(ctx context.Context, op string, resource *instancedom.Inst
 				dynamicClient,
 				instanceconv.InstanceGVR,
 				logger,
-				instanceconv.InstanceToCR,
-				instanceconv.InstanceFromCR,
+				instanceconv.Converter,
 			)
 			_, err = repo.Update(ctx, resource)
 			return err
@@ -188,8 +184,7 @@ func simulateNic(ctx context.Context, op string, resource *nicdom.Nic, delay tim
 				dynamicClient,
 				nicconv.NICGVR,
 				logger,
-				nicconv.NicToCR,
-				nicconv.NicFromCR,
+				nicconv.Converter,
 			)
 			_, err = repo.Update(ctx, resource)
 			return err
@@ -208,8 +203,7 @@ func simulatePublicIp(ctx context.Context, op string, resource *publicipdom.Publ
 				dynamicClient,
 				publicipconv.PublicIPGVR,
 				logger,
-				publicipconv.PublicIpToCR,
-				publicipconv.PublicIpFromCR,
+				publicipconv.Converter,
 			)
 			_, err = repo.Update(ctx, resource)
 			return err
@@ -228,8 +222,7 @@ func simulateInternetGateway(ctx context.Context, op string, resource *internetg
 				dynamicClient,
 				internetgatewayconv.InternetGatewayGVR,
 				logger,
-				internetgatewayconv.InternetGatewayToCR,
-				internetgatewayconv.InternetGatewayFromCR,
+				internetgatewayconv.Converter,
 			)
 			_, err = repo.Update(ctx, resource)
 			return err
@@ -248,8 +241,7 @@ func simulateNet(ctx context.Context, op string, resource *netdom.Network, delay
 				dynamicClient,
 				networkconv.NetworkGVR,
 				logger,
-				networkconv.NetworkToCR,
-				networkconv.NetworkFromCR,
+				networkconv.Converter,
 			)
 			_, err = repo.Update(ctx, resource)
 			return err
@@ -268,8 +260,7 @@ func simulateRouteTable(ctx context.Context, op string, resource *routetabledom.
 				dynamicClient,
 				routetableconv.RouteTableGVR,
 				logger,
-				routetableconv.RouteTableToCR,
-				routetableconv.RouteTableFromCR,
+				routetableconv.Converter,
 			)
 			_, err = repo.Update(ctx, resource)
 			return err
@@ -288,8 +279,7 @@ func simulateSubnet(ctx context.Context, op string, resource *subnetdom.Subnet, 
 				dynamicClient,
 				subnetconv.SubnetGVR,
 				logger,
-				subnetconv.SubnetToCR,
-				subnetconv.SubnetFromCR,
+				subnetconv.Converter,
 			)
 			_, err = repo.Update(ctx, resource)
 			return err
@@ -308,8 +298,7 @@ func simulateSecurityGroup(ctx context.Context, op string, resource *securitygro
 				dynamicClient,
 				securitygroupconv.SecurityGroupGVR,
 				logger,
-				securitygroupconv.SecurityGroupToCR,
-				securitygroupconv.SecurityGroupFromCR,
+				securitygroupconv.Converter,
 			)
 			_, err = repo.Update(ctx, resource)
 			return err
@@ -328,8 +317,7 @@ func simulateSecurityGroupRule(ctx context.Context, op string, resource *securit
 				dynamicClient,
 				securitygroupruleconv.SecurityGroupRuleGVR,
 				logger,
-				securitygroupruleconv.SecurityGroupRuleToCR,
-				securitygroupruleconv.SecurityGroupRuleFromCR,
+				securitygroupruleconv.Converter,
 			)
 			_, err = repo.Update(ctx, resource)
 			return err

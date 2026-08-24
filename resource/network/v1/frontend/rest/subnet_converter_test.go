@@ -19,13 +19,14 @@ func TestSubnetFromAPIToAPIRoundTrip(t *testing.T) {
 			Cidr: sdkschema.Cidr{Ipv4: "10.0.0.0/24"},
 			// Reference.resource: {collection}/{name}
 			// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
-			RouteTableRef: new(sdkschema.Reference{Resource: "route-tables/rt1"}),
+			RouteTableRef: sdkschema.Reference{Resource: "route-tables/rt1"},
 			Zone:          "zone-a",
 		},
 	}
 	id := &SubnetIdentity{name: "sn1", tenant: "t1", workspace: "w1", network: "n1"}
 
-	dom := subnetFromAPI(sdk, id, "r1")
+	dom, err := subnetFromAPI(sdk, id, "r1")
+	require.NoError(t, err)
 	require.Equal(t, "sn1", dom.Name)
 	require.Equal(t, "t1", dom.Tenant)
 	require.Equal(t, "w1", dom.Workspace)

@@ -49,7 +49,7 @@ func (h *Handler) CreateOrUpdateNic(w http.ResponseWriter, r *http.Request, tena
 		Params:  id,
 		Creator: frest.CreatorFromRepo(h.NicWriter),
 		Updater: frest.UpdaterFromRepo(h.NicWriter),
-		APIToDomain: func(sdk sdkschema.Nic, p persistencepkg.IdentifiableResource) *nicdom.Nic {
+		APIToDomain: func(sdk sdkschema.Nic, p persistencepkg.IdentifiableResource) (*nicdom.Nic, error) {
 			return nicFromAPI(sdk, p.(*resource.Identity), region)
 		},
 		DomainToAPI: nicToAPIWithVerb(http.MethodPut),

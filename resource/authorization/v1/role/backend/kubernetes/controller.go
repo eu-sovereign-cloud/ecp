@@ -29,8 +29,7 @@ func NewController(
 		dynClient,
 		RoleGVR,
 		options.Logger,
-		RoleToCR,
-		RoleFromCR,
+		Converter,
 	)
 	handler := NewRolePluginHandler(repo, plugin, options.MaxConditions)
 	return &Controller{

@@ -102,7 +102,7 @@ func subnetToAPI(s *subnetdom.Subnet) *sdkschema.Subnet {
 		Extensions:  s.Extensions,
 		Spec: sdkschema.SubnetSpec{
 			Cidr:          cidrToAPI(netdom.CIDR(s.Spec.Cidr)),
-			RouteTableRef: new(commonfrontend.ReferenceToAPI(s.Spec.RouteTableRef)),
+			RouteTableRef: commonfrontend.ReferenceToAPI(s.Spec.RouteTableRef),
 			Zone:          s.Spec.Zone,
 		},
 	}
@@ -156,11 +156,11 @@ func subnetIteratorToAPI(ss []*subnetdom.Subnet, nextSkipToken *string) *sdknetw
 }
 
 // subnetFromAPI converts an SDK Subnet to a Subnet.
-func subnetFromAPI(sdk sdkschema.Subnet, id *SubnetIdentity, region string) *subnetdom.Subnet {
+func subnetFromAPI(sdk sdkschema.Subnet, id *SubnetIdentity, region string) (*subnetdom.Subnet, error) {
 	s := &subnetdom.Subnet{
 		Spec: subnetdom.SubnetSpec{
 			Cidr:          subnetdom.CIDR(cidrFromAPI(sdk.Spec.Cidr)),
-			RouteTableRef: commonfrontend.ReferenceFromAPI(*sdk.Spec.RouteTableRef),
+			RouteTableRef: commonfrontend.ReferenceFromAPI(sdk.Spec.RouteTableRef),
 			Zone:          sdk.Spec.Zone,
 		},
 	}
@@ -179,7 +179,7 @@ func subnetFromAPI(sdk sdkschema.Subnet, id *SubnetIdentity, region string) *sub
 	s.Annotations = sdk.Annotations
 	s.Extensions = sdk.Extensions
 
-	return s
+	return s, nil
 }
 
 // newSubnetWithIdentity returns a *subnetdom.Subnet populated with identity fields from ir.

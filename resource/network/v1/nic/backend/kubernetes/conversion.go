@@ -14,6 +14,7 @@ import (
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
 	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/schema/v1"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 
 	commonbackend "github.com/eu-sovereign-cloud/ecp/resource/common/backend"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
@@ -29,10 +30,10 @@ func NicFromCR(obj client.Object) (*nicdom.Nic, error) {
 		cr = *t
 	case *unstructured.Unstructured:
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(t.Object, &cr); err != nil {
-			return nil, fmt.Errorf("failed to convert unstructured to NIC: %w", err)
+			return nil, kernel.NewError(kernel.KindValidation, fmt.Errorf("failed to convert unstructured to NIC: %w", err))
 		}
 	default:
-		return nil, fmt.Errorf("unsupported object type %T", obj)
+		return nil, kernel.NewError(kernel.KindInternal, fmt.Errorf("unsupported object type %T", obj))
 	}
 
 	crLabels := cr.GetLabels()
@@ -72,8 +73,11 @@ func NicFromCR(obj client.Object) (*nicdom.Nic, error) {
 
 	n.Status = &nicdom.NicStatus{}
 	if cr.Status != nil {
-		n.Status.State = commonbackend.ResourceStateFromCR(cr.Status.State)
-		n.Status.Conditions = commonbackend.ConditionsFromCR(cr.Status.Conditions)
+		status, err := commonbackend.StatusFromCR(cr.Status.State, cr.Status.Conditions)
+		if err != nil {
+			return nil, fmt.Errorf("nic %s: %w", cr.Name, err)
+		}
+		n.Status.Status = status
 		n.Status.MacAddress = cr.Status.MacAddress
 		n.Status.Addresses = cr.Status.Addresses
 		for _, r := range cr.Status.PublicIpRefs {
@@ -89,7 +93,7 @@ func NicFromCR(obj client.Object) (*nicdom.Nic, error) {
 // NicToCR converts a *nicdom.Nic to a Kubernetes NIC CR.
 func NicToCR(n *nicdom.Nic) (client.Object, error) {
 	if n == nil {
-		return nil, fmt.Errorf("nic is nil")
+		return nil, kernel.NewError(kernel.KindInternal, fmt.Errorf("nic is nil"))
 	}
 
 	crLabels := k8slabels.OriginalToKeyed(n.Labels)
@@ -135,17 +139,17 @@ func NicToCR(n *nicdom.Nic) (client.Object, error) {
 	cr.SetGroupVersionKind(NICGVK)
 
 	if n.Status != nil && len(n.Status.Conditions) > 0 {
-		state := commonbackend.ResourceStateToCR(n.Status.State)
-		if state == nil {
-			return nil, fmt.Errorf("failed to convert resource state to CR")
+		state, conds, err := commonbackend.StatusToCR(n.Status.Status)
+		if err != nil {
+			return nil, fmt.Errorf("nic %s: %w", n.Name, err)
 		}
 		statusPublicIpRefs := make([]schemav1.Reference, len(n.Status.PublicIpRefs))
 		for i, r := range n.Status.PublicIpRefs {
 			statusPublicIpRefs[i] = commonbackend.ReferenceToCR(r)
 		}
 		cr.Status = &NicStatus{
-			Conditions:   commonbackend.ConditionsToCR(n.Status.Conditions),
-			State:        *state,
+			Conditions:   conds,
+			State:        state,
 			MacAddress:   n.Status.MacAddress,
 			Addresses:    n.Status.Addresses,
 			PublicIpRefs: statusPublicIpRefs,
@@ -153,4 +157,10 @@ func NicToCR(n *nicdom.Nic) (client.Object, error) {
 	}
 
 	return cr, nil
+}
+
+// Converter is the CR<->domain conversion pair for Nic.
+var Converter = k8sadapter.TwoWayConverter[*nicdom.Nic]{
+	FromCR: NicFromCR,
+	ToCR:   NicToCR,
 }
