@@ -37,7 +37,7 @@ resources are accepted and stay pending:
 
 | `plugin` | Reconciles by | Backend to install first |
 |----------|---------------|--------------------------|
-| `aruba` | writing `arubacloud.com` CRs | [arubacloud-resource-operator](https://github.com/Arubacloud/arubacloud-resource-operator) + Aruba credentials |
+| `aruba` | writing `arubacloud.com` CRs | [arubacloud-resource-operator](https://github.com/Arubacloud/arubacloud-resource-operator) + Aruba credentials ([`test/conformance/aruba`](test/conformance/aruba) installs both) |
 | `ionos` | writing Crossplane managed resources | Crossplane + `provider-upjet-ionoscloud` + an IONOS token ([`csp/ionos/deploy`](csp/ionos/deploy)) |
 | `dummy` | nothing — marks resources Active in-process | none; development only, image not published |
 

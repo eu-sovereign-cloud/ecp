@@ -171,7 +171,24 @@ make -C test conformance-ionos-clean         # tear down
 
 ### Aruba Plugin (`csp/aruba/`)
 
-Direct CSP adapter for Aruba Cloud, without a Crossplane layer.
+Direct CSP adapter for Aruba Cloud, without a Crossplane layer. It writes
+`arubacloud.com` CRs and the third-party
+[`arubacloud-resource-operator`](https://github.com/Arubacloud/arubacloud-resource-operator)
+is what talks to the Aruba CMP. See `csp/aruba/README.md` for the SECA↔Aruba
+mapping and the plugin's own integration suite.
+
+**Conformance** — `test/conformance/aruba/` bundles the whole real-backend run into
+one command on a single KIND cluster: it installs the operator with your Aruba API
+client, deploys the stack with the aruba plugin and runs `secatest`.
+```bash
+make -C test conformance-aruba-all \
+    ARUBA_CLIENT_ID=<client-id> ARUBA_CLIENT_SECRET=<client-secret> ARUBA_TENANT=<ARU-account>
+make -C test conformance-aruba-clean   # tear down (deletes the provisioned resources first)
+```
+`ARUBA_TENANT` must be a real Aruba account — the operator provisions real,
+billable resources against it. One cluster, not two: the aruba backend is an
+operator in the same cluster, not a second control plane. See
+`test/conformance/aruba/README.md`.
 
 ## Test Harness (`test/`)
 
