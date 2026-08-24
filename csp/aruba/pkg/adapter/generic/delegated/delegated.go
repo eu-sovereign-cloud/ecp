@@ -4,7 +4,7 @@ import (
 	"context"
 
 	delegator "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
-	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 
 	resolver_bypass "github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/generic/resolver"
 	converter_port "github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/port/converter"
@@ -109,7 +109,7 @@ func NewStraightDelegated[S persistence.IdentifiableResource, A any](
 // 4. Check whether the desired state is already reached; if so, return nil.
 // 5. Otherwise mutate the Aruba resources.
 // 6. Propagate changes to the Aruba Cloud.
-// 7. Report that the operation is still in progress (ErrStillProcessing) if the check does not pass yet, so the reconciler can requeue and check again later without blocking.
+// 7. Report that the operation is still in progress (StillProcessing) if the check does not pass yet, so the reconciler can requeue and check again later without blocking.
 func (d *GenericDelegated[S, SB, AB]) Do(ctx context.Context, resource S) error {
 	// 1. Resolve SECA-level dependencies for referenced objects in the Aruba
 	// domain.
@@ -183,7 +183,7 @@ func (d *GenericDelegated[S, SB, AB]) Do(ctx context.Context, resource S) error 
 	// 7. Report that the operation is still in progress.
 	//
 	// The plugin calls are non-blocking: rather than waiting in-process, we
-	// return ErrStillProcessing so the reconciler requeues and checks again on
+	// return StillProcessing so the reconciler requeues and checks again on
 	// a later pass without holding the worker.
-	return delegator.ErrStillProcessing
+	return delegator.StillProcessing
 }

@@ -6,8 +6,8 @@ import (
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
-	backend "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
-	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	res "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	igwdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/internet-gateway"
 	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network"
@@ -160,7 +160,7 @@ func (h *NetworkHandler) resolveSecaNetworkDependencies(ctx context.Context, dom
 	}
 
 	if len(igws) == 0 {
-		return nil, backend.ErrStillProcessing // No internet gateway yet, wait for one to be created
+		return nil, backend.StillProcessing // No internet gateway yet, wait for one to be created
 	}
 
 	return &SecaNetworkBundle{

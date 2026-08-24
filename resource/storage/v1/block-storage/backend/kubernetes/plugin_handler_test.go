@@ -11,6 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
+	backendport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
+
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage"
 	. "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage/backend/kubernetes"
@@ -51,12 +53,11 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		//
 		// Then it should succeed and not request a requeue
 		require.NoError(t, err)
-		require.False(t, requeue)
 	})
 
 	t.Run("should set state to creating and requeue when resource is pending", func(t *testing.T) {
@@ -93,12 +94,11 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		//
 		// Then it should succeed and request a requeue
-		require.NoError(t, err)
-		require.True(t, requeue)
+		require.ErrorIs(t, err, backendport.StillProcessing)
 	})
 
 	t.Run("should set state to updating and requeue when size is increased on an active resource", func(t *testing.T) {
@@ -137,12 +137,11 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		//
 		// Then it should succeed and request a requeue
-		require.NoError(t, err)
-		require.True(t, requeue)
+		require.ErrorIs(t, err, backendport.StillProcessing)
 	})
 
 	t.Run("should call plugin create and set state to active when resource is creating", func(t *testing.T) {
@@ -182,12 +181,11 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		//
 		// Then it should succeed and not request a requeue
 		require.NoError(t, err)
-		require.False(t, requeue)
 	})
 
 	t.Run("should call plugin delete and set state to deleting when resource is deleting", func(t *testing.T) {
@@ -226,12 +224,11 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		//
 		// Then it should succeed and not request a requeue
 		require.NoError(t, err)
-		require.False(t, requeue)
 	})
 
 	t.Run("should call plugin increase size and set state to active when resource is updating", func(t *testing.T) {
@@ -272,12 +269,11 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		//
 		// Then it should succeed and not request a requeue
 		require.NoError(t, err)
-		require.False(t, requeue)
 	})
 
 	t.Run("should set state to creating and requeue on retry create", func(t *testing.T) {
@@ -318,12 +314,11 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		//
 		// Then it should succeed and request a requeue
-		require.NoError(t, err)
-		require.True(t, requeue)
+		require.ErrorIs(t, err, backendport.StillProcessing)
 	})
 
 	t.Run("should set state to updating and requeue on retry increase size", func(t *testing.T) {
@@ -366,12 +361,11 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		//
 		// Then it should succeed and request a requeue
-		require.NoError(t, err)
-		require.True(t, requeue)
+		require.ErrorIs(t, err, backendport.StillProcessing)
 	})
 
 	t.Run("should set state to error and requeue when plugin create fails", func(t *testing.T) {
@@ -412,12 +406,11 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		//
 		// Then it should handle the error gracefully, not return an error, but request a requeue
-		require.NoError(t, err)
-		require.True(t, requeue)
+		require.ErrorIs(t, err, backendport.StillProcessing)
 	})
 
 	t.Run("should return error when repo update fails after plugin failure", func(t *testing.T) {
@@ -451,7 +444,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		_, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		//
 		// Then it should return the repo error
@@ -488,7 +481,7 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		_, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		//
 		// Then it should return the repo error
@@ -596,12 +589,11 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		//
 		// Then it should handle the error gracefully and request a requeue
-		require.NoError(t, err)
-		require.True(t, requeue)
+		require.ErrorIs(t, err, backendport.StillProcessing)
 	})
 
 	t.Run("should set state to error and requeue when plugin increase size fails", func(t *testing.T) {
@@ -644,12 +636,11 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		//
 		// Then it should handle the error gracefully and request a requeue
-		require.NoError(t, err)
-		require.True(t, requeue)
+		require.ErrorIs(t, err, backendport.StillProcessing)
 	})
 
 	t.Run("should set state to creating when pending with an active source image", func(t *testing.T) {
@@ -687,10 +678,9 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin, 0, mockDeps)
 
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
-		require.NoError(t, err)
-		require.True(t, requeue)
+		require.ErrorIs(t, err, backendport.StillProcessing)
 	})
 
 	t.Run("should stay pending when the source image is not yet active", func(t *testing.T) {
@@ -725,10 +715,9 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin, 0, mockDeps)
 
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
-		require.NoError(t, err)
-		require.True(t, requeue)
+		require.ErrorIs(t, err, backendport.StillProcessing)
 	})
 
 	t.Run("should block deletion while an image references the block storage", func(t *testing.T) {
@@ -769,10 +758,9 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin, 0, mockDeps)
 
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
-		require.NoError(t, err)
-		require.True(t, requeue)
+		require.ErrorIs(t, err, backendport.StillProcessing)
 	})
 
 	t.Run("should proceed to deleting when no image references the block storage", func(t *testing.T) {
@@ -808,10 +796,9 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 
 		handler := NewBlockStoragePluginHandler(mockRepo, mockPlugin, 0, mockDeps)
 
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
-		require.NoError(t, err)
-		require.True(t, requeue)
+		require.ErrorIs(t, err, backendport.StillProcessing)
 	})
 }
 
@@ -897,4 +884,37 @@ func TestBlockStoragePluginHandler_HandleAdmission(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "decrease storage size is not allowed")
 	})
+}
+
+// TestBlockStoragePluginHandler_DeletionBlockedIsProgress pins that a volume still referenced by an
+// image reschedules rather than failing: the condition names the referrers and the controller comes
+// back to check again, leaving the resource where it was.
+func TestBlockStoragePluginHandler_DeletionBlockedIsProgress(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	deletedAt := time.Now()
+	resource := &bsdom.BlockStorage{
+		Status: &bsdom.BlockStorageStatus{
+			Status: commondomain.Status{State: commondomain.ResourceStateActive},
+		},
+	}
+	resource.DeletedAt = &deletedAt
+
+	mockDeps := NewMockDependencyResolver(ctrl)
+	mockDeps.EXPECT().Referrers(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+		Return([]string{"debian-12"}, nil).Times(1)
+
+	mockRepo := NewMockRepo[*bsdom.BlockStorage](ctrl)
+	mockRepo.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).DoAndReturn(
+		func(_ context.Context, res *bsdom.BlockStorage) (*bsdom.BlockStorage, error) {
+			require.Contains(t, res.Status.Conditions[0].Message, "debian-12")
+			return nil, nil
+		}).Times(1)
+
+	handler := NewBlockStoragePluginHandler(mockRepo, NewMockBlockStoragePlugin(ctrl), 0, mockDeps)
+
+	err := handler.HandleReconcile(context.Background(), resource)
+
+	require.ErrorIs(t, err, backendport.StillProcessing)
 }

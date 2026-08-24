@@ -60,9 +60,17 @@ Where a resource has both, its own operation wins: a pending resize is routed to
 | Return | Meaning | Reconciler does |
 |---|---|---|
 | `nil` | applied, or nothing to apply | clears any previous `UpdateFailed`; writes no status otherwise |
-| `backend.ErrStillProcessing` | in flight | requeues, leaves status untouched |
+| `backend.StillProcessing` | in flight | requeues at the controller's interval, leaves status untouched |
+| `backend.Revisit(d)` | in flight, come back after `d` | requeues after `d`, leaves status untouched |
+| `backend.RevisitBecause(d, cause)` | in flight; `cause` explains the wait | requeues after `d`; `cause` reaches the log |
 | error wrapping `backend.ErrNotSupported` | the provider will never accept this | records the reason, **does not retry** |
-| any other error | assumed transient | records the reason and requeues |
+| any other error | assumed transient | records the reason and requeues with exponential backoff |
+
+`StillProcessing`, `Revisit` and `RevisitBecause` are **progress signals, not failures**. They ride the error channel because that is the only channel every frame in a plugin's call chain has — the same reason `io.EOF` does — and the reconciler treats them as a reschedule, not a fault. A zero duration means the controller's configured interval, never "immediately".
+
+Choosing a progress signal opts out of the workqueue's exponential backoff in favour of a cadence you control. When you want backoff — a provider that is down, a rate limit — return the plain error.
+
+A progress signal must be the **outermost** error. Never wrap a failure inside one: the reconciler classifies failures first, so a wrapped `ErrNotSupported` still stops, but anything else you hide in there becomes a quiet reschedule.
 
 `ErrNotSupported` is for a change the provider cannot make at all, not one that has not finished. Cloud resources routinely have immutable fields — an Aruba VPC's region, an instance's flavor — and retrying those re-issues a request the provider has already refused. Wrap it so the reason reaches the user:
 

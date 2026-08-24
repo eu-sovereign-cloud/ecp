@@ -56,9 +56,8 @@ func TestHandleUpdate_ClearsBuriedFailure(t *testing.T) {
 	repo := &countingRepo{}
 
 	// A failed update, then a lifecycle transition on top of it, exactly as a resize would leave it.
-	requeue, err := HandleUpdate(context.Background(), resource, &resource.status, fails, repo, maxConditions)
-	require.NoError(t, err)
-	require.True(t, requeue, "a transient failure must be retried")
+	err := HandleUpdate(context.Background(), resource, &resource.status, fails, repo, maxConditions)
+	require.ErrorIs(t, err, backendport.StillProcessing, "a transient failure must be retried")
 	require.Equal(t, updateFailedConditionType, resource.status.Conditions[0].Type)
 
 	resource.status.PushCondition(ConditionFromState(domain.ResourceStateUpdating))
@@ -66,7 +65,7 @@ func TestHandleUpdate_ClearsBuriedFailure(t *testing.T) {
 	require.NotEqual(t, updateFailedConditionType, resource.status.Conditions[0].Type,
 		"the failure must be buried for this test to mean anything")
 
-	_, err = HandleUpdate(context.Background(), resource, &resource.status, succeeds, repo, maxConditions)
+	err = HandleUpdate(context.Background(), resource, &resource.status, succeeds, repo, maxConditions)
 	require.NoError(t, err)
 
 	for _, c := range resource.status.Conditions {
@@ -83,13 +82,13 @@ func TestHandleUpdate_SuccessIsQuiet(t *testing.T) {
 	resource := &updatable{name: "r1"}
 	repo := &countingRepo{}
 
-	_, err := HandleUpdate(context.Background(), resource, &resource.status, fails, repo, maxConditions)
-	require.NoError(t, err)
+	err := HandleUpdate(context.Background(), resource, &resource.status, fails, repo, maxConditions)
+	require.ErrorIs(t, err, backendport.StillProcessing, "the failure is transient, so the pass reschedules")
 	require.Equal(t, 1, repo.statusWrites, "the failure is reported once")
 
 	// First success retracts it and writes; every later one must be silent.
 	for range 5 {
-		_, err = HandleUpdate(context.Background(), resource, &resource.status, succeeds, repo, maxConditions)
+		err = HandleUpdate(context.Background(), resource, &resource.status, succeeds, repo, maxConditions)
 		require.NoError(t, err)
 	}
 
@@ -104,9 +103,8 @@ func TestHandleUpdate_StableFailureReportedOnce(t *testing.T) {
 	repo := &countingRepo{}
 
 	for range 5 {
-		requeue, err := HandleUpdate(context.Background(), resource, &resource.status, fails, repo, maxConditions)
-		require.NoError(t, err)
-		require.True(t, requeue)
+		err := HandleUpdate(context.Background(), resource, &resource.status, fails, repo, maxConditions)
+		require.ErrorIs(t, err, backendport.StillProcessing)
 	}
 
 	require.Equal(t, 1, repo.statusWrites, "an unchanged failure must not be re-written")
@@ -118,13 +116,13 @@ func TestHandleUpdate_NotSupportedIsNotRetried(t *testing.T) {
 	resource := &updatable{name: "r1"}
 	repo := &countingRepo{}
 
-	requeue, err := HandleUpdate(context.Background(), resource, &resource.status,
+	err := HandleUpdate(context.Background(), resource, &resource.status,
 		func(context.Context, *updatable) error {
 			return errors.Join(backendport.ErrNotSupported, errors.New("region is immutable"))
 		}, repo, maxConditions)
 
-	require.NoError(t, err)
-	require.False(t, requeue, "a refused change must not be re-issued")
+	require.NoError(t, err, "a refused change must not be re-issued")
+	require.NotErrorIs(t, err, backendport.StillProcessing, "a refusal is not a progress signal")
 	require.Equal(t, updateFailedConditionType, resource.status.Conditions[0].Type)
 	require.Equal(t, domain.ResourceStateActive, resource.status.State,
 		"a failed update leaves the resource active so a corrected spec is still picked up")
@@ -136,12 +134,32 @@ func TestHandleUpdate_StillProcessingLeavesStatusAlone(t *testing.T) {
 	resource := &updatable{name: "r1"}
 	repo := &countingRepo{}
 
-	requeue, err := HandleUpdate(context.Background(), resource, &resource.status,
-		func(context.Context, *updatable) error { return backendport.ErrStillProcessing },
+	err := HandleUpdate(context.Background(), resource, &resource.status,
+		func(context.Context, *updatable) error { return backendport.StillProcessing },
 		repo, maxConditions)
 
-	require.NoError(t, err)
-	require.True(t, requeue)
+	require.ErrorIs(t, err, backendport.StillProcessing)
 	require.Empty(t, resource.status.Conditions)
 	require.Zero(t, repo.statusWrites)
+}
+
+// TestHandleUpdate_TransientFailureCarriesItsCause pins the one behaviour this migration changed:
+// the provider's error used to reach the status condition and then be dropped, so the controller
+// saw only "requeue". It now travels with the progress signal, which keeps the same scheduling
+// (the controller's cadence, no backoff, no reconcile-error) while the cause reaches the log.
+func TestHandleUpdate_TransientFailureCarriesItsCause(t *testing.T) {
+	resource := &updatable{name: "r1"}
+	repo := &countingRepo{}
+	providerErr := errors.New("provider refused")
+
+	err := HandleUpdate(context.Background(), resource, &resource.status,
+		func(context.Context, *updatable) error { return providerErr },
+		repo, maxConditions)
+
+	require.ErrorIs(t, err, backendport.StillProcessing)
+	require.ErrorIs(t, err, providerErr)
+
+	var rq backendport.RequeueError
+	require.ErrorAs(t, err, &rq)
+	require.Zero(t, rq.RequeueAfter(), "an update retry uses the controller's cadence, not one of its own")
 }

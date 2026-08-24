@@ -11,6 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
+	backendport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
+
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	nicdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic"
 
@@ -40,10 +42,9 @@ func TestNicPluginHandler_HandleReconcile(t *testing.T) {
 		mockPlugin.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil).Times(1)
 		handler := NewNicPluginHandler(mockRepo, mockPlugin, 0)
 
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		require.NoError(t, err)
-		require.False(t, requeue)
 	})
 
 	t.Run("should set state to creating and requeue when resource is pending", func(t *testing.T) {
@@ -68,10 +69,9 @@ func TestNicPluginHandler_HandleReconcile(t *testing.T) {
 		mockPlugin := NewMockNicPlugin(ctrl)
 		handler := NewNicPluginHandler(mockRepo, mockPlugin, 0)
 
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
-		require.NoError(t, err)
-		require.True(t, requeue)
+		require.ErrorIs(t, err, backendport.StillProcessing)
 	})
 
 	t.Run("should call plugin create and set state to active when resource is creating", func(t *testing.T) {
@@ -98,10 +98,9 @@ func TestNicPluginHandler_HandleReconcile(t *testing.T) {
 
 		handler := NewNicPluginHandler(mockRepo, mockPlugin, 0)
 
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		require.NoError(t, err)
-		require.False(t, requeue)
 	})
 
 	t.Run("should call plugin delete and set state to deleting when resource is deleting", func(t *testing.T) {
@@ -128,10 +127,9 @@ func TestNicPluginHandler_HandleReconcile(t *testing.T) {
 
 		handler := NewNicPluginHandler(mockRepo, mockPlugin, 0)
 
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		require.NoError(t, err)
-		require.False(t, requeue)
 	})
 
 	t.Run("should set state to error and requeue when plugin create fails", func(t *testing.T) {
@@ -161,10 +159,9 @@ func TestNicPluginHandler_HandleReconcile(t *testing.T) {
 		handler := NewNicPluginHandler(mockRepo, mockPlugin, 0)
 		handler.MaxConditions = 1
 
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
-		require.NoError(t, err)
-		require.True(t, requeue)
+		require.ErrorIs(t, err, backendport.StillProcessing)
 	})
 
 	t.Run("should return error when repo update fails after plugin failure", func(t *testing.T) {
@@ -187,7 +184,7 @@ func TestNicPluginHandler_HandleReconcile(t *testing.T) {
 
 		handler := NewNicPluginHandler(mockRepo, mockPlugin, 0)
 
-		_, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		require.ErrorIs(t, err, errRepo)
 	})
@@ -225,10 +222,9 @@ func TestNicPluginHandler_HandleReconcile(t *testing.T) {
 		handler := NewNicPluginHandler(mockRepo, mockPlugin, 0)
 		handler.MaxConditions = 1
 
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
-		require.NoError(t, err)
-		require.True(t, requeue)
+		require.ErrorIs(t, err, backendport.StillProcessing)
 	})
 
 	t.Run("should set state to creating and requeue on retry create", func(t *testing.T) {
@@ -258,10 +254,9 @@ func TestNicPluginHandler_HandleReconcile(t *testing.T) {
 		mockPlugin := NewMockNicPlugin(ctrl)
 		handler := NewNicPluginHandler(mockRepo, mockPlugin, 0)
 
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
-		require.NoError(t, err)
-		require.True(t, requeue)
+		require.ErrorIs(t, err, backendport.StillProcessing)
 	})
 
 	t.Run("should do nothing for unhandled states", func(t *testing.T) {
@@ -280,10 +275,9 @@ func TestNicPluginHandler_HandleReconcile(t *testing.T) {
 		mockPlugin := NewMockNicPlugin(ctrl)
 		handler := NewNicPluginHandler(mockRepo, mockPlugin, 0)
 
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		require.NoError(t, err)
-		require.False(t, requeue)
 	})
 
 	t.Run("should return error when repo update fails in setResourceState", func(t *testing.T) {
@@ -304,7 +298,7 @@ func TestNicPluginHandler_HandleReconcile(t *testing.T) {
 		mockPlugin := NewMockNicPlugin(ctrl)
 		handler := NewNicPluginHandler(mockRepo, mockPlugin, 0)
 
-		_, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		require.ErrorIs(t, err, errRepo)
 	})

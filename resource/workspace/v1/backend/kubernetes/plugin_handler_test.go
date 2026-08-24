@@ -11,6 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
+	backendport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
+
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	wsdom "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1"
 	. "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1/backend/kubernetes"
@@ -49,12 +51,11 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		//
 		// Then it should succeed and not request a requeue
 		require.NoError(t, err)
-		require.False(t, requeue)
 	})
 
 	t.Run("should set state to creating and requeue when resource is pending", func(t *testing.T) {
@@ -91,12 +92,11 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		//
 		// Then it should succeed and request a requeue
-		require.NoError(t, err)
-		require.True(t, requeue)
+		require.ErrorIs(t, err, backendport.StillProcessing)
 	})
 
 	t.Run("should call plugin create and set state to active when resource is creating", func(t *testing.T) {
@@ -134,12 +134,11 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		//
 		// Then it should succeed and not request a requeue
 		require.NoError(t, err)
-		require.False(t, requeue)
 	})
 
 	t.Run("should call plugin delete and set state to deleting when resource is deleting", func(t *testing.T) {
@@ -178,12 +177,11 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		//
 		// Then it should succeed and not request a requeue
 		require.NoError(t, err)
-		require.False(t, requeue)
 	})
 
 	t.Run("should set state to error and requeue when plugin create fails", func(t *testing.T) {
@@ -224,12 +222,11 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		//
 		// Then it should succeed, handle the error, and request a requeue
-		require.NoError(t, err)
-		require.True(t, requeue)
+		require.ErrorIs(t, err, backendport.StillProcessing)
 	})
 
 	t.Run("should return error when repo update fails after plugin failure", func(t *testing.T) {
@@ -263,7 +260,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		_, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		//
 		// Then it should return the repo error
@@ -314,12 +311,11 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		//
 		// Then it should succeed, handle the error, and request a requeue
-		require.NoError(t, err)
-		require.True(t, requeue)
+		require.ErrorIs(t, err, backendport.StillProcessing)
 	})
 
 	t.Run("should set state to creating and requeue on retry create", func(t *testing.T) {
@@ -361,12 +357,11 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		//
 		// Then it should succeed and request a requeue
-		require.NoError(t, err)
-		require.True(t, requeue)
+		require.ErrorIs(t, err, backendport.StillProcessing)
 	})
 
 	t.Run("should do nothing for unhandled states", func(t *testing.T) {
@@ -395,12 +390,11 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		//
 		// Then it should succeed and do nothing
 		require.NoError(t, err)
-		require.False(t, requeue)
 	})
 
 	t.Run("should return error when repo update fails in setResourceState", func(t *testing.T) {
@@ -433,7 +427,7 @@ func TestWorkspacePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		_, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		//
 		// Then it should return the repo error

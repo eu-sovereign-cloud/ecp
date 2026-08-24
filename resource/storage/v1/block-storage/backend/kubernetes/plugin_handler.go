@@ -60,7 +60,7 @@ func NewBlockStoragePluginHandler(
 }
 
 //nolint:gocyclo // keep locality of behavior: the two switches describe the full reconciliation state machine in one place
-func (h *BlockStoragePluginHandler) HandleReconcile(ctx context.Context, resource *bsdom.BlockStorage) (bool, error) {
+func (h *BlockStoragePluginHandler) HandleReconcile(ctx context.Context, resource *bsdom.BlockStorage) error {
 	// An active volume with no resize pending has no lifecycle edge left to fire, so it takes the
 	// update path instead of the state machine below. The resize outranks it: growing a volume is
 	// its own transition through "updating" with observed size in status, and routing it here
@@ -97,25 +97,28 @@ func (h *BlockStoragePluginHandler) HandleReconcile(ctx context.Context, resourc
 		delegate = frameworkbackend.BypassDelegated[*bsdom.BlockStorage]
 
 	default:
-		return false, nil // Nothing to do.
+		return nil // Nothing to do.
 	}
 
 	if err := delegate(ctx, resource); err != nil {
-		if errors.Is(err, backendport.ErrStillProcessing) {
-			return true, nil
+		var rq backendport.RequeueError
+		if errors.As(err, &rq) {
+			// Not a failure, and not ours to reinterpret: the plugin named its own cadence.
+			return err
 		}
 
-		if requeue, err := h.setResourceErrorState(ctx, resource, err, false); err != nil {
-			return requeue, err
+		if stateErr := h.setResourceErrorState(ctx, resource, err); stateErr != nil {
+			return stateErr
 		}
 
-		return true, nil
+		// The failure is recorded on the resource; retry it on the next pass.
+		return backendport.StillProcessing
 	}
 
 	switch {
 
 	case isBlockStorageAccepted(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStatePending, false)
+		return h.setResourceState(ctx, resource, commondomain.ResourceStatePending)
 
 	case isBlockStoragePending(resource):
 		return h.ensureSourceImageReady(ctx, resource)
@@ -123,37 +126,37 @@ func (h *BlockStoragePluginHandler) HandleReconcile(ctx context.Context, resourc
 	case isBlockStorageCreating(resource):
 		resource.Status.SizeGB = resource.Spec.SizeGB
 
-		return h.setResourceState(ctx, resource, commondomain.ResourceStateActive, false)
+		return h.setResourceState(ctx, resource, commondomain.ResourceStateActive)
 
 	case wantBlockStorageDelete(resource):
 		return h.ensureNoImageReferrers(ctx, resource)
 
 	case isBlockStorageDeleting(resource):
 		// Nothing to do: the controller will remove the finalizers to end the deletion process.
-		return false, nil
+		return nil
 
 	case wantBlockStorageIncreaseSize(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStateUpdating, true)
+		return commonbackend.RequeueAfterState(h.setResourceState(ctx, resource, commondomain.ResourceStateUpdating))
 
 	case isBlockStorageIncreasingSize(resource):
 		resource.Status.SizeGB = resource.Spec.SizeGB
 
-		return h.setResourceState(ctx, resource, commondomain.ResourceStateActive, false)
+		return h.setResourceState(ctx, resource, commondomain.ResourceStateActive)
 
 	case wantBlockStorageRetryCreate(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStateCreating, true)
+		return commonbackend.RequeueAfterState(h.setResourceState(ctx, resource, commondomain.ResourceStateCreating))
 
 	case wantBlockStorageRetryIncreaseSize(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStateUpdating, true)
+		return commonbackend.RequeueAfterState(h.setResourceState(ctx, resource, commondomain.ResourceStateUpdating))
 
 	default:
 		log.Fatal("must never achieve that condition")
 	}
 
-	return false, nil
+	return nil
 }
 
-func (h *BlockStoragePluginHandler) setResourceState(ctx context.Context, resource *bsdom.BlockStorage, state commondomain.ResourceState, requeue bool) (bool, error) {
+func (h *BlockStoragePluginHandler) setResourceState(ctx context.Context, resource *bsdom.BlockStorage, state commondomain.ResourceState) error {
 	if resource.Status == nil {
 		resource.Status = &bsdom.BlockStorageStatus{}
 	}
@@ -163,16 +166,17 @@ func (h *BlockStoragePluginHandler) setResourceState(ctx context.Context, resour
 
 	if _, err := h.repo.UpdateStatus(ctx, resource); err != nil {
 		if errors.Is(err, kernel.ErrNotFound) {
-			return false, nil
+			// The resource is gone; there is nothing left to reconcile.
+			return nil
 		}
 
-		return requeue, err
+		return err
 	}
 
-	return requeue, nil
+	return nil
 }
 
-func (h *BlockStoragePluginHandler) setResourceErrorState(ctx context.Context, resource *bsdom.BlockStorage, err error, requeue bool) (bool, error) {
+func (h *BlockStoragePluginHandler) setResourceErrorState(ctx context.Context, resource *bsdom.BlockStorage, err error) error {
 	if resource.Status == nil {
 		resource.Status = &bsdom.BlockStorageStatus{}
 	}
@@ -182,62 +186,65 @@ func (h *BlockStoragePluginHandler) setResourceErrorState(ctx context.Context, r
 
 	if _, updateErr := h.repo.UpdateStatus(ctx, resource); updateErr != nil {
 		if errors.Is(updateErr, kernel.ErrNotFound) {
-			return false, nil
+			// The resource is gone; there is nothing left to reconcile.
+			return nil
 		}
 
-		return requeue, updateErr
+		return updateErr
 	}
 
-	return requeue, nil
+	return nil
 }
 
 // ensureSourceImageReady gates the block storage's transition to creating on its optional
 // source image existing and being active. A block storage without a source image proceeds
 // immediately.
-func (h *BlockStoragePluginHandler) ensureSourceImageReady(ctx context.Context, resource *bsdom.BlockStorage) (bool, error) {
+func (h *BlockStoragePluginHandler) ensureSourceImageReady(ctx context.Context, resource *bsdom.BlockStorage) error {
 	if resource.Spec.SourceImageRef == nil {
-		return h.setResourceState(ctx, resource, commondomain.ResourceStateCreating, true)
+		return commonbackend.RequeueAfterState(h.setResourceState(ctx, resource, commondomain.ResourceStateCreating))
 	}
 
 	exists, state, err := h.deps.State(ctx, imageGVR, *resource.Spec.SourceImageRef, resource.Tenant)
 	if err != nil {
-		return h.setResourceErrorState(ctx, resource, err, true)
+		return commonbackend.RequeueAfterState(h.setResourceErrorState(ctx, resource, err))
 	}
 
 	if !exists || state != commondomain.ResourceStateActive {
 		message := fmt.Sprintf("waiting for source image %q to be active", resource.Spec.SourceImageRef.Resource)
 		c := commonbackend.DependencyPendingCondition(commondomain.ResourceStatePending, message)
-		return h.setResourceCondition(ctx, resource, c, true)
+
+		return commonbackend.RequeueAfterState(h.setResourceCondition(ctx, resource, c))
 	}
 
-	return h.setResourceState(ctx, resource, commondomain.ResourceStateCreating, true)
+	return commonbackend.RequeueAfterState(h.setResourceState(ctx, resource, commondomain.ResourceStateCreating))
 }
 
 // ensureNoImageReferrers blocks deletion of a block storage while any image is still
 // stored on it (references it via BlockStorageRef). The block storage keeps its current
 // state (and therefore its cleanup finalizer) until those images are gone. Images are
 // tenant-scoped, so referrers are searched in the block storage's tenant namespace.
-func (h *BlockStoragePluginHandler) ensureNoImageReferrers(ctx context.Context, resource *bsdom.BlockStorage) (bool, error) {
+func (h *BlockStoragePluginHandler) ensureNoImageReferrers(ctx context.Context, resource *bsdom.BlockStorage) error {
 	namespace := frameworkbackend.ComputeNamespace(&kernelresource.Scope{Tenant: resource.Tenant})
 	target := commonbackend.ReferenceTarget{Tenant: resource.Tenant, Workspace: resource.Workspace, Name: resource.Name}
 
 	referrers, err := h.deps.Referrers(ctx, imageGVR, namespace, []string{"spec", "blockStorageRef"}, target, resource.Tenant)
 	if err != nil {
-		return h.setResourceErrorState(ctx, resource, err, true)
+		return commonbackend.RequeueAfterState(h.setResourceErrorState(ctx, resource, err))
 	}
 
 	if len(referrers) > 0 {
 		message := fmt.Sprintf("deletion blocked: still referenced by images %v", referrers)
 		c := commonbackend.DeletionBlockedCondition(resource.Status.State, message)
-		return h.setResourceCondition(ctx, resource, c, true)
+
+		return commonbackend.RequeueAfterState(h.setResourceCondition(ctx, resource, c))
 	}
 
-	return h.setResourceState(ctx, resource, commondomain.ResourceStateDeleting, true)
+	return commonbackend.RequeueAfterState(h.setResourceState(ctx, resource, commondomain.ResourceStateDeleting))
 }
 
 // setResourceCondition pushes c onto the resource status and persists it, mirroring
 // setResourceState but without forcing a lifecycle transition beyond what c carries.
-func (h *BlockStoragePluginHandler) setResourceCondition(ctx context.Context, resource *bsdom.BlockStorage, c commondomain.StatusCondition, requeue bool) (bool, error) {
+func (h *BlockStoragePluginHandler) setResourceCondition(ctx context.Context, resource *bsdom.BlockStorage, c commondomain.StatusCondition) error {
 	if resource.Status == nil {
 		resource.Status = &bsdom.BlockStorageStatus{}
 	}
@@ -247,13 +254,14 @@ func (h *BlockStoragePluginHandler) setResourceCondition(ctx context.Context, re
 
 	if _, err := h.repo.UpdateStatus(ctx, resource); err != nil {
 		if errors.Is(err, kernel.ErrNotFound) {
-			return false, nil
+			// The resource is gone; there is nothing left to reconcile.
+			return nil
 		}
 
-		return requeue, err
+		return err
 	}
 
-	return requeue, nil
+	return nil
 }
 
 func blockDecreaseSize(_ context.Context, resource *bsdom.BlockStorage) error {

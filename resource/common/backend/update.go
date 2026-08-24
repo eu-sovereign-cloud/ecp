@@ -32,6 +32,10 @@ const updateFailedConditionType = "UpdateFailed"
 // Status is written only when what it reports actually changes. The controller watches its own
 // writes, so a status write on every pass would feed itself: an unchanged failure re-written each
 // reconcile would keep the resource reconciling forever.
+//
+// It returns nil when the resource is settled, a progress signal (backendport.StillProcessing, or a
+// RevisitBecause carrying the provider's error) when the pass should be retried, and a plain error
+// only when persisting the outcome failed.
 func HandleUpdate[D persistence.IdentifiableResource](
 	ctx context.Context,
 	resource D,
@@ -39,21 +43,29 @@ func HandleUpdate[D persistence.IdentifiableResource](
 	update backendport.DelegatedFunc[D],
 	repo persistence.WriterRepo[D],
 	maxConditions int,
-) (requeue bool, err error) {
+) error {
 	switch updateErr := update(ctx, resource); {
 	case updateErr == nil:
-		return false, clearUpdateFailure(ctx, resource, status, repo, maxConditions)
+		return clearUpdateFailure(ctx, resource, status, repo, maxConditions)
 
-	case errors.Is(updateErr, backendport.ErrStillProcessing):
+	case errors.Is(updateErr, backendport.StillProcessing):
 		// In flight, not failed. Leave the status alone and come back to it.
-		return true, nil
+		return backendport.StillProcessing
 
-	default:
+	case errors.Is(updateErr, backendport.ErrNotSupported):
 		// A provider that cannot apply the change at all is not retried: re-issuing an operation
 		// it has already refused would spin forever, and the reason it gave is more useful to the
-		// user than another attempt. Every other failure is assumed transient and requeued.
-		return !errors.Is(updateErr, backendport.ErrNotSupported),
-			recordUpdateFailure(ctx, resource, status, repo, maxConditions, updateErr)
+		// user than another attempt.
+		return recordUpdateFailure(ctx, resource, status, repo, maxConditions, updateErr)
+
+	default:
+		// Assumed transient. Recording the failure is what the user sees; the signal carries the
+		// cause so it also reaches the log, and keeps the controller's cadence rather than backoff.
+		if recordErr := recordUpdateFailure(ctx, resource, status, repo, maxConditions, updateErr); recordErr != nil {
+			return recordErr
+		}
+
+		return backendport.RevisitBecause(0, updateErr)
 	}
 }
 

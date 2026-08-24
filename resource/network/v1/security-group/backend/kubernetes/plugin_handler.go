@@ -39,7 +39,7 @@ func NewSecurityGroupPluginHandler(
 	return handler
 }
 
-func (h *SecurityGroupPluginHandler) HandleReconcile(ctx context.Context, resource *securitygroupdom.SecurityGroup) (bool, error) {
+func (h *SecurityGroupPluginHandler) HandleReconcile(ctx context.Context, resource *securitygroupdom.SecurityGroup) error {
 	// An active resource has no lifecycle transition left to make, so it takes the update
 	// path instead of the create/delete state machine below. See commonbackend.HandleUpdate.
 	if isSecurityGroupActive(resource) {
@@ -62,40 +62,45 @@ func (h *SecurityGroupPluginHandler) HandleReconcile(ctx context.Context, resour
 	case wantSecurityGroupRetryCreate(resource):
 		delegate = frameworkbackend.BypassDelegated[*securitygroupdom.SecurityGroup]
 	default:
-		return false, nil // Nothing to do.
+		return nil // Nothing to do.
 	}
 
 	if err := delegate(ctx, resource); err != nil {
-		if errors.Is(err, backendport.ErrStillProcessing) {
-			return true, nil
+		var rq backendport.RequeueError
+		if errors.As(err, &rq) {
+			// Not a failure, and not ours to reinterpret: the plugin named its own cadence.
+			return err
 		}
-		if requeue, err := h.setResourceErrorState(ctx, resource, err, false); err != nil {
-			return requeue, err
+
+		if stateErr := h.setResourceErrorState(ctx, resource, err); stateErr != nil {
+			return stateErr
 		}
-		return true, nil
+
+		// The failure is recorded on the resource; retry it on the next pass.
+		return backendport.StillProcessing
 	}
 
 	switch {
 	case isSecurityGroupAccepted(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStatePending, false)
+		return h.setResourceState(ctx, resource, commondomain.ResourceStatePending)
 	case isSecurityGroupPending(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStateCreating, true)
+		return commonbackend.RequeueAfterState(h.setResourceState(ctx, resource, commondomain.ResourceStateCreating))
 	case isSecurityGroupCreating(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStateActive, false)
+		return h.setResourceState(ctx, resource, commondomain.ResourceStateActive)
 	case wantSecurityGroupDelete(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStateDeleting, true)
+		return commonbackend.RequeueAfterState(h.setResourceState(ctx, resource, commondomain.ResourceStateDeleting))
 	case isSecurityGroupDeleting(resource):
-		return false, nil
+		return nil
 	case wantSecurityGroupRetryCreate(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStateCreating, true)
+		return commonbackend.RequeueAfterState(h.setResourceState(ctx, resource, commondomain.ResourceStateCreating))
 	default:
 		log.Fatal("must never achieve that condition")
 	}
 
-	return false, nil
+	return nil
 }
 
-func (h *SecurityGroupPluginHandler) setResourceState(ctx context.Context, resource *securitygroupdom.SecurityGroup, state commondomain.ResourceState, requeue bool) (bool, error) {
+func (h *SecurityGroupPluginHandler) setResourceState(ctx context.Context, resource *securitygroupdom.SecurityGroup, state commondomain.ResourceState) error {
 	if resource.Status == nil {
 		resource.Status = &securitygroupdom.SecurityGroupStatus{}
 	}
@@ -105,15 +110,16 @@ func (h *SecurityGroupPluginHandler) setResourceState(ctx context.Context, resou
 
 	if _, err := h.repo.UpdateStatus(ctx, resource); err != nil {
 		if errors.Is(err, kernel.ErrNotFound) {
-			return false, nil
+			// The resource is gone; there is nothing left to reconcile.
+			return nil
 		}
-		return requeue, err
+		return err
 	}
 
-	return requeue, nil
+	return nil
 }
 
-func (h *SecurityGroupPluginHandler) setResourceErrorState(ctx context.Context, resource *securitygroupdom.SecurityGroup, err error, requeue bool) (bool, error) {
+func (h *SecurityGroupPluginHandler) setResourceErrorState(ctx context.Context, resource *securitygroupdom.SecurityGroup, err error) error {
 	if resource.Status == nil {
 		resource.Status = &securitygroupdom.SecurityGroupStatus{}
 	}
@@ -123,12 +129,13 @@ func (h *SecurityGroupPluginHandler) setResourceErrorState(ctx context.Context, 
 
 	if _, updateErr := h.repo.UpdateStatus(ctx, resource); updateErr != nil {
 		if errors.Is(updateErr, kernel.ErrNotFound) {
-			return false, nil
+			// The resource is gone; there is nothing left to reconcile.
+			return nil
 		}
-		return requeue, updateErr
+		return updateErr
 	}
 
-	return requeue, nil
+	return nil
 }
 
 func isSecurityGroupActive(resource *securitygroupdom.SecurityGroup) bool {

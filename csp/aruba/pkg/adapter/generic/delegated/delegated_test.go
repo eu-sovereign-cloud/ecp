@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	gomock "go.uber.org/mock/gomock"
+	"go.uber.org/mock/gomock"
 
 	delegator "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
 )
@@ -725,6 +725,6 @@ func TestGenericDelegated_Do(t *testing.T) {
 
 		//
 		// Then it should report that the operation is still in progress
-		require.ErrorIs(t, err, delegator.ErrStillProcessing)
+		require.ErrorIs(t, err, delegator.StillProcessing)
 	})
 }

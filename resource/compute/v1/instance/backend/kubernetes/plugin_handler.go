@@ -40,12 +40,12 @@ func NewInstancePluginHandler(
 	return handler
 }
 
-func (h *InstancePluginHandler) HandleReconcile(ctx context.Context, resource *instancedom.Instance) (bool, error) {
+func (h *InstancePluginHandler) HandleReconcile(ctx context.Context, resource *instancedom.Instance) error {
 	// Power-state management applies only to active instances that are not being deleted.
 	// It is orthogonal to the create/delete lifecycle below.
 	if isInstanceActive(resource) {
-		if handled, requeue, err := h.handlePowerReconcile(ctx, resource); handled {
-			return requeue, err
+		if handled, err := h.handlePowerReconcile(ctx, resource); handled {
+			return err
 		}
 
 		// No power transition is pending, so the instance has no lifecycle edge left to fire and
@@ -70,37 +70,42 @@ func (h *InstancePluginHandler) HandleReconcile(ctx context.Context, resource *i
 	case wantInstanceRetryCreate(resource):
 		delegate = frameworkbackend.BypassDelegated[*instancedom.Instance]
 	default:
-		return false, nil // Nothing to do.
+		return nil // Nothing to do.
 	}
 
 	if err := delegate(ctx, resource); err != nil {
-		if errors.Is(err, backendport.ErrStillProcessing) {
-			return true, nil
+		var rq backendport.RequeueError
+		if errors.As(err, &rq) {
+			// Not a failure, and not ours to reinterpret: the plugin named its own cadence.
+			return err
 		}
-		if requeue, err := h.setResourceErrorState(ctx, resource, err, false); err != nil {
-			return requeue, err
+
+		if stateErr := h.setResourceErrorState(ctx, resource, err); stateErr != nil {
+			return stateErr
 		}
-		return true, nil
+
+		// The failure is recorded on the resource; retry it on the next pass.
+		return backendport.StillProcessing
 	}
 
 	switch {
 	case isInstanceAccepted(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStatePending, false)
+		return h.setResourceState(ctx, resource, commondomain.ResourceStatePending)
 	case isInstancePending(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStateCreating, true)
+		return commonbackend.RequeueAfterState(h.setResourceState(ctx, resource, commondomain.ResourceStateCreating))
 	case isInstanceCreating(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStateActive, false)
+		return h.setResourceState(ctx, resource, commondomain.ResourceStateActive)
 	case wantInstanceDelete(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStateDeleting, true)
+		return commonbackend.RequeueAfterState(h.setResourceState(ctx, resource, commondomain.ResourceStateDeleting))
 	case isInstanceDeleting(resource):
-		return false, nil
+		return nil
 	case wantInstanceRetryCreate(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStateCreating, true)
+		return commonbackend.RequeueAfterState(h.setResourceState(ctx, resource, commondomain.ResourceStateCreating))
 	default:
 		log.Fatal("must never achieve that condition")
 	}
 
-	return false, nil
+	return nil
 }
 
 // handlePowerReconcile drives power-state transitions for an active instance. It returns
@@ -115,12 +120,12 @@ func (h *InstancePluginHandler) HandleReconcile(ctx context.Context, resource *i
 // idempotent (safe to repeat, since reconciliation is at-least-once) and each observable effect
 // (status) is persisted BEFORE the phase advances, so the phase never claims progress that is
 // not durable.
-func (h *InstancePluginHandler) handlePowerReconcile(ctx context.Context, resource *instancedom.Instance) (handled bool, requeue bool, err error) {
+func (h *InstancePluginHandler) handlePowerReconcile(ctx context.Context, resource *instancedom.Instance) (handled bool, err error) {
 	// Reject malformed power intent up front: surface an error condition and requeue rather than
 	// silently doing nothing. These combinations are never produced by the gateway or delegator,
 	// so they indicate corruption or manual tampering.
 	if msg := validatePowerIntent(resource); msg != "" {
-		return true, true, h.recordPowerCondition(ctx, resource, "InvalidPowerIntent", msg)
+		return true, commonbackend.RequeueAfterState(h.recordPowerCondition(ctx, resource, "InvalidPowerIntent", msg))
 	}
 
 	powerState := instancedom.PowerStateOff
@@ -130,19 +135,15 @@ func (h *InstancePluginHandler) handlePowerReconcile(ctx context.Context, resour
 
 	switch {
 	case resource.RestartPhase == instancedom.RestartPhasePowerOff:
-		// The power-off phase always requeues to run the subsequent power-on phase.
-		return true, true, h.runRestartPowerOff(ctx, resource)
+		return true, h.runRestartPowerOff(ctx, resource)
 	case resource.RestartPhase == instancedom.RestartPhasePowerOn:
-		requeue, err = h.runRestartPowerOn(ctx, resource)
-		return true, requeue, err
+		return true, h.runRestartPowerOn(ctx, resource)
 	case resource.DesiredPowerState == instancedom.PowerStateOn && powerState == instancedom.PowerStateOff:
-		done, opErr := h.runPowerOp(ctx, resource, h.plugin.PowerOn, instancedom.PowerStateOn)
-		return true, !done, opErr
+		return true, h.runPowerOp(ctx, resource, h.plugin.PowerOn, instancedom.PowerStateOn)
 	case resource.DesiredPowerState == instancedom.PowerStateOff && powerState == instancedom.PowerStateOn:
-		done, opErr := h.runPowerOp(ctx, resource, h.plugin.PowerOff, instancedom.PowerStateOff)
-		return true, !done, opErr
+		return true, h.runPowerOp(ctx, resource, h.plugin.PowerOff, instancedom.PowerStateOff)
 	default:
-		return false, false, nil
+		return false, nil
 	}
 }
 
@@ -169,61 +170,62 @@ func validatePowerIntent(resource *instancedom.Instance) string {
 }
 
 // runRestartPowerOff executes the power-off phase: power the instance down, persist
-// PowerState=off, then advance the phase to power-on. The caller always requeues to run the
-// next phase.
+// PowerState=off, then advance the phase to power-on. It always reschedules on success, to run
+// the next phase.
 func (h *InstancePluginHandler) runRestartPowerOff(ctx context.Context, resource *instancedom.Instance) error {
-	done, err := h.runPowerOp(ctx, resource, h.plugin.PowerOff, instancedom.PowerStateOff)
-	if !done {
+	if err := h.runPowerOp(ctx, resource, h.plugin.PowerOff, instancedom.PowerStateOff); err != nil {
 		return err
 	}
+
 	// Advance is compare-and-swap on the restart id: a newer restart may have arrived during the
 	// power-off phase, and must not be overwritten with this (older) request's phase.
-	return h.updateRestartIfCurrent(ctx, resource, func(inst *instancedom.Instance) {
+	if err := h.updateRestartIfCurrent(ctx, resource, func(inst *instancedom.Instance) {
 		inst.RestartPhase = instancedom.RestartPhasePowerOn
-	})
+	}); err != nil {
+		return err
+	}
+
+	return backendport.StillProcessing
 }
 
 // runRestartPowerOn executes the power-on phase: power the instance up, persist PowerState=on,
 // then clear the restart annotations. Cleanup is conditional on the restart id so a superseding
 // restart is not clobbered; it never powers off again in this phase.
-func (h *InstancePluginHandler) runRestartPowerOn(ctx context.Context, resource *instancedom.Instance) (requeue bool, err error) {
-	done, err := h.runPowerOp(ctx, resource, h.plugin.PowerOn, instancedom.PowerStateOn)
-	if !done {
-		return true, err
+func (h *InstancePluginHandler) runRestartPowerOn(ctx context.Context, resource *instancedom.Instance) error {
+	if err := h.runPowerOp(ctx, resource, h.plugin.PowerOn, instancedom.PowerStateOn); err != nil {
+		return err
 	}
-	if err := h.updateRestartIfCurrent(ctx, resource, func(inst *instancedom.Instance) {
+
+	return h.updateRestartIfCurrent(ctx, resource, func(inst *instancedom.Instance) {
 		inst.RestartID = ""
 		inst.RestartPhase = ""
-	}); err != nil {
-		return true, err
-	}
-	return false, nil
+	})
 }
 
 // runPowerOp invokes a provider power operation and, on success, persists the target power state.
 // It centralizes the control flow shared by start/stop and the restart phases:
-//   - ErrStillProcessing: done=false, err=nil — the caller requeues with no status change.
-//   - any other provider error: recorded as a status condition and returned — the caller requeues.
-//   - success: the target power state is persisted and done=true.
+//   - a progress signal: returned as-is, with no status change — the caller must not advance.
+//   - any other provider error: recorded as a status condition and returned.
+//   - success: the target power state is persisted and nil is returned.
 //
-// done reports only whether the target state has been persisted, so the restart phase handlers
-// know whether to proceed to phase advancement/cleanup.
+// nil therefore means "the target state is persisted", which is what the restart phase handlers
+// need in order to know whether to proceed to phase advancement or cleanup.
 func (h *InstancePluginHandler) runPowerOp(
 	ctx context.Context,
 	resource *instancedom.Instance,
 	op backendport.DelegatedFunc[*instancedom.Instance],
 	target instancedom.PowerState,
-) (done bool, err error) {
+) error {
 	if opErr := op(ctx, resource); opErr != nil {
-		if errors.Is(opErr, backendport.ErrStillProcessing) {
-			return false, nil
+		var rq backendport.RequeueError
+		if errors.As(opErr, &rq) {
+			return opErr
 		}
-		return false, h.recordPowerError(ctx, resource, opErr)
+
+		return h.recordPowerError(ctx, resource, opErr)
 	}
-	if perr := h.persistPowerState(ctx, resource, target); perr != nil {
-		return false, perr
-	}
-	return true, nil
+
+	return h.persistPowerState(ctx, resource, target)
 }
 
 // persistPowerState records the instance power state, refreshing PowerStateSince only on an
@@ -325,7 +327,7 @@ func isInstanceActive(resource *instancedom.Instance) bool {
 		resource.Status.State == commondomain.ResourceStateActive
 }
 
-func (h *InstancePluginHandler) setResourceState(ctx context.Context, resource *instancedom.Instance, state commondomain.ResourceState, requeue bool) (bool, error) {
+func (h *InstancePluginHandler) setResourceState(ctx context.Context, resource *instancedom.Instance, state commondomain.ResourceState) error {
 	if resource.Status == nil {
 		resource.Status = &instancedom.InstanceStatus{}
 	}
@@ -335,15 +337,16 @@ func (h *InstancePluginHandler) setResourceState(ctx context.Context, resource *
 
 	if _, err := h.repo.UpdateStatus(ctx, resource); err != nil {
 		if errors.Is(err, kernel.ErrNotFound) {
-			return false, nil
+			// The resource is gone; there is nothing left to reconcile.
+			return nil
 		}
-		return requeue, err
+		return err
 	}
 
-	return requeue, nil
+	return nil
 }
 
-func (h *InstancePluginHandler) setResourceErrorState(ctx context.Context, resource *instancedom.Instance, err error, requeue bool) (bool, error) {
+func (h *InstancePluginHandler) setResourceErrorState(ctx context.Context, resource *instancedom.Instance, err error) error {
 	if resource.Status == nil {
 		resource.Status = &instancedom.InstanceStatus{}
 	}
@@ -353,12 +356,13 @@ func (h *InstancePluginHandler) setResourceErrorState(ctx context.Context, resou
 
 	if _, updateErr := h.repo.UpdateStatus(ctx, resource); updateErr != nil {
 		if errors.Is(updateErr, kernel.ErrNotFound) {
-			return false, nil
+			// The resource is gone; there is nothing left to reconcile.
+			return nil
 		}
-		return requeue, updateErr
+		return updateErr
 	}
 
-	return requeue, nil
+	return nil
 }
 
 func isInstanceAccepted(resource *instancedom.Instance) bool {

@@ -95,13 +95,13 @@ func TestCreateCR(t *testing.T) {
 		{
 			name:    "created successfully waits for ready",
 			fc:      &fakeClient{},
-			wantErr: delegator.ErrStillProcessing,
+			wantErr: delegator.StillProcessing,
 		},
 		{
 			name: "already exists not yet ready waits",
 			fc:   &fakeClient{createErr: alreadyExistsErr()},
 			// getFunc nil → Get returns nil with no conditions → Ready=Unknown
-			wantErr: delegator.ErrStillProcessing,
+			wantErr: delegator.StillProcessing,
 		},
 		{
 			name: "already exists and ready returns nil",
@@ -142,7 +142,7 @@ func TestCreateCR(t *testing.T) {
 					return nil
 				},
 			},
-			wantErr: delegator.ErrStillProcessing,
+			wantErr: delegator.StillProcessing,
 		},
 	}
 
@@ -200,7 +200,7 @@ func TestDeleteCR(t *testing.T) {
 		{
 			name:    "resource still exists waits for deletion",
 			fc:      &fakeClient{},
-			wantErr: delegator.ErrStillProcessing,
+			wantErr: delegator.StillProcessing,
 		},
 	}
 
@@ -237,7 +237,7 @@ func TestCheckExisting(t *testing.T) {
 			wantContains: "provider failed to reconcile",
 		},
 		{
-			name: "deletion timestamp returns ErrStillProcessing",
+			name: "deletion timestamp returns StillProcessing",
 			fc: &fakeClient{
 				getFunc: func(obj client.Object) error {
 					now := metav1.NewTime(time.Now())
@@ -245,12 +245,12 @@ func TestCheckExisting(t *testing.T) {
 					return nil
 				},
 			},
-			wantErr: delegator.ErrStillProcessing,
+			wantErr: delegator.StillProcessing,
 		},
 		{
-			name:    "not yet ready returns ErrStillProcessing",
+			name:    "not yet ready returns StillProcessing",
 			fc:      &fakeClient{},
-			wantErr: delegator.ErrStillProcessing,
+			wantErr: delegator.StillProcessing,
 		},
 		{
 			name: "ready with no ObservedGeneration returns nil",
@@ -272,7 +272,7 @@ func TestCheckExisting(t *testing.T) {
 			},
 		},
 		{
-			name: "ready with stale ObservedGeneration returns ErrStillProcessing",
+			name: "ready with stale ObservedGeneration returns StillProcessing",
 			fc: &fakeClient{
 				getFunc: func(obj client.Object) error {
 					cr := obj.(*testCR)
@@ -282,7 +282,7 @@ func TestCheckExisting(t *testing.T) {
 					return nil
 				},
 			},
-			wantErr: delegator.ErrStillProcessing,
+			wantErr: delegator.StillProcessing,
 		},
 	}
 

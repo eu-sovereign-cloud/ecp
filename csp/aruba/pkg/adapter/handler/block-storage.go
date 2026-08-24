@@ -7,8 +7,8 @@ import (
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
-	backend "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
-	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	res "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	commonbackend "github.com/eu-sovereign-cloud/ecp/resource/common/backend"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
@@ -198,11 +198,11 @@ func (h *BlockStorageHandler) resolveSecaBlockStorageDependencies(ctx context.Co
 
 	err := h.wsRepository.Load(ctx, &ws)
 	if err != nil {
-		return nil, backend.ErrStillProcessing // TODO: better error handling
+		return nil, backend.StillProcessing // TODO: better error handling
 	}
 
 	if ws.Status == nil || ws.Status.State != commondomain.ResourceStateActive {
-		return nil, backend.ErrStillProcessing // TODO: better error handling
+		return nil, backend.StillProcessing // TODO: better error handling
 	}
 
 	// A SKU is tenant-scoped, so the reference may name a tenant other than this block
@@ -241,14 +241,14 @@ func (h *BlockStorageHandler) resolveArubaBlockStorageDependencies(ctx context.C
 	err := h.prjRepository.Load(ctx, arubaBundle.Project)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return nil, backend.ErrStillProcessing // Project not found, wait for it to be created
+			return nil, backend.StillProcessing // Project not found, wait for it to be created
 		}
 
 		return nil, err // Other errors should be returned for handling
 	}
 
 	if arubaBundle.Project.Status.Phase != v1alpha1.ResourcePhaseActive {
-		return nil, backend.ErrStillProcessing // Project is not ready, wait for it to be active
+		return nil, backend.StillProcessing // Project is not ready, wait for it to be active
 	}
 
 	return &ArubaBlockStorageBundle{

@@ -49,9 +49,8 @@ func TestInstancePluginHandler_PowerReconcile(t *testing.T) {
 		mockPlugin.EXPECT().PowerOn(gomock.Any(), resource).Return(nil).Times(1)
 
 		handler := NewInstancePluginHandler(mockRepo, mockPlugin, 0)
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 		require.NoError(t, err)
-		require.False(t, requeue)
 	})
 
 	t.Run("stop: powers off when desired=off and currently on", func(t *testing.T) {
@@ -72,9 +71,8 @@ func TestInstancePluginHandler_PowerReconcile(t *testing.T) {
 		mockPlugin.EXPECT().PowerOff(gomock.Any(), resource).Return(nil).Times(1)
 
 		handler := NewInstancePluginHandler(mockRepo, mockPlugin, 0)
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 		require.NoError(t, err)
-		require.False(t, requeue)
 	})
 
 	t.Run("no-op: no power action when desired matches current state, falls through to update", func(t *testing.T) {
@@ -89,9 +87,8 @@ func TestInstancePluginHandler_PowerReconcile(t *testing.T) {
 		mockPlugin.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil).Times(1)
 
 		handler := NewInstancePluginHandler(mockRepo, mockPlugin, 0)
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 		require.NoError(t, err)
-		require.False(t, requeue)
 	})
 
 	t.Run("restart step 1: powers off and keeps the nonce when currently on", func(t *testing.T) {
@@ -127,9 +124,8 @@ func TestInstancePluginHandler_PowerReconcile(t *testing.T) {
 		mockPlugin.EXPECT().PowerOff(gomock.Any(), resource).Return(nil).Times(1)
 
 		handler := NewInstancePluginHandler(mockRepo, mockPlugin, 0)
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
-		require.NoError(t, err)
-		require.True(t, requeue, "restart cycle should requeue to complete")
+		err := handler.HandleReconcile(context.Background(), resource)
+		require.ErrorIs(t, err, backendport.StillProcessing, "restart cycle should requeue to complete")
 	})
 
 	t.Run("restart power-on phase: powers on and clears restart when id still matches", func(t *testing.T) {
@@ -165,9 +161,8 @@ func TestInstancePluginHandler_PowerReconcile(t *testing.T) {
 		mockPlugin.EXPECT().PowerOn(gomock.Any(), resource).Return(nil).Times(1)
 
 		handler := NewInstancePluginHandler(mockRepo, mockPlugin, 0)
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 		require.NoError(t, err)
-		require.False(t, requeue)
 	})
 
 	t.Run("restart power-on phase: does not clear a superseding restart", func(t *testing.T) {
@@ -192,9 +187,8 @@ func TestInstancePluginHandler_PowerReconcile(t *testing.T) {
 		mockPlugin.EXPECT().PowerOn(gomock.Any(), resource).Return(nil).Times(1)
 
 		handler := NewInstancePluginHandler(mockRepo, mockPlugin, 0)
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 		require.NoError(t, err)
-		require.False(t, requeue)
 	})
 
 	t.Run("phase advance does not clobber a superseding restart", func(t *testing.T) {
@@ -221,9 +215,8 @@ func TestInstancePluginHandler_PowerReconcile(t *testing.T) {
 		mockPlugin.EXPECT().PowerOff(gomock.Any(), resource).Return(nil).Times(1)
 
 		handler := NewInstancePluginHandler(mockRepo, mockPlugin, 0)
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
-		require.NoError(t, err)
-		require.True(t, requeue)
+		err := handler.HandleReconcile(context.Background(), resource)
+		require.ErrorIs(t, err, backendport.StillProcessing)
 	})
 
 	t.Run("restart phase takes precedence over a concurrent desired power state", func(t *testing.T) {
@@ -255,9 +248,8 @@ func TestInstancePluginHandler_PowerReconcile(t *testing.T) {
 		mockPlugin.EXPECT().PowerOn(gomock.Any(), resource).Return(nil).Times(1)
 
 		handler := NewInstancePluginHandler(mockRepo, mockPlugin, 0)
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 		require.NoError(t, err)
-		require.False(t, requeue)
 	})
 
 	t.Run("status write failure after provider success requeues with the error", func(t *testing.T) {
@@ -275,9 +267,8 @@ func TestInstancePluginHandler_PowerReconcile(t *testing.T) {
 		mockPlugin.EXPECT().PowerOn(gomock.Any(), resource).Return(nil).Times(1)
 
 		handler := NewInstancePluginHandler(mockRepo, mockPlugin, 0)
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 		require.ErrorIs(t, err, errStatus)
-		require.True(t, requeue)
 	})
 
 	t.Run("terminal provider error is recorded as a condition and requeued", func(t *testing.T) {
@@ -302,9 +293,8 @@ func TestInstancePluginHandler_PowerReconcile(t *testing.T) {
 		mockPlugin.EXPECT().PowerOn(gomock.Any(), resource).Return(errProvider).Times(1)
 
 		handler := NewInstancePluginHandler(mockRepo, mockPlugin, 0)
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 		require.ErrorIs(t, err, errProvider)
-		require.True(t, requeue)
 	})
 
 	t.Run("preserves PowerStateSince when re-persisting an already-recorded state", func(t *testing.T) {
@@ -339,7 +329,7 @@ func TestInstancePluginHandler_PowerReconcile(t *testing.T) {
 		mockPlugin.EXPECT().PowerOn(gomock.Any(), resource).Return(nil).Times(1)
 
 		handler := NewInstancePluginHandler(mockRepo, mockPlugin, 0)
-		_, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 		require.NoError(t, err)
 	})
 
@@ -373,9 +363,8 @@ func TestInstancePluginHandler_PowerReconcile(t *testing.T) {
 			mockPlugin := NewMockInstancePlugin(ctrl)
 
 			handler := NewInstancePluginHandler(mockRepo, mockPlugin, 0)
-			requeue, err := handler.HandleReconcile(context.Background(), resource)
-			require.NoError(t, err)
-			require.True(t, requeue)
+			err := handler.HandleReconcile(context.Background(), resource)
+			require.ErrorIs(t, err, backendport.StillProcessing)
 		})
 	}
 
@@ -388,12 +377,11 @@ func TestInstancePluginHandler_PowerReconcile(t *testing.T) {
 
 		mockRepo := NewMockRepo[*instancedom.Instance](ctrl)
 		mockPlugin := NewMockInstancePlugin(ctrl)
-		mockPlugin.EXPECT().PowerOn(gomock.Any(), resource).Return(backendport.ErrStillProcessing).Times(1)
+		mockPlugin.EXPECT().PowerOn(gomock.Any(), resource).Return(backendport.StillProcessing).Times(1)
 
 		handler := NewInstancePluginHandler(mockRepo, mockPlugin, 0)
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
-		require.NoError(t, err)
-		require.True(t, requeue)
+		err := handler.HandleReconcile(context.Background(), resource)
+		require.ErrorIs(t, err, backendport.StillProcessing)
 	})
 
 	t.Run("power management is skipped while the instance is not active", func(t *testing.T) {
@@ -415,7 +403,7 @@ func TestInstancePluginHandler_PowerReconcile(t *testing.T) {
 
 		handler := NewInstancePluginHandler(mockRepo, mockPlugin, 0)
 		// Creating state → falls through to lifecycle (create), no power op invoked.
-		_, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 		require.NoError(t, err)
 	})
 }
@@ -443,10 +431,9 @@ func TestInstancePluginHandler_HandleReconcile(t *testing.T) {
 		mockPlugin.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil).Times(1)
 		handler := NewInstancePluginHandler(mockRepo, mockPlugin, 0)
 
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		require.NoError(t, err)
-		require.False(t, requeue)
 	})
 
 	t.Run("should set state to creating and requeue when resource is pending", func(t *testing.T) {
@@ -471,10 +458,9 @@ func TestInstancePluginHandler_HandleReconcile(t *testing.T) {
 		mockPlugin := NewMockInstancePlugin(ctrl)
 		handler := NewInstancePluginHandler(mockRepo, mockPlugin, 0)
 
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
-		require.NoError(t, err)
-		require.True(t, requeue)
+		require.ErrorIs(t, err, backendport.StillProcessing)
 	})
 
 	t.Run("should call plugin create and set state to active when resource is creating", func(t *testing.T) {
@@ -501,10 +487,9 @@ func TestInstancePluginHandler_HandleReconcile(t *testing.T) {
 
 		handler := NewInstancePluginHandler(mockRepo, mockPlugin, 0)
 
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		require.NoError(t, err)
-		require.False(t, requeue)
 	})
 
 	t.Run("should call plugin delete and set state to deleting when resource is deleting", func(t *testing.T) {
@@ -531,10 +516,9 @@ func TestInstancePluginHandler_HandleReconcile(t *testing.T) {
 
 		handler := NewInstancePluginHandler(mockRepo, mockPlugin, 0)
 
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		require.NoError(t, err)
-		require.False(t, requeue)
 	})
 
 	t.Run("should set state to error and requeue when plugin create fails", func(t *testing.T) {
@@ -564,10 +548,9 @@ func TestInstancePluginHandler_HandleReconcile(t *testing.T) {
 		handler := NewInstancePluginHandler(mockRepo, mockPlugin, 0)
 		handler.MaxConditions = 1
 
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
-		require.NoError(t, err)
-		require.True(t, requeue)
+		require.ErrorIs(t, err, backendport.StillProcessing)
 	})
 
 	t.Run("should return error when repo update fails after plugin failure", func(t *testing.T) {
@@ -590,7 +573,7 @@ func TestInstancePluginHandler_HandleReconcile(t *testing.T) {
 
 		handler := NewInstancePluginHandler(mockRepo, mockPlugin, 0)
 
-		_, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		require.ErrorIs(t, err, errRepo)
 	})
@@ -628,10 +611,9 @@ func TestInstancePluginHandler_HandleReconcile(t *testing.T) {
 		handler := NewInstancePluginHandler(mockRepo, mockPlugin, 0)
 		handler.MaxConditions = 1
 
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
-		require.NoError(t, err)
-		require.True(t, requeue)
+		require.ErrorIs(t, err, backendport.StillProcessing)
 	})
 
 	t.Run("should set state to creating and requeue on retry create", func(t *testing.T) {
@@ -661,10 +643,9 @@ func TestInstancePluginHandler_HandleReconcile(t *testing.T) {
 		mockPlugin := NewMockInstancePlugin(ctrl)
 		handler := NewInstancePluginHandler(mockRepo, mockPlugin, 0)
 
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
-		require.NoError(t, err)
-		require.True(t, requeue)
+		require.ErrorIs(t, err, backendport.StillProcessing)
 	})
 
 	t.Run("should do nothing for unhandled states", func(t *testing.T) {
@@ -683,10 +664,9 @@ func TestInstancePluginHandler_HandleReconcile(t *testing.T) {
 		mockPlugin := NewMockInstancePlugin(ctrl)
 		handler := NewInstancePluginHandler(mockRepo, mockPlugin, 0)
 
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		require.NoError(t, err)
-		require.False(t, requeue)
 	})
 
 	t.Run("should return error when repo update fails in setResourceState", func(t *testing.T) {
@@ -707,7 +687,7 @@ func TestInstancePluginHandler_HandleReconcile(t *testing.T) {
 		mockPlugin := NewMockInstancePlugin(ctrl)
 		handler := NewInstancePluginHandler(mockRepo, mockPlugin, 0)
 
-		_, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		require.ErrorIs(t, err, errRepo)
 	})
@@ -746,4 +726,33 @@ func TestInstancePluginHandler_HandleReconcile(t *testing.T) {
 		}
 		t.Fatalf("process ran with err %v, want exit status 1", err)
 	})
+}
+
+// TestInstancePluginHandler_RestartPhaseHoldsWhileProviderWorks pins the durable restart machine
+// against a provider that has not finished powering down. The pass must reschedule at the cadence
+// the plugin asked for, record nothing, and above all leave the phase where it is: advancing it
+// would claim a power-off that is not yet durable, and a controller restart would then resume from
+// a phase that never happened.
+func TestInstancePluginHandler_RestartPhaseHoldsWhileProviderWorks(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	resource := activeInstance(instancedom.PowerStateOn)
+	resource.RestartID = "restart-1"
+	resource.RestartPhase = instancedom.RestartPhasePowerOff
+
+	mockRepo := NewMockRepo[*instancedom.Instance](ctrl)
+	mockPlugin := NewMockInstancePlugin(ctrl)
+	mockPlugin.EXPECT().PowerOff(gomock.Any(), gomock.Any()).
+		Return(backendport.Revisit(15 * time.Second)).Times(1)
+
+	handler := NewInstancePluginHandler(mockRepo, mockPlugin, 0)
+
+	err := handler.HandleReconcile(context.Background(), resource)
+
+	var rq backendport.RequeueError
+	require.ErrorAs(t, err, &rq)
+	require.Equal(t, 15*time.Second, rq.RequeueAfter(), "the plugin's cadence must reach the controller")
+	require.Equal(t, instancedom.RestartPhasePowerOff, resource.RestartPhase,
+		"the phase must not advance before the power-off is durable")
 }

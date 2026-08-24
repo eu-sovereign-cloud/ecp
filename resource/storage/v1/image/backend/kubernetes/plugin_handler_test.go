@@ -11,6 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
+	backendport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
+
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	imgdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image"
 	. "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image/backend/kubernetes"
@@ -52,12 +54,11 @@ func TestImagePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		//
 		// Then it should succeed and not request a requeue
 		require.NoError(t, err)
-		require.False(t, requeue)
 	})
 
 	t.Run("should set state to creating and requeue when resource is pending and block storage is active", func(t *testing.T) {
@@ -100,12 +101,11 @@ func TestImagePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		//
 		// Then it should succeed and request a requeue
-		require.NoError(t, err)
-		require.True(t, requeue)
+		require.ErrorIs(t, err, backendport.StillProcessing)
 	})
 
 	t.Run("should stay pending and requeue when block storage is not yet active", func(t *testing.T) {
@@ -148,12 +148,11 @@ func TestImagePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		//
 		// Then it should stay pending and request a requeue
-		require.NoError(t, err)
-		require.True(t, requeue)
+		require.ErrorIs(t, err, backendport.StillProcessing)
 	})
 
 	t.Run("should set error state and requeue when dependency resolution fails", func(t *testing.T) {
@@ -195,12 +194,11 @@ func TestImagePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		//
 		// Then it should handle the error gracefully and request a requeue
-		require.NoError(t, err)
-		require.True(t, requeue)
+		require.ErrorIs(t, err, backendport.StillProcessing)
 	})
 
 	t.Run("should call plugin create and set state to active when resource is creating", func(t *testing.T) {
@@ -243,12 +241,11 @@ func TestImagePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		//
 		// Then it should succeed and not request a requeue
 		require.NoError(t, err)
-		require.False(t, requeue)
 	})
 
 	t.Run("should call plugin delete and set state to deleting when resource is deleting", func(t *testing.T) {
@@ -288,12 +285,11 @@ func TestImagePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		//
 		// Then it should succeed and not request a requeue
 		require.NoError(t, err)
-		require.False(t, requeue)
 	})
 
 	t.Run("should set state to creating and requeue on retry create", func(t *testing.T) {
@@ -335,12 +331,11 @@ func TestImagePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		//
 		// Then it should succeed and request a requeue
-		require.NoError(t, err)
-		require.True(t, requeue)
+		require.ErrorIs(t, err, backendport.StillProcessing)
 	})
 
 	t.Run("should set state to error and requeue when plugin create fails", func(t *testing.T) {
@@ -385,12 +380,11 @@ func TestImagePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		//
 		// Then it should handle the error gracefully, not return an error, but request a requeue
-		require.NoError(t, err)
-		require.True(t, requeue)
+		require.ErrorIs(t, err, backendport.StillProcessing)
 	})
 
 	t.Run("should return error when repo update fails after plugin failure", func(t *testing.T) {
@@ -428,7 +422,7 @@ func TestImagePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		_, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		//
 		// Then it should return the repo error
@@ -471,7 +465,7 @@ func TestImagePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		_, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		//
 		// Then it should return the repo error
@@ -526,12 +520,11 @@ func TestImagePluginHandler_HandleReconcile(t *testing.T) {
 
 		//
 		// When we reconcile the resource
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		//
 		// Then it should handle the error gracefully and request a requeue
-		require.NoError(t, err)
-		require.True(t, requeue)
+		require.ErrorIs(t, err, backendport.StillProcessing)
 	})
 
 	t.Run("should fatal if state changes unexpectedly after delegation", func(t *testing.T) {
@@ -590,4 +583,36 @@ func TestImagePluginHandler_HandleReconcile(t *testing.T) {
 		}
 		t.Fatalf("process ran with err %v, want exit status 1", err)
 	})
+}
+
+// TestImagePluginHandler_DependencyWaitIsProgress pins that gating on the referenced block storage
+// reschedules rather than failing: the image stays pending, the condition explains the wait, and
+// the controller comes back for it.
+func TestImagePluginHandler_DependencyWaitIsProgress(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	resource := &imgdom.Image{
+		Status: &imgdom.ImageStatus{
+			Status: commondomain.Status{State: commondomain.ResourceStatePending},
+		},
+	}
+
+	mockDeps := NewMockDependencyResolver(ctrl)
+	mockDeps.EXPECT().State(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+		Return(true, commondomain.ResourceStateCreating, nil).Times(1)
+
+	mockRepo := NewMockRepo[*imgdom.Image](ctrl)
+	mockRepo.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).DoAndReturn(
+		func(_ context.Context, res *imgdom.Image) (*imgdom.Image, error) {
+			require.Equal(t, commondomain.ResourceStatePending, res.Status.State,
+				"the image must stay pending while it waits")
+			return nil, nil
+		}).Times(1)
+
+	handler := NewImagePluginHandler(mockRepo, NewMockImagePlugin(ctrl), 0, mockDeps)
+
+	err := handler.HandleReconcile(context.Background(), resource)
+
+	require.ErrorIs(t, err, backendport.StillProcessing)
 }

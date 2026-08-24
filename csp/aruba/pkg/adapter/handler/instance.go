@@ -11,8 +11,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	backend "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
-	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	res "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	commonbackend "github.com/eu-sovereign-cloud/ecp/resource/common/backend"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
@@ -41,7 +41,7 @@ var _ instancek8s.InstancePlugin = (*ComputeInstanceHandler)(nil)
 // key pair (from the inline ssh key). See csp/aruba/README.md.
 //
 // Missing dependencies (a NIC not created yet, a subnet not active, no ssh key, no security group)
-// gate the create with backend.ErrStillProcessing: the instance stays in "creating" and is retried,
+// gate the create with backend.StillProcessing: the instance stays in "creating" and is retried,
 // matching the other Aruba handlers. Aruba's CloudServer CRD carries no power field, so PowerOn and
 // PowerOff are no-ops.
 type ComputeInstanceHandler struct {
@@ -97,7 +97,7 @@ func NewComputeInstanceHandler(
 
 // Create resolves the instance's dependency graph, materialises the key pair and security groups it
 // needs, and creates the Aruba CloudServer. It is idempotent: every pass re-issues the creates and
-// reports backend.ErrStillProcessing until the CloudServer is active.
+// reports backend.StillProcessing until the CloudServer is active.
 func (h *ComputeInstanceHandler) Create(ctx context.Context, domain *instancedom.Instance) error {
 	refs, err := h.resolve(ctx, domain)
 	if err != nil {
@@ -112,12 +112,12 @@ func (h *ComputeInstanceHandler) Create(ctx context.Context, domain *instancedom
 	observed := cloudServer.DeepCopy()
 	if err := h.cloudServerRepo.Load(ctx, observed); err != nil {
 		if apierrors.IsNotFound(err) {
-			return backend.ErrStillProcessing
+			return backend.StillProcessing
 		}
 		return err
 	}
 	if observed.Status.Phase != v1alpha1.ResourcePhaseActive {
-		return backend.ErrStillProcessing
+		return backend.StillProcessing
 	}
 	return nil
 }
@@ -137,7 +137,7 @@ func (h *ComputeInstanceHandler) Delete(ctx context.Context, domain *instancedom
 	}
 
 	if err := h.cloudServerRepo.Load(ctx, cloudServer.DeepCopy()); err == nil {
-		return backend.ErrStillProcessing // CloudServer still present, deletion in progress
+		return backend.StillProcessing // CloudServer still present, deletion in progress
 	} else if !apierrors.IsNotFound(err) {
 		return err
 	}
@@ -162,7 +162,7 @@ func (h *ComputeInstanceHandler) PowerOff(_ context.Context, _ *instancedom.Inst
 	return nil
 }
 
-// resolve gathers every reference a CloudServer needs, gating with backend.ErrStillProcessing while
+// resolve gathers every reference a CloudServer needs, gating with backend.StillProcessing while
 // a dependency is missing and materialising the key pair and security groups along the way.
 func (h *ComputeInstanceHandler) resolve(ctx context.Context, domain *instancedom.Instance) (*adaptconverter.CloudServerRefs, error) {
 	tenant := domain.GetTenant()
@@ -187,7 +187,7 @@ func (h *ComputeInstanceHandler) resolve(ctx context.Context, domain *instancedo
 	}
 
 	if len(domain.Spec.SshKeys) == 0 {
-		return nil, backend.ErrStillProcessing // KeyPairReference is required and SECA has no ssh key here
+		return nil, backend.StillProcessing // KeyPairReference is required and SECA has no ssh key here
 	}
 	keyPair := adaptconverter.BuildKeyPair(domain, domain.Spec.SshKeys[0])
 	if err := h.keyPairRepository.Create(ctx, keyPair); err != nil && !apierrors.IsAlreadyExists(err) {
@@ -210,14 +210,14 @@ func (h *ComputeInstanceHandler) resolve(ctx context.Context, domain *instancedo
 	// ParseReference reads both and falls back to the instance's tenant.
 	skuRef := commonbackend.ParseReference(domain.Spec.SkuRef, tenant)
 	if skuRef.Name == "" {
-		return nil, backend.ErrStillProcessing // SkuRef is required
+		return nil, backend.StillProcessing // SkuRef is required
 	}
 	sku := &computeskudom.InstanceSKU{RegionalMetadata: commondomain.RegionalMetadata{
 		CommonMetadata: commondomain.CommonMetadata{Name: skuRef.Name},
 		Scope:          res.Scope{Tenant: skuRef.Tenant},
 	}}
 	if err := h.computeSkuRepository.Load(ctx, &sku); err != nil {
-		return nil, backend.ErrStillProcessing // SKU catalog not ready yet
+		return nil, backend.StillProcessing // SKU catalog not ready yet
 	}
 	flavor, err := skumap.ComputeFlavor(sku.Spec.VCPU, sku.Spec.Ram)
 	if err != nil {
@@ -249,7 +249,7 @@ func (h *ComputeInstanceHandler) resolveNetworking(ctx context.Context, domain *
 		sgNames = appendUnique(sgNames, name)
 	}
 	if len(subnetNames) == 0 {
-		return backend.ErrStillProcessing // an Aruba CloudServer needs at least one subnet
+		return backend.StillProcessing // an Aruba CloudServer needs at least one subnet
 	}
 
 	// All of an instance's subnets live in one network's VPC; the first subnet fixes the VPC and
@@ -269,7 +269,7 @@ func (h *ComputeInstanceHandler) resolveNetworking(ctx context.Context, domain *
 	}
 
 	if len(sgNames) == 0 {
-		return backend.ErrStillProcessing // an Aruba CloudServer needs at least one security group
+		return backend.StillProcessing // an Aruba CloudServer needs at least one security group
 	}
 	refs.SecurityGroupReferences = make([]v1alpha1.ResourceReference, 0, len(sgNames))
 	for _, name := range sgNames {
@@ -306,7 +306,7 @@ func (h *ComputeInstanceHandler) resolveVolumes(ctx context.Context, domain *ins
 		return err
 	}
 	if bootName == "" {
-		return backend.ErrStillProcessing // BootVolumeReference is required
+		return backend.StillProcessing // BootVolumeReference is required
 	}
 	bootVolume := &v1alpha1.BlockStorage{
 		ObjectMeta: metav1.ObjectMeta{Name: bootName, Namespace: wsNamespace},
@@ -362,7 +362,7 @@ func (h *ComputeInstanceHandler) resolveNics(ctx context.Context, domain *instan
 			},
 		}
 		if err := h.nicRepository.Load(ctx, &nic); err != nil {
-			return nil, nil, nil, backend.ErrStillProcessing // NIC not created yet
+			return nil, nil, nil, backend.StillProcessing // NIC not created yet
 		}
 
 		// Kept whole rather than reduced to a name: a subnet reference may name the network it
@@ -429,7 +429,7 @@ func (h *ComputeInstanceHandler) resolveSubnet(ctx context.Context, tenant, work
 	}
 
 	if match == nil {
-		return nil, backend.ErrStillProcessing // subnet not created or not active yet
+		return nil, backend.StillProcessing // subnet not created or not active yet
 	}
 	return match, nil
 }
@@ -458,7 +458,7 @@ func (h *ComputeInstanceHandler) materializeSecurityGroup(ctx context.Context, t
 		},
 	}
 	if err := h.sgRepository.Load(ctx, &seca); err != nil {
-		return v1alpha1.ResourceReference{}, backend.ErrStillProcessing // SECA security group not created yet
+		return v1alpha1.ResourceReference{}, backend.StillProcessing // SECA security group not created yet
 	}
 
 	arubaSG := adaptconverter.BuildSecurityGroup(secaName, network, region, tenant, namespace, seca.Labels, vpcRef, projectRef)
@@ -479,7 +479,7 @@ func (h *ComputeInstanceHandler) materializeSecurityGroup(ctx context.Context, t
 			},
 		}
 		if err := h.sgrRepository.Load(ctx, &standalone); err != nil {
-			return v1alpha1.ResourceReference{}, backend.ErrStillProcessing // referenced rule not created yet
+			return v1alpha1.ResourceReference{}, backend.StillProcessing // referenced rule not created yet
 		}
 		rules = append(rules, adaptconverter.NormalizeStandaloneRule(standalone.Spec, standalone.Labels))
 	}
@@ -496,12 +496,12 @@ func (h *ComputeInstanceHandler) materializeSecurityGroup(ctx context.Context, t
 	observed := arubaSG.DeepCopy()
 	if err := h.secGroupRepository.Load(ctx, observed); err != nil {
 		if apierrors.IsNotFound(err) {
-			return v1alpha1.ResourceReference{}, backend.ErrStillProcessing
+			return v1alpha1.ResourceReference{}, backend.StillProcessing
 		}
 		return v1alpha1.ResourceReference{}, err
 	}
 	if observed.Status.Phase != v1alpha1.ResourcePhaseActive {
-		return v1alpha1.ResourceReference{}, backend.ErrStillProcessing
+		return v1alpha1.ResourceReference{}, backend.StillProcessing
 	}
 
 	return v1alpha1.ResourceReference{Name: arubaSG.Name, Namespace: namespace}, nil

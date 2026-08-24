@@ -73,7 +73,7 @@ func newIPBlock(domain *publicipdom.PublicIp) (*ionosv1alpha1.Ipblock, error) {
 }
 
 // readReservedIP returns the first public IP reserved on the IPBlock named `name`.
-// Returns ErrStillProcessing until the provider has assigned an address, or the
+// Returns StillProcessing until the provider has assigned an address, or the
 // reconcile error if the provider has given up (e.g. region out of addresses),
 // so a failed IPBlock surfaces as an instance error instead of requeuing forever.
 func readReservedIP(ctx context.Context, c client.Client, namespace, name string) (string, error) {
@@ -86,7 +86,7 @@ func readReservedIP(ctx context.Context, c client.Client, namespace, name string
 	}
 	ips := ipb.Status.AtProvider.Ips
 	if len(ips) == 0 || ips[0] == nil || *ips[0] == "" {
-		return "", backend.ErrStillProcessing
+		return "", backend.StillProcessing
 	}
 	return *ips[0], nil
 }

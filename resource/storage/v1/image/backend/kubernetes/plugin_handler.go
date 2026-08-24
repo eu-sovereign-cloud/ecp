@@ -54,7 +54,7 @@ func NewImagePluginHandler(
 	return handler
 }
 
-func (h *ImagePluginHandler) HandleReconcile(ctx context.Context, resource *imgdom.Image) (bool, error) {
+func (h *ImagePluginHandler) HandleReconcile(ctx context.Context, resource *imgdom.Image) error {
 	// An active resource has no lifecycle transition left to make, so it takes the update
 	// path instead of the create/delete state machine below. See commonbackend.HandleUpdate.
 	if isImageActive(resource) {
@@ -84,50 +84,53 @@ func (h *ImagePluginHandler) HandleReconcile(ctx context.Context, resource *imgd
 		delegate = frameworkbackend.BypassDelegated[*imgdom.Image]
 
 	default:
-		return false, nil // Nothing to do.
+		return nil // Nothing to do.
 	}
 
 	if err := delegate(ctx, resource); err != nil {
-		if errors.Is(err, backendport.ErrStillProcessing) {
-			return true, nil
+		var rq backendport.RequeueError
+		if errors.As(err, &rq) {
+			// Not a failure, and not ours to reinterpret: the plugin named its own cadence.
+			return err
 		}
 
-		if requeue, err := h.setResourceErrorState(ctx, resource, err, false); err != nil {
-			return requeue, err
+		if stateErr := h.setResourceErrorState(ctx, resource, err); stateErr != nil {
+			return stateErr
 		}
 
-		return true, nil
+		// The failure is recorded on the resource; retry it on the next pass.
+		return backendport.StillProcessing
 	}
 
 	switch {
 
 	case isImageAccepted(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStatePending, false)
+		return h.setResourceState(ctx, resource, commondomain.ResourceStatePending)
 
 	case isImagePending(resource):
 		return h.ensureBlockStorageReady(ctx, resource)
 
 	case isImageCreating(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStateActive, false)
+		return h.setResourceState(ctx, resource, commondomain.ResourceStateActive)
 
 	case wantImageDelete(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStateDeleting, true)
+		return commonbackend.RequeueAfterState(h.setResourceState(ctx, resource, commondomain.ResourceStateDeleting))
 
 	case isImageDeleting(resource):
 		// Nothing to do: the controller will remove the finalizers to end the deletion process.
-		return false, nil
+		return nil
 
 	case wantImageRetryCreate(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStateCreating, true)
+		return commonbackend.RequeueAfterState(h.setResourceState(ctx, resource, commondomain.ResourceStateCreating))
 
 	default:
 		log.Fatal("must never achieve that condition")
 	}
 
-	return false, nil
+	return nil
 }
 
-func (h *ImagePluginHandler) setResourceState(ctx context.Context, resource *imgdom.Image, state commondomain.ResourceState, requeue bool) (bool, error) {
+func (h *ImagePluginHandler) setResourceState(ctx context.Context, resource *imgdom.Image, state commondomain.ResourceState) error {
 	if resource.Status == nil {
 		resource.Status = &imgdom.ImageStatus{}
 	}
@@ -137,16 +140,17 @@ func (h *ImagePluginHandler) setResourceState(ctx context.Context, resource *img
 
 	if _, err := h.repo.UpdateStatus(ctx, resource); err != nil {
 		if errors.Is(err, kernel.ErrNotFound) {
-			return false, nil
+			// The resource is gone; there is nothing left to reconcile.
+			return nil
 		}
 
-		return requeue, err
+		return err
 	}
 
-	return requeue, nil
+	return nil
 }
 
-func (h *ImagePluginHandler) setResourceErrorState(ctx context.Context, resource *imgdom.Image, err error, requeue bool) (bool, error) {
+func (h *ImagePluginHandler) setResourceErrorState(ctx context.Context, resource *imgdom.Image, err error) error {
 	if resource.Status == nil {
 		resource.Status = &imgdom.ImageStatus{}
 	}
@@ -156,36 +160,38 @@ func (h *ImagePluginHandler) setResourceErrorState(ctx context.Context, resource
 
 	if _, updateErr := h.repo.UpdateStatus(ctx, resource); updateErr != nil {
 		if errors.Is(updateErr, kernel.ErrNotFound) {
-			return false, nil
+			// The resource is gone; there is nothing left to reconcile.
+			return nil
 		}
 
-		return requeue, updateErr
+		return updateErr
 	}
 
-	return requeue, nil
+	return nil
 }
 
 // ensureBlockStorageReady gates the image's transition to creating on its referenced
 // block storage existing and being active. While the dependency is not ready the image
 // stays pending and the reconcile is requeued.
-func (h *ImagePluginHandler) ensureBlockStorageReady(ctx context.Context, resource *imgdom.Image) (bool, error) {
+func (h *ImagePluginHandler) ensureBlockStorageReady(ctx context.Context, resource *imgdom.Image) error {
 	exists, state, err := h.deps.State(ctx, blockStorageGVR, resource.Spec.BlockStorageRef, resource.Tenant)
 	if err != nil {
-		return h.setResourceErrorState(ctx, resource, err, true)
+		return commonbackend.RequeueAfterState(h.setResourceErrorState(ctx, resource, err))
 	}
 
 	if !exists || state != commondomain.ResourceStateActive {
 		message := fmt.Sprintf("waiting for block storage %q to be active", resource.Spec.BlockStorageRef.Resource)
 		c := commonbackend.DependencyPendingCondition(commondomain.ResourceStatePending, message)
-		return h.setResourceCondition(ctx, resource, c, true)
+
+		return commonbackend.RequeueAfterState(h.setResourceCondition(ctx, resource, c))
 	}
 
-	return h.setResourceState(ctx, resource, commondomain.ResourceStateCreating, true)
+	return commonbackend.RequeueAfterState(h.setResourceState(ctx, resource, commondomain.ResourceStateCreating))
 }
 
 // setResourceCondition pushes c onto the resource status and persists it, mirroring
 // setResourceState but without forcing a lifecycle transition beyond what c carries.
-func (h *ImagePluginHandler) setResourceCondition(ctx context.Context, resource *imgdom.Image, c commondomain.StatusCondition, requeue bool) (bool, error) {
+func (h *ImagePluginHandler) setResourceCondition(ctx context.Context, resource *imgdom.Image, c commondomain.StatusCondition) error {
 	if resource.Status == nil {
 		resource.Status = &imgdom.ImageStatus{}
 	}
@@ -195,13 +201,14 @@ func (h *ImagePluginHandler) setResourceCondition(ctx context.Context, resource 
 
 	if _, err := h.repo.UpdateStatus(ctx, resource); err != nil {
 		if errors.Is(err, kernel.ErrNotFound) {
-			return false, nil
+			// The resource is gone; there is nothing left to reconcile.
+			return nil
 		}
 
-		return requeue, err
+		return err
 	}
 
-	return requeue, nil
+	return nil
 }
 
 func isImageActive(resource *imgdom.Image) bool {

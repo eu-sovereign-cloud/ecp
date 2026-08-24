@@ -39,7 +39,7 @@ func NewNetworkPluginHandler(
 	return handler
 }
 
-func (h *NetworkPluginHandler) HandleReconcile(ctx context.Context, resource *netdom.Network) (bool, error) {
+func (h *NetworkPluginHandler) HandleReconcile(ctx context.Context, resource *netdom.Network) error {
 	// An active resource has no lifecycle transition left to make, so it takes the update path
 	// instead of the create/delete state machine below. See commonbackend.HandleUpdate.
 	if isNetworkActive(resource) {
@@ -69,50 +69,53 @@ func (h *NetworkPluginHandler) HandleReconcile(ctx context.Context, resource *ne
 		delegate = frameworkbackend.BypassDelegated[*netdom.Network]
 
 	default:
-		return false, nil // Nothing to do.
+		return nil // Nothing to do.
 	}
 
 	if err := delegate(ctx, resource); err != nil {
-		if errors.Is(err, backendport.ErrStillProcessing) {
-			return true, nil
+		var rq backendport.RequeueError
+		if errors.As(err, &rq) {
+			// Not a failure, and not ours to reinterpret: the plugin named its own cadence.
+			return err
 		}
 
-		if requeue, err := h.setResourceErrorState(ctx, resource, err, false); err != nil {
-			return requeue, err
+		if stateErr := h.setResourceErrorState(ctx, resource, err); stateErr != nil {
+			return stateErr
 		}
 
-		return true, nil
+		// The failure is recorded on the resource; retry it on the next pass.
+		return backendport.StillProcessing
 	}
 
 	switch {
 
 	case isNetworkAccepted(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStatePending, false)
+		return h.setResourceState(ctx, resource, commondomain.ResourceStatePending)
 
 	case isNetworkPending(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStateCreating, true)
+		return commonbackend.RequeueAfterState(h.setResourceState(ctx, resource, commondomain.ResourceStateCreating))
 
 	case isNetworkCreating(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStateActive, false)
+		return h.setResourceState(ctx, resource, commondomain.ResourceStateActive)
 
 	case wantNetworkDelete(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStateDeleting, true)
+		return commonbackend.RequeueAfterState(h.setResourceState(ctx, resource, commondomain.ResourceStateDeleting))
 
 	case isNetworkDeleting(resource):
 		// Nothing to do: the controller will remove the finalizers to end the deletion process.
-		return false, nil
+		return nil
 
 	case wantNetworkRetryCreate(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStateCreating, true)
+		return commonbackend.RequeueAfterState(h.setResourceState(ctx, resource, commondomain.ResourceStateCreating))
 
 	default:
 		log.Fatal("must never achieve that condition")
 	}
 
-	return false, nil
+	return nil
 }
 
-func (h *NetworkPluginHandler) setResourceState(ctx context.Context, resource *netdom.Network, state commondomain.ResourceState, requeue bool) (bool, error) {
+func (h *NetworkPluginHandler) setResourceState(ctx context.Context, resource *netdom.Network, state commondomain.ResourceState) error {
 	if resource.Status == nil {
 		resource.Status = &netdom.NetworkStatus{}
 	}
@@ -122,16 +125,17 @@ func (h *NetworkPluginHandler) setResourceState(ctx context.Context, resource *n
 
 	if _, err := h.repo.UpdateStatus(ctx, resource); err != nil {
 		if errors.Is(err, kernel.ErrNotFound) {
-			return false, nil
+			// The resource is gone; there is nothing left to reconcile.
+			return nil
 		}
 
-		return requeue, err
+		return err
 	}
 
-	return requeue, nil
+	return nil
 }
 
-func (h *NetworkPluginHandler) setResourceErrorState(ctx context.Context, resource *netdom.Network, err error, requeue bool) (bool, error) {
+func (h *NetworkPluginHandler) setResourceErrorState(ctx context.Context, resource *netdom.Network, err error) error {
 	if resource.Status == nil {
 		resource.Status = &netdom.NetworkStatus{}
 	}
@@ -141,13 +145,14 @@ func (h *NetworkPluginHandler) setResourceErrorState(ctx context.Context, resour
 
 	if _, updateErr := h.repo.UpdateStatus(ctx, resource); updateErr != nil {
 		if errors.Is(updateErr, kernel.ErrNotFound) {
-			return false, nil
+			// The resource is gone; there is nothing left to reconcile.
+			return nil
 		}
 
-		return requeue, updateErr
+		return updateErr
 	}
 
-	return requeue, nil
+	return nil
 }
 
 func isNetworkAccepted(resource *netdom.Network) bool {

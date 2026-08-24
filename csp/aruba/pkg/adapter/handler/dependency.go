@@ -6,8 +6,8 @@ import (
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
-	backend "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
-	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	res "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	wsdom "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1"
@@ -17,7 +17,7 @@ import (
 
 // Dependency gates shared by the resource handlers. Every Aruba resource hangs off a Project,
 // which the workspace handler creates concurrently, so "not there yet" is the normal case rather
-// than a failure: these helpers report backend.ErrStillProcessing, which the reconciler turns
+// than a failure: these helpers report backend.StillProcessing, which the reconciler turns
 // into a requeue. Note that requeues carry no message, so the SECA resource stays in "creating"
 // with no indication of which dependency is missing - see csp/aruba/README.md.
 
@@ -35,11 +35,11 @@ func loadActiveWorkspace(ctx context.Context, repo persistence.ReaderRepo[*wsdom
 	}
 
 	if err := repo.Load(ctx, &ws); err != nil {
-		return nil, backend.ErrStillProcessing // TODO: better error handling
+		return nil, backend.StillProcessing // TODO: better error handling
 	}
 
 	if ws.Status == nil || ws.Status.State != commondomain.ResourceStateActive {
-		return nil, backend.ErrStillProcessing // TODO: better error handling
+		return nil, backend.StillProcessing // TODO: better error handling
 	}
 
 	return ws, nil
@@ -49,14 +49,14 @@ func loadActiveWorkspace(ctx context.Context, repo persistence.ReaderRepo[*wsdom
 func loadActiveProject(ctx context.Context, repo repository.Repository[*v1alpha1.Project, *v1alpha1.ProjectList], prj *v1alpha1.Project) error {
 	if err := repo.Load(ctx, prj); err != nil {
 		if apierrors.IsNotFound(err) {
-			return backend.ErrStillProcessing // Project not found, wait for it to be created
+			return backend.StillProcessing // Project not found, wait for it to be created
 		}
 
 		return err // Other errors should be returned for handling
 	}
 
 	if prj.Status.Phase != v1alpha1.ResourcePhaseActive {
-		return backend.ErrStillProcessing // Project is not ready, wait for it to be active
+		return backend.StillProcessing // Project is not ready, wait for it to be active
 	}
 
 	return nil
@@ -75,14 +75,14 @@ type arubaResource interface {
 func loadActiveAruba[T arubaResource, L any](ctx context.Context, repo repository.Repository[T, L], obj T) error {
 	if err := repo.Load(ctx, obj); err != nil {
 		if apierrors.IsNotFound(err) {
-			return backend.ErrStillProcessing // not created yet
+			return backend.StillProcessing // not created yet
 		}
 
 		return err
 	}
 
 	if obj.GetResourceStatus().Phase != v1alpha1.ResourcePhaseActive {
-		return backend.ErrStillProcessing // still provisioning
+		return backend.StillProcessing // still provisioning
 	}
 
 	return nil

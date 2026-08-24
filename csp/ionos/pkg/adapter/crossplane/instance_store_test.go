@@ -92,8 +92,8 @@ func TestPowerOnCreatesServerFirst(t *testing.T) {
 		Build()
 	store := NewInstanceStore(c, testLogger())
 
-	if err := store.PowerOn(context.Background(), testInstance()); !errors.Is(err, backend.ErrStillProcessing) {
-		t.Fatalf("PowerOn = %v, want ErrStillProcessing", err)
+	if err := store.PowerOn(context.Background(), testInstance()); !errors.Is(err, backend.StillProcessing) {
+		t.Fatalf("PowerOn = %v, want StillProcessing", err)
 	}
 
 	srv := &ionosv1alpha1.Server{}
@@ -179,8 +179,8 @@ func TestPowerOnCreatesBootVolumeAndNicWhileServerStillShutoff(t *testing.T) {
 		Build()
 	store := NewInstanceStore(c, testLogger())
 
-	if err := store.PowerOn(context.Background(), testInstance()); !errors.Is(err, backend.ErrStillProcessing) {
-		t.Fatalf("PowerOn = %v, want ErrStillProcessing (boot volume/nic just created)", err)
+	if err := store.PowerOn(context.Background(), testInstance()); !errors.Is(err, backend.StillProcessing) {
+		t.Fatalf("PowerOn = %v, want StillProcessing (boot volume/nic just created)", err)
 	}
 
 	// The server must still be SHUTOFF: the boot volume/NIC just got created and aren't
@@ -193,10 +193,10 @@ func TestPowerOnCreatesBootVolumeAndNicWhileServerStillShutoff(t *testing.T) {
 		t.Fatalf("server vmState = %v, want still SHUTOFF while boot volume/nic aren't ready", gotSrv.Spec.ForProvider.VMState)
 	}
 
-	// The boot volume was just created (createCR returns ErrStillProcessing on fresh
+	// The boot volume was just created (createCR returns StillProcessing on fresh
 	// creation), so PowerOn stops there for this reconcile — it hasn't reached the NIC
 	// step yet. That's fine: each step is independently idempotent and re-driven by the
-	// controller's requeue on ErrStillProcessing.
+	// controller's requeue on StillProcessing.
 	if err := c.Get(context.Background(), client.ObjectKey{Namespace: ns, Name: "block-storage-1"}, &ionosv1alpha1.Volume{}); err != nil {
 		t.Fatalf("boot volume should have been created: %v", err)
 	}
@@ -284,8 +284,8 @@ func TestPowerOnFlipsToRunningOnlyOnceBootVolumeAndNicReady(t *testing.T) {
 		Build()
 	store := NewInstanceStore(c, testLogger())
 
-	if err := store.PowerOn(context.Background(), testInstance()); !errors.Is(err, backend.ErrStillProcessing) {
-		t.Fatalf("PowerOn = %v, want ErrStillProcessing (server VMState just flipped to RUNNING)", err)
+	if err := store.PowerOn(context.Background(), testInstance()); !errors.Is(err, backend.StillProcessing) {
+		t.Fatalf("PowerOn = %v, want StillProcessing (server VMState just flipped to RUNNING)", err)
 	}
 
 	gotSrv := &ionosv1alpha1.Server{}
@@ -316,8 +316,8 @@ func TestPowerOnRestartsStoppedServer(t *testing.T) {
 	c := fakeclient.NewClientBuilder().WithScheme(instanceScheme(t)).WithObjects(srv).Build()
 	store := NewInstanceStore(c, testLogger())
 
-	if err := store.ensureServerRunning(context.Background(), testInstance(), ns); !errors.Is(err, backend.ErrStillProcessing) {
-		t.Fatalf("ensureServerRunning = %v, want ErrStillProcessing", err)
+	if err := store.ensureServerRunning(context.Background(), testInstance(), ns); !errors.Is(err, backend.StillProcessing) {
+		t.Fatalf("ensureServerRunning = %v, want StillProcessing", err)
 	}
 
 	got := &ionosv1alpha1.Server{}
@@ -370,8 +370,8 @@ func TestPowerOnDoesNotCollideAcrossWorkspaces(t *testing.T) {
 		Build()
 	store := NewInstanceStore(c, testLogger())
 
-	if err := store.PowerOn(context.Background(), instanceB); !errors.Is(err, backend.ErrStillProcessing) {
-		t.Fatalf("PowerOn = %v, want ErrStillProcessing (workspace-2's own Server just created)", err)
+	if err := store.PowerOn(context.Background(), instanceB); !errors.Is(err, backend.StillProcessing) {
+		t.Fatalf("PowerOn = %v, want StillProcessing (workspace-2's own Server just created)", err)
 	}
 
 	// workspace-1's Server must be untouched (still RUNNING, unchanged).
@@ -408,7 +408,7 @@ func TestPowerOffSetsShutoff(t *testing.T) {
 	c := fakeclient.NewClientBuilder().WithScheme(instanceScheme(t)).WithObjects(srv).Build()
 	store := NewInstanceStore(c, testLogger())
 
-	_ = store.PowerOff(context.Background(), testInstance()) // returns ErrStillProcessing while applying
+	_ = store.PowerOff(context.Background(), testInstance()) // returns StillProcessing while applying
 
 	got := &ionosv1alpha1.Server{}
 	if err := c.Get(context.Background(), client.ObjectKey{Namespace: ns, Name: "instance-1"}, got); err != nil {
@@ -520,8 +520,8 @@ func TestPowerOnReassertsStaleNicLan(t *testing.T) {
 	store := NewInstanceStore(c, testLogger())
 
 	err := store.ensureNic(context.Background(), testInstance(), ns, "nic-1", "lan-new", "")
-	if !errors.Is(err, backend.ErrStillProcessing) {
-		t.Fatalf("ensureNic = %v, want ErrStillProcessing (spec just updated, not yet reconciled)", err)
+	if !errors.Is(err, backend.StillProcessing) {
+		t.Fatalf("ensureNic = %v, want StillProcessing (spec just updated, not yet reconciled)", err)
 	}
 
 	got := &ionosv1alpha1.Nic{}
@@ -535,7 +535,7 @@ func TestPowerOnReassertsStaleNicLan(t *testing.T) {
 
 // TestDeleteTearsDownNicVolumeThenServer verifies ordering: while the Nic
 // still has a pending finalizer (deletion in progress, mirroring a real
-// provider), Delete must return ErrStillProcessing and must NOT touch the
+// provider), Delete must return StillProcessing and must NOT touch the
 // boot Volume or Server yet.
 func TestDeleteTearsDownNicVolumeThenServer(t *testing.T) {
 	ns := instanceNamespace(testInstance())
@@ -548,8 +548,8 @@ func TestDeleteTearsDownNicVolumeThenServer(t *testing.T) {
 	c := fakeclient.NewClientBuilder().WithScheme(instanceScheme(t)).WithObjects(nic, vol, srv).Build()
 	store := NewInstanceStore(c, testLogger())
 
-	if err := store.Delete(context.Background(), testInstance()); !errors.Is(err, backend.ErrStillProcessing) {
-		t.Fatalf("Delete = %v, want ErrStillProcessing (nic deletion in progress)", err)
+	if err := store.Delete(context.Background(), testInstance()); !errors.Is(err, backend.StillProcessing) {
+		t.Fatalf("Delete = %v, want StillProcessing (nic deletion in progress)", err)
 	}
 
 	gotNic := &ionosv1alpha1.Nic{}
