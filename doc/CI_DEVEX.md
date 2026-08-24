@@ -315,8 +315,9 @@ Any target `FOO` defined at the root can be run as `FOO-ctzd`. The wrapper:
 | Makefile | Key Targets |
 |----------|-------------|
 | `csp/dummy/Makefile` | `build`, `deploy`, `kind-start`, `kind-stop`, `test-integration` |
-| `test/Makefile` | `test-all` (integration + e2e), `integration`, `integration-<component>`, `e2e`, `multicluster-e2e`, `conformance`, `conformance-ionos`, `deploy-stack` (+ `kind-*` variants, one-shot on KIND), `kind-multicluster-{start,stack,e2e,stop}`, `build-all`, `push-all`, `deploy-all`, `kind-start`, `kind-stop`, `kind-load-all`, `bench`, `report` |
+| `test/Makefile` | `test-all` (integration + e2e), `integration`, `integration-<component>`, `e2e`, `multicluster-e2e`, `conformance`, `conformance-aruba*`, `conformance-ionos`, `deploy-stack` (+ `kind-*` variants, one-shot on KIND), `kind-multicluster-{start,stack,e2e,stop}`, `build-all`, `push-all`, `deploy-all`, `kind-start`, `kind-stop`, `kind-load-all`, `bench`, `report` |
 | `csp/ionos/Makefile` | `build`, `install-crossplane`, `install-provider`, `install-all`, `install-on-regional`, `install-plugin-on-regional` |
+| `test/conformance/aruba/Makefile` | `conformance-all`, `scaffolding`, `install-operator`, `conformance`, `clean` |
 | `test/conformance/ionos/Makefile` | `secatest-scaffolding`, `secatest`, `secatest-all`, `secatest-clean` |
 
 ## CI Pipeline (GitHub Actions)
