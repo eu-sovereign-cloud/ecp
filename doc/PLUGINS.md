@@ -64,11 +64,11 @@ Where a resource has both, its own operation wins: a pending resize is routed to
 | `backend.Revisit(d)` | in flight, come back after `d` | requeues after `d`, leaves status untouched |
 | `backend.RevisitBecause(d, cause)` | in flight; `cause` explains the wait | requeues after `d`; `cause` reaches the log |
 | error wrapping `backend.ErrNotSupported` | the provider will never accept this | records the reason, **does not retry** |
-| any other error | assumed transient | records the reason and requeues with exponential backoff |
+| any other error | assumed transient | records the reason and requeues at the controller's configured interval |
 
 `StillProcessing`, `Revisit` and `RevisitBecause` are **progress signals, not failures**. They ride the error channel because that is the only channel every frame in a plugin's call chain has — the same reason `io.EOF` does — and the reconciler treats them as a reschedule, not a fault. A zero duration means the controller's configured interval, never "immediately".
 
-Choosing a progress signal opts out of the workqueue's exponential backoff in favour of a cadence you control. When you want backoff — a provider that is down, a rate limit — return the plain error.
+`HandleUpdate` converts ordinary update failures to `RevisitBecause(0, cause)`, preserving the controller's configured retry cadence while carrying the cause to status and logs. Outside this update path, return a plain error when exponential backoff is required.
 
 A progress signal must be the **outermost** error. Never wrap a failure inside one: the reconciler classifies failures first, so a wrapped `ErrNotSupported` still stops, but anything else you hide in there becomes a quiet reschedule.
 

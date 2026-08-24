@@ -33,7 +33,7 @@ func Revisit(d time.Duration) error {
 }
 
 // RevisitBecause returns a progress signal asking the controller to come back after d, carrying
-// cause for the log and the resource status.
+// cause for the log.
 //
 // cause is reported, not treated as a failure. Choosing a progress signal is an explicit opt-out
 // of the workqueue's exponential backoff in favour of a cadence the plugin controls: return the

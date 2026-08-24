@@ -229,7 +229,7 @@ func requeueFor(ctx context.Context, logger *slog.Logger, err error, defaultInte
 
 	if reqErr, ok := errors.AsType[backend.RequeueError](err); ok {
 		after := reqErr.RequeueAfter()
-		if after == 0 {
+		if after <= 0 {
 			after = defaultInterval
 		}
 		logger.Debug("handler still processing, requeueing", "error", err, "after", after)
