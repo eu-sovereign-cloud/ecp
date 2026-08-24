@@ -18,8 +18,8 @@ import (
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/schema/v1"
 
-	backend "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
-	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 )
 
 // stateDeleting is the wire value of ResourceState when a resource is being deleted.
@@ -158,31 +158,18 @@ func (r *GenericController[D]) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 
 	// 5. Delegate to the specific handler
-	requeue, err := r.handler.HandleReconcile(ctx, domainResource)
-	if err != nil {
-		if errors.Is(err, backend.ErrStillProcessing) {
-			return ctrl.Result{RequeueAfter: r.requeueAfter}, nil
-		}
-		logger.Log(ctx, k8sadapter.RetryLevel(err), "handler failed to reconcile", "error", err)
-		// Error alone. controller-runtime discards a Result returned alongside a non-nil error
-		// (warning on every reconcile) and requeues with exponential backoff instead — which is
-		// what a failing reconcile wants, and it keeps the error in the reconcile-error metric.
-		return ctrl.Result{}, err
+	if err := r.handler.HandleReconcile(ctx, domainResource); err != nil {
+		return requeueFor(ctx, logger, err, r.requeueAfter)
 	}
 
-	// 6. Requeue the request if necessary
-	if requeue {
-		return ctrl.Result{RequeueAfter: r.requeueAfter}, nil
-	}
-
-	// 7. Refresh the K8s object
+	// 6. Refresh the K8s object
 	obj = r.prototype.DeepCopyObject().(schemav1.ConditionedObject)
 	if err := r.client.Get(ctx, req.NamespacedName, obj); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	// 8. Check if the resource deletion process is complete. Reaching here means the handler
-	// returned no requeue, so the plugin has finished deleting.
+	// 7. Check if the resource deletion process is complete. Reaching here means the handler
+	// settled the resource, so the plugin has finished deleting.
 	if err := r.finalizeDeletion(ctx, logger, domainResource, obj); err != nil {
 		return ctrl.Result{}, err
 	}
@@ -218,6 +205,39 @@ func (r *GenericController[D]) finalizeDeletion(
 	}))
 
 	return r.client.Update(ctx, obj)
+}
+
+// requeueFor classifies the error a PluginHandler returned from HandleReconcile and turns it into
+// the ctrl.Result/error pair controller-runtime expects.
+//
+// A refusal (ErrNotSupported) is checked first, even when it arrives wrapped inside a progress
+// signal: a plugin that wraps a refusal inside RevisitBecause must not get an endless reschedule
+// out of it, so failures are classified before progress signals are allowed to reinterpret them.
+//
+// A progress signal (RequeueError) is not a failure: it reschedules at the duration it names, or
+// at defaultInterval when it names none, and is never surfaced as an error so it does not enter
+// the reconcile-error metric or trigger backoff.
+//
+// Any other error is a genuine failure: controller-runtime discards a Result returned alongside a
+// non-nil error and requeues with exponential backoff instead — which is what a failing reconcile
+// wants, and it keeps the error in the reconcile-error metric.
+func requeueFor(ctx context.Context, logger *slog.Logger, err error, defaultInterval time.Duration) (ctrl.Result, error) {
+	if errors.Is(err, backend.ErrNotSupported) {
+		logger.Log(ctx, k8sadapter.RetryLevel(err), "operation refused by provider, not retrying", "error", err)
+		return ctrl.Result{}, nil
+	}
+
+	if reqErr, ok := errors.AsType[backend.RequeueError](err); ok {
+		after := reqErr.RequeueAfter()
+		if after == 0 {
+			after = defaultInterval
+		}
+		logger.Debug("handler still processing, requeueing", "error", err, "after", after)
+		return ctrl.Result{RequeueAfter: after}, nil
+	}
+
+	logger.Log(ctx, k8sadapter.RetryLevel(err), "handler failed to reconcile", "error", err)
+	return ctrl.Result{}, err
 }
 
 // getStateFromObject reads the status.state field from any ConditionedObject via

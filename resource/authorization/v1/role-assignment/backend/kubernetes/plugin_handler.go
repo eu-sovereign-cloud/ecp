@@ -39,6 +39,7 @@ func NewRoleAssignmentPluginHandler(
 	return handler
 }
 
+// HandleReconcile implements the role assignment lifecycle state machine.
 func (h *RoleAssignmentPluginHandler) HandleReconcile(ctx context.Context, resource *radom.RoleAssignment) error {
 	// An active resource has no lifecycle transition left to make, so it takes the update
 	// path instead of the create/delete state machine below. See commonbackend.HandleUpdate.
