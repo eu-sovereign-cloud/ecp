@@ -3,7 +3,7 @@ package kubernetes
 import (
 	"context"
 	"errors"
-	"log"
+	"fmt"
 
 	backendport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
@@ -105,10 +105,8 @@ func (h *NetworkPluginHandler) HandleReconcile(ctx context.Context, resource *ne
 		return commonbackend.RequeueAfterState(h.setResourceState(ctx, resource, commondomain.ResourceStateCreating))
 
 	default:
-		log.Fatal("must never achieve that condition")
+		return fmt.Errorf("unreachable reconcile state for network %q", resource.GetName())
 	}
-
-	return nil
 }
 
 func (h *NetworkPluginHandler) setResourceState(ctx context.Context, resource *netdom.Network, state commondomain.ResourceState) error {

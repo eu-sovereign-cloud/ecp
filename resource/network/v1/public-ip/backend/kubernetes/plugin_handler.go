@@ -3,7 +3,7 @@ package kubernetes
 import (
 	"context"
 	"errors"
-	"log"
+	"fmt"
 
 	backendport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
@@ -90,10 +90,8 @@ func (h *PublicIpPluginHandler) HandleReconcile(ctx context.Context, resource *p
 	case wantPublicIpRetryCreate(resource):
 		return commonbackend.RequeueAfterState(h.setResourceState(ctx, resource, commondomain.ResourceStateCreating))
 	default:
-		log.Fatal("must never achieve that condition")
+		return fmt.Errorf("unreachable reconcile state for public IP %q", resource.GetName())
 	}
-
-	return nil
 }
 
 func (h *PublicIpPluginHandler) setResourceState(ctx context.Context, resource *publicipdom.PublicIp, state commondomain.ResourceState) error {

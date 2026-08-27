@@ -3,7 +3,7 @@ package kubernetes
 import (
 	"context"
 	"errors"
-	"log"
+	"fmt"
 	"time"
 
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
@@ -99,10 +99,8 @@ func (h *InstancePluginHandler) HandleReconcile(ctx context.Context, resource *i
 	case wantInstanceRetryCreate(resource):
 		return commonbackend.RequeueAfterState(h.setResourceState(ctx, resource, commondomain.ResourceStateCreating))
 	default:
-		log.Fatal("must never achieve that condition")
+		return fmt.Errorf("unreachable reconcile state for instance %q", resource.GetName())
 	}
-
-	return nil
 }
 
 // handlePowerReconcile drives power-state transitions for an active instance. It returns

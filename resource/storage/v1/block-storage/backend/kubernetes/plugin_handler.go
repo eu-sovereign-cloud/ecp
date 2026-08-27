@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -147,10 +146,8 @@ func (h *BlockStoragePluginHandler) HandleReconcile(ctx context.Context, resourc
 		return commonbackend.RequeueAfterState(h.setResourceState(ctx, resource, commondomain.ResourceStateUpdating))
 
 	default:
-		log.Fatal("must never achieve that condition")
+		return fmt.Errorf("unreachable reconcile state for block storage %q", resource.GetName())
 	}
-
-	return nil
 }
 
 func (h *BlockStoragePluginHandler) setResourceState(ctx context.Context, resource *bsdom.BlockStorage, state commondomain.ResourceState) error {

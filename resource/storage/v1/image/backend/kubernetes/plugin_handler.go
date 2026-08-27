@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -120,10 +119,8 @@ func (h *ImagePluginHandler) HandleReconcile(ctx context.Context, resource *imgd
 		return commonbackend.RequeueAfterState(h.setResourceState(ctx, resource, commondomain.ResourceStateCreating))
 
 	default:
-		log.Fatal("must never achieve that condition")
+		return fmt.Errorf("unreachable reconcile state for image %q", resource.GetName())
 	}
-
-	return nil
 }
 
 func (h *ImagePluginHandler) setResourceState(ctx context.Context, resource *imgdom.Image, state commondomain.ResourceState) error {

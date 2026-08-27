@@ -3,7 +3,7 @@ package kubernetes
 import (
 	"context"
 	"errors"
-	"log"
+	"fmt"
 
 	backendport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
@@ -90,10 +90,8 @@ func (h *RouteTablePluginHandler) HandleReconcile(ctx context.Context, resource 
 	case wantRouteTableRetryCreate(resource):
 		return commonbackend.RequeueAfterState(h.setResourceState(ctx, resource, commondomain.ResourceStateCreating))
 	default:
-		log.Fatal("must never achieve that condition")
+		return fmt.Errorf("unreachable reconcile state for route table %q", resource.GetName())
 	}
-
-	return nil
 }
 
 func (h *RouteTablePluginHandler) setResourceState(ctx context.Context, resource *routetabledom.RouteTable, state commondomain.ResourceState) error {

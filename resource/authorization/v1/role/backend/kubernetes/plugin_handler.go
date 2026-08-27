@@ -3,7 +3,7 @@ package kubernetes
 import (
 	"context"
 	"errors"
-	"log"
+	"fmt"
 
 	backendport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
@@ -106,10 +106,8 @@ func (h *RolePluginHandler) HandleReconcile(ctx context.Context, resource *roled
 		return commonbackend.RequeueAfterState(h.setResourceState(ctx, resource, commondomain.ResourceStateCreating))
 
 	default:
-		log.Fatal("must never achieve that condition")
+		return fmt.Errorf("unreachable reconcile state for role %q", resource.GetName())
 	}
-
-	return nil
 }
 
 func (h *RolePluginHandler) setResourceState(ctx context.Context, resource *roledom.Role, state commondomain.ResourceState) error {
