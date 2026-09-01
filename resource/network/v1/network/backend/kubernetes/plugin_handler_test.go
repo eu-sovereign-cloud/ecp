@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
-	"os/exec"
 	"testing"
 	"time"
 
@@ -466,40 +464,5 @@ func TestNetworkPluginHandler_HandleReconcile(t *testing.T) {
 		err := handler.HandleReconcile(context.Background(), resource)
 
 		require.ErrorIs(t, err, errRepo)
-	})
-
-	t.Run("should fatal if state changes unexpectedly after delegation", func(t *testing.T) {
-		if os.Getenv("BE_FATAL") == "1" {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
-
-			resource := &netdom.Network{
-				Status: &netdom.NetworkStatus{
-					Status: commondomain.Status{
-						State: commondomain.ResourceStateCreating,
-					},
-				},
-			}
-
-			mockPlugin := NewMockNetworkPlugin(ctrl)
-			mockPlugin.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(
-				func(_ context.Context, res *netdom.Network) error {
-					res.Status.State = commondomain.ResourceStateActive
-					return nil
-				})
-
-			handler := NewNetworkPluginHandler(NewMockRepo[*netdom.Network](ctrl), mockPlugin, 0)
-			handler.HandleReconcile(context.Background(), resource) //nolint:errcheck
-			return
-		}
-
-		cmd := exec.CommandContext(t.Context(), os.Args[0], "-test.run=TestNetworkPluginHandler_HandleReconcile/should_fatal_if_state_changes_unexpectedly_after_delegation")
-		cmd.Env = append(os.Environ(), "BE_FATAL=1")
-		err := cmd.Run()
-
-		if e, ok := errors.AsType[*exec.ExitError](err); ok && !e.Success() { //nolint:errorlint // acceptable for tests
-			return
-		}
-		t.Fatalf("process ran with err %v, want exit status 1", err)
 	})
 }

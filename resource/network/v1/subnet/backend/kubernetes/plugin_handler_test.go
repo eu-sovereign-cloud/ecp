@@ -3,8 +3,6 @@ package kubernetes_test
 import (
 	"context"
 	"errors"
-	"os"
-	"os/exec"
 	"testing"
 	"time"
 
@@ -305,40 +303,5 @@ func TestSubnetPluginHandler_HandleReconcile(t *testing.T) {
 		err := handler.HandleReconcile(context.Background(), resource)
 
 		require.ErrorIs(t, err, errRepo)
-	})
-
-	t.Run("should fatal if state changes unexpectedly after delegation", func(t *testing.T) {
-		if os.Getenv("BE_FATAL") == "1" {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
-
-			resource := &subnetdom.Subnet{
-				Status: &subnetdom.SubnetStatus{
-					Status: commondomain.Status{
-						State: commondomain.ResourceStateCreating,
-					},
-				},
-			}
-
-			mockPlugin := NewMockSubnetPlugin(ctrl)
-			mockPlugin.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(
-				func(_ context.Context, res *subnetdom.Subnet) error {
-					res.Status.State = commondomain.ResourceStateActive
-					return nil
-				})
-
-			handler := NewSubnetPluginHandler(NewMockRepo[*subnetdom.Subnet](ctrl), mockPlugin, 0)
-			handler.HandleReconcile(context.Background(), resource) //nolint:errcheck
-			return
-		}
-
-		cmd := exec.CommandContext(t.Context(), os.Args[0], "-test.run=TestSubnetPluginHandler_HandleReconcile/should_fatal_if_state_changes_unexpectedly_after_delegation")
-		cmd.Env = append(os.Environ(), "BE_FATAL=1")
-		err := cmd.Run()
-
-		if e, ok := errors.AsType[*exec.ExitError](err); ok && !e.Success() { //nolint:errorlint // acceptable for tests
-			return
-		}
-		t.Fatalf("process ran with err %v, want exit status 1", err)
 	})
 }

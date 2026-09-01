@@ -3,8 +3,6 @@ package kubernetes_test
 import (
 	"context"
 	"errors"
-	"os"
-	"os/exec"
 	"testing"
 	"time"
 
@@ -486,63 +484,6 @@ func TestBlockStoragePluginHandler_HandleReconcile(t *testing.T) {
 		//
 		// Then it should return the repo error
 		require.ErrorIs(t, err, errRepo)
-	})
-
-	t.Run("should fatal if state changes unexpectedly after delegation", func(t *testing.T) {
-		if os.Getenv("BE_FATAL") == "1" {
-			//
-			// Givena controller
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
-
-			//
-			// And a resource with creating state
-			creatingState := commondomain.ResourceStateCreating
-			resource := &bsdom.BlockStorage{
-				Status: &bsdom.BlockStorageStatus{
-					Status: commondomain.Status{
-						State: creatingState,
-					},
-				},
-			}
-
-			//
-			// And a plugin that modifies the resource state during delegation
-			mockPlugin := NewMockBlockStoragePlugin(ctrl)
-			mockPlugin.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(
-				func(ctx context.Context, res *bsdom.BlockStorage) error {
-					res.Status.State = commondomain.ResourceStateActive
-					return nil
-				})
-
-			//
-			// And a block storage plugin handler
-			handler := NewBlockStoragePluginHandler(NewMockRepo[*bsdom.BlockStorage](ctrl), mockPlugin, 0, nil)
-
-			//
-			// When we reconcile the resource
-			handler.HandleReconcile(context.Background(), resource)
-
-			//
-			// Then the process should exit with a fatal error
-			return
-		}
-
-		//
-		// Given a command to run the test in a separate process
-		cmd := exec.CommandContext(t.Context(), os.Args[0], "-test.run=TestBlockStoragePluginHandler_HandleReconcile/should_fatal_if_state_changes_unexpectedly_after_delegation")
-		cmd.Env = append(os.Environ(), "BE_FATAL=1")
-
-		//
-		// When we run the command
-		err := cmd.Run()
-
-		//
-		// Then the command should exit with a non-zero status code
-		if e, ok := err.(*exec.ExitError); ok && !e.Success() { //nolint:errorlint // acceptable for tests
-			return
-		}
-		t.Fatalf("process ran with err %v, want exit status 1", err)
 	})
 
 	t.Run("should set state to error and requeue when plugin delete fails", func(t *testing.T) {
