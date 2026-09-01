@@ -3,9 +3,8 @@ package kubernetes
 import (
 	"context"
 	"errors"
-	"log"
+	"fmt"
 
-	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	backendport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 
@@ -40,7 +39,7 @@ func NewRolePluginHandler(
 }
 
 // HandleReconcile implements the role lifecycle state machine.
-func (h *RolePluginHandler) HandleReconcile(ctx context.Context, resource *roledom.Role) (bool, error) {
+func (h *RolePluginHandler) HandleReconcile(ctx context.Context, resource *roledom.Role) error {
 	// An active resource has no lifecycle transition left to make, so it takes the update
 	// path instead of the create/delete state machine below. See commonbackend.HandleUpdate.
 	if isRoleActive(resource) {
@@ -70,50 +69,48 @@ func (h *RolePluginHandler) HandleReconcile(ctx context.Context, resource *roled
 		delegate = frameworkbackend.BypassDelegated[*roledom.Role]
 
 	default:
-		return false, nil // Nothing to do.
+		return nil // Nothing to do.
 	}
 
 	if err := delegate(ctx, resource); err != nil {
-		if errors.Is(err, backendport.ErrStillProcessing) {
-			return true, nil
+		var rq backendport.RequeueError
+		if errors.As(err, &rq) {
+			// Not a failure, and not ours to reinterpret: the plugin named its own cadence.
+			return err
 		}
 
-		if requeue, err := h.setResourceErrorState(ctx, resource, err, false); err != nil {
-			return requeue, err
-		}
-
-		return true, nil
+		// The failure is recorded on the resource; retry it on the next pass, unless it is
+		// already gone, in which case there is nothing left to reconcile.
+		return commonbackend.RequeueAfterState(h.setResourceErrorState(ctx, resource, err))
 	}
 
 	switch {
 
 	case isRoleAccepted(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStatePending, false)
+		return commonbackend.IgnoreNotFound(h.setResourceState(ctx, resource, commondomain.ResourceStatePending))
 
 	case isRolePending(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStateCreating, true)
+		return commonbackend.RequeueAfterState(h.setResourceState(ctx, resource, commondomain.ResourceStateCreating))
 
 	case isRoleCreating(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStateActive, false)
+		return commonbackend.IgnoreNotFound(h.setResourceState(ctx, resource, commondomain.ResourceStateActive))
 
 	case wantRoleDelete(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStateDeleting, true)
+		return commonbackend.RequeueAfterState(h.setResourceState(ctx, resource, commondomain.ResourceStateDeleting))
 
 	case isRoleDeleting(resource):
 		// Nothing to do: the controller will remove the finalizers to end the deletion process.
-		return false, nil
+		return nil
 
 	case wantRoleRetryCreate(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStateCreating, true)
+		return commonbackend.RequeueAfterState(h.setResourceState(ctx, resource, commondomain.ResourceStateCreating))
 
 	default:
-		log.Fatal("must never achieve that condition")
+		return fmt.Errorf("unreachable reconcile state for role %q", resource.GetName())
 	}
-
-	return false, nil
 }
 
-func (h *RolePluginHandler) setResourceState(ctx context.Context, resource *roledom.Role, state commondomain.ResourceState, requeue bool) (bool, error) {
+func (h *RolePluginHandler) setResourceState(ctx context.Context, resource *roledom.Role, state commondomain.ResourceState) error {
 	if resource.Status == nil {
 		resource.Status = &roledom.RoleStatus{}
 	}
@@ -121,18 +118,12 @@ func (h *RolePluginHandler) setResourceState(ctx context.Context, resource *role
 	resource.Status.PushCondition(commonbackend.ConditionFromState(state))
 	commonbackend.TrimConditions(&resource.Status.Status, h.MaxConditions)
 
-	if _, err := h.repo.UpdateStatus(ctx, resource); err != nil {
-		if errors.Is(err, kernel.ErrNotFound) {
-			return false, nil
-		}
+	_, err := h.repo.UpdateStatus(ctx, resource)
 
-		return requeue, err
-	}
-
-	return requeue, nil
+	return err
 }
 
-func (h *RolePluginHandler) setResourceErrorState(ctx context.Context, resource *roledom.Role, err error, requeue bool) (bool, error) {
+func (h *RolePluginHandler) setResourceErrorState(ctx context.Context, resource *roledom.Role, err error) error {
 	if resource.Status == nil {
 		resource.Status = &roledom.RoleStatus{}
 	}
@@ -140,15 +131,9 @@ func (h *RolePluginHandler) setResourceErrorState(ctx context.Context, resource 
 	resource.Status.PushCondition(commonbackend.ConditionFromError(err))
 	commonbackend.TrimConditions(&resource.Status.Status, h.MaxConditions)
 
-	if _, updateErr := h.repo.UpdateStatus(ctx, resource); updateErr != nil {
-		if errors.Is(updateErr, kernel.ErrNotFound) {
-			return false, nil
-		}
+	_, updateErr := h.repo.UpdateStatus(ctx, resource)
 
-		return requeue, updateErr
-	}
-
-	return requeue, nil
+	return updateErr
 }
 
 func isRoleActive(resource *roledom.Role) bool {

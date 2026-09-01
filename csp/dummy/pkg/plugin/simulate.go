@@ -67,7 +67,7 @@ func simulate(
 
 	if time.Now().Before(expiration) {
 		logger.Info("dummy plugin: still processing", "op", op, "resource_name", name)
-		return backendport.ErrStillProcessing
+		return backendport.StillProcessing
 	}
 
 	logger.Info("dummy plugin: finished", "op", op, "resource_name", name)

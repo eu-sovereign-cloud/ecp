@@ -102,7 +102,7 @@
 //     already affected resources once. When every required Aruba resource is
 //     already present in its target state, the operation is complete and the
 //     handler returns `nil`. Otherwise the handler triggers the action (mutate
-//     and propagate) and returns `delegator.ErrStillProcessing`, so the
+//     and propagate) and returns `delegator.StillProcessing`, so the
 //     reconciler requeues and checks again on a later pass without holding the
 //     worker.
 //
@@ -113,14 +113,15 @@
 //  7. Then return the results:
 //
 //     In this step, the plugin should return `nil` to indicate "success",
-//     `delegator.ErrStillProcessing` to indicate the operation is still in
-//     progress, or another error to indicate "failure".
+//     `delegator.StillProcessing` to indicate the operation is still in
+//     progress, `delegator.Revisit(d)` when it knows a better interval than
+//     the controller's default, or another error to indicate "failure".
 package delegated
 
 import (
 	"context"
 
-	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 )
 
 // TODO: this type should be an alias for the Delegator type.

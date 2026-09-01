@@ -366,12 +366,14 @@ resource, and either add them to the existing group handler struct
 - New file `csp/dummy/pkg/plugin/<dir>.go`: a `type <Kind> struct{ logger }`, `New<Kind>`, and the
   `Create`/`Delete` methods, each delegating to a `simulate<Kind>` helper added to
   `csp/dummy/pkg/plugin/simulate.go` (mirror `simulateBS`: stamp an expiry annotation, return
-  `ErrStillProcessing` until it elapses).
+  `StillProcessing` until it elapses). A plugin that knows how long the wait will be should return
+  `backend.Revisit(d)` instead, so the controller reschedules on the provider's cadence rather than
+  the controller's default.
 - `Update` goes in `csp/dummy/pkg/plugin/update.go` instead, alongside the others — it is one
   behaviour shared by every resource, and keeping them together is what lets a single import block
   reach every slice's GVR and converters. Mirror the existing one-liners; they all delegate to
   `applyUpdate`. Do **not** give it a simulated delay: `Update` runs on every reconcile of an
-  active resource, so a delay would mean `ErrStillProcessing` forever.
+  active resource, so a delay would mean `StillProcessing` forever.
 - In `csp/dummy/cmd/main.go`: add the `<k8s>` import (pointing to
   `resource/<group>/v1/<dir>/backend/kubernetes`), `utilruntime.Must(<k8s>.AddToScheme(scheme))`
   in `init()`, instantiate the plugin, and `controllerSet.Add(<k8s>.NewController(…))`.

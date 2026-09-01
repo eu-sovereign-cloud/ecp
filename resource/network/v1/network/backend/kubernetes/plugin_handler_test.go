@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
-	"os/exec"
 	"testing"
 	"time"
 
@@ -49,10 +47,9 @@ func TestNetworkPluginHandler_HandleReconcile(t *testing.T) {
 		mockPlugin.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil).Times(1)
 		handler := NewNetworkPluginHandler(mockRepo, mockPlugin, 0)
 
-		requeue, err := handler.HandleReconcile(context.Background(), activeNetwork())
+		err := handler.HandleReconcile(context.Background(), activeNetwork())
 
 		require.NoError(t, err)
-		require.False(t, requeue)
 	})
 
 	t.Run("should requeue without touching status while an update is still processing", func(t *testing.T) {
@@ -61,13 +58,12 @@ func TestNetworkPluginHandler_HandleReconcile(t *testing.T) {
 
 		mockRepo := NewMockRepo[*netdom.Network](ctrl)
 		mockPlugin := NewMockNetworkPlugin(ctrl)
-		mockPlugin.EXPECT().Update(gomock.Any(), gomock.Any()).Return(backendport.ErrStillProcessing).Times(1)
+		mockPlugin.EXPECT().Update(gomock.Any(), gomock.Any()).Return(backendport.StillProcessing).Times(1)
 		handler := NewNetworkPluginHandler(mockRepo, mockPlugin, 0)
 
-		requeue, err := handler.HandleReconcile(context.Background(), activeNetwork())
+		err := handler.HandleReconcile(context.Background(), activeNetwork())
 
-		require.NoError(t, err)
-		require.True(t, requeue)
+		require.ErrorIs(t, err, backendport.StillProcessing)
 	})
 
 	// A change the provider can never apply is reported and dropped. Retrying would re-issue a
@@ -92,10 +88,9 @@ func TestNetworkPluginHandler_HandleReconcile(t *testing.T) {
 			Return(fmt.Errorf("%w: region is immutable", backendport.ErrNotSupported)).Times(1)
 		handler := NewNetworkPluginHandler(mockRepo, mockPlugin, 0)
 
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
-		require.NoError(t, err)
-		require.False(t, requeue, "an operation the provider refuses outright must not be retried")
+		require.NoError(t, err, "an operation the provider refuses outright must not be retried")
 	})
 
 	// The controller reconciles on its own status writes, so re-reporting an unchanged failure
@@ -114,16 +109,18 @@ func TestNetworkPluginHandler_HandleReconcile(t *testing.T) {
 		mockPlugin.EXPECT().Update(gomock.Any(), gomock.Any()).Return(failure).Times(2)
 		handler := NewNetworkPluginHandler(mockRepo, mockPlugin, 0)
 
-		_, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 		require.NoError(t, err)
-		_, err = handler.HandleReconcile(context.Background(), resource)
+		err = handler.HandleReconcile(context.Background(), resource)
 		require.NoError(t, err)
 
 		require.Len(t, resource.Status.Conditions, 2, "the repeat must not append another condition")
 	})
 
-	// A transient failure is retried, unlike an unsupported one.
-	t.Run("should requeue a transient update failure", func(t *testing.T) {
+	// A transient failure is retried, unlike an unsupported one. It reschedules at the controller's
+	// cadence rather than with backoff, and the cause travels with the signal so it reaches the log
+	// instead of surviving only as a status condition.
+	t.Run("should requeue a transient update failure and carry its cause", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
@@ -134,10 +131,10 @@ func TestNetworkPluginHandler_HandleReconcile(t *testing.T) {
 		mockPlugin.EXPECT().Update(gomock.Any(), gomock.Any()).Return(errPlugin).Times(1)
 		handler := NewNetworkPluginHandler(mockRepo, mockPlugin, 0)
 
-		requeue, err := handler.HandleReconcile(context.Background(), activeNetwork())
+		err := handler.HandleReconcile(context.Background(), activeNetwork())
 
-		require.NoError(t, err)
-		require.True(t, requeue)
+		require.ErrorIs(t, err, backendport.StillProcessing, "a transient failure reschedules, it does not fail the pass")
+		require.ErrorIs(t, err, errPlugin, "the provider's error must remain discoverable")
 	})
 
 	// Once the provider accepts the change, the reported failure is retracted.
@@ -160,10 +157,33 @@ func TestNetworkPluginHandler_HandleReconcile(t *testing.T) {
 		mockPlugin.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil).Times(1)
 		handler := NewNetworkPluginHandler(mockRepo, mockPlugin, 0)
 
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		require.NoError(t, err)
-		require.False(t, requeue)
+	})
+
+	// The signal a plugin raises deep in its own call chain must survive to the controller
+	// unchanged, rather than being flattened into a boolean by the handler.
+	t.Run("should propagate a plugin progress signal from the create path", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		resource := &netdom.Network{
+			Status: &netdom.NetworkStatus{
+				Status: commondomain.Status{State: commondomain.ResourceStateCreating},
+			},
+		}
+
+		mockRepo := NewMockRepo[*netdom.Network](ctrl)
+		mockPlugin := NewMockNetworkPlugin(ctrl)
+		mockPlugin.EXPECT().Create(gomock.Any(), gomock.Any()).Return(backendport.Revisit(45 * time.Second)).Times(1)
+		handler := NewNetworkPluginHandler(mockRepo, mockPlugin, 0)
+
+		err := handler.HandleReconcile(context.Background(), resource)
+
+		var rq backendport.RequeueError
+		require.ErrorAs(t, err, &rq)
+		require.Equal(t, 45*time.Second, rq.RequeueAfter(), "the plugin's cadence must not be discarded")
 	})
 
 	// A delete request on an active resource still takes the lifecycle path, not the update one.
@@ -185,10 +205,9 @@ func TestNetworkPluginHandler_HandleReconcile(t *testing.T) {
 		mockPlugin := NewMockNetworkPlugin(ctrl)
 		handler := NewNetworkPluginHandler(mockRepo, mockPlugin, 0)
 
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
-		require.NoError(t, err)
-		require.True(t, requeue)
+		require.ErrorIs(t, err, backendport.StillProcessing)
 	})
 
 	t.Run("should set state to creating and requeue when resource is pending", func(t *testing.T) {
@@ -213,10 +232,9 @@ func TestNetworkPluginHandler_HandleReconcile(t *testing.T) {
 		mockPlugin := NewMockNetworkPlugin(ctrl)
 		handler := NewNetworkPluginHandler(mockRepo, mockPlugin, 0)
 
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
-		require.NoError(t, err)
-		require.True(t, requeue)
+		require.ErrorIs(t, err, backendport.StillProcessing)
 	})
 
 	t.Run("should call plugin create and set state to active when resource is creating", func(t *testing.T) {
@@ -243,10 +261,9 @@ func TestNetworkPluginHandler_HandleReconcile(t *testing.T) {
 
 		handler := NewNetworkPluginHandler(mockRepo, mockPlugin, 0)
 
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		require.NoError(t, err)
-		require.False(t, requeue)
 	})
 
 	t.Run("should call plugin delete and set state to deleting when resource is deleting", func(t *testing.T) {
@@ -273,10 +290,9 @@ func TestNetworkPluginHandler_HandleReconcile(t *testing.T) {
 
 		handler := NewNetworkPluginHandler(mockRepo, mockPlugin, 0)
 
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		require.NoError(t, err)
-		require.False(t, requeue)
 	})
 
 	t.Run("should set state to error and requeue when plugin create fails", func(t *testing.T) {
@@ -306,10 +322,9 @@ func TestNetworkPluginHandler_HandleReconcile(t *testing.T) {
 		handler := NewNetworkPluginHandler(mockRepo, mockPlugin, 0)
 		handler.MaxConditions = 1
 
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
-		require.NoError(t, err)
-		require.True(t, requeue)
+		require.ErrorIs(t, err, backendport.StillProcessing)
 	})
 
 	t.Run("should return error when repo update fails after plugin failure", func(t *testing.T) {
@@ -332,7 +347,7 @@ func TestNetworkPluginHandler_HandleReconcile(t *testing.T) {
 
 		handler := NewNetworkPluginHandler(mockRepo, mockPlugin, 0)
 
-		_, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		require.ErrorIs(t, err, errRepo)
 	})
@@ -370,10 +385,9 @@ func TestNetworkPluginHandler_HandleReconcile(t *testing.T) {
 		handler := NewNetworkPluginHandler(mockRepo, mockPlugin, 0)
 		handler.MaxConditions = 1
 
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
-		require.NoError(t, err)
-		require.True(t, requeue)
+		require.ErrorIs(t, err, backendport.StillProcessing)
 	})
 
 	t.Run("should set state to creating and requeue on retry create", func(t *testing.T) {
@@ -403,10 +417,9 @@ func TestNetworkPluginHandler_HandleReconcile(t *testing.T) {
 		mockPlugin := NewMockNetworkPlugin(ctrl)
 		handler := NewNetworkPluginHandler(mockRepo, mockPlugin, 0)
 
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
-		require.NoError(t, err)
-		require.True(t, requeue)
+		require.ErrorIs(t, err, backendport.StillProcessing)
 	})
 
 	t.Run("should do nothing for unhandled states", func(t *testing.T) {
@@ -425,10 +438,9 @@ func TestNetworkPluginHandler_HandleReconcile(t *testing.T) {
 		mockPlugin := NewMockNetworkPlugin(ctrl)
 		handler := NewNetworkPluginHandler(mockRepo, mockPlugin, 0)
 
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		require.NoError(t, err)
-		require.False(t, requeue)
 	})
 
 	t.Run("should return error when repo update fails in setResourceState", func(t *testing.T) {
@@ -449,43 +461,8 @@ func TestNetworkPluginHandler_HandleReconcile(t *testing.T) {
 		mockPlugin := NewMockNetworkPlugin(ctrl)
 		handler := NewNetworkPluginHandler(mockRepo, mockPlugin, 0)
 
-		_, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		require.ErrorIs(t, err, errRepo)
-	})
-
-	t.Run("should fatal if state changes unexpectedly after delegation", func(t *testing.T) {
-		if os.Getenv("BE_FATAL") == "1" {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
-
-			resource := &netdom.Network{
-				Status: &netdom.NetworkStatus{
-					Status: commondomain.Status{
-						State: commondomain.ResourceStateCreating,
-					},
-				},
-			}
-
-			mockPlugin := NewMockNetworkPlugin(ctrl)
-			mockPlugin.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(
-				func(_ context.Context, res *netdom.Network) error {
-					res.Status.State = commondomain.ResourceStateActive
-					return nil
-				})
-
-			handler := NewNetworkPluginHandler(NewMockRepo[*netdom.Network](ctrl), mockPlugin, 0)
-			handler.HandleReconcile(context.Background(), resource) //nolint:errcheck
-			return
-		}
-
-		cmd := exec.CommandContext(t.Context(), os.Args[0], "-test.run=TestNetworkPluginHandler_HandleReconcile/should_fatal_if_state_changes_unexpectedly_after_delegation")
-		cmd.Env = append(os.Environ(), "BE_FATAL=1")
-		err := cmd.Run()
-
-		if e, ok := errors.AsType[*exec.ExitError](err); ok && !e.Success() { //nolint:errorlint // acceptable for tests
-			return
-		}
-		t.Fatalf("process ran with err %v, want exit status 1", err)
 	})
 }

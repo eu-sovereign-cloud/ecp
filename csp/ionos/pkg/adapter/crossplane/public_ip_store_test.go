@@ -43,8 +43,8 @@ func TestPublicIPStoreCreateReservesIPBlock(t *testing.T) {
 	store := NewPublicIPStore(c, testLogger())
 
 	// First reconcile: creates the IPBlock and waits.
-	if err := store.Create(context.Background(), newPublicIP()); !errors.Is(err, backend.ErrStillProcessing) {
-		t.Fatalf("Create #1 = %v, want ErrStillProcessing", err)
+	if err := store.Create(context.Background(), newPublicIP()); !errors.Is(err, backend.StillProcessing) {
+		t.Fatalf("Create #1 = %v, want StillProcessing", err)
 	}
 
 	ipb := &ionosv1alpha1.Ipblock{}
@@ -71,13 +71,13 @@ func TestPublicIPStoreCreateRejectsUnknownRegion(t *testing.T) {
 
 	p := newPublicIP()
 	p.Region = "regionAtlantis"
-	if err := store.Create(context.Background(), p); err == nil || errors.Is(err, backend.ErrStillProcessing) {
+	if err := store.Create(context.Background(), p); err == nil || errors.Is(err, backend.StillProcessing) {
 		t.Fatalf("Create = %v, want a translation error for an unmapped region", err)
 	}
 }
 
 // TestReadReservedIPSurfacesReconcileError verifies that a failed IPBlock (region out of
-// addresses, quota exceeded, etc.) surfaces as an error instead of ErrStillProcessing forever —
+// addresses, quota exceeded, etc.) surfaces as an error instead of StillProcessing forever —
 // otherwise PowerOn would requeue indefinitely on an IPBlock the provider has already given up on.
 func TestReadReservedIPSurfacesReconcileError(t *testing.T) {
 	ns := "ns-1"
@@ -88,7 +88,7 @@ func TestReadReservedIPSurfacesReconcileError(t *testing.T) {
 	c := fakeclient.NewClientBuilder().WithScheme(ionosScheme(t)).WithObjects(ipb).Build()
 
 	_, err := readReservedIP(context.Background(), c, ns, "public-ip-1")
-	if err == nil || errors.Is(err, backend.ErrStillProcessing) {
-		t.Fatalf("readReservedIP = %v, want a non-ErrStillProcessing reconcile error", err)
+	if err == nil || errors.Is(err, backend.StillProcessing) {
+		t.Fatalf("readReservedIP = %v, want a non-StillProcessing reconcile error", err)
 	}
 }

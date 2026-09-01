@@ -36,7 +36,7 @@ func (c *base) createCR(ctx context.Context, obj xpconditions.ObjectWithConditio
 		return c.checkExisting(ctx, obj)
 	}
 	c.logger.Info(kind+" created, waiting for ready", "name", obj.GetName())
-	return backend.ErrStillProcessing
+	return backend.StillProcessing
 }
 
 func (c *base) updateCR(ctx context.Context, obj xpconditions.ObjectWithConditions) error {
@@ -46,7 +46,7 @@ func (c *base) updateCR(ctx context.Context, obj xpconditions.ObjectWithConditio
 		return err
 	}
 	c.logger.Info(kind+" updated, waiting for ready", "name", obj.GetName())
-	return backend.ErrStillProcessing
+	return backend.StillProcessing
 }
 
 func (c *base) deleteCR(ctx context.Context, obj xpconditions.ObjectWithConditions) error {
@@ -70,7 +70,7 @@ func (c *base) deleteCR(ctx context.Context, obj xpconditions.ObjectWithConditio
 		return err
 	}
 	c.logger.Info("waiting for "+kind+" deletion", "name", obj.GetName())
-	return backend.ErrStillProcessing
+	return backend.StillProcessing
 }
 
 func (c *base) checkExisting(ctx context.Context, obj xpconditions.ObjectWithConditions) error {
@@ -86,7 +86,7 @@ func (c *base) checkExisting(ctx context.Context, obj xpconditions.ObjectWithCon
 
 	if obj.GetDeletionTimestamp() != nil {
 		c.logger.Info(kind+" is being deleted", "name", obj.GetName())
-		return backend.ErrStillProcessing
+		return backend.StillProcessing
 	}
 
 	readyCond := obj.GetCondition(v1.TypeReady)
@@ -96,7 +96,7 @@ func (c *base) checkExisting(ctx context.Context, obj xpconditions.ObjectWithCon
 		return nil
 	}
 	c.logger.Info(kind+" not yet ready", "name", obj.GetName())
-	return backend.ErrStillProcessing
+	return backend.StillProcessing
 }
 
 // reconcileError reports the provider's own reconcile failure, if the Crossplane managed resource

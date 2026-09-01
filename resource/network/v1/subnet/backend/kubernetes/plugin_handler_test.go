@@ -3,13 +3,13 @@ package kubernetes_test
 import (
 	"context"
 	"errors"
-	"os"
-	"os/exec"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
+
+	backendport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
 
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	subnetdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/subnet"
@@ -40,10 +40,9 @@ func TestSubnetPluginHandler_HandleReconcile(t *testing.T) {
 		mockPlugin.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil).Times(1)
 		handler := NewSubnetPluginHandler(mockRepo, mockPlugin, 0)
 
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		require.NoError(t, err)
-		require.False(t, requeue)
 	})
 
 	t.Run("should set state to creating and requeue when resource is pending", func(t *testing.T) {
@@ -68,10 +67,9 @@ func TestSubnetPluginHandler_HandleReconcile(t *testing.T) {
 		mockPlugin := NewMockSubnetPlugin(ctrl)
 		handler := NewSubnetPluginHandler(mockRepo, mockPlugin, 0)
 
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
-		require.NoError(t, err)
-		require.True(t, requeue)
+		require.ErrorIs(t, err, backendport.StillProcessing)
 	})
 
 	t.Run("should call plugin create and set state to active when resource is creating", func(t *testing.T) {
@@ -98,10 +96,9 @@ func TestSubnetPluginHandler_HandleReconcile(t *testing.T) {
 
 		handler := NewSubnetPluginHandler(mockRepo, mockPlugin, 0)
 
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		require.NoError(t, err)
-		require.False(t, requeue)
 	})
 
 	t.Run("should call plugin delete and set state to deleting when resource is deleting", func(t *testing.T) {
@@ -130,10 +127,9 @@ func TestSubnetPluginHandler_HandleReconcile(t *testing.T) {
 
 		handler := NewSubnetPluginHandler(mockRepo, mockPlugin, 0)
 
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		require.NoError(t, err)
-		require.False(t, requeue)
 	})
 
 	t.Run("should set state to error and requeue when plugin create fails", func(t *testing.T) {
@@ -163,10 +159,9 @@ func TestSubnetPluginHandler_HandleReconcile(t *testing.T) {
 		handler := NewSubnetPluginHandler(mockRepo, mockPlugin, 0)
 		handler.MaxConditions = 1
 
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
-		require.NoError(t, err)
-		require.True(t, requeue)
+		require.ErrorIs(t, err, backendport.StillProcessing)
 	})
 
 	t.Run("should return error when repo update fails after plugin failure", func(t *testing.T) {
@@ -189,7 +184,7 @@ func TestSubnetPluginHandler_HandleReconcile(t *testing.T) {
 
 		handler := NewSubnetPluginHandler(mockRepo, mockPlugin, 0)
 
-		_, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		require.ErrorIs(t, err, errRepo)
 	})
@@ -229,10 +224,9 @@ func TestSubnetPluginHandler_HandleReconcile(t *testing.T) {
 		handler := NewSubnetPluginHandler(mockRepo, mockPlugin, 0)
 		handler.MaxConditions = 1
 
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
-		require.NoError(t, err)
-		require.True(t, requeue)
+		require.ErrorIs(t, err, backendport.StillProcessing)
 	})
 
 	t.Run("should set state to creating and requeue on retry create", func(t *testing.T) {
@@ -262,10 +256,9 @@ func TestSubnetPluginHandler_HandleReconcile(t *testing.T) {
 		mockPlugin := NewMockSubnetPlugin(ctrl)
 		handler := NewSubnetPluginHandler(mockRepo, mockPlugin, 0)
 
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
-		require.NoError(t, err)
-		require.True(t, requeue)
+		require.ErrorIs(t, err, backendport.StillProcessing)
 	})
 
 	t.Run("should do nothing for unhandled states", func(t *testing.T) {
@@ -284,10 +277,9 @@ func TestSubnetPluginHandler_HandleReconcile(t *testing.T) {
 		mockPlugin := NewMockSubnetPlugin(ctrl)
 		handler := NewSubnetPluginHandler(mockRepo, mockPlugin, 0)
 
-		requeue, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		require.NoError(t, err)
-		require.False(t, requeue)
 	})
 
 	t.Run("should return error when repo update fails in setResourceState", func(t *testing.T) {
@@ -308,43 +300,8 @@ func TestSubnetPluginHandler_HandleReconcile(t *testing.T) {
 		mockPlugin := NewMockSubnetPlugin(ctrl)
 		handler := NewSubnetPluginHandler(mockRepo, mockPlugin, 0)
 
-		_, err := handler.HandleReconcile(context.Background(), resource)
+		err := handler.HandleReconcile(context.Background(), resource)
 
 		require.ErrorIs(t, err, errRepo)
-	})
-
-	t.Run("should fatal if state changes unexpectedly after delegation", func(t *testing.T) {
-		if os.Getenv("BE_FATAL") == "1" {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
-
-			resource := &subnetdom.Subnet{
-				Status: &subnetdom.SubnetStatus{
-					Status: commondomain.Status{
-						State: commondomain.ResourceStateCreating,
-					},
-				},
-			}
-
-			mockPlugin := NewMockSubnetPlugin(ctrl)
-			mockPlugin.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(
-				func(_ context.Context, res *subnetdom.Subnet) error {
-					res.Status.State = commondomain.ResourceStateActive
-					return nil
-				})
-
-			handler := NewSubnetPluginHandler(NewMockRepo[*subnetdom.Subnet](ctrl), mockPlugin, 0)
-			handler.HandleReconcile(context.Background(), resource) //nolint:errcheck
-			return
-		}
-
-		cmd := exec.CommandContext(t.Context(), os.Args[0], "-test.run=TestSubnetPluginHandler_HandleReconcile/should_fatal_if_state_changes_unexpectedly_after_delegation")
-		cmd.Env = append(os.Environ(), "BE_FATAL=1")
-		err := cmd.Run()
-
-		if e, ok := errors.AsType[*exec.ExitError](err); ok && !e.Success() { //nolint:errorlint // acceptable for tests
-			return
-		}
-		t.Fatalf("process ran with err %v, want exit status 1", err)
 	})
 }

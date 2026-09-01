@@ -3,9 +3,8 @@ package kubernetes
 import (
 	"context"
 	"errors"
-	"log"
+	"fmt"
 
-	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	backendport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 
@@ -39,7 +38,7 @@ func NewRouteTablePluginHandler(
 	return handler
 }
 
-func (h *RouteTablePluginHandler) HandleReconcile(ctx context.Context, resource *routetabledom.RouteTable) (bool, error) {
+func (h *RouteTablePluginHandler) HandleReconcile(ctx context.Context, resource *routetabledom.RouteTable) error {
 	// An active resource has no lifecycle transition left to make, so it takes the update
 	// path instead of the create/delete state machine below. See commonbackend.HandleUpdate.
 	if isRouteTableActive(resource) {
@@ -62,40 +61,40 @@ func (h *RouteTablePluginHandler) HandleReconcile(ctx context.Context, resource 
 	case wantRouteTableRetryCreate(resource):
 		delegate = frameworkbackend.BypassDelegated[*routetabledom.RouteTable]
 	default:
-		return false, nil // Nothing to do.
+		return nil // Nothing to do.
 	}
 
 	if err := delegate(ctx, resource); err != nil {
-		if errors.Is(err, backendport.ErrStillProcessing) {
-			return true, nil
+		var rq backendport.RequeueError
+		if errors.As(err, &rq) {
+			// Not a failure, and not ours to reinterpret: the plugin named its own cadence.
+			return err
 		}
-		if requeue, err := h.setResourceErrorState(ctx, resource, err, false); err != nil {
-			return requeue, err
-		}
-		return true, nil
+
+		// The failure is recorded on the resource; retry it on the next pass, unless it is
+		// already gone, in which case there is nothing left to reconcile.
+		return commonbackend.RequeueAfterState(h.setResourceErrorState(ctx, resource, err))
 	}
 
 	switch {
 	case isRouteTableAccepted(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStatePending, false)
+		return commonbackend.IgnoreNotFound(h.setResourceState(ctx, resource, commondomain.ResourceStatePending))
 	case isRouteTablePending(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStateCreating, true)
+		return commonbackend.RequeueAfterState(h.setResourceState(ctx, resource, commondomain.ResourceStateCreating))
 	case isRouteTableCreating(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStateActive, false)
+		return commonbackend.IgnoreNotFound(h.setResourceState(ctx, resource, commondomain.ResourceStateActive))
 	case wantRouteTableDelete(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStateDeleting, true)
+		return commonbackend.RequeueAfterState(h.setResourceState(ctx, resource, commondomain.ResourceStateDeleting))
 	case isRouteTableDeleting(resource):
-		return false, nil
+		return nil
 	case wantRouteTableRetryCreate(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStateCreating, true)
+		return commonbackend.RequeueAfterState(h.setResourceState(ctx, resource, commondomain.ResourceStateCreating))
 	default:
-		log.Fatal("must never achieve that condition")
+		return fmt.Errorf("unreachable reconcile state for route table %q", resource.GetName())
 	}
-
-	return false, nil
 }
 
-func (h *RouteTablePluginHandler) setResourceState(ctx context.Context, resource *routetabledom.RouteTable, state commondomain.ResourceState, requeue bool) (bool, error) {
+func (h *RouteTablePluginHandler) setResourceState(ctx context.Context, resource *routetabledom.RouteTable, state commondomain.ResourceState) error {
 	if resource.Status == nil {
 		resource.Status = &routetabledom.RouteTableStatus{}
 	}
@@ -103,17 +102,12 @@ func (h *RouteTablePluginHandler) setResourceState(ctx context.Context, resource
 	resource.Status.PushCondition(commonbackend.ConditionFromState(state))
 	commonbackend.TrimConditions(&resource.Status.Status, h.MaxConditions)
 
-	if _, err := h.repo.UpdateStatus(ctx, resource); err != nil {
-		if errors.Is(err, kernel.ErrNotFound) {
-			return false, nil
-		}
-		return requeue, err
-	}
+	_, err := h.repo.UpdateStatus(ctx, resource)
 
-	return requeue, nil
+	return err
 }
 
-func (h *RouteTablePluginHandler) setResourceErrorState(ctx context.Context, resource *routetabledom.RouteTable, err error, requeue bool) (bool, error) {
+func (h *RouteTablePluginHandler) setResourceErrorState(ctx context.Context, resource *routetabledom.RouteTable, err error) error {
 	if resource.Status == nil {
 		resource.Status = &routetabledom.RouteTableStatus{}
 	}
@@ -121,14 +115,9 @@ func (h *RouteTablePluginHandler) setResourceErrorState(ctx context.Context, res
 	resource.Status.PushCondition(commonbackend.ConditionFromError(err))
 	commonbackend.TrimConditions(&resource.Status.Status, h.MaxConditions)
 
-	if _, updateErr := h.repo.UpdateStatus(ctx, resource); updateErr != nil {
-		if errors.Is(updateErr, kernel.ErrNotFound) {
-			return false, nil
-		}
-		return requeue, updateErr
-	}
+	_, updateErr := h.repo.UpdateStatus(ctx, resource)
 
-	return requeue, nil
+	return updateErr
 }
 
 func isRouteTableActive(resource *routetabledom.RouteTable) bool {

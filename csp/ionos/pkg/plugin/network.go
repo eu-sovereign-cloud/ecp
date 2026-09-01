@@ -13,7 +13,7 @@ import (
 
 	"github.com/eu-sovereign-cloud/ecp/csp/ionos/pkg/adapter/crossplane"
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
-	backend "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
 	kresource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network"
 )
@@ -119,5 +119,5 @@ func (n *Network) Delete(ctx context.Context, resource *netdom.Network) error {
 	}
 
 	n.logger.Info("waiting for lan deletion", "namespace", namespace, "lan", name)
-	return backend.ErrStillProcessing
+	return backend.StillProcessing
 }

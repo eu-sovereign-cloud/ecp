@@ -25,7 +25,7 @@ import (
 //
 // apply is handed the live object and returns whether it changed anything.
 // A missing Aruba counterpart is reported, not swallowed. The SECA resource is active, so its
-// counterpart existed at some point and a brief gap really can be timing - but ErrStillProcessing
+// counterpart existed at some point and a brief gap really can be timing - but StillProcessing
 // tells the reconciler to requeue and leave status untouched, and nothing bounds how long that can
 // go on. An object deleted out of band never comes back, so the resource would requeue every five
 // minutes forever while reporting itself active, with nothing in the API, its conditions, or the

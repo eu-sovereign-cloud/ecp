@@ -7,13 +7,12 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 )
 
-// Sentinels a CSP plugin returns to tell the handler how to treat a failure. Anything else is
-// assumed transient: the failure is recorded and the operation is retried on a later pass.
+// Failures a CSP plugin returns to tell the handler how to treat a rejected operation. Anything
+// else is assumed transient: the failure is recorded and the operation is retried on a later pass.
+//
+// Progress signals are a separate family and live in requeue.go: StillProcessing, Revisit and
+// RevisitBecause are not failures, they say the pass advanced without settling the resource.
 var (
-	// ErrStillProcessing is returned when an operation is still in progress
-	// and the caller should requeue.
-	ErrStillProcessing = errors.New("operation still in progress")
-
 	// ErrNotSupported is returned when the provider cannot perform the operation at all - not
 	// "not yet", but never, for this resource in this state. Retrying would re-issue a request
 	// the provider has already rejected, so the handler records the reason and stops instead of
@@ -35,13 +34,21 @@ type PluginHandler[T persistence.IdentifiableResource] interface {
 	// based on defined policies or conditions.
 	HandleAdmission(ctx context.Context, resource T) error
 
-	// HandleReconcile processes the desired state of a resource and drives it
-	// towards the current state. This is the core of the reconciliation loop
-	// for a resource.
+	// HandleReconcile drives the resource toward its desired state. This is the core of the
+	// reconciliation loop for a resource.
 	//
-	// TODO: Is the boolean return for requeue sufficient? Or do we want to return a duration for requeue after?
-	// ISSUE: https://github.com/eu-sovereign-cloud/ecp/issues/187
-	HandleReconcile(ctx context.Context, resource T) (requeue bool, err error)
+	// A nil error means the resource has reached a settled state and no requeue is needed.
+	//
+	// A RequeueError (StillProcessing, Revisit, RevisitBecause) is not a failure: the pass made
+	// progress and the controller reschedules after the requested duration, or after the
+	// configured default when it is zero.
+	//
+	// Any other non-nil error is a failure: it is recorded on the resource status and retried
+	// with exponential backoff. An error wrapping ErrNotSupported stops the retry instead.
+	//
+	// A progress signal must be the outermost error. Never wrap a failure inside one - the
+	// controller classifies failures first precisely because a wrapped one stays discoverable.
+	HandleReconcile(ctx context.Context, resource T) error
 }
 
 // DelegatedFunc is a function type representing an operation delegated to a

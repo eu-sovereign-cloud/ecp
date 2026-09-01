@@ -3,9 +3,8 @@ package kubernetes
 import (
 	"context"
 	"errors"
-	"log"
+	"fmt"
 
-	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	backendport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 
@@ -39,7 +38,7 @@ func NewWorkspacePluginHandler(
 	return handler
 }
 
-func (h *WorkspacePluginHandler) HandleReconcile(ctx context.Context, resource *wsdom.Workspace) (bool, error) {
+func (h *WorkspacePluginHandler) HandleReconcile(ctx context.Context, resource *wsdom.Workspace) error {
 	// An active resource has no lifecycle transition left to make, so it takes the update
 	// path instead of the create/delete state machine below. See commonbackend.HandleUpdate.
 	if isWorkspaceActive(resource) {
@@ -69,50 +68,48 @@ func (h *WorkspacePluginHandler) HandleReconcile(ctx context.Context, resource *
 		delegate = frameworkbackend.BypassDelegated[*wsdom.Workspace]
 
 	default:
-		return false, nil // Nothing to do.
+		return nil // Nothing to do.
 	}
 
 	if err := delegate(ctx, resource); err != nil {
-		if errors.Is(err, backendport.ErrStillProcessing) {
-			return true, nil
+		var rq backendport.RequeueError
+		if errors.As(err, &rq) {
+			// Not a failure, and not ours to reinterpret: the plugin named its own cadence.
+			return err
 		}
 
-		if requeue, err := h.setResourceErrorState(ctx, resource, err, false); err != nil {
-			return requeue, err
-		}
-
-		return true, nil
+		// The failure is recorded on the resource; retry it on the next pass, unless it is
+		// already gone, in which case there is nothing left to reconcile.
+		return commonbackend.RequeueAfterState(h.setResourceErrorState(ctx, resource, err))
 	}
 
 	switch {
 
 	case isWorkspaceAccepted(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStatePending, false)
+		return commonbackend.IgnoreNotFound(h.setResourceState(ctx, resource, commondomain.ResourceStatePending))
 
 	case isWorkspacePending(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStateCreating, true)
+		return commonbackend.RequeueAfterState(h.setResourceState(ctx, resource, commondomain.ResourceStateCreating))
 
 	case isWorkspaceCreating(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStateActive, false)
+		return commonbackend.IgnoreNotFound(h.setResourceState(ctx, resource, commondomain.ResourceStateActive))
 
 	case wantWorkspaceDelete(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStateDeleting, true)
+		return commonbackend.RequeueAfterState(h.setResourceState(ctx, resource, commondomain.ResourceStateDeleting))
 
 	case isWorkspaceDeleting(resource):
 		// Nothing to do: the controller will remove the finalizers to end the deletion process.
-		return false, nil
+		return nil
 
 	case wantWorkspaceRetryCreate(resource):
-		return h.setResourceState(ctx, resource, commondomain.ResourceStateCreating, true)
+		return commonbackend.RequeueAfterState(h.setResourceState(ctx, resource, commondomain.ResourceStateCreating))
 
 	default:
-		log.Fatal("must never achieve that condition")
+		return fmt.Errorf("unreachable reconcile state for workspace %q", resource.GetName())
 	}
-
-	return false, nil
 }
 
-func (h *WorkspacePluginHandler) setResourceState(ctx context.Context, resource *wsdom.Workspace, state commondomain.ResourceState, requeue bool) (bool, error) {
+func (h *WorkspacePluginHandler) setResourceState(ctx context.Context, resource *wsdom.Workspace, state commondomain.ResourceState) error {
 	if resource.Status == nil {
 		resource.Status = &wsdom.WorkspaceStatus{}
 	}
@@ -120,18 +117,12 @@ func (h *WorkspacePluginHandler) setResourceState(ctx context.Context, resource 
 	resource.Status.PushCondition(commonbackend.ConditionFromState(state))
 	commonbackend.TrimConditions(&resource.Status.Status, h.MaxConditions)
 
-	if _, err := h.repo.UpdateStatus(ctx, resource); err != nil {
-		if errors.Is(err, kernel.ErrNotFound) {
-			return false, nil
-		}
+	_, err := h.repo.UpdateStatus(ctx, resource)
 
-		return requeue, err
-	}
-
-	return requeue, nil
+	return err
 }
 
-func (h *WorkspacePluginHandler) setResourceErrorState(ctx context.Context, resource *wsdom.Workspace, err error, requeue bool) (bool, error) {
+func (h *WorkspacePluginHandler) setResourceErrorState(ctx context.Context, resource *wsdom.Workspace, err error) error {
 	if resource.Status == nil {
 		resource.Status = &wsdom.WorkspaceStatus{}
 	}
@@ -139,15 +130,9 @@ func (h *WorkspacePluginHandler) setResourceErrorState(ctx context.Context, reso
 	resource.Status.PushCondition(commonbackend.ConditionFromError(err))
 	commonbackend.TrimConditions(&resource.Status.Status, h.MaxConditions)
 
-	if _, updateErr := h.repo.UpdateStatus(ctx, resource); updateErr != nil {
-		if errors.Is(updateErr, kernel.ErrNotFound) {
-			return false, nil
-		}
+	_, updateErr := h.repo.UpdateStatus(ctx, resource)
 
-		return requeue, updateErr
-	}
-
-	return requeue, nil
+	return updateErr
 }
 
 func isWorkspaceActive(resource *wsdom.Workspace) bool {

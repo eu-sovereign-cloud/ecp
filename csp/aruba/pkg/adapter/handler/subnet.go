@@ -7,8 +7,8 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	backend "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
-	persistence "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	subnetdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/subnet"
 	subnetk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/subnet/backend/kubernetes"
 	wsdom "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1"
@@ -169,14 +169,14 @@ func (h *SubnetHandler) resolveArubaSubnetDependencies(ctx context.Context, arub
 
 	if err := h.vpcRepository.Load(ctx, vpc); err != nil {
 		if apierrors.IsNotFound(err) {
-			return nil, backend.ErrStillProcessing // VPC not found, wait for the network to create it
+			return nil, backend.StillProcessing // VPC not found, wait for the network to create it
 		}
 
 		return nil, err
 	}
 
 	if vpc.Status.Phase != v1alpha1.ResourcePhaseActive {
-		return nil, backend.ErrStillProcessing // VPC is not ready, wait for it to be active
+		return nil, backend.StillProcessing // VPC is not ready, wait for it to be active
 	}
 
 	return arubaBundle, nil

@@ -29,7 +29,7 @@ func TestBlockStorageImageBackedIsObserver(t *testing.T) {
 	store := NewBlockStorageStore(c, testLogger())
 
 	if err := store.Create(context.Background(), bootBlockStorage()); err != nil {
-		t.Fatalf("Create = %v, want ErrStillProcessing (waiting for instance)", err)
+		t.Fatalf("Create = %v, want StillProcessing (waiting for instance)", err)
 	}
 
 	// ComputeNamespace(&resource.Scope{Tenant: "tenant-1"}) hashes the tenant with
