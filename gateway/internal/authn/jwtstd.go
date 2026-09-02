@@ -4,6 +4,7 @@ package authn
 import (
 	"context"
 	"crypto/x509"
+	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"strings"
@@ -71,13 +72,35 @@ func NewJWTAuthenticator(secret any, signingMethod, issuer, audience string) *Jw
 }
 
 // jwtClaims is the expected JWT payload. Embedding RegisteredClaims provides
-// exp/sub/iss/aud validation; the optional "scope" object unmarshals directly into
-// [resource.TokenScope] and down-scopes the caller's permissions, while the optional
-// "tenants" claim carries the issuer-asserted tenant membership.
+// exp/sub/iss/aud validation; the optional "scope" object down-scopes the caller's
+// permissions, while the optional "tenants" claim carries the issuer-asserted tenant
+// membership.
 type jwtClaims struct {
 	jwt.RegisteredClaims
-	Scope   *resource.TokenScope `json:"scope,omitempty"`
-	Tenants []string             `json:"tenants,omitempty"`
+	Scope   *tokenScopeClaim `json:"scope,omitempty"`
+	Tenants []string         `json:"tenants,omitempty"`
+}
+
+// tokenScopeClaim reads the "scope" claim, whose name two specs disagree about.
+// OAuth 2.0 defines it as a space-delimited STRING of granted scopes (RFC 6749 §3.3,
+// RFC 9068 §2.2.3) and every OIDC issuer stamps it — Keycloak emits "scope":"email"
+// on a bare client_credentials grant. SECA down-scoping wants an OBJECT under the
+// same name.
+//
+// A string is decoded and ignored rather than failing the token. It is not a
+// down-scope, and an absent down-scope imposes no cap, so this grants nothing a
+// caller could not get by omitting the claim entirely — while rejecting it made
+// every standards-compliant issuer unusable: the whole token failed to decode and
+// the caller got a 401 that named no cause.
+type tokenScopeClaim struct {
+	resource.TokenScope
+}
+
+func (s *tokenScopeClaim) UnmarshalJSON(data []byte) error {
+	if len(data) > 0 && data[0] == '"' {
+		return nil
+	}
+	return json.Unmarshal(data, &s.TokenScope)
 }
 
 // Authenticate implements authnport.Authenticator, verifies the JWT token, and returns an Identity carrying the subject, the issuer-asserted tenant membership and any optional down-scoping asserted by the token.
@@ -97,7 +120,7 @@ func (j *JwtAuthenticator) Authenticate(_ context.Context, tokenString string) (
 
 	scope := resource.TokenScope{}
 	if claims.Scope != nil {
-		scope = *claims.Scope
+		scope = claims.Scope.TokenScope
 	}
 	return &authnport.Identity{
 		Subject:       claims.Subject,
