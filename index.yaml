@@ -2,6 +2,29 @@ apiVersion: v1
 entries:
   ecp:
   - apiVersion: v2
+    appVersion: v0.0.3-alpha
+    created: "2026-09-02T20:27:06.321841156Z"
+    dependencies:
+    - condition: ecp-delegator.enabled
+      name: ecp-delegator
+      repository: file://../delegator
+      version: '>=0.0.0-0'
+    description: European Control Plane (ECP) — SECA REST API gateways (global and
+      regional) backed by Kubernetes Custom Resources.
+    digest: 84bb529e0d9bd2d6a6f69ade4c95df3e89895cdd025ff78fc9f2f71ff8c67fa0
+    home: https://github.com/eu-sovereign-cloud/ecp
+    keywords:
+    - seca
+    - sovereign-cloud
+    - control-plane
+    name: ecp
+    sources:
+    - https://github.com/eu-sovereign-cloud/ecp
+    type: application
+    urls:
+    - https://eu-sovereign-cloud.github.io/ecp/ecp-0.0.3-alpha.tgz
+    version: 0.0.3-alpha
+  - apiVersion: v2
     appVersion: v0.0.2-alpha
     created: "2026-08-14T14:59:48.707228351Z"
     dependencies:
@@ -65,4 +88,4 @@ entries:
     urls:
     - https://eu-sovereign-cloud.github.io/ecp/ecp-delegator-0.0.1-alpha.tgz
     version: 0.0.1-alpha
-generated: "2026-08-14T14:59:48.705470425Z"
+generated: "2026-09-02T20:27:06.319995223Z"
