@@ -296,3 +296,57 @@ func TestJWTAuthenticatorIssuerAudience(t *testing.T) {
 		})
 	}
 }
+
+// TestJWTAuthenticatorOAuthScopeString covers the claim-name collision between
+// OAuth 2.0 and SECA: an OIDC issuer stamps "scope" as a space-delimited string of
+// granted scopes, where SECA down-scoping expects an object. Rejecting the string
+// failed the whole token, so no standards-compliant issuer (Keycloak, which emits
+// "scope":"email" on a bare client_credentials grant) could authenticate at all.
+func TestJWTAuthenticatorOAuthScopeString(t *testing.T) {
+	t.Parallel()
+
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("failed to generate RSA key: %v", err)
+	}
+	auth := NewJWTAuthenticator(&key.PublicKey, jwt.SigningMethodRS256.Alg(), "", "")
+
+	sign := func(scope any) string {
+		token := jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.MapClaims{
+			"sub":   "service-account",
+			"exp":   time.Now().Add(time.Hour).Unix(),
+			"scope": scope,
+		})
+		s, err := token.SignedString(key)
+		if err != nil {
+			t.Fatalf("failed to sign token: %v", err)
+		}
+		return s
+	}
+
+	// A string scope authenticates and imposes no cap — same as omitting it.
+	id, err := auth.Authenticate(context.Background(), sign("email profile"))
+	if err != nil {
+		t.Fatalf("OAuth string scope rejected: %v", err)
+	}
+	if id.Subject != "service-account" {
+		t.Errorf("subject = %q, want %q", id.Subject, "service-account")
+	}
+	if !reflect.DeepEqual(id.TokenScope, resource.TokenScope{}) {
+		t.Errorf("TokenScope = %+v, want zero value (a string scope caps nothing)", id.TokenScope)
+	}
+
+	// An object scope still down-scopes.
+	id, err = auth.Authenticate(context.Background(), sign(resource.TokenScope{Tenants: []string{"t1"}}))
+	if err != nil {
+		t.Fatalf("object scope rejected: %v", err)
+	}
+	if !reflect.DeepEqual(id.TokenScope.Tenants, []string{"t1"}) {
+		t.Errorf("TokenScope.Tenants = %v, want [t1]", id.TokenScope.Tenants)
+	}
+
+	// Anything that is neither is still a malformed token.
+	if _, err := auth.Authenticate(context.Background(), sign(42)); err == nil {
+		t.Error("numeric scope accepted; want error")
+	}
+}
