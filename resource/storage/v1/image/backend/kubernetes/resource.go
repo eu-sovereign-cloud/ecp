@@ -10,23 +10,22 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/scheme"
 
 	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/schema/v1"
+	"github.com/eu-sovereign-cloud/ecp/resource/common/domain"
+	imagedomain "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image"
 )
 
 const (
-	Group   = "storage.v1.secapi.cloud"
-	Version = "v1"
-
-	ImageResource = "images"
-	ImageKind     = "Image"
+	ImageResource = imagedomain.Resource
+	ImageKind     = imagedomain.Kind
 )
 
 var (
-	GroupVersion  = schema.GroupVersion{Group: Group, Version: Version}
+	GroupVersion  = schema.GroupVersion{Group: imagedomain.Group, Version: imagedomain.Version}
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
 	AddToScheme   = SchemeBuilder.AddToScheme
 
-	ImageGVR = schema.GroupVersionResource{Group: Group, Version: Version, Resource: ImageResource}
-	ImageGVK = schema.GroupVersionKind{Group: Group, Version: Version, Kind: ImageKind}
+	ImageGVR = domain.GVR(imagedomain.Group, imagedomain.Version, imagedomain.Resource)
+	ImageGVK = domain.GVK(imagedomain.Group, imagedomain.Version, imagedomain.Kind)
 )
 
 // +kubebuilder:object:root=true

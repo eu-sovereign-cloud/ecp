@@ -10,27 +10,22 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/scheme"
 
 	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/schema/v1"
+	roledomain "github.com/eu-sovereign-cloud/ecp/resource/authorization/v1/role"
+	"github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 )
 
 const (
-	Group   = "authorization.v1.secapi.cloud"
-	Version = "v1"
-
-	RoleResource = "roles"
-	RoleKind     = "Role"
+	RoleResource = roledomain.Resource
+	RoleKind     = roledomain.Kind
 )
 
 var (
-	GroupVersion  = schema.GroupVersion{Group: Group, Version: Version}
+	GroupVersion  = schema.GroupVersion{Group: roledomain.Group, Version: roledomain.Version}
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
 	AddToScheme   = SchemeBuilder.AddToScheme
 
-	RoleGVR = schema.GroupVersionResource{
-		Group: Group, Version: Version, Resource: RoleResource,
-	}
-	RoleGVK = schema.GroupVersionKind{
-		Group: Group, Version: Version, Kind: RoleKind,
-	}
+	RoleGVR = domain.GVR(roledomain.Group, roledomain.Version, roledomain.Resource)
+	RoleGVK = domain.GVK(roledomain.Group, roledomain.Version, roledomain.Kind)
 )
 
 // +kubebuilder:object:root=true

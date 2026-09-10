@@ -10,23 +10,22 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/scheme"
 
 	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/schema/v1"
+	"github.com/eu-sovereign-cloud/ecp/resource/common/domain"
+	internetgatewaydomain "github.com/eu-sovereign-cloud/ecp/resource/network/v1/internet-gateway"
 )
 
 const (
-	Group   = "network.v1.secapi.cloud"
-	Version = "v1"
-
-	InternetGatewayResource = "internet-gateways"
-	InternetGatewayKind     = "InternetGateway"
+	InternetGatewayResource = internetgatewaydomain.Resource
+	InternetGatewayKind     = internetgatewaydomain.Kind
 )
 
 var (
-	GroupVersion  = schema.GroupVersion{Group: Group, Version: Version}
+	GroupVersion  = schema.GroupVersion{Group: internetgatewaydomain.Group, Version: internetgatewaydomain.Version}
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
 	AddToScheme   = SchemeBuilder.AddToScheme
 
-	InternetGatewayGVR = schema.GroupVersionResource{Group: Group, Version: Version, Resource: InternetGatewayResource}
-	InternetGatewayGVK = schema.GroupVersionKind{Group: Group, Version: Version, Kind: InternetGatewayKind}
+	InternetGatewayGVR = domain.GVR(internetgatewaydomain.Group, internetgatewaydomain.Version, internetgatewaydomain.Resource)
+	InternetGatewayGVK = domain.GVK(internetgatewaydomain.Group, internetgatewaydomain.Version, internetgatewaydomain.Kind)
 )
 
 // +kubebuilder:object:root=true

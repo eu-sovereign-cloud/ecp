@@ -10,23 +10,22 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/scheme"
 
 	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/schema/v1"
+	"github.com/eu-sovereign-cloud/ecp/resource/common/domain"
+	publicipdomain "github.com/eu-sovereign-cloud/ecp/resource/network/v1/public-ip"
 )
 
 const (
-	Group   = "network.v1.secapi.cloud"
-	Version = "v1"
-
-	PublicIPResource = "public-ips"
-	PublicIPKind     = "PublicIP"
+	PublicIPResource = publicipdomain.Resource
+	PublicIPKind     = publicipdomain.Kind
 )
 
 var (
-	GroupVersion  = schema.GroupVersion{Group: Group, Version: Version}
+	GroupVersion  = schema.GroupVersion{Group: publicipdomain.Group, Version: publicipdomain.Version}
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
 	AddToScheme   = SchemeBuilder.AddToScheme
 
-	PublicIPGVR = schema.GroupVersionResource{Group: Group, Version: Version, Resource: PublicIPResource}
-	PublicIPGVK = schema.GroupVersionKind{Group: Group, Version: Version, Kind: PublicIPKind}
+	PublicIPGVR = domain.GVR(publicipdomain.Group, publicipdomain.Version, publicipdomain.Resource)
+	PublicIPGVK = domain.GVK(publicipdomain.Group, publicipdomain.Version, publicipdomain.Kind)
 )
 
 // +kubebuilder:object:root=true

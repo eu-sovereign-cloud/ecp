@@ -10,23 +10,22 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/scheme"
 
 	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/schema/v1"
+	"github.com/eu-sovereign-cloud/ecp/resource/common/domain"
+	nicdomain "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic"
 )
 
 const (
-	Group   = "network.v1.secapi.cloud"
-	Version = "v1"
-
-	NICResource = "nics"
-	NICKind     = "NIC"
+	NICResource = nicdomain.Resource
+	NICKind     = nicdomain.Kind
 )
 
 var (
-	GroupVersion  = schema.GroupVersion{Group: Group, Version: Version}
+	GroupVersion  = schema.GroupVersion{Group: nicdomain.Group, Version: nicdomain.Version}
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
 	AddToScheme   = SchemeBuilder.AddToScheme
 
-	NICGVR = schema.GroupVersionResource{Group: Group, Version: Version, Resource: NICResource}
-	NICGVK = schema.GroupVersionKind{Group: Group, Version: Version, Kind: NICKind}
+	NICGVR = domain.GVR(nicdomain.Group, nicdomain.Version, nicdomain.Resource)
+	NICGVK = domain.GVK(nicdomain.Group, nicdomain.Version, nicdomain.Kind)
 )
 
 // +kubebuilder:object:root=true
