@@ -25,7 +25,7 @@ test/
     ionos/              # IONOS real-backend conformance (split global/regional demo)
       cluster/          #   manifests for the demo's two clusters
       scripts/          #   cluster setup / teardown for the demo
-    aruba/              # placeholder for an aruba real-backend harness
+    aruba/              # Aruba real-backend conformance (one cluster + the CSP operator)
   internal/
     testenv/            # shared kubeconfig + port-forward helpers (Go)
     authhelper/         # shared auth test helpers (build tag `authhelper`)
@@ -45,10 +45,10 @@ Both the e2e and conformance stacks reconcile with a **delegator plugin**. Each 
 | Plugin | Backend | How to run |
 |--------|---------|------------|
 | **dummy** | none (logs actions) | **one-shot** — fully self-contained on KIND |
-| **aruba** | `arubacloud-resource-operator` + Aruba creds | **multi-phase** — deploy → install backend → run |
+| **aruba** | `arubacloud-resource-operator` + Aruba creds | **multi-phase**, or the bundled `conformance/aruba` real-backend run |
 | **ionos** | Crossplane + IONOS provider + token | **multi-phase**, or the bespoke `conformance/ionos` real-backend run |
 
-Only **dummy** is self-contained, so the one-shot targets (`kind-integration`, `kind-e2e`, `kind-test-all`, `kind-conformance`) always use dummy. aruba/ionos can't run in one command — their resources never reconcile until their backend exists — so they use the two-phase `*-deploy` → (provision backend) → run flow described below. This is why `E2E_PLUGIN` / `CONFORMANCE_PLUGIN` are honoured on the `*-deploy` targets but not on the one-shot targets.
+Only **dummy** is self-contained, so the one-shot targets (`kind-integration`, `kind-e2e`, `kind-test-all`, `kind-conformance`) always use dummy. aruba/ionos resources never reconcile until their backend exists, so the generic targets run them in two phases — `*-deploy` → (provision backend) → run — which is why `E2E_PLUGIN` / `CONFORMANCE_PLUGIN` are honoured on the `*-deploy` targets but not on the one-shot ones. Each also has a bundled conformance harness that provisions the backend itself and so *is* one command (`conformance-aruba-all`, `conformance-ionos-scaffolding` + `conformance-ionos`), described below.
 
 ## One stack, every suite
 
@@ -240,7 +240,36 @@ make conformance-deploy CONFORMANCE_PLUGIN=ionos
 make conformance
 ```
 
-Swap `conformance-deploy`/`conformance` for `deploy-stack E2E_PLUGIN=<plugin>`/`e2e` to run the e2e suite instead. See [`conformance/aruba/`](conformance/aruba/) for the aruba backend caveats.
+Swap `conformance-deploy`/`conformance` for `deploy-stack E2E_PLUGIN=<plugin>`/`e2e` to run the e2e suite instead.
+
+Both plugins also have a **bundled** path that does all three steps for you — below.
+
+### Aruba real-backend run (`conformance/aruba`)
+
+One KIND cluster, one command: it creates the cluster, installs the
+`arubacloud-resource-operator` with your Aruba API client, deploys the stack with the
+aruba plugin and runs `secatest`.
+
+```shell
+make conformance-aruba-all \
+    ARUBA_CLIENT_ID=<client-id> ARUBA_CLIENT_SECRET=<client-secret> ARUBA_TENANT=<ARU-account>
+
+# Or step by step (scaffold once, re-run the suite as often as you like):
+make conformance-aruba-scaffolding ARUBA_CLIENT_ID=… ARUBA_CLIENT_SECRET=… ARUBA_TENANT=…
+make conformance-aruba              ARUBA_TENANT=…
+make conformance-aruba-clean
+```
+
+`ARUBA_TENANT` must be a **real Aruba account**: it is both the SECA tenant the stack is
+seeded for and the tenant `secatest` drives, so the fixture SKUs land in the same
+`hex(sha3-224(tenant))` namespace the plugin reads them from — and the operator provisions
+real, billable resources against it. `conformance-aruba-clean` deletes the SECA resources
+before the cluster so the operator can reap what it created; deleting the cluster outright
+would strand them.
+
+Unlike the IONOS demo below this is a single cluster — the aruba backend is an operator in
+the same cluster, not a second control plane. Full variable table and caveats:
+[`conformance/aruba/README.md`](conformance/aruba/README.md).
 
 ### IONOS real-backend run (`conformance/ionos`)
 
