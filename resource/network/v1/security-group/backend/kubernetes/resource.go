@@ -10,23 +10,22 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/scheme"
 
 	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/schema/v1"
+	"github.com/eu-sovereign-cloud/ecp/resource/common/domain"
+	securitygroupdomain "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group"
 )
 
 const (
-	Group   = "network.v1.secapi.cloud"
-	Version = "v1"
-
-	SecurityGroupResource = "security-groups"
-	SecurityGroupKind     = "SecurityGroup"
+	SecurityGroupResource = securitygroupdomain.Resource
+	SecurityGroupKind     = securitygroupdomain.Kind
 )
 
 var (
-	GroupVersion  = schema.GroupVersion{Group: Group, Version: Version}
+	GroupVersion  = schema.GroupVersion{Group: securitygroupdomain.Group, Version: securitygroupdomain.Version}
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
 	AddToScheme   = SchemeBuilder.AddToScheme
 
-	SecurityGroupGVR = schema.GroupVersionResource{Group: Group, Version: Version, Resource: SecurityGroupResource}
-	SecurityGroupGVK = schema.GroupVersionKind{Group: Group, Version: Version, Kind: SecurityGroupKind}
+	SecurityGroupGVR = domain.GVR(securitygroupdomain.Group, securitygroupdomain.Version, securitygroupdomain.Resource)
+	SecurityGroupGVK = domain.GVK(securitygroupdomain.Group, securitygroupdomain.Version, securitygroupdomain.Kind)
 )
 
 // +kubebuilder:object:root=true

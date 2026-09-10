@@ -10,27 +10,22 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/scheme"
 
 	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/schema/v1"
+	"github.com/eu-sovereign-cloud/ecp/resource/common/domain"
+	blockstoragedomain "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage"
 )
 
 const (
-	Group   = "storage.v1.secapi.cloud"
-	Version = "v1"
-
-	BlockStorageResource = "block-storages"
-	BlockStorageKind     = "BlockStorage"
+	BlockStorageResource = blockstoragedomain.Resource
+	BlockStorageKind     = blockstoragedomain.Kind
 )
 
 var (
-	GroupVersion  = schema.GroupVersion{Group: Group, Version: Version}
+	GroupVersion  = schema.GroupVersion{Group: blockstoragedomain.Group, Version: blockstoragedomain.Version}
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
 	AddToScheme   = SchemeBuilder.AddToScheme
 
-	BlockStorageGVR = schema.GroupVersionResource{
-		Group: Group, Version: Version, Resource: BlockStorageResource,
-	}
-	BlockStorageGVK = schema.GroupVersionKind{
-		Group: Group, Version: Version, Kind: BlockStorageKind,
-	}
+	BlockStorageGVR = domain.GVR(blockstoragedomain.Group, blockstoragedomain.Version, blockstoragedomain.Resource)
+	BlockStorageGVK = domain.GVK(blockstoragedomain.Group, blockstoragedomain.Version, blockstoragedomain.Kind)
 )
 
 // +kubebuilder:object:root=true

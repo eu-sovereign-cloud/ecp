@@ -8,27 +8,23 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/scheme"
+
+	"github.com/eu-sovereign-cloud/ecp/resource/common/domain"
+	networkskudomain "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network-sku"
 )
 
 const (
-	Group   = "network.v1.secapi.cloud"
-	Version = "v1"
-
-	NetworkSKUResource = "network-skus"
-	NetworkSKUKind     = "NetworkSKU"
+	NetworkSKUResource = networkskudomain.Resource
+	NetworkSKUKind     = networkskudomain.Kind
 )
 
 var (
-	GroupVersion  = schema.GroupVersion{Group: Group, Version: Version}
+	GroupVersion  = schema.GroupVersion{Group: networkskudomain.Group, Version: networkskudomain.Version}
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
 	AddToScheme   = SchemeBuilder.AddToScheme
 
-	NetworkSKUGVR = schema.GroupVersionResource{
-		Group: Group, Version: Version, Resource: NetworkSKUResource,
-	}
-	NetworkSKUGVK = schema.GroupVersionKind{
-		Group: Group, Version: Version, Kind: NetworkSKUKind,
-	}
+	NetworkSKUGVR = domain.GVR(networkskudomain.Group, networkskudomain.Version, networkskudomain.Resource)
+	NetworkSKUGVK = domain.GVK(networkskudomain.Group, networkskudomain.Version, networkskudomain.Kind)
 )
 
 // +kubebuilder:object:root=true

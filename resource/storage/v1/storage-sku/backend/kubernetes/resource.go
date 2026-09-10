@@ -8,27 +8,23 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/scheme"
+
+	"github.com/eu-sovereign-cloud/ecp/resource/common/domain"
+	storageskudomain "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/storage-sku"
 )
 
 const (
-	Group   = "storage.v1.secapi.cloud"
-	Version = "v1"
-
-	StorageSKUResource = "skus"
-	StorageSKUKind     = "StorageSKU"
+	StorageSKUResource = storageskudomain.Resource
+	StorageSKUKind     = storageskudomain.Kind
 )
 
 var (
-	GroupVersion  = schema.GroupVersion{Group: Group, Version: Version}
+	GroupVersion  = schema.GroupVersion{Group: storageskudomain.Group, Version: storageskudomain.Version}
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
 	AddToScheme   = SchemeBuilder.AddToScheme
 
-	StorageSKUGVR = schema.GroupVersionResource{
-		Group: Group, Version: Version, Resource: StorageSKUResource,
-	}
-	StorageSKUGVK = schema.GroupVersionKind{
-		Group: Group, Version: Version, Kind: StorageSKUKind,
-	}
+	StorageSKUGVR = domain.GVR(storageskudomain.Group, storageskudomain.Version, storageskudomain.Resource)
+	StorageSKUGVK = domain.GVK(storageskudomain.Group, storageskudomain.Version, storageskudomain.Kind)
 )
 
 // +kubebuilder:object:root=true

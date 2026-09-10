@@ -10,23 +10,22 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/scheme"
 
 	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/schema/v1"
+	"github.com/eu-sovereign-cloud/ecp/resource/common/domain"
+	routetabledomain "github.com/eu-sovereign-cloud/ecp/resource/network/v1/route-table"
 )
 
 const (
-	Group   = "network.v1.secapi.cloud"
-	Version = "v1"
-
-	RouteTableResource = "route-tables"
-	RouteTableKind     = "RouteTable"
+	RouteTableResource = routetabledomain.Resource
+	RouteTableKind     = routetabledomain.Kind
 )
 
 var (
-	GroupVersion  = schema.GroupVersion{Group: Group, Version: Version}
+	GroupVersion  = schema.GroupVersion{Group: routetabledomain.Group, Version: routetabledomain.Version}
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
 	AddToScheme   = SchemeBuilder.AddToScheme
 
-	RouteTableGVR = schema.GroupVersionResource{Group: Group, Version: Version, Resource: RouteTableResource}
-	RouteTableGVK = schema.GroupVersionKind{Group: Group, Version: Version, Kind: RouteTableKind}
+	RouteTableGVR = domain.GVR(routetabledomain.Group, routetabledomain.Version, routetabledomain.Resource)
+	RouteTableGVK = domain.GVK(routetabledomain.Group, routetabledomain.Version, routetabledomain.Kind)
 )
 
 // +kubebuilder:object:root=true

@@ -10,27 +10,22 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/scheme"
 
 	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/schema/v1"
+	"github.com/eu-sovereign-cloud/ecp/resource/common/domain"
+	workspacedomain "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1"
 )
 
 const (
-	Group   = "workspace.v1.secapi.cloud"
-	Version = "v1"
-
-	WorkspaceResource = "workspaces"
-	WorkspaceKind     = "Workspace"
+	WorkspaceResource = workspacedomain.Resource
+	WorkspaceKind     = workspacedomain.Kind
 )
 
 var (
-	GroupVersion  = schema.GroupVersion{Group: Group, Version: Version}
+	GroupVersion  = schema.GroupVersion{Group: workspacedomain.Group, Version: workspacedomain.Version}
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
 	AddToScheme   = SchemeBuilder.AddToScheme
 
-	WorkspaceGVR = schema.GroupVersionResource{
-		Group: Group, Version: Version, Resource: WorkspaceResource,
-	}
-	WorkspaceGVK = schema.GroupVersionKind{
-		Group: Group, Version: Version, Kind: WorkspaceKind,
-	}
+	WorkspaceGVR = domain.GVR(workspacedomain.Group, workspacedomain.Version, workspacedomain.Resource)
+	WorkspaceGVK = domain.GVK(workspacedomain.Group, workspacedomain.Version, workspacedomain.Kind)
 )
 
 // +kubebuilder:object:root=true

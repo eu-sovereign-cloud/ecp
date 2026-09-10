@@ -10,27 +10,22 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/scheme"
 
 	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/schema/v1"
+	"github.com/eu-sovereign-cloud/ecp/resource/common/domain"
+	networkdomain "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network"
 )
 
 const (
-	Group   = "network.v1.secapi.cloud"
-	Version = "v1"
-
-	NetworkResource = "networks"
-	NetworkKind     = "Network"
+	NetworkResource = networkdomain.Resource
+	NetworkKind     = networkdomain.Kind
 )
 
 var (
-	GroupVersion  = schema.GroupVersion{Group: Group, Version: Version}
+	GroupVersion  = schema.GroupVersion{Group: networkdomain.Group, Version: networkdomain.Version}
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
 	AddToScheme   = SchemeBuilder.AddToScheme
 
-	NetworkGVR = schema.GroupVersionResource{
-		Group: Group, Version: Version, Resource: NetworkResource,
-	}
-	NetworkGVK = schema.GroupVersionKind{
-		Group: Group, Version: Version, Kind: NetworkKind,
-	}
+	NetworkGVR = domain.GVR(networkdomain.Group, networkdomain.Version, networkdomain.Resource)
+	NetworkGVK = domain.GVK(networkdomain.Group, networkdomain.Version, networkdomain.Kind)
 )
 
 // +kubebuilder:object:root=true
