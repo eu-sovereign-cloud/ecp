@@ -142,6 +142,34 @@ func TestResourceAndVerb(t *testing.T) {
 	}
 }
 
+// TestSECAClaimExtractor_Region verifies that the region passed to the constructor —
+// not a process-global — ends up on claim.Region, and that a global-server extractor
+// (constructed with an empty region) always produces an empty claim.Region.
+func TestSECAClaimExtractor_Region(t *testing.T) {
+	t.Parallel()
+
+	r := newPatternRequest(http.MethodGet, "/", "GET "+testBaseSecaCompute+"/v1/tenants/{tenant}/workspaces/{workspace}/instances",
+		map[string]string{pathKeyTenant: "t1", pathKeyWorkspace: "w1"})
+
+	regional := SECAClaimExtractor(testProviderCompute, testBaseSecaCompute, "r1")
+	claim, err := regional(r)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if claim.Region != "r1" {
+		t.Errorf("Region = %q, want %q", claim.Region, "r1")
+	}
+
+	global := SECAClaimExtractor(testProviderCompute, testBaseSecaCompute, "")
+	claim, err = global(r)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if claim.Region != "" {
+		t.Errorf("Region = %q, want empty (global server)", claim.Region)
+	}
+}
+
 func TestResourceAndVerb_NetworkBase(t *testing.T) {
 	t.Parallel()
 	r := newPatternRequest(http.MethodGet, "/", "GET /providers/seca.network/v1/tenants/{tenant}/workspaces/{workspace}/networks/{network}/route-tables/{name}", map[string]string{
