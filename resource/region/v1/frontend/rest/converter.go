@@ -10,6 +10,7 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/validation"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
+	commonfrontend "github.com/eu-sovereign-cloud/ecp/resource/common/frontend"
 	rdom "github.com/eu-sovereign-cloud/ecp/resource/region/v1"
 )
 
@@ -45,7 +46,7 @@ func listParamsFromAPI(params regionv1sdk.ListRegionsParams) resource.ListParams
 func regionIteratorToAPI(rs []*rdom.Region, nextSkipToken *string) *regionv1sdk.RegionIterator {
 	items := make([]sdkschema.Region, len(rs))
 	for i, r := range rs {
-		items[i] = regionToAPI(*r, "list")
+		items[i] = regionToAPI(*r, commonfrontend.VerbList)
 	}
 
 	iterator := &regionv1sdk.RegionIterator{
@@ -53,7 +54,7 @@ func regionIteratorToAPI(rs []*rdom.Region, nextSkipToken *string) *regionv1sdk.
 		Metadata: sdkschema.ResponseMetadata{
 			Provider: RegionProviderName,
 			Resource: RegionResource,
-			Verb:     "list",
+			Verb:     commonfrontend.VerbList,
 		},
 	}
 

@@ -28,6 +28,34 @@ import (
 	kernelresource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 )
 
+// Unstructured object field keys shared by the fake CR literals in this file.
+const (
+	keyAPIVersion = "apiVersion"
+	keyKind       = "kind"
+	keyMetadata   = "metadata"
+	keyName       = "name"
+	keyNamespace  = "namespace"
+)
+
+// testAPIVersionNetwork is the sample apiVersion value for fake network-group CRs.
+const testAPIVersionNetwork = "network.test/v1"
+
+// testRT1, testNet1 and testRTDash1 are sample resource names shared by tests in this package.
+const (
+	testRT1     = "rt1"
+	testNet1    = "net1"
+	testRTDash1 = "rt-1"
+)
+
+// labelEnv and labelTier are sample label keys shared by tests in this file.
+const (
+	labelEnv  = "env"
+	labelTier = "tier"
+)
+
+// labelValueProd is the sample label value shared by tests in this file.
+const labelValueProd = "prod"
+
 type fakeNetworkScope struct {
 	tenant, workspace, network string
 }
@@ -70,9 +98,9 @@ func testListKinds() map[schema.GroupVersionResource]string {
 
 func newTestObject(namespace, name string) *unstructured.Unstructured {
 	return &unstructured.Unstructured{Object: map[string]any{
-		"apiVersion": "network.test/v1",
-		"kind":       "RouteTable",
-		"metadata":   map[string]any{"namespace": namespace, "name": name},
+		keyAPIVersion: testAPIVersionNetwork,
+		keyKind:       "RouteTable",
+		keyMetadata:   map[string]any{keyNamespace: namespace, keyName: name},
 	}}
 }
 
@@ -151,11 +179,11 @@ func (t *testNetworkIdentifiable) GetNetwork() string   { return t.network }
 // ComputeNetworkNamespace, exactly like the real conversion does.
 func testNetworkToCR(m *testNetworkIdentifiable) (client.Object, error) {
 	return &unstructured.Unstructured{Object: map[string]any{
-		"apiVersion": "network.test/v1",
-		"kind":       "RouteTable",
-		"metadata": map[string]any{
-			"namespace": ComputeNetworkNamespace(m),
-			"name":      m.name,
+		keyAPIVersion: testAPIVersionNetwork,
+		keyKind:       "RouteTable",
+		keyMetadata: map[string]any{
+			keyNamespace: ComputeNetworkNamespace(m),
+			keyName:      m.name,
 		},
 	}}, nil
 }
@@ -180,8 +208,8 @@ func TestAdapter_NetworkIsolation_AcrossAllOperations(t *testing.T) {
 	writer := NewWriterAdapter[*testNetworkIdentifiable](dynFake, testGVR, logger, testNetworkConv)
 	reader := NewReaderAdapter[*testNetworkIdentifiable](dynFake, testGVR, logger, testNetworkFromCR)
 
-	inN1 := &testNetworkIdentifiable{name: "rt1", tenant: "t1", workspace: "w1", network: "n1"}
-	inN2 := &testNetworkIdentifiable{name: "rt1", tenant: "t1", workspace: "w1", network: "n2"}
+	inN1 := &testNetworkIdentifiable{name: testRT1, tenant: "t1", workspace: "w1", network: "n1"}
+	inN2 := &testNetworkIdentifiable{name: testRT1, tenant: "t1", workspace: "w1", network: "n2"}
 
 	_, err := writer.Create(context.Background(), inN1)
 	require.NoError(t, err, "creating rt1 in network n1 must succeed")
@@ -189,20 +217,20 @@ func TestAdapter_NetworkIsolation_AcrossAllOperations(t *testing.T) {
 	_, err = writer.Create(context.Background(), inN2)
 	require.NoError(t, err, "creating the same-named rt1 in a different network (n2) must not collide with n1's namespace")
 
-	loadedN1 := &testNetworkIdentifiable{name: "rt1", tenant: "t1", workspace: "w1", network: "n1"}
+	loadedN1 := &testNetworkIdentifiable{name: testRT1, tenant: "t1", workspace: "w1", network: "n1"}
 	require.NoError(t, reader.Load(context.Background(), &loadedN1))
-	require.Equal(t, "rt1", loadedN1.name)
+	require.Equal(t, testRT1, loadedN1.name)
 
-	loadedN2 := &testNetworkIdentifiable{name: "rt1", tenant: "t1", workspace: "w1", network: "n2"}
+	loadedN2 := &testNetworkIdentifiable{name: testRT1, tenant: "t1", workspace: "w1", network: "n2"}
 	require.NoError(t, reader.Load(context.Background(), &loadedN2))
-	require.Equal(t, "rt1", loadedN2.name)
+	require.Equal(t, testRT1, loadedN2.name)
 
 	require.NoError(t, writer.Delete(context.Background(), inN1), "deleting rt1 in network n1 must target n1's namespace")
 
 	// n2's rt1 must survive n1's deletion — proving Delete is also network-scoped.
-	stillThere := &testNetworkIdentifiable{name: "rt1", tenant: "t1", workspace: "w1", network: "n2"}
+	stillThere := &testNetworkIdentifiable{name: testRT1, tenant: "t1", workspace: "w1", network: "n2"}
 	require.NoError(t, reader.Load(context.Background(), &stillThere))
-	require.Equal(t, "rt1", stillThere.name)
+	require.Equal(t, testRT1, stillThere.name)
 }
 
 // testWorkspaceScopedIdentifiable mirrors Network's domain shape: tenant+workspace scoped,
@@ -219,36 +247,36 @@ func (t *testWorkspaceScopedIdentifiable) GetTenant() string    { return t.tenan
 func (t *testWorkspaceScopedIdentifiable) GetWorkspace() string { return t.workspace }
 
 func TestChildNamespaceFor_WorkspaceChildren(t *testing.T) {
-	net := &testWorkspaceScopedIdentifiable{name: "net1", tenant: "t1", workspace: "w1"}
+	net := &testWorkspaceScopedIdentifiable{name: testNet1, tenant: "t1", workspace: "w1"}
 
 	namespace, ownerLabels := childNamespaceFor(WorkspaceChildren, net)
 
-	require.Equal(t, ComputeNamespace(&kernelresource.Scope{Tenant: "t1", Workspace: "net1"}), namespace,
+	require.Equal(t, ComputeNamespace(&kernelresource.Scope{Tenant: "t1", Workspace: testNet1}), namespace,
 		"WorkspaceChildren must provision the namespace hashing tenant + the resource's own name as the workspace segment")
 	require.Equal(t, map[string]string{
 		labels.InternalTenantLabel:    "t1",
-		labels.InternalWorkspaceLabel: "net1",
+		labels.InternalWorkspaceLabel: testNet1,
 	}, ownerLabels)
 }
 
 func TestChildNamespaceFor_NetworkChildren(t *testing.T) {
-	net := &testWorkspaceScopedIdentifiable{name: "net1", tenant: "t1", workspace: "w1"}
+	net := &testWorkspaceScopedIdentifiable{name: testNet1, tenant: "t1", workspace: "w1"}
 
 	namespace, ownerLabels := childNamespaceFor(NetworkChildren, net)
 
-	require.Equal(t, ComputeNetworkNamespace(fakeNetworkScope{tenant: "t1", workspace: "w1", network: "net1"}), namespace,
+	require.Equal(t, ComputeNetworkNamespace(fakeNetworkScope{tenant: "t1", workspace: "w1", network: testNet1}), namespace,
 		"NetworkChildren must provision the namespace hashing tenant/workspace + the resource's own name as the network segment")
 	require.NotEqual(t, ComputeNamespace(&kernelresource.Scope{Tenant: "t1", Workspace: "w1"}), namespace,
 		"the provisioned namespace must be distinct from the Network's own (workspace-level) namespace")
 	require.Equal(t, map[string]string{
 		labels.InternalTenantLabel:    "t1",
 		labels.InternalWorkspaceLabel: "w1",
-		labels.InternalNetworkLabel:   "net1",
+		labels.InternalNetworkLabel:   testNet1,
 	}, ownerLabels)
 }
 
 func TestChildNamespaceFor_NoChildNamespace(t *testing.T) {
-	net := &testWorkspaceScopedIdentifiable{name: "net1", tenant: "t1", workspace: "w1"}
+	net := &testWorkspaceScopedIdentifiable{name: testNet1, tenant: "t1", workspace: "w1"}
 
 	namespace, ownerLabels := childNamespaceFor(NoChildNamespace, net)
 
@@ -273,11 +301,11 @@ func parentListKinds() map[schema.GroupVersionResource]string {
 // testParentToCR places the parent CR in the tenant namespace (like WorkspaceToCR).
 func testParentToCR(m *testWorkspaceScopedIdentifiable) (client.Object, error) {
 	return &unstructured.Unstructured{Object: map[string]any{
-		"apiVersion": "workspace.test/v1",
-		"kind":       "Workspace",
-		"metadata": map[string]any{
-			"namespace": ComputeNamespace(&kernelresource.Scope{Tenant: m.tenant}),
-			"name":      m.name,
+		keyAPIVersion: "workspace.test/v1",
+		keyKind:       "Workspace",
+		keyMetadata: map[string]any{
+			keyNamespace: ComputeNamespace(&kernelresource.Scope{Tenant: m.tenant}),
+			keyName:      m.name,
 		},
 	}}, nil
 }
@@ -291,9 +319,9 @@ var testParentConv = TwoWayConverter[*testWorkspaceScopedIdentifiable]{FromCR: t
 
 func newChildObject(namespace, name string) *unstructured.Unstructured {
 	return &unstructured.Unstructured{Object: map[string]any{
-		"apiVersion": "storage.test/v1",
-		"kind":       "BlockStorage",
-		"metadata":   map[string]any{"namespace": namespace, "name": name},
+		keyAPIVersion: "storage.test/v1",
+		keyKind:       "BlockStorage",
+		keyMetadata:   map[string]any{keyNamespace: namespace, keyName: name},
 	}}
 }
 
@@ -588,9 +616,9 @@ func TestNamespaceManagingWriterAdapter_Delete(t *testing.T) {
 
 	t.Run("refuses delete when child namespace has SECA resources", func(t *testing.T) {
 		parentObj := &unstructured.Unstructured{Object: map[string]any{
-			"apiVersion": "workspace.test/v1",
-			"kind":       "Workspace",
-			"metadata":   map[string]any{"namespace": tenantNS, "name": "w1"},
+			keyAPIVersion: "workspace.test/v1",
+			keyKind:       "Workspace",
+			keyMetadata:   map[string]any{keyNamespace: tenantNS, keyName: "w1"},
 		}}
 		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(
 			runtime.NewScheme(), parentListKinds(), parentObj, newChildObject(childNS, "bs-1"),
@@ -626,9 +654,9 @@ func TestNamespaceManagingWriterAdapter_Delete(t *testing.T) {
 	// keeps it from racing ahead of the plugin's Delete.
 	t.Run("deletes the parent but leaves the child namespace to the controller", func(t *testing.T) {
 		parentObj := &unstructured.Unstructured{Object: map[string]any{
-			"apiVersion": "workspace.test/v1",
-			"kind":       "Workspace",
-			"metadata":   map[string]any{"namespace": tenantNS, "name": "w1"},
+			keyAPIVersion: "workspace.test/v1",
+			keyKind:       "Workspace",
+			keyMetadata:   map[string]any{keyNamespace: tenantNS, keyName: "w1"},
 		}}
 		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(
 			runtime.NewScheme(), parentListKinds(), parentObj,
@@ -655,9 +683,9 @@ func TestNamespaceManagingWriterAdapter_Delete(t *testing.T) {
 
 	t.Run("NoChildNamespace skips the empty check", func(t *testing.T) {
 		parentObj := &unstructured.Unstructured{Object: map[string]any{
-			"apiVersion": "workspace.test/v1",
-			"kind":       "Workspace",
-			"metadata":   map[string]any{"namespace": tenantNS, "name": "w1"},
+			keyAPIVersion: "workspace.test/v1",
+			keyKind:       "Workspace",
+			keyMetadata:   map[string]any{keyNamespace: tenantNS, keyName: "w1"},
 		}}
 		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(
 			runtime.NewScheme(), parentListKinds(), parentObj, newChildObject(childNS, "bs-1"),
@@ -697,11 +725,11 @@ func networkParentListKinds() map[schema.GroupVersionResource]string {
 func testNetworkParentToCR(m *testWorkspaceScopedIdentifiable) (client.Object, error) {
 	// Network CRs sit in the workspace namespace (tenant + workspace), not the network child NS.
 	return &unstructured.Unstructured{Object: map[string]any{
-		"apiVersion": "network.test/v1",
-		"kind":       "Network",
-		"metadata": map[string]any{
-			"namespace": ComputeNamespace(&kernelresource.Scope{Tenant: m.tenant, Workspace: m.workspace}),
-			"name":      m.name,
+		keyAPIVersion: testAPIVersionNetwork,
+		keyKind:       "Network",
+		keyMetadata: map[string]any{
+			keyNamespace: ComputeNamespace(&kernelresource.Scope{Tenant: m.tenant, Workspace: m.workspace}),
+			keyName:      m.name,
 		},
 	}}, nil
 }
@@ -716,20 +744,20 @@ var testNetworkParentConv = TwoWayConverter[*testWorkspaceScopedIdentifiable]{Fr
 func TestNamespaceManagingWriterAdapter_Delete_NetworkChildren(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	// NetworkChildren uses GetName() as the network segment and GetWorkspace() for the workspace.
-	network := &testWorkspaceScopedIdentifiable{name: "net1", tenant: "t1", workspace: "w1"}
+	network := &testWorkspaceScopedIdentifiable{name: testNet1, tenant: "t1", workspace: "w1"}
 	workspaceNS := ComputeNamespace(&kernelresource.Scope{Tenant: "t1", Workspace: "w1"})
-	networkChildNS := ComputeNetworkNamespace(fakeNetworkScope{tenant: "t1", workspace: "w1", network: "net1"})
+	networkChildNS := ComputeNetworkNamespace(fakeNetworkScope{tenant: "t1", workspace: "w1", network: testNet1})
 	ownerLabels := map[string]string{
 		labels.InternalTenantLabel:    "t1",
 		labels.InternalWorkspaceLabel: "w1",
-		labels.InternalNetworkLabel:   "net1",
+		labels.InternalNetworkLabel:   testNet1,
 	}
 
 	t.Run("refuses delete when network child namespace has resources", func(t *testing.T) {
 		parentObj := &unstructured.Unstructured{Object: map[string]any{
-			"apiVersion": "network.test/v1",
-			"kind":       "Network",
-			"metadata":   map[string]any{"namespace": workspaceNS, "name": "net1"},
+			keyAPIVersion: testAPIVersionNetwork,
+			keyKind:       "Network",
+			keyMetadata:   map[string]any{keyNamespace: workspaceNS, keyName: testNet1},
 		}}
 		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(
 			runtime.NewScheme(), networkParentListKinds(), parentObj, newChildObject(networkChildNS, "subnet-1"),
@@ -750,7 +778,7 @@ func TestNamespaceManagingWriterAdapter_Delete_NetworkChildren(t *testing.T) {
 		require.Equal(t, kernel.KindConflict, domainErr.Kind)
 
 		_, getErr := dynFake.Resource(testNetworkParentGVR).Namespace(workspaceNS).Get(
-			context.Background(), "net1", metav1.GetOptions{},
+			context.Background(), testNet1, metav1.GetOptions{},
 		)
 		require.NoError(t, getErr, "network CR must remain when children exist")
 
@@ -760,9 +788,9 @@ func TestNamespaceManagingWriterAdapter_Delete_NetworkChildren(t *testing.T) {
 
 	t.Run("deletes the network but leaves its child namespace to the controller", func(t *testing.T) {
 		parentObj := &unstructured.Unstructured{Object: map[string]any{
-			"apiVersion": "network.test/v1",
-			"kind":       "Network",
-			"metadata":   map[string]any{"namespace": workspaceNS, "name": "net1"},
+			keyAPIVersion: testAPIVersionNetwork,
+			keyKind:       "Network",
+			keyMetadata:   map[string]any{keyNamespace: workspaceNS, keyName: testNet1},
 		}}
 		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(
 			runtime.NewScheme(), networkParentListKinds(), parentObj,
@@ -779,7 +807,7 @@ func TestNamespaceManagingWriterAdapter_Delete_NetworkChildren(t *testing.T) {
 		require.NoError(t, writer.Delete(context.Background(), network))
 
 		_, getErr := dynFake.Resource(testNetworkParentGVR).Namespace(workspaceNS).Get(
-			context.Background(), "net1", metav1.GetOptions{},
+			context.Background(), testNet1, metav1.GetOptions{},
 		)
 		require.True(t, kerrs.IsNotFound(getErr), "network CR should be deleted")
 
@@ -893,9 +921,9 @@ func testLabelledToCR(d *testLabelled) (client.Object, error) {
 	}
 
 	meta := map[string]any{
-		"namespace": ComputeNamespace(&kernelresource.Scope{Tenant: "t1", Workspace: "w1"}),
-		"name":      d.name,
-		"labels":    crLabels,
+		keyNamespace: ComputeNamespace(&kernelresource.Scope{Tenant: "t1", Workspace: "w1"}),
+		keyName:      d.name,
+		"labels":     crLabels,
 	}
 	if d.version != "" {
 		meta["resourceVersion"] = d.version
@@ -904,11 +932,11 @@ func testLabelledToCR(d *testLabelled) (client.Object, error) {
 	// Deliberately no "finalizers" key: no domain type models them, which is exactly why a
 	// full-replace update has to carry the stored ones across itself.
 	return &unstructured.Unstructured{Object: map[string]any{
-		"apiVersion": "network.test/v1",
-		"kind":       "RouteTable",
-		"metadata":   meta,
-		"commonData": map[string]any{"labels": keys},
-		"spec":       map[string]any{},
+		keyAPIVersion: testAPIVersionNetwork,
+		keyKind:       "RouteTable",
+		keyMetadata:   meta,
+		"commonData":  map[string]any{"labels": keys},
+		"spec":        map[string]any{},
 	}}, nil
 }
 
@@ -936,7 +964,7 @@ var testLabelledConv = TwoWayConverter[*testLabelled]{FromCR: testLabelledFromCR
 func TestWriterAdapter_Update_PropagatesCommonData(t *testing.T) {
 	namespace := ComputeNamespace(&kernelresource.Scope{Tenant: "t1", Workspace: "w1"})
 
-	created, err := testLabelledToCR(&testLabelled{name: "rt-1", labels: map[string]string{"env": "prod"}})
+	created, err := testLabelledToCR(&testLabelled{name: testRTDash1, labels: map[string]string{labelEnv: labelValueProd}})
 	require.NoError(t, err)
 
 	dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(
@@ -946,19 +974,19 @@ func TestWriterAdapter_Update_PropagatesCommonData(t *testing.T) {
 
 	// Add a second label, the case that used to be lost.
 	updated, err := writer.Update(context.Background(), &testLabelled{
-		name:   "rt-1",
-		labels: map[string]string{"env": "prod", "tier": "frontend"},
+		name:   testRTDash1,
+		labels: map[string]string{labelEnv: labelValueProd, labelTier: "frontend"},
 	})
 	require.NoError(t, err)
-	require.Equal(t, map[string]string{"env": "prod", "tier": "frontend"}, (*updated).labels)
+	require.Equal(t, map[string]string{labelEnv: labelValueProd, labelTier: "frontend"}, (*updated).labels)
 
 	stored, err := dynFake.Resource(testGVR).Namespace(namespace).
-		Get(context.Background(), "rt-1", metav1.GetOptions{})
+		Get(context.Background(), testRTDash1, metav1.GetOptions{})
 	require.NoError(t, err)
 
 	keys, _, err := unstructured.NestedStringSlice(stored.Object, "commonData", "labels")
 	require.NoError(t, err)
-	require.ElementsMatch(t, []string{"env", "tier"}, keys, "the added label's key must reach commonData")
+	require.ElementsMatch(t, []string{labelEnv, labelTier}, keys, "the added label's key must reach commonData")
 }
 
 // TestWriterAdapter_Update_VersionedPreservesFinalizers pins the finalizer carry-over on the
@@ -974,7 +1002,7 @@ func TestWriterAdapter_Update_PropagatesCommonData(t *testing.T) {
 func TestWriterAdapter_Update_VersionedPreservesFinalizers(t *testing.T) {
 	namespace := ComputeNamespace(&kernelresource.Scope{Tenant: "t1", Workspace: "w1"})
 
-	created, err := testLabelledToCR(&testLabelled{name: "rt-1", labels: map[string]string{"env": "prod"}})
+	created, err := testLabelledToCR(&testLabelled{name: testRTDash1, labels: map[string]string{labelEnv: labelValueProd}})
 	require.NoError(t, err)
 
 	stored := created.(*unstructured.Unstructured)
@@ -987,14 +1015,14 @@ func TestWriterAdapter_Update_VersionedPreservesFinalizers(t *testing.T) {
 
 	// A versioned domain object — what a plugin hands back after reading the CR.
 	_, err = writer.Update(context.Background(), &testLabelled{
-		name:    "rt-1",
+		name:    testRTDash1,
 		version: "42",
-		labels:  map[string]string{"env": "prod", "tier": "frontend"},
+		labels:  map[string]string{labelEnv: labelValueProd, labelTier: "frontend"},
 	})
 	require.NoError(t, err)
 
 	after, err := dynFake.Resource(testGVR).Namespace(namespace).
-		Get(context.Background(), "rt-1", metav1.GetOptions{})
+		Get(context.Background(), testRTDash1, metav1.GetOptions{})
 	require.NoError(t, err)
 	require.Equal(t, []string{"secapi.cloud.foundation/cleanup"}, after.GetFinalizers(),
 		"a full-replace update must not drop the finalizers it does not own")
@@ -1009,7 +1037,7 @@ func TestWriterAdapter_Update_VersionedPreservesFinalizers(t *testing.T) {
 // worth guarding: it carries the label *key list*, which converters build from a Go map, and an
 // equal-but-reordered list compares unequal here and writes. That is why they sort it.
 func TestWriterAdapter_Update_NoOpDoesNotWrite(t *testing.T) {
-	labelled := &testLabelled{name: "rt-1", labels: map[string]string{"env": "prod", "tier": "frontend", "team": "platform"}}
+	labelled := &testLabelled{name: testRTDash1, labels: map[string]string{labelEnv: labelValueProd, labelTier: "frontend", "team": "platform"}}
 
 	created, err := testLabelledToCR(labelled)
 	require.NoError(t, err)

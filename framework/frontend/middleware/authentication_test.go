@@ -40,7 +40,7 @@ func TestNewAuthentication(t *testing.T) {
 	const validToken = "valid-token"
 	authn := &fakeAuthenticator{
 		valid:    validToken,
-		identity: &authnport.Identity{Subject: "alice"},
+		identity: &authnport.Identity{Subject: testSubjectAlice},
 	}
 	mw := NewAuthentication(authn, discardLog)
 
@@ -106,8 +106,8 @@ func TestNewAuthentication(t *testing.T) {
 				id, ok := IdentityFromContext(capturedCtx)
 				if !ok || id == nil {
 					t.Errorf("expected identity in context, got none")
-				} else if id.Subject != "alice" {
-					t.Errorf("subject = %q, want %q", id.Subject, "alice")
+				} else if id.Subject != testSubjectAlice {
+					t.Errorf("subject = %q, want %q", id.Subject, testSubjectAlice)
 				}
 			}
 		})

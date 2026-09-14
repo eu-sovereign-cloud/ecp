@@ -130,7 +130,7 @@ func instanceIteratorToAPI(insts []*instancedom.Instance, nextSkipToken *string)
 		Metadata: sdkschema.ResponseMetadata{
 			Provider: instancedom.ProviderID,
 			Resource: instancedom.Resource,
-			Verb:     "list",
+			Verb:     commonfrontend.VerbList,
 		},
 	}
 	if nextSkipToken != nil {

@@ -5,6 +5,7 @@ import (
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
+	commonfrontend "github.com/eu-sovereign-cloud/ecp/resource/common/frontend"
 	skudom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/storage-sku"
 )
 
@@ -57,7 +58,7 @@ func storageSKUIteratorToAPI(skus []*skudom.StorageSKU, nextSkipToken *string) *
 		Metadata: sdkschema.ResponseMetadata{
 			Provider: skudom.ProviderID,
 			Resource: skudom.Resource,
-			Verb:     "list",
+			Verb:     commonfrontend.VerbList,
 		},
 	}
 

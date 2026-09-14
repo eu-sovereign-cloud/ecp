@@ -7,6 +7,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// labelEnvKey and labelValueProd are sample label key/value pairs shared by tests in this file.
+const (
+	labelEnvKey    = "env"
+	labelValueProd = "prod"
+)
+
 func TestMatchLabels(t *testing.T) {
 	testCases := []struct {
 		name             string
@@ -18,7 +24,7 @@ func TestMatchLabels(t *testing.T) {
 	}{
 		{
 			name:             "empty selector matches anything",
-			labels:           map[string]string{"env": "prod"},
+			labels:           map[string]string{labelEnvKey: labelValueProd},
 			selector:         "",
 			expectMatch:      true,
 			expectK8sHandled: false,
@@ -26,7 +32,7 @@ func TestMatchLabels(t *testing.T) {
 		},
 		{
 			name:             "simple equality match",
-			labels:           map[string]string{"env": "prod"},
+			labels:           map[string]string{labelEnvKey: labelValueProd},
 			selector:         "env=prod",
 			expectMatch:      false,
 			expectK8sHandled: true,
@@ -34,7 +40,7 @@ func TestMatchLabels(t *testing.T) {
 		},
 		{
 			name:             "simple equality with double equals operator",
-			labels:           map[string]string{"env": "prod"},
+			labels:           map[string]string{labelEnvKey: labelValueProd},
 			selector:         "env==prod",
 			expectMatch:      false,
 			expectK8sHandled: true,
@@ -42,7 +48,7 @@ func TestMatchLabels(t *testing.T) {
 		},
 		{
 			name:             "simple equality mismatch",
-			labels:           map[string]string{"env": "dev"},
+			labels:           map[string]string{labelEnvKey: "dev"},
 			selector:         "env=prod",
 			expectMatch:      false,
 			expectK8sHandled: true,
@@ -50,7 +56,7 @@ func TestMatchLabels(t *testing.T) {
 		},
 		{
 			name:             "multiple selectors match",
-			labels:           map[string]string{"env": "prod", "tier": "backend"},
+			labels:           map[string]string{labelEnvKey: labelValueProd, "tier": "backend"},
 			selector:         "env=prod,tier=backend",
 			expectMatch:      false,
 			expectK8sHandled: true,
@@ -123,7 +129,7 @@ func TestMatchLabels(t *testing.T) {
 		// --- Error cases ---
 		{
 			name:      "missing value after equals",
-			labels:    map[string]string{"env": "prod"},
+			labels:    map[string]string{labelEnvKey: labelValueProd},
 			selector:  "env=",
 			expectErr: true,
 		},

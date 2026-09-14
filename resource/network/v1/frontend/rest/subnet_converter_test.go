@@ -13,10 +13,13 @@ import (
 	subnetdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/subnet"
 )
 
+// testCIDR is a sample IPv4 CIDR shared by tests in this package.
+const testCIDR = "10.0.0.0/24"
+
 func TestSubnetFromAPIToAPIRoundTrip(t *testing.T) {
 	sdk := sdkschema.Subnet{
 		Spec: sdkschema.SubnetSpec{
-			Cidr: sdkschema.Cidr{Ipv4: "10.0.0.0/24"},
+			Cidr: sdkschema.Cidr{Ipv4: testCIDR},
 			// Reference.resource: {collection}/{name}
 			// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 			RouteTableRef: sdkschema.Reference{Resource: "route-tables/rt1"},
@@ -33,7 +36,7 @@ func TestSubnetFromAPIToAPIRoundTrip(t *testing.T) {
 	require.Equal(t, "n1", dom.Network)
 	require.Equal(t, "r1", dom.Region)
 	require.Equal(t, subnetdom.ProviderID, dom.Provider)
-	require.Equal(t, "10.0.0.0/24", dom.Spec.Cidr.IPv4)
+	require.Equal(t, testCIDR, dom.Spec.Cidr.IPv4)
 	require.Equal(t, "route-tables/rt1", dom.Spec.RouteTableRef.Resource)
 	require.Equal(t, "zone-a", dom.Spec.Zone)
 
@@ -42,7 +45,7 @@ func TestSubnetFromAPIToAPIRoundTrip(t *testing.T) {
 	require.Equal(t, "sn1", out.Metadata.Name)
 	require.Equal(t, "n1", out.Metadata.Network)
 	require.Equal(t, sdkschema.RegionalNetworkResourceMetadataKindResourceKindSubnet, out.Metadata.Kind)
-	require.Equal(t, "10.0.0.0/24", out.Spec.Cidr.Ipv4)
+	require.Equal(t, testCIDR, out.Spec.Cidr.Ipv4)
 	require.Equal(t, "route-tables/rt1", out.Spec.RouteTableRef.Resource)
 	// metadata.resource: networks/{network}/{collection}/{name}
 	// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
@@ -63,7 +66,7 @@ func TestSubnetIteratorToAPI_ResponseMetadata(t *testing.T) {
 func TestSubnetToAPI_Status(t *testing.T) {
 	dom := &subnetdom.Subnet{
 		Spec: subnetdom.SubnetSpec{
-			Cidr: subnetdom.CIDR{IPv4: "10.0.0.0/24"},
+			Cidr: subnetdom.CIDR{IPv4: testCIDR},
 			Zone: "zone-a",
 		},
 	}
@@ -74,19 +77,19 @@ func TestSubnetToAPI_Status(t *testing.T) {
 
 	dom.Status = &subnetdom.SubnetStatus{
 		Status: commondomain.Status{State: commondomain.ResourceStateActive},
-		Cidr:   &subnetdom.CIDR{IPv4: "10.0.0.0/24"},
+		Cidr:   &subnetdom.CIDR{IPv4: testCIDR},
 	}
 	out = subnetToAPIWithVerb(http.MethodGet)(dom)
 	require.NotNil(t, out.Status)
 	require.Equal(t, sdkschema.ResourceStateActive, out.Status.State)
 	require.NotNil(t, out.Status.Cidr)
-	require.Equal(t, "10.0.0.0/24", out.Status.Cidr.Ipv4)
+	require.Equal(t, testCIDR, out.Status.Cidr.Ipv4)
 }
 
 func TestSubnetToAPI_SkuRefOptional(t *testing.T) {
 	dom := &subnetdom.Subnet{
 		Spec: subnetdom.SubnetSpec{
-			Cidr: subnetdom.CIDR{IPv4: "10.0.0.0/24"},
+			Cidr: subnetdom.CIDR{IPv4: testCIDR},
 			Zone: "zone-a",
 		},
 	}

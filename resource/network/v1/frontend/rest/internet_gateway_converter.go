@@ -114,7 +114,7 @@ func internetGatewayIteratorToAPI(igs []*internetgatewaydom.InternetGateway, nex
 		Metadata: sdkschema.ResponseMetadata{
 			Provider: internetgatewaydom.ProviderID,
 			Resource: internetgatewaydom.Resource,
-			Verb:     "list",
+			Verb:     commonfrontend.VerbList,
 		},
 	}
 	if nextSkipToken != nil {

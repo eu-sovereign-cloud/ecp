@@ -26,6 +26,9 @@ type localProviderSpec struct {
 	Name, Url, Version string
 }
 
+// tierLabelKey is the label key used by the "tier" tests to exercise selector matching.
+const tierLabelKey = "tier"
+
 func newRegionCR(name string, labels map[string]string, az []string, providers []localProviderSpec, setVersionAndTimestamp bool) *Region {
 	if len(az) == 0 {
 		az = []string{"az-1"}
@@ -85,7 +88,7 @@ func TestRegionController_GetRegion(t *testing.T) {
 	require.NoError(t, AddToScheme(scheme))
 
 	regionName := "test-region"
-	regionLabels := map[string]string{"tier": "prod", "env": "production"}
+	regionLabels := map[string]string{tierLabelKey: "prod", "env": "production"}
 	availableZones := []string{"az-1", "az-2"}
 	providers := []localProviderSpec{
 		{Name: "provider1", Url: "https://provider1.example.com", Version: "v1"},
@@ -231,9 +234,9 @@ func TestRegionController_ListRegions(t *testing.T) {
 	regionBName := "region-b"
 	regionCName := "region-c"
 
-	r1 := newRegionCR(regionAName, map[string]string{"tier": "prod", "env": "prod"}, []string{"az-a1"}, []localProviderSpec{{Name: "p1", Url: "https://p1", Version: "v1"}}, true)
-	r2 := newRegionCR(regionBName, map[string]string{"tier": "dev", "env": "staging"}, []string{"az-b1", "az-b2"}, []localProviderSpec{{Name: "p2", Url: "https://p2", Version: "v2"}}, true)
-	r3 := newRegionCR(regionCName, map[string]string{"tier": "prod", "env": "staging", "region": "3"}, []string{"az-c1"}, []localProviderSpec{{Name: "p3", Url: "https://p3", Version: "v3"}}, true)
+	r1 := newRegionCR(regionAName, map[string]string{tierLabelKey: "prod", "env": "prod"}, []string{"az-a1"}, []localProviderSpec{{Name: "p1", Url: "https://p1", Version: "v1"}}, true)
+	r2 := newRegionCR(regionBName, map[string]string{tierLabelKey: "dev", "env": "staging"}, []string{"az-b1", "az-b2"}, []localProviderSpec{{Name: "p2", Url: "https://p2", Version: "v2"}}, true)
+	r3 := newRegionCR(regionCName, map[string]string{tierLabelKey: "prod", "env": "staging", "region": "3"}, []string{"az-c1"}, []localProviderSpec{{Name: "p3", Url: "https://p3", Version: "v3"}}, true)
 
 	objs := []runtime.Object{
 		toUnstructured(t, scheme, r1),
@@ -254,7 +257,7 @@ func TestRegionController_ListRegions(t *testing.T) {
 	complexClientLabel := "region>2"
 	simple := "tier=prod"
 	none := "tier=qa"
-	simpleOnlyKey := "tier"
+	simpleOnlyKey := tierLabelKey
 	k8sSetBased := "tier in (prod)"
 	k8sSetBasedAndEquality := "tier in (prod),env=staging"
 	wildcard := "env=stag*"

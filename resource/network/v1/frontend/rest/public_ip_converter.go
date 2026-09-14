@@ -103,7 +103,7 @@ func publicIpIteratorToAPI(ps []*publicipdom.PublicIp, nextSkipToken *string) *s
 		Metadata: sdkschema.ResponseMetadata{
 			Provider: publicipdom.ProviderID,
 			Resource: publicipdom.Resource,
-			Verb:     "list",
+			Verb:     commonfrontend.VerbList,
 		},
 	}
 	if nextSkipToken != nil {

@@ -12,7 +12,6 @@ import (
 	sdkcompute "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.compute.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
-	frameworkconfig "github.com/eu-sovereign-cloud/ecp/framework/frontend/config"
 	frest "github.com/eu-sovereign-cloud/ecp/framework/frontend/rest"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	persistencepkg "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
@@ -51,7 +50,7 @@ func (h *Handler) CreateOrUpdateInstance(w http.ResponseWriter, r *http.Request,
 	if params.IfUnmodifiedSince != nil {
 		id.Version = strconv.Itoa(*params.IfUnmodifiedSince)
 	}
-	region := frameworkconfig.Singleton().Region()
+	region := h.Region
 
 	// Power intent (desired power state, in-flight restart) is controller-managed internal state,
 	// not part of the API body. Load the existing instance first so an ordinary spec/label update

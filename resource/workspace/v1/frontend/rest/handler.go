@@ -8,7 +8,6 @@ import (
 	sdkworkspace "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
-	frameworkconfig "github.com/eu-sovereign-cloud/ecp/framework/frontend/config"
 	frest "github.com/eu-sovereign-cloud/ecp/framework/frontend/rest"
 	persistencepkg "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
@@ -21,6 +20,8 @@ type Handler struct {
 	Reader persistencepkg.ReaderRepo[*wsdom.Workspace]
 	Writer persistencepkg.WriterRepo[*wsdom.Workspace]
 	Logger *slog.Logger
+	// Region is the region this handler serves; empty on the global server.
+	Region string
 }
 
 var _ sdkworkspace.ServerInterface = (*Handler)(nil)
@@ -55,7 +56,7 @@ func (h *Handler) CreateOrUpdateWorkspace(w http.ResponseWriter, r *http.Request
 	if params.IfUnmodifiedSince != nil {
 		id.Version = strconv.Itoa(*params.IfUnmodifiedSince)
 	}
-	region := frameworkconfig.Singleton().Region()
+	region := h.Region
 	frest.HandleUpsert(w, r, logger, frest.UpsertOptions[sdkschema.Workspace, *wsdom.Workspace, *sdkschema.Workspace]{
 		Params:  id,
 		Creator: frest.CreatorFromRepo(h.Writer),

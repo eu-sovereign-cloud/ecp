@@ -19,6 +19,8 @@ type Handler struct {
 	InstanceWriter persistencepkg.WriterRepo[*instancedom.Instance]
 	SKUReader      persistencepkg.ReaderRepo[*skudom.InstanceSKU]
 	Logger         *slog.Logger
+	// Region is the region this handler serves; empty on the global server.
+	Region string
 }
 
 var _ sdkcompute.ServerInterface = (*Handler)(nil)

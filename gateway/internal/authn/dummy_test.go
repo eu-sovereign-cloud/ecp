@@ -11,11 +11,14 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 )
 
+// testSubjectAlice is a sample token subject shared by tests in this package.
+const testSubjectAlice = "alice"
+
 func TestDummyAuthenticator(t *testing.T) {
 	t.Parallel()
 	users := map[string]string{
-		"alice": "s3cr3t",
-		"bob":   "p@ssw0rd",
+		testSubjectAlice: "s3cr3t",
+		"bob":            "p@ssw0rd",
 	}
 	a := NewDummyAuthenticator(users)
 
@@ -40,13 +43,13 @@ func TestDummyAuthenticator(t *testing.T) {
 			// The "tenants" list stands in for the membership a real issuer stamps.
 			name:        "tenants claim becomes the identity's membership",
 			token:       base64.StdEncoding.EncodeToString([]byte(`{"username":"alice","password":"s3cr3t","tenants":["t1","t2"]}`)),
-			wantSubject: "alice",
+			wantSubject: testSubjectAlice,
 			wantTenants: []string{"t1", "t2"},
 		},
 		{
 			name:        "valid credentials without scope",
-			token:       makeToken("alice", "s3cr3t", nil),
-			wantSubject: "alice",
+			token:       makeToken(testSubjectAlice, "s3cr3t", nil),
+			wantSubject: testSubjectAlice,
 		},
 		{
 			name: "valid credentials with down-scope",
@@ -66,11 +69,11 @@ func TestDummyAuthenticator(t *testing.T) {
 			// Roles are never read from the token; a stray "roles" field must be ignored.
 			name:        "roles field in token is ignored",
 			token:       base64.StdEncoding.EncodeToString([]byte(`{"username":"alice","password":"s3cr3t","roles":["admin"]}`)),
-			wantSubject: "alice",
+			wantSubject: testSubjectAlice,
 		},
 		{
 			name:    "wrong password",
-			token:   makeToken("alice", "wrongpassword", nil),
+			token:   makeToken(testSubjectAlice, "wrongpassword", nil),
 			wantErr: true,
 		},
 		{

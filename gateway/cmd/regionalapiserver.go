@@ -22,7 +22,6 @@ import (
 	sdkworkspaceapi "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1"
 
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
-	"github.com/eu-sovereign-cloud/ecp/framework/frontend/config"
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/auth"
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/httpserver"
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/kubeclient"
@@ -117,14 +116,13 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) erro
 		region = os.Getenv("REGION")
 	}
 	region = strings.TrimSpace(region)
-	// Fail fast: empty region freezes into the config singleton and mis-scopes
-	// every regional request (authz region, resource placement) for the process life.
+	// Fail fast: empty region mis-scopes every regional request (authz region,
+	// resource placement) for the process life.
 	if region == "" {
 		return fmt.Errorf("region is required: set --region or the REGION environment variable")
 	}
-	config.Singleton().SetRegion(region)
 
-	logger.Info("Starting regional API server", slog.String("region", config.Singleton().Region()), slog.Any("addr", addr))
+	logger.Info("Starting regional API server", slog.String("region", region), slog.Any("addr", addr))
 	metrics.RegisterUpstreamObserver()
 
 	inClusterConfig, err := rest.InClusterConfig()
@@ -216,12 +214,13 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) erro
 			InstanceWriter: instanceWriterAdapter,
 			SKUReader:      instanceSKUReaderAdapter,
 			Logger:         logger,
+			Region:         region,
 		},
 		sdkcomputeapi.StdHTTPServerOptions{
 			BaseURL:    "/providers/seca.compute",
 			BaseRouter: mux,
 			Middlewares: auth.ProviderMWs[sdkcomputeapi.MiddlewareFunc](&regionalAuthFlags, authenticator, checker, "seca.compute",
-				"/providers/seca.compute", logger),
+				"/providers/seca.compute", region, logger),
 			ErrorHandlerFunc: nil,
 		},
 	)
@@ -353,11 +352,12 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) erro
 			SecurityGroupRuleReader: securityGroupRuleReaderAdapter,
 			SecurityGroupRuleWriter: securityGroupRuleWriterAdapter,
 			Logger:                  logger,
+			Region:                  region,
 		},
 		sdknetworkapi.StdHTTPServerOptions{
 			BaseURL:          "/providers/seca.network",
 			BaseRouter:       mux,
-			Middlewares:      auth.ProviderMWs[sdknetworkapi.MiddlewareFunc](&regionalAuthFlags, authenticator, checker, "seca.network", "/providers/seca.network", logger),
+			Middlewares:      auth.ProviderMWs[sdknetworkapi.MiddlewareFunc](&regionalAuthFlags, authenticator, checker, "seca.network", "/providers/seca.network", region, logger),
 			ErrorHandlerFunc: nil,
 		},
 	)
@@ -402,12 +402,13 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) erro
 			ImageWriter:        imgWriterAdapter,
 			SKUReader:          skuReaderAdapter,
 			Logger:             logger,
+			Region:             region,
 		},
 		sdkstorageapi.StdHTTPServerOptions{
 			BaseURL:    "/providers/seca.storage",
 			BaseRouter: mux,
 			Middlewares: auth.ProviderMWs[sdkstorageapi.MiddlewareFunc](&regionalAuthFlags, authenticator, checker, "seca.storage",
-				"/providers/seca.storage", logger),
+				"/providers/seca.storage", region, logger),
 			ErrorHandlerFunc: nil,
 		},
 	)
@@ -434,12 +435,13 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) erro
 			Reader: wsReaderAdapter,
 			Writer: wsWriterAdapter,
 			Logger: logger,
+			Region: region,
 		},
 		sdkworkspaceapi.StdHTTPServerOptions{
 			BaseURL:    "/providers/seca.workspace",
 			BaseRouter: mux,
 			Middlewares: auth.ProviderMWs[sdkworkspaceapi.MiddlewareFunc](&regionalAuthFlags, authenticator, checker, "seca.workspace",
-				"/providers/seca.workspace", logger),
+				"/providers/seca.workspace", region, logger),
 			ErrorHandlerFunc: nil,
 		},
 	)

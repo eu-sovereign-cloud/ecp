@@ -46,6 +46,8 @@ type Handler struct {
 	SecurityGroupRuleReader persistencepkg.ReaderRepo[*securitygroupruledom.SecurityGroupRule]
 	SecurityGroupRuleWriter persistencepkg.WriterRepo[*securitygroupruledom.SecurityGroupRule]
 	Logger                  *slog.Logger
+	// Region is the region this handler serves; empty on the global server.
+	Region string
 }
 
 var _ sdknetwork.ServerInterface = (*Handler)(nil)

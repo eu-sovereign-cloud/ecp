@@ -66,8 +66,8 @@ type AuthorizationClaim struct {
 
 	// Tenant is the tenant identifier extracted from the request path.
 	Tenant string
-	// Region is the region identifier. Set from config.Singleton().Region() for
-	// regional servers; empty for the global server.
+	// Region is the region identifier, passed in by the regional server; empty
+	// for the global server.
 	Region string
 	// Workspace is the workspace identifier extracted from the request path, or
 	// empty for tenant-scoped (non-workspace) resources.

@@ -86,9 +86,9 @@ func TestCachedChecker_Authorize_EmptyCache(t *testing.T) {
 	}
 
 	claim := authzport.AuthorizationClaim{
-		Provider:  "seca.compute",
-		Resource:  "instances",
-		Verb:      "list",
+		Provider:  providerCompute,
+		Resource:  resourceInstances,
+		Verb:      verbList,
 		Tenant:    "test-tenant",
 		Region:    "us-west-1",
 		Workspace: "ws1",

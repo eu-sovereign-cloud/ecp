@@ -113,7 +113,7 @@ func securityGroupRuleIteratorToAPI(sgrs []*securitygroupruledom.SecurityGroupRu
 		Metadata: sdkschema.ResponseMetadata{
 			Provider: securitygroupruledom.ProviderID,
 			Resource: securitygroupruledom.Resource,
-			Verb:     "list",
+			Verb:     commonfrontend.VerbList,
 		},
 	}
 	if nextSkipToken != nil {

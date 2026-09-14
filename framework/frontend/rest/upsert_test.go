@@ -97,16 +97,19 @@ func (m *MockUpdater[T]) Do(ctx context.Context, resource T) (T, error) {
 // Shared test helpers
 // ---------------------------------------------------------------------------
 
+// testResourceName is the sample resource name shared by tests in this file.
+const testResourceName = "test-resource"
+
 // upsertParams is the default identity for create-path tests (no version).
 var upsertParams = &testParams{
-	name:      "test-resource",
+	name:      testResourceName,
 	tenant:    "test-tenant",
 	workspace: "test-workspace",
 }
 
 // upsertParamsWithVersion is the identity for update-path tests (has a version).
 var upsertParamsWithVersion = &testParams{
-	name:      "test-resource",
+	name:      testResourceName,
 	tenant:    "test-tenant",
 	workspace: "test-workspace",
 	version:   "42",
@@ -146,7 +149,7 @@ func (e *errBodyReader) Close() error { return nil }
 func TestHandleUpsert_SuccessCreate(t *testing.T) {
 	creator := &MockCreator[TestDomain]{}
 	updater := &MockUpdater[TestDomain]{}
-	expectedDomain := TestDomain{ID: "test-resource", Data: "hello"}
+	expectedDomain := TestDomain{ID: testResourceName, Data: "hello"}
 	creator.On("Do", mock.Anything, mock.Anything).Return(expectedDomain, nil)
 
 	recorder := httptest.NewRecorder()
@@ -246,7 +249,7 @@ func TestHandleUpsert_BodyTooLarge(t *testing.T) {
 func TestHandleUpsert_UpdateSucceedsOnAlreadyExists(t *testing.T) {
 	creator := &MockCreator[TestDomain]{}
 	updater := &MockUpdater[TestDomain]{}
-	expectedDomain := TestDomain{ID: "test-resource", Data: "hello"}
+	expectedDomain := TestDomain{ID: testResourceName, Data: "hello"}
 
 	creator.On("Do", mock.Anything, mock.Anything).Return(TestDomain{}, kernel.ErrAlreadyExists)
 	updater.On("Do", mock.Anything, mock.Anything).Return(expectedDomain, nil)
@@ -321,7 +324,7 @@ func TestHandleUpsert_CreatorFailsOtherError(t *testing.T) {
 func TestHandleUpsert_EncodeResponseFails(t *testing.T) {
 	creator := &MockCreator[TestDomain]{}
 	updater := &MockUpdater[TestDomain]{}
-	expectedDomain := TestDomain{ID: "test-resource", Data: "hello"}
+	expectedDomain := TestDomain{ID: testResourceName, Data: "hello"}
 	creator.On("Do", mock.Anything, mock.Anything).Return(expectedDomain, nil)
 
 	recorder := httptest.NewRecorder()

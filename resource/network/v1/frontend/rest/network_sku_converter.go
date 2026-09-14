@@ -5,6 +5,7 @@ import (
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
+	commonfrontend "github.com/eu-sovereign-cloud/ecp/resource/common/frontend"
 	skudom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network-sku"
 )
 
@@ -40,7 +41,7 @@ func networkSKUIteratorToAPI(skus []*skudom.NetworkSKU, nextSkipToken *string) *
 		Metadata: sdkschema.ResponseMetadata{
 			Provider: skudom.ProviderID,
 			Resource: skudom.Resource,
-			Verb:     "list",
+			Verb:     commonfrontend.VerbList,
 		},
 	}
 

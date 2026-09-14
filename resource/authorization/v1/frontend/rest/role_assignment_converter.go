@@ -111,7 +111,7 @@ func roleAssignmentIteratorToAPI(ras []*radom.RoleAssignment, nextSkipToken *str
 		Metadata: sdkschema.ResponseMetadata{
 			Provider: radom.ProviderID,
 			Resource: RoleAssignmentResource,
-			Verb:     "list",
+			Verb:     commonfrontend.VerbList,
 		},
 	}
 
