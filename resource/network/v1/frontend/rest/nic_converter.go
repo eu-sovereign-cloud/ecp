@@ -115,7 +115,7 @@ func nicIteratorToAPI(ns []*nicdom.Nic, nextSkipToken *string) *sdknetwork.NicIt
 		Metadata: sdkschema.ResponseMetadata{
 			Provider: nicdom.ProviderID,
 			Resource: nicdom.Resource,
-			Verb:     "list",
+			Verb:     commonfrontend.VerbList,
 		},
 	}
 	if nextSkipToken != nil {

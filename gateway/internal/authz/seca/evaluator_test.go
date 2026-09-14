@@ -11,6 +11,19 @@ import (
 
 const instanceName = "inst1"
 
+// Shared test fixtures for provider/resource/verb/role/subject literals used across this
+// package's tests.
+const (
+	providerCompute   = "seca.compute"
+	resourceInstances = "instances"
+	verbList          = "list"
+	verbGet           = "get"
+	roleViewer        = "viewer"
+	roleAdmin         = "admin"
+	subjectAlice      = "alice"
+	subjectBob        = "bob"
+)
+
 // makeRole is a test helper that builds a *roledom.Role.
 func makeRole(name string, permissions []roledom.Permission) *roledom.Role {
 	return &roledom.Role{
@@ -62,29 +75,29 @@ func tenantRegionScope(tenant, region string) radom.RoleAssignmentScope {
 func TestEvaluate(t *testing.T) {
 	t.Parallel()
 
-	viewerRole := makeRole("viewer", []roledom.Permission{
-		{Provider: "seca.compute", Resources: []string{"instances"}, Verb: []string{"get", "list"}},
+	viewerRole := makeRole(roleViewer, []roledom.Permission{
+		{Provider: providerCompute, Resources: []string{resourceInstances}, Verb: []string{verbGet, verbList}},
 	})
 	// adminRole uses Resources: ["*"] (wildcard) so it covers both collection and item operations.
-	adminRole := makeRole("admin", []roledom.Permission{
-		{Provider: "seca.compute", Resources: []string{"*"}, Verb: []string{"*"}},
+	adminRole := makeRole(roleAdmin, []roledom.Permission{
+		{Provider: providerCompute, Resources: []string{"*"}, Verb: []string{"*"}},
 		{Provider: "seca.network", Resources: []string{"*"}, Verb: []string{"*"}},
 	})
 	wildcardRole := makeRole("all-access", []roledom.Permission{
-		{Provider: "seca.compute", Resources: []string{"*"}, Verb: []string{"*"}},
+		{Provider: providerCompute, Resources: []string{"*"}, Verb: []string{"*"}},
 	})
 
 	rolesByName := map[string]*roledom.Role{
-		"viewer":     viewerRole,
-		"admin":      adminRole,
+		roleViewer:   viewerRole,
+		roleAdmin:    adminRole,
 		"all-access": wildcardRole,
 	}
 
 	baseClaim := authzport.AuthorizationClaim{
-		Provider:  "seca.compute",
-		Resource:  "instances",
+		Provider:  providerCompute,
+		Resource:  resourceInstances,
 		Name:      "",
-		Verb:      "list",
+		Verb:      verbList,
 		Tenant:    "t1",
 		Region:    "r1",
 		Workspace: "w1",
@@ -104,24 +117,24 @@ func TestEvaluate(t *testing.T) {
 		{
 			name:        "exact match: viewer can list instances",
 			claim:       baseClaim,
-			assignments: []*radom.RoleAssignment{assign([]string{"viewer"}, allScope)},
+			assignments: []*radom.RoleAssignment{assign([]string{roleViewer}, allScope)},
 			want:        true,
 		},
 		{
 			name:        "exact match: viewer can get instance",
-			claim:       with(baseClaim, func(c *authzport.AuthorizationClaim) { c.Name = instanceName; c.Verb = "get" }),
-			assignments: []*radom.RoleAssignment{assign([]string{"viewer"}, allScope)},
+			claim:       with(baseClaim, func(c *authzport.AuthorizationClaim) { c.Name = instanceName; c.Verb = verbGet }),
+			assignments: []*radom.RoleAssignment{assign([]string{roleViewer}, allScope)},
 			want:        false, // "instances" pattern != "instances/inst1"
 		},
 		{
 			name:        "wildcard resource: admin can get instance",
-			claim:       with(baseClaim, func(c *authzport.AuthorizationClaim) { c.Name = instanceName; c.Verb = "get" }),
-			assignments: []*radom.RoleAssignment{assign([]string{"admin"}, allScope)},
+			claim:       with(baseClaim, func(c *authzport.AuthorizationClaim) { c.Name = instanceName; c.Verb = verbGet }),
+			assignments: []*radom.RoleAssignment{assign([]string{roleAdmin}, allScope)},
 			want:        true, // admin has Verb "*" on instances
 		},
 		{
 			name:        "wildcard resource role: all-access can get instance",
-			claim:       with(baseClaim, func(c *authzport.AuthorizationClaim) { c.Name = instanceName; c.Verb = "get" }),
+			claim:       with(baseClaim, func(c *authzport.AuthorizationClaim) { c.Name = instanceName; c.Verb = verbGet }),
 			assignments: []*radom.RoleAssignment{assign([]string{"all-access"}, allScope)},
 			want:        true, // Resources ["*"] with glob matches "instances/inst1"
 		},
@@ -134,13 +147,13 @@ func TestEvaluate(t *testing.T) {
 		{
 			name:        "provider mismatch",
 			claim:       with(baseClaim, func(c *authzport.AuthorizationClaim) { c.Provider = "seca.storage" }),
-			assignments: []*radom.RoleAssignment{assign([]string{"viewer"}, allScope)},
+			assignments: []*radom.RoleAssignment{assign([]string{roleViewer}, allScope)},
 			want:        false,
 		},
 		{
 			name:        "wrong verb denied",
 			claim:       with(baseClaim, func(c *authzport.AuthorizationClaim) { c.Verb = "delete" }),
-			assignments: []*radom.RoleAssignment{assign([]string{"viewer"}, allScope)},
+			assignments: []*radom.RoleAssignment{assign([]string{roleViewer}, allScope)},
 			want:        false,
 		},
 		{
@@ -153,38 +166,38 @@ func TestEvaluate(t *testing.T) {
 		{
 			name:        "scope covers tenant",
 			claim:       baseClaim,
-			assignments: []*radom.RoleAssignment{assign([]string{"viewer"}, tenantScope("t1"))},
+			assignments: []*radom.RoleAssignment{assign([]string{roleViewer}, tenantScope("t1"))},
 			want:        true,
 		},
 		{
 			name:        "scope wrong tenant",
 			claim:       baseClaim,
-			assignments: []*radom.RoleAssignment{assign([]string{"viewer"}, tenantScope("t2"))},
+			assignments: []*radom.RoleAssignment{assign([]string{roleViewer}, tenantScope("t2"))},
 			want:        false,
 		},
 		{
 			name:        "scope empty region = wildcard",
 			claim:       baseClaim,
-			assignments: []*radom.RoleAssignment{assign([]string{"viewer"}, tenantScope("t1"))},
+			assignments: []*radom.RoleAssignment{assign([]string{roleViewer}, tenantScope("t1"))},
 			want:        true,
 		},
 		{
 			name:        "scope specific region matches",
 			claim:       baseClaim,
-			assignments: []*radom.RoleAssignment{assign([]string{"viewer"}, tenantRegionScope("t1", "r1"))},
+			assignments: []*radom.RoleAssignment{assign([]string{roleViewer}, tenantRegionScope("t1", "r1"))},
 			want:        true,
 		},
 		{
 			name:        "scope specific region mismatch",
 			claim:       baseClaim,
-			assignments: []*radom.RoleAssignment{assign([]string{"viewer"}, tenantRegionScope("t1", "r2"))},
+			assignments: []*radom.RoleAssignment{assign([]string{roleViewer}, tenantRegionScope("t1", "r2"))},
 			want:        false,
 		},
 		{
 			name:  "scope empty workspace = wildcard",
 			claim: baseClaim, // workspace="w1"
 			assignments: []*radom.RoleAssignment{
-				assign([]string{"viewer"}, radom.RoleAssignmentScope{Tenants: []string{"t1"}, Workspaces: []string{}}),
+				assign([]string{roleViewer}, radom.RoleAssignmentScope{Tenants: []string{"t1"}, Workspaces: []string{}}),
 			},
 			want: true,
 		},
@@ -192,7 +205,7 @@ func TestEvaluate(t *testing.T) {
 			name:  "scope workspace mismatch",
 			claim: baseClaim, // workspace="w1"
 			assignments: []*radom.RoleAssignment{
-				assign([]string{"viewer"}, radom.RoleAssignmentScope{Tenants: []string{"t1"}, Workspaces: []string{"w2"}}),
+				assign([]string{roleViewer}, radom.RoleAssignmentScope{Tenants: []string{"t1"}, Workspaces: []string{"w2"}}),
 			},
 			want: false,
 		},
@@ -200,13 +213,13 @@ func TestEvaluate(t *testing.T) {
 		{
 			name:        "verb '*' allows any verb: admin can delete instance",
 			claim:       with(baseClaim, func(c *authzport.AuthorizationClaim) { c.Name = instanceName; c.Verb = "delete" }),
-			assignments: []*radom.RoleAssignment{assign([]string{"admin"}, allScope)},
+			assignments: []*radom.RoleAssignment{assign([]string{roleAdmin}, allScope)},
 			want:        true,
 		},
 		{
 			name:        "wildcard resource: admin can get named instance",
-			claim:       with(baseClaim, func(c *authzport.AuthorizationClaim) { c.Name = instanceName; c.Verb = "get" }),
-			assignments: []*radom.RoleAssignment{assign([]string{"admin"}, allScope)},
+			claim:       with(baseClaim, func(c *authzport.AuthorizationClaim) { c.Name = instanceName; c.Verb = verbGet }),
+			assignments: []*radom.RoleAssignment{assign([]string{roleAdmin}, allScope)},
 			want:        true, // admin Resources=["*"] covers "instances/inst1"
 		},
 		// ── Multiple assignments (OR semantics) ───────────────────────────────
@@ -214,25 +227,25 @@ func TestEvaluate(t *testing.T) {
 			name:  "second assignment covers when first does not",
 			claim: baseClaim,
 			assignments: []*radom.RoleAssignment{
-				assign([]string{"viewer"}, tenantScope("t2")), // wrong tenant
-				assign([]string{"viewer"}, tenantScope("t1")), // correct tenant
+				assign([]string{roleViewer}, tenantScope("t2")), // wrong tenant
+				assign([]string{roleViewer}, tenantScope("t1")), // correct tenant
 			},
 			want: true,
 		},
 		// ── Subject matching ──────────────────────────────────────────────────
 		{
 			name:  "subject exact match → allowed",
-			claim: with(baseClaim, func(c *authzport.AuthorizationClaim) { c.Subject = "alice" }),
+			claim: with(baseClaim, func(c *authzport.AuthorizationClaim) { c.Subject = subjectAlice }),
 			assignments: []*radom.RoleAssignment{
-				assignSubs([]string{"alice"}, []string{"viewer"}, allScope),
+				assignSubs([]string{subjectAlice}, []string{roleViewer}, allScope),
 			},
 			want: true,
 		},
 		{
 			name:  "subject mismatch → denied",
-			claim: with(baseClaim, func(c *authzport.AuthorizationClaim) { c.Subject = "bob" }),
+			claim: with(baseClaim, func(c *authzport.AuthorizationClaim) { c.Subject = subjectBob }),
 			assignments: []*radom.RoleAssignment{
-				assignSubs([]string{"alice"}, []string{"viewer"}, allScope),
+				assignSubs([]string{subjectAlice}, []string{roleViewer}, allScope),
 			},
 			want: false,
 		},
@@ -240,15 +253,15 @@ func TestEvaluate(t *testing.T) {
 			name:  "wildcard subject '*' → allowed for any caller",
 			claim: with(baseClaim, func(c *authzport.AuthorizationClaim) { c.Subject = "anyone" }),
 			assignments: []*radom.RoleAssignment{
-				assignSubs([]string{"*"}, []string{"viewer"}, allScope),
+				assignSubs([]string{"*"}, []string{roleViewer}, allScope),
 			},
 			want: true,
 		},
 		{
 			name:  "empty subs → denied (fail-closed, not a wildcard)",
-			claim: with(baseClaim, func(c *authzport.AuthorizationClaim) { c.Subject = "alice" }),
+			claim: with(baseClaim, func(c *authzport.AuthorizationClaim) { c.Subject = subjectAlice }),
 			assignments: []*radom.RoleAssignment{
-				assignSubs([]string{}, []string{"viewer"}, allScope),
+				assignSubs([]string{}, []string{roleViewer}, allScope),
 			},
 			want: false,
 		},
@@ -256,7 +269,7 @@ func TestEvaluate(t *testing.T) {
 			name:  "multi-subject list: second entry matches → allowed",
 			claim: with(baseClaim, func(c *authzport.AuthorizationClaim) { c.Subject = "carol" }),
 			assignments: []*radom.RoleAssignment{
-				assignSubs([]string{"alice", "carol"}, []string{"viewer"}, allScope),
+				assignSubs([]string{subjectAlice, "carol"}, []string{roleViewer}, allScope),
 			},
 			want: true,
 		},
@@ -264,37 +277,37 @@ func TestEvaluate(t *testing.T) {
 		{
 			name:        "down-scope tenant covers request",
 			claim:       with(baseClaim, func(c *authzport.AuthorizationClaim) { c.TokenScope.Tenants = []string{"t1"} }),
-			assignments: []*radom.RoleAssignment{assign([]string{"viewer"}, allScope)},
+			assignments: []*radom.RoleAssignment{assign([]string{roleViewer}, allScope)},
 			want:        true,
 		},
 		{
 			name:        "down-scope tenant excludes request → denied",
 			claim:       with(baseClaim, func(c *authzport.AuthorizationClaim) { c.TokenScope.Tenants = []string{"t2"} }),
-			assignments: []*radom.RoleAssignment{assign([]string{"viewer"}, allScope)},
+			assignments: []*radom.RoleAssignment{assign([]string{roleViewer}, allScope)},
 			want:        false,
 		},
 		{
 			name:        "down-scope region covers request",
 			claim:       with(baseClaim, func(c *authzport.AuthorizationClaim) { c.TokenScope.Regions = []string{"r1"} }),
-			assignments: []*radom.RoleAssignment{assign([]string{"viewer"}, allScope)},
+			assignments: []*radom.RoleAssignment{assign([]string{roleViewer}, allScope)},
 			want:        true,
 		},
 		{
 			name:        "down-scope region excludes request → denied",
 			claim:       with(baseClaim, func(c *authzport.AuthorizationClaim) { c.TokenScope.Regions = []string{"r2"} }),
-			assignments: []*radom.RoleAssignment{assign([]string{"viewer"}, allScope)},
+			assignments: []*radom.RoleAssignment{assign([]string{roleViewer}, allScope)},
 			want:        false,
 		},
 		{
 			name:        "down-scope workspace covers request",
 			claim:       with(baseClaim, func(c *authzport.AuthorizationClaim) { c.TokenScope.Workspaces = []string{"w1"} }),
-			assignments: []*radom.RoleAssignment{assign([]string{"viewer"}, allScope)},
+			assignments: []*radom.RoleAssignment{assign([]string{roleViewer}, allScope)},
 			want:        true,
 		},
 		{
 			name:        "down-scope workspace excludes request → denied",
 			claim:       with(baseClaim, func(c *authzport.AuthorizationClaim) { c.TokenScope.Workspaces = []string{"w2"} }),
-			assignments: []*radom.RoleAssignment{assign([]string{"viewer"}, allScope)},
+			assignments: []*radom.RoleAssignment{assign([]string{roleViewer}, allScope)},
 			want:        false,
 		},
 		{
@@ -303,17 +316,17 @@ func TestEvaluate(t *testing.T) {
 				c.Region = ""
 				c.TokenScope.Regions = []string{"r1"}
 			}),
-			assignments: []*radom.RoleAssignment{assign([]string{"viewer"}, allScope)},
+			assignments: []*radom.RoleAssignment{assign([]string{roleViewer}, allScope)},
 			want:        true, // empty request region ⇒ cap not applicable
 		},
 		{
 			name: "down-scope denies even when RBAC would allow",
 			claim: with(baseClaim, func(c *authzport.AuthorizationClaim) {
-				c.Subject = "alice"
+				c.Subject = subjectAlice
 				c.TokenScope.Tenants = []string{"other"}
 			}),
 			assignments: []*radom.RoleAssignment{
-				assignSubs([]string{"alice"}, []string{"admin"}, allScope),
+				assignSubs([]string{subjectAlice}, []string{roleAdmin}, allScope),
 			},
 			want: false, // admin grants everything, but the token cap excludes t1
 		},
@@ -322,13 +335,13 @@ func TestEvaluate(t *testing.T) {
 		{
 			name:        "membership covers request tenant",
 			claim:       with(baseClaim, func(c *authzport.AuthorizationClaim) { c.MemberTenants = []string{"t1", "t9"} }),
-			assignments: []*radom.RoleAssignment{assign([]string{"viewer"}, allScope)},
+			assignments: []*radom.RoleAssignment{assign([]string{roleViewer}, allScope)},
 			want:        true,
 		},
 		{
 			name:        "membership excludes request tenant → denied",
 			claim:       with(baseClaim, func(c *authzport.AuthorizationClaim) { c.MemberTenants = []string{"t9"} }),
-			assignments: []*radom.RoleAssignment{assign([]string{"viewer"}, allScope)},
+			assignments: []*radom.RoleAssignment{assign([]string{roleViewer}, allScope)},
 			want:        false,
 		},
 		{
@@ -339,7 +352,7 @@ func TestEvaluate(t *testing.T) {
 			}),
 			// assign() builds Subs:["*"], so without the membership gate every
 			// authenticated caller would be granted admin here.
-			assignments: []*radom.RoleAssignment{assign([]string{"admin"}, allScope)},
+			assignments: []*radom.RoleAssignment{assign([]string{roleAdmin}, allScope)},
 			want:        false,
 		},
 		{
@@ -348,7 +361,7 @@ func TestEvaluate(t *testing.T) {
 				c.MemberTenants = []string{"t1", "t2"}
 				c.TokenScope.Tenants = []string{"t2"}
 			}),
-			assignments: []*radom.RoleAssignment{assign([]string{"viewer"}, allScope)},
+			assignments: []*radom.RoleAssignment{assign([]string{roleViewer}, allScope)},
 			want:        false, // member of t1, but the token narrowed itself to t2
 		},
 	}
@@ -378,8 +391,8 @@ func TestMatchVerb(t *testing.T) {
 		verb     string
 		want     bool
 	}{
-		{[]string{"get"}, "get", true},
-		{[]string{"get"}, "list", false},
+		{[]string{verbGet}, verbGet, true},
+		{[]string{verbGet}, verbList, false},
 		{[]string{"*"}, "delete", true},
 		{[]string{"*"}, "post.restart", true},
 		{[]string{"post"}, "post.restart", true},
@@ -387,8 +400,8 @@ func TestMatchVerb(t *testing.T) {
 		{[]string{"post"}, "post", true},
 		{[]string{"post.start"}, "post.restart", false},
 		{[]string{"post.start"}, "post.start", true},
-		{[]string{"get", "list"}, "list", true},
-		{[]string{"get", "list"}, "put", false},
+		{[]string{verbGet, verbList}, verbList, true},
+		{[]string{verbGet, verbList}, "put", false},
 	}
 	for _, tc := range tests {
 		got := matchVerb(tc.patterns, tc.verb)
@@ -406,11 +419,11 @@ func TestMatchResource(t *testing.T) {
 		name     string
 		want     bool
 	}{
-		{[]string{"instances"}, "instances", "", true},
-		{[]string{"instances"}, "instances", instanceName, false}, // exact "instances" != "instances/inst1"
-		{[]string{"instances/*"}, "instances", instanceName, true},
-		{[]string{"instances/*"}, "instances", "", false}, // "instances/*" requires a name
-		{[]string{"*"}, "instances", instanceName, true},  // "*" matches across "/"
+		{[]string{resourceInstances}, resourceInstances, "", true},
+		{[]string{resourceInstances}, resourceInstances, instanceName, false}, // exact resourceInstances != "instances/inst1"
+		{[]string{"instances/*"}, resourceInstances, instanceName, true},
+		{[]string{"instances/*"}, resourceInstances, "", false}, // "instances/*" requires a name
+		{[]string{"*"}, resourceInstances, instanceName, true},  // "*" matches across "/"
 		{[]string{"*"}, "networks/subnets", "sub1", true},
 		{[]string{"networks/subnets"}, "networks/subnets", "", true},
 		{[]string{"networks/subnets"}, "networks", "", false},
@@ -473,15 +486,15 @@ func TestSubsGrant(t *testing.T) {
 		subject string
 		want    bool
 	}{
-		{[]string{"*"}, "alice", true},             // wildcard covers any subject
-		{[]string{"*"}, "", true},                  // wildcard covers empty subject too
-		{[]string{"alice"}, "alice", true},         // exact match
-		{[]string{"alice"}, "bob", false},          // mismatch
-		{[]string{"alice", "bob"}, "bob", true},    // second entry matches
-		{[]string{"alice", "bob"}, "carol", false}, // no entry matches
-		{nil, "alice", false},                      // nil subs → deny (fail-closed)
-		{[]string{}, "alice", false},               // empty subs → deny (not a wildcard)
-		{[]string{"alice", "*"}, "anyone", true},   // wildcard in a mixed list
+		{[]string{"*"}, subjectAlice, true},                    // wildcard covers any subject
+		{[]string{"*"}, "", true},                              // wildcard covers empty subject too
+		{[]string{subjectAlice}, subjectAlice, true},           // exact match
+		{[]string{subjectAlice}, subjectBob, false},            // mismatch
+		{[]string{subjectAlice, subjectBob}, subjectBob, true}, // second entry matches
+		{[]string{subjectAlice, subjectBob}, "carol", false},   // no entry matches
+		{nil, subjectAlice, false},                             // nil subs → deny (fail-closed)
+		{[]string{}, subjectAlice, false},                      // empty subs → deny (not a wildcard)
+		{[]string{subjectAlice, "*"}, "anyone", true},          // wildcard in a mixed list
 	}
 	for _, tc := range tests {
 		got := subsGrant(tc.subs, tc.subject)

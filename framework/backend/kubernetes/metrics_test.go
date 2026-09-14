@@ -80,14 +80,14 @@ func TestReaderAdapter_Load_ObservesGet(t *testing.T) {
 	t.Cleanup(func() { SetUpstreamObserver(nil) })
 
 	// Cluster-scoped path: empty tenant/workspace → namespace "".
-	obj := newTestObject("", "rt-1")
+	obj := newTestObject("", testRTDash1)
 	dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), testListKinds(), obj)
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	reader := NewReaderAdapter[*testIdentifiable](dynFake, testGVR, logger, func(o client.Object) (*testIdentifiable, error) {
 		return &testIdentifiable{name: o.GetName()}, nil
 	})
 
-	loaded := &testIdentifiable{name: "rt-1"}
+	loaded := &testIdentifiable{name: testRTDash1}
 	err := reader.Load(context.Background(), &loaded)
 	require.NoError(t, err)
 

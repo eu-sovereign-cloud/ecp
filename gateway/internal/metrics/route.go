@@ -12,6 +12,10 @@ import (
 // value derived from the request beyond the closed sets in this file.
 const routeOther = "{other}"
 
+// providerUnknown is the provider label for a request that cannot be attributed to any
+// allowlisted provider or system path.
+const providerUnknown = "unknown"
+
 // secaProviders is the closed set of providers this gateway serves (the BaseURLs
 // registered in cmd/globalapiserver.go and cmd/regionalapiserver.go, mirroring
 // go-sdk's pkg/constants provider names). Used as an allowlist for the provider
@@ -77,12 +81,12 @@ func normalizePath(path string) (route, provider string) {
 
 	parts := strings.Split(strings.Trim(path, "/"), "/")
 	if len(parts) < 2 || parts[0] != "providers" {
-		return routeOther, "unknown"
+		return routeOther, providerUnknown
 	}
 
 	provider = parts[1]
 	if _, ok := secaProviders[provider]; !ok {
-		return routeOther, "unknown"
+		return routeOther, providerUnknown
 	}
 	if len(parts) < 3 {
 		return routeOther, provider
@@ -105,5 +109,5 @@ func providerFromPath(path string) string {
 	if _, ok := systemPaths[path]; ok {
 		return "system"
 	}
-	return "unknown"
+	return providerUnknown
 }

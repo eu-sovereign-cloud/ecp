@@ -39,8 +39,8 @@ func fixedExtractor(claim authzport.AuthorizationClaim) authzport.ClaimExtractor
 func TestNewAuthorization(t *testing.T) {
 	t.Parallel()
 
-	alice := &authnport.Identity{Subject: "alice"}
-	claim := authzport.AuthorizationClaim{Provider: "seca.compute", Resource: "instances", Verb: "get"}
+	alice := &authnport.Identity{Subject: testSubjectAlice}
+	claim := authzport.AuthorizationClaim{Provider: testProviderCompute, Resource: testResourceInstances, Verb: testVerbGet}
 	okExtract := fixedExtractor(claim)
 
 	tests := []struct {
@@ -114,7 +114,7 @@ func TestNewAuthorization_TokenScopeFromIdentity(t *testing.T) {
 	// Verify that the authorization middleware copies the identity's Subject and token scope
 	// into the claim (and that roles are never sourced from the identity).
 	alice := &authnport.Identity{
-		Subject: "alice",
+		Subject: testSubjectAlice,
 		TokenScope: resource.TokenScope{
 			Tenants:    []string{"t1"},
 			Regions:    []string{"r1"},
@@ -143,8 +143,8 @@ func TestNewAuthorization_TokenScopeFromIdentity(t *testing.T) {
 	if !reflect.DeepEqual(gotClaim.TokenScope, want) {
 		t.Errorf("token scope = %+v, want %+v", gotClaim.TokenScope, want)
 	}
-	if gotClaim.Subject != "alice" {
-		t.Errorf("subject = %q, want %q", gotClaim.Subject, "alice")
+	if gotClaim.Subject != testSubjectAlice {
+		t.Errorf("subject = %q, want %q", gotClaim.Subject, testSubjectAlice)
 	}
 	if !reflect.DeepEqual(gotClaim.MemberTenants, []string{"t1", "t2"}) {
 		t.Errorf("member tenants = %v, want [t1 t2]", gotClaim.MemberTenants)

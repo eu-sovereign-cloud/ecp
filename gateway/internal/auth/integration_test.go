@@ -27,6 +27,13 @@ import (
 	commondom "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 )
 
+// testUser and testPassword are the dummy-authenticator credentials shared by tests
+// in this file.
+const (
+	testUser     = "alice"
+	testPassword = "s3cr3t"
+)
+
 // ── test doubles ─────────────────────────────────────────────────────────────
 
 // checkerFunc is a test-only implementation of authzport.Checker backed by a
@@ -117,11 +124,11 @@ func buildChain(a authnport.Authenticator, c authzport.Checker) http.Handler {
 func TestIntegration_ValidToken_Allowed(t *testing.T) {
 	t.Parallel()
 
-	a := gatewayauthn.NewDummyAuthenticator(map[string]string{"alice": "s3cr3t"})
+	a := gatewayauthn.NewDummyAuthenticator(map[string]string{testUser: testPassword})
 	h := buildChain(a, allowChecker)
 
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/instances", nil)
-	req.Header.Set("Authorization", "Bearer "+bearerToken("alice", "s3cr3t", nil))
+	req.Header.Set("Authorization", "Bearer "+bearerToken(testUser, testPassword, nil))
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, req)
 
@@ -134,7 +141,7 @@ func TestIntegration_ValidToken_Allowed(t *testing.T) {
 func TestIntegration_MissingToken(t *testing.T) {
 	t.Parallel()
 
-	a := gatewayauthn.NewDummyAuthenticator(map[string]string{"alice": "s3cr3t"})
+	a := gatewayauthn.NewDummyAuthenticator(map[string]string{testUser: testPassword})
 	h := buildChain(a, allowChecker)
 
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/instances", nil)
@@ -151,11 +158,11 @@ func TestIntegration_MissingToken(t *testing.T) {
 func TestIntegration_WrongPassword(t *testing.T) {
 	t.Parallel()
 
-	a := gatewayauthn.NewDummyAuthenticator(map[string]string{"alice": "s3cr3t"})
+	a := gatewayauthn.NewDummyAuthenticator(map[string]string{testUser: testPassword})
 	h := buildChain(a, allowChecker)
 
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/instances", nil)
-	req.Header.Set("Authorization", "Bearer "+bearerToken("alice", "wrongpass", nil))
+	req.Header.Set("Authorization", "Bearer "+bearerToken(testUser, "wrongpass", nil))
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, req)
 
@@ -168,11 +175,11 @@ func TestIntegration_WrongPassword(t *testing.T) {
 func TestIntegration_ValidToken_Denied(t *testing.T) {
 	t.Parallel()
 
-	a := gatewayauthn.NewDummyAuthenticator(map[string]string{"alice": "s3cr3t"})
+	a := gatewayauthn.NewDummyAuthenticator(map[string]string{testUser: testPassword})
 	h := buildChain(a, denyChecker)
 
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/instances", nil)
-	req.Header.Set("Authorization", "Bearer "+bearerToken("alice", "s3cr3t", nil))
+	req.Header.Set("Authorization", "Bearer "+bearerToken(testUser, testPassword, nil))
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, req)
 
@@ -187,11 +194,11 @@ func TestIntegration_ValidToken_Denied(t *testing.T) {
 func TestIntegration_CheckerTechnicalError(t *testing.T) {
 	t.Parallel()
 
-	a := gatewayauthn.NewDummyAuthenticator(map[string]string{"alice": "s3cr3t"})
+	a := gatewayauthn.NewDummyAuthenticator(map[string]string{testUser: testPassword})
 	h := buildChain(a, errorChecker)
 
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/instances", nil)
-	req.Header.Set("Authorization", "Bearer "+bearerToken("alice", "s3cr3t", nil))
+	req.Header.Set("Authorization", "Bearer "+bearerToken(testUser, testPassword, nil))
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, req)
 
@@ -206,14 +213,14 @@ func TestIntegration_CheckerTechnicalError(t *testing.T) {
 func TestIntegration_AuthnOnly(t *testing.T) {
 	t.Parallel()
 
-	a := gatewayauthn.NewDummyAuthenticator(map[string]string{"alice": "s3cr3t"})
+	a := gatewayauthn.NewDummyAuthenticator(map[string]string{testUser: testPassword})
 	log := discardLog()
 	authnMW := middleware.NewAuthentication(a, log)
 	// No authzMW — checker nil simulates --authz-enabled=false.
 	h := authnMW(okHandler)
 
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/instances", nil)
-	req.Header.Set("Authorization", "Bearer "+bearerToken("alice", "s3cr3t", nil))
+	req.Header.Set("Authorization", "Bearer "+bearerToken(testUser, testPassword, nil))
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, req)
 
@@ -239,14 +246,14 @@ func wrapMWs[M ~func(http.Handler) http.Handler](mws []M, h http.Handler) http.H
 func TestIntegration_AuthzSkipProviders(t *testing.T) {
 	t.Parallel()
 
-	a := gatewayauthn.NewDummyAuthenticator(map[string]string{"alice": "s3cr3t"})
+	a := gatewayauthn.NewDummyAuthenticator(map[string]string{testUser: testPassword})
 	flags := &auth.Flags{Enabled: true, AuthzEnabled: true, AuthzSkipProviders: []string{"seca.region"}}
 	log := discardLog()
 
 	skippedMWs := auth.ProviderMWs[func(http.Handler) http.Handler](
-		flags, a, denyChecker, "seca.region", "/providers/seca.region", log)
+		flags, a, denyChecker, "seca.region", "/providers/seca.region", "", log)
 	enforcedMWs := auth.ProviderMWs[func(http.Handler) http.Handler](
-		flags, a, denyChecker, "seca.compute", "/providers/seca.compute", log)
+		flags, a, denyChecker, "seca.compute", "/providers/seca.compute", "", log)
 
 	// Route through a real mux so r.Pattern is set for the claim extractor.
 	mux := http.NewServeMux()
@@ -268,7 +275,7 @@ func TestIntegration_AuthzSkipProviders(t *testing.T) {
 			t.Parallel()
 			req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, tc.path, nil)
 			if tc.withToken {
-				req.Header.Set("Authorization", "Bearer "+bearerToken("alice", "s3cr3t", nil))
+				req.Header.Set("Authorization", "Bearer "+bearerToken(testUser, testPassword, nil))
 			}
 			w := httptest.NewRecorder()
 			mux.ServeHTTP(w, req)

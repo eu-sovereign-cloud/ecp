@@ -119,7 +119,7 @@ func securityGroupIteratorToAPI(sgs []*securitygroupdom.SecurityGroup, nextSkipT
 		Metadata: sdkschema.ResponseMetadata{
 			Provider: securitygroupdom.ProviderID,
 			Resource: securitygroupdom.Resource,
-			Verb:     "list",
+			Verb:     commonfrontend.VerbList,
 		},
 	}
 	if nextSkipToken != nil {

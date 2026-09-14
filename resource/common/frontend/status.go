@@ -10,6 +10,9 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 )
 
+// VerbList is the ResponseMetadata.Verb value for a collection (list) response.
+const VerbList = "list"
+
 // ResourceStateToAPI maps domain.ResourceState to a schema.ResourceState.
 func ResourceStateToAPI(state domain.ResourceState) schema.ResourceState {
 	var out schema.ResourceState

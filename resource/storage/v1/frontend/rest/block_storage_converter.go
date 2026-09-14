@@ -121,7 +121,7 @@ func blockStorageIteratorToAPI(bss []*bsdom.BlockStorage, nextSkipToken *string)
 		Metadata: sdkschema.ResponseMetadata{
 			Provider: bsdom.ProviderID,
 			Resource: BlockStorageResource,
-			Verb:     "list",
+			Verb:     commonfrontend.VerbList,
 		},
 	}
 

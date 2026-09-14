@@ -18,6 +18,13 @@ import (
 	jwt "github.com/golang-jwt/jwt/v5"
 )
 
+// issClaim and audClaim are the standard JWT "iss"/"aud" claim names, used as
+// jwt.MapClaims keys throughout these tests.
+const (
+	issClaim = "iss"
+	audClaim = "aud"
+)
+
 func TestParseVerifyKey(t *testing.T) {
 	t.Parallel()
 
@@ -103,9 +110,9 @@ func TestJWTAuthenticator(t *testing.T) {
 	}{
 		{
 			name:          "valid credentials without scope",
-			token:         makeToken(keyES, jwt.SigningMethodES256, "alice", nil, nil),
+			token:         makeToken(keyES, jwt.SigningMethodES256, testSubjectAlice, nil, nil),
 			signingMethod: jwt.SigningMethodES256,
-			wantSubject:   "alice",
+			wantSubject:   testSubjectAlice,
 		},
 		{
 			name: "valid credentials with down-scope",
@@ -124,13 +131,13 @@ func TestJWTAuthenticator(t *testing.T) {
 		},
 		{
 			name:          "roles field in token is ignored",
-			token:         makeToken(keyRS, jwt.SigningMethodRS512, "alice", nil, jwt.MapClaims{"roles": []string{"admin"}}),
+			token:         makeToken(keyRS, jwt.SigningMethodRS512, testSubjectAlice, nil, jwt.MapClaims{"roles": []string{"admin"}}),
 			signingMethod: jwt.SigningMethodRS512,
-			wantSubject:   "alice",
+			wantSubject:   testSubjectAlice,
 		},
 		{
 			name:          "signed with wrong key",
-			token:         makeToken(wrongKey, jwt.SigningMethodES256, "alice", nil, nil),
+			token:         makeToken(wrongKey, jwt.SigningMethodES256, testSubjectAlice, nil, nil),
 			signingMethod: jwt.SigningMethodES256,
 			wantErr:       true,
 		},
@@ -142,7 +149,7 @@ func TestJWTAuthenticator(t *testing.T) {
 		},
 		{
 			name:          "expired token",
-			token:         makeToken(keyES, jwt.SigningMethodES256, "alice", nil, jwt.MapClaims{"exp": time.Now().Add(-time.Hour).Unix()}),
+			token:         makeToken(keyES, jwt.SigningMethodES256, testSubjectAlice, nil, jwt.MapClaims{"exp": time.Now().Add(-time.Hour).Unix()}),
 			signingMethod: jwt.SigningMethodES256,
 			wantErr:       true,
 		},
@@ -157,18 +164,18 @@ func TestJWTAuthenticator(t *testing.T) {
 			// authorization layer turns it into a gate on the request's tenant. Every
 			// other case leaves it unset, i.e. no gate.
 			name:          "tenants claim becomes the identity's membership",
-			token:         makeToken(keyES, jwt.SigningMethodES256, "alice", nil, jwt.MapClaims{"tenants": []string{"t1", "t2"}}),
+			token:         makeToken(keyES, jwt.SigningMethodES256, testSubjectAlice, nil, jwt.MapClaims{"tenants": []string{"t1", "t2"}}),
 			signingMethod: jwt.SigningMethodES256,
-			wantSubject:   "alice",
+			wantSubject:   testSubjectAlice,
 			wantTenants:   []string{"t1", "t2"},
 		},
 		{
 			// iss/aud are not enforced by these authenticators (both configured
 			// empty), so a token carrying them is accepted unchanged.
 			name:          "unconfigured issuer and audience are not enforced",
-			token:         makeToken(keyES, jwt.SigningMethodES256, "alice", nil, jwt.MapClaims{"iss": "https://other", "aud": "other-api"}),
+			token:         makeToken(keyES, jwt.SigningMethodES256, testSubjectAlice, nil, jwt.MapClaims{issClaim: "https://other", audClaim: "other-api"}),
 			signingMethod: jwt.SigningMethodES256,
-			wantSubject:   "alice",
+			wantSubject:   testSubjectAlice,
 		},
 	}
 
@@ -228,7 +235,7 @@ func TestJWTAuthenticatorIssuerAudience(t *testing.T) {
 	const issuer, audience = "https://idp.example", "seca-api"
 
 	sign := func(extra jwt.MapClaims) string {
-		claims := jwt.MapClaims{"sub": "alice", "exp": time.Now().Add(time.Hour).Unix()}
+		claims := jwt.MapClaims{"sub": testSubjectAlice, "exp": time.Now().Add(time.Hour).Unix()}
 		maps.Copy(claims, extra)
 		s, err := jwt.NewWithClaims(jwt.SigningMethodES256, claims).SignedString(key)
 		if err != nil {
@@ -246,30 +253,30 @@ func TestJWTAuthenticatorIssuerAudience(t *testing.T) {
 	}{
 		{
 			name:  "matching issuer and audience",
-			token: sign(jwt.MapClaims{"iss": issuer, "aud": audience}),
+			token: sign(jwt.MapClaims{issClaim: issuer, audClaim: audience}),
 		},
 		{
 			name:  "audience list containing the expected value",
-			token: sign(jwt.MapClaims{"iss": issuer, "aud": []string{"other-api", audience}}),
+			token: sign(jwt.MapClaims{issClaim: issuer, audClaim: []string{"other-api", audience}}),
 		},
 		{
 			name:    "wrong issuer",
-			token:   sign(jwt.MapClaims{"iss": "https://evil.example", "aud": audience}),
+			token:   sign(jwt.MapClaims{issClaim: "https://evil.example", audClaim: audience}),
 			wantErr: true,
 		},
 		{
 			name:    "missing issuer",
-			token:   sign(jwt.MapClaims{"aud": audience}),
+			token:   sign(jwt.MapClaims{audClaim: audience}),
 			wantErr: true,
 		},
 		{
 			name:    "wrong audience",
-			token:   sign(jwt.MapClaims{"iss": issuer, "aud": "other-api"}),
+			token:   sign(jwt.MapClaims{issClaim: issuer, audClaim: "other-api"}),
 			wantErr: true,
 		},
 		{
 			name:    "missing audience",
-			token:   sign(jwt.MapClaims{"iss": issuer}),
+			token:   sign(jwt.MapClaims{issClaim: issuer}),
 			wantErr: true,
 		},
 	}
@@ -290,8 +297,8 @@ func TestJWTAuthenticatorIssuerAudience(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			if id.Subject != "alice" {
-				t.Errorf("subject = %q, want %q", id.Subject, "alice")
+			if id.Subject != testSubjectAlice {
+				t.Errorf("subject = %q, want %q", id.Subject, testSubjectAlice)
 			}
 		})
 	}

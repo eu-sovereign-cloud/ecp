@@ -95,8 +95,11 @@ func TestHasMarker(t *testing.T) {
 	}
 }
 
+// statusFieldName is the sample struct field name shared by tests in this function.
+const statusFieldName = "Status"
+
 func TestFindField(t *testing.T) {
-	statusVar := types.NewVar(token.NoPos, nil, "Status", types.Typ[types.String])
+	statusVar := types.NewVar(token.NoPos, nil, statusFieldName, types.Typ[types.String])
 	specVar := types.NewVar(token.NoPos, nil, "Spec", types.Typ[types.Int])
 
 	empty := types.NewStruct(nil, nil)
@@ -113,20 +116,20 @@ func TestFindField(t *testing.T) {
 		{
 			name:    "empty struct",
 			s:       empty,
-			field:   "Status",
+			field:   statusFieldName,
 			wantNil: true,
 		},
 		{
 			name:      "found only field",
 			s:         one,
-			field:     "Status",
-			wantField: "Status",
+			field:     statusFieldName,
+			wantField: statusFieldName,
 		},
 		{
 			name:      "found second field",
 			s:         two,
-			field:     "Status",
-			wantField: "Status",
+			field:     statusFieldName,
+			wantField: statusFieldName,
 		},
 		{
 			name:    "nonexistent field",

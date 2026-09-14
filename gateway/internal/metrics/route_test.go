@@ -35,31 +35,31 @@ func TestNormalizePath(t *testing.T) {
 		{
 			name:         "unknown provider is not preserved",
 			path:         "/providers/seca.bogus/v1/tenants/x",
-			wantRoute:    "{other}",
-			wantProvider: "unknown",
+			wantRoute:    routeOther,
+			wantProvider: providerUnknown,
 		},
 		{
 			name:         "provider-shaped random segment is not preserved",
 			path:         "/providers/seca." + strings.Repeat("a", 32) + "/v1/tenants/x",
-			wantRoute:    "{other}",
-			wantProvider: "unknown",
+			wantRoute:    routeOther,
+			wantProvider: providerUnknown,
 		},
 		{
 			name:         "version prefix is not enough",
 			path:         "/providers/seca.compute/v1bogus/tenants/t1/workspaces/w1/instances/i1",
-			wantRoute:    "{other}",
+			wantRoute:    routeOther,
 			wantProvider: "seca.compute",
 		},
 		{
 			name:         "v2 prefix is not a supported version",
 			path:         "/providers/seca.compute/v2/tenants/t1",
-			wantRoute:    "{other}",
+			wantRoute:    routeOther,
 			wantProvider: "seca.compute",
 		},
 		{
 			name:         "provider without version",
 			path:         "/providers/seca.region",
-			wantRoute:    "{other}",
+			wantRoute:    routeOther,
 			wantProvider: "seca.region",
 		},
 		{
@@ -83,14 +83,14 @@ func TestNormalizePath(t *testing.T) {
 		{
 			name:         "unknown path",
 			path:         "/api/v1/foo",
-			wantRoute:    "{other}",
-			wantProvider: "unknown",
+			wantRoute:    routeOther,
+			wantProvider: providerUnknown,
 		},
 		{
 			name:         "empty path",
 			path:         "",
-			wantRoute:    "{other}",
-			wantProvider: "unknown",
+			wantRoute:    routeOther,
+			wantProvider: providerUnknown,
 		},
 	}
 
@@ -124,7 +124,7 @@ func TestNormalizePath_BoundedCardinality(t *testing.T) {
 		allowed[path] = struct{}{}
 	}
 
-	allowedProviders := map[string]struct{}{"unknown": {}, "system": {}}
+	allowedProviders := map[string]struct{}{providerUnknown: {}, "system": {}}
 	for provider := range secaProviders {
 		allowedProviders[provider] = struct{}{}
 	}

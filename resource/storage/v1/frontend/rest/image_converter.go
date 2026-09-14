@@ -124,7 +124,7 @@ func imageIteratorToAPI(imgs []*imgdom.Image, nextSkipToken *string) *sdkstorage
 		Metadata: sdkschema.ResponseMetadata{
 			Provider: imgdom.ProviderID,
 			Resource: ImageResource,
-			Verb:     "list",
+			Verb:     commonfrontend.VerbList,
 		},
 	}
 

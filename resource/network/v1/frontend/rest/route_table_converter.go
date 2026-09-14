@@ -147,7 +147,7 @@ func routeTableIteratorToAPI(rts []*routetabledom.RouteTable, nextSkipToken *str
 		Metadata: sdkschema.ResponseMetadata{
 			Provider: routetabledom.ProviderID,
 			Resource: routetabledom.Resource,
-			Verb:     "list",
+			Verb:     commonfrontend.VerbList,
 		},
 	}
 	if nextSkipToken != nil {

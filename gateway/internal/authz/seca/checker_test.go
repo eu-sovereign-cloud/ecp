@@ -66,16 +66,16 @@ func TestChecker_Authorize(t *testing.T) {
 	t.Parallel()
 
 	// A minimal role + assignment that permits seca.compute/instances:list everywhere.
-	viewerRole := makeRole("viewer", []roledom.Permission{
-		{Provider: "seca.compute", Resources: []string{"instances"}, Verb: []string{"list"}},
+	viewerRole := makeRole(roleViewer, []roledom.Permission{
+		{Provider: providerCompute, Resources: []string{resourceInstances}, Verb: []string{verbList}},
 	})
-	validAssignment := makeAssignment([]string{"viewer"}, []radom.RoleAssignmentScope{allScope})
+	validAssignment := makeAssignment([]string{roleViewer}, []radom.RoleAssignmentScope{allScope})
 
 	baseClaim := authzport.AuthorizationClaim{
-		Subject:  "alice",
-		Provider: "seca.compute",
-		Resource: "instances",
-		Verb:     "list",
+		Subject:  subjectAlice,
+		Provider: providerCompute,
+		Resource: resourceInstances,
+		Verb:     verbList,
 		Tenant:   "t1",
 	}
 
@@ -112,8 +112,8 @@ func TestChecker_Authorize(t *testing.T) {
 			// filtering is enforced by the real Evaluate function through the Checker.
 			name:         "deny: subject not in Subs → DecisionDenied with ErrForbidden",
 			roles:        []*roledom.Role{viewerRole},
-			assignments:  []*radom.RoleAssignment{assignSubs([]string{"alice"}, []string{"viewer"}, allScope)},
-			claim:        with(baseClaim, func(c *authzport.AuthorizationClaim) { c.Subject = "bob" }),
+			assignments:  []*radom.RoleAssignment{assignSubs([]string{subjectAlice}, []string{roleViewer}, allScope)},
+			claim:        with(baseClaim, func(c *authzport.AuthorizationClaim) { c.Subject = subjectBob }),
 			wantDecision: authzport.DecisionDenied,
 			wantKind:     new(kernel.KindForbidden),
 		},

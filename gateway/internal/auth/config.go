@@ -149,13 +149,13 @@ func AuthnMiddleware(authenticator authnport.Authenticator, log *slog.Logger) fu
 //
 // Example:
 //
-//	authzMW := auth.AuthzMiddleware(checker, "seca.network", "/providers/seca.network", log)
+//	authzMW := auth.AuthzMiddleware(checker, "seca.network", "/providers/seca.network", region, log)
 //	opts.Middlewares = middleware.Chain[sdknetworkapi.MiddlewareFunc](authnMW, authzMW)
-func AuthzMiddleware(checker authzport.Checker, provider, baseURL string, log *slog.Logger) func(http.Handler) http.Handler {
+func AuthzMiddleware(checker authzport.Checker, provider, baseURL, region string, log *slog.Logger) func(http.Handler) http.Handler {
 	if checker == nil {
 		return nil
 	}
-	return middleware.NewAuthorization(checker, middleware.SECAClaimExtractor(provider, baseURL), log)
+	return middleware.NewAuthorization(checker, middleware.SECAClaimExtractor(provider, baseURL, region), log)
 }
 
 // ProviderMWs returns the typed middleware slice for a provider when auth is enabled,
@@ -166,10 +166,12 @@ func AuthzMiddleware(checker authzport.Checker, provider, baseURL string, log *s
 //	authv1.HandlerWithOptions(handler, authv1.StdHTTPServerOptions{
 //	    Middlewares: auth.ProviderMWs[authv1.MiddlewareFunc](
 //	        flags, authenticator, checker,
-//	        "seca.authorization", roledom.AuthorizationBaseURL,
+//	        "seca.authorization", roledom.AuthorizationBaseURL, region,
 //	        log,
 //	    ),
 //	})
+//
+// region is the region served by the calling process; pass "" on the global server.
 //
 // A provider listed in flags.AuthzSkipProviders gets the authn-only chain even when
 // the checker is non-nil: its routes are authenticated but never authorized.
@@ -180,7 +182,7 @@ func ProviderMWs[M ~func(http.Handler) http.Handler](
 	flags *Flags,
 	authenticator authnport.Authenticator,
 	checker authzport.Checker,
-	provider, baseURL string,
+	provider, baseURL, region string,
 	log *slog.Logger,
 ) []M {
 	if authenticator == nil {
@@ -197,7 +199,7 @@ func ProviderMWs[M ~func(http.Handler) http.Handler](
 			slog.String("provider", provider))
 		return middleware.Chain[M](metricsMW, authnMW)
 	}
-	authzMW := middleware.NewAuthorization(checker, middleware.SECAClaimExtractor(provider, baseURL), log)
+	authzMW := middleware.NewAuthorization(checker, middleware.SECAClaimExtractor(provider, baseURL, region), log)
 	// metrics.Middleware is the first argument so Chain places it outermost (Chain reverses).
 	return middleware.Chain[M](metricsMW, authnMW, authzMW)
 }

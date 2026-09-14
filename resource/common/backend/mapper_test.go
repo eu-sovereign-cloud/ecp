@@ -11,7 +11,12 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 )
 
+// testWorkspaceID is a sample workspace name shared by tests in this file.
+const testWorkspaceID = "ws-1"
+
 func TestExtractSegment(t *testing.T) {
+	const workspacesSegment = "workspaces/"
+
 	testCases := []struct {
 		name     string
 		resource string
@@ -21,14 +26,14 @@ func TestExtractSegment(t *testing.T) {
 		// Reference.resource path with tenant/workspace scope:
 		// tenants/{tenant}/workspaces/{workspace}/{collection}/{name}
 		// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
-		{"segment at the beginning", "workspaces/ws-1/block-storages/my-storage", "workspaces/", "ws-1"},
-		{"segment in the middle", "seca.storage/v1/tenants/t-1/workspaces/ws-1/skus/s", "workspaces/", "ws-1"},
-		{"segment at the end", "tenants/t-1/workspaces/ws-1", "workspaces/", "ws-1"},
-		{"no segment found", "block-storages/my-storage", "workspaces/", ""},
-		{"empty resource string", "", "workspaces/", ""},
+		{"segment at the beginning", "workspaces/ws-1/block-storages/my-storage", workspacesSegment, testWorkspaceID},
+		{"segment in the middle", "seca.storage/v1/tenants/t-1/workspaces/ws-1/skus/s", workspacesSegment, testWorkspaceID},
+		{"segment at the end", "tenants/t-1/workspaces/ws-1", workspacesSegment, testWorkspaceID},
+		{"no segment found", "block-storages/my-storage", workspacesSegment, ""},
+		{"empty resource string", "", workspacesSegment, ""},
 		// A path boundary is required, so a collection whose name ends in the segment
 		// must not match: "workspaces/" is not the "sub-workspaces/" prefix.
-		{"segment is a suffix of another path element", "sub-workspaces/ws-1", "workspaces/", ""},
+		{"segment is a suffix of another path element", "sub-workspaces/ws-1", workspacesSegment, ""},
 	}
 
 	for _, tc := range testCases {
@@ -77,11 +82,11 @@ func TestReferenceRoundTripIsVerbatim(t *testing.T) {
 	}{
 		{
 			name: "scope as fields",
-			ref:  schemav1.Reference{Tenant: "t-1", Workspace: "ws-1", Resource: "block-storages/my-storage"},
+			ref:  schemav1.Reference{Tenant: "t-1", Workspace: testWorkspaceID, Resource: "block-storages/my-storage"},
 		},
 		{
 			name: "scope as fields, nested path",
-			ref:  schemav1.Reference{Tenant: "t-1", Workspace: "ws-1", Resource: "networks/n1/route-tables/rt1"},
+			ref:  schemav1.Reference{Tenant: "t-1", Workspace: testWorkspaceID, Resource: "networks/n1/route-tables/rt1"},
 		},
 		{
 			// A tenant-scoped sku referenced from a workspace-scoped resource: the tenant

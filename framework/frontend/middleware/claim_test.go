@@ -7,6 +7,20 @@ import (
 	"testing"
 )
 
+// Shared test fixtures for provider/resource/verb/subject/path-key literals used across
+// this package's tests.
+const (
+	testProviderCompute   = "seca.compute"
+	testBaseSecaCompute   = "/providers/seca.compute"
+	testResourceInstances = "instances"
+	testVerbGet           = "get"
+	testVerbList          = "list"
+	testSubjectAlice      = "alice"
+	pathKeyTenant         = "tenant"
+	pathKeyName           = "name"
+	pathKeyWorkspace      = "workspace"
+)
+
 // TestResourceAndVerb verifies the route-pattern parser that derives (resource,verb)
 // from an HTTP request matched by Go 1.22+ http.ServeMux.
 //
@@ -27,84 +41,84 @@ func TestResourceAndVerb(t *testing.T) {
 	}{
 		{
 			name:         "GET collection → list",
-			base:         "/providers/seca.compute",
+			base:         testBaseSecaCompute,
 			pattern:      "GET /providers/seca.compute/v1/tenants/{tenant}/workspaces/{workspace}/instances",
-			pathValues:   map[string]string{"tenant": "t1", "workspace": "w1"},
+			pathValues:   map[string]string{pathKeyTenant: "t1", pathKeyWorkspace: "w1"},
 			method:       http.MethodGet,
-			wantResource: "instances",
-			wantVerb:     "list",
+			wantResource: testResourceInstances,
+			wantVerb:     testVerbList,
 		},
 		{
 			name:         "GET item → get",
-			base:         "/providers/seca.compute",
+			base:         testBaseSecaCompute,
 			pattern:      "GET /providers/seca.compute/v1/tenants/{tenant}/workspaces/{workspace}/instances/{name}",
-			pathValues:   map[string]string{"tenant": "t1", "workspace": "w1", "name": "inst1"},
+			pathValues:   map[string]string{pathKeyTenant: "t1", pathKeyWorkspace: "w1", pathKeyName: "inst1"},
 			method:       http.MethodGet,
-			wantResource: "instances",
-			wantVerb:     "get",
+			wantResource: testResourceInstances,
+			wantVerb:     testVerbGet,
 		},
 		{
 			name:         "PUT → put",
-			base:         "/providers/seca.compute",
+			base:         testBaseSecaCompute,
 			pattern:      "PUT /providers/seca.compute/v1/tenants/{tenant}/workspaces/{workspace}/instances/{name}",
-			pathValues:   map[string]string{"tenant": "t1", "workspace": "w1", "name": "inst1"},
+			pathValues:   map[string]string{pathKeyTenant: "t1", pathKeyWorkspace: "w1", pathKeyName: "inst1"},
 			method:       http.MethodPut,
-			wantResource: "instances",
+			wantResource: testResourceInstances,
 			wantVerb:     "put",
 		},
 		{
 			name:         "DELETE → delete",
-			base:         "/providers/seca.compute",
+			base:         testBaseSecaCompute,
 			pattern:      "DELETE /providers/seca.compute/v1/tenants/{tenant}/workspaces/{workspace}/instances/{name}",
-			pathValues:   map[string]string{"tenant": "t1", "workspace": "w1", "name": "inst1"},
+			pathValues:   map[string]string{pathKeyTenant: "t1", pathKeyWorkspace: "w1", pathKeyName: "inst1"},
 			method:       http.MethodDelete,
-			wantResource: "instances",
+			wantResource: testResourceInstances,
 			wantVerb:     "delete",
 		},
 		{
 			name:         "POST action → post.<action>",
-			base:         "/providers/seca.compute",
+			base:         testBaseSecaCompute,
 			pattern:      "POST /providers/seca.compute/v1/tenants/{tenant}/workspaces/{workspace}/instances/{name}/restart",
-			pathValues:   map[string]string{"tenant": "t1", "workspace": "w1", "name": "inst1"},
+			pathValues:   map[string]string{pathKeyTenant: "t1", pathKeyWorkspace: "w1", pathKeyName: "inst1"},
 			method:       http.MethodPost,
-			wantResource: "instances",
+			wantResource: testResourceInstances,
 			wantVerb:     "post.restart",
 		},
 		{
 			name:         "GET tenant-scoped collection (no workspace) → list",
-			base:         "/providers/seca.compute",
+			base:         testBaseSecaCompute,
 			pattern:      "GET /providers/seca.compute/v1/tenants/{tenant}/skus",
-			pathValues:   map[string]string{"tenant": "t1"},
+			pathValues:   map[string]string{pathKeyTenant: "t1"},
 			method:       http.MethodGet,
 			wantResource: "skus",
-			wantVerb:     "list",
+			wantVerb:     testVerbList,
 		},
 		{
 			name:         "GET tenant-scoped item (no workspace) → get",
-			base:         "/providers/seca.compute",
+			base:         testBaseSecaCompute,
 			pattern:      "GET /providers/seca.compute/v1/tenants/{tenant}/skus/{name}",
-			pathValues:   map[string]string{"tenant": "t1", "name": "sku1"},
+			pathValues:   map[string]string{pathKeyTenant: "t1", pathKeyName: "sku1"},
 			method:       http.MethodGet,
 			wantResource: "skus",
-			wantVerb:     "get",
+			wantVerb:     testVerbGet,
 		},
 		{
 			name:         "nested resource collection → list",
 			base:         "/providers/seca.network",
 			pattern:      "GET /providers/seca.network/v1/tenants/{tenant}/workspaces/{workspace}/networks/{network}/subnets",
-			pathValues:   map[string]string{"tenant": "t1", "workspace": "w1", "network": "net1"},
+			pathValues:   map[string]string{pathKeyTenant: "t1", pathKeyWorkspace: "w1", "network": "net1"},
 			method:       http.MethodGet,
 			wantResource: "networks/subnets",
-			wantVerb:     "list",
+			wantVerb:     testVerbList,
 		},
 		{
 			name:         "nested resource item → get",
 			base:         "/providers/seca.network",
 			pattern:      "GET /providers/seca.network/v1/tenants/{tenant}/workspaces/{workspace}/networks/{network}/subnets/{name}",
-			pathValues:   map[string]string{"tenant": "t1", "workspace": "w1", "network": "net1", "name": "sub1"},
+			pathValues:   map[string]string{pathKeyTenant: "t1", pathKeyWorkspace: "w1", "network": "net1", pathKeyName: "sub1"},
 			method:       http.MethodGet,
 			wantResource: "networks/subnets",
-			wantVerb:     "get",
+			wantVerb:     testVerbGet,
 		},
 	}
 
@@ -128,10 +142,38 @@ func TestResourceAndVerb(t *testing.T) {
 	}
 }
 
+// TestSECAClaimExtractor_Region verifies that the region passed to the constructor —
+// not a process-global — ends up on claim.Region, and that a global-server extractor
+// (constructed with an empty region) always produces an empty claim.Region.
+func TestSECAClaimExtractor_Region(t *testing.T) {
+	t.Parallel()
+
+	r := newPatternRequest(http.MethodGet, "/", "GET "+testBaseSecaCompute+"/v1/tenants/{tenant}/workspaces/{workspace}/instances",
+		map[string]string{pathKeyTenant: "t1", pathKeyWorkspace: "w1"})
+
+	regional := SECAClaimExtractor(testProviderCompute, testBaseSecaCompute, "r1")
+	claim, err := regional(r)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if claim.Region != "r1" {
+		t.Errorf("Region = %q, want %q", claim.Region, "r1")
+	}
+
+	global := SECAClaimExtractor(testProviderCompute, testBaseSecaCompute, "")
+	claim, err = global(r)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if claim.Region != "" {
+		t.Errorf("Region = %q, want empty (global server)", claim.Region)
+	}
+}
+
 func TestResourceAndVerb_NetworkBase(t *testing.T) {
 	t.Parallel()
 	r := newPatternRequest(http.MethodGet, "/", "GET /providers/seca.network/v1/tenants/{tenant}/workspaces/{workspace}/networks/{network}/route-tables/{name}", map[string]string{
-		"tenant": "t1", "workspace": "w1", "network": "net1", "name": "rt1",
+		pathKeyTenant: "t1", pathKeyWorkspace: "w1", "network": "net1", pathKeyName: "rt1",
 	})
 	resource, verb, err := resourceAndVerb(r, "/providers/seca.network", "rt1")
 	if err != nil {

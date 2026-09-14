@@ -7,7 +7,6 @@ import (
 	sdknetwork "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.network.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
-	frameworkconfig "github.com/eu-sovereign-cloud/ecp/framework/frontend/config"
 	frest "github.com/eu-sovereign-cloud/ecp/framework/frontend/rest"
 	persistencepkg "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	securitygroupruledom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group-rule"
@@ -43,7 +42,7 @@ func (h *Handler) CreateOrUpdateSecurityGroupRule(w http.ResponseWriter, r *http
 	if params.IfUnmodifiedSince != nil {
 		id.resourceVersion = strconv.Itoa(*params.IfUnmodifiedSince)
 	}
-	region := frameworkconfig.Singleton().Region()
+	region := h.Region
 	frest.HandleUpsert(w, r, logger, frest.UpsertOptions[sdkschema.SecurityGroupRule, *securitygroupruledom.SecurityGroupRule, *sdkschema.SecurityGroupRule]{
 		Params:  id,
 		Creator: frest.CreatorFromRepo(h.SecurityGroupRuleWriter),

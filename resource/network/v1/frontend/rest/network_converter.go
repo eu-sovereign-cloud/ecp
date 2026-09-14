@@ -117,7 +117,7 @@ func networkIteratorToAPI(ns []*netdom.Network, nextSkipToken *string) *sdknetwo
 		Metadata: sdkschema.ResponseMetadata{
 			Provider: netdom.ProviderID,
 			Resource: NetworkResource,
-			Verb:     "list",
+			Verb:     commonfrontend.VerbList,
 		},
 	}
 

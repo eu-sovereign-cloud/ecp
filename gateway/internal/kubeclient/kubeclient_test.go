@@ -9,10 +9,13 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/kubeclient"
 )
 
+// testAPIServerHost is a sample kube-apiserver host shared by tests in this package.
+const testAPIServerHost = "https://127.0.0.1:6443"
+
 func TestNewFromConfig_AppliesDefaultsWhenUnset(t *testing.T) {
 	t.Parallel()
 
-	cfg := &rest.Config{Host: "https://127.0.0.1:6443"}
+	cfg := &rest.Config{Host: testAPIServerHost}
 	client, err := kubeclient.NewFromConfig(cfg)
 	if err != nil {
 		t.Fatalf("NewFromConfig: %v", err)
@@ -39,7 +42,7 @@ func TestNewFromConfig_PreservesExplicitOverrides(t *testing.T) {
 	t.Parallel()
 
 	cfg := &rest.Config{
-		Host:      "https://127.0.0.1:6443",
+		Host:      testAPIServerHost,
 		QPS:       42,
 		Burst:     84,
 		UserAgent: "custom-agent",
@@ -76,7 +79,7 @@ func TestNewFromConfig_PartialOverrides(t *testing.T) {
 
 	// Only QPS set: Burst and UserAgent still get defaults.
 	cfg := &rest.Config{
-		Host: "https://127.0.0.1:6443",
+		Host: testAPIServerHost,
 		QPS:  25,
 	}
 	if _, err := kubeclient.NewFromConfig(cfg); err != nil {
@@ -97,7 +100,7 @@ func TestNewFromConfig_SharesRateLimiterWithTypedClient(t *testing.T) {
 	t.Parallel()
 
 	cfg := &rest.Config{
-		Host:  "https://127.0.0.1:6443",
+		Host:  testAPIServerHost,
 		QPS:   50,
 		Burst: 100,
 	}
@@ -124,7 +127,7 @@ func TestNewFromConfig_PreservesCallerRateLimiter(t *testing.T) {
 
 	custom := flowcontrol.NewTokenBucketRateLimiter(11, 12)
 	cfg := &rest.Config{
-		Host:        "https://127.0.0.1:6443",
+		Host:        testAPIServerHost,
 		QPS:         5,
 		Burst:       10,
 		RateLimiter: custom,
@@ -146,7 +149,7 @@ func TestNewFromConfig_DisablesRateLimitWhenQPSNegative(t *testing.T) {
 	t.Parallel()
 
 	cfg := &rest.Config{
-		Host:  "https://127.0.0.1:6443",
+		Host:  testAPIServerHost,
 		QPS:   -1,
 		Burst: 0,
 	}
@@ -170,7 +173,7 @@ func TestNewFromConfig_RejectsInvalidBurst(t *testing.T) {
 
 	// Negative burst is not filled by defaults (only zero is).
 	cfg := &rest.Config{
-		Host:  "https://127.0.0.1:6443",
+		Host:  testAPIServerHost,
 		QPS:   10,
 		Burst: -1,
 	}

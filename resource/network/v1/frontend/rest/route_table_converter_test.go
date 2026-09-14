@@ -18,7 +18,7 @@ func TestRouteTableFromAPIToAPIRoundTrip(t *testing.T) {
 		Spec: sdkschema.RouteTableSpec{
 			Routes: []sdkschema.RouteSpec{
 				{
-					DestinationCidrBlock: "10.0.0.0/24",
+					DestinationCidrBlock: testCIDR,
 					// Reference.resource: {collection}/{name}
 					// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 					TargetRef: sdkschema.Reference{Resource: "instances/inst1"},
@@ -37,7 +37,7 @@ func TestRouteTableFromAPIToAPIRoundTrip(t *testing.T) {
 	require.Equal(t, "r1", dom.Region)
 	require.Equal(t, routetabledom.ProviderID, dom.Provider)
 	require.Len(t, dom.Spec.Routes, 1)
-	require.Equal(t, "10.0.0.0/24", dom.Spec.Routes[0].DestinationCidrBlock)
+	require.Equal(t, testCIDR, dom.Spec.Routes[0].DestinationCidrBlock)
 	require.Equal(t, "instances/inst1", dom.Spec.Routes[0].TargetRef.Resource)
 
 	out := routeTableToAPIWithVerb(http.MethodPut)(dom)
@@ -46,7 +46,7 @@ func TestRouteTableFromAPIToAPIRoundTrip(t *testing.T) {
 	require.Equal(t, "n1", out.Metadata.Network)
 	require.Equal(t, sdkschema.RegionalNetworkResourceMetadataKindResourceKindRoutingTable, out.Metadata.Kind)
 	require.Len(t, out.Spec.Routes, 1)
-	require.Equal(t, "10.0.0.0/24", out.Spec.Routes[0].DestinationCidrBlock)
+	require.Equal(t, testCIDR, out.Spec.Routes[0].DestinationCidrBlock)
 	// metadata.resource: networks/{network}/{collection}/{name}
 	// Spec: https://spec.secapi.cloud/docs/content/Architecture/resource-model#metadata
 	require.Equal(t, "networks/n1/route-tables/rt1", out.Metadata.Resource)
@@ -66,7 +66,7 @@ func TestRouteTableIteratorToAPI_ResponseMetadata(t *testing.T) {
 func TestRouteTableToAPI_Status(t *testing.T) {
 	dom := &routetabledom.RouteTable{
 		Spec: routetabledom.RouteTableSpec{
-			Routes: []routetabledom.RouteSpec{{DestinationCidrBlock: "10.0.0.0/24"}},
+			Routes: []routetabledom.RouteSpec{{DestinationCidrBlock: testCIDR}},
 		},
 	}
 	dom.Name = "rt1"

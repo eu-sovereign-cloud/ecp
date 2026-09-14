@@ -49,7 +49,7 @@ func TestClientFlags_ApplyToConfig(t *testing.T) {
 	t.Parallel()
 
 	flags := kubeclient.ClientFlags{QPS: 42, Burst: 84}
-	cfg := &rest.Config{Host: "https://127.0.0.1:6443"}
+	cfg := &rest.Config{Host: testAPIServerHost}
 	if err := flags.ApplyToConfig(cfg); err != nil {
 		t.Fatalf("ApplyToConfig: %v", err)
 	}
@@ -65,7 +65,7 @@ func TestClientFlags_ApplyToConfig_RejectsInvalidBurst(t *testing.T) {
 	t.Parallel()
 
 	flags := kubeclient.ClientFlags{QPS: 10, Burst: 0}
-	cfg := &rest.Config{Host: "https://127.0.0.1:6443"}
+	cfg := &rest.Config{Host: testAPIServerHost}
 	if err := flags.ApplyToConfig(cfg); err == nil {
 		t.Fatal("expected error when QPS > 0 and Burst < 1")
 	}
@@ -76,7 +76,7 @@ func TestClientFlags_ApplyToConfig_AllowsDisabledRateLimit(t *testing.T) {
 
 	// Negative QPS disables client-side limiting; burst is not required.
 	flags := kubeclient.ClientFlags{QPS: -1, Burst: 0}
-	cfg := &rest.Config{Host: "https://127.0.0.1:6443"}
+	cfg := &rest.Config{Host: testAPIServerHost}
 	if err := flags.ApplyToConfig(cfg); err != nil {
 		t.Fatalf("ApplyToConfig: %v", err)
 	}
@@ -105,7 +105,7 @@ func TestClientFlags_ApplyToConfig_NilArgs(t *testing.T) {
 func TestNewFromConfig_UsesAppliedFlags(t *testing.T) {
 	t.Parallel()
 
-	cfg := &rest.Config{Host: "https://127.0.0.1:6443"}
+	cfg := &rest.Config{Host: testAPIServerHost}
 	flags := kubeclient.ClientFlags{QPS: 50, Burst: 100}
 	if err := flags.ApplyToConfig(cfg); err != nil {
 		t.Fatalf("ApplyToConfig: %v", err)

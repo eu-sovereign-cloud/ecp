@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/eu-sovereign-cloud/ecp/framework/frontend/config"
 	authzport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/authz"
 )
 
@@ -16,7 +15,7 @@ import (
 //   - Provider: baked-in constant passed to this constructor (e.g. "seca.compute").
 //   - Tenant: r.PathValue("tenant").
 //   - Workspace: r.PathValue("workspace"); empty for tenant-scoped resources.
-//   - Region: config.Singleton().Region(); empty on the global server.
+//   - Region: the region passed to this constructor; empty on the global server.
 //   - Name: r.PathValue("name"); empty for collection (list) operations.
 //   - Resource: the resource kind path derived from r.Pattern (see resourceAndVerb).
 //     Examples: "instances", "networks/subnets", "roles".
@@ -27,7 +26,7 @@ import (
 // SECAClaimExtractor reads r.Pattern (available after mux routing in Go 1.22+),
 // so it MUST be used after the request has been matched by the mux — which is
 // guaranteed when the extractor runs inside oapi-codegen's per-route middleware chain.
-func SECAClaimExtractor(provider, baseURL string) authzport.ClaimExtractor {
+func SECAClaimExtractor(provider, baseURL, region string) authzport.ClaimExtractor {
 	return func(r *http.Request) (authzport.AuthorizationClaim, error) {
 		tenant := r.PathValue("tenant")
 		workspace := r.PathValue("workspace")
@@ -44,7 +43,7 @@ func SECAClaimExtractor(provider, baseURL string) authzport.ClaimExtractor {
 			Name:      name,
 			Verb:      verb,
 			Tenant:    tenant,
-			Region:    config.Singleton().Region(),
+			Region:    region,
 			Workspace: workspace,
 		}, nil
 	}

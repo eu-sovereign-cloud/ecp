@@ -146,7 +146,7 @@ func subnetIteratorToAPI(ss []*subnetdom.Subnet, nextSkipToken *string) *sdknetw
 		Metadata: sdkschema.ResponseMetadata{
 			Provider: subnetdom.ProviderID,
 			Resource: subnetdom.Resource,
-			Verb:     "list",
+			Verb:     commonfrontend.VerbList,
 		},
 	}
 	if nextSkipToken != nil {

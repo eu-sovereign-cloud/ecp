@@ -22,6 +22,8 @@ type Handler struct {
 	ImageWriter        persistencepkg.WriterRepo[*imgdom.Image]
 	SKUReader          persistencepkg.ReaderRepo[*skudom.StorageSKU]
 	Logger             *slog.Logger
+	// Region is the region this handler serves; empty on the global server.
+	Region string
 }
 
 var _ sdkstorage.ServerInterface = (*Handler)(nil)

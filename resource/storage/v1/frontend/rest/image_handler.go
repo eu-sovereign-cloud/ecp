@@ -7,7 +7,6 @@ import (
 	sdkstorage "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	sdkschema "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
-	frameworkconfig "github.com/eu-sovereign-cloud/ecp/framework/frontend/config"
 	frest "github.com/eu-sovereign-cloud/ecp/framework/frontend/rest"
 	persistencepkg "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/persistence"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
@@ -44,7 +43,7 @@ func (h *Handler) CreateOrUpdateImage(w http.ResponseWriter, r *http.Request, te
 	if params.IfUnmodifiedSince != nil {
 		id.Version = strconv.Itoa(*params.IfUnmodifiedSince)
 	}
-	region := frameworkconfig.Singleton().Region()
+	region := h.Region
 	frest.HandleUpsert(w, r, logger, frest.UpsertOptions[sdkschema.Image, *imgdom.Image, *sdkschema.Image]{
 		Params:  id,
 		Creator: frest.CreatorFromRepo(h.ImageWriter),
