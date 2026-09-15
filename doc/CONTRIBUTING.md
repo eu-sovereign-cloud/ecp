@@ -112,7 +112,7 @@ To exclude a module from standard product CI checks (e.g., test harnesses, tool 
 3. Add `backend/kubernetes/` with CR types, GVR, adapters, controller, plugin interface, and plugin handler.
 4. Add `<resource>_converter.go` to the group's `resource/<group>/vN/frontend/rest/` directory; add handler methods to `<resource>_handler.go` (or create the group handler if this is the first resource in the group).
 5. Run `make generate-api` to route generated types into the new slice.
-6. Register the handler in `gateway/cmd/` and the controller in the relevant CSP `cmd/main.go`.
+6. Add the slice's `AddToScheme` to `resource/scheme/scheme.go` (`TestAddToScheme_CoversEveryCRD` fails until you do), register the handler in `gateway/cmd/`, and add the controller to `d.Controllers` in the relevant CSP `cmd/main.go`.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the full per-slice hexagon description and [PLUGINS.md](PLUGINS.md) for the builder-inversion wiring pattern.
 
