@@ -4,6 +4,8 @@ import (
 	"context"
 	"net"
 	"net/http"
+	"os"
+	"path/filepath"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -14,21 +16,40 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/builder"
 )
 
-// offline returns a config and options a manager can be built from and started without an API
-// server: nothing here watches a type, so no informer ever dials the unreachable host, and the
-// listeners that would otherwise claim fixed ports are disabled or moved.
-func offline(probeAddr string) (*rest.Config, ctrl.Options) {
-	return &rest.Config{Host: "http://127.0.0.1:1"}, ctrl.Options{
+const offlineKubeconfig = `apiVersion: v1
+kind: Config
+clusters: [{name: offline, cluster: {server: "http://127.0.0.1:1"}}]
+users: [{name: offline, user: {}}]
+contexts: [{name: offline, context: {cluster: offline, user: offline}}]
+current-context: offline
+`
+
+// offline points KUBECONFIG at an unreachable host and returns options a manager can be built
+// from and started without an API server: nothing here watches a type, so no informer ever dials
+// that host, and the listeners that would otherwise claim fixed ports are disabled or moved.
+func offline(t *testing.T, probeAddr string) ctrl.Options {
+	t.Helper()
+	kubeconfig := filepath.Join(t.TempDir(), "kubeconfig")
+	require.NoError(t, os.WriteFile(kubeconfig, []byte(offlineKubeconfig), 0o600))
+	t.Setenv("KUBECONFIG", kubeconfig)
+	return ctrl.Options{
 		HealthProbeBindAddress: probeAddr,
 		Metrics:                metricsserver.Options{BindAddress: "0"},
 	}
+}
+
+func TestNewDelegator_ReturnsConfigError(t *testing.T) {
+	t.Setenv("KUBECONFIG", filepath.Join(t.TempDir(), "missing"))
+	t.Setenv("KUBERNETES_SERVICE_HOST", "")
+
+	_, err := builder.NewDelegator(ctrl.Options{})
+	require.Error(t, err, "a config that fails to load must reach the caller, not exit the process")
 }
 
 type recordingReconciler struct{ called atomic.Bool }
@@ -40,9 +61,9 @@ func (r *recordingReconciler) SetupWithManager(ctrl.Manager) error {
 
 func TestNewDelegator_RegistersSchemes(t *testing.T) {
 	widget := schema.GroupVersionKind{Group: "test.secapi.cloud", Version: "v1", Kind: "Widget"}
-	cfg, opts := offline("0")
+	opts := offline(t, "0")
 
-	d, err := builder.NewDelegator(cfg, opts, func(s *runtime.Scheme) error {
+	d, err := builder.NewDelegator(opts, func(s *runtime.Scheme) error {
 		s.AddKnownTypeWithName(widget, &metav1.PartialObjectMetadata{})
 		return nil
 	})
@@ -55,8 +76,7 @@ func TestNewDelegator_RegistersSchemes(t *testing.T) {
 
 func TestDelegator_Run_ServesProbesUntilCancelled(t *testing.T) {
 	addr := freeAddr(t)
-	cfg, opts := offline(addr)
-	d, err := builder.NewDelegator(cfg, opts)
+	d, err := builder.NewDelegator(offline(t, addr))
 	require.NoError(t, err)
 
 	r := &recordingReconciler{}

@@ -10,7 +10,6 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -30,12 +29,21 @@ type Delegator struct {
 	Controllers *ControllerSet
 }
 
-// NewDelegator builds a Delegator against cfg. The manager's scheme holds the client-go types
+// NewDelegator builds a Delegator against the cluster ctrl.GetConfig finds: KUBECONFIG, the
+// in-cluster config, then ~/.kube/config. The controller-runtime logger is set before that config
+// is loaded — anything controller-runtime logs earlier is discarded — so a pod that cannot find
+// one says why instead of exiting silently. The manager's scheme holds the client-go types
 // plus every registration in schemes — resource/scheme.AddToScheme for the SECA CRs, and the
 // provider types the plugin writes, if any. opts reaches the manager unchanged except that its
 // Scheme is always replaced and an empty HealthProbeBindAddress becomes ":8081", the port
 // charts/delegator probes. The /healthz and /readyz checks are already added.
-func NewDelegator(cfg *rest.Config, opts ctrl.Options, schemes ...func(*runtime.Scheme) error) (*Delegator, error) {
+func NewDelegator(opts ctrl.Options, schemes ...func(*runtime.Scheme) error) (*Delegator, error) {
+	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
+	cfg, err := ctrl.GetConfig()
+	if err != nil {
+		return nil, fmt.Errorf("load kubeconfig: %w", err)
+	}
+
 	opts.Scheme = runtime.NewScheme()
 	sb := runtime.NewSchemeBuilder(append(schemes, clientgoscheme.AddToScheme)...)
 	if err := sb.AddToScheme(opts.Scheme); err != nil {
@@ -45,7 +53,6 @@ func NewDelegator(cfg *rest.Config, opts ctrl.Options, schemes ...func(*runtime.
 		opts.HealthProbeBindAddress = ":8081"
 	}
 
-	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 	mgr, err := ctrl.NewManager(cfg, opts)
 	if err != nil {
 		return nil, fmt.Errorf("create manager: %w", err)

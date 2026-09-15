@@ -95,7 +95,7 @@ Each resource slice exports a `NewController` factory in its `backend/kubernetes
 
 The CSP `cmd/main.go` performs assembly on top of a shared bootstrap:
 ```go
-d, err := frameworkbuilder.NewDelegator(ctrl.GetConfigOrDie(), ctrl.Options{}, resourcescheme.AddToScheme)
+d, err := frameworkbuilder.NewDelegator(ctrl.Options{}, resourcescheme.AddToScheme)
 // handle err
 d.Controllers.
     Add(bsk8s.NewController(d.Manager.GetClient(), d.Dynamic, bsPlugin, opts...)).
@@ -104,7 +104,7 @@ d.Controllers.
 err = d.Run(ctrl.SetupSignalHandler())
 ```
 
-`framework/backend/kubernetes/builder.NewDelegator` owns everything that is the same for every plugin: the scheme (client-go types plus the registrations passed in), the manager with `/healthz` and `/readyz` on `:8081` (the port `charts/delegator` probes), the dynamic client and clientset the slices' controllers take, the logger, and an empty `ControllerSet`. `Run` binds the set to the manager and serves it until the context ends. A plugin only chooses what differs: its controllers, any `ctrl.Options` of its own (IONOS moves the metrics server to `:8083`), and the provider CR types it writes (`ionosapis.AddToScheme`, the Aruba operator's `v1alpha1.AddToScheme`), passed after `resourcescheme.AddToScheme`.
+`framework/backend/kubernetes/builder.NewDelegator` owns everything that is the same for every plugin: the logger, the cluster config (`ctrl.GetConfig`: `KUBECONFIG`, the in-cluster config, then `~/.kube/config`; loaded after the logger is set, so a pod that cannot find one logs why and `NewDelegator` returns the error), the scheme (client-go types plus the registrations passed in), the manager with `/healthz` and `/readyz` on `:8081` (the port `charts/delegator` probes), the dynamic client and clientset the slices' controllers take, and an empty `ControllerSet`. `Run` binds the set to the manager and serves it until the context ends. A plugin only chooses what differs: its controllers, any `ctrl.Options` of its own (IONOS moves the metrics server to `:8083`), and the provider CR types it writes (`ionosapis.AddToScheme`, the Aruba operator's `v1alpha1.AddToScheme`), passed after `resourcescheme.AddToScheme`.
 
 `resource/scheme.AddToScheme` registers every slice's CR types in one call. Registering a type starts no informer, so a plugin registers all of them whether or not it reconciles them.
 
@@ -267,7 +267,7 @@ the exclude list in `ci/scripts/go-modules.sh`).
 
 4. **Implement the plugin interfaces** from each resource slice's `backend/kubernetes/plugin.go`. Use `csp/dummy/` as a reference — it is the simplest complete implementation. `Update` is the one with a contract worth reading first (see above): it is level-triggered, so it must be idempotent and must not write when nothing has drifted. A plugin that cannot apply a given change should say so with `backend.ErrNotSupported` rather than returning `nil`, which would claim the change had been applied when nothing happened.
 
-5. **Wire controllers in `cmd/main.go`** using builder inversion: build the process with `frameworkbuilder.NewDelegator(ctrl.GetConfigOrDie(), ctrl.Options{}, resourcescheme.AddToScheme, <provider>.AddToScheme)`, instantiate each plugin, add each slice's `NewController` to `d.Controllers`, then call `d.Run(ctrl.SetupSignalHandler())`. Do not build a scheme, manager, clients or health checks by hand — see [Builder Inversion](#builder-inversion).
+5. **Wire controllers in `cmd/main.go`** using builder inversion: build the process with `frameworkbuilder.NewDelegator(ctrl.Options{}, resourcescheme.AddToScheme, <provider>.AddToScheme)`, instantiate each plugin, add each slice's `NewController` to `d.Controllers`, then call `d.Run(ctrl.SetupSignalHandler())`. Do not build a scheme, manager, clients or health checks by hand — see [Builder Inversion](#builder-inversion).
 
 6. **Add a Makefile** following the dummy plugin pattern with at minimum: `build`, `deploy`, `kind-start`, `kind-stop`.
 
