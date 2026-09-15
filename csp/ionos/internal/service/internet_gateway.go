@@ -17,7 +17,7 @@ type InternetGateway struct {
 
 func (i *InternetGateway) Update(ctx context.Context, resource *internetgatewaydom.InternetGateway) error {
 	// TODO implement me
-	return i.Creator.Do(ctx, resource)
+	return nil
 }
 
 func (i *InternetGateway) Create(ctx context.Context, resource *internetgatewaydom.InternetGateway) error {
