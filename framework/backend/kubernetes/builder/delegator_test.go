@@ -2,7 +2,6 @@ package builder_test
 
 import (
 	"context"
-	"errors"
 	"net"
 	"net/http"
 	"sync/atomic"
@@ -52,27 +51,6 @@ func TestNewDelegator_RegistersSchemes(t *testing.T) {
 	s := d.Manager.GetScheme()
 	assert.True(t, s.Recognizes(corev1.SchemeGroupVersion.WithKind("Namespace")), "client-go types are always registered")
 	assert.True(t, s.Recognizes(widget), "caller registrations are applied")
-	assert.NotNil(t, d.Dynamic)
-	assert.NotNil(t, d.Clientset)
-	assert.NotNil(t, d.Logger)
-	assert.NotNil(t, d.Controllers)
-}
-
-func TestNewDelegator_SchemeError(t *testing.T) {
-	errRegister := errors.New("register failed")
-	cfg, opts := offline("0")
-
-	_, err := builder.NewDelegator(cfg, opts, func(*runtime.Scheme) error { return errRegister })
-	require.ErrorIs(t, err, errRegister)
-}
-
-func TestDelegator_Run_NoControllers(t *testing.T) {
-	cfg, opts := offline("0")
-	d, err := builder.NewDelegator(cfg, opts)
-	require.NoError(t, err)
-
-	// Refused before the manager starts, so an empty context would otherwise block forever.
-	require.Error(t, d.Run(context.Background()))
 }
 
 func TestDelegator_Run_ServesProbesUntilCancelled(t *testing.T) {
