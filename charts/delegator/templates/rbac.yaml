@@ -107,14 +107,15 @@ rules:
   - apiGroups: ["upjet-ionoscloud.m.ionoscloud.io"]
     resources: ["clusterproviderconfigs"]
     verbs: ["get", "list", "watch"]
-  # The SECA resources the ionos plugin reconciles: block-storage and network
-  # (workspace is in the shared block above). It registers no other controllers
-  # and reads no other SECA resource, so nothing else is granted.
+  # The SECA resources the ionos plugin reconciles: block-storage, network,
+  # and internet-gateways (workspace is in the shared block above). It
+  # registers no other controllers and reads no other SECA resource, so
+  # nothing else is granted.
   - apiGroups: ["storage.v1.secapi.cloud"]
     resources: ["block-storages", "block-storages/status"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
   - apiGroups: ["network.v1.secapi.cloud"]
-    resources: ["networks", "networks/status"]
+    resources: ["networks", "networks/status", "internet-gateways", "internet-gateways/status"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
 {{- end }}
 ---
