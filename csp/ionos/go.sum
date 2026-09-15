@@ -144,8 +144,8 @@ github.com/iancoleman/strcase v0.3.0 h1:nTXanmYxhfFAMjZL34Ov6gkzEsSJZ5DbhxWjvSAS
 github.com/iancoleman/strcase v0.3.0/go.mod h1:iwCmte+B7n89clKwxIoIXy/HfoL7AsD47ZCWhYzw7ho=
 github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2s0bqwp9tc8=
 github.com/inconshreveable/mousetrap v1.1.0/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
-github.com/ionos-cloud/provider-upjet-ionoscloud v0.6.0 h1:dur7DYHt4x1bdD595dZ+R0YYftRGUk308p00SeJ0mp8=
-github.com/ionos-cloud/provider-upjet-ionoscloud v0.6.0/go.mod h1:No8COJ1usaBUC5Q3CkLup0w0qa9RHPx/WdvLHvgyWlc=
+github.com/ionos-cloud/provider-upjet-ionoscloud v0.5.8 h1:Sg2FoqNR3p+DVlKI/HreUMqDx0oz2iaZvSbK5NYpQAA=
+github.com/ionos-cloud/provider-upjet-ionoscloud v0.5.8/go.mod h1:3/iiU7QO9Jg030qnTWz9EPhwDyT7XXXIF67YIuQp2wM=
 github.com/json-iterator/go v1.1.12 h1:PV8peI4a0ysnczrg+LtxykD8LfKY9ML6u2jnxaEnrnM=
 github.com/json-iterator/go v1.1.12/go.mod h1:e30LSqwooZae/UwlEbR2852Gd8hjQvJoHmT4TnhNGBo=
 github.com/klauspost/compress v1.18.0 h1:c/Cqfb0r+Yi+JtIEq73FWXVkRonBlf0CRNYc8Zttxdo=

@@ -12,7 +12,7 @@ Quick start
 
 2. Install the provider (replace PROVIDER_PKG with the provider package to install):
 
-   PROVIDER_PKG="ionos-cloud/provider-upjet-ionoscloud:v0.6.0" ./install-provider.sh
+   PROVIDER_PKG="ionos-cloud/provider-upjet-ionoscloud:v0.5.8" ./install-provider.sh
 
 3. Create credentials secret in `crossplane-system` and apply a ProviderConfig
 
