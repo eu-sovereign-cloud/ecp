@@ -26,7 +26,7 @@ import (
 )
 
 func main() {
-	d, err := frameworkbuilder.NewDelegator(ctrl.GetConfigOrDie(), ctrl.Options{}, resourcescheme.AddToScheme)
+	d, err := frameworkbuilder.NewDelegator(ctrl.Options{}, resourcescheme.AddToScheme)
 	if err != nil {
 		slog.Error("unable to bootstrap delegator", "error", err)
 		os.Exit(1)

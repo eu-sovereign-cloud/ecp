@@ -17,7 +17,7 @@ import (
 )
 
 func main() {
-	d, err := frameworkbuilder.NewDelegator(ctrl.GetConfigOrDie(), ctrl.Options{
+	d, err := frameworkbuilder.NewDelegator(ctrl.Options{
 		Metrics: metricsserver.Options{
 			SecureServing: false,
 			BindAddress:   ":8083",
