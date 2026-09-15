@@ -13,12 +13,13 @@ The repo is organized around two orthogonal axes, each a separate Go module:
 ```
               framework/                   (module …/ecp/framework)
               ├─ kernel             ← leaf: ALL abstractions (ports, Scope, Error, validation)
-              ├─ backend/kubernetes → kernel: k8s adapter, schema/v1 CRDs, codegen, GenericController, ControllerSet
+              ├─ backend/kubernetes → kernel: k8s adapter, schema/v1 CRDs, codegen, GenericController, ControllerSet, delegator bootstrap
               └─ frontend           → kernel: httpserver, kubeclient, logger, config
                     │
                     ▼  framework ↛ resource (COMPILER-ENFORCED module boundary)
               resource/                    (module …/ecp/resource)
                ├─ common/{domain,frontend,backend}   shared backbone
+               ├─ scheme/                            one AddToScheme over every slice's CR types
                └─ <group>/vN/<resource>/
                    ├─ domain.go        canonical type + identity consts (package <resource>)
                    ├─ frontend/rest/   REST↔domain converters + HTTP handlers (per-group, shared handler)

@@ -24,8 +24,8 @@ type Reconciler interface {
 }
 
 // ControllerSet is a generic aggregator of Reconciler instances.
-// CSP cmd/main.go builds one ControllerSet, adds each resource controller to it,
-// then calls SetupWithManager once to bind every controller to the manager.
+// NewDelegator builds one for each CSP cmd/main.go to add its resource controllers to;
+// Delegator.Run then calls SetupWithManager once to bind every controller to the manager.
 type ControllerSet struct {
 	reconcilers []Reconciler
 }

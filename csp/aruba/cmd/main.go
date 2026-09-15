@@ -7,15 +7,8 @@ import (
 	"time"
 
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
-	"k8s.io/apimachinery/pkg/runtime"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/kubernetes"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	arubaconverter "github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/converter"
 	arubahandler "github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/handler"
@@ -32,91 +25,34 @@ import (
 	sgrk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group-rule/backend/kubernetes"
 	sgk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group/backend/kubernetes"
 	subnetk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/subnet/backend/kubernetes"
+	resourcescheme "github.com/eu-sovereign-cloud/ecp/resource/scheme"
 	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage/backend/kubernetes"
 	imgk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image/backend/kubernetes"
 	ssk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/storage-sku/backend/kubernetes"
 	wsk8s "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1/backend/kubernetes"
 )
 
-var scheme = runtime.NewScheme()
-
-func init() {
-	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(bsk8s.AddToScheme(scheme))
-	utilruntime.Must(imgk8s.AddToScheme(scheme))
-	utilruntime.Must(ssk8s.AddToScheme(scheme))
-	utilruntime.Must(wsk8s.AddToScheme(scheme))
-	utilruntime.Must(netk8s.AddToScheme(scheme))
-	utilruntime.Must(nick8s.AddToScheme(scheme))
-	utilruntime.Must(igwk8s.AddToScheme(scheme))
-	utilruntime.Must(pipk8s.AddToScheme(scheme))
-	utilruntime.Must(sgk8s.AddToScheme(scheme))
-	utilruntime.Must(sgrk8s.AddToScheme(scheme))
-	utilruntime.Must(routetablek8s.AddToScheme(scheme))
-	utilruntime.Must(subnetk8s.AddToScheme(scheme))
-	utilruntime.Must(instancek8s.AddToScheme(scheme))
-	utilruntime.Must(v1alpha1.AddToScheme(scheme))
-}
-
 func main() {
-	opts := zap.Options{Development: true}
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:                 scheme,
-		HealthProbeBindAddress: ":8081",
-		LeaderElection:         false,
-	})
+	d, err := frameworkbuilder.NewDelegator(ctrl.Options{}, resourcescheme.AddToScheme, v1alpha1.AddToScheme)
 	if err != nil {
-		logger.Error("unable to start manager", "error", err)
-		os.Exit(1)
-	}
-
-	dynClient, err := dynamic.NewForConfig(mgr.GetConfig())
-	if err != nil {
-		logger.Error("unable to create dynamic client", "error", err)
-		os.Exit(1)
-	}
-
-	// Typed client for the Namespace API: the Workspace and Network controllers tear down the
-	// namespace they own for their children once the plugin has finished deleting them.
-	clientset, err := kubernetes.NewForConfig(mgr.GetConfig())
-	if err != nil {
-		logger.Error("unable to create clientset", "error", err)
+		slog.Error("unable to bootstrap delegator", "error", err)
 		os.Exit(1)
 	}
 
 	controllerOpts := []frameworkbuilder.Option{
-		frameworkbuilder.WithLogger(logger.With("component", "controller-set")),
+		frameworkbuilder.WithLogger(d.Logger.With("component", "controller-set")),
 		frameworkbuilder.WithRequeueAfter(1 * time.Second),
 	}
+	loadControllers(context.Background(), d, controllerOpts)
 
-	controllerSet := frameworkbuilder.NewControllerSet()
-	loadControllers(context.Background(), dynClient, clientset, mgr, logger, controllerSet, controllerOpts)
-
-	if err := controllerSet.SetupWithManager(mgr); err != nil {
-		logger.Error("unable to setup controllers with manager", "error", err)
-		os.Exit(1)
-	}
-
-	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-		logger.Error("unable to set up health check", "error", err)
-		os.Exit(1)
-	}
-	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
-		logger.Error("unable to set up ready check", "error", err)
-		os.Exit(1)
-	}
-
-	logger.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		logger.Error("problem running manager", "error", err)
+	if err := d.Run(ctrl.SetupSignalHandler()); err != nil {
+		d.Logger.Error("delegator stopped", "error", err)
 		os.Exit(1)
 	}
 }
 
-func loadControllers(ctx context.Context, dynClient dynamic.Interface, clientset kubernetes.Interface, mgr ctrl.Manager, logger *slog.Logger, controllerSet *frameworkbuilder.ControllerSet, controllerOpts []frameworkbuilder.Option) {
+func loadControllers(ctx context.Context, d *frameworkbuilder.Delegator, controllerOpts []frameworkbuilder.Option) {
+	dynClient, clientset, mgr, logger, controllerSet := d.Dynamic, d.Clientset, d.Manager, d.Logger, d.Controllers
 	logger.Info("Loading 'aruba' plugin set")
 
 	// Instantiate seca-specific read-only repositories. The handlers below read these SECA
