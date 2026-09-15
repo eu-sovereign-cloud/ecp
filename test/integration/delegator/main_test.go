@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -33,6 +32,7 @@ import (
 	routetablek8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/route-table/backend/kubernetes"
 	subnetdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/subnet"
 	subnetk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/subnet/backend/kubernetes"
+	resourcescheme "github.com/eu-sovereign-cloud/ecp/resource/scheme"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage"
 	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage/backend/kubernetes"
 	imgdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image"
@@ -85,14 +85,7 @@ func TestMain(m *testing.M) {
 	// Initialize k8s scheme for client-go
 	s := runtime.NewScheme()
 	utilruntime.Must(scheme.AddToScheme(s))
-	utilruntime.Must(wsk8s.AddToScheme(s))
-	utilruntime.Must(bsk8s.AddToScheme(s))
-	utilruntime.Must(imgk8s.AddToScheme(s))
-	utilruntime.Must(netk8s.AddToScheme(s))
-	utilruntime.Must(subnetk8s.AddToScheme(s))
-	utilruntime.Must(routetablek8s.AddToScheme(s))
-	utilruntime.Must(instancek8s.AddToScheme(s))
-	utilruntime.Must(corev1.AddToScheme(s))
+	utilruntime.Must(resourcescheme.AddToScheme(s))
 
 	restConfig, err := testenv.RestConfig()
 	if err != nil {
