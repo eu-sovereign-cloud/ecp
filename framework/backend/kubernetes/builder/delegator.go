@@ -16,10 +16,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
-// DefaultHealthProbeBindAddress is where a delegator serves /healthz and /readyz when its
-// ctrl.Options leave the address empty. charts/delegator probes this port.
-const DefaultHealthProbeBindAddress = ":8081"
-
 // Delegator is the process a CSP plugin runs: one manager, the clients its controllers are
 // built from, and the set they are added to. Each csp/<plugin>/cmd/main.go builds one with
 // NewDelegator, adds its controllers to Controllers, then calls Run.
@@ -37,17 +33,16 @@ type Delegator struct {
 // NewDelegator builds a Delegator against cfg. The manager's scheme holds the client-go types
 // plus every registration in schemes — resource/scheme.AddToScheme for the SECA CRs, and the
 // provider types the plugin writes, if any. opts reaches the manager unchanged except that its
-// Scheme is always replaced and an empty HealthProbeBindAddress becomes
-// DefaultHealthProbeBindAddress. The /healthz and /readyz checks are already added.
+// Scheme is always replaced and an empty HealthProbeBindAddress becomes ":8081", the port
+// charts/delegator probes. The /healthz and /readyz checks are already added.
 func NewDelegator(cfg *rest.Config, opts ctrl.Options, schemes ...func(*runtime.Scheme) error) (*Delegator, error) {
 	opts.Scheme = runtime.NewScheme()
-	for _, add := range append([]func(*runtime.Scheme) error{clientgoscheme.AddToScheme}, schemes...) {
-		if err := add(opts.Scheme); err != nil {
-			return nil, fmt.Errorf("register scheme: %w", err)
-		}
+	sb := runtime.NewSchemeBuilder(append(schemes, clientgoscheme.AddToScheme)...)
+	if err := sb.AddToScheme(opts.Scheme); err != nil {
+		return nil, fmt.Errorf("register scheme: %w", err)
 	}
 	if opts.HealthProbeBindAddress == "" {
-		opts.HealthProbeBindAddress = DefaultHealthProbeBindAddress
+		opts.HealthProbeBindAddress = ":8081"
 	}
 
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
