@@ -44,6 +44,7 @@ import (
 	securitygroupk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group/backend/kubernetes"
 	subnetdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/subnet"
 	subnetk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/subnet/backend/kubernetes"
+	resourcescheme "github.com/eu-sovereign-cloud/ecp/resource/scheme"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage"
 	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage/backend/kubernetes"
 	imgdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image"
@@ -90,19 +91,7 @@ func TestMain(m *testing.M) {
 
 	s := runtime.NewScheme()
 	utilruntime.Must(clientgoscheme.AddToScheme(s))
-	utilruntime.Must(netk8s.AddToScheme(s))
-	utilruntime.Must(nick8s.AddToScheme(s))
-	utilruntime.Must(publicipk8s.AddToScheme(s))
-	utilruntime.Must(internetgatewayk8s.AddToScheme(s))
-	utilruntime.Must(routetablek8s.AddToScheme(s))
-	utilruntime.Must(securitygroupk8s.AddToScheme(s))
-	utilruntime.Must(securitygrouprulek8s.AddToScheme(s))
-	utilruntime.Must(subnetk8s.AddToScheme(s))
-	utilruntime.Must(instancek8s.AddToScheme(s))
-	utilruntime.Must(wsk8s.AddToScheme(s))
-	utilruntime.Must(bsk8s.AddToScheme(s))
-	utilruntime.Must(imgk8s.AddToScheme(s))
-	utilruntime.Must(corev1.AddToScheme(s))
+	utilruntime.Must(resourcescheme.AddToScheme(s))
 
 	kubeconfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		clientcmd.NewDefaultClientConfigLoadingRules(),

@@ -46,10 +46,16 @@ func (pf *PortForward) Close() {
 // first running pod matching labelSelector in namespace. It blocks until the
 // forwarder is ready or the wait times out.
 func StartPortForward(clientset *kubernetes.Clientset, config *rest.Config, namespace, labelSelector string) (*PortForward, error) {
+	return StartPortForwardTo(clientset, config, namespace, labelSelector, gatewayPort)
+}
+
+// StartPortForwardTo is StartPortForward to an arbitrary container port, for
+// pods that are not gateways (e.g. the delegator's health probe port).
+func StartPortForwardTo(clientset *kubernetes.Clientset, config *rest.Config, namespace, labelSelector string, port int) (*PortForward, error) {
 	stopCh := make(chan struct{})
 	readyCh := make(chan struct{})
 
-	forwarder, err := newForwarder(clientset, config, namespace, labelSelector, stopCh, readyCh)
+	forwarder, err := newForwarder(clientset, config, namespace, labelSelector, port, stopCh, readyCh)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +87,7 @@ func StartPortForward(clientset *kubernetes.Clientset, config *rest.Config, name
 
 // newForwarder waits for a running pod selected by labelSelector, then builds a
 // SPDY-backed port-forwarder to it.
-func newForwarder(clientset *kubernetes.Clientset, config *rest.Config, namespace, labelSelector string, stopCh, readyCh chan struct{}) (*portforward.PortForwarder, error) {
+func newForwarder(clientset *kubernetes.Clientset, config *rest.Config, namespace, labelSelector string, port int, stopCh, readyCh chan struct{}) (*portforward.PortForwarder, error) {
 	var podName string
 	err := wait.PollUntilContextTimeout(context.Background(), pollInterval, waitTimeout, true, func(ctx context.Context) (bool, error) {
 		pods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
@@ -111,6 +117,6 @@ func newForwarder(clientset *kubernetes.Clientset, config *rest.Config, namespac
 	}
 	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, http.MethodPost, reqURL)
 	// Local port 0 lets the OS choose a free port.
-	ports := []string{fmt.Sprintf("0:%d", gatewayPort)}
+	ports := []string{fmt.Sprintf("0:%d", port)}
 	return portforward.New(dialer, ports, stopCh, readyCh, io.Discard, io.Discard)
 }

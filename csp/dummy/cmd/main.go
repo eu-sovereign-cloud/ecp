@@ -5,15 +5,8 @@ import (
 	"os"
 	"time"
 
-	"k8s.io/apimachinery/pkg/runtime"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/kubernetes"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	dummyplugin "github.com/eu-sovereign-cloud/ecp/csp/dummy/pkg/plugin"
 	frameworkbuilder "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/builder"
@@ -26,57 +19,19 @@ import (
 	securitygrouprulek8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group-rule/backend/kubernetes"
 	securitygroupk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group/backend/kubernetes"
 	subnetk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/subnet/backend/kubernetes"
+	resourcescheme "github.com/eu-sovereign-cloud/ecp/resource/scheme"
 	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage/backend/kubernetes"
 	imgk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/image/backend/kubernetes"
 	wsk8s "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1/backend/kubernetes"
 )
 
-var scheme = runtime.NewScheme()
-
-func init() {
-	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(bsk8s.AddToScheme(scheme))
-	utilruntime.Must(imgk8s.AddToScheme(scheme))
-	utilruntime.Must(netk8s.AddToScheme(scheme))
-	utilruntime.Must(nick8s.AddToScheme(scheme))
-	utilruntime.Must(publicipk8s.AddToScheme(scheme))
-	utilruntime.Must(internetgatewayk8s.AddToScheme(scheme))
-	utilruntime.Must(routetablek8s.AddToScheme(scheme))
-	utilruntime.Must(subnetk8s.AddToScheme(scheme))
-	utilruntime.Must(securitygroupk8s.AddToScheme(scheme))
-	utilruntime.Must(securitygrouprulek8s.AddToScheme(scheme))
-	utilruntime.Must(instancek8s.AddToScheme(scheme))
-	utilruntime.Must(wsk8s.AddToScheme(scheme))
-}
-
 func main() {
-	opts := zap.Options{Development: true}
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:                 scheme,
-		HealthProbeBindAddress: ":8081",
-		LeaderElection:         false,
-	})
+	d, err := frameworkbuilder.NewDelegator(ctrl.GetConfigOrDie(), ctrl.Options{}, resourcescheme.AddToScheme)
 	if err != nil {
-		logger.Error("unable to start manager", "error", err)
+		slog.Error("unable to bootstrap delegator", "error", err)
 		os.Exit(1)
 	}
-
-	dynClient, err := dynamic.NewForConfig(mgr.GetConfig())
-	if err != nil {
-		logger.Error("unable to create dynamic client", "error", err)
-		os.Exit(1)
-	}
-
-	// Typed client for the Namespace API: the Workspace and Network controllers tear down the
-	// namespace they own for their children once the plugin has finished deleting them.
-	clientset, err := kubernetes.NewForConfig(mgr.GetConfig())
-	if err != nil {
-		logger.Error("unable to create clientset", "error", err)
-		os.Exit(1)
-	}
+	logger, mgr := d.Logger, d.Manager
 
 	bsPlugin := dummyplugin.NewBlockStorage(logger.With("plugin", "blockstorage"))
 	imgPlugin := dummyplugin.NewImage(logger.With("plugin", "image"))
@@ -96,37 +51,22 @@ func main() {
 		frameworkbuilder.WithRequeueAfter(1 * time.Second),
 	}
 
-	controllerSet := frameworkbuilder.NewControllerSet()
-	controllerSet.Add(bsk8s.NewController(mgr.GetClient(), dynClient, bsPlugin, controllerOpts...))
-	controllerSet.Add(imgk8s.NewController(mgr.GetClient(), dynClient, imgPlugin, controllerOpts...))
-	controllerSet.Add(netk8s.NewController(mgr.GetClient(), dynClient, clientset, netPlugin, controllerOpts...))
-	controllerSet.Add(nick8s.NewController(mgr.GetClient(), dynClient, nicPlugin, controllerOpts...))
-	controllerSet.Add(publicipk8s.NewController(mgr.GetClient(), dynClient, publicIpPlugin, controllerOpts...))
-	controllerSet.Add(internetgatewayk8s.NewController(mgr.GetClient(), dynClient, internetGatewayPlugin, controllerOpts...))
-	controllerSet.Add(routetablek8s.NewController(mgr.GetClient(), dynClient, routeTablePlugin, controllerOpts...))
-	controllerSet.Add(subnetk8s.NewController(mgr.GetClient(), dynClient, subnetPlugin, controllerOpts...))
-	controllerSet.Add(securitygroupk8s.NewController(mgr.GetClient(), dynClient, securityGroupPlugin, controllerOpts...))
-	controllerSet.Add(securitygrouprulek8s.NewController(mgr.GetClient(), dynClient, securityGroupRulePlugin, controllerOpts...))
-	controllerSet.Add(instancek8s.NewController(mgr.GetClient(), dynClient, instancePlugin, controllerOpts...))
-	controllerSet.Add(wsk8s.NewController(mgr.GetClient(), dynClient, clientset, wsPlugin, controllerOpts...))
+	d.Controllers.
+		Add(bsk8s.NewController(mgr.GetClient(), d.Dynamic, bsPlugin, controllerOpts...)).
+		Add(imgk8s.NewController(mgr.GetClient(), d.Dynamic, imgPlugin, controllerOpts...)).
+		Add(netk8s.NewController(mgr.GetClient(), d.Dynamic, d.Clientset, netPlugin, controllerOpts...)).
+		Add(nick8s.NewController(mgr.GetClient(), d.Dynamic, nicPlugin, controllerOpts...)).
+		Add(publicipk8s.NewController(mgr.GetClient(), d.Dynamic, publicIpPlugin, controllerOpts...)).
+		Add(internetgatewayk8s.NewController(mgr.GetClient(), d.Dynamic, internetGatewayPlugin, controllerOpts...)).
+		Add(routetablek8s.NewController(mgr.GetClient(), d.Dynamic, routeTablePlugin, controllerOpts...)).
+		Add(subnetk8s.NewController(mgr.GetClient(), d.Dynamic, subnetPlugin, controllerOpts...)).
+		Add(securitygroupk8s.NewController(mgr.GetClient(), d.Dynamic, securityGroupPlugin, controllerOpts...)).
+		Add(securitygrouprulek8s.NewController(mgr.GetClient(), d.Dynamic, securityGroupRulePlugin, controllerOpts...)).
+		Add(instancek8s.NewController(mgr.GetClient(), d.Dynamic, instancePlugin, controllerOpts...)).
+		Add(wsk8s.NewController(mgr.GetClient(), d.Dynamic, d.Clientset, wsPlugin, controllerOpts...))
 
-	if err := controllerSet.SetupWithManager(mgr); err != nil {
-		logger.Error("unable to setup controllers with manager", "error", err)
-		os.Exit(1)
-	}
-
-	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-		logger.Error("unable to set up health check", "error", err)
-		os.Exit(1)
-	}
-	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
-		logger.Error("unable to set up ready check", "error", err)
-		os.Exit(1)
-	}
-
-	logger.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		logger.Error("problem running manager", "error", err)
+	if err := d.Run(ctrl.SetupSignalHandler()); err != nil {
+		logger.Error("delegator stopped", "error", err)
 		os.Exit(1)
 	}
 }

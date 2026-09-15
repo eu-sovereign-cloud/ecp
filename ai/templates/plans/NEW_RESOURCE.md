@@ -254,7 +254,9 @@ resources — read-only resources have no Status. Ref: the matching canonical ve
 **This is where the spec's requirements/validations land**, as kubebuilder markers (mostly
 auto-injected from go-sdk struct tags). Define group/version constants, `<Kind>GVR`/`<Kind>GVK`,
 the `SchemeBuilder`/`AddToScheme`, the CR struct (`TypeMeta`+`ObjectMeta`+`Spec`+
-`schemav1.CommonData`+`*Status`), the `<Kind>List`, and `init()` registration. Set the
+`schemav1.CommonData`+`*Status`), the `<Kind>List`, and `init()` registration — then add the
+slice's `AddToScheme` to `resource/scheme/scheme.go` (read-only slices too; its
+`TestAddToScheme_CoversEveryCRD` fails on any generated CRD missing there). Set the
 kubebuilder markers, **including the correct `scope=`** (`Namespaced` regional / `Cluster`
 global) and `+ecp:conditioned` **iff read-write**. A scaffold usually already has this — verify
 it, don't recreate it. Ref: the matching vertical's `resource.go`.
@@ -375,8 +377,9 @@ resource, and either add them to the existing group handler struct
   `applyUpdate`. Do **not** give it a simulated delay: `Update` runs on every reconcile of an
   active resource, so a delay would mean `StillProcessing` forever.
 - In `csp/dummy/cmd/main.go`: add the `<k8s>` import (pointing to
-  `resource/<group>/v1/<dir>/backend/kubernetes`), `utilruntime.Must(<k8s>.AddToScheme(scheme))`
-  in `init()`, instantiate the plugin, and `controllerSet.Add(<k8s>.NewController(…))`.
+  `resource/<group>/v1/<dir>/backend/kubernetes`), instantiate the plugin, and chain
+  `.Add(<k8s>.NewController(mgr.GetClient(), d.Dynamic, …))` onto `d.Controllers`. The scheme
+  needs no edit here: `resourcescheme.AddToScheme` (§4.2) already registers the CR.
 - **Skip entirely for read-only** (no controller to run).
 
 ### 4.13 Deployment & RBAC (permissions)
@@ -511,7 +514,7 @@ attribution (e.g. `feat(storage/image): implement image vertical`).
 - [ ] Identity resolved from the spec; `read-only` flag and scope validated against the spec
       (user notified on any mismatch); only-missing steps identified.
 - [ ] `domain.go`, `resource.go`, `generate.go` present and correct (Status/`+ecp:conditioned`
-      only for read-write).
+      only for read-write); `AddToScheme` listed in `resource/scheme/scheme.go`.
 - [ ] Slice present in the `framework/backend/kubernetes/Makefile` `generate-crds` loop (path form: `$(REPO_ROOT)/resource/<group>/v1/<dir>/backend/kubernetes`).
 - [ ] Generation run; `zz_generated_*` and `charts/ecp/crds/<apigroup>_<plural>.yaml` present **with
       the spec's validations**.
