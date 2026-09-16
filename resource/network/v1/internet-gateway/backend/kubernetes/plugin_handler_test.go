@@ -313,6 +313,45 @@ func TestInternetGatewayPluginHandler_HandleReconcile(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	t.Run("should record a terminal condition when plugin create wraps the refusal in a progress signal", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		resource := &internetgatewaydom.InternetGateway{
+			Status: &internetgatewaydom.InternetGatewayStatus{
+				Status: commondomain.Status{
+					State: commondomain.ResourceStateCreating,
+				},
+			},
+		}
+
+		// Wrapping a failure inside a progress signal is against the PluginHandler contract, but
+		// requeueError.Unwrap keeps it discoverable so the refusal must still be classified as
+		// one: the controller drops it as terminal either way, and without this the resource
+		// would be left in Creating with nothing in its status saying why.
+		errUnsupported := fmt.Errorf("%w: egressOnly cannot be enforced", backendport.ErrNotSupported)
+		errWrapped := backendport.RevisitBecause(30*time.Second, errUnsupported)
+
+		mockRepo := NewMockRepo[*internetgatewaydom.InternetGateway](ctrl)
+		mockRepo.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).DoAndReturn(
+			func(_ context.Context, res *internetgatewaydom.InternetGateway) (*internetgatewaydom.InternetGateway, error) {
+				require.Equal(t, commondomain.ResourceStateError, res.Status.State)
+				require.Equal(t, "CreateNotSupported", res.Status.Conditions[0].Type)
+				require.Equal(t, errWrapped.Error(), res.Status.Conditions[0].Message)
+				return nil, nil
+			}).Times(1)
+
+		mockPlugin := NewMockInternetGatewayPlugin(ctrl)
+		mockPlugin.EXPECT().Create(gomock.Any(), resource).Return(errWrapped).Times(1)
+
+		handler := NewInternetGatewayPluginHandler(mockRepo, mockPlugin, 0)
+
+		err := handler.HandleReconcile(context.Background(), resource)
+
+		// Terminal, not rescheduled: the signal must not survive the refusal.
+		require.NoError(t, err)
+	})
+
 	t.Run("should not retry create on a later reconcile of a resource left in the unsupported terminal condition", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()

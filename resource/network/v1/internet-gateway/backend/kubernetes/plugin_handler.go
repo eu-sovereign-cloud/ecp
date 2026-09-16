@@ -72,12 +72,11 @@ func (h *InternetGatewayPluginHandler) HandleReconcile(ctx context.Context, reso
 	}
 
 	if err := delegate(ctx, resource); err != nil {
-		var rq backendport.RequeueError
-		if errors.As(err, &rq) {
-			// Not a failure, and not ours to reinterpret: the plugin named its own cadence.
-			return err
-		}
-
+		// Classified before the progress-signal check below, as the controller and
+		// commonbackend.HandleUpdate both do: requeueError.Unwrap keeps a refusal visible
+		// through a signal, so a plugin returning RevisitBecause(d, ...ErrNotSupported) must
+		// still have its refusal recorded rather than be handed back as a reschedule the
+		// controller then drops with nothing written to the status.
 		if isInternetGatewayCreating(resource) && errors.Is(err, backendport.ErrNotSupported) {
 			// The plugin will never satisfy this create (e.g. Spec.EgressOnly cannot be
 			// enforced). Recording it through setResourceErrorState would leave
@@ -86,6 +85,12 @@ func (h *InternetGatewayPluginHandler) HandleReconcile(ctx context.Context, reso
 			// Creating and hit the same refusal forever. Record a distinct, terminal
 			// condition and stop instead of requeuing.
 			return commonbackend.IgnoreNotFound(h.setResourceRefusedState(ctx, resource, err))
+		}
+
+		var rq backendport.RequeueError
+		if errors.As(err, &rq) {
+			// Not a failure, and not ours to reinterpret: the plugin named its own cadence.
+			return err
 		}
 
 		// The failure is recorded on the resource; retry it on the next pass, unless it is
