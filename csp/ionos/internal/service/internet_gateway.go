@@ -15,9 +15,11 @@ type InternetGateway struct {
 	Deleter *internetgatewayctrl.DeleteInternetGateway
 }
 
+// Update re-applies the desired state through the same path as Create, so a spec change the
+// store cannot honour (Spec.EgressOnly flipped to true) is refused rather than silently kept
+// Active. See InternetGatewayStore.Create.
 func (i *InternetGateway) Update(ctx context.Context, resource *internetgatewaydom.InternetGateway) error {
-	// TODO implement me
-	return nil
+	return i.Creator.Do(ctx, resource)
 }
 
 func (i *InternetGateway) Create(ctx context.Context, resource *internetgatewaydom.InternetGateway) error {

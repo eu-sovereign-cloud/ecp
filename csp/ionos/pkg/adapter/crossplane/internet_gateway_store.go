@@ -2,11 +2,13 @@ package crossplane
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/eu-sovereign-cloud/ecp/csp/ionos/pkg/port"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
 	internetgatewaydom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/internet-gateway"
 )
 
@@ -27,13 +29,12 @@ func NewInternetGatewayStore(c client.Client, logger *slog.Logger) *InternetGate
 //
 // Spec.EgressOnly cannot be honoured. A public IONOS LAN is bidirectional, and there is no
 // per-LAN switch to drop inbound traffic; ingress is instead gated by whether a NIC holds a
-// public IP. Create still succeeds — refusing would block every tenant that asks for the
-// stricter of the two modes, and the resulting reachability is a superset of what was requested
-// only for NICs that were separately given a public IP. It is logged so the gap is visible.
+// public IP. Reporting the gateway ready anyway would tell the tenant their outgoing-only
+// request took effect when inbound traffic to a publicly-addressed NIC still gets through, so
+// this refuses instead of silently downgrading the guarantee.
 func (a *InternetGatewayStore) Create(ctx context.Context, domain *internetgatewaydom.InternetGateway) error {
 	if domain.Spec.EgressOnly {
-		a.logger.Warn("internet gateway: egressOnly is not enforceable on IONOS, a public LAN is bidirectional; inbound is gated by public IP assignment instead",
-			"internet_gateway", domain.GetName())
+		return fmt.Errorf("%w: egressOnly cannot be enforced on IONOS, a public LAN is bidirectional and inbound is gated only by public IP assignment", backend.ErrNotSupported)
 	}
 	a.logger.Info("internet gateway: ready as declaration, no IONOS resource (LANs are created with Public=true)",
 		"internet_gateway", domain.GetName())
