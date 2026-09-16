@@ -15,10 +15,16 @@ import (
 	internetgatewaydom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/internet-gateway"
 )
 
-// createNotSupportedConditionType marks a Create failure as permanent: the plugin has refused the
-// request outright (backendport.ErrNotSupported) rather than hit a transient error, so retrying
-// Create would only be refused again. wantInternetGatewayRetryCreate excludes conditions of this
-// type so such a resource does not loop forever between Creating and Error.
+// createNotSupportedConditionType marks a Create failure as a refusal: the plugin rejected the
+// request outright (backendport.ErrNotSupported) rather than hit a transient error, so the same
+// spec would only be refused again. wantInternetGatewayRetryCreate excludes conditions of this
+// type, keeping the resource out of the Creating/Error loop a transient failure gets.
+//
+// A refusal is settled, not permanent. The spec that caused it is the tenant's to correct, so
+// wantInternetGatewayRefusedCreateRetry hands a resource in this state back to Create - without
+// first re-entering Creating, which is what would make the loop - and setResourceRefusedState
+// writes nothing when the refusal is unchanged, so an uncorrected spec comes to rest after one
+// more refused attempt instead of being stranded or spinning.
 const createNotSupportedConditionType = "CreateNotSupported"
 
 // InternetGatewayPluginHandler drives the InternetGateway reconciliation state machine.
@@ -54,19 +60,26 @@ func (h *InternetGatewayPluginHandler) HandleReconcile(ctx context.Context, reso
 
 	var delegate backendport.DelegatedFunc[*internetgatewaydom.InternetGateway]
 
+	// Whether this pass is the one attempting the create, either from Creating or as a fresh
+	// attempt at a spec a previous pass refused. Both classify an ErrNotSupported below as a
+	// Create refusal rather than a transient failure.
+	var creating bool
+
 	switch {
 	case isInternetGatewayAccepted(resource):
 		delegate = frameworkbackend.BypassDelegated[*internetgatewaydom.InternetGateway]
 	case isInternetGatewayPending(resource):
 		delegate = frameworkbackend.BypassDelegated[*internetgatewaydom.InternetGateway]
 	case isInternetGatewayCreating(resource):
-		delegate = h.plugin.Create
+		delegate, creating = h.plugin.Create, true
 	case wantInternetGatewayDelete(resource):
 		delegate = frameworkbackend.BypassDelegated[*internetgatewaydom.InternetGateway]
 	case isInternetGatewayDeleting(resource):
 		delegate = h.plugin.Delete
 	case wantInternetGatewayRetryCreate(resource):
 		delegate = frameworkbackend.BypassDelegated[*internetgatewaydom.InternetGateway]
+	case wantInternetGatewayRefusedCreateRetry(resource):
+		delegate, creating = h.plugin.Create, true
 	default:
 		return nil // Nothing to do.
 	}
@@ -77,13 +90,13 @@ func (h *InternetGatewayPluginHandler) HandleReconcile(ctx context.Context, reso
 		// through a signal, so a plugin returning RevisitBecause(d, ...ErrNotSupported) must
 		// still have its refusal recorded rather than be handed back as a reschedule the
 		// controller then drops with nothing written to the status.
-		if isInternetGatewayCreating(resource) && errors.Is(err, backendport.ErrNotSupported) {
-			// The plugin will never satisfy this create (e.g. Spec.EgressOnly cannot be
-			// enforced). Recording it through setResourceErrorState would leave
+		if creating && errors.Is(err, backendport.ErrNotSupported) {
+			// The plugin will not satisfy this create as specified (e.g. Spec.EgressOnly
+			// cannot be enforced). Recording it through setResourceErrorState would leave
 			// wantInternetGatewayRetryCreate unable to tell this apart from a transient
 			// failure, so every later reconcile would send the resource back through
-			// Creating and hit the same refusal forever. Record a distinct, terminal
-			// condition and stop instead of requeuing.
+			// Creating and hit the same refusal forever. Record a distinct condition and
+			// stop instead of requeuing.
 			return commonbackend.IgnoreNotFound(h.setResourceRefusedState(ctx, resource, err))
 		}
 
@@ -111,6 +124,11 @@ func (h *InternetGatewayPluginHandler) HandleReconcile(ctx context.Context, reso
 		return nil
 	case wantInternetGatewayRetryCreate(resource):
 		return commonbackend.RequeueAfterState(h.setResourceState(ctx, resource, commondomain.ResourceStateCreating))
+	case wantInternetGatewayRefusedCreateRetry(resource):
+		// The refused spec has since been corrected and the create just succeeded, so the
+		// gateway goes straight to Active. The refusal stays in the condition history as a
+		// record of what the tenant had asked for.
+		return commonbackend.IgnoreNotFound(h.setResourceState(ctx, resource, commondomain.ResourceStateActive))
 	default:
 		return fmt.Errorf("unreachable reconcile state for internet gateway %q", resource.GetName())
 	}
@@ -142,21 +160,33 @@ func (h *InternetGatewayPluginHandler) setResourceErrorState(ctx context.Context
 	return updateErr
 }
 
-// setResourceRefusedState records a permanent Create refusal. Unlike setResourceErrorState, the
-// condition it pushes carries createNotSupportedConditionType so wantInternetGatewayRetryCreate
-// can recognise it and refuse to re-enter Creating.
+// setResourceRefusedState records a Create refusal. Unlike setResourceErrorState, the condition it
+// pushes carries createNotSupportedConditionType so wantInternetGatewayRetryCreate can recognise it
+// and refuse to re-enter Creating.
+//
+// Re-reporting an unchanged refusal writes nothing. PushCondition would still bump
+// LastTransitionAt and Occurrences, and that write is itself enough to trigger another reconcile,
+// which wantInternetGatewayRefusedCreateRetry would answer with another attempt at the same spec -
+// so a refusal that keeps being handed back settles here instead of spinning.
 func (h *InternetGatewayPluginHandler) setResourceRefusedState(ctx context.Context, resource *internetgatewaydom.InternetGateway, err error) error {
 	if resource.Status == nil {
 		resource.Status = &internetgatewaydom.InternetGatewayStatus{}
 	}
 
-	resource.Status.PushCondition(commondomain.StatusCondition{
+	condition := commondomain.StatusCondition{
 		LastTransitionAt: time.Now(),
 		Type:             createNotSupportedConditionType,
 		State:            commondomain.ResourceStateError,
 		Reason:           "NotSupported",
 		Message:          err.Error(),
-	})
+	}
+
+	if previous := resource.Status.PeekConditions(); previous != nil &&
+		commondomain.EqualStatusConditions(*previous, condition) {
+		return nil
+	}
+
+	resource.Status.PushCondition(condition)
 	commonbackend.TrimConditions(&resource.Status.Status, h.MaxConditions)
 
 	_, updateErr := h.repo.UpdateStatus(ctx, resource)
@@ -206,4 +236,19 @@ func wantInternetGatewayRetryCreate(resource *internetgatewaydom.InternetGateway
 		len(resource.Status.Conditions) > 1 &&
 		resource.Status.Conditions[1].State == commondomain.ResourceStateCreating &&
 		resource.Status.Conditions[0].Type != createNotSupportedConditionType
+}
+
+// wantInternetGatewayRefusedCreateRetry reports whether a gateway is resting on a Create refusal
+// and should be offered to the plugin again. The offer is what lets a corrected spec recover: the
+// refusal is a judgement on what was asked for, not on the resource, and without this the only way
+// out of the state would be to delete the gateway and recreate it.
+//
+// It delegates to Create directly rather than routing back through Creating. Writing a Creating
+// condition first would change the status on every pass, and each of those writes would trigger
+// the reconcile that writes the next one - the loop the refusal exists to prevent.
+func wantInternetGatewayRefusedCreateRetry(resource *internetgatewaydom.InternetGateway) bool {
+	return resource.DeletedAt == nil && resource.Status != nil &&
+		resource.Status.State == commondomain.ResourceStateError &&
+		len(resource.Status.Conditions) > 0 &&
+		resource.Status.Conditions[0].Type == createNotSupportedConditionType
 }

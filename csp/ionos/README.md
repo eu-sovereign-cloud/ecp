@@ -47,25 +47,30 @@ helm install crossplane crossplane-stable/crossplane --namespace crossplane-syst
 kubectl crossplane install provider crossplane/provider-ionoscloud:v0.5.0
 ```
 
-Create a ProviderConfig for IonOS with your credentials (replace with actual values):
+Create a ClusterProviderConfig for IonOS with your credentials (replace with actual values).
+It must be the cluster-scoped kind, and carry exactly this name: the plugin creates its managed
+resources in a namespace per tenant, and every one of them references
+`ClusterProviderConfig/cluster-ionos-provider-config` (see `ProviderConfigName` and
+`ProviderConfigType` in `pkg/adapter/crossplane/base.go`). `deploy/providerconfig-example.yaml`,
+applied by `make provider-config`, is the same manifest.
 
 ```yaml
-apiVersion: ionoscloud.crossplane.io/v1alpha1
-kind: ProviderConfig
+apiVersion: upjet-ionoscloud.m.ionoscloud.io/v1beta1
+kind: ClusterProviderConfig
 metadata:
-  name: ionos-provider-config
+  name: cluster-ionos-provider-config
 spec:
   credentials:
     source: Secret
     secretRef:
-      name: ionos-creds
+      name: ionos-credentials
       namespace: crossplane-system
       key: credentials
 ---
 apiVersion: v1
 kind: Secret
 metadata:
-  name: ionos-creds
+  name: ionos-credentials
   namespace: crossplane-system
 type: Opaque
 data:
