@@ -3,6 +3,7 @@ package kubernetes_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -271,6 +272,67 @@ func TestInternetGatewayPluginHandler_HandleReconcile(t *testing.T) {
 
 		mockRepo := NewMockRepo[*internetgatewaydom.InternetGateway](ctrl)
 		mockPlugin := NewMockInternetGatewayPlugin(ctrl)
+		handler := NewInternetGatewayPluginHandler(mockRepo, mockPlugin, 0)
+
+		err := handler.HandleReconcile(context.Background(), resource)
+
+		require.NoError(t, err)
+	})
+
+	t.Run("should record a terminal condition and not requeue when plugin create refuses as unsupported", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		resource := &internetgatewaydom.InternetGateway{
+			Status: &internetgatewaydom.InternetGatewayStatus{
+				Status: commondomain.Status{
+					State: commondomain.ResourceStateCreating,
+				},
+			},
+		}
+
+		errUnsupported := fmt.Errorf("%w: egressOnly cannot be enforced", backendport.ErrNotSupported)
+
+		mockRepo := NewMockRepo[*internetgatewaydom.InternetGateway](ctrl)
+		mockRepo.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).DoAndReturn(
+			func(_ context.Context, res *internetgatewaydom.InternetGateway) (*internetgatewaydom.InternetGateway, error) {
+				require.Equal(t, commondomain.ResourceStateError, res.Status.State)
+				require.Equal(t, "CreateNotSupported", res.Status.Conditions[0].Type)
+				require.Equal(t, errUnsupported.Error(), res.Status.Conditions[0].Message)
+				return nil, nil
+			}).Times(1)
+
+		mockPlugin := NewMockInternetGatewayPlugin(ctrl)
+		mockPlugin.EXPECT().Create(gomock.Any(), resource).Return(errUnsupported).Times(1)
+
+		handler := NewInternetGatewayPluginHandler(mockRepo, mockPlugin, 0)
+
+		err := handler.HandleReconcile(context.Background(), resource)
+
+		// A refusal is terminal: no StillProcessing/RevisitBecause, so nothing requeues it.
+		require.NoError(t, err)
+	})
+
+	t.Run("should not retry create on a later reconcile of a resource left in the unsupported terminal condition", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		resource := &internetgatewaydom.InternetGateway{
+			Status: &internetgatewaydom.InternetGatewayStatus{
+				Status: commondomain.Status{
+					State: commondomain.ResourceStateError,
+					Conditions: []commondomain.StatusCondition{
+						{Type: "CreateNotSupported", State: commondomain.ResourceStateError, LastTransitionAt: time.Now()},
+						{State: commondomain.ResourceStateCreating, LastTransitionAt: time.Now().Add(-1 * time.Minute)},
+						{State: commondomain.ResourceStatePending, LastTransitionAt: time.Now().Add(-2 * time.Minute)},
+					},
+				},
+			},
+		}
+
+		mockRepo := NewMockRepo[*internetgatewaydom.InternetGateway](ctrl)
+		mockPlugin := NewMockInternetGatewayPlugin(ctrl)
+		// No Create or UpdateStatus expectation: this reconcile must do nothing.
 		handler := NewInternetGatewayPluginHandler(mockRepo, mockPlugin, 0)
 
 		err := handler.HandleReconcile(context.Background(), resource)
