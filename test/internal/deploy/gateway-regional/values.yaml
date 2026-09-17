@@ -9,8 +9,15 @@ gatewayGlobal:
   enabled: false
 
 gatewayRegional:
-  # Must match a region in test-data/regions.yaml.
+  # The default region: what a request that names none is served as. Must match a region
+  # in test-data/regions.yaml.
   region: itbg-bergamo
+  # One deployment, two regions. region-two is reachable only under its
+  # /regions/region-two prefix, which is what the multi-region suites drive; every other
+  # request is still served as itbg-bergamo, so the rest of the suites are unaffected.
+  regions:
+    - itbg-bergamo
+    - region-two
   service:
     type: NodePort
     nodePort: 30081

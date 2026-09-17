@@ -43,7 +43,7 @@ func (h *Handler) CreateOrUpdateBlockStorage(w http.ResponseWriter, r *http.Requ
 	if params.IfUnmodifiedSince != nil {
 		id.Version = strconv.Itoa(*params.IfUnmodifiedSince)
 	}
-	region := h.Region
+	region := resource.RegionFromContext(r.Context(), h.Region)
 	frest.HandleUpsert(w, r, logger, frest.UpsertOptions[sdkschema.BlockStorage, *bsdom.BlockStorage, *sdkschema.BlockStorage]{
 		Params:  id,
 		Creator: frest.CreatorFromRepo(h.BlockStorageWriter),

@@ -20,7 +20,9 @@ type Handler struct {
 	Reader persistencepkg.ReaderRepo[*wsdom.Workspace]
 	Writer persistencepkg.WriterRepo[*wsdom.Workspace]
 	Logger *slog.Logger
-	// Region is the region this handler serves; empty on the global server.
+	// Region is the default region this handler serves: what a request that named no
+	// region is served as. A gateway may serve several, in which case the region resolved
+	// for the request (resource.RegionFromContext) wins. Empty on the global server.
 	Region string
 }
 
@@ -56,7 +58,7 @@ func (h *Handler) CreateOrUpdateWorkspace(w http.ResponseWriter, r *http.Request
 	if params.IfUnmodifiedSince != nil {
 		id.Version = strconv.Itoa(*params.IfUnmodifiedSince)
 	}
-	region := h.Region
+	region := resource.RegionFromContext(r.Context(), h.Region)
 	frest.HandleUpsert(w, r, logger, frest.UpsertOptions[sdkschema.Workspace, *wsdom.Workspace, *sdkschema.Workspace]{
 		Params:  id,
 		Creator: frest.CreatorFromRepo(h.Writer),

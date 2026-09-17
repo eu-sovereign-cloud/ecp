@@ -30,7 +30,10 @@ helm install ecp ecp/ecp --version 0.0.2-alpha \
   --set ecp-delegator.plugin=aruba
 ```
 
-`gatewayRegional.region` is **required**. `ecp-delegator.plugin` picks the CSP —
+`gatewayRegional.region` is **required** (or `gatewayRegional.regions`, to serve several
+regions from one deployment — see
+[Multi-region gateways](doc/ARCHITECTURE.md#multi-region-gateways)).
+`ecp-delegator.plugin` picks the CSP —
 it selects both the delegator image and the RBAC the chart grants — and each
 plugin reconciles into a backend you install **out of band**; until it is there,
 resources are accepted and stay pending:

@@ -50,7 +50,7 @@ func (h *Handler) CreateOrUpdateInstance(w http.ResponseWriter, r *http.Request,
 	if params.IfUnmodifiedSince != nil {
 		id.Version = strconv.Itoa(*params.IfUnmodifiedSince)
 	}
-	region := h.Region
+	region := resource.RegionFromContext(r.Context(), h.Region)
 
 	// Power intent (desired power state, in-flight restart) is controller-managed internal state,
 	// not part of the API body. Load the existing instance first so an ordinary spec/label update

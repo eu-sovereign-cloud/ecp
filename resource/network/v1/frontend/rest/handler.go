@@ -46,7 +46,9 @@ type Handler struct {
 	SecurityGroupRuleReader persistencepkg.ReaderRepo[*securitygroupruledom.SecurityGroupRule]
 	SecurityGroupRuleWriter persistencepkg.WriterRepo[*securitygroupruledom.SecurityGroupRule]
 	Logger                  *slog.Logger
-	// Region is the region this handler serves; empty on the global server.
+	// Region is the default region this handler serves: what a request that named no
+	// region is served as. A gateway may serve several, in which case the region resolved
+	// for the request (resource.RegionFromContext) wins. Empty on the global server.
 	Region string
 }
 

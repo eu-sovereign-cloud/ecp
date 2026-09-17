@@ -356,6 +356,14 @@ curl -H "Authorization: Bearer $JWT" http://localhost:8080/providers/seca.region
 The authorization decision is made by evaluating an `AuthorizationClaim` against
 all `Role` and `RoleAssignment` resources in the claim's tenant namespace.
 
+`claim.Region` is the region the **request** was addressed to, not a property of the
+process: a gateway serving several regions resolves it per request (see
+[ARCHITECTURE.md](ARCHITECTURE.md#multi-region-gateways)), and `SECAClaimExtractor` reads
+it back off the request context, falling back to the single region the process was
+configured with. A region-scoped `RoleAssignment` therefore denies the same subject in one
+region and allows them in another within one deployment. It is empty on the global gateway,
+where the scope check skips the region dimension.
+
 ### Algorithm
 
 ```
@@ -547,6 +555,7 @@ framework/frontend/middleware/
     authentication.go                      NewAuthentication — reads bearer header
     authorization.go                       NewAuthorization — generic authz middleware
     claim.go                               SECAClaimExtractor — derives claim from request
+    region.go                              NewRegionRouter — resolves claim.Region per request
     chain.go                               Chain[M] — typed, order-preserving wrapper
     context.go                             IdentityFromContext
 

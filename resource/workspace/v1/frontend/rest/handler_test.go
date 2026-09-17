@@ -71,3 +71,19 @@ func TestHandler_CreateOrUpdateWorkspace_UsesInjectedRegion(t *testing.T) {
 		})
 	}
 }
+
+// TestHandler_CreateOrUpdateWorkspace_RequestRegionWins verifies that when the gateway
+// serves several regions, the region resolved for the request — not the handler's default —
+// is what gets stamped on the created workspace, so the same Handler can place resources in
+// whichever region the caller addressed.
+func TestHandler_CreateOrUpdateWorkspace_RequestRegionWins(t *testing.T) {
+	repo := &fakeWorkspaceRepo{}
+	h := &Handler{Reader: repo, Writer: repo, Logger: slog.Default(), Region: "eu-central"}
+
+	ctx := resource.ContextWithRegion(context.Background(), "us-west")
+	req := httptest.NewRequestWithContext(ctx, http.MethodPut, "/", strings.NewReader("{}"))
+	h.CreateOrUpdateWorkspace(httptest.NewRecorder(), req, "t1", "ws1", sdkworkspace.CreateOrUpdateWorkspaceParams{})
+
+	require.NotNil(t, repo.written)
+	require.Equal(t, "us-west", repo.written.Region)
+}
