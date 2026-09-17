@@ -234,7 +234,8 @@ func wantInternetGatewayRetryCreate(resource *internetgatewaydom.InternetGateway
 	return resource.DeletedAt == nil && resource.Status != nil &&
 		resource.Status.State == commondomain.ResourceStateError &&
 		len(resource.Status.Conditions) > 1 &&
-		resource.Status.Conditions[1].State == commondomain.ResourceStateCreating &&
+		(resource.Status.Conditions[1].State == commondomain.ResourceStateCreating ||
+			resource.Status.Conditions[1].Type == createNotSupportedConditionType) &&
 		resource.Status.Conditions[0].Type != createNotSupportedConditionType
 }
 
