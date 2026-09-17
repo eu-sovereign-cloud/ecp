@@ -17,6 +17,7 @@ import (
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	commonbackend "github.com/eu-sovereign-cloud/ecp/resource/common/backend"
+	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	instancedom "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/instance"
 )
 
@@ -133,11 +134,11 @@ func (a *InstanceStore) PowerOn(ctx context.Context, domain *instancedom.Instanc
 	// 5. Primary NIC on the public LAN with the reserved public IP.
 	if domain.Spec.PrimaryNicRef != nil {
 		nicName := commonbackend.ParseReference(*domain.Spec.PrimaryNicRef, domain.GetTenant()).Name
-		lanName, publicIP, err := a.readNicNetworking(ctx, *domain.Spec.PrimaryNicRef, domain.GetTenant(), domain.GetWorkspace())
+		net, err := a.readNicNetworking(ctx, *domain.Spec.PrimaryNicRef, domain.GetTenant(), domain.GetWorkspace())
 		if err != nil {
 			return err
 		}
-		if err := a.ensureNic(ctx, domain, ns, nicName, lanName, publicIP); err != nil {
+		if err := a.ensureNic(ctx, domain, ns, nicName, net); err != nil {
 			return err
 		}
 	}
@@ -259,32 +260,34 @@ func (a *InstanceStore) newBootVolume(domain *instancedom.Instance, ns, name, al
 // control, so trying to force it back to nil here would race that process and never converge —
 // permanently blocking PowerOn (and the instance's power state) instead of just letting DHCP do
 // its job.
-func (a *InstanceStore) ensureNic(ctx context.Context, domain *instancedom.Instance, ns, name, lanName, publicIP string) error {
+func (a *InstanceStore) ensureNic(ctx context.Context, domain *instancedom.Instance, ns, name string, net nicNetworking) error {
 	nic := &ionosv1alpha1.Nic{}
 	err := a.client.Get(ctx, client.ObjectKey{Namespace: ns, Name: name}, nic)
 	switch {
 	case apierrors.IsNotFound(err):
-		return a.createCR(ctx, a.newNic(domain, ns, name, lanName, publicIP))
+		return a.createCR(ctx, a.newNic(domain, ns, name, net))
 	case err != nil:
 		a.logger.Error("failed to get nic", "name", name, "error", err)
 		return err
 	}
 
-	desired := a.newNic(domain, ns, name, lanName, publicIP)
+	desired := a.newNic(domain, ns, name, net)
 	changed := !ptr.Equal(nic.Spec.ForProvider.LanRef, desired.Spec.ForProvider.LanRef) ||
 		!ptr.Equal(nic.Spec.ForProvider.ServerIDRef, desired.Spec.ForProvider.ServerIDRef) ||
 		!ptr.Equal(nic.Spec.ForProvider.DatacenterIDRef, desired.Spec.ForProvider.DatacenterIDRef) ||
 		!ptr.Equal(nic.Spec.ForProvider.DHCP, desired.Spec.ForProvider.DHCP) ||
-		!ptr.Equal(nic.Spec.ForProvider.FirewallActive, desired.Spec.ForProvider.FirewallActive)
+		!ptr.Equal(nic.Spec.ForProvider.FirewallActive, desired.Spec.ForProvider.FirewallActive) ||
+		!sameNamespacedRefs(nic.Spec.ForProvider.SecurityGroupsIdsRefs, desired.Spec.ForProvider.SecurityGroupsIdsRefs)
 	if changed {
 		nic.Spec.ForProvider.LanRef = desired.Spec.ForProvider.LanRef
 		nic.Spec.ForProvider.ServerIDRef = desired.Spec.ForProvider.ServerIDRef
 		nic.Spec.ForProvider.DatacenterIDRef = desired.Spec.ForProvider.DatacenterIDRef
 		nic.Spec.ForProvider.DHCP = desired.Spec.ForProvider.DHCP
 		nic.Spec.ForProvider.FirewallActive = desired.Spec.ForProvider.FirewallActive
+		nic.Spec.ForProvider.SecurityGroupsIdsRefs = desired.Spec.ForProvider.SecurityGroupsIdsRefs
 	}
-	if publicIP != "" && !nicHasReservedIP(nic.Spec.ForProvider.Ips, publicIP) {
-		nic.Spec.ForProvider.Ips = []*string{new(publicIP)}
+	if net.PublicIP != "" && !nicHasReservedIP(nic.Spec.ForProvider.Ips, net.PublicIP) {
+		nic.Spec.ForProvider.Ips = []*string{new(net.PublicIP)}
 		changed = true
 	}
 	if changed {
@@ -299,7 +302,7 @@ func nicHasReservedIP(current []*string, wantIP string) bool {
 	return len(current) == 1 && current[0] != nil && *current[0] == wantIP
 }
 
-func (a *InstanceStore) newNic(domain *instancedom.Instance, ns, name, lanName, publicIP string) *ionosv1alpha1.Nic {
+func (a *InstanceStore) newNic(domain *instancedom.Instance, ns, name string, net nicNetworking) *ionosv1alpha1.Nic {
 	nic := &ionosv1alpha1.Nic{
 		TypeMeta:   metav1.TypeMeta{APIVersion: ionosv1alpha1.CRDGroupVersion.String(), Kind: ionosv1alpha1.Nic_Kind},
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: ns},
@@ -308,7 +311,7 @@ func (a *InstanceStore) newNic(domain *instancedom.Instance, ns, name, lanName, 
 				Name:            new(name),
 				DatacenterIDRef: &v1.NamespacedReference{Name: domain.GetWorkspace(), Namespace: datacenterNamespace(domain)},
 				ServerIDRef:     &v1.NamespacedReference{Name: domain.GetName(), Namespace: ns},
-				LanRef:          &v1.NamespacedReference{Name: lanName, Namespace: datacenterNamespace(domain)},
+				LanRef:          &v1.NamespacedReference{Name: net.LanName, Namespace: datacenterNamespace(domain)},
 				DHCP:            new(true),
 				FirewallActive:  new(false),
 			},
@@ -317,9 +320,10 @@ func (a *InstanceStore) newNic(domain *instancedom.Instance, ns, name, lanName, 
 	}
 	// Only pin an explicit public IP when one was reserved. When empty, leave Ips
 	// unset so IONOS DHCP auto-assigns a public IPv4 on the public LAN.
-	if publicIP != "" {
-		nic.Spec.ForProvider.Ips = []*string{new(publicIP)}
+	if net.PublicIP != "" {
+		nic.Spec.ForProvider.Ips = []*string{new(net.PublicIP)}
 	}
+	nic.Spec.ForProvider.SecurityGroupsIdsRefs = securityGroupRefs(domain, net.SecurityGroupRefs)
 	return nic
 }
 
@@ -338,4 +342,67 @@ func toPtrSlice(in []string) []*string {
 		out[i] = new(in[i])
 	}
 	return out
+}
+
+// securityGroupRefs resolves the NSG CRs the IONOS Nic must attach: the security groups the
+// SECA NIC names, plus the instance's own if it has one.
+//
+// Both are folded onto the NIC rather than the instance's going on the Server. IONOS supports
+// either level and combines them, so this is a simplicity call, not a semantic one: ensureNic
+// already re-asserts the NIC's desired spec on every power-on, while ensureServer deliberately
+// does not, and one code path is one place for a group to be dropped or duplicated.
+//
+// Order follows the spec and duplicates are collapsed, so an unchanged spec always yields an
+// identical list — a list that reordered itself between reconciles would read as drift and be
+// rewritten forever.
+//
+// The refs, not the resolved SecurityGroupsIds, are what this plugin owns: Crossplane resolves
+// each ref to an NSG's provider ID and writes it into SecurityGroupsIds, so comparing or setting
+// that field here would fight the resolver.
+func securityGroupRefs(domain *instancedom.Instance, nicRefs []commondomain.Reference) []v1.NamespacedReference {
+	refs := make([]commondomain.Reference, 0, len(nicRefs)+1)
+	refs = append(refs, nicRefs...)
+	if domain.Spec.SecurityGroupRef != nil {
+		refs = append(refs, *domain.Spec.SecurityGroupRef)
+	}
+	if len(refs) == 0 {
+		return nil
+	}
+
+	seen := make(map[v1.NamespacedReference]struct{}, len(refs))
+	out := make([]v1.NamespacedReference, 0, len(refs))
+	for _, ref := range refs {
+		target := commonbackend.ParseReference(ref, domain.GetTenant())
+		if target.Workspace == "" {
+			target.Workspace = domain.GetWorkspace()
+		}
+		resolved := v1.NamespacedReference{
+			Name: target.Name,
+			Namespace: k8sadapter.ComputeNamespace(&resource.Scope{
+				Tenant:    target.Tenant,
+				Workspace: target.Workspace,
+			}),
+		}
+		if _, dup := seen[resolved]; dup {
+			continue
+		}
+		seen[resolved] = struct{}{}
+		out = append(out, resolved)
+	}
+	return out
+}
+
+// sameNamespacedRefs compares two reference lists by what they point at. NamespacedReference
+// carries a Policy pointer that this plugin never sets, so == on the struct would compare
+// pointer identity rather than meaning.
+func sameNamespacedRefs(a, b []v1.NamespacedReference) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i].Name != b[i].Name || a[i].Namespace != b[i].Namespace {
+			return false
+		}
+	}
+	return true
 }

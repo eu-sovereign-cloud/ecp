@@ -97,11 +97,22 @@ func networkFromSubnetRef(subnetRef domain.Reference) (string, error) {
 	return "", fmt.Errorf("subnet reference %q has no network segment", subnetRef.Resource)
 }
 
-// readNicNetworking resolves the LAN name (from the NIC's subnet reference path) and
-// the reserved public IP (via the NIC's public-ip ref -> IPBlock) for a NIC. The NIC
-// reference falls back to the instance's own tenant/workspace when it doesn't carry
-// its own (same-workspace references omit both).
-func (c *base) readNicNetworking(ctx context.Context, nicRef domain.Reference, defaultTenant, defaultWorkspace string) (lanName, publicIP string, err error) {
+// nicNetworking is everything PowerOn has to resolve about a SECA NIC before it can build the
+// IONOS Nic that backs it.
+type nicNetworking struct {
+	// LanName is the IONOS Lan the NIC sits on, derived from its subnet reference path.
+	LanName string
+	// PublicIP is the reserved address to pin, or empty to let IONOS DHCP assign one.
+	PublicIP string
+	// SecurityGroupRefs are the SECA security groups the NIC itself attaches.
+	SecurityGroupRefs []domain.Reference
+}
+
+// readNicNetworking resolves the LAN name (from the NIC's subnet reference path), the reserved
+// public IP (via the NIC's public-ip ref -> IPBlock) and the security groups the NIC attaches.
+// The NIC reference falls back to the instance's own tenant/workspace when it doesn't carry its
+// own (same-workspace references omit both).
+func (c *base) readNicNetworking(ctx context.Context, nicRef domain.Reference, defaultTenant, defaultWorkspace string) (nicNetworking, error) {
 	t := commonbackend.ParseReference(nicRef, defaultTenant)
 	if t.Workspace == "" {
 		t.Workspace = defaultWorkspace
@@ -110,23 +121,24 @@ func (c *base) readNicNetworking(ctx context.Context, nicRef domain.Reference, d
 
 	nicCR := &nick8s.NIC{}
 	if err := c.client.Get(ctx, client.ObjectKey{Namespace: ns, Name: t.Name}, nicCR); err != nil {
-		return "", "", fmt.Errorf("read nic %q: %w", t.Name, err)
+		return nicNetworking{}, fmt.Errorf("read nic %q: %w", t.Name, err)
 	}
 	nic, err := nick8s.NicFromCR(nicCR)
 	if err != nil {
-		return "", "", fmt.Errorf("convert nic %q: %w", t.Name, err)
+		return nicNetworking{}, fmt.Errorf("convert nic %q: %w", t.Name, err)
 	}
 
-	lanName, err = networkFromSubnetRef(nic.Spec.SubnetRef)
+	lanName, err := networkFromSubnetRef(nic.Spec.SubnetRef)
 	if err != nil {
-		return "", "", err
+		return nicNetworking{}, err
 	}
+	out := nicNetworking{LanName: lanName, SecurityGroupRefs: nic.Spec.SecurityGroupRefs}
 
 	// A NIC with no public-ip ref is not an error: callers may leave public_ip_ids
 	// unset (as the POC does), so we fall back to IONOS auto-assigning a public
 	// IPv4 via DHCP on the public LAN.
 	if len(nic.Spec.PublicIpRefs) == 0 {
-		return lanName, "", nil
+		return out, nil
 	}
 
 	// The IPBlock is a crossplane CR created by the PublicIP plugin at hash(tenant),
@@ -134,9 +146,10 @@ func (c *base) readNicNetworking(ctx context.Context, nicRef domain.Reference, d
 	// (which may differ from the instance's) rather than defaultTenant.
 	ipTarget := commonbackend.ParseReference(nic.Spec.PublicIpRefs[0], defaultTenant)
 	ipNs := k8sadapter.ComputeNamespace(&kernelresource.Scope{Tenant: ipTarget.Tenant})
-	publicIP, err = readReservedIP(ctx, c.client, ipNs, ipTarget.Name)
+	publicIP, err := readReservedIP(ctx, c.client, ipNs, ipTarget.Name)
 	if err != nil {
-		return "", "", err
+		return nicNetworking{}, err
 	}
-	return lanName, publicIP, nil
+	out.PublicIP = publicIP
+	return out, nil
 }

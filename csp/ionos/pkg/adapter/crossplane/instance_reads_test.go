@@ -202,15 +202,15 @@ func TestReadNicNetworking(t *testing.T) {
 			Build()
 		b := &base{client: c, logger: testLogger()}
 
-		gotLan, gotIP, err := b.readNicNetworking(context.Background(), nicRef, tenant, workspace)
+		got, err := b.readNicNetworking(context.Background(), nicRef, tenant, workspace)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if gotLan != lanName {
-			t.Fatalf("readNicNetworking lan = %q, want %q", gotLan, lanName)
+		if got.LanName != lanName {
+			t.Fatalf("readNicNetworking lan = %q, want %q", got.LanName, lanName)
 		}
-		if gotIP != wantIP {
-			t.Fatalf("readNicNetworking publicIP = %q, want %q", gotIP, wantIP)
+		if got.PublicIP != wantIP {
+			t.Fatalf("readNicNetworking publicIP = %q, want %q", got.PublicIP, wantIP)
 		}
 	})
 
@@ -223,15 +223,15 @@ func TestReadNicNetworking(t *testing.T) {
 			Build()
 		b := &base{client: c, logger: testLogger()}
 
-		gotLan, gotIP, err := b.readNicNetworking(context.Background(), nicRef, tenant, workspace)
+		got, err := b.readNicNetworking(context.Background(), nicRef, tenant, workspace)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if gotLan != lanName {
-			t.Fatalf("readNicNetworking lan = %q, want %q", gotLan, lanName)
+		if got.LanName != lanName {
+			t.Fatalf("readNicNetworking lan = %q, want %q", got.LanName, lanName)
 		}
-		if gotIP != "" {
-			t.Fatalf("readNicNetworking publicIP = %q, want empty (DHCP fallback)", gotIP)
+		if got.PublicIP != "" {
+			t.Fatalf("readNicNetworking publicIP = %q, want empty (DHCP fallback)", got.PublicIP)
 		}
 	})
 }
