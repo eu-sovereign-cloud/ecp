@@ -1,0 +1,1 @@
+When doing code reviews, the code conventions agents should read conventions from /doc/CONVENTIONS.md
