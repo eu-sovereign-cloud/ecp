@@ -99,8 +99,8 @@ func init() {
 	)
 	regionalApiServerCMD.Flags().StringSliceVar(
 		&regions, "regions", nil,
-		"Comma-separated regions this gateway serves; a request selects one with a /regions/<region> path prefix "+
-			"or a <region>.<domain> host, and --region is the default for requests that name none",
+		"Comma-separated regions this gateway serves; a request selects one with a /regions/<region> path prefix, "+
+			"and --region (the first of these when unset) is the default for requests that name none",
 	)
 	regionalApiServerCMD.Flags().StringVar(
 		&regionalHost, "regionalHost", "0.0.0.0", "Host to bind the server to",
