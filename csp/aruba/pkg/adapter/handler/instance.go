@@ -165,6 +165,13 @@ func (h *ComputeInstanceHandler) PowerOff(_ context.Context, _ *instancedom.Inst
 // resolve gathers every reference a CloudServer needs, gating with backend.StillProcessing while
 // a dependency is missing and materialising the key pair and security groups along the way.
 func (h *ComputeInstanceHandler) resolve(ctx context.Context, domain *instancedom.Instance) (*adaptconverter.CloudServerRefs, error) {
+	// Every Aruba resource the instance path materialises - KeyPair, SecurityGroup, SecurityRule and
+	// the CloudServer itself - is created in the instance's region, and all of them take it from
+	// here. Validate it once, before any of them is built.
+	if err := adaptconverter.RequireRegion(domain.Region); err != nil {
+		return nil, err
+	}
+
 	tenant := domain.GetTenant()
 	workspace := domain.GetWorkspace()
 	prjNamespace := k8sadapter.ComputeNamespace(&res.Scope{Tenant: tenant})

@@ -177,18 +177,33 @@ Some SECA specs are **rejected** rather than silently ignored, because honouring
 
 An IPv6-only `Subnet` is likewise rejected: the Aruba `Subnet` CRD validates `cidr` against an IPv4 pattern. Dual-stack subnets are accepted, with the IPv6 range dropped.
 
+A resource carrying **no region** is likewise rejected rather than defaulted — see [Region](#region).
+
 ## Defaults applied
 
 | Field | Value | Why |
 |---|---|---|
-| Region | `ITBG-Bergamo` | When the SECA resource carries no region — including when it carries a *reference* whose region is empty (see the warning below). |
 | `Subnet.Spec.Type` | `Advanced` | Lets the subnet use the CIDR from the SECA spec; `Basic` would have Aruba choose the range and silently ignore it. |
 | `Subnet.Spec.DHCP.Enabled` | `true` | The CRD requires the field; SECA has no knob for it. |
 | `ElasticIP.Spec.BillingPeriod` | `Hour` | The CRD requires the field; SECA has no knob for it. |
 | `BlockStorage.Spec.Zone` | `ITBG-1` | SECA models no per-volume zone. |
 | `CloudServer.Spec.Zone` | boot volume's zone | Aruba requires the two to match; falls back to `ITBG-1`. |
 
-> **A region must never be sent empty.** A SECA `Reference` carries a region only when it points at another one, so the usual case (e.g. a boot volume's `sourceImageRef`) leaves it blank — that blank must fall through to the default rather than be forwarded. Aruba reports a missing location as `Validation: Size: invalid; DataCenter: invalid`, because both a zone and the size catalog are resolved *within* a region. The error names neither the region nor the real problem, so it reads as a size/zone bug and is easy to chase for a long time; if you see it, check the region first.
+## Region
+
+The region is **not** a default: it is read from the SECA resource itself (`metadata.region`, which
+the regional gateway stamps on the CR) and every Aruba resource is created in it —
+including the ones SECA has no resource for, which take the attaching instance's region.
+
+A resource carrying no region **fails the reconcile** ([`converter.RequireRegion`](pkg/adapter/converter/region.go)),
+rather than being provisioned into a default. There is no location to fall back to that would be
+right: defaulting would silently place the resource in a region nobody asked for and swallow the
+upstream bug that lost it.
+
+> **Never send Aruba an empty region.** Aruba reports a missing location as
+> `Validation: Size: invalid; DataCenter: invalid`, because both a zone and the size catalog are
+> resolved *within* a region. The error names neither the region nor the real problem, so it reads
+> as a size/zone bug and is easy to chase for a long time; if you see it, check the region first.
 
 ## Status reporting limitation
 
