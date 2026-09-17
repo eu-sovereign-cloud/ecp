@@ -12,7 +12,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
-	storagev1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	workspacev1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1"
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
@@ -27,7 +26,9 @@ const secondRegion = "region-two"
 
 // TestMultiRegionEndToEnd is the multi-region counterpart of TestEndToEnd: one gateway
 // deployment, two regions, discovered the way a client discovers them — off the region
-// catalog — and reconciled all the way to the delegator.
+// catalog — and reconciled all the way to the delegator. Routing, list isolation and
+// region-scoped authorization are the REST layer's, and are covered by
+// test/integration/gateway-regional/multiregion_test.go against this same stack.
 func TestMultiRegionEndToEnd(t *testing.T) {
 	ctx := context.Background()
 
@@ -52,55 +53,21 @@ func TestMultiRegionEndToEnd(t *testing.T) {
 
 	// Step 2: a resource created through the second region is stamped with it and
 	// reconciles to Active — the delegator serves both regions from the one cluster.
-	t.Run("a workspace created in the second region reconciles", func(t *testing.T) {
-		resp, err := secondWorkspace.CreateOrUpdateWorkspaceWithResponse(ctx, testTenant, name, nil, schema.Workspace{})
-		require.NoError(t, err)
-		require.Equal(t, http.StatusOK, resp.StatusCode())
-		require.NotNil(t, resp.JSON200)
-		require.Equal(t, secondRegion, resp.JSON200.Metadata.Region)
+	resp, err := secondWorkspace.CreateOrUpdateWorkspaceWithResponse(ctx, testTenant, name, nil, schema.Workspace{})
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, resp.StatusCode())
+	require.NotNil(t, resp.JSON200)
+	require.Equal(t, secondRegion, resp.JSON200.Metadata.Region)
 
-		waitForActive(t, "workspace "+name, func(ctx context.Context) (schema.ResourceState, bool, error) {
-			r, err := secondWorkspace.GetWorkspaceWithResponse(ctx, testTenant, name)
-			if err != nil {
-				return "", false, err
-			}
-			if r.StatusCode() != http.StatusOK || r.JSON200 == nil || r.JSON200.Status == nil {
-				return "", false, nil
-			}
-			return r.JSON200.Status.State, true, nil
-		})
-	})
-
-	// Step 3: the two regions share a tenant namespace, so the region label is the only
-	// thing keeping one region's list out of the other's.
-	t.Run("the regions do not see each other's resources", func(t *testing.T) {
-		require.Contains(t, workspaceNames(t, ctx, secondWorkspace), name)
-		require.NotContains(t, workspaceNames(t, ctx, workspaceClient), name)
-	})
-
-	// Step 4: the region reaching the authorization claim is what makes a region-scoped
-	// RoleAssignment mean anything on a gateway that serves several regions. bob's
-	// ra-bob-scoped caps him to testRegion.
-	t.Run("a region-scoped role assignment is enforced per request", func(t *testing.T) {
-		if !authhelper.AuthEnabled() {
-			t.Skip("E2E_AUTH_ENABLED=false: skipping authz assertions")
+	waitForActive(t, "workspace "+name, func(ctx context.Context) (schema.ResourceState, bool, error) {
+		r, err := secondWorkspace.GetWorkspaceWithResponse(ctx, testTenant, name)
+		if err != nil {
+			return "", false, err
 		}
-		bob := authhelper.IdentityEditor("bob", "bob-pass")
-
-		allowed, err := storagev1.NewClientWithResponses(
-			regionalURL+"/providers/seca.storage", storagev1.WithRequestEditorFn(bob))
-		require.NoError(t, err)
-		inRegion, err := allowed.ListBlockStoragesWithResponse(ctx, testTenant, testWorkspace, &storagev1.ListBlockStoragesParams{})
-		require.NoError(t, err)
-		require.Equal(t, http.StatusOK, inRegion.StatusCode(), "bob is scoped to "+testRegion)
-
-		denied, err := storagev1.NewClientWithResponses(
-			regionalURL+"/regions/"+secondRegion+"/providers/seca.storage", storagev1.WithRequestEditorFn(bob))
-		require.NoError(t, err)
-		outOfRegion, err := denied.ListBlockStoragesWithResponse(ctx, testTenant, testWorkspace, &storagev1.ListBlockStoragesParams{})
-		require.NoError(t, err)
-		require.Equal(t, http.StatusForbidden, outOfRegion.StatusCode(),
-			"the region the request is addressed to must reach the authorization claim")
+		if r.StatusCode() != http.StatusOK || r.JSON200 == nil || r.JSON200.Status == nil {
+			return "", false, nil
+		}
+		return r.JSON200.Status.State, true, nil
 	})
 }
 
@@ -122,21 +89,4 @@ func regionProviderPath(t *testing.T, ctx context.Context, region, provider stri
 	}
 	t.Fatalf("region %q advertises no %q provider", region, provider)
 	return ""
-}
-
-// workspaceNames returns every workspace name a client sees in testTenant.
-func workspaceNames(t *testing.T, ctx context.Context, c *workspacev1.ClientWithResponses) []string {
-	t.Helper()
-	resp, err := c.ListWorkspacesWithResponse(ctx, testTenant, nil)
-	require.NoError(t, err)
-	require.Equal(t, http.StatusOK, resp.StatusCode())
-	require.NotNil(t, resp.JSON200)
-
-	names := make([]string, 0, len(resp.JSON200.Items))
-	for _, item := range resp.JSON200.Items {
-		if item.Metadata != nil {
-			names = append(names, item.Metadata.Name)
-		}
-	}
-	return names
 }

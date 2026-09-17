@@ -129,9 +129,9 @@ gatewayRegional:
   # served as (--region), e.g. "itbg-bergamo". Required unless `regions` is set.
   region: ""
   # Extra regions this one deployment serves (--regions). A request picks one with a
-  # "/regions/<region>" path prefix or a "<region>.<domain>" Host; `region` above stays
-  # the default for requests that name none, and must be one of these when both are set.
-  # Leave empty for the usual one-deployment-per-region topology.
+  # "/regions/<region>" path prefix; `region` above stays the default for requests that
+  # name none (the first entry here when unset), and must be one of these when both are
+  # set. Leave empty for the usual one-deployment-per-region topology.
   regions: []
   replicaCount: 1
   image:

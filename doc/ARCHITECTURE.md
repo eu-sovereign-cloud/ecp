@@ -125,11 +125,9 @@ The lists of types that may live in each child namespace are `ChildResourceGVRs`
 
 A regional gateway serves one region by default (`--region`), which is the one-deployment-per-region topology the split install uses. `--regions` widens that: one process serves several regions at once, which is what a self-installable single-cluster deployment needs.
 
-The region is a property of the **request**, not of the process. `middleware.NewRegionRouter` wraps the whole mux and resolves it, first match wins:
+The region is a property of the **request**, not of the process. `middleware.NewRegionRouter` wraps the whole mux and resolves it: a request names its region with a `/regions/<region>/providers/seca.…` path prefix, and one that names none — every request to a single-region gateway — is served as `--region`, which defaults to the first of `--regions`. A region the process does not serve is a 404, never a fallback.
 
-1. **Path** — `/regions/<region>/providers/seca.…`. The prefix is stripped before the mux matches, so every provider route is registered once and `r.Pattern` — which the authorization claim extractor and the metrics route label both read — is the same whether or not a region was named. A region the process does not serve is a 404, never a fallback.
-2. **Host** — the first DNS label of the `Host` header (`itbg-bergamo.api.example.com`), when it names a served region. This is the domain-routed deployment.
-3. **`--region`** — the default for a request that named no region. With several regions and no default, such a request to a provider route is a 400 rather than a guess.
+The prefix is stripped (`http.StripPrefix`) before the mux matches, so every provider route is registered once and `r.Pattern` — which the authorization claim extractor and the metrics route label both read — is the same whether or not a region was named.
 
 The resolved region is stored in the request context (`resource.ContextWithRegion`) and read back by everything downstream that needs it:
 

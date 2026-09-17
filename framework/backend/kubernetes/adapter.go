@@ -336,7 +336,10 @@ func (a *ReaderAdapter[T]) List(ctx context.Context, params resource.ListFilter,
 	// returns — and therefore the continue token — is already the caller's region.
 	if a.regionScoped {
 		if region := resource.RegionFromContext(ctx, ""); region != "" {
-			lo.LabelSelector = andSelector(lo.LabelSelector, labels.InternalRegionLabel+"="+region)
+			if lo.LabelSelector != "" {
+				lo.LabelSelector += ","
+			}
+			lo.LabelSelector += labels.InternalRegionLabel + "=" + region
 		}
 	}
 
@@ -395,14 +398,6 @@ func (a *ReaderAdapter[T]) List(ctx context.Context, params resource.ListFilter,
 	}
 
 	return &cont, nil
-}
-
-// andSelector joins two label selector terms with the selector grammar's AND (",").
-func andSelector(selector, term string) string {
-	if selector == "" {
-		return term
-	}
-	return selector + "," + term
 }
 
 // Load implements the persistence.ReaderRepo interface.
