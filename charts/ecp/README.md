@@ -27,9 +27,9 @@ binary) and the chart supports either layout via the `enabled` toggles:
   on each regional cluster.
 - **Multi-region** (one self-installable cluster serving several regions): add
   `--set gatewayRegional.regions={<region-a>,<region-b>}`. One regional gateway then
-  serves all of them, selected per request by a `/regions/<region>` path prefix or a
-  `<region>.<domain>` Host; `gatewayRegional.region` stays the default for requests that
-  name neither. Advertise the prefixed URLs in each Region CR's `providers[].url` so
+  serves all of them, selected per request by a `/regions/<region>` path prefix;
+  `gatewayRegional.region` stays the default for requests that name none, and defaults to
+  the first entry. Advertise the prefixed URLs in each Region CR's `providers[].url` so
   clients discover the right base URL. See [doc/ARCHITECTURE.md](../../doc/ARCHITECTURE.md#multi-region-gateways).
 
 ## Installing
@@ -147,7 +147,7 @@ See [values.yaml](values.yaml) for the full commented list. The notable ones:
 | `gatewayGlobal.enabled` | `true` | Deploy the global gateway |
 | `gatewayRegional.enabled` | `true` | Deploy the regional gateway |
 | `gatewayRegional.region` | `""` | The region served, and the default for a request that names none. **Required** unless `gatewayRegional.regions` is set |
-| `gatewayRegional.regions` | `[]` | Serve several regions from one deployment; a request picks one by path prefix or Host. `region`, when set, must be one of these |
+| `gatewayRegional.regions` | `[]` | Serve several regions from one deployment; a request picks one with a `/regions/<region>` path prefix. `region`, when set, must be one of these |
 | `auth.enabled` | `false` | Bearer-token authn + SECA RBAC authz on both gateways |
 | `auth.plugin` | `dummy` | Authenticator for both gateways: `dummy` or `jwt` |
 | `auth.jwt.signingMethod` | `ES256` | Pinned JWT `alg` when `auth.plugin=jwt` |

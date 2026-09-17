@@ -22,8 +22,8 @@ func TestResolveRegions(t *testing.T) {
 			wantServed: []string{"itbg-bergamo"}, wantDefault: "itbg-bergamo",
 		},
 		{
-			name: "--regions alone serves them all", regions: []string{"a", "b"},
-			wantServed: []string{"a", "b"},
+			name: "--regions alone serves them all and defaults to the first", regions: []string{"a", "b"},
+			wantServed: []string{"a", "b"}, wantDefault: "a",
 		},
 		{
 			name: "a single --regions entry is also the default", regions: []string{"a"},
@@ -35,7 +35,7 @@ func TestResolveRegions(t *testing.T) {
 		},
 		{
 			name: "blanks and duplicates are dropped", regions: []string{"a", " ", "a", " b "},
-			wantServed: []string{"a", "b"},
+			wantServed: []string{"a", "b"}, wantDefault: "a",
 		},
 		{
 			name: "neither is set", wantErrSubstr: "region is required",
