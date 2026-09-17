@@ -20,17 +20,13 @@ const KeyPairSuffix = "-key"
 //
 // SECA allows up to 32 ssh keys while an Aruba KeyPair carries a single value, so the caller
 // passes the key to use (the first). An instance with no ssh key cannot satisfy the CloudServer's
-// required KeyPairReference and is gated by the handler rather than reaching this function.
+// required KeyPairReference and is gated by the handler rather than reaching this function, which
+// also rejects an instance carrying no region (see RequireRegion).
 func BuildKeyPair(from *instancedom.Instance, sshKey string) *v1alpha1.KeyPair {
 	tenant := from.GetTenant()
 	workspace := from.GetWorkspace()
 	namespace := k8sadapter.ComputeNamespace(from)
 	namespaceWorkspace := k8sadapter.ComputeNamespace(&res.Scope{Tenant: tenant})
-
-	region := from.Region
-	if region == "" {
-		region = defaultRegion
-	}
 
 	return &v1alpha1.KeyPair{
 		ObjectMeta: metav1.ObjectMeta{
@@ -46,7 +42,7 @@ func BuildKeyPair(from *instancedom.Instance, sshKey string) *v1alpha1.KeyPair {
 		},
 		Spec: v1alpha1.KeyPairSpec{
 			Tenant: tenant,
-			Region: region,
+			Region: from.Region,
 			// The KeyPair has no SECA resource of its own; it inherits the owning instance's labels.
 			Tags:  ArubaTags(from.Labels),
 			Value: sshKey,

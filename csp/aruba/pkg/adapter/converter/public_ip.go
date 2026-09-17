@@ -33,15 +33,14 @@ func (c *PublicIpElasticIpConverter) FromSECAToAruba(from *publicipdom.PublicIp)
 		return nil, kernel.NewError(kernel.KindValidation, errors.New("IPv6 public ip is not supported by Aruba"))
 	}
 
+	if err := RequireRegion(from.Region); err != nil {
+		return nil, err
+	}
+
 	tenant := from.GetTenant()
 	workspace := from.GetWorkspace()
 	namespace := k8sadapter.ComputeNamespace(from)
 	namespaceWorkspace := k8sadapter.ComputeNamespace(&res.Scope{Tenant: tenant})
-
-	region := from.Region
-	if region == "" {
-		region = defaultRegion
-	}
 
 	return &v1alpha1.ElasticIP{
 		ObjectMeta: metav1.ObjectMeta{
@@ -56,7 +55,7 @@ func (c *PublicIpElasticIpConverter) FromSECAToAruba(from *publicipdom.PublicIp)
 		},
 		Spec: v1alpha1.ElasticIPSpec{
 			Tenant:        tenant,
-			Region:        region,
+			Region:        from.Region,
 			Tags:          ArubaTags(from.Labels),
 			BillingPeriod: defaultBillingPeriod,
 			ProjectReference: v1alpha1.ResourceReference{

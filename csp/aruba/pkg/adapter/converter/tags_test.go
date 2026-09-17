@@ -75,6 +75,7 @@ func regionalMeta(name string) commondomain.RegionalMetadata {
 		CommonMetadata: commondomain.CommonMetadata{Name: name},
 		Scope:          res.Scope{Tenant: "test-tenant", Workspace: "test-workspace"},
 		Labels:         testLabels,
+		Region:         "ITBG-Bergamo",
 	}
 }
 
@@ -134,7 +135,7 @@ func TestSECALabelsBecomeArubaTags(t *testing.T) {
 	})
 
 	t.Run("security group and its rules", func(t *testing.T) {
-		sg := converter.BuildSecurityGroup("web", "net-1", "", "test-tenant", "ws-ns", testLabels, vpcRef(), projectRef())
+		sg := converter.BuildSecurityGroup("web", "net-1", "ITBG-Bergamo", "test-tenant", "ws-ns", testLabels, vpcRef(), projectRef())
 		require.Equal(t, testTags, sg.Spec.Tags)
 
 		// An inline rule has no labels of its own and inherits the group's; a standalone
@@ -148,7 +149,7 @@ func TestSECALabelsBecomeArubaTags(t *testing.T) {
 			map[string]string{"tier": "db"},
 		))
 
-		out := converter.BuildSecurityRules(rules, sg.Name, "", "test-tenant", "ws-ns", vpcRef(), projectRef())
+		out := converter.BuildSecurityRules(rules, sg.Name, "ITBG-Bergamo", "test-tenant", "ws-ns", vpcRef(), projectRef())
 		require.Len(t, out, 2)
 		require.Equal(t, testTags, out[0].Spec.Tags)
 		require.Equal(t, []string{"tier-db"}, out[1].Spec.Tags)

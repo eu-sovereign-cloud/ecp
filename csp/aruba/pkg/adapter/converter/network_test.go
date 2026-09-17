@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	res "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	netdom "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network"
@@ -49,10 +50,12 @@ func TestNetworkVPCConverter_FromSECAToAruba(t *testing.T) {
 		require.Equal(t, "test-tenant", vpc.Labels["seca.network/tenant"])
 	})
 
-	t.Run("region defaults when unset", func(t *testing.T) {
-		vpc, err := converter.NewNetworkVPCConverter().FromSECAToAruba(secaNetwork(""))
-		require.NoError(t, err)
-		require.Equal(t, "ITBG-Bergamo", vpc.Spec.Region)
+	// A network with no region has nowhere to be created, and defaulting one would put the VPC in
+	// a region nobody asked for while hiding whatever upstream dropped it.
+	t.Run("missing region is rejected", func(t *testing.T) {
+		_, err := converter.NewNetworkVPCConverter().FromSECAToAruba(secaNetwork(""))
+		require.ErrorContains(t, err, "region is missing")
+		require.ErrorIs(t, err, kernel.ErrValidation)
 	})
 }
 

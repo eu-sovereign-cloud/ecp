@@ -46,6 +46,10 @@ func (c *SubnetConverter) FromSECAToAruba(from *subnetdom.Subnet) (*v1alpha1.Sub
 		return nil, kernel.NewError(kernel.KindValidation, errors.New("subnet requires an IPv4 CIDR: Aruba does not support IPv6-only subnets"))
 	}
 
+	if err := RequireRegion(from.Region); err != nil {
+		return nil, err
+	}
+
 	tenant := from.GetTenant()
 	workspace := from.GetWorkspace()
 	network := from.GetNetwork()
@@ -54,11 +58,6 @@ func (c *SubnetConverter) FromSECAToAruba(from *subnetdom.Subnet) (*v1alpha1.Sub
 	// The VPC is created by NetworkVPCConverter in the workspace-level namespace, named after
 	// the SECA network this subnet is scoped under.
 	namespaceVPC := k8sadapter.ComputeNamespace(&res.Scope{Tenant: tenant, Workspace: workspace})
-
-	region := from.Region
-	if region == "" {
-		region = defaultRegion
-	}
 
 	return &v1alpha1.Subnet{
 		ObjectMeta: metav1.ObjectMeta{
@@ -74,7 +73,7 @@ func (c *SubnetConverter) FromSECAToAruba(from *subnetdom.Subnet) (*v1alpha1.Sub
 		},
 		Spec: v1alpha1.SubnetSpec{
 			Tenant: tenant,
-			Region: region,
+			Region: from.Region,
 			Tags:   ArubaTags(from.Labels),
 			Type:   subnetTypeAdvanced,
 			CIDR:   from.Spec.Cidr.IPv4,

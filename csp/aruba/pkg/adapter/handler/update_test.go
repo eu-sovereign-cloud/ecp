@@ -31,6 +31,7 @@ func TestNetworkHandler_Update_syncsLabelsToTags(t *testing.T) {
 			CommonMetadata: commondomain.CommonMetadata{Name: "net-1"},
 			Scope:          res.Scope{Tenant: "acme", Workspace: "ws-1"},
 			Labels:         map[string]string{"env": "prod", "team": "platform"},
+			Region:         "ITBG-Bergamo",
 		},
 	}
 
@@ -68,6 +69,7 @@ func TestNetworkHandler_Update_writesNothingWhenTagsAlreadyMatch(t *testing.T) {
 			CommonMetadata: commondomain.CommonMetadata{Name: "net-1"},
 			Scope:          res.Scope{Tenant: "acme", Workspace: "ws-1"},
 			Labels:         map[string]string{"env": "prod"},
+			Region:         "ITBG-Bergamo",
 		},
 	}
 

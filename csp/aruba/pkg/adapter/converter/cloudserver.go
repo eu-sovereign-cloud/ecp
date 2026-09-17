@@ -28,15 +28,12 @@ type CloudServerRefs struct {
 
 // BuildCloudServer maps a SECA Instance plus its resolved Aruba references to an Aruba CloudServer,
 // living in the same workspace-level namespace as the VPC and block storages it references.
+// The region is the instance's own; the handler rejects an instance without one before it gets here.
 func BuildCloudServer(from *instancedom.Instance, refs CloudServerRefs) *v1alpha1.CloudServer {
 	tenant := from.GetTenant()
 	workspace := from.GetWorkspace()
 	namespace := k8sadapter.ComputeNamespace(from)
 
-	region := from.Region
-	if region == "" {
-		region = defaultRegion
-	}
 	zone := refs.Zone
 	if zone == "" {
 		zone = defaultDatacenter
@@ -54,7 +51,7 @@ func BuildCloudServer(from *instancedom.Instance, refs CloudServerRefs) *v1alpha
 		},
 		Spec: v1alpha1.CloudServerSpec{
 			Tenant:                  tenant,
-			Region:                  region,
+			Region:                  from.Region,
 			Tags:                    ArubaTags(from.Labels),
 			Zone:                    zone,
 			FlavorName:              refs.FlavorName,
