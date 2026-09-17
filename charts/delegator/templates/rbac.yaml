@@ -115,7 +115,7 @@ rules:
   - apiGroups: ["storage.v1.secapi.cloud"]
     resources: ["block-storages", "block-storages/status"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-- apiGroups: ["compute.v1.secapi.cloud"]
+  - apiGroups: ["compute.v1.secapi.cloud"]
     resources: ["instances", "instances/status"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
   - apiGroups: ["compute.v1.secapi.cloud"]
