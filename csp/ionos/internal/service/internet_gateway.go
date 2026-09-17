@@ -15,13 +15,13 @@ type InternetGateway struct {
 	Deleter *internetgatewayctrl.DeleteInternetGateway
 }
 
-// Update is a no-op in the mode the store supports. The gateway is a declaration with no backing
-// IONOS object, and HandleUpdate hands the plugin the desired state on every reconcile of an
-// active resource, so re-running Create here would announce the gateway ready again on each pass.
+// Update returns nil for the supported EgressOnly: false case: the gateway is a declaration
+// with no backing IONOS object, and HandleUpdate hands the plugin the desired state on every
+// reconcile of an active resource, so re-running Create here would announce the gateway ready
+// again on each pass.
 //
-// The unsupported mode still goes through Create: a spec change the store cannot honour
-// (Spec.EgressOnly flipped to true) must be refused rather than silently kept Active. See
-// InternetGatewayStore.Create.
+// Only when EgressOnly is true does Update delegate to Create, so that a spec change the store
+// cannot honour is refused rather than silently kept Active. See InternetGatewayStore.Create.
 func (i *InternetGateway) Update(ctx context.Context, resource *internetgatewaydom.InternetGateway) error {
 	if !resource.Spec.EgressOnly {
 		return nil

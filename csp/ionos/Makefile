@@ -23,7 +23,7 @@ install-crossplane:
 	bash deploy/install-crossplane.sh
 
 # Install IONOS provider. Optional overrides:
-# make install-provider PROVIDER_PKG=xpkg.upbound.io/ionos-cloud/provider-upjet-ionoscloud:v0.5.0
+# make install-provider PROVIDER_PKG=xpkg.upbound.io/ionos-cloud/provider-upjet-ionoscloud:v0.5.8
 # make install-provider PROVIDER_PKG=... PROVIDER_NAME=my-provider
 install-provider:
 	PROVIDER_PKG=${PROVIDER_PKG} PROVIDER_NAME=${PROVIDER_NAME} bash deploy/install-provider.sh
@@ -35,7 +35,7 @@ install-all: install-crossplane create-token-secret install-provider
 create-token-secret:
 	@IONOS_TOKEN=${IONOS_TOKEN} bash deploy/create-token-secret.sh
 
-# Create example secret + ProviderConfig (template)
+# Create example secret + ClusterProviderConfig (template)
 create-secret:
 	kubectl apply -f deploy/providerconfig-example.yaml
 
