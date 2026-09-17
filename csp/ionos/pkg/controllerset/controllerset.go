@@ -15,6 +15,7 @@ import (
 
 	blockstoragectrl "github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/controller/block_storage"
 	instancectrl "github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/controller/instance"
+	internetgatewayctrl "github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/controller/internet_gateway"
 	networkctrl "github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/controller/network"
 	nicctrl "github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/controller/nic"
 	publicipctrl "github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/controller/public_ip"
@@ -25,6 +26,7 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/csp/ionos/pkg/adapter/crossplane"
 	frameworkbuilder "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/builder"
 	instancek8s "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/instance/backend/kubernetes"
+	internetgatewayk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/internet-gateway/backend/kubernetes"
 	netk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network/backend/kubernetes"
 	nick8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic/backend/kubernetes"
 	publicipk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/public-ip/backend/kubernetes"
@@ -46,6 +48,7 @@ func Add(cs *frameworkbuilder.ControllerSet, mgr ctrl.Manager, dynClient dynamic
 	nicAdapter := crossplane.NewNicStore(mgr.GetClient(), logger.With("adapter", "nic"))
 	subnetAdapter := crossplane.NewSubnetStore(mgr.GetClient(), logger.With("adapter", "subnet"))
 	routeTableAdapter := crossplane.NewRouteTableStore(mgr.GetClient(), logger.With("adapter", "route-table"))
+	internetGatewayAdapter := crossplane.NewInternetGatewayStore(mgr.GetClient(), logger.With("adapter", "internet-gateway"))
 	instanceAdapter := crossplane.NewInstanceStore(mgr.GetClient(), logger.With("adapter", "instance"))
 
 	wsPlugin := &service.Workspace{
@@ -77,6 +80,10 @@ func Add(cs *frameworkbuilder.ControllerSet, mgr ctrl.Manager, dynClient dynamic
 		Creator: &routetablectrl.CreateRouteTable{Store: routeTableAdapter},
 		Deleter: &routetablectrl.DeleteRouteTable{Store: routeTableAdapter},
 	}
+	internetGatewayPlugin := &service.InternetGateway{
+		Creator: &internetgatewayctrl.CreateInternetGateway{Store: internetGatewayAdapter},
+		Deleter: &internetgatewayctrl.DeleteInternetGateway{Store: internetGatewayAdapter},
+	}
 	instancePlugin := &service.Instance{
 		Creator:    &instancectrl.CreateInstance{Store: instanceAdapter},
 		Deleter:    &instancectrl.DeleteInstance{Store: instanceAdapter},
@@ -91,5 +98,6 @@ func Add(cs *frameworkbuilder.ControllerSet, mgr ctrl.Manager, dynClient dynamic
 	cs.Add(nick8s.NewController(mgr.GetClient(), dynClient, nicPlugin, opts...))
 	cs.Add(subnetk8s.NewController(mgr.GetClient(), dynClient, subnetPlugin, opts...))
 	cs.Add(routetablek8s.NewController(mgr.GetClient(), dynClient, routeTablePlugin, opts...))
+	cs.Add(internetgatewayk8s.NewController(mgr.GetClient(), dynClient, internetGatewayPlugin, opts...))
 	cs.Add(instancek8s.NewController(mgr.GetClient(), dynClient, instancePlugin, opts...))
 }

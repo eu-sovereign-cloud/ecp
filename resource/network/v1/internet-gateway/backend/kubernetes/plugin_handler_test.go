@@ -3,6 +3,7 @@ package kubernetes_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -278,6 +279,155 @@ func TestInternetGatewayPluginHandler_HandleReconcile(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	t.Run("should record a terminal condition and not requeue when plugin create refuses as unsupported", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		resource := &internetgatewaydom.InternetGateway{
+			Status: &internetgatewaydom.InternetGatewayStatus{
+				Status: commondomain.Status{
+					State: commondomain.ResourceStateCreating,
+				},
+			},
+		}
+
+		errUnsupported := fmt.Errorf("%w: egressOnly cannot be enforced", backendport.ErrNotSupported)
+
+		mockRepo := NewMockRepo[*internetgatewaydom.InternetGateway](ctrl)
+		mockRepo.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).DoAndReturn(
+			func(_ context.Context, res *internetgatewaydom.InternetGateway) (*internetgatewaydom.InternetGateway, error) {
+				require.Equal(t, commondomain.ResourceStateError, res.Status.State)
+				require.Equal(t, "CreateNotSupported", res.Status.Conditions[0].Type)
+				require.Equal(t, errUnsupported.Error(), res.Status.Conditions[0].Message)
+				return nil, nil
+			}).Times(1)
+
+		mockPlugin := NewMockInternetGatewayPlugin(ctrl)
+		mockPlugin.EXPECT().Create(gomock.Any(), resource).Return(errUnsupported).Times(1)
+
+		handler := NewInternetGatewayPluginHandler(mockRepo, mockPlugin, 0)
+
+		err := handler.HandleReconcile(context.Background(), resource)
+
+		// A refusal is terminal: no StillProcessing/RevisitBecause, so nothing requeues it.
+		require.NoError(t, err)
+	})
+
+	t.Run("should record a terminal condition when plugin create wraps the refusal in a progress signal", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		resource := &internetgatewaydom.InternetGateway{
+			Status: &internetgatewaydom.InternetGatewayStatus{
+				Status: commondomain.Status{
+					State: commondomain.ResourceStateCreating,
+				},
+			},
+		}
+
+		// Wrapping a failure inside a progress signal is against the PluginHandler contract, but
+		// requeueError.Unwrap keeps it discoverable so the refusal must still be classified as
+		// one: the controller drops it as terminal either way, and without this the resource
+		// would be left in Creating with nothing in its status saying why.
+		errUnsupported := fmt.Errorf("%w: egressOnly cannot be enforced", backendport.ErrNotSupported)
+		errWrapped := backendport.RevisitBecause(30*time.Second, errUnsupported)
+
+		mockRepo := NewMockRepo[*internetgatewaydom.InternetGateway](ctrl)
+		mockRepo.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).DoAndReturn(
+			func(_ context.Context, res *internetgatewaydom.InternetGateway) (*internetgatewaydom.InternetGateway, error) {
+				require.Equal(t, commondomain.ResourceStateError, res.Status.State)
+				require.Equal(t, "CreateNotSupported", res.Status.Conditions[0].Type)
+				require.Equal(t, errWrapped.Error(), res.Status.Conditions[0].Message)
+				return nil, nil
+			}).Times(1)
+
+		mockPlugin := NewMockInternetGatewayPlugin(ctrl)
+		mockPlugin.EXPECT().Create(gomock.Any(), resource).Return(errWrapped).Times(1)
+
+		handler := NewInternetGatewayPluginHandler(mockRepo, mockPlugin, 0)
+
+		err := handler.HandleReconcile(context.Background(), resource)
+
+		// Terminal, not rescheduled: the signal must not survive the refusal.
+		require.NoError(t, err)
+	})
+
+	t.Run("should write nothing when a later reconcile hits the same refusal again", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		errUnsupported := fmt.Errorf("%w: egressOnly cannot be enforced", backendport.ErrNotSupported)
+
+		resource := refusedInternetGateway(errUnsupported.Error())
+
+		mockRepo := NewMockRepo[*internetgatewaydom.InternetGateway](ctrl)
+		mockPlugin := NewMockInternetGatewayPlugin(ctrl)
+		// The spec is offered once more, in case it has been corrected. It has not, so the
+		// refusal is unchanged and no UpdateStatus follows: a write here would trigger the
+		// reconcile that writes the next one.
+		mockPlugin.EXPECT().Create(gomock.Any(), resource).Return(errUnsupported).Times(1)
+
+		handler := NewInternetGatewayPluginHandler(mockRepo, mockPlugin, 0)
+
+		err := handler.HandleReconcile(context.Background(), resource)
+
+		require.NoError(t, err)
+		require.Len(t, resource.Status.Conditions, 3)
+		require.Equal(t, commondomain.ResourceStateError, resource.Status.State)
+	})
+
+	t.Run("should go active when a reconcile after the refusal finds the spec corrected", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		resource := refusedInternetGateway("egressOnly cannot be enforced")
+
+		mockRepo := NewMockRepo[*internetgatewaydom.InternetGateway](ctrl)
+		mockRepo.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).DoAndReturn(
+			func(_ context.Context, res *internetgatewaydom.InternetGateway) (*internetgatewaydom.InternetGateway, error) {
+				require.Equal(t, commondomain.ResourceStateActive, res.Status.State)
+				// The refusal stays in history as a record of what was asked for.
+				require.Equal(t, "CreateNotSupported", res.Status.Conditions[1].Type)
+				return nil, nil
+			}).Times(1)
+
+		mockPlugin := NewMockInternetGatewayPlugin(ctrl)
+		mockPlugin.EXPECT().Create(gomock.Any(), resource).Return(nil).Times(1)
+
+		handler := NewInternetGatewayPluginHandler(mockRepo, mockPlugin, 0)
+
+		err := handler.HandleReconcile(context.Background(), resource)
+
+		require.NoError(t, err)
+	})
+
+	t.Run("should report a changed refusal on a later reconcile", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		resource := refusedInternetGateway("egressOnly cannot be enforced")
+
+		errOther := fmt.Errorf("%w: something else cannot be enforced", backendport.ErrNotSupported)
+
+		mockRepo := NewMockRepo[*internetgatewaydom.InternetGateway](ctrl)
+		mockRepo.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).DoAndReturn(
+			func(_ context.Context, res *internetgatewaydom.InternetGateway) (*internetgatewaydom.InternetGateway, error) {
+				require.Equal(t, commondomain.ResourceStateError, res.Status.State)
+				require.Equal(t, "CreateNotSupported", res.Status.Conditions[0].Type)
+				require.Equal(t, errOther.Error(), res.Status.Conditions[0].Message)
+				return nil, nil
+			}).Times(1)
+
+		mockPlugin := NewMockInternetGatewayPlugin(ctrl)
+		mockPlugin.EXPECT().Create(gomock.Any(), resource).Return(errOther).Times(1)
+
+		handler := NewInternetGatewayPluginHandler(mockRepo, mockPlugin, 0)
+
+		err := handler.HandleReconcile(context.Background(), resource)
+
+		require.NoError(t, err)
+	})
+
 	t.Run("should return error when repo update fails in setResourceState", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
@@ -301,4 +451,27 @@ func TestInternetGatewayPluginHandler_HandleReconcile(t *testing.T) {
 		require.ErrorIs(t, err, errRepo)
 	})
 
+}
+
+// refusedInternetGateway builds a gateway resting on a Create refusal carrying message, the state
+// a reconcile leaves behind once the plugin has rejected the spec as unsupported.
+func refusedInternetGateway(message string) *internetgatewaydom.InternetGateway {
+	return &internetgatewaydom.InternetGateway{
+		Status: &internetgatewaydom.InternetGatewayStatus{
+			Status: commondomain.Status{
+				State: commondomain.ResourceStateError,
+				Conditions: []commondomain.StatusCondition{
+					{
+						Type:             "CreateNotSupported",
+						State:            commondomain.ResourceStateError,
+						Reason:           "NotSupported",
+						Message:          message,
+						LastTransitionAt: time.Now(),
+					},
+					{State: commondomain.ResourceStateCreating, LastTransitionAt: time.Now().Add(-1 * time.Minute)},
+					{State: commondomain.ResourceStatePending, LastTransitionAt: time.Now().Add(-2 * time.Minute)},
+				},
+			},
+		},
+	}
 }

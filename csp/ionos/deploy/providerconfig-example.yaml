@@ -6,11 +6,15 @@ metadata:
 stringData:
   credentials: '{"token":"<IONOS_TOKEN>"}'
 ---
+# Cluster-scoped on purpose. The plugin creates its managed resources in a namespace derived from
+# the tenant (k8sadapter.ComputeNamespace), so a namespaced ProviderConfig would only be resolvable
+# from the single namespace holding it. Kind and name must stay in step with
+# crossplane.ProviderConfigType/ProviderConfigName in csp/ionos/pkg/adapter/crossplane/base.go, and
+# with the clusterproviderconfigs grant in deploy/rbac.yaml.
 apiVersion: upjet-ionoscloud.m.ionoscloud.io/v1beta1
-kind: ProviderConfig
+kind: ClusterProviderConfig
 metadata:
-  namespace: crossplane-system
-  name: ionos-provider-config
+  name: cluster-ionos-provider-config
 spec:
   credentials:
     source: Secret

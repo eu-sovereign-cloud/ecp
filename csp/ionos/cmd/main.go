@@ -22,6 +22,7 @@ import (
 	frameworkbuilder "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/builder"
 	instancek8s "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/instance/backend/kubernetes"
 	skuk8s "github.com/eu-sovereign-cloud/ecp/resource/compute/v1/sku/backend/kubernetes"
+	internetgatewayk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/internet-gateway/backend/kubernetes"
 	netk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/network/backend/kubernetes"
 	nick8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic/backend/kubernetes"
 	publicipk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/public-ip/backend/kubernetes"
@@ -45,6 +46,7 @@ func init() {
 	utilruntime.Must(nick8s.AddToScheme(scheme))
 	utilruntime.Must(subnetk8s.AddToScheme(scheme))
 	utilruntime.Must(routetablek8s.AddToScheme(scheme))
+	utilruntime.Must(internetgatewayk8s.AddToScheme(scheme))
 	utilruntime.Must(imgk8s.AddToScheme(scheme))
 	utilruntime.Must(ionosapis.AddToScheme(scheme))
 }

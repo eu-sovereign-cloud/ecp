@@ -134,6 +134,8 @@ Provisions IONOS Cloud resources using [Crossplane](https://crossplane.io/) with
 
 **Updates are not implemented.** Every `Update` is a no-op, so an edit to a live IONOS-backed resource is accepted and stored but never reaches the provider. It is deliberately *not* reported with `ErrNotSupported`: `Update` is level-triggered and the plugin has no observed state to diff against, so it cannot tell a resource nobody touched from one carrying a change it must refuse — returning `ErrNotSupported` would stamp `UpdateFailed` on every healthy IONOS-backed resource and leave the condition meaning nothing.
 
+**Exception: InternetGateway.** Unlike other resources, `Spec.EgressOnly` is unconditionally unsupported regardless of prior state — a public IONOS LAN is bidirectional and there is no per-LAN switch to block inbound traffic, so no diff against observed state is needed to detect the unsupported request. `Update` on an active internet gateway therefore re-applies the desired state through the same path as `Create`, and setting `EgressOnly: true` (on create or on an existing gateway) is refused with an error wrapping `ErrNotSupported` instead of being accepted: the resource stays `Active` but an `UpdateFailed` condition is stamped, and a `Create` refusal leaves the resource in a terminal error condition rather than reaching `Active`.
+
 **Prerequisites:**
 - Kubernetes cluster with Crossplane installed
 - IONOS API token
