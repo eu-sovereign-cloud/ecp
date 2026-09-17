@@ -28,7 +28,7 @@ var (
 )
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:path=network-skus,scope=Namespaced,shortName=network-sku
+// +kubebuilder:resource:path=skus,scope=Namespaced,shortName=network-sku
 // +k8s:openapi-gen=true
 
 // NetworkSKU is the API for getting network SKUs information.

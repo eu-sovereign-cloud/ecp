@@ -4,13 +4,13 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.20.0
-  name: network-skus.network.v1.secapi.cloud
+  name: skus.network.v1.secapi.cloud
 spec:
   group: network.v1.secapi.cloud
   names:
     kind: NetworkSKU
     listKind: NetworkSKUList
-    plural: network-skus
+    plural: skus
     shortNames:
     - network-sku
     singular: networksku

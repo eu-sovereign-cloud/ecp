@@ -104,7 +104,7 @@ charts/ecp/crds/
 ├── compute.v1.secapi.cloud_instances.yaml
 ├── compute.v1.secapi.cloud_skus.yaml
 ├── network.v1.secapi.cloud_internet-gateways.yaml
-├── network.v1.secapi.cloud_network-skus.yaml
+├── network.v1.secapi.cloud_skus.yaml
 ├── network.v1.secapi.cloud_networks.yaml
 ├── network.v1.secapi.cloud_nics.yaml
 ├── network.v1.secapi.cloud_public-ips.yaml
