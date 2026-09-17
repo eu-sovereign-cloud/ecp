@@ -14,7 +14,7 @@ Quick start
 
    PROVIDER_PKG="ionos-cloud/provider-upjet-ionoscloud:v0.5.8" ./install-provider.sh
 
-3. Create credentials secret in `crossplane-system` and apply a ProviderConfig
+3. Create credentials secret in `crossplane-system` and apply a ClusterProviderConfig
 
    make -C .. create-secret
    make -C .. provider-config
