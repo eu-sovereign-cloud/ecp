@@ -43,7 +43,7 @@ func (h *Handler) CreateOrUpdatePublicIp(w http.ResponseWriter, r *http.Request,
 	if params.IfUnmodifiedSince != nil {
 		id.Version = strconv.Itoa(*params.IfUnmodifiedSince)
 	}
-	region := h.Region
+	region := resource.RegionFromContext(r.Context(), h.Region)
 	frest.HandleUpsert(w, r, logger, frest.UpsertOptions[sdkschema.PublicIp, *publicipdom.PublicIp, *sdkschema.PublicIp]{
 		Params:  id,
 		Creator: frest.CreatorFromRepo(h.PublicIpWriter),

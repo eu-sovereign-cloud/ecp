@@ -22,6 +22,7 @@ import (
 	sdkworkspaceapi "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1"
 
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
+	"github.com/eu-sovereign-cloud/ecp/framework/frontend/middleware"
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/auth"
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/httpserver"
 	"github.com/eu-sovereign-cloud/ecp/gateway/internal/kubeclient"
@@ -69,6 +70,7 @@ import (
 
 var (
 	region             string
+	regions            []string
 	regionalHost       string
 	regionalPort       string
 	regionalKubeconfig string
@@ -93,7 +95,12 @@ var regionalApiServerCMD = &cobra.Command{
 
 func init() {
 	regionalApiServerCMD.Flags().StringVar(
-		&region, "region", "", "The region served by the regional gateway",
+		&region, "region", "", "The region served by the regional gateway, and the one a request that names none is served as",
+	)
+	regionalApiServerCMD.Flags().StringSliceVar(
+		&regions, "regions", nil,
+		"Comma-separated regions this gateway serves; a request selects one with a /regions/<region> path prefix "+
+			"or a <region>.<domain> host, and --region is the default for requests that name none",
 	)
 	regionalApiServerCMD.Flags().StringVar(
 		&regionalHost, "regionalHost", "0.0.0.0", "Host to bind the server to",
@@ -115,14 +122,16 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) erro
 	if region == "" {
 		region = os.Getenv("REGION")
 	}
-	region = strings.TrimSpace(region)
-	// Fail fast: empty region mis-scopes every regional request (authz region,
-	// resource placement) for the process life.
-	if region == "" {
-		return fmt.Errorf("region is required: set --region or the REGION environment variable")
+	if len(regions) == 0 && os.Getenv("REGIONS") != "" {
+		regions = strings.Split(os.Getenv("REGIONS"), ",")
+	}
+	servedRegions, defaultRegion, err := resolveRegions(region, regions)
+	if err != nil {
+		return err
 	}
 
-	logger.Info("Starting regional API server", slog.String("region", region), slog.Any("addr", addr))
+	logger.Info("Starting regional API server",
+		slog.Any("regions", servedRegions), slog.String("default_region", defaultRegion), slog.Any("addr", addr))
 	metrics.RegisterUpstreamObserver()
 
 	inClusterConfig, err := rest.InClusterConfig()
@@ -163,7 +172,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) erro
 		instancek8s.InstanceGVR,
 		logger,
 		instancek8s.InstanceFromCR,
-	)
+	).RegionScoped()
 	instanceWriterAdapter := k8sadapter.NewWriterAdapter[*instancedom.Instance](
 		client.Client,
 		instancek8s.InstanceGVR,
@@ -175,11 +184,13 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) erro
 		computeskuk8s.InstanceSKUGVR,
 		logger,
 		computeskuk8s.InstanceSKUFromCR,
-	)
+	).RegionScoped()
 	// Metrics endpoint — unauthenticated, mounted outside provider HandlerWithOptions.
 	mux.Handle("/metrics", metrics.Handler())
 
-	// RBAC reader adapters used by the authorization checker.
+	// RBAC reader adapters used by the authorization checker. Not RegionScoped: Role and
+	// RoleAssignment are tenant-scoped and carry no region label, so filtering on one would
+	// resolve every caller to no roles at all.
 	roleReaderAdapter := k8sadapter.NewReaderAdapter[*roledom.Role](
 		client.Client,
 		rolek8s.RoleGVR,
@@ -214,13 +225,13 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) erro
 			InstanceWriter: instanceWriterAdapter,
 			SKUReader:      instanceSKUReaderAdapter,
 			Logger:         logger,
-			Region:         region,
+			Region:         defaultRegion,
 		},
 		sdkcomputeapi.StdHTTPServerOptions{
 			BaseURL:    "/providers/seca.compute",
 			BaseRouter: mux,
 			Middlewares: auth.ProviderMWs[sdkcomputeapi.MiddlewareFunc](&regionalAuthFlags, authenticator, checker, "seca.compute",
-				"/providers/seca.compute", region, logger),
+				"/providers/seca.compute", defaultRegion, logger),
 			ErrorHandlerFunc: nil,
 		},
 	)
@@ -231,7 +242,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) erro
 		netk8s.NetworkGVR,
 		logger,
 		netk8s.NetworkFromCR,
-	)
+	).RegionScoped()
 	netWriterAdapter := k8sadapter.NewNamespaceManagingWriterAdapter[*netdom.Network](
 		client.Client,
 		client.ClientSet,
@@ -246,13 +257,13 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) erro
 		netskuk8s.NetworkSKUGVR,
 		logger,
 		netskuk8s.NetworkSKUFromCR,
-	)
+	).RegionScoped()
 	nicReaderAdapter := k8sadapter.NewReaderAdapter[*nicdom.Nic](
 		client.Client,
 		nick8s.NICGVR,
 		logger,
 		nick8s.NicFromCR,
-	)
+	).RegionScoped()
 	nicWriterAdapter := k8sadapter.NewWriterAdapter[*nicdom.Nic](
 		client.Client,
 		nick8s.NICGVR,
@@ -264,7 +275,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) erro
 		publicipk8s.PublicIPGVR,
 		logger,
 		publicipk8s.PublicIpFromCR,
-	)
+	).RegionScoped()
 	publicIpWriterAdapter := k8sadapter.NewWriterAdapter[*publicipdom.PublicIp](
 		client.Client,
 		publicipk8s.PublicIPGVR,
@@ -276,7 +287,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) erro
 		internetgatewayk8s.InternetGatewayGVR,
 		logger,
 		internetgatewayk8s.InternetGatewayFromCR,
-	)
+	).RegionScoped()
 	internetGatewayWriterAdapter := k8sadapter.NewWriterAdapter[*internetgatewaydom.InternetGateway](
 		client.Client,
 		internetgatewayk8s.InternetGatewayGVR,
@@ -288,7 +299,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) erro
 		routetablek8s.RouteTableGVR,
 		logger,
 		routetablek8s.RouteTableFromCR,
-	)
+	).RegionScoped()
 	routeTableWriterAdapter := k8sadapter.NewWriterAdapter[*routetabledom.RouteTable](
 		client.Client,
 		routetablek8s.RouteTableGVR,
@@ -300,7 +311,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) erro
 		subnetk8s.SubnetGVR,
 		logger,
 		subnetk8s.SubnetFromCR,
-	)
+	).RegionScoped()
 	subnetWriterAdapter := k8sadapter.NewWriterAdapter[*subnetdom.Subnet](
 		client.Client,
 		subnetk8s.SubnetGVR,
@@ -312,7 +323,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) erro
 		securitygroupk8s.SecurityGroupGVR,
 		logger,
 		securitygroupk8s.SecurityGroupFromCR,
-	)
+	).RegionScoped()
 	securityGroupWriterAdapter := k8sadapter.NewWriterAdapter[*securitygroupdom.SecurityGroup](
 		client.Client,
 		securitygroupk8s.SecurityGroupGVR,
@@ -324,7 +335,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) erro
 		securitygrouprulek8s.SecurityGroupRuleGVR,
 		logger,
 		securitygrouprulek8s.SecurityGroupRuleFromCR,
-	)
+	).RegionScoped()
 	securityGroupRuleWriterAdapter := k8sadapter.NewWriterAdapter[*securitygroupruledom.SecurityGroupRule](
 		client.Client,
 		securitygrouprulek8s.SecurityGroupRuleGVR,
@@ -352,12 +363,12 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) erro
 			SecurityGroupRuleReader: securityGroupRuleReaderAdapter,
 			SecurityGroupRuleWriter: securityGroupRuleWriterAdapter,
 			Logger:                  logger,
-			Region:                  region,
+			Region:                  defaultRegion,
 		},
 		sdknetworkapi.StdHTTPServerOptions{
 			BaseURL:          "/providers/seca.network",
 			BaseRouter:       mux,
-			Middlewares:      auth.ProviderMWs[sdknetworkapi.MiddlewareFunc](&regionalAuthFlags, authenticator, checker, "seca.network", "/providers/seca.network", region, logger),
+			Middlewares:      auth.ProviderMWs[sdknetworkapi.MiddlewareFunc](&regionalAuthFlags, authenticator, checker, "seca.network", "/providers/seca.network", defaultRegion, logger),
 			ErrorHandlerFunc: nil,
 		},
 	)
@@ -368,7 +379,7 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) erro
 		bsk8s.BlockStorageGVR,
 		logger,
 		bsk8s.BlockStorageFromCR,
-	)
+	).RegionScoped()
 	bsWriterAdapter := k8sadapter.NewWriterAdapter[*bsdom.BlockStorage](
 		client.Client,
 		bsk8s.BlockStorageGVR,
@@ -380,13 +391,13 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) erro
 		skuk8s.StorageSKUGVR,
 		logger,
 		skuk8s.StorageSKUFromCR,
-	)
+	).RegionScoped()
 	imgReaderAdapter := k8sadapter.NewReaderAdapter[*imgdom.Image](
 		client.Client,
 		imgk8s.ImageGVR,
 		logger,
 		imgk8s.ImageFromCR,
-	)
+	).RegionScoped()
 	imgWriterAdapter := k8sadapter.NewWriterAdapter[*imgdom.Image](
 		client.Client,
 		imgk8s.ImageGVR,
@@ -402,13 +413,13 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) erro
 			ImageWriter:        imgWriterAdapter,
 			SKUReader:          skuReaderAdapter,
 			Logger:             logger,
-			Region:             region,
+			Region:             defaultRegion,
 		},
 		sdkstorageapi.StdHTTPServerOptions{
 			BaseURL:    "/providers/seca.storage",
 			BaseRouter: mux,
 			Middlewares: auth.ProviderMWs[sdkstorageapi.MiddlewareFunc](&regionalAuthFlags, authenticator, checker, "seca.storage",
-				"/providers/seca.storage", region, logger),
+				"/providers/seca.storage", defaultRegion, logger),
 			ErrorHandlerFunc: nil,
 		},
 	)
@@ -428,28 +439,32 @@ func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) erro
 		wsk8s.WorkspaceGVR,
 		logger,
 		wsk8s.WorkspaceFromCR,
-	)
+	).RegionScoped()
 
 	sdkworkspaceapi.HandlerWithOptions(
 		&wsrest.Handler{
 			Reader: wsReaderAdapter,
 			Writer: wsWriterAdapter,
 			Logger: logger,
-			Region: region,
+			Region: defaultRegion,
 		},
 		sdkworkspaceapi.StdHTTPServerOptions{
 			BaseURL:    "/providers/seca.workspace",
 			BaseRouter: mux,
 			Middlewares: auth.ProviderMWs[sdkworkspaceapi.MiddlewareFunc](&regionalAuthFlags, authenticator, checker, "seca.workspace",
-				"/providers/seca.workspace", region, logger),
+				"/providers/seca.workspace", defaultRegion, logger),
 			ErrorHandlerFunc: nil,
 		},
 	)
 
+	// Outermost: it resolves the region and strips the /regions/<region> prefix before the
+	// mux matches, so every provider route — and the metrics route label — is the same
+	// whether or not the caller named a region.
+	regionRouter := middleware.NewRegionRouter(servedRegions, defaultRegion, logger)
 	httpServer := httpserver.New(
 		httpserver.Options{
 			Addr:    addr,
-			Handler: metrics.HTTPMiddleware(mux),
+			Handler: regionRouter(metrics.HTTPMiddleware(mux)),
 			Logger:  logger,
 		},
 	)
