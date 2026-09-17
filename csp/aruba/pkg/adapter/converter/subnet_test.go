@@ -67,6 +67,14 @@ func TestSubnetConverter_FromSECAToAruba(t *testing.T) {
 		_, err := converter.NewSubnetConverter().FromSECAToAruba(secaSubnet(subnetdom.CIDR{IPv6: "2001:db8::/64"}))
 		require.ErrorContains(t, err, "IPv4 CIDR")
 	})
+
+	t.Run("missing region is rejected", func(t *testing.T) {
+		subnet := secaSubnet(subnetdom.CIDR{IPv4: "10.0.1.0/24"})
+		subnet.Region = ""
+
+		_, err := converter.NewSubnetConverter().FromSECAToAruba(subnet)
+		require.ErrorContains(t, err, "region is missing")
+	})
 }
 
 // The subnet converter resolves its VPC reference by recomputing what the network converter

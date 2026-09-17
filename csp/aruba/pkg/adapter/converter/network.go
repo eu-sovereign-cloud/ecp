@@ -24,15 +24,14 @@ func NewNetworkVPCConverter() *NetworkVPCConverter {
 }
 
 func (c *NetworkVPCConverter) FromSECAToAruba(from *netdom.Network) (*v1alpha1.VPC, error) {
+	if err := RequireRegion(from.Region); err != nil {
+		return nil, err
+	}
+
 	tenant := from.GetTenant()
 	workspace := from.GetWorkspace()
 	namespace := k8sadapter.ComputeNamespace(from)
 	namespaceWorkspace := k8sadapter.ComputeNamespace(&res.Scope{Tenant: tenant})
-
-	region := from.Region
-	if region == "" {
-		region = defaultRegion
-	}
 
 	return &v1alpha1.VPC{
 		ObjectMeta: metav1.ObjectMeta{
@@ -47,7 +46,7 @@ func (c *NetworkVPCConverter) FromSECAToAruba(from *netdom.Network) (*v1alpha1.V
 		},
 		Spec: v1alpha1.VPCSpec{
 			Tenant: tenant,
-			Region: region,
+			Region: from.Region,
 			Tags:   ArubaTags(from.Labels),
 			ProjectReference: v1alpha1.ResourceReference{
 				Name:      workspace,

@@ -15,7 +15,6 @@ import (
 )
 
 const (
-	defaultRegion = "ITBG-Bergamo"
 	// defaultDatacenter is the zone every block storage lands in (SECA models no per-volume zone).
 	// An Instance carries its own zone, and Aruba requires a CloudServer and its boot volume to share
 	// one, so an instance in another zone cannot be satisfied today.
@@ -31,6 +30,10 @@ func NewBlockStorageConverter() *BlockStorageConverter {
 }
 
 func (c *BlockStorageConverter) FromSECAToAruba(from *bsdom.BlockStorage) (*v1alpha1.BlockStorage, error) {
+	if err := RequireRegion(from.Region); err != nil {
+		return nil, err
+	}
+
 	tenant := from.GetTenant()
 	workspace := from.GetWorkspace()
 	namespace := k8sadapter.ComputeNamespace(from) // TODO: ask to change repository for  ComputeNamespace from kubernetes adapter to scope
@@ -54,7 +57,7 @@ func (c *BlockStorageConverter) FromSECAToAruba(from *bsdom.BlockStorage) (*v1al
 		Spec: v1alpha1.BlockStorageSpec{
 			SizeGB: sizeGB,
 			Tenant: tenant,
-			Region: getRegionFromSpecOrDefault(from),
+			Region: from.Region,
 			Tags:   ArubaTags(from.Labels),
 			ProjectReference: v1alpha1.ResourceReference{
 				Name:      workspace,
@@ -105,24 +108,6 @@ func SecaToArubaSize(in int) (int32, error) {
 	}
 
 	return int32(in), nil //nolint:gosec // boundaries checked above
-}
-
-// getRegionFromSpecOrDefault get region from source image or sku ref otherwise default value.
-// A SECA reference only carries a region when it points at another one; the common case leaves it
-// empty ("inferred from context"), so an empty region must fall through to the default rather than
-// be forwarded. Aruba rejects a volume with no region as "Size: invalid; DataCenter: invalid" - both
-// a zone and the size catalog are resolved within a region - which is a confusing way to be told the
-// location is missing.
-func getRegionFromSpecOrDefault(from *bsdom.BlockStorage) string {
-	if from.Spec.SourceImageRef != nil && from.Spec.SourceImageRef.Region != "" {
-		return from.Spec.SourceImageRef.Region
-	}
-
-	if from.Spec.SkuRef.Region != "" {
-		return from.Spec.SkuRef.Region
-	}
-
-	return defaultRegion
 }
 
 // getTenantFromSpecOrLabel find on spec
