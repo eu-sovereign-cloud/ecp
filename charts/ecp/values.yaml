@@ -125,9 +125,14 @@ gatewayGlobal:
 
 gatewayRegional:
   enabled: true
-  # The region served by this regional gateway (REGION env var). Required when
-  # enabled, e.g. "itbg-bergamo".
+  # The region this gateway serves, and the one a request that names no region is
+  # served as (--region), e.g. "itbg-bergamo". Required unless `regions` is set.
   region: ""
+  # Extra regions this one deployment serves (--regions). A request picks one with a
+  # "/regions/<region>" path prefix or a "<region>.<domain>" Host; `region` above stays
+  # the default for requests that name none, and must be one of these when both are set.
+  # Leave empty for the usual one-deployment-per-region topology.
+  regions: []
   replicaCount: 1
   image:
     # Published on every v* tag by .github/workflows/image-release.yaml.

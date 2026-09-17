@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	authzport "github.com/eu-sovereign-cloud/ecp/framework/kernel/port/authz"
+	kresource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 )
 
 // SECAClaimExtractor returns an [authzport.ClaimExtractor] that builds an
@@ -15,7 +16,8 @@ import (
 //   - Provider: baked-in constant passed to this constructor (e.g. "seca.compute").
 //   - Tenant: r.PathValue("tenant").
 //   - Workspace: r.PathValue("workspace"); empty for tenant-scoped resources.
-//   - Region: the region passed to this constructor; empty on the global server.
+//   - Region: the region resolved for this request by [NewRegionRouter], falling back to
+//     the region passed to this constructor; empty on the global server.
 //   - Name: r.PathValue("name"); empty for collection (list) operations.
 //   - Resource: the resource kind path derived from r.Pattern (see resourceAndVerb).
 //     Examples: "instances", "networks/subnets", "roles".
@@ -43,7 +45,7 @@ func SECAClaimExtractor(provider, baseURL, region string) authzport.ClaimExtract
 			Name:      name,
 			Verb:      verb,
 			Tenant:    tenant,
-			Region:    region,
+			Region:    kresource.RegionFromContext(r.Context(), region),
 			Workspace: workspace,
 		}, nil
 	}
