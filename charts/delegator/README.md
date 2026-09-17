@@ -30,8 +30,8 @@ match.
 - Install into the **same cluster as the regional gateway** — the delegator
   reconciles the CRs that gateway writes.
 - The backend for your plugin, installed **out of band**. Until it is present,
-  resources stay pending. (For aruba there is no in-repo tooling yet — see
-  `test/conformance/aruba/README.md`.)
+  resources stay pending. (For aruba, `test/conformance/aruba` installs it for
+  you — see `test/conformance/aruba/README.md`.)
 
 ## Installing
 
