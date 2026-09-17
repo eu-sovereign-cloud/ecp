@@ -58,6 +58,14 @@ func TestPublicIpElasticIpConverter_FromSECAToAruba(t *testing.T) {
 			secaPublicIp(publicipdom.PublicIpSpec{Version: commondomain.IPVersionIPv6}))
 		require.ErrorContains(t, err, "IPv6")
 	})
+
+	t.Run("missing region is rejected", func(t *testing.T) {
+		ip := secaPublicIp(publicipdom.PublicIpSpec{Version: commondomain.IPVersionIPv4})
+		ip.Region = ""
+
+		_, err := converter.NewPublicIpElasticIpConverter().FromSECAToAruba(ip)
+		require.ErrorContains(t, err, "region is missing")
+	})
 }
 
 func TestPublicIpElasticIpConverter_FromArubaToSECA(t *testing.T) {

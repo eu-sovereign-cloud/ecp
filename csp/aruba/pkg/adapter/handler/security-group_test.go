@@ -144,9 +144,9 @@ func TestSecurityGroup_delete_staysInsideItsWorkspace(t *testing.T) {
 
 	objs := []client.Object{}
 	for _, ws := range []string{"ws-1", "ws-2"} {
-		sg := adaptconverter.BuildSecurityGroup("web", "prod", "", "acme", nsFor(ws), nil, vpcRef, prjRef)
+		sg := adaptconverter.BuildSecurityGroup("web", "prod", "ITBG-Bergamo", "acme", nsFor(ws), nil, vpcRef, prjRef)
 		objs = append(objs, sg)
-		for _, rule := range adaptconverter.BuildSecurityRules(rules, sg.Name, "", "acme", nsFor(ws), vpcRef, prjRef) {
+		for _, rule := range adaptconverter.BuildSecurityRules(rules, sg.Name, "ITBG-Bergamo", "acme", nsFor(ws), vpcRef, prjRef) {
 			objs = append(objs, rule)
 		}
 	}
