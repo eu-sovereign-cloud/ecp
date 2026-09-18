@@ -25,6 +25,7 @@ func TestSubnet(t *testing.T) {
 		s := &subnetdom.Subnet{
 			RegionalNetworkMetadata: commondomain.RegionalNetworkMetadata{
 				RegionalMetadata: commondomain.RegionalMetadata{
+					Region:         testRegion,
 					CommonMetadata: commondomain.CommonMetadata{Name: name},
 				},
 				Network: testNetwork,

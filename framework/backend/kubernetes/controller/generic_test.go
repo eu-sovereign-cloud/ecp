@@ -9,10 +9,28 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 
+	"github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/builder"
+	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
 )
+
+// scopedResource is the smallest thing a GenericController can be instantiated for.
+type scopedResource struct{}
+
+func (scopedResource) GetName() string      { return "" }
+func (scopedResource) GetVersion() string   { return "" }
+func (scopedResource) GetTenant() string    { return "" }
+func (scopedResource) GetWorkspace() string { return "" }
+
+// The controller set scopes whatever implements RegionScoped, and nothing fails to compile if
+// the generic controller stops doing so — every delegator would just quietly widen back to
+// every region. This assertion is that missing compile error.
+var _ builder.RegionScoped = (*GenericController[scopedResource])(nil)
 
 func TestRequeueFor(t *testing.T) {
 	const defaultInterval = 10 * time.Second
@@ -87,4 +105,54 @@ func TestRequeueFor(t *testing.T) {
 			require.ErrorIs(t, err, tc.wantErr)
 		})
 	}
+}
+
+// TestRegionPredicate covers the watch filter a region-scoped delegator runs with: only a CR
+// whose internal region label names one of the regions it serves may reach Reconcile, on every
+// event kind. A miss here either strands resources nobody reconciles or reconciles another
+// deployment's region, and neither shows up until something is already in the wrong cluster.
+func TestRegionPredicate(t *testing.T) {
+	t.Parallel()
+
+	labelled := func(region string) client.Object {
+		obj := &metav1.PartialObjectMetadata{}
+		if region != "" {
+			obj.SetLabels(map[string]string{k8slabels.InternalRegionLabel: region})
+		}
+		return obj
+	}
+
+	t.Run("an empty scope filters nothing", func(t *testing.T) {
+		pred, err := regionPredicate(nil)
+		require.NoError(t, err)
+		require.Nil(t, pred, "no predicate at all, so the watch stays cluster-wide")
+	})
+
+	t.Run("a region outside the scope is dropped on every event kind", func(t *testing.T) {
+		pred, err := regionPredicate([]string{"itbg-bergamo", "deff-frankfurt"})
+		require.NoError(t, err)
+
+		for _, tc := range []struct {
+			region string
+			want   bool
+		}{
+			{region: "itbg-bergamo", want: true},
+			{region: "deff-frankfurt", want: true},
+			{region: "elsewhere", want: false},
+			// A resource with no region belongs to no region, so a scoped delegator leaves
+			// it alone rather than claiming it by default.
+			{region: "", want: false},
+		} {
+			obj := labelled(tc.region)
+			require.Equal(t, tc.want, pred.Create(event.CreateEvent{Object: obj}), "create %q", tc.region)
+			require.Equal(t, tc.want, pred.Update(event.UpdateEvent{ObjectNew: obj}), "update %q", tc.region)
+			require.Equal(t, tc.want, pred.Delete(event.DeleteEvent{Object: obj}), "delete %q", tc.region)
+			require.Equal(t, tc.want, pred.Generic(event.GenericEvent{Object: obj}), "generic %q", tc.region)
+		}
+	})
+
+	t.Run("a region that cannot be a label value fails setup", func(t *testing.T) {
+		_, err := regionPredicate([]string{"not a label value"})
+		require.Error(t, err, "a selector that can never match must not start a delegator that reconciles nothing")
+	})
 }

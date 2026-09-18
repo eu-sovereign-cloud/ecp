@@ -24,6 +24,7 @@ func TestInstance(t *testing.T) {
 	newInstance := func(name string) *instancedom.Instance {
 		return &instancedom.Instance{
 			RegionalMetadata: commondomain.RegionalMetadata{
+				Region:         testRegion,
 				CommonMetadata: commondomain.CommonMetadata{Name: name},
 				Scope:          resource.Scope{Tenant: testTenant, Workspace: testWorkspace},
 			},

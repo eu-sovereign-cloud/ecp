@@ -57,7 +57,11 @@ const (
 	// its per-network namespace the same way the gateway does; the network resource
 	// itself is exercised separately in network_test.go.
 	testNetwork = "test-network"
-	testRegion  = "ITBG-Bergamo"
+	// testRegion is the region every fixture here is created in. It must be one the
+	// deployed delegator serves (internal/deploy/delegator/values.yaml) — a CR in any
+	// other region is deliberately never reconciled, so a fixture that drifts from this
+	// value hangs waiting for a status nothing will ever write.
+	testRegion = "itbg-bergamo"
 	// networkCIDR is the fixture network's address space. The dummy plugin does not
 	// validate it; it only has to be a well-formed CIDR.
 	networkCIDR = "10.30.0.0/16"
@@ -215,6 +219,7 @@ func TestMain(m *testing.M) {
 func newTestWorkspace() *wsdom.Workspace {
 	return &wsdom.Workspace{
 		RegionalMetadata: commondomain.RegionalMetadata{
+			Region: testRegion,
 			CommonMetadata: commondomain.CommonMetadata{
 				Name: testWorkspace,
 			},
@@ -277,6 +282,7 @@ func waitGone[T persistence.IdentifiableResource](ctx context.Context, repo pers
 func newTestNetwork() *netdom.Network {
 	return &netdom.Network{
 		RegionalMetadata: commondomain.RegionalMetadata{
+			Region:         testRegion,
 			CommonMetadata: commondomain.CommonMetadata{Name: testNetwork},
 			Scope:          resource.Scope{Tenant: testTenant, Workspace: testWorkspace},
 		},
@@ -318,6 +324,7 @@ func testNetworkNamespace() string {
 func newSourceBlockStorage() *bsdom.BlockStorage {
 	return &bsdom.BlockStorage{
 		RegionalMetadata: commondomain.RegionalMetadata{
+			Region: testRegion,
 			CommonMetadata: commondomain.CommonMetadata{
 				Name: sourceBlockStorage,
 			},
@@ -355,6 +362,7 @@ func waitForBlockStorageActive(ctx context.Context, repo persistence.Repo[*bsdom
 	return wait.PollUntilContextTimeout(ctx, pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
 		loaded := &bsdom.BlockStorage{
 			RegionalMetadata: commondomain.RegionalMetadata{
+				Region: testRegion,
 				CommonMetadata: commondomain.CommonMetadata{
 					Name: name,
 				},

@@ -24,6 +24,7 @@ func TestNetwork(t *testing.T) {
 	newNetwork := func(name string) *netdom.Network {
 		return &netdom.Network{
 			RegionalMetadata: commondomain.RegionalMetadata{
+				Region:         testRegion,
 				CommonMetadata: commondomain.CommonMetadata{Name: name},
 				Scope:          resource.Scope{Tenant: testTenant, Workspace: testWorkspace},
 			},

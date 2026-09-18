@@ -4,4 +4,11 @@
 # otherwise — see internal/scripts/deploy.sh), which also selects the RBAC the
 # chart grants. Image repository, tag and pullPolicy come from the script, as
 # does imagePullSecrets when the local context carries registry credentials.
-{}
+
+# The test stack runs a region-scoped delegator: the suites' CRs and the fixtures in
+# test-data all carry this region, so every run exercises the scoped watch instead of
+# leaving it to a case nothing deploys. A fixture that carries a different region — or
+# none — is therefore never reconciled; region_scope_test.go is that on purpose, and
+# anything else stuck in "pending" forever is the first thing to check.
+regions:
+  - itbg-bergamo

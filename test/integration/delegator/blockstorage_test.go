@@ -28,6 +28,7 @@ func TestBlockStorage(t *testing.T) {
 		resourceName := "test-bs-create-" + uuid.New().String()[:8]
 		bsDomain := &bsdom.BlockStorage{
 			RegionalMetadata: commondomain.RegionalMetadata{
+				Region: testRegion,
 				CommonMetadata: commondomain.CommonMetadata{
 					Name: resourceName,
 				},
@@ -39,7 +40,7 @@ func TestBlockStorage(t *testing.T) {
 			Spec: bsdom.BlockStorageSpec{
 				SizeGB: 1,
 				SkuRef: commondomain.Reference{
-					Region:   "ITBG-Bergamo",
+					Region:   testRegion,
 					Resource: "sku-1",
 				},
 			},
@@ -58,6 +59,7 @@ func TestBlockStorage(t *testing.T) {
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
 			loadedBs = &bsdom.BlockStorage{
 				RegionalMetadata: commondomain.RegionalMetadata{
+					Region: testRegion,
 					CommonMetadata: commondomain.CommonMetadata{
 						Name: resourceName,
 					},
@@ -95,6 +97,7 @@ func TestBlockStorage(t *testing.T) {
 		resourceName := "test-bs-delete-" + uuid.New().String()[:8]
 		bsDomain := &bsdom.BlockStorage{
 			RegionalMetadata: commondomain.RegionalMetadata{
+				Region: testRegion,
 				CommonMetadata: commondomain.CommonMetadata{
 					Name: resourceName,
 				},
@@ -106,7 +109,7 @@ func TestBlockStorage(t *testing.T) {
 			Spec: bsdom.BlockStorageSpec{
 				SizeGB: 1,
 				SkuRef: commondomain.Reference{
-					Region:   "ITBG-Bergamo",
+					Region:   testRegion,
 					Resource: "sku-1",
 				},
 			},
@@ -119,6 +122,7 @@ func TestBlockStorage(t *testing.T) {
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
 			loadedBs = &bsdom.BlockStorage{
 				RegionalMetadata: commondomain.RegionalMetadata{
+					Region: testRegion,
 					CommonMetadata: commondomain.CommonMetadata{
 						Name: resourceName,
 					},
@@ -152,6 +156,7 @@ func TestBlockStorage(t *testing.T) {
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
 			loadedBs = &bsdom.BlockStorage{
 				RegionalMetadata: commondomain.RegionalMetadata{
+					Region: testRegion,
 					CommonMetadata: commondomain.CommonMetadata{
 						Name: resourceName,
 					},
@@ -181,6 +186,7 @@ func TestBlockStorage(t *testing.T) {
 		resourceName := "test-bs-increase-" + uuid.New().String()[:8]
 		bsDomain := &bsdom.BlockStorage{
 			RegionalMetadata: commondomain.RegionalMetadata{
+				Region: testRegion,
 				CommonMetadata: commondomain.CommonMetadata{
 					Name: resourceName,
 				},
@@ -192,7 +198,7 @@ func TestBlockStorage(t *testing.T) {
 			Spec: bsdom.BlockStorageSpec{
 				SizeGB: 1,
 				SkuRef: commondomain.Reference{
-					Region:   "ITBG-Bergamo",
+					Region:   testRegion,
 					Resource: "sku-1",
 				},
 			},
@@ -204,6 +210,7 @@ func TestBlockStorage(t *testing.T) {
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
 			loadedBs = &bsdom.BlockStorage{
 				RegionalMetadata: commondomain.RegionalMetadata{
+					Region: testRegion,
 					CommonMetadata: commondomain.CommonMetadata{
 						Name: resourceName,
 					},
@@ -236,6 +243,7 @@ func TestBlockStorage(t *testing.T) {
 		// When we update the block storage resource with an increased size
 		updatedBsDomain := &bsdom.BlockStorage{
 			RegionalMetadata: commondomain.RegionalMetadata{
+				Region: testRegion,
 				CommonMetadata: commondomain.CommonMetadata{
 					Name: resourceName,
 				},
@@ -259,6 +267,7 @@ func TestBlockStorage(t *testing.T) {
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
 			currentBs = &bsdom.BlockStorage{
 				RegionalMetadata: commondomain.RegionalMetadata{
+					Region: testRegion,
 					CommonMetadata: commondomain.CommonMetadata{
 						Name: resourceName,
 					},
