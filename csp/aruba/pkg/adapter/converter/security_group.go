@@ -35,12 +35,9 @@ func MaterializedSecurityGroupName(secaName, network string) string {
 	return fmt.Sprintf("%s-%s", secaName, network)
 }
 
-// BuildSecurityGroup maps a SECA security group to an Aruba SecurityGroup in a given VPC.
+// BuildSecurityGroup maps a SECA security group to an Aruba SecurityGroup in a given VPC. The
+// region is the attaching instance's, which the handler rejects as missing before it gets here.
 func BuildSecurityGroup(secaName, network, region, tenant, namespace string, labels map[string]string, vpcRef, projectRef v1alpha1.ResourceReference) *v1alpha1.SecurityGroup {
-	if region == "" {
-		region = defaultRegion
-	}
-
 	return &v1alpha1.SecurityGroup{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      MaterializedSecurityGroupName(secaName, network),
@@ -108,10 +105,6 @@ func NormalizeStandaloneRule(r securitygrouprule.SecurityGroupRuleSpec, labels m
 // one rule per port, and each sourceRef yields its own rule. Rules are named deterministically so
 // re-issuing the create is idempotent.
 func BuildSecurityRules(rules []RuleSpec, sgName, region, tenant, namespace string, vpcRef, projectRef v1alpha1.ResourceReference) []*v1alpha1.SecurityRule {
-	if region == "" {
-		region = defaultRegion
-	}
-
 	sgRef := v1alpha1.ResourceReference{Name: sgName, Namespace: namespace}
 
 	var out []*v1alpha1.SecurityRule

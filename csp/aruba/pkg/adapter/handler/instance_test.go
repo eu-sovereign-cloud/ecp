@@ -66,6 +66,7 @@ func testInstance() *instancedom.Instance {
 		RegionalMetadata: commondomain.RegionalMetadata{
 			CommonMetadata: commondomain.CommonMetadata{Name: "vm-1"},
 			Scope:          res.Scope{Tenant: "test-tenant", Workspace: "test-workspace"},
+			Region:         "ITBG-Bergamo",
 		},
 		Spec: instancedom.InstanceSpec{
 			PrimaryNicRef: &commondomain.Reference{Resource: "nics/nic-1"},
@@ -322,6 +323,21 @@ func TestComputeInstance_create(t *testing.T) {
 			},
 			wantErr:     true,
 			errContains: "cross-scope references are not supported",
+		},
+		{
+			// The KeyPair, the materialised security groups and the CloudServer all take their
+			// region from the instance. With none there is nowhere to create them, so the reconcile
+			// fails before anything is read or issued - any repository call here would be an
+			// unexpected call and fail the mock controller.
+			name: "no region - error before anything is materialised",
+			instance: func() *instancedom.Instance {
+				i := testInstance()
+				i.Region = ""
+				return i
+			}(),
+			setupMocks:  func(_ *instMocks) {},
+			wantErr:     true,
+			errContains: "region is missing",
 		},
 	}
 

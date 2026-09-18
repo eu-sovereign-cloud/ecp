@@ -120,6 +120,15 @@ func TestEndToEnd(t *testing.T) {
 			}
 			return r.JSON200.Status.State, true, nil
 		})
+
+		// The region is stamped by the regional gateway and has to survive the whole round trip:
+		// it is the only thing that tells a delegator plugin where to provision, and a plugin that
+		// finds none fails the reconcile rather than defaulting to some region of its own.
+		getResp, err := storageClient.GetBlockStorageWithResponse(ctx, testTenant, testWorkspace, blockStorageName)
+		require.NoError(t, err)
+		require.NotNil(t, getResp.JSON200)
+		require.NotNil(t, getResp.JSON200.Metadata)
+		require.Equal(t, testRegion, getResp.JSON200.Metadata.Region)
 	})
 
 	// Step 4: a workspace-scoped Network created through the regional gateway. Creating

@@ -4,8 +4,10 @@ import (
 	"testing"
 
 	"github.com/Arubacloud/arubacloud-resource-operator/api/v1alpha1"
+	"github.com/stretchr/testify/require"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	res "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	bsdom "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage"
@@ -13,100 +15,45 @@ import (
 	"github.com/eu-sovereign-cloud/ecp/csp/aruba/pkg/adapter/converter"
 )
 
+// secaBlockStorage is a valid SECA block storage. Its source image reference names a region of
+// its own ("eu-de") because a reference carries one only when it points across a region - the
+// volume still lands in the region the resource itself carries.
+func secaBlockStorage() *bsdom.BlockStorage {
+	return &bsdom.BlockStorage{
+		RegionalMetadata: commondomain.RegionalMetadata{
+			CommonMetadata: commondomain.CommonMetadata{Name: "my-block-storage"},
+			Scope:          res.Scope{Tenant: "test-tenant", Workspace: "test-workspace"},
+			Region:         "ITBG-Bergamo",
+		},
+		Spec: bsdom.BlockStorageSpec{
+			SizeGB:         100,
+			SourceImageRef: &commondomain.Reference{Region: "eu-de", Tenant: "tenant-123"},
+		},
+		Status: &bsdom.BlockStorageStatus{Status: commondomain.Status{State: commondomain.ResourceStateActive}},
+	}
+}
+
 func TestBlockStorageConverter_FromSECAToAruba(t *testing.T) {
-	tests := []struct {
-		name   string
-		input  *bsdom.BlockStorage
-		assert func(t *testing.T, project *v1alpha1.BlockStorage)
-	}{
-		{
-			name: "happy path",
-			input: &bsdom.BlockStorage{
-				RegionalMetadata: commondomain.RegionalMetadata{
-					Scope: res.Scope{
-						Workspace: "test-workspace",
-						Tenant:    "test-tenant",
-					},
-					CommonMetadata: commondomain.CommonMetadata{
-						Name: "my-block-storage",
-					},
-				},
-				Spec: bsdom.BlockStorageSpec{
-					SizeGB: 100,
-					SourceImageRef: &commondomain.Reference{
-						Region: "eu-de",
-						Tenant: "tenant-123",
-					},
-				},
-				Status: &bsdom.BlockStorageStatus{
-					Status: commondomain.Status{
-						State: commondomain.ResourceStateActive,
-					},
-				},
-			},
-			assert: func(t *testing.T, bs *v1alpha1.BlockStorage) {
-				t.Helper()
+	bs, err := converter.NewBlockStorageConverter().FromSECAToAruba(secaBlockStorage())
+	require.NoError(t, err)
 
-				if bs.Name != "my-block-storage" {
-					t.Errorf("expected block storage name 'my-block-storage', got %s", bs.Name)
-				}
-				if bs.Namespace != "499361fe6f0e4b318e6dc9723bc08427efa461d669f97f79d6486d30" {
-					t.Errorf("expected namespace 'default', got %s", bs.Namespace)
-				}
+	require.Equal(t, "my-block-storage", bs.Name)
+	require.Equal(t, "499361fe6f0e4b318e6dc9723bc08427efa461d669f97f79d6486d30", bs.Namespace)
+	require.Equal(t, "test-tenant", bs.Spec.Tenant)
+	require.Equal(t, int32(100), bs.Spec.SizeGB)
+	require.Equal(t, "test-workspace", bs.Spec.ProjectReference.Name)
+	require.Equal(t, "ITBG-Bergamo", bs.Spec.Region)
+}
 
-				if bs.Spec.Tenant != "test-tenant" {
-					t.Errorf("expected tenant 'tenant-123', got %s", bs.Spec.Tenant)
-				}
+// A volume with no region cannot be placed: Aruba resolves both the zone and the size catalog
+// within one. Defaulting would provision it somewhere nobody asked for, so the conversion fails.
+func TestBlockStorageConverter_missingRegionIsRejected(t *testing.T) {
+	bs := secaBlockStorage()
+	bs.Region = ""
 
-				if bs.Spec.SizeGB != 100 {
-					t.Errorf("expected size 100, got %d", bs.Spec.SizeGB)
-				}
-
-				if bs.Spec.ProjectReference.Name != "test-workspace" {
-					t.Errorf("expected workspace 'test-workspace', got %s", bs.Spec.ProjectReference.Name)
-				}
-
-				if bs.Spec.Region != "eu-de" {
-					t.Errorf("expected location 'eu-de', got %s", bs.Spec.Region)
-				}
-			},
-		},
-		{
-			// A SECA reference carries a region only when it points at another one, so the common
-			// boot-from-image case leaves it empty. Forwarding that empty region makes Aruba reject
-			// the volume ("Size: invalid; DataCenter: invalid"), so it must fall back to the default.
-			name: "source image without a region falls back to the default region",
-			input: &bsdom.BlockStorage{
-				RegionalMetadata: commondomain.RegionalMetadata{
-					Scope:          res.Scope{Workspace: "test-workspace", Tenant: "test-tenant"},
-					CommonMetadata: commondomain.CommonMetadata{Name: "boot"},
-				},
-				Spec: bsdom.BlockStorageSpec{
-					SizeGB:         20,
-					SourceImageRef: &commondomain.Reference{Resource: "images/debian-12"},
-				},
-			},
-			assert: func(t *testing.T, bs *v1alpha1.BlockStorage) {
-				t.Helper()
-
-				if bs.Spec.Region != "ITBG-Bergamo" {
-					t.Errorf("expected the default region 'ITBG-Bergamo', got %q", bs.Spec.Region)
-				}
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			converter := &converter.BlockStorageConverter{}
-			result, err := converter.FromSECAToAruba(tt.input)
-			if err != nil {
-				tt.assert(t, nil)
-			}
-
-			tt.assert(t, result)
-		})
-	}
+	_, err := converter.NewBlockStorageConverter().FromSECAToAruba(bs)
+	require.ErrorContains(t, err, "region is missing")
+	require.ErrorIs(t, err, kernel.ErrValidation)
 }
 
 func TestBlockStorageConverter_FromArubaToSECA(t *testing.T) {
