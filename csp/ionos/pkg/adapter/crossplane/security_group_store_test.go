@@ -153,9 +153,14 @@ func TestSecurityGroupCreateIsIdempotent(t *testing.T) {
 }
 
 // A group that names a shared rule which does not exist yet waits for it. The group is
-// level-triggered, so the rule may still arrive; failing would strand the group in error.
+// level-triggered, so the rule may still arrive; failing would strand the group in error. The
+// rules that do resolve are written meanwhile — they do not depend on the missing one, and the
+// group is more restrictive than asked for until it lands, never less.
 func TestSecurityGroupCreateWaitsForMissingRuleRef(t *testing.T) {
 	sg := testSecurityGroup()
+	sg.Spec.Rules = []securitygroupdom.SecurityGroupRuleSpec{{
+		Direction: "ingress", Protocol: "tcp", Ports: &securitygroupdom.Ports{From: 22},
+	}}
 	sg.Spec.RuleRefs = []commondomain.Reference{{Resource: "security-group-rules/shared-ssh"}}
 	ns := securityGroupNamespace(sg)
 
@@ -169,7 +174,40 @@ func TestSecurityGroupCreateWaitsForMissingRuleRef(t *testing.T) {
 
 	var rules ionosv1alpha1.NSGFirewallRuleList
 	require.NoError(t, c.List(context.Background(), &rules, client.InNamespace(ns)))
-	require.Empty(t, rules.Items, "no rule may be written while a referenced rule is unresolved")
+	require.Len(t, rules.Items, 1, "the resolvable rules are written while a ref is unresolved")
+}
+
+// Create is also the update path (service.SecurityGroup.Update calls it), so an edit that
+// revokes a rule and names a not-yet-existing shared rule in the same pass must still strip the
+// revoked rule. Returning early on the unresolved ref would leave it in place and keep allowing
+// traffic the tenant has withdrawn, for as long as the ref stays unresolved.
+func TestSecurityGroupCreateReapsRevokedRuleWhileRefUnresolved(t *testing.T) {
+	sg := testSecurityGroup()
+	sg.Spec.Rules = []securitygroupdom.SecurityGroupRuleSpec{{
+		Direction: "ingress", Protocol: "tcp", Ports: &securitygroupdom.Ports{From: 22},
+	}}
+	ns := securityGroupNamespace(sg)
+
+	c := fakeclient.NewClientBuilder().
+		WithScheme(securityGroupScheme(t)).
+		WithObjects(readySecurityGroupDatacenter(), readyNSG(ns)).
+		Build()
+	store := NewSecurityGroupStore(c, testLogger())
+
+	require.ErrorIs(t, store.Create(context.Background(), sg), backend.StillProcessing)
+	var before ionosv1alpha1.NSGFirewallRuleList
+	require.NoError(t, c.List(context.Background(), &before, client.InNamespace(ns)))
+	require.Len(t, before.Items, 1)
+
+	// The edit: ssh revoked, a shared rule that has not been created yet pulled in.
+	sg.Spec.Rules = nil
+	sg.Spec.RuleRefs = []commondomain.Reference{{Resource: "security-group-rules/shared-https"}}
+
+	require.ErrorIs(t, store.Create(context.Background(), sg), backend.StillProcessing)
+
+	var after ionosv1alpha1.NSGFirewallRuleList
+	require.NoError(t, c.List(context.Background(), &after, client.InNamespace(ns)))
+	require.Empty(t, after.Items, "the revoked rule must not survive an unresolved rule ref")
 }
 
 // A referenced shared rule is materialised as part of the group that pulls it in, alongside the

@@ -81,7 +81,15 @@ func (a *SecurityGroupStore) Create(ctx context.Context, domain *securitygroupdo
 	}
 
 	// 3. The rules: the group's own inline rules plus every shared rule it pulls in.
-	rules, err := a.resolveRules(ctx, domain)
+	//
+	// A ref that does not resolve yet holds the group open, but it must not hold back the rules
+	// that did resolve. Create is also the update path (see service.SecurityGroup.Update), so the
+	// same edit that names a not-yet-existing rule may have revoked another one; returning here
+	// would leave that revoked rule in place and keep allowing traffic the tenant withdrew.
+	// Reconciling the resolvable subset is safe because rule CR names are content-derived (see
+	// ruleCRName): the subset produces exactly the names it would produce in the full set, so the
+	// reap removes only what the spec dropped and nothing flaps when the missing ref arrives.
+	rules, unresolved, err := a.resolveRules(ctx, domain)
 	if err != nil {
 		return err
 	}
@@ -89,7 +97,13 @@ func (a *SecurityGroupStore) Create(ctx context.Context, domain *securitygroupdo
 	if err != nil {
 		return err
 	}
-	return a.reconcileRules(ctx, domain.GetName(), ns, desired)
+	if err := a.reconcileRules(ctx, domain.GetName(), ns, desired); err != nil {
+		return err
+	}
+	if unresolved {
+		return backend.StillProcessing
+	}
+	return nil
 }
 
 func (a *SecurityGroupStore) Delete(ctx context.Context, domain *securitygroupdom.SecurityGroup) error {
@@ -186,10 +200,15 @@ func (a *SecurityGroupStore) reapRules(ctx context.Context, sgName, ns string, k
 }
 
 // resolveRules collects the group's inline rules and every standalone SecurityGroupRule it
-// references, normalised to one shape. RuleRefs are resolved in spec order so the rule CR names
-// buildRuleCRs derives from a running index stay stable across reconciles.
-func (a *SecurityGroupStore) resolveRules(ctx context.Context, domain *securitygroupdom.SecurityGroup) ([]normalizedRule, error) {
+// references, normalised to one shape.
+//
+// A ref naming a rule that does not exist yet is not an error: the group is level-triggered, so
+// the rule may still arrive. It is reported through the second return value instead of aborting
+// the whole resolution, which lets the caller apply the rules that did resolve and requeue for
+// the rest — see Create.
+func (a *SecurityGroupStore) resolveRules(ctx context.Context, domain *securitygroupdom.SecurityGroup) ([]normalizedRule, bool, error) {
 	rules := normalizeInlineRules(domain.Spec.Rules, domain.GetName())
+	unresolved := false
 
 	for _, ref := range domain.Spec.RuleRefs {
 		target := commonbackend.ParseReference(ref, domain.GetTenant())
@@ -205,22 +224,24 @@ func (a *SecurityGroupStore) resolveRules(ctx context.Context, domain *securityg
 		if err := a.client.Get(ctx, client.ObjectKey{Namespace: ns, Name: target.Name}, cr); err != nil {
 			if apierrors.IsNotFound(err) {
 				// A shared rule the group names but that does not exist yet. It may still
-				// arrive — the group is level-triggered — so wait rather than fail.
+				// arrive — the group is level-triggered — so keep going and let the caller
+				// requeue rather than failing or dropping the rules that did resolve.
 				a.logger.Info("security group: waiting for referenced rule",
 					"security_group", domain.GetName(), "rule", target.Name)
-				return nil, backend.StillProcessing
+				unresolved = true
+				continue
 			}
-			return nil, fmt.Errorf("read security group rule %q: %w", target.Name, err)
+			return nil, false, fmt.Errorf("read security group rule %q: %w", target.Name, err)
 		}
 
 		rule, err := sgrk8s.SecurityGroupRuleFromCR(cr)
 		if err != nil {
-			return nil, fmt.Errorf("convert security group rule %q: %w", target.Name, err)
+			return nil, false, fmt.Errorf("convert security group rule %q: %w", target.Name, err)
 		}
 		rules = append(rules, normalizeStandaloneRule(rule.Spec, target.Name))
 	}
 
-	return rules, nil
+	return rules, unresolved, nil
 }
 
 // newNSG builds the NSG backing a SECA security group. IONOS requires a description and SECA
