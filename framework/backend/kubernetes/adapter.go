@@ -842,6 +842,56 @@ func namespaceHasChildResources(
 	return false, nil
 }
 
+// namespaceHasLiveCoOwner reports whether a resource other than m still owns the children
+// namespace m is about to reclaim.
+//
+// Only a region-keyed resource can have one. Its own CR is placed per region, but the namespace
+// it owns for its children is hashed from tenant and name alone — its children resolve that
+// namespace from their own scope, which carries no region — so the same name in two regions is
+// two CRs over one namespace. Tearing it down while the other one is alive would strand it: its
+// children would resolve a namespace that no longer exists, and NamespaceEnsure only repairs
+// that on the survivor's next reconcile, which for a settled resource is a resync away. The
+// last owner deleted is the one that reclaims it.
+//
+// A co-owner that is itself terminating does not count: two simultaneous deletes would
+// otherwise each defer to the other and leak the namespace.
+func namespaceHasLiveCoOwner(
+	ctx context.Context,
+	dyn dynamic.Interface,
+	ownerGVR schema.GroupVersionResource,
+	m persistence.IdentifiableResource,
+) (found bool, err error) {
+	ownNamespace, _, regionKeyed := regionNamespace(m)
+	if !regionKeyed {
+		return false, nil
+	}
+
+	if dyn == nil {
+		return false, kernel.NewError(kernel.KindUnavailable,
+			fmt.Errorf("cannot list co-owners of %s %q: dynamic client is nil", ownerGVR.Resource, m.GetName()))
+	}
+
+	start := time.Now()
+	defer func() { observeUpstream(ownerGVR, OpList, start, err) }()
+
+	list, err := dyn.Resource(ownerGVR).Namespace(metav1.NamespaceAll).List(ctx, metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=%s", labels.InternalTenantLabel, m.GetTenant()),
+		FieldSelector: "metadata.name=" + m.GetName(),
+	})
+	if err != nil {
+		return false, kubeToDomainError(fmt.Errorf("failed to list %s named %q: %w", ownerGVR.Resource, m.GetName(), err))
+	}
+
+	for i := range list.Items {
+		item := &list.Items[i]
+		if item.GetNamespace() != ownNamespace && item.GetDeletionTimestamp() == nil {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
 // Watch implements the persistence.WatcherRepo interface.
 func (a *WatcherAdapter[T]) Watch(ctx context.Context, m chan<- T) error {
 	_ = ctx
@@ -962,10 +1012,14 @@ func NamespaceEnsure[T persistence.IdentifiableResource](
 // it runs after the plugin has finished deleting instead of racing ahead of it. The emptiness
 // check the write path already did is repeated because that one ran in another process and a
 // namespace delete is irreversible and cascades.
+//
+// ownerGVR is the deleted resource's own GVR, used to find a co-owner of the same children
+// namespace before reclaiming it — see namespaceHasLiveCoOwner.
 func NamespaceCleanup[T persistence.IdentifiableResource](
 	dyn dynamic.Interface,
 	clientset kubernetes.Interface,
 	logger *slog.Logger,
+	ownerGVR schema.GroupVersionResource,
 	childNamespace ChildNamespaceKind,
 	childResourceGVRs []schema.GroupVersionResource,
 ) func(context.Context, T) error {
@@ -985,6 +1039,20 @@ func NamespaceCleanup[T persistence.IdentifiableResource](
 			// rather than taking them down with it.
 			return kernel.NewError(kernel.KindConflict,
 				fmt.Errorf("cannot delete namespace %q of %s: it still holds resources", namespace, m.GetName()))
+		}
+
+		coOwned, err := namespaceHasLiveCoOwner(ctx, dyn, ownerGVR, m)
+		if err != nil {
+			return err
+		}
+		if coOwned {
+			// A same-named resource in another region still resolves this namespace and its
+			// children still need it. Not an error: the co-owner is not a condition this
+			// resource can ever satisfy, so retrying would only wedge the finalizer. The
+			// namespace goes with whichever of them is deleted last.
+			logger.InfoContext(ctx, "leaving namespace in place: another region still owns it",
+				"namespace", namespace, "resource", m.GetName())
+			return nil
 		}
 
 		owned, err := namespaceOwnedBy(ctx, clientset, namespace, ownerLabels)

@@ -40,6 +40,14 @@ const (
 // testAPIVersionNetwork is the sample apiVersion value for fake network-group CRs.
 const testAPIVersionNetwork = "network.test/v1"
 
+// testAPIVersionWorkspace and testKindWorkspace are the apiVersion/kind of the fake parent CRs
+// standing in for Workspace, and testWS1 their sample name.
+const (
+	testAPIVersionWorkspace = "workspace.test/v1"
+	testKindWorkspace       = "Workspace"
+	testWS1                 = "ws1"
+)
+
 // testRT1, testNet1 and testRTDash1 are sample resource names shared by tests in this package.
 const (
 	testRT1     = "rt1"
@@ -301,8 +309,8 @@ func parentListKinds() map[schema.GroupVersionResource]string {
 // testParentToCR places the parent CR in the tenant namespace (like WorkspaceToCR).
 func testParentToCR(m *testWorkspaceScopedIdentifiable) (client.Object, error) {
 	return &unstructured.Unstructured{Object: map[string]any{
-		keyAPIVersion: "workspace.test/v1",
-		keyKind:       "Workspace",
+		keyAPIVersion: testAPIVersionWorkspace,
+		keyKind:       testKindWorkspace,
 		keyMetadata: map[string]any{
 			keyNamespace: ComputeNamespace(&kernelresource.Scope{Tenant: m.tenant}),
 			keyName:      m.name,
@@ -616,8 +624,8 @@ func TestNamespaceManagingWriterAdapter_Delete(t *testing.T) {
 
 	t.Run("refuses delete when child namespace has SECA resources", func(t *testing.T) {
 		parentObj := &unstructured.Unstructured{Object: map[string]any{
-			keyAPIVersion: "workspace.test/v1",
-			keyKind:       "Workspace",
+			keyAPIVersion: testAPIVersionWorkspace,
+			keyKind:       testKindWorkspace,
 			keyMetadata:   map[string]any{keyNamespace: tenantNS, keyName: "w1"},
 		}}
 		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(
@@ -654,8 +662,8 @@ func TestNamespaceManagingWriterAdapter_Delete(t *testing.T) {
 	// keeps it from racing ahead of the plugin's Delete.
 	t.Run("deletes the parent but leaves the child namespace to the controller", func(t *testing.T) {
 		parentObj := &unstructured.Unstructured{Object: map[string]any{
-			keyAPIVersion: "workspace.test/v1",
-			keyKind:       "Workspace",
+			keyAPIVersion: testAPIVersionWorkspace,
+			keyKind:       testKindWorkspace,
 			keyMetadata:   map[string]any{keyNamespace: tenantNS, keyName: "w1"},
 		}}
 		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(
@@ -683,8 +691,8 @@ func TestNamespaceManagingWriterAdapter_Delete(t *testing.T) {
 
 	t.Run("NoChildNamespace skips the empty check", func(t *testing.T) {
 		parentObj := &unstructured.Unstructured{Object: map[string]any{
-			keyAPIVersion: "workspace.test/v1",
-			keyKind:       "Workspace",
+			keyAPIVersion: testAPIVersionWorkspace,
+			keyKind:       testKindWorkspace,
 			keyMetadata:   map[string]any{keyNamespace: tenantNS, keyName: "w1"},
 		}}
 		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(
@@ -832,7 +840,7 @@ func TestNamespaceCleanup(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{Name: childNS, Labels: ownerLabels},
 		})
 
-		cleanup := NamespaceCleanup[*testWorkspaceScopedIdentifiable](dynFake, cs, logger, WorkspaceChildren, gvrs)
+		cleanup := NamespaceCleanup[*testWorkspaceScopedIdentifiable](dynFake, cs, logger, testParentGVR, WorkspaceChildren, gvrs)
 		require.NoError(t, cleanup(context.Background(), parent))
 
 		_, err := cs.CoreV1().Namespaces().Get(context.Background(), childNS, metav1.GetOptions{})
@@ -849,7 +857,7 @@ func TestNamespaceCleanup(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{Name: childNS, Labels: ownerLabels},
 		})
 
-		cleanup := NamespaceCleanup[*testWorkspaceScopedIdentifiable](dynFake, cs, logger, WorkspaceChildren, gvrs)
+		cleanup := NamespaceCleanup[*testWorkspaceScopedIdentifiable](dynFake, cs, logger, testParentGVR, WorkspaceChildren, gvrs)
 		err := cleanup(context.Background(), parent)
 		require.Error(t, err)
 		var domainErr *kernel.Error
@@ -869,7 +877,7 @@ func TestNamespaceCleanup(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{Name: childNS, Labels: map[string]string{"secapi.cloud/tenant-id": "t1"}},
 		})
 
-		cleanup := NamespaceCleanup[*testWorkspaceScopedIdentifiable](dynFake, cs, logger, WorkspaceChildren, gvrs)
+		cleanup := NamespaceCleanup[*testWorkspaceScopedIdentifiable](dynFake, cs, logger, testParentGVR, WorkspaceChildren, gvrs)
 		require.NoError(t, cleanup(context.Background(), parent))
 
 		_, err := cs.CoreV1().Namespaces().Get(context.Background(), childNS, metav1.GetOptions{})
@@ -884,7 +892,7 @@ func TestNamespaceCleanup(t *testing.T) {
 		cs := k8sfake.NewClientset()
 
 		cleanup := NamespaceCleanup[*testWorkspaceScopedIdentifiable](
-			dynFake, cs, slog.New(slog.NewTextHandler(&buf, nil)), WorkspaceChildren, gvrs,
+			dynFake, cs, slog.New(slog.NewTextHandler(&buf, nil)), testParentGVR, WorkspaceChildren, gvrs,
 		)
 		require.NoError(t, cleanup(context.Background(), parent))
 		require.NotContains(t, buf.String(), "owner labels do not match",
@@ -1155,7 +1163,7 @@ func TestComputeRegionNamespace(t *testing.T) {
 
 func TestResolveNamespace_RegionScope(t *testing.T) {
 	t.Run("a region-keyed resource resolves to its per-region namespace", func(t *testing.T) {
-		obj := &testRegionScopedIdentifiable{name: "ws1", tenant: "t1", region: "region-two"}
+		obj := &testRegionScopedIdentifiable{name: testWS1, tenant: "t1", region: "region-two"}
 
 		namespace, err := ResolveNamespace(obj)
 		require.NoError(t, err)
@@ -1163,7 +1171,7 @@ func TestResolveNamespace_RegionScope(t *testing.T) {
 	})
 
 	t.Run("no region resolves exactly as before", func(t *testing.T) {
-		obj := &testRegionScopedIdentifiable{name: "ws1", tenant: "t1"}
+		obj := &testRegionScopedIdentifiable{name: testWS1, tenant: "t1"}
 
 		namespace, err := ResolveNamespace(obj)
 		require.NoError(t, err)
@@ -1178,5 +1186,82 @@ func TestResolveNamespace_RegionScope(t *testing.T) {
 		namespace, err := ResolveNamespace(obj)
 		require.NoError(t, err)
 		require.Equal(t, ComputeNamespace(&kernelresource.Scope{Tenant: "t1", Workspace: "w1"}), namespace)
+	})
+}
+
+// newRegionKeyedOwner builds the CR of a region-keyed owner (Workspace's shape): placed in its
+// own per-region namespace, carrying the tenant label the co-owner lookup selects on.
+func newRegionKeyedOwner(name, tenant, region string, terminating bool) *unstructured.Unstructured {
+	meta := map[string]any{
+		keyNamespace: ComputeRegionNamespace(&testRegionScopedIdentifiable{tenant: tenant, region: region}),
+		keyName:      name,
+		"labels":     map[string]any{labels.InternalTenantLabel: tenant},
+	}
+	if terminating {
+		meta["deletionTimestamp"] = "2024-01-01T00:00:00Z"
+	}
+
+	return &unstructured.Unstructured{Object: map[string]any{
+		keyAPIVersion: testAPIVersionWorkspace,
+		keyKind:       testKindWorkspace,
+		keyMetadata:   meta,
+	}}
+}
+
+// The namespace a region-keyed owner holds for its children is hashed from tenant and name
+// alone, so the same name in two regions is two CRs over one namespace. Reclaiming it while the
+// other one is alive would leave that one's children resolving a namespace that is gone.
+func TestNamespaceCleanup_RegionCoOwner(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	parent := &testRegionScopedIdentifiable{name: testWS1, tenant: "t1", region: "region-one"}
+	childNS := ComputeNamespace(&kernelresource.Scope{Tenant: "t1", Workspace: testWS1})
+	ownerLabels := map[string]string{
+		labels.InternalTenantLabel:    "t1",
+		labels.InternalWorkspaceLabel: testWS1,
+	}
+	gvrs := []schema.GroupVersionResource{testChildGVR}
+
+	newCleanup := func(objs ...runtime.Object) (func(context.Context, *testRegionScopedIdentifiable) error, *k8sfake.Clientset) {
+		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), parentListKinds(), objs...)
+		cs := k8sfake.NewClientset(&corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{Name: childNS, Labels: ownerLabels},
+		})
+
+		return NamespaceCleanup[*testRegionScopedIdentifiable](dynFake, cs, logger, testParentGVR, WorkspaceChildren, gvrs), cs
+	}
+
+	t.Run("leaves the shared namespace to the surviving region", func(t *testing.T) {
+		cleanup, cs := newCleanup(
+			newRegionKeyedOwner(testWS1, "t1", "region-one", true),
+			newRegionKeyedOwner(testWS1, "t1", "region-two", false),
+		)
+
+		require.NoError(t, cleanup(context.Background(), parent))
+
+		_, err := cs.CoreV1().Namespaces().Get(context.Background(), childNS, metav1.GetOptions{})
+		require.NoError(t, err, "the other region's workspace still needs this namespace")
+	})
+
+	t.Run("the last owner deleted reclaims it", func(t *testing.T) {
+		cleanup, cs := newCleanup(newRegionKeyedOwner(testWS1, "t1", "region-one", true))
+
+		require.NoError(t, cleanup(context.Background(), parent))
+
+		_, err := cs.CoreV1().Namespaces().Get(context.Background(), childNS, metav1.GetOptions{})
+		require.True(t, kerrs.IsNotFound(err), "with no co-owner left the namespace must be reclaimed")
+	})
+
+	// Both regions deleted at once: deferring to a co-owner that is itself terminating would
+	// leave the namespace with no owner to ever reclaim it.
+	t.Run("a terminating co-owner does not hold the namespace", func(t *testing.T) {
+		cleanup, cs := newCleanup(
+			newRegionKeyedOwner(testWS1, "t1", "region-one", true),
+			newRegionKeyedOwner(testWS1, "t1", "region-two", true),
+		)
+
+		require.NoError(t, cleanup(context.Background(), parent))
+
+		_, err := cs.CoreV1().Namespaces().Get(context.Background(), childNS, metav1.GetOptions{})
+		require.True(t, kerrs.IsNotFound(err), "two simultaneous deletes must not leak the namespace")
 	})
 }

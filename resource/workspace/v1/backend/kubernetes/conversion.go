@@ -102,7 +102,7 @@ func WorkspaceToCR(ws *wsdom.Workspace) (client.Object, error) {
 	// a per-region tenant namespace, so two regions can each hold a workspace of one name.
 	namespace, err := k8sadapter.ResolveNamespace(ws)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("workspace %s: %w", ws.Name, err)
 	}
 
 	cr := &Workspace{
