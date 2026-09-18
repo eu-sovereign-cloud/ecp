@@ -25,6 +25,12 @@ binary) and the chart supports either layout via the `enabled` toggles:
   `--set gatewayRegional.enabled=false` on the global cluster,
   `--set gatewayGlobal.enabled=false --set gatewayRegional.region=<region>`
   on each regional cluster.
+- **Multi-region** (one self-installable cluster serving several regions): add
+  `--set gatewayRegional.regions={<region-a>,<region-b>}`. One regional gateway then
+  serves all of them, selected per request by a `/regions/<region>` path prefix;
+  `gatewayRegional.region` stays the default for requests that name none, and defaults to
+  the first entry. Advertise the prefixed URLs in each Region CR's `providers[].url` so
+  clients discover the right base URL. See [doc/ARCHITECTURE.md](../../doc/ARCHITECTURE.md#multi-region-gateways).
 
 ## Installing
 
@@ -140,7 +146,8 @@ See [values.yaml](values.yaml) for the full commented list. The notable ones:
 |-----|---------|-------|
 | `gatewayGlobal.enabled` | `true` | Deploy the global gateway |
 | `gatewayRegional.enabled` | `true` | Deploy the regional gateway |
-| `gatewayRegional.region` | `""` | **Required** when the regional gateway is enabled |
+| `gatewayRegional.region` | `""` | The region served, and the default for a request that names none. **Required** unless `gatewayRegional.regions` is set |
+| `gatewayRegional.regions` | `[]` | Serve several regions from one deployment; a request picks one with a `/regions/<region>` path prefix. `region`, when set, must be one of these |
 | `auth.enabled` | `false` | Bearer-token authn + SECA RBAC authz on both gateways |
 | `auth.plugin` | `dummy` | Authenticator for both gateways: `dummy` or `jwt` |
 | `auth.jwt.signingMethod` | `ES256` | Pinned JWT `alg` when `auth.plugin=jwt` |
@@ -154,5 +161,5 @@ See [values.yaml](values.yaml) for the full commented list. The notable ones:
 | `ecp-delegator.enabled` | `false` | Deploy the [delegator](../delegator) as a subchart. Its dependency is resolved either way — see Installing |
 | `ecp-delegator.plugin` | `""` | **Required** when enabled — `aruba`, `dummy` or `ionos`; any other `ecp-delegator.*` value from that chart passes through |
 
-`helm lint`/CI note: because `gatewayRegional.region` has no sane default,
+`helm lint`/CI note: because neither `gatewayRegional.region` nor `.regions` has a sane default,
 lint with the CI values: `helm lint charts/ecp -f charts/ecp/ci/default-values.yaml`.

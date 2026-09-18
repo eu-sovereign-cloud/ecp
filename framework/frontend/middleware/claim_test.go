@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	kresource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 )
 
 // Shared test fixtures for provider/resource/verb/subject/path-key literals used across
@@ -197,4 +199,23 @@ func newPatternRequest(method, url, pattern string, pathValues map[string]string
 		r.SetPathValue(k, v)
 	}
 	return r
+}
+
+// TestSECAClaimExtractor_RequestRegion verifies that on a gateway serving several regions
+// the claim carries the region the request was addressed to, not the process default — so a
+// region-scoped RoleAssignment denies a caller outside its regions.
+func TestSECAClaimExtractor_RequestRegion(t *testing.T) {
+	t.Parallel()
+
+	r := newPatternRequest(http.MethodGet, "/", "GET "+testBaseSecaCompute+"/v1/tenants/{tenant}/workspaces/{workspace}/instances",
+		map[string]string{pathKeyTenant: "t1", pathKeyWorkspace: "w1"})
+	r = r.WithContext(kresource.ContextWithRegion(r.Context(), "r2"))
+
+	claim, err := SECAClaimExtractor(testProviderCompute, testBaseSecaCompute, "r1")(r)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if claim.Region != "r2" {
+		t.Errorf("Region = %q, want %q (the region the request was addressed to)", claim.Region, "r2")
+	}
 }

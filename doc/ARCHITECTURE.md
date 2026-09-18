@@ -121,6 +121,28 @@ Teardown belongs to the owning controller in the delegator, via the `GenericCont
 
 The lists of types that may live in each child namespace are `ChildResourceGVRs`, exported by the owning slice (`resource/workspace/v1/backend/kubernetes` and `resource/network/v1/network/backend/kubernetes`) and shared by the gateway's 409 check and the controller's re-check. A type missing from a list makes its namespace look empty when it is not.
 
+## Multi-region gateways
+
+A regional gateway serves one region by default (`--region`), which is the one-deployment-per-region topology the split install uses. `--regions` widens that: one process serves several regions at once, which is what a self-installable single-cluster deployment needs.
+
+The region is a property of the **request**, not of the process. `middleware.NewRegionRouter` wraps the whole mux and resolves it: a request names its region with a `/regions/<region>/providers/seca.…` path prefix, and one that names none — every request to a single-region gateway — is served as `--region`, which defaults to the first of `--regions`. A region the process does not serve is a 404, never a fallback.
+
+The prefix is stripped (`http.StripPrefix`) before the mux matches, so every provider route is registered once and `r.Pattern` — which the authorization claim extractor and the metrics route label both read — is the same whether or not a region was named.
+
+The resolved region is stored in the request context (`resource.ContextWithRegion`) and read back by everything downstream that needs it:
+
+| Consumer | Uses it for |
+|---|---|
+| REST handlers (`resource/*/frontend/rest`) | the region stamped on a created resource, via `k8slabels.InternalRegionLabel` — unchanged, only its source moved |
+| `middleware.SECAClaimExtractor` | `claim.Region`, so a region-scoped `RoleAssignment` is enforced per request (see [AUTH.md](AUTH.md)) |
+| `ReaderAdapter.RegionScoped()` | ANDing `secapi.cloud/region=<region>` into the server-side list selector |
+
+Each falls back to the process default when the context carries no region, so a single-region gateway — and a handler called directly by a unit test — behaves exactly as before.
+
+**Why lists must be filtered.** The namespace formula ([Namespacing Strategy](#namespacing-strategy)) has no region dimension, so two regions' resources share a tenant/workspace namespace. The region label is the only thing keeping a list in one region from returning another's. Only the regional slices' readers are region-scoped; `Role`, `RoleAssignment` and `Region` carry no region label, and filtering them on one would resolve every caller to no roles at all.
+
+The same formula is why **resource names are unique per tenant/workspace across regions** in a multi-region deployment: two regions cannot each hold a `network/foo` under the same workspace, because both map to one CR. Item operations (`GET`/`PUT`/`DELETE`) address that CR by name whatever region the request named, so the second region's `PUT` re-stamps the first one's resource rather than creating its own. Only lists are region-filtered. Giving each region its own namespace would close this and would change the namespace of every resource in every existing deployment, so it is not done today.
+
 ## Authentication & Authorization
 
 The gateway enforces an opt-in bearer-token authn + SECA RBAC authz middleware

@@ -1063,3 +1063,63 @@ func TestWriterAdapter_Update_NoOpDoesNotWrite(t *testing.T) {
 
 	require.Zerof(t, writes, "an update that changes nothing must not write, got %d writes", writes)
 }
+
+// newRegionObject builds a CR in ns carrying the internal region label, as every regional
+// slice's ToCR stamps it.
+func newRegionObject(namespace, name, region string) *unstructured.Unstructured {
+	obj := newTestObject(namespace, name)
+	obj.SetLabels(map[string]string{labels.InternalRegionLabel: region})
+	return obj
+}
+
+// TestReaderAdapter_List_RegionScoped proves the region cap a multi-region gateway depends on:
+// the namespace formula has no region dimension, so two regions' resources share a namespace
+// and only the label selector keeps a list in one region from returning the other's.
+func TestReaderAdapter_List_RegionScoped(t *testing.T) {
+	ns := ComputeNamespace(&kernelresource.Scope{Tenant: "t1", Workspace: "w1"})
+	dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), testListKinds(),
+		newRegionObject(ns, "in-region-one", "region-one"),
+		newRegionObject(ns, "in-region-two", "region-two"),
+	)
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	newReader := func() *ReaderAdapter[*testIdentifiable] {
+		return NewReaderAdapter[*testIdentifiable](dynFake, testGVR, logger, func(obj client.Object) (*testIdentifiable, error) {
+			return &testIdentifiable{name: obj.GetName()}, nil
+		})
+	}
+	params := kernelresource.ListParams{Scope: kernelresource.Scope{Tenant: "t1", Workspace: "w1"}}
+
+	t.Run("returns only the region the request is addressed to", func(t *testing.T) {
+		var out []*testIdentifiable
+		ctx := kernelresource.ContextWithRegion(context.Background(), "region-two")
+		_, err := newReader().RegionScoped().List(ctx, params, &out)
+		require.NoError(t, err)
+		require.Len(t, out, 1)
+		require.Equal(t, "in-region-two", out[0].name)
+	})
+
+	t.Run("honours a caller selector alongside the region cap", func(t *testing.T) {
+		var out []*testIdentifiable
+		ctx := kernelresource.ContextWithRegion(context.Background(), "region-two")
+		scoped := params
+		scoped.Selector = labels.InternalRegionLabel + "=region-one"
+		_, err := newReader().RegionScoped().List(ctx, scoped, &out)
+		require.NoError(t, err)
+		require.Empty(t, out, "the two terms are ANDed, so a caller cannot select out of its region")
+	})
+
+	t.Run("no region in context leaves the list unfiltered", func(t *testing.T) {
+		var out []*testIdentifiable
+		_, err := newReader().RegionScoped().List(context.Background(), params, &out)
+		require.NoError(t, err)
+		require.Len(t, out, 2)
+	})
+
+	t.Run("a reader that is not region-scoped ignores the request region", func(t *testing.T) {
+		var out []*testIdentifiable
+		ctx := kernelresource.ContextWithRegion(context.Background(), "region-two")
+		_, err := newReader().List(ctx, params, &out)
+		require.NoError(t, err)
+		require.Len(t, out, 2, "global resources (Role, RoleAssignment) carry no region label")
+	})
+}

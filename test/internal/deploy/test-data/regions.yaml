@@ -27,7 +27,14 @@ metadata:
 spec:
   availableZones:
     - "region-two-a"
+  # Served by the SAME regional gateway as itbg-bergamo, under its region path prefix —
+  # the single-cluster multi-region topology (see doc/ARCHITECTURE.md, "Multi-region
+  # gateways"). The catalog is what tells a client where to send the request, so these
+  # URLs are the prefixed ones.
   providers:
     - name: "seca.storage"
-      url: "http://regional-server.region-two.seca.cloud/providers/seca.storage/v1"
+      url: "http://ecp-regional-gateway-regional:80/regions/region-two/providers/seca.storage"
+      version: "v1"
+    - name: "seca.workspace"
+      url: "http://ecp-regional-gateway-regional:80/regions/region-two/providers/seca.workspace"
       version: "v1"

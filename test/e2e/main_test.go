@@ -65,6 +65,9 @@ var (
 	// globalURL is the port-forwarded global gateway, for tests that drive it
 	// with raw requests instead of an SDK client (see jwt_test.go).
 	globalURL string
+	// regionalURL is the port-forwarded regional gateway, for tests that build their own
+	// client against it (see multiregion_test.go).
+	regionalURL string
 )
 
 func TestMain(m *testing.M) {
@@ -88,7 +91,7 @@ func TestMain(m *testing.M) {
 	// roles from the subject, not from the token format.
 	editor := authhelper.AdminEditor()
 
-	regionalURL := fmt.Sprintf("http://localhost:%d", regionalPF.LocalPort)
+	regionalURL = fmt.Sprintf("http://localhost:%d", regionalPF.LocalPort)
 	globalURL = fmt.Sprintf("http://localhost:%d", globalPF.LocalPort)
 
 	if storageClient, err = storagev1.NewClientWithResponses(regionalURL+"/providers/seca.storage", storagev1.WithRequestEditorFn(editor)); err != nil {

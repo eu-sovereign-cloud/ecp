@@ -5,7 +5,7 @@ This module bundles the cluster-backed test suites for ECP and the tooling to ru
 | Suite | What it covers | Where |
 |-------|----------------|-------|
 | **integration** | Each component (delegator, gateway-global, gateway-regional) in **isolation**. The gateway suites test only REST↔CR translation; the delegator suite tests reconciliation. | [`integration/`](integration/) |
-| **e2e** | The **whole stack in one run** — drives the SECA API on both gateways and asserts resources reconcile all the way to the delegator plugin. Single cluster. Also the only place resource **updates** are covered end to end, since an update has to travel API → CR → delegator → plugin → back into what a GET returns ([`e2e/update_test.go`](e2e/update_test.go)), and the only place a **spec enum** is watched across all four converters on that path ([`e2e/public_ip_test.go`](e2e/public_ip_test.go)). | [`e2e/`](e2e/) |
+| **e2e** | The **whole stack in one run** — drives the SECA API on both gateways and asserts resources reconcile all the way to the delegator plugin. Single cluster. Also the only place resource **updates** are covered end to end, since an update has to travel API → CR → delegator → plugin → back into what a GET returns ([`e2e/update_test.go`](e2e/update_test.go)), the only place a **spec enum** is watched across all four converters on that path ([`e2e/public_ip_test.go`](e2e/public_ip_test.go)), and the only place a **second region** is discovered off the region catalog and reconciled ([`e2e/multiregion_test.go`](e2e/multiregion_test.go)). | [`e2e/`](e2e/) |
 | **multicluster e2e** | The **split topology** — global gateway in one cluster, regional gateway + delegator in another, joined only by the Region CR the global gateway advertises. | [`e2e/multicluster/`](e2e/multicluster/) |
 | **conformance** | Runs the SECA conformance suite (`secatest`) against the stack. | [`internal/build/conformance/`](internal/build/conformance/), [`internal/deploy/conformance/`](internal/deploy/conformance/) |
 | **load (k6)** | Black-box **API journeys** (smoke, create-workspace, …) against a deployed stack. Separate from Go `bench` / `TestBench`. | [`load/`](load/) |
@@ -49,6 +49,24 @@ Both the e2e and conformance stacks reconcile with a **delegator plugin**. Each 
 | **ionos** | Crossplane + IONOS provider + token | **multi-phase**, or the bespoke `conformance/ionos` real-backend run |
 
 Only **dummy** is self-contained, so the one-shot targets (`kind-integration`, `kind-e2e`, `kind-test-all`, `kind-conformance`) always use dummy. aruba/ionos can't run in one command — their resources never reconcile until their backend exists — so they use the two-phase `*-deploy` → (provision backend) → run flow described below. This is why `E2E_PLUGIN` / `CONFORMANCE_PLUGIN` are honoured on the `*-deploy` targets but not on the one-shot targets.
+
+## Two regions, one regional gateway
+
+The test stack deploys **one** regional gateway serving **two** regions
+([`internal/deploy/gateway-regional/values.yaml`](internal/deploy/gateway-regional/values.yaml)):
+`itbg-bergamo` is the default — what a request that names no region is served as, so every
+existing suite is unaffected — and `region-two` is reachable only under its
+`/regions/region-two` path prefix, which is the base URL its Region CR in
+[`test-data/regions.yaml`](internal/deploy/test-data/regions.yaml) advertises.
+
+[`integration/gateway-regional/multiregion_test.go`](integration/gateway-regional/multiregion_test.go)
+drives the REST layer of it: a resource is placed in the region the request names, a list in
+one region never returns the other's, an unserved region is a 404, and `bob` — whose
+`ra-bob-scoped` caps him to `itbg-bergamo` — is 403 under the `region-two` prefix and 200
+without it. [`e2e/multiregion_test.go`](e2e/multiregion_test.go) adds only what needs the
+whole stack: the second region's base URL is discovered off the region catalog, and a
+workspace created through it reconciles to `Active`. See
+[Multi-region gateways](../doc/ARCHITECTURE.md#multi-region-gateways) for the mechanism.
 
 ## One stack, every suite
 
@@ -200,7 +218,7 @@ same name.
 | `MULTICLUSTER_REGIONAL_CLUSTER` | `e2e-regional` | KIND cluster for the regional gateway + delegator. |
 | `MULTICLUSTER_GLOBAL_CONTEXT` | `kind-$(MULTICLUSTER_GLOBAL_CLUSTER)` | Context the scripts and suite use for the global cluster. |
 | `MULTICLUSTER_REGIONAL_CONTEXT` | `kind-$(MULTICLUSTER_REGIONAL_CLUSTER)` | Context for the regional cluster. |
-| `MULTICLUSTER_REGION` | `itbg-bergamo` | Region name registered. Must match the regional gateway's `REGION` env. |
+| `MULTICLUSTER_REGION` | `itbg-bergamo` | Region name registered. Must be one of the regions the regional gateway serves (`gatewayRegional.region`/`.regions`). |
 | `MULTICLUSTER_REGIONAL_NODE_PORT` | `30080` | Regional gateway NodePort. Must match the `extraPortMappings` entry in `internal/kind-config/regional-cluster.yaml`. |
 | `MULTICLUSTER_ADVERTISE_HOST` | `127.0.0.1` | Host advertised in the Region CR. |
 

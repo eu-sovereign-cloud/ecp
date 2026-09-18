@@ -60,6 +60,22 @@ type Adapter struct {
 type ReaderAdapter[T persistence.IdentifiableResource] struct {
 	Adapter
 	k8sToDomain K8sToDomain[T]
+	// regionScoped restricts List to the region the request is addressed to; see RegionScoped.
+	regionScoped bool
+}
+
+// RegionScoped marks the reader as serving a regional resource, so List returns only the
+// resources of the region the request is addressed to (resource.RegionFromContext) instead
+// of everything the tenant/workspace namespace holds. It is what lets one gateway process
+// serve several regions: the namespace formula has no region dimension, so without it a list
+// in one region returns another region's resources.
+//
+// Only call it on a resource whose CRs carry the internal region label — the global ones
+// (Role, RoleAssignment, Region) do not, and filtering on it would return nothing.
+// It returns the receiver so it can be chained onto the constructor at wiring time.
+func (a *ReaderAdapter[T]) RegionScoped() *ReaderAdapter[T] {
+	a.regionScoped = true
+	return a
 }
 
 // WriterAdapter implements the persistence.WriterRepo interface for a specific resource type.
@@ -313,6 +329,18 @@ func (a *ReaderAdapter[T]) List(ctx context.Context, params resource.ListFilter,
 	// Separate server-side and client-side selectors
 	if selector != "" {
 		lo.LabelSelector = filter.K8sSelectorForAPI(selector)
+	}
+
+	// A regional reader is capped to the region the request is addressed to. It is ANDed into
+	// the server-side selector rather than filtered after the fact so the page the API server
+	// returns — and therefore the continue token — is already the caller's region.
+	if a.regionScoped {
+		if region := resource.RegionFromContext(ctx, ""); region != "" {
+			if lo.LabelSelector != "" {
+				lo.LabelSelector += ","
+			}
+			lo.LabelSelector += labels.InternalRegionLabel + "=" + region
+		}
 	}
 
 	namespace, err := resolveNamespace(params)
