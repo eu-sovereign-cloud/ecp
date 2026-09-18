@@ -90,13 +90,15 @@ The control plane manages 18 resource slices — one CRD each, generated into `c
 
 ### Namespacing Strategy
 
-There is no `Tenant` CRD. Namespaces are derived deterministically from the resource's SECA scope (`framework/backend/kubernetes/adapter.go`), by one of three hash formulas selected in `resolveNamespace`:
+There is no `Tenant` CRD. Namespaces are derived deterministically from the resource's SECA scope (`framework/backend/kubernetes/adapter.go`), by one of three hash formulas selected in `ResolveNamespace`:
 
 - `ComputeNamespace` — `sha3-224(<tenant>)` for tenant-scoped resources, `sha3-224(<tenant>/<workspace>)` for workspace-scoped ones.
 - `ComputeNetworkNamespace` — `sha3-224(<tenant>/<workspace>/<network>)` for network-scoped resources (`Subnet`, `RouteTable`), so each network gets its own namespace and its children's names only have to be unique per network.
 - `ComputeRegionNamespace` — `sha3-224(@region/<region>/<tenant>)` for a tenant-scoped resource whose name is unique **per region** rather than per tenant (`Workspace`), so one tenant can hold a workspace of the same name in two regions. `@` is not legal in a SECA name, which is what keeps this formula from ever colliding with the other two.
 
 An empty scope yields no namespace — that is the cluster-scoped `Region` case.
+
+`ResolveNamespace` is exported, and a slice's `ToCR` places its CR by calling it rather than by naming a formula directly, so the namespace a CR is written to cannot drift from the one every read, update and delete addresses it by. A slice whose placement has no branch (the majority) may still call `ComputeNamespace`/`ComputeNetworkNamespace` outright.
 
 Which formula applies is an opt-in on the domain type, not a property of the request: a resource gets the region formula only by implementing `persistence.RegionScope` (`GetRegion`). Every regional resource *carries* a region — it is on `domain.RegionalMetadata` — so having one is deliberately not the same as being stored by one.
 
@@ -148,7 +150,7 @@ Each falls back to the process default when the context carries no region, so a 
 
 The same formula is why **resource names below a workspace are unique per tenant/workspace across regions** in a multi-region deployment: two regions cannot each hold a `network/foo` under the same workspace, because both map to one CR. Item operations (`GET`/`PUT`/`DELETE`) address that CR by name whatever region the request named, so the second region's `PUT` re-stamps the first one's resource rather than creating its own. Only lists are region-filtered. Giving every resource its own per-region namespace would close this and would change the namespace of every resource in every existing deployment, so it is not done today.
 
-**`Workspace` is the exception.** A workspace is the entry point a tenant creates per region, so a name collision there would make a second region unusable rather than merely surprising. Its identity is qualified by region end to end: `resource.Identity.Region` carries the region the request was addressed to into every `GET`/`PUT`/`DELETE`, the workspace list params carry it into `List`, and `ComputeRegionNamespace` puts each region's CR in its own namespace. The region is also a first-class `region` field on the Workspace CRD — printed by `kubectl get workspace` and usable as a field selector — on top of the internal label the list filter still selects on.
+**`Workspace` is the exception.** A workspace is the entry point a tenant creates per region, so a name collision there would make a second region unusable rather than merely surprising. Its identity is qualified by region end to end: `resource.Identity.Region` carries the region the request was addressed to into every `GET`/`PUT`/`DELETE`, the workspace list params carry it into `List`, and `ComputeRegionNamespace` puts each region's CR in its own namespace. The region is also a first-class `region` field on the Workspace CRD, printed by `kubectl get workspace`, on top of the internal label the list filter still selects on.
 
 One consequence is worth knowing: the namespace a workspace owns for its **children** is still `sha3-224(tenant/workspace)`, with no region dimension, because that is the namespace its children resolve from their own scope. Two regions' same-named workspaces therefore share one children namespace, and its teardown is driven by whichever of them is deleted last-but-one — if that namespace is empty at the time, `NamespaceCleanup` reclaims it and the surviving workspace's `NamespaceEnsure` recreates it on its next reconcile.
 

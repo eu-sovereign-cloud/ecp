@@ -16,7 +16,6 @@ import (
 	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
 	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/schema/v1"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
-	kernelresource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 
 	commonbackend "github.com/eu-sovereign-cloud/ecp/resource/common/backend"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
@@ -58,11 +57,6 @@ func WorkspaceFromCR(obj client.Object) (*wsdom.Workspace, error) {
 	ws.Provider = strings.ReplaceAll(internalLabels[k8slabels.InternalProviderLabel], "_", "/")
 	ws.Tenant = internalLabels[k8slabels.InternalTenantLabel]
 	ws.Region = cr.Region
-	if ws.Region == "" {
-		// A CR written before region became a field, or a hand-applied fixture that set only
-		// the label. The label is still authoritative for anything that selects on it.
-		ws.Region = internalLabels[k8slabels.InternalRegionLabel]
-	}
 	ws.Labels = k8slabels.KeyedToOriginal(keyedLabels, cr.CommonData.Labels)
 	ws.Annotations = cr.CommonData.Annotations
 	ws.Extensions = cr.CommonData.Extensions
@@ -104,10 +98,17 @@ func WorkspaceToCR(ws *wsdom.Workspace) (client.Object, error) {
 	crLabels[k8slabels.InternalProviderLabel] = strings.ReplaceAll(ws.Provider, "/", "_")
 	crLabels[k8slabels.InternalRegionLabel] = ws.Region
 
+	// The CR is placed through the same call every read, update and delete addresses it by:
+	// a per-region tenant namespace, so two regions can each hold a workspace of one name.
+	namespace, err := k8sadapter.ResolveNamespace(ws)
+	if err != nil {
+		return nil, err
+	}
+
 	cr := &Workspace{
 		ObjectMeta: v1.ObjectMeta{
 			Name:            ws.Name,
-			Namespace:       workspaceNamespace(ws),
+			Namespace:       namespace,
 			Labels:          crLabels,
 			ResourceVersion: ws.ResourceVersion,
 		},
@@ -134,25 +135,6 @@ func WorkspaceToCR(ws *wsdom.Workspace) (client.Object, error) {
 	}
 
 	return cr, nil
-}
-
-// tenantOnlyScope returns a scope with only the tenant set.
-// Workspace CRs live in the tenant namespace (not in the workspace namespace).
-func tenantOnlyScope(tenant string) *kernelresource.Scope {
-	return &kernelresource.Scope{Tenant: tenant}
-}
-
-// workspaceNamespace is the namespace a Workspace CR lives in. It must stay in step with what
-// the adapter's resolveNamespace derives from the same domain object, since that is what every
-// read, update and delete addresses: a per-region tenant namespace, so two regions can each hold
-// a workspace of the same name, and the plain tenant namespace when no region is set (a unit
-// test, or a resource built by hand).
-func workspaceNamespace(ws *wsdom.Workspace) string {
-	if ws.Region != "" {
-		return k8sadapter.ComputeRegionNamespace(ws)
-	}
-
-	return k8sadapter.ComputeNamespace(tenantOnlyScope(ws.Tenant))
 }
 
 // Converter is the CR<->domain conversion pair for Workspace.
