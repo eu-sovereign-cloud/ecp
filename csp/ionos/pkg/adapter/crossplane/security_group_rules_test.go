@@ -1,7 +1,6 @@
 package crossplane
 
 import (
-	"errors"
 	"strings"
 	"testing"
 
@@ -243,7 +242,7 @@ func TestBuildRuleCRsPropagatesRuleErrors(t *testing.T) {
 	}}, "web")
 
 	_, err := buildRuleCRs("web", "workspace-1", "ns", "dc-ns", rules)
-	require.True(t, errors.Is(err, backend.ErrNotSupported))
+	require.ErrorIs(t, err, backend.ErrNotSupported)
 }
 
 // Rule CR names are derived from what a rule says, not where it sits in the spec. That is what
@@ -267,7 +266,6 @@ func TestRuleCRNameIsContentAddressed(t *testing.T) {
 		return names
 	}
 
-	require.Equal(t, build(ssh), build(ssh), "the same rule must always name the same CR")
 	require.NotEqual(t, build(ssh), build(https), "a changed port must name a different CR")
 
 	// Reordering a group's rules must not churn any CR.

@@ -2,7 +2,6 @@ package crossplane
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	v1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
@@ -231,7 +230,7 @@ func TestSecurityGroupCreateRefusesUnexpressibleRule(t *testing.T) {
 	store := NewSecurityGroupStore(c, testLogger())
 
 	err := store.Create(context.Background(), sg)
-	require.True(t, errors.Is(err, backend.ErrNotSupported))
+	require.ErrorIs(t, err, backend.ErrNotSupported)
 }
 
 // Delete reaps rules by label rather than by rebuilding the names the current spec would
@@ -376,7 +375,7 @@ func TestSecurityGroupCreateConvergesAnEditedRule(t *testing.T) {
 
 	var rules ionosv1alpha1.NSGFirewallRuleList
 	require.NoError(t, c.List(context.Background(), &rules, client.InNamespace(ns)))
-	require.Equal(t, float64(2222), *rules.Items[0].Spec.ForProvider.PortRangeStart)
+	require.InEpsilon(t, float64(2222), *rules.Items[0].Spec.ForProvider.PortRangeStart, 0.0001)
 }
 
 // Create is level-triggered: it runs on every reconcile of an active group, so a pass over a
