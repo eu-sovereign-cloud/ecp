@@ -110,11 +110,11 @@ func NewGenericController[D persistence.IdentifiableResource](
 // SetupWithManager sets up the controller with the Manager.
 func (r *GenericController[D]) SetupWithManager(mgr ctrl.Manager) error {
 	var forOpts []ctrlbuilder.ForOption
-	pred, err := regionPredicate(r.regions)
-	if err != nil {
-		return err
-	}
-	if pred != nil {
+	if len(r.regions) > 0 {
+		pred, err := regionPredicate(r.regions)
+		if err != nil {
+			return err
+		}
 		forOpts = append(forOpts, ctrlbuilder.WithPredicates(pred))
 	}
 
@@ -129,13 +129,9 @@ func (r *GenericController[D]) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 // regionPredicate turns a region scope into the watch filter that enforces it: a label
-// selector matching the CR's internal region label against the set. An empty scope returns no
-// predicate at all, leaving the watch cluster-wide.
+// selector matching the CR's internal region label against the regions named. Callers with no
+// scope attach no predicate at all, leaving the watch cluster-wide.
 func regionPredicate(regions []string) (predicate.Predicate, error) {
-	if len(regions) == 0 {
-		return nil, nil
-	}
-
 	pred, err := predicate.LabelSelectorPredicate(metav1.LabelSelector{
 		MatchExpressions: []metav1.LabelSelectorRequirement{{
 			Key:      k8slabels.InternalRegionLabel,

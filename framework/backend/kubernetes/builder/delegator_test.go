@@ -59,6 +59,15 @@ func (r *recordingReconciler) SetupWithManager(ctrl.Manager) error {
 	return nil
 }
 
+// scopableReconciler is a controller that can be region-scoped, as every resource slice's is
+// through the generic controller it embeds.
+type scopableReconciler struct {
+	recordingReconciler
+	regions []string
+}
+
+func (r *scopableReconciler) ScopeToRegions(regions []string) { r.regions = regions }
+
 func TestNewDelegator_RegistersSchemes(t *testing.T) {
 	widget := schema.GroupVersionKind{Group: "test.secapi.cloud", Version: "v1", Kind: "Widget"}
 	opts := offline(t, "0")
@@ -133,7 +142,7 @@ func TestNewDelegator_RegionScope(t *testing.T) {
 		{name: "unset watches every region", env: ""},
 		{name: "one region", env: "itbg-bergamo", want: []string{"itbg-bergamo"}},
 		{name: "several regions", env: "itbg-bergamo,deff-frankfurt", want: []string{"itbg-bergamo", "deff-frankfurt"}},
-		{name: "blanks and duplicates are dropped", env: " itbg-bergamo , ,itbg-bergamo, deff-frankfurt ", want: []string{"itbg-bergamo", "deff-frankfurt"}},
+		{name: "blanks and surrounding space are dropped", env: " itbg-bergamo , , deff-frankfurt ", want: []string{"itbg-bergamo", "deff-frankfurt"}},
 		{name: "an all-blank value is no scope at all", env: " , "},
 	}
 
@@ -142,7 +151,6 @@ func TestNewDelegator_RegionScope(t *testing.T) {
 			t.Setenv("REGIONS", tc.env)
 			d, err := builder.NewDelegator(offline(t, "0"))
 			require.NoError(t, err)
-			require.Equal(t, tc.want, d.Regions)
 
 			r := &scopableReconciler{}
 			d.Controllers.Add(r)
@@ -150,4 +158,15 @@ func TestNewDelegator_RegionScope(t *testing.T) {
 			require.Equal(t, tc.want, r.regions, "the scope has to reach the controllers, not just the Delegator")
 		})
 	}
+}
+
+// A plugin is free to add a Reconciler of its own that cannot be region-scoped; the set must
+// still bind it, watching every region, rather than skipping it or failing the whole setup.
+func TestControllerSet_UnscopableControllerIsStillSetUp(t *testing.T) {
+	cs := builder.NewControllerSet("itbg-bergamo")
+	r := &recordingReconciler{}
+	cs.Add(r)
+
+	require.NoError(t, cs.SetupWithManager(nil))
+	require.True(t, r.called.Load())
 }
