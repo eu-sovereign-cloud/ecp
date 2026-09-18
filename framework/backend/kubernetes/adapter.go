@@ -210,12 +210,41 @@ func ComputeNetworkNamespace(obj persistence.NetworkScope) string {
 	return fmt.Sprintf("%x", hasher.Sum(nil))
 }
 
+// ComputeRegionNamespace computes the Kubernetes namespace for a tenant-scoped resource whose
+// name is unique per region rather than per tenant (Workspace), so the same name can name two
+// different resources in two regions of one deployment.
+//
+// The "@region/" prefix is what keeps this formula disjoint from the other two: "@" is not legal
+// in a SECA name, and ComputeNamespace/ComputeNetworkNamespace hash names only, so no
+// tenant/workspace/network triple can ever hash to the same string as a region/tenant pair.
+func ComputeRegionNamespace(obj persistence.RegionScope) string {
+	hasher := sha3.New224()
+	_, _ = fmt.Fprintf(hasher, "@region/%s/%s", obj.GetRegion(), obj.GetTenant())
+
+	return fmt.Sprintf("%x", hasher.Sum(nil))
+}
+
+// regionNamespace returns the per-region namespace for obj and the region it was built from,
+// or ok=false when obj does not ask for one. Implementing persistence.RegionScope with a
+// non-empty region is the opt-in: every other resource carries a region too (it is on
+// domain.RegionalMetadata) but is keyed by tenant/workspace alone, so having a region is not
+// the same as being stored by it.
+func regionNamespace(obj persistence.Scope) (namespace, region string, ok bool) {
+	regionScope, isRegionScoped := obj.(persistence.RegionScope)
+	if !isRegionScoped || regionScope.GetRegion() == "" {
+		return "", "", false
+	}
+
+	return ComputeRegionNamespace(regionScope), regionScope.GetRegion(), true
+}
+
 // resolveNamespace picks the right namespace rule for obj: ComputeNetworkNamespace when obj
-// also implements NetworkScope, ComputeNamespace otherwise. This is where "which formula applies
-// to this resource" is decided — ComputeNamespace and ComputeNetworkNamespace themselves stay
-// dumb, explicit hash formulas with no branching on the caller's shape. A NetworkScope object
-// with an empty network is a caller bug, not a fallback case, so it errors instead of silently
-// resolving to the workspace-level namespace.
+// also implements NetworkScope, ComputeRegionNamespace when it implements RegionScope with a
+// region set, ComputeNamespace otherwise. This is where "which formula applies to this resource"
+// is decided — the Compute* functions themselves stay dumb, explicit hash formulas with no
+// branching on the caller's shape. A NetworkScope object with an empty network is a caller bug,
+// not a fallback case, so it errors instead of silently resolving to the workspace-level
+// namespace.
 func resolveNamespace(obj persistence.Scope) (string, error) {
 	if networkScope, ok := obj.(persistence.NetworkScope); ok {
 		if networkScope.GetNetwork() == "" {
@@ -223,6 +252,10 @@ func resolveNamespace(obj persistence.Scope) (string, error) {
 		}
 
 		return ComputeNetworkNamespace(networkScope), nil
+	}
+
+	if namespace, _, ok := regionNamespace(obj); ok {
+		return namespace, nil
 	}
 
 	return ComputeNamespace(obj), nil
@@ -884,6 +917,37 @@ func childNamespaceFor(kind ChildNamespaceKind, m persistence.IdentifiableResour
 	}
 }
 
+// ownedNamespace is a namespace to provision together with the owner labels that mark it.
+type ownedNamespace struct {
+	name        string
+	ownerLabels map[string]string
+}
+
+// ownNamespacesFor returns the namespaces a tenant-scoped resource's Create has to provision
+// before writing its CR.
+//
+// The tenant namespace is always one of them: nothing else would ever create it (there is no
+// Tenant entity) and the tenant-scoped resources that are *not* keyed by region — Image, Role,
+// RoleAssignment, the SKU catalogs — live in it. A resource that is keyed by region (Workspace)
+// adds its per-region namespace, which is the one resolveNamespace will put its CR in.
+func ownNamespacesFor(m persistence.IdentifiableResource) []ownedNamespace {
+	var namespaces []ownedNamespace
+
+	if tenantNS, tenantLabels := namespaceOwnerLabels(m.GetTenant(), "", ""); tenantNS != "" {
+		namespaces = append(namespaces, ownedNamespace{name: tenantNS, ownerLabels: tenantLabels})
+	}
+
+	if regionNS, region, ok := regionNamespace(m); ok {
+		regionLabels := map[string]string{
+			labels.InternalTenantLabel: m.GetTenant(),
+			labels.InternalRegionLabel: region,
+		}
+		namespaces = append(namespaces, ownedNamespace{name: regionNS, ownerLabels: regionLabels})
+	}
+
+	return namespaces
+}
+
 // namespaceOwnerLabels builds the namespace and its owner labels for a tenant/workspace[/network]
 // triple, hashing via ComputeNetworkNamespace when network is set and ComputeNamespace otherwise.
 func namespaceOwnerLabels(tenant, workspace, network string) (string, map[string]string) {
@@ -1087,19 +1151,19 @@ func namespaceOwnedBy(ctx context.Context, clientset kubernetes.Interface, nsNam
 // Create creates the resource, then opportunistically provisions the namespace it owns for its
 // children.
 //
-// Only the tenant namespace is provisioned on the resource's own behalf, before the CR that lives
-// in it: there is no Tenant entity, so nobody else would ever create it. Below that level a
-// namespace is owned by a parent entity and its absence *is* the referential-integrity check, so
-// a resource whose scope names a workspace fails with NotFound instead of fabricating one.
+// Only tenant-level namespaces are provisioned on the resource's own behalf, before the CR that
+// lives in one: there is no Tenant entity, so nobody else would ever create them (see
+// ownNamespacesFor for which). Below that level a namespace is owned by a parent entity and its
+// absence *is* the referential-integrity check, so a resource whose scope names a workspace fails
+// with NotFound instead of fabricating one.
 //
 // The child namespace is created *after* the CR and its failure is only logged — the CR is what
 // makes it recoverable, so a namespace created first and orphaned by a failed CR write is the
 // worse trade. See "Namespace lifecycle" in doc/ARCHITECTURE.md.
 func (a *NamespaceManagingWriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
 	if m.GetWorkspace() == "" {
-		tenantNS, tenantLabels := namespaceOwnerLabels(m.GetTenant(), "", "")
-		if tenantNS != "" {
-			if err := CreateNamespace(ctx, a.clientset, tenantNS, tenantLabels); err != nil {
+		for _, ns := range ownNamespacesFor(m) {
+			if err := CreateNamespace(ctx, a.clientset, ns.name, ns.ownerLabels); err != nil {
 				return nil, err
 			}
 		}

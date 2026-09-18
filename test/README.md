@@ -61,12 +61,19 @@ existing suite is unaffected — and `region-two` is reachable only under its
 
 [`integration/gateway-regional/multiregion_test.go`](integration/gateway-regional/multiregion_test.go)
 drives the REST layer of it: a resource is placed in the region the request names, a list in
-one region never returns the other's, an unserved region is a 404, and `bob` — whose
+one region never returns the other's, an unserved region is a 404, `bob` — whose
 `ra-bob-scoped` caps him to `itbg-bergamo` — is 403 under the `region-two` prefix and 200
-without it. [`e2e/multiregion_test.go`](e2e/multiregion_test.go) adds only what needs the
-whole stack: the second region's base URL is discovered off the region catalog, and a
-workspace created through it reconciles to `Active`. See
+without it, and the **same workspace name in both regions is two workspaces**, each addressable
+and deletable only through its own region. [`e2e/multiregion_test.go`](e2e/multiregion_test.go)
+adds only what needs the whole stack: the second region's base URL is discovered off the region
+catalog, a workspace created through it reconciles to `Active`, and both copies of a shared name
+reconcile independently. See
 [Multi-region gateways](../doc/ARCHITECTURE.md#multi-region-gateways) for the mechanism.
+
+A workspace is keyed by tenant **and** region, so each region's copy lives in its own namespace
+(`sha3-224(@region/<region>/<tenant>)`) and carries `region` as a field on the CR —
+`kubectl get workspace -A` prints it. Every resource below a workspace is still keyed by
+tenant/workspace alone, so those names remain shared across the two regions.
 
 ## One stack, every suite
 
