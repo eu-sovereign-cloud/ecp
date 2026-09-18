@@ -16,7 +16,11 @@ spec:
     singular: workspace
   scope: Namespaced
   versions:
-  - name: v1
+  - additionalPrinterColumns:
+    - jsonPath: .region
+      name: Region
+      type: string
+    name: v1
     schema:
       openAPIV3Schema:
         description: Workspace is the API for getting the workspaces of a service.
@@ -65,6 +69,14 @@ spec:
             type: string
           metadata:
             type: object
+          region:
+            description: |-
+              Region is the region this workspace belongs to, and part of its identity: the same name
+              in the same tenant is a different workspace in a different region, and each lives in its
+              own namespace. It is a field rather than only the internal region label so it is visible
+              in `kubectl get workspace`; the label is still written, because that is what the
+              gateway's list filter selects on server-side.
+            type: string
           spec:
             additionalProperties:
               type: string

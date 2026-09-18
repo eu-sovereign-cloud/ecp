@@ -20,6 +20,14 @@ type Workspace struct {
 	Status *WorkspaceStatus
 }
 
+// GetRegion makes the workspace's region part of the key its backend stores it under, so one
+// tenant can hold a workspace of the same name in two regions of a multi-region deployment.
+//
+// It is deliberately on Workspace and not on the embedded domain.RegionalMetadata: every other
+// regional resource is keyed by tenant/workspace alone and would change namespace if it grew
+// this method. See doc/ARCHITECTURE.md#multi-region-gateways.
+func (w *Workspace) GetRegion() string { return w.Region }
+
 // WorkspaceSpec is the free-form spec for a workspace.
 type WorkspaceSpec = map[string]any
 

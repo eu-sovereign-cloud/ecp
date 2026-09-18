@@ -31,6 +31,7 @@ var (
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=workspaces,scope=Namespaced,shortName=workspace
+// +kubebuilder:printcolumn:name="Region",type=string,JSONPath=`.region`
 // +k8s:openapi-gen=true
 // +ecp:conditioned
 
@@ -38,6 +39,13 @@ var (
 type Workspace struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	// Region is the region this workspace belongs to, and part of its identity: the same name
+	// in the same tenant is a different workspace in a different region, and each lives in its
+	// own namespace. It is a field rather than only the internal region label so it is visible
+	// in `kubectl get workspace`; the label is still written, because that is what the
+	// gateway's list filter selects on server-side.
+	Region string `json:"region,omitempty"`
 
 	// WorkspaceSpec is a type alias for map[string]string. Use the underlying
 	// map type here to avoid a controller-gen v0.20 panic on type aliases.

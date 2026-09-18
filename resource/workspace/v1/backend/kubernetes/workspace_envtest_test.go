@@ -225,7 +225,7 @@ func TestWorkspaceBackend(t *testing.T) {
 		del.Tenant = tenant
 
 		cleanup := k8sadapter.NamespaceCleanup[*wsdom.Workspace](
-			dynClient, clientset, slog.Default(), k8sadapter.WorkspaceChildren, nil,
+			dynClient, clientset, slog.Default(), WorkspaceGVR, k8sadapter.WorkspaceChildren, nil,
 		)
 		require.NoError(t, cleanup(ctx, del))
 
@@ -237,5 +237,127 @@ func TestWorkspaceBackend(t *testing.T) {
 
 		// Idempotent: the finalizer replays this hook whenever dropping it conflicts.
 		require.NoError(t, cleanup(ctx, del), "cleanup must tolerate a namespace already deleted")
+	})
+}
+
+// TestWorkspaceRegionIdentity is the whole point of issue #396, against a real API server:
+// one tenant can hold a workspace of the same name in two regions, each addressable only
+// through its own region, and `region` is a field the CRD schema actually accepts.
+func TestWorkspaceRegionIdentity(t *testing.T) {
+	t.Parallel()
+
+	testCfg := rest.CopyConfig(cfg)
+	testCfg.QPS = 50
+	testCfg.Burst = 100
+
+	dynClient, err := dynamic.NewForConfig(testCfg)
+	require.NoError(t, err)
+	clientset, err := k8sinterface.NewForConfig(testCfg)
+	require.NoError(t, err)
+
+	const (
+		workspaceName = "shared-name"
+		regionOne     = "region-one"
+		regionTwo     = "region-two"
+	)
+	tenant := "t-region-identity"
+
+	writerRepo := k8sadapter.NewNamespaceManagingWriterAdapter[*wsdom.Workspace](
+		dynClient, clientset, WorkspaceGVR, slog.Default(), Converter, k8sadapter.WorkspaceChildren, nil,
+	)
+	readerRepo := k8sadapter.NewReaderAdapter[*wsdom.Workspace](
+		dynClient, WorkspaceGVR, slog.Default(), WorkspaceFromCR,
+	)
+
+	newWorkspace := func(region string, spec wsdom.WorkspaceSpec) *wsdom.Workspace {
+		return &wsdom.Workspace{
+			RegionalMetadata: commondomain.RegionalMetadata{
+				CommonMetadata: commondomain.CommonMetadata{Name: workspaceName},
+				Scope:          kernelresource.Scope{Tenant: tenant},
+				Region:         region,
+			},
+			Spec: spec,
+		}
+	}
+
+	ctx := context.Background()
+	t.Cleanup(func() {
+		for _, region := range []string{regionOne, regionTwo} {
+			_ = writerRepo.Delete(context.Background(), newWorkspace(region, nil))
+			_ = k8sadapter.DeleteNamespace(context.Background(), clientset,
+				k8sadapter.ComputeRegionNamespace(newWorkspace(region, nil)))
+		}
+		_ = k8sadapter.DeleteNamespace(context.Background(), clientset,
+			k8sadapter.ComputeNamespace(&kernelresource.Scope{Tenant: tenant}))
+		_ = k8sadapter.DeleteNamespace(context.Background(), clientset,
+			k8sadapter.ComputeNamespace(&kernelresource.Scope{Tenant: tenant, Workspace: workspaceName}))
+	})
+
+	// Neither namespace is pre-created: the write path has to provision the per-region one
+	// before the CR, exactly as it does the tenant namespace for a region-less resource.
+	t.Run("the same name in two regions is two workspaces", func(t *testing.T) {
+		one, err := writerRepo.Create(ctx, newWorkspace(regionOne, wsdom.WorkspaceSpec{"where": regionOne}))
+		require.NoError(t, err)
+		require.Equal(t, regionOne, (*one).Region)
+
+		two, err := writerRepo.Create(ctx, newWorkspace(regionTwo, wsdom.WorkspaceSpec{"where": regionTwo}))
+		require.NoError(t, err, "the second region must not collide with the first")
+		require.Equal(t, regionTwo, (*two).Region)
+	})
+
+	t.Run("each region reads back its own", func(t *testing.T) {
+		for _, region := range []string{regionOne, regionTwo} {
+			ws := newWorkspace(region, nil)
+			require.NoError(t, readerRepo.Load(ctx, &ws))
+			require.Equal(t, region, ws.Region)
+			require.Equal(t, region, ws.Spec["where"], "a read in one region must not resolve the other's CR")
+		}
+	})
+
+	// The region label is still written, so the gateway's server-side list filter works.
+	t.Run("the region reaches the CR as a field and a label", func(t *testing.T) {
+		cr, err := dynClient.Resource(WorkspaceGVR).
+			Namespace(k8sadapter.ComputeRegionNamespace(newWorkspace(regionTwo, nil))).
+			Get(ctx, workspaceName, metav1.GetOptions{})
+		require.NoError(t, err)
+		require.Equal(t, regionTwo, cr.Object["region"], "region must survive the CRD schema as a first-class field")
+		require.Equal(t, regionTwo, cr.GetLabels()[k8slabels.InternalRegionLabel])
+	})
+
+	t.Run("deleting one region leaves the other standing", func(t *testing.T) {
+		require.NoError(t, writerRepo.Delete(ctx, newWorkspace(regionOne, nil)))
+
+		gone := newWorkspace(regionOne, nil)
+		require.Error(t, readerRepo.Load(ctx, &gone))
+
+		survivor := newWorkspace(regionTwo, nil)
+		require.NoError(t, readerRepo.Load(ctx, &survivor))
+	})
+
+	// The namespace a workspace owns for its children is hashed from tenant and name alone, so
+	// both regions' copies own the same one. Reclaiming it on the first delete would leave the
+	// survivor's children resolving a namespace that is gone. Against a real API server this is
+	// also what proves the co-owner lookup's metadata.name field selector actually selects.
+	t.Run("the shared children namespace goes with the last region deleted", func(t *testing.T) {
+		childNamespace := k8sadapter.ComputeNamespace(
+			&kernelresource.Scope{Tenant: tenant, Workspace: workspaceName})
+		cleanup := k8sadapter.NamespaceCleanup[*wsdom.Workspace](
+			dynClient, clientset, slog.Default(), WorkspaceGVR, k8sadapter.WorkspaceChildren, nil,
+		)
+
+		// region-one's CR is gone by now, but region-two still owns the namespace.
+		require.NoError(t, cleanup(ctx, newWorkspace(regionOne, nil)))
+		ns, err := clientset.CoreV1().Namespaces().Get(ctx, childNamespace, metav1.GetOptions{})
+		require.NoError(t, err)
+		require.Nil(t, ns.DeletionTimestamp, "the surviving region's workspace still needs this namespace")
+
+		require.NoError(t, writerRepo.Delete(ctx, newWorkspace(regionTwo, nil)))
+		require.NoError(t, cleanup(ctx, newWorkspace(regionTwo, nil)))
+
+		// envtest runs no namespace controller, so a deleted namespace stays Terminating rather
+		// than disappearing — the deletionTimestamp is the proof the delete was accepted.
+		after, err := clientset.CoreV1().Namespaces().Get(ctx, childNamespace, metav1.GetOptions{})
+		require.NoError(t, err)
+		require.NotNil(t, after.DeletionTimestamp, "the last owner deleted must reclaim the namespace")
 	})
 }

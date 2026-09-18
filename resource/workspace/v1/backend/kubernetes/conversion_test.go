@@ -4,8 +4,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/util/json"
 
+	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
+	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
 	kernelresource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	wsdom "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1"
@@ -126,4 +129,40 @@ func FuzzWorkspaceSpecRoundTrip(f *testing.F) {
 			t.Errorf("Region not stable: %q → %q", domain2.Region, domain3.Region)
 		}
 	})
+}
+
+// newWorkspace builds a minimal domain workspace for the region-placement tests below.
+func newWorkspace(tenant, name, region string) *wsdom.Workspace {
+	return &wsdom.Workspace{
+		RegionalMetadata: commondomain.RegionalMetadata{
+			CommonMetadata: commondomain.CommonMetadata{Name: name},
+			Scope:          kernelresource.Scope{Tenant: tenant},
+			Region:         region,
+		},
+	}
+}
+
+// TestWorkspaceToCR_RegionPlacement is the uniqueness guarantee of issue #396: a workspace is
+// identified by tenant *and* region, so the same name in two regions is two CRs in two
+// namespaces rather than one that the second write overwrites.
+func TestWorkspaceToCR_RegionPlacement(t *testing.T) {
+	one, err := WorkspaceToCR(newWorkspace("t1", "ws1", "region-one"))
+	require.NoError(t, err)
+	two, err := WorkspaceToCR(newWorkspace("t1", "ws1", "region-two"))
+	require.NoError(t, err)
+
+	require.Equal(t, one.GetName(), two.GetName(), "the CR keeps the name the caller asked for")
+	require.NotEqual(t, one.GetNamespace(), two.GetNamespace(),
+		"the same workspace name in two regions must not resolve to one CR")
+	require.Equal(t, k8sadapter.ComputeRegionNamespace(newWorkspace("t1", "ws1", "region-one")), one.GetNamespace())
+
+	require.Equal(t, "region-one", one.(*Workspace).Region, "region is a field on the CR, not only a label")
+	require.Equal(t, "region-one", one.GetLabels()[k8slabels.InternalRegionLabel],
+		"the label is still written: it is what the gateway's list filter selects on")
+
+	// A workspace with no region — a unit test, or an object built by hand — is placed
+	// exactly where it was before.
+	none, err := WorkspaceToCR(newWorkspace("t1", "ws1", ""))
+	require.NoError(t, err)
+	require.Equal(t, k8sadapter.ComputeNamespace(&kernelresource.Scope{Tenant: "t1"}), none.GetNamespace())
 }
