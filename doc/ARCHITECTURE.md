@@ -90,24 +90,28 @@ The control plane manages 18 resource slices — one CRD each, generated into `c
 
 ### Namespacing Strategy
 
-There is no `Tenant` CRD. Namespaces are derived deterministically from the resource's SECA scope (`framework/backend/kubernetes/adapter.go`), by one of two hash formulas selected in `resolveNamespace`:
+There is no `Tenant` CRD. Namespaces are derived deterministically from the resource's SECA scope (`framework/backend/kubernetes/adapter.go`), by one of three hash formulas selected in `resolveNamespace`:
 
 - `ComputeNamespace` — `sha3-224(<tenant>)` for tenant-scoped resources, `sha3-224(<tenant>/<workspace>)` for workspace-scoped ones.
 - `ComputeNetworkNamespace` — `sha3-224(<tenant>/<workspace>/<network>)` for network-scoped resources (`Subnet`, `RouteTable`), so each network gets its own namespace and its children's names only have to be unique per network.
+- `ComputeRegionNamespace` — `sha3-224(@region/<region>/<tenant>)` for a tenant-scoped resource whose name is unique **per region** rather than per tenant (`Workspace`), so one tenant can hold a workspace of the same name in two regions. `@` is not legal in a SECA name, which is what keeps this formula from ever colliding with the other two.
 
 An empty scope yields no namespace — that is the cluster-scoped `Region` case.
 
-Three levels of namespace exist, and each is labeled with the internal `secapi.cloud/{tenant,workspace,network}` owner labels that identify who provisioned it:
+Which formula applies is an opt-in on the domain type, not a property of the request: a resource gets the region formula only by implementing `persistence.RegionScope` (`GetRegion`). Every regional resource *carries* a region — it is on `domain.RegionalMetadata` — so having one is deliberately not the same as being stored by one.
+
+Four levels of namespace exist, and each is labeled with the internal `secapi.cloud/{tenant,workspace,network,region}` owner labels that identify who provisioned it:
 
 | namespace | holds |
 |---|---|
-| `sha3-224(tenant)` | `Workspace`, `Role`, `RoleAssignment`, `Image`, SKU catalogs |
+| `sha3-224(tenant)` | `Role`, `RoleAssignment`, `Image`, SKU catalogs |
+| `sha3-224(@region/region/tenant)` | `Workspace` |
 | `sha3-224(tenant/workspace)` | `BlockStorage`, `Network`, `NIC`, `PublicIP`, `InternetGateway`, `SecurityGroup`, `SecurityGroupRule`, `Instance` |
 | `sha3-224(tenant/workspace/network)` | `Subnet`, `RouteTable` |
 
 ### Namespace lifecycle
 
-Creation is split between the write path and the delegator. `NamespaceManagingWriterAdapter.Create` provisions the tenant namespace *before* the CR, because the CR itself lives in it and the write would otherwise fail with `NotFound`. The namespace an entity owns for its **children** is provisioned *after* the CR and opportunistically: nothing is waiting on it inside that request, so its failure is logged rather than returned and the create still succeeds.
+Creation is split between the write path and the delegator. `NamespaceManagingWriterAdapter.Create` provisions the tenant namespace *before* the CR, because the CR itself lives in it and the write would otherwise fail with `NotFound`. A `Workspace` lives one level over in its per-region namespace, so its create provisions that one too — and still the plain tenant namespace, which nothing else would ever bootstrap for `Image`, `Role` and the SKU catalogs. The namespace an entity owns for its **children** is provisioned *after* the CR and opportunistically: nothing is waiting on it inside that request, so its failure is logged rather than returned and the create still succeeds.
 
 Only the **tenant** namespace is provisioned on a resource's own behalf, because there is no `Tenant` entity that would otherwise create it. Below that level a namespace is owned by a parent entity and its absence *is* the referential-integrity check: a `Network` addressed to a workspace that was never created fails with `NotFound` rather than fabricating `sha3-224(tenant/workspace)` and stranding resources in a workspace no listing will ever return. The same holds for every leaf resource, which uses a plain `WriterAdapter` and never creates a namespace at all.
 
@@ -136,12 +140,17 @@ The resolved region is stored in the request context (`resource.ContextWithRegio
 | REST handlers (`resource/*/frontend/rest`) | the region stamped on a created resource, via `k8slabels.InternalRegionLabel` — unchanged, only its source moved |
 | `middleware.SECAClaimExtractor` | `claim.Region`, so a region-scoped `RoleAssignment` is enforced per request (see [AUTH.md](AUTH.md)) |
 | `ReaderAdapter.RegionScoped()` | ANDing `secapi.cloud/region=<region>` into the server-side list selector |
+| `resource/workspace/v1/frontend/rest` | the `Region` on the identity a `GET`/`PUT`/`DELETE` addresses, and on the list params — a workspace is keyed by tenant *and* region (see below) |
 
 Each falls back to the process default when the context carries no region, so a single-region gateway — and a handler called directly by a unit test — behaves exactly as before.
 
-**Why lists must be filtered.** The namespace formula ([Namespacing Strategy](#namespacing-strategy)) has no region dimension, so two regions' resources share a tenant/workspace namespace. The region label is the only thing keeping a list in one region from returning another's. Only the regional slices' readers are region-scoped; `Role`, `RoleAssignment` and `Region` carry no region label, and filtering them on one would resolve every caller to no roles at all.
+**Why lists must be filtered.** Below the workspace level the namespace formula ([Namespacing Strategy](#namespacing-strategy)) has no region dimension, so two regions' resources share a tenant/workspace namespace. The region label is the only thing keeping a list in one region from returning another's. Only the regional slices' readers are region-scoped; `Role`, `RoleAssignment` and `Region` carry no region label, and filtering them on one would resolve every caller to no roles at all.
 
-The same formula is why **resource names are unique per tenant/workspace across regions** in a multi-region deployment: two regions cannot each hold a `network/foo` under the same workspace, because both map to one CR. Item operations (`GET`/`PUT`/`DELETE`) address that CR by name whatever region the request named, so the second region's `PUT` re-stamps the first one's resource rather than creating its own. Only lists are region-filtered. Giving each region its own namespace would close this and would change the namespace of every resource in every existing deployment, so it is not done today.
+The same formula is why **resource names below a workspace are unique per tenant/workspace across regions** in a multi-region deployment: two regions cannot each hold a `network/foo` under the same workspace, because both map to one CR. Item operations (`GET`/`PUT`/`DELETE`) address that CR by name whatever region the request named, so the second region's `PUT` re-stamps the first one's resource rather than creating its own. Only lists are region-filtered. Giving every resource its own per-region namespace would close this and would change the namespace of every resource in every existing deployment, so it is not done today.
+
+**`Workspace` is the exception.** A workspace is the entry point a tenant creates per region, so a name collision there would make a second region unusable rather than merely surprising. Its identity is qualified by region end to end: `resource.Identity.Region` carries the region the request was addressed to into every `GET`/`PUT`/`DELETE`, the workspace list params carry it into `List`, and `ComputeRegionNamespace` puts each region's CR in its own namespace. The region is also a first-class `region` field on the Workspace CRD — printed by `kubectl get workspace` and usable as a field selector — on top of the internal label the list filter still selects on.
+
+One consequence is worth knowing: the namespace a workspace owns for its **children** is still `sha3-224(tenant/workspace)`, with no region dimension, because that is the namespace its children resolve from their own scope. Two regions' same-named workspaces therefore share one children namespace, and its teardown is driven by whichever of them is deleted last-but-one — if that namespace is empty at the time, `NamespaceCleanup` reclaims it and the surviving workspace's `NamespaceEnsure` recreates it on its next reconcile.
 
 ## Authentication & Authorization
 

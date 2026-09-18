@@ -56,9 +56,10 @@ func listWorkspaceNames(t *testing.T, c *workspacev1.ClientWithResponses) []stri
 }
 
 // TestMultiRegionRouting covers one gateway deployment serving two regions: the region a
-// request is addressed to decides where the resource is placed and what a list returns.
-// Both regions share the same tenant namespace — the namespace formula has no region
-// dimension — so nothing but the region label keeps the two lists apart.
+// request is addressed to decides where the resource is placed, what a list returns, and —
+// for workspace, whose identity is region-qualified — which resource an item operation
+// addresses. Regional resources below workspace still share one tenant/workspace namespace
+// across regions, so for those nothing but the region label keeps the two lists apart.
 func TestMultiRegionRouting(t *testing.T) {
 	secondClient := regionalPathClient(t, secondRegion)
 
@@ -135,6 +136,55 @@ func TestMultiRegionRouting(t *testing.T) {
 		require.Equal(t, http.StatusOK, inRegion.StatusCode())
 		require.Equal(t, http.StatusForbidden, outOfRegion.StatusCode(),
 			"the region the request is addressed to must reach the authorization claim")
+	})
+
+	// Issue #396: a workspace is identified by tenant *and* region, so the same name is a
+	// different workspace in each region rather than one CR the second write overwrites.
+	t.Run("the same workspace name in two regions is two workspaces", func(t *testing.T) {
+		//
+		// Given one name created in both regions, with a spec that says which is which
+		name := "mr-same-" + uuid.New().String()[:8]
+		t.Cleanup(func() {
+			for _, c := range []*workspacev1.ClientWithResponses{workspaceClient, secondClient} {
+				testenv.DeleteUntilGone(context.Background(), func() (*http.Response, error) {
+					return c.DeleteWorkspace(context.Background(), testTenant, name, nil)
+				})
+			}
+		})
+
+		for region, client := range map[string]*workspacev1.ClientWithResponses{
+			defaultRegion: workspaceClient,
+			secondRegion:  secondClient,
+		} {
+			resp, err := client.CreateOrUpdateWorkspaceWithResponse(context.Background(), testTenant, name, nil,
+				schema.Workspace{Spec: map[string]any{"where": region}})
+			require.NoError(t, err)
+			require.Equalf(t, http.StatusOK, resp.StatusCode(), "creating %q in %q must not collide with the other region", name, region)
+		}
+
+		//
+		// Then a GET in each region returns that region's own resource
+		for region, client := range map[string]*workspacev1.ClientWithResponses{
+			defaultRegion: workspaceClient,
+			secondRegion:  secondClient,
+		} {
+			resp, err := client.GetWorkspaceWithResponse(context.Background(), testTenant, name)
+			require.NoError(t, err)
+			require.Equal(t, http.StatusOK, resp.StatusCode())
+			require.Equal(t, region, resp.JSON200.Metadata.Region)
+			require.Equalf(t, region, resp.JSON200.Spec["where"],
+				"a GET in %q resolved the other region's workspace", region)
+		}
+
+		//
+		// And deleting one region's copy leaves the other standing
+		_, err := secondClient.DeleteWorkspace(context.Background(), testTenant, name, nil)
+		require.NoError(t, err)
+
+		survivor, err := workspaceClient.GetWorkspaceWithResponse(context.Background(), testTenant, name)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, survivor.StatusCode(),
+			"deleting a workspace in one region must not delete the same name in another")
 	})
 
 	t.Run("a region this gateway does not serve is a 404", func(t *testing.T) {

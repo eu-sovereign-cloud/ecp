@@ -69,6 +69,44 @@ func TestMultiRegionEndToEnd(t *testing.T) {
 		}
 		return r.JSON200.Status.State, true, nil
 	})
+
+	// Step 3: the same name in the default region is a *different* workspace (issue #396),
+	// and the only place that is proven end to end: two CRs the one delegator reconciles
+	// independently, rather than a second write re-stamping the first one's resource.
+	shared := "e2e-mr-same-" + uuid.New().String()[:8]
+	t.Cleanup(func() {
+		for _, c := range []*workspacev1.ClientWithResponses{workspaceClient, secondWorkspace} {
+			testenv.DeleteUntilGone(ctx, func() (*http.Response, error) {
+				return c.DeleteWorkspace(ctx, testTenant, shared, nil)
+			})
+		}
+	})
+
+	for region, client := range map[string]*workspacev1.ClientWithResponses{
+		testRegion:   workspaceClient,
+		secondRegion: secondWorkspace,
+	} {
+		created, err := client.CreateOrUpdateWorkspaceWithResponse(ctx, testTenant, shared, nil,
+			schema.Workspace{Spec: map[string]any{"where": region}})
+		require.NoError(t, err)
+		require.Equalf(t, http.StatusOK, created.StatusCode(), "creating %q in %q must not collide with the other region", shared, region)
+
+		waitForActive(t, "workspace "+shared+" in "+region, func(ctx context.Context) (schema.ResourceState, bool, error) {
+			r, err := client.GetWorkspaceWithResponse(ctx, testTenant, shared)
+			if err != nil {
+				return "", false, err
+			}
+			if r.StatusCode() != http.StatusOK || r.JSON200 == nil || r.JSON200.Status == nil {
+				return "", false, nil
+			}
+			return r.JSON200.Status.State, true, nil
+		})
+
+		got, err := client.GetWorkspaceWithResponse(ctx, testTenant, shared)
+		require.NoError(t, err)
+		require.Equalf(t, region, got.JSON200.Spec["where"], "a GET in %q resolved the other region's workspace", region)
+		require.Equal(t, region, got.JSON200.Metadata.Region)
+	}
 }
 
 // regionProviderPath returns the URL path the region catalog advertises for one provider

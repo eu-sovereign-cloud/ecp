@@ -30,7 +30,10 @@ binary) and the chart supports either layout via the `enabled` toggles:
   serves all of them, selected per request by a `/regions/<region>` path prefix;
   `gatewayRegional.region` stays the default for requests that name none, and defaults to
   the first entry. Advertise the prefixed URLs in each Region CR's `providers[].url` so
-  clients discover the right base URL. See [doc/ARCHITECTURE.md](../../doc/ARCHITECTURE.md#multi-region-gateways).
+  clients discover the right base URL. A `Workspace` is identified by tenant **and** region, so
+  a tenant can use the same workspace name in each region; every resource below a workspace is
+  still keyed by tenant/workspace alone and is shared across the regions of one deployment. See
+  [doc/ARCHITECTURE.md](../../doc/ARCHITECTURE.md#multi-region-gateways).
 
 ## Installing
 

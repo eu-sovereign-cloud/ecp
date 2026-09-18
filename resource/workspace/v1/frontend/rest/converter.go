@@ -22,8 +22,19 @@ const (
 	WorkspaceResource = wsdom.Resource
 )
 
-// listParamsFromAPI converts SDK ListWorkspacesParams to resource.ListParams.
-func listParamsFromAPI(params sdkworkspace.ListWorkspacesParams, tenant string) resource.ListParams {
+// workspaceListParams extends resource.ListParams with the region dimension. It satisfies
+// resource.ListFilter via the embedded ListParams and persistence.RegionScope via GetRegion,
+// so ReaderAdapter[T].List resolves the per-region tenant namespace for workspace without the
+// Region field living on the shared ListParams struct every other resource also uses.
+type workspaceListParams struct {
+	resource.ListParams
+	Region string
+}
+
+func (p workspaceListParams) GetRegion() string { return p.Region }
+
+// listParamsFromAPI converts SDK ListWorkspacesParams to workspaceListParams.
+func listParamsFromAPI(params sdkworkspace.ListWorkspacesParams, tenant, region string) workspaceListParams {
 	limit := validation.GetLimit(params.Limit)
 
 	var skipToken string
@@ -36,13 +47,16 @@ func listParamsFromAPI(params sdkworkspace.ListWorkspacesParams, tenant string) 
 		selector = *params.Labels
 	}
 
-	return resource.ListParams{
-		Scope: resource.Scope{
-			Tenant: tenant,
+	return workspaceListParams{
+		ListParams: resource.ListParams{
+			Scope: resource.Scope{
+				Tenant: tenant,
+			},
+			Limit:     limit,
+			SkipToken: skipToken,
+			Selector:  selector,
 		},
-		Limit:     limit,
-		SkipToken: skipToken,
-		Selector:  selector,
+		Region: region,
 	}
 }
 

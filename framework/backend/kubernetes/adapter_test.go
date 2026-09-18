@@ -1123,3 +1123,91 @@ func TestReaderAdapter_List_RegionScoped(t *testing.T) {
 		require.Len(t, out, 2, "global resources (Role, RoleAssignment) carry no region label")
 	})
 }
+
+// --- Region-keyed resources: the per-region tenant namespace (Workspace) ---
+
+// testRegionScopedIdentifiable mirrors Workspace's domain shape: tenant-scoped, with a region
+// it is keyed by. Implementing GetRegion is the opt-in that moves its CRs into a per-region
+// namespace — see persistence.RegionScope.
+type testRegionScopedIdentifiable struct {
+	name, tenant, region string
+}
+
+func (t *testRegionScopedIdentifiable) GetName() string      { return t.name }
+func (t *testRegionScopedIdentifiable) GetVersion() string   { return "" }
+func (t *testRegionScopedIdentifiable) GetTenant() string    { return t.tenant }
+func (t *testRegionScopedIdentifiable) GetWorkspace() string { return "" }
+func (t *testRegionScopedIdentifiable) GetRegion() string    { return t.region }
+
+func TestComputeRegionNamespace(t *testing.T) {
+	r1 := ComputeRegionNamespace(&testRegionScopedIdentifiable{tenant: "t1", region: "region-one"})
+	r2 := ComputeRegionNamespace(&testRegionScopedIdentifiable{tenant: "t1", region: "region-two"})
+
+	require.NotEqual(t, r1, r2, "two regions of one tenant must not share a namespace")
+	require.NotEqual(t, ComputeNamespace(&kernelresource.Scope{Tenant: "t1"}), r1,
+		"the per-region namespace must be distinct from the plain tenant namespace")
+
+	// The "@region/" prefix is what guarantees this: no tenant/workspace/network triple of
+	// legal SECA names can hash to the same string as a region/tenant pair.
+	require.NotEqual(t, ComputeNamespace(&kernelresource.Scope{Tenant: "region-one", Workspace: "t1"}), r1)
+	require.NotEqual(t, ComputeNetworkNamespace(fakeNetworkScope{tenant: "region", workspace: "region-one", network: "t1"}), r1)
+}
+
+func TestResolveNamespace_RegionScope(t *testing.T) {
+	t.Run("a region-keyed resource resolves to its per-region namespace", func(t *testing.T) {
+		obj := &testRegionScopedIdentifiable{name: "ws1", tenant: "t1", region: "region-two"}
+
+		namespace, err := resolveNamespace(obj)
+		require.NoError(t, err)
+		require.Equal(t, ComputeRegionNamespace(obj), namespace)
+	})
+
+	t.Run("no region resolves exactly as before", func(t *testing.T) {
+		obj := &testRegionScopedIdentifiable{name: "ws1", tenant: "t1"}
+
+		namespace, err := resolveNamespace(obj)
+		require.NoError(t, err)
+		require.Equal(t, ComputeNamespace(&kernelresource.Scope{Tenant: "t1"}), namespace,
+			"an empty region must not move the resource out of the tenant namespace")
+	})
+
+	// Having a region is not the same as being keyed by it: every regional resource carries one.
+	t.Run("a resource that does not implement RegionScope is untouched", func(t *testing.T) {
+		obj := &testWorkspaceScopedIdentifiable{name: "n1", tenant: "t1", workspace: "w1"}
+
+		namespace, err := resolveNamespace(obj)
+		require.NoError(t, err)
+		require.Equal(t, ComputeNamespace(&kernelresource.Scope{Tenant: "t1", Workspace: "w1"}), namespace)
+	})
+}
+
+func TestOwnNamespacesFor(t *testing.T) {
+	t.Run("a region-keyed resource provisions the tenant namespace and its own", func(t *testing.T) {
+		obj := &testRegionScopedIdentifiable{name: "ws1", tenant: "t1", region: "region-two"}
+
+		namespaces := ownNamespacesFor(obj)
+
+		require.Equal(t, []ownedNamespace{
+			{
+				name:        ComputeNamespace(&kernelresource.Scope{Tenant: "t1"}),
+				ownerLabels: map[string]string{labels.InternalTenantLabel: "t1"},
+			},
+			{
+				name: ComputeRegionNamespace(obj),
+				ownerLabels: map[string]string{
+					labels.InternalTenantLabel: "t1",
+					labels.InternalRegionLabel: "region-two",
+				},
+			},
+		}, namespaces, "the tenant namespace still has to be bootstrapped: Image, Role and the SKU catalogs live in it")
+	})
+
+	t.Run("everything else provisions the tenant namespace alone", func(t *testing.T) {
+		obj := &testWorkspaceScopedIdentifiable{name: "w1", tenant: "t1"}
+
+		require.Equal(t, []ownedNamespace{{
+			name:        ComputeNamespace(&kernelresource.Scope{Tenant: "t1"}),
+			ownerLabels: map[string]string{labels.InternalTenantLabel: "t1"},
+		}}, ownNamespacesFor(obj))
+	})
+}
