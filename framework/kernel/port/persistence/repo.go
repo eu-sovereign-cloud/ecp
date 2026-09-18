@@ -21,6 +21,15 @@ type NetworkScope interface {
 	GetNetwork() string
 }
 
+// RegionScope extends Scope with a region dimension, for a resource whose name is unique per
+// region rather than per tenant (Workspace). A type that implements it opts its CRs into a
+// per-region namespace; every other resource keeps the plain tenant/workspace namespace, so
+// implementing GetRegion is what moves a resource's storage, not merely having a region.
+type RegionScope interface {
+	Scope
+	GetRegion() string
+}
+
 // IdentifiableResource defines the interface for objects that can be identified by name, tenant, and workspace.
 type IdentifiableResource interface {
 	GetName() string

@@ -57,7 +57,12 @@ func WorkspaceFromCR(obj client.Object) (*wsdom.Workspace, error) {
 	ws.UpdatedAt = cr.GetCreationTimestamp().Time
 	ws.Provider = strings.ReplaceAll(internalLabels[k8slabels.InternalProviderLabel], "_", "/")
 	ws.Tenant = internalLabels[k8slabels.InternalTenantLabel]
-	ws.Region = internalLabels[k8slabels.InternalRegionLabel]
+	ws.Region = cr.Region
+	if ws.Region == "" {
+		// A CR written before region became a field, or a hand-applied fixture that set only
+		// the label. The label is still authoritative for anything that selects on it.
+		ws.Region = internalLabels[k8slabels.InternalRegionLabel]
+	}
 	ws.Labels = k8slabels.KeyedToOriginal(keyedLabels, cr.CommonData.Labels)
 	ws.Annotations = cr.CommonData.Annotations
 	ws.Extensions = cr.CommonData.Extensions
@@ -102,10 +107,11 @@ func WorkspaceToCR(ws *wsdom.Workspace) (client.Object, error) {
 	cr := &Workspace{
 		ObjectMeta: v1.ObjectMeta{
 			Name:            ws.Name,
-			Namespace:       k8sadapter.ComputeNamespace(tenantOnlyScope(ws.Tenant)),
+			Namespace:       workspaceNamespace(ws),
 			Labels:          crLabels,
 			ResourceVersion: ws.ResourceVersion,
 		},
+		Region: ws.Region,
 		CommonData: schemav1.CommonData{
 			Annotations: ws.Annotations,
 			Extensions:  ws.Extensions,
@@ -134,6 +140,19 @@ func WorkspaceToCR(ws *wsdom.Workspace) (client.Object, error) {
 // Workspace CRs live in the tenant namespace (not in the workspace namespace).
 func tenantOnlyScope(tenant string) *kernelresource.Scope {
 	return &kernelresource.Scope{Tenant: tenant}
+}
+
+// workspaceNamespace is the namespace a Workspace CR lives in. It must stay in step with what
+// the adapter's resolveNamespace derives from the same domain object, since that is what every
+// read, update and delete addresses: a per-region tenant namespace, so two regions can each hold
+// a workspace of the same name, and the plain tenant namespace when no region is set (a unit
+// test, or a resource built by hand).
+func workspaceNamespace(ws *wsdom.Workspace) string {
+	if ws.Region != "" {
+		return k8sadapter.ComputeRegionNamespace(ws)
+	}
+
+	return k8sadapter.ComputeNamespace(tenantOnlyScope(ws.Tenant))
 }
 
 // Converter is the CR<->domain conversion pair for Workspace.
