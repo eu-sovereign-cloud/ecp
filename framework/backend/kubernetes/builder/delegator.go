@@ -102,7 +102,7 @@ func NewDelegator(opts ctrl.Options, schemes ...func(*runtime.Scheme) error) (*D
 // unset or all-blank value yields no scope at all, i.e. every region.
 func regionsFromEnv() []string {
 	var regions []string
-	for _, r := range strings.Split(os.Getenv("REGIONS"), ",") {
+	for r := range strings.SplitSeq(os.Getenv("REGIONS"), ",") {
 		if r = strings.TrimSpace(r); r != "" {
 			regions = append(regions, r)
 		}
