@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"slices"
 	"strings"
@@ -12,10 +13,13 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
+	ctrlbuilder "sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
+	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
 	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/schema/v1"
 
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
@@ -43,6 +47,21 @@ type GenericController[D persistence.IdentifiableResource] struct {
 	maxStatusConditions int
 	ensure              func(context.Context, D) error
 	cleanup             func(context.Context, D) error
+	regions             []string
+}
+
+// ScopeToRegions caps the watch to the regions named: only a CR whose internal region label
+// holds one of them reaches Reconcile. An empty set watches every region, which is how a
+// global delegator — and every single-region deployment before this existed — runs.
+//
+// It is a watch filter and nothing else. The region a plugin acts on always comes from the CR
+// it is handed (domain.RegionalMetadata.Region, read off the same label by the slice's FromCR),
+// never from this set, so a delegator cannot place a resource in a region its CR does not name.
+//
+// builder.ControllerSet calls it on every controller it holds, so a delegator is scoped once
+// for its whole controller set rather than per resource.
+func (r *GenericController[D]) ScopeToRegions(regions []string) {
+	r.regions = regions
 }
 
 // WithEnsure registers a hook invoked on every reconcile of a live resource, before the plugin
@@ -90,14 +109,47 @@ func NewGenericController[D persistence.IdentifiableResource](
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *GenericController[D]) SetupWithManager(mgr ctrl.Manager) error {
+	var forOpts []ctrlbuilder.ForOption
+	pred, err := regionPredicate(r.regions)
+	if err != nil {
+		return err
+	}
+	if pred != nil {
+		forOpts = append(forOpts, ctrlbuilder.WithPredicates(pred))
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
-		For(r.prototype).
+		For(r.prototype, forOpts...).
 		WithOptions(controller.Options{
 			// This allows 10 workers to process the queue in parallel
 			// TODO: make this configurable
 			MaxConcurrentReconciles: 10,
 		}).
 		Complete(r)
+}
+
+// regionPredicate turns a region scope into the watch filter that enforces it: a label
+// selector matching the CR's internal region label against the set. An empty scope returns no
+// predicate at all, leaving the watch cluster-wide.
+func regionPredicate(regions []string) (predicate.Predicate, error) {
+	if len(regions) == 0 {
+		return nil, nil
+	}
+
+	pred, err := predicate.LabelSelectorPredicate(metav1.LabelSelector{
+		MatchExpressions: []metav1.LabelSelectorRequirement{{
+			Key:      k8slabels.InternalRegionLabel,
+			Operator: metav1.LabelSelectorOpIn,
+			Values:   regions,
+		}},
+	})
+	if err != nil {
+		// A region that is not a valid label value can never match a CR, so a delegator
+		// configured with one would silently reconcile nothing. Fail at startup instead.
+		return nil, fmt.Errorf("build region selector for %v: %w", regions, err)
+	}
+
+	return pred, nil
 }
 
 const finalizerName = "secapi.cloud.foundation/cleanup"

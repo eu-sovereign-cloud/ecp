@@ -24,6 +24,7 @@ func TestImage(t *testing.T) {
 		resourceName := "test-img-create-" + uuid.New().String()[:8]
 		imgDomain := &imgdom.Image{
 			RegionalMetadata: commondomain.RegionalMetadata{
+				Region: testRegion,
 				CommonMetadata: commondomain.CommonMetadata{
 					Name: resourceName,
 				},
@@ -51,6 +52,7 @@ func TestImage(t *testing.T) {
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
 			loadedImg = &imgdom.Image{
 				RegionalMetadata: commondomain.RegionalMetadata{
+					Region: testRegion,
 					CommonMetadata: commondomain.CommonMetadata{
 						Name: resourceName,
 					},
@@ -84,6 +86,7 @@ func TestImage(t *testing.T) {
 		resourceName := "test-img-delete-" + uuid.New().String()[:8]
 		imgDomain := &imgdom.Image{
 			RegionalMetadata: commondomain.RegionalMetadata{
+				Region: testRegion,
 				CommonMetadata: commondomain.CommonMetadata{
 					Name: resourceName,
 				},
@@ -106,6 +109,7 @@ func TestImage(t *testing.T) {
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
 			loadedImg = &imgdom.Image{
 				RegionalMetadata: commondomain.RegionalMetadata{
+					Region: testRegion,
 					CommonMetadata: commondomain.CommonMetadata{
 						Name: resourceName,
 					},
@@ -134,6 +138,7 @@ func TestImage(t *testing.T) {
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
 			loadedImg = &imgdom.Image{
 				RegionalMetadata: commondomain.RegionalMetadata{
+					Region: testRegion,
 					CommonMetadata: commondomain.CommonMetadata{
 						Name: resourceName,
 					},

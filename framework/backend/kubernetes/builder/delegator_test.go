@@ -118,3 +118,36 @@ func freeAddr(t *testing.T) string {
 	require.NoError(t, l.Close())
 	return addr
 }
+
+// TestNewDelegator_RegionScope covers the one knob a regional delegator deployment is
+// configured with: REGIONS reaches the controllers it restricts. The parse is forgiving on
+// purpose — a trailing comma in a Helm-rendered list must not take the process down — but an
+// entry it keeps becomes a watch filter, so a blank one would leave the delegator reconciling
+// only region-less CRs.
+func TestNewDelegator_RegionScope(t *testing.T) {
+	tests := []struct {
+		name string
+		env  string
+		want []string
+	}{
+		{name: "unset watches every region", env: ""},
+		{name: "one region", env: "itbg-bergamo", want: []string{"itbg-bergamo"}},
+		{name: "several regions", env: "itbg-bergamo,deff-frankfurt", want: []string{"itbg-bergamo", "deff-frankfurt"}},
+		{name: "blanks and duplicates are dropped", env: " itbg-bergamo , ,itbg-bergamo, deff-frankfurt ", want: []string{"itbg-bergamo", "deff-frankfurt"}},
+		{name: "an all-blank value is no scope at all", env: " , "},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("REGIONS", tc.env)
+			d, err := builder.NewDelegator(offline(t, "0"))
+			require.NoError(t, err)
+			require.Equal(t, tc.want, d.Regions)
+
+			r := &scopableReconciler{}
+			d.Controllers.Add(r)
+			require.NoError(t, d.Controllers.SetupWithManager(d.Manager))
+			require.Equal(t, tc.want, r.regions, "the scope has to reach the controllers, not just the Delegator")
+		})
+	}
+}

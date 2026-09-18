@@ -37,6 +37,7 @@ func TestWorkspaceNamespaceLifecycle(t *testing.T) {
 	newWorkspace := func() *wsdom.Workspace {
 		return &wsdom.Workspace{
 			RegionalMetadata: commondomain.RegionalMetadata{
+				Region:         testRegion,
 				CommonMetadata: commondomain.CommonMetadata{Name: wsName},
 				Scope:          resource.Scope{Tenant: testTenant},
 			},
@@ -45,6 +46,7 @@ func TestWorkspaceNamespaceLifecycle(t *testing.T) {
 	newBlockStorage := func(name string) *bsdom.BlockStorage {
 		return &bsdom.BlockStorage{
 			RegionalMetadata: commondomain.RegionalMetadata{
+				Region:         testRegion,
 				CommonMetadata: commondomain.CommonMetadata{Name: name},
 				Scope:          resource.Scope{Tenant: testTenant, Workspace: wsName},
 			},
@@ -103,6 +105,7 @@ func TestNetworkNamespaceLifecycle(t *testing.T) {
 	newNetwork := func() *netdom.Network {
 		return &netdom.Network{
 			RegionalMetadata: commondomain.RegionalMetadata{
+				Region:         testRegion,
 				CommonMetadata: commondomain.CommonMetadata{Name: netName},
 				Scope:          resource.Scope{Tenant: testTenant, Workspace: testWorkspace},
 			},
@@ -116,6 +119,7 @@ func TestNetworkNamespaceLifecycle(t *testing.T) {
 		s := &subnetdom.Subnet{
 			RegionalNetworkMetadata: commondomain.RegionalNetworkMetadata{
 				RegionalMetadata: commondomain.RegionalMetadata{
+					Region:         testRegion,
 					CommonMetadata: commondomain.CommonMetadata{Name: name},
 				},
 				Network: netName,

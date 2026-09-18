@@ -95,6 +95,52 @@ func TestWorkspaceController_Reconcile(t *testing.T) {
 		require.Equal(t, k8srt.Result{}, res)
 	})
 
+	// The region a plugin provisions into comes from the CR and from nowhere else: a
+	// delegator may serve several regions at once and has no default to fall back on, so a
+	// region lost between the label and the handler is a resource created in the wrong
+	// cloud region — which no later reconcile corrects. See doc/PLUGINS.md.
+	t.Run("should hand the plugin the region the CR names", func(t *testing.T) {
+		const testRegion = "itbg-bergamo"
+		mc := gomock.NewController(t)
+		defer mc.Finish()
+
+		mockRepo := NewMockRepo[*wsdom.Workspace](mc)
+		mockRepo.EXPECT().UpdateStatus(gomock.Any(), gomock.Any()).Return(nil, nil).Times(1)
+
+		var gotRegion string
+		mockPlugin := NewMockWorkspacePlugin(mc)
+		mockPlugin.EXPECT().Create(gomock.Any(), gomock.Any()).
+			DoAndReturn(func(_ context.Context, ws *wsdom.Workspace) error {
+				gotRegion = ws.Region
+				return nil
+			}).Times(1)
+
+		creating := newK8sResource()
+		creating.Labels[k8slabels.InternalRegionLabel] = testRegion
+		creating.Status = &WorkspaceStatus{State: schemav1.ResourceStateCreating}
+
+		fakeClient := fake.NewClientBuilder().
+			WithScheme(newScheme()).
+			WithObjects(creating).
+			Build()
+
+		handler := NewWorkspacePluginHandler(mockRepo, mockPlugin, 1)
+		gc := frameworkcontroller.NewGenericController[*wsdom.Workspace](
+			fakeClient,
+			WorkspaceFromCR,
+			handler,
+			&Workspace{},
+			0,
+			slog.New(slog.NewTextHandler(&bytes.Buffer{}, nil)),
+			1,
+		)
+
+		_, err := gc.Reconcile(t.Context(), req)
+
+		require.NoError(t, err)
+		require.Equal(t, testRegion, gotRegion, "the plugin must be told the region the CR carries")
+	})
+
 	t.Run("should ignore when resource is not found", func(t *testing.T) {
 		mc := gomock.NewController(t)
 		defer mc.Finish()

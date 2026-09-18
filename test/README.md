@@ -79,10 +79,11 @@ The point is that there is one deployment path, not two: a template that breaks,
 | `test-data` | kustomize — fixture CRs, nothing anyone installs | — |
 | `conformance` | kustomize — the secatest runner | — |
 
-Two consequences worth knowing:
+Three consequences worth knowing:
 
 - **Names come from the chart.** The Deployments and Services are `ecp-global-gateway-global`, `ecp-regional-gateway-regional` and `ecp-delegator`, not the old `*-depl` / `*-svc`. The suites port-forward by pod label (`app=gateway-global`), which the chart still sets, so they are unaffected; anything dialling a gateway by DNS is not, and `internal/scripts/common.sh` holds the service names for it (`test-data/regions.yaml` carries the same ones).
 - **The delegator's RBAC follows its plugin.** `charts/delegator` grants exactly the controller set `plugin` loads, so adding a resource to a plugin means adding its rules to that plugin's branch in `charts/delegator/templates/rbac.yaml`.
+- **The delegator is region-scoped.** [`delegator/values.yaml`](internal/deploy/delegator/values.yaml) sets `regions: [itbg-bergamo]`, the region the regional gateway is deployed for and the one every `test-data` fixture carries, so every run exercises the scoped watch ([Region-scoped delegators](../doc/ARCHITECTURE.md#region-scoped-delegators)) rather than leaving it to a case nothing deploys. The consequence is that **a CR in any other region — or with no region at all — never reconciles**: fixtures written straight through a repo adapter must set `Region` (the integration suite's `testRegion`), and a resource stuck `pending` forever is the first symptom of one that does not. `integration/delegator/region_scope_test.go` asserts that exclusion on purpose, with an in-region resource alongside as the control.
 
 To deploy the same stack by hand, or to install it anywhere real, use the charts directly — see [`charts/ecp/README.md`](../charts/ecp/README.md).
 
