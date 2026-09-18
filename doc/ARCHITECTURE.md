@@ -208,6 +208,18 @@ See [doc/AUTH.md](AUTH.md) for the full reference — bearer-token formats (dumm
 signed JWT), issuer/audience verification, the tenant-membership gate, token
 down-scoping, config flags, the RBAC algorithm, and a code layout map.
 
+## Region-scoped delegators
+
+A delegator deployment reconciles either **every** region in its cluster or a listed subset. `REGIONS` (comma-separated; `regions` in [`charts/delegator`](../charts/delegator)) is that list, and leaving it unset — the default, and every deployment before this existed — reconciles all of them. Two delegators in one cluster, each with its own regions, is the split topology; one with none is the global case, in the same cluster and the same image.
+
+The scope is applied once per process, not per resource: `builder.NewDelegator` reads `REGIONS`, hands it to the `ControllerSet`, and the set pushes it into every controller it binds (`ScopeToRegions`). `GenericController` turns it into a label selector on `secapi.cloud/region` and attaches it as a watch predicate, so only a CR whose region label names one of them ever reaches `Reconcile`. A plugin's `cmd/main.go` adds its controllers the same way whether or not the deployment is scoped.
+
+Two kinds of CR are outside a scope: another region's, and the **region-less** ones — `Role` and `RoleAssignment` carry no region label, so a scoped delegator leaves them to an unscoped one. A resource no deployed delegator serves stays `pending` forever, which is the intended failure: a delegator quietly adopting a region it was not deployed for provisions into the wrong backend, and nothing downstream would catch that.
+
+**It is a watch filter and nothing else.** The region a plugin acts on always comes from the resource it is handed — `domain.RegionalMetadata.Region`, read off that same label by the slice's `FromCR` — never from `REGIONS`. A delegator therefore cannot place a resource in a region its CR does not name, and one serving several regions is no different from one serving a single region: both read the region per resource.
+
+The filter is on **events, not on the informer cache**. A plugin reads the provider CRs it writes through the same manager cache (`mgr.GetCache()` in the aruba and IONOS wiring), and those carry no SECA region label — a cache-wide selector would filter every one of them out. Scoping is about what reconciles, not about what is cached, so the delegator's memory still scales with everything in the cluster (see the sizing note in `charts/delegator/values.yaml`).
+
 ## Cascaded Deletion
 
 The SECA resource organization is hierarchical — Tenants 1—\* Workspaces 1—\* Networks 1—\* resources — and deletion is intended to cascade down this hierarchy. The building block for this is namespace ownership rather than Kubernetes owner references (none are set today):

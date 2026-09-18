@@ -39,9 +39,15 @@ spec:
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- with .Values.extraEnv }}
+          {{- if or .Values.regions .Values.extraEnv }}
           env:
+            {{- with .Values.regions }}
+            - name: REGIONS
+              value: {{ join "," . | quote }}
+            {{- end }}
+            {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
+            {{- end }}
           {{- end }}
           ports:
             - name: healthz

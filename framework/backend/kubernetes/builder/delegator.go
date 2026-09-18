@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"slices"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
@@ -24,8 +26,11 @@ type Delegator struct {
 	Dynamic dynamic.Interface
 	// Clientset is the typed client for the Namespace API: the Workspace and Network
 	// controllers tear down the namespace they own for their children.
-	Clientset   kubernetes.Interface
-	Logger      *slog.Logger
+	Clientset kubernetes.Interface
+	Logger    *slog.Logger
+	// Regions is the region scope read from REGIONS: the only CRs this delegator reconciles.
+	// Empty means every region. It never reaches a plugin — see ControllerSet.ScopeToRegions.
+	Regions     []string
 	Controllers *ControllerSet
 }
 
@@ -37,6 +42,12 @@ type Delegator struct {
 // provider types the plugin writes, if any. opts reaches the manager unchanged except that its
 // Scheme is always replaced and an empty HealthProbeBindAddress becomes ":8081", the port
 // charts/delegator probes. The /healthz and /readyz checks are already added.
+//
+// REGIONS (comma-separated) restricts which CRs the delegator reconciles: with it set, a
+// controller only sees a CR whose internal region label names one of those regions, which is
+// what a delegator deployed for one region of a shared cluster wants. Unset — the default —
+// reconciles every region. It is a watch filter and never a region a plugin is told about: the
+// plugin reads the region off the CR it is handed.
 func NewDelegator(opts ctrl.Options, schemes ...func(*runtime.Scheme) error) (*Delegator, error) {
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 	cfg, err := ctrl.GetConfig()
@@ -73,13 +84,37 @@ func NewDelegator(opts ctrl.Options, schemes ...func(*runtime.Scheme) error) (*D
 		return nil, fmt.Errorf("create clientset: %w", err)
 	}
 
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	regions := regionsFromEnv()
+	if len(regions) == 0 {
+		logger.Info("REGIONS unset, reconciling every region")
+	} else {
+		logger.Info("scoped to regions", "regions", regions)
+	}
+	controllers := NewControllerSet()
+	controllers.ScopeToRegions(regions)
+
 	return &Delegator{
 		Manager:     mgr,
 		Dynamic:     dynClient,
 		Clientset:   clientset,
-		Logger:      slog.New(slog.NewJSONHandler(os.Stdout, nil)),
-		Controllers: NewControllerSet(),
+		Logger:      logger,
+		Regions:     regions,
+		Controllers: controllers,
 	}, nil
+}
+
+// regionsFromEnv parses REGIONS, the delegator's region scope: a comma-separated list, with
+// blanks and duplicates dropped so a trailing comma or a repeated entry is not a startup
+// failure. An unset or all-blank value yields no scope at all, i.e. every region.
+func regionsFromEnv() []string {
+	var regions []string
+	for _, r := range strings.Split(os.Getenv("REGIONS"), ",") {
+		if r = strings.TrimSpace(r); r != "" && !slices.Contains(regions, r) {
+			regions = append(regions, r)
+		}
+	}
+	return regions
 }
 
 // Run binds every controller in d.Controllers to the manager and serves them until ctx is done.
