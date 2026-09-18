@@ -4,4 +4,10 @@
 # otherwise — see internal/scripts/deploy.sh), which also selects the RBAC the
 # chart grants. Image repository, tag and pullPolicy come from the script, as
 # does imagePullSecrets when the local context carries registry credentials.
-{}
+
+# The test stack runs a region-scoped delegator: every suite fixture and every regional
+# test-data CR carries this region, so a CR in any other one is never reconciled. The
+# region-less fixtures (regions, roles, role-assignments) are reconciled by no delegator at
+# all — see test/README.md.
+regions:
+  - itbg-bergamo

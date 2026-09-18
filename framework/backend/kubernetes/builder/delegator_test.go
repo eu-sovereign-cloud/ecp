@@ -59,6 +59,15 @@ func (r *recordingReconciler) SetupWithManager(ctrl.Manager) error {
 	return nil
 }
 
+// scopableReconciler is a controller that can be region-scoped, as every resource slice's is
+// through the generic controller it embeds.
+type scopableReconciler struct {
+	recordingReconciler
+	regions []string
+}
+
+func (r *scopableReconciler) ScopeToRegions(regions []string) { r.regions = regions }
+
 func TestNewDelegator_RegistersSchemes(t *testing.T) {
 	widget := schema.GroupVersionKind{Group: "test.secapi.cloud", Version: "v1", Kind: "Widget"}
 	opts := offline(t, "0")
@@ -117,4 +126,47 @@ func freeAddr(t *testing.T) string {
 	addr := l.Addr().String()
 	require.NoError(t, l.Close())
 	return addr
+}
+
+// TestNewDelegator_RegionScope covers the one knob a regional delegator deployment is
+// configured with: REGIONS reaches the controllers it restricts. The parse is forgiving on
+// purpose — a trailing comma in a Helm-rendered list must not take the process down — but an
+// entry it keeps becomes a watch filter, so a blank one would match only an empty region
+// label, which nothing sets, and the delegator would reconcile nothing.
+func TestNewDelegator_RegionScope(t *testing.T) {
+	tests := []struct {
+		name string
+		env  string
+		want []string
+	}{
+		{name: "unset watches every region", env: ""},
+		{name: "one region", env: "itbg-bergamo", want: []string{"itbg-bergamo"}},
+		{name: "several regions", env: "itbg-bergamo,deff-frankfurt", want: []string{"itbg-bergamo", "deff-frankfurt"}},
+		{name: "blanks and surrounding space are dropped", env: " itbg-bergamo , , deff-frankfurt ", want: []string{"itbg-bergamo", "deff-frankfurt"}},
+		{name: "an all-blank value is no scope at all", env: " , "},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("REGIONS", tc.env)
+			d, err := builder.NewDelegator(offline(t, "0"))
+			require.NoError(t, err)
+
+			r := &scopableReconciler{}
+			d.Controllers.Add(r)
+			require.NoError(t, d.Controllers.SetupWithManager(d.Manager))
+			require.Equal(t, tc.want, r.regions, "the scope has to reach the controllers, not just the Delegator")
+		})
+	}
+}
+
+// A plugin is free to add a Reconciler of its own that cannot be region-scoped; the set must
+// still bind it, watching every region, rather than skipping it or failing the whole setup.
+func TestControllerSet_UnscopableControllerIsStillSetUp(t *testing.T) {
+	cs := builder.NewControllerSet("itbg-bergamo")
+	r := &recordingReconciler{}
+	cs.Add(r)
+
+	require.NoError(t, cs.SetupWithManager(nil))
+	require.True(t, r.called.Load())
 }

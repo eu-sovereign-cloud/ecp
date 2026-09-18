@@ -24,6 +24,7 @@ func TestRouteTable(t *testing.T) {
 		rt := &routetabledom.RouteTable{
 			RegionalNetworkMetadata: commondomain.RegionalNetworkMetadata{
 				RegionalMetadata: commondomain.RegionalMetadata{
+					Region:         testRegion,
 					CommonMetadata: commondomain.CommonMetadata{Name: name},
 				},
 				Network: testNetwork,

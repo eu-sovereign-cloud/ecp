@@ -153,6 +153,7 @@ See [values.yaml](values.yaml) for the full commented list. The notable ones:
 | `*.service.nodePort` | `""` | Fixed node port, honoured only when `service.type=NodePort` (else auto-assigned) |
 | `ecp-delegator.enabled` | `false` | Deploy the [delegator](../delegator) as a subchart. Its dependency is resolved either way — see Installing |
 | `ecp-delegator.plugin` | `""` | **Required** when enabled — `aruba`, `dummy` or `ionos`; any other `ecp-delegator.*` value from that chart passes through |
+| `ecp-delegator.regions` | `[]` | Regions the delegator reconciles; empty reconciles every one. See [charts/delegator](../delegator#regions) |
 
 `helm lint`/CI note: because `gatewayRegional.region` has no sane default,
 lint with the CI values: `helm lint charts/ecp -f charts/ecp/ci/default-values.yaml`.

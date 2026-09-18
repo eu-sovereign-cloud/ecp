@@ -27,6 +27,7 @@ func TestWorkspace(t *testing.T) {
 		workspaceName := "test-ws-create-" + uuid.New().String()[:8]
 		wsDomain := &wsdom.Workspace{
 			RegionalMetadata: commondomain.RegionalMetadata{
+				Region: testRegion,
 				CommonMetadata: commondomain.CommonMetadata{
 					Name: workspaceName,
 				},
@@ -47,6 +48,7 @@ func TestWorkspace(t *testing.T) {
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
 			loadedWs = &wsdom.Workspace{
 				RegionalMetadata: commondomain.RegionalMetadata{
+					Region: testRegion,
 					CommonMetadata: commondomain.CommonMetadata{
 						Name: workspaceName,
 					},
@@ -82,6 +84,7 @@ func TestWorkspace(t *testing.T) {
 		workspaceName := "test-ws-delete-" + uuid.New().String()[:8]
 		wsDomain := &wsdom.Workspace{
 			RegionalMetadata: commondomain.RegionalMetadata{
+				Region: testRegion,
 				CommonMetadata: commondomain.CommonMetadata{
 					Name: workspaceName,
 				},
@@ -97,6 +100,7 @@ func TestWorkspace(t *testing.T) {
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
 			loadedWs = &wsdom.Workspace{
 				RegionalMetadata: commondomain.RegionalMetadata{
+					Region: testRegion,
 					CommonMetadata: commondomain.CommonMetadata{
 						Name: workspaceName,
 					},
@@ -128,6 +132,7 @@ func TestWorkspace(t *testing.T) {
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
 			loadedWs = &wsdom.Workspace{
 				RegionalMetadata: commondomain.RegionalMetadata{
+					Region: testRegion,
 					CommonMetadata: commondomain.CommonMetadata{
 						Name: workspaceName,
 					},

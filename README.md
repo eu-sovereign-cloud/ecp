@@ -41,6 +41,9 @@ resources are accepted and stay pending:
 | `ionos` | writing Crossplane managed resources | Crossplane + `provider-upjet-ionoscloud` + an IONOS token ([`csp/ionos/deploy`](csp/ionos/deploy)) |
 | `dummy` | nothing — marks resources Active in-process | none; development only, image not published |
 
+The delegator reconciles every region in its cluster unless `ecp-delegator.regions`
+restricts it to the ones that deployment serves — see [Regions](charts/delegator/README.md#regions).
+
 **Auth is off by default** — the API is unauthenticated in that mode, so do not
 expose it outside the cluster until you turn it on with `auth.enabled=true`,
 which enables bearer token authentication *and* SECA RBAC on **both** gateways.

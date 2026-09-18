@@ -23,16 +23,27 @@ type Reconciler interface {
 	SetupWithManager(mgr ctrl.Manager) error
 }
 
+// RegionScoped is a Reconciler whose watch can be capped to a set of regions. The generic
+// controller every resource slice builds on implements it, so every slice's controller does
+// through embedding; a plugin's own Reconciler that does not is left watching every region.
+type RegionScoped interface {
+	ScopeToRegions(regions []string)
+}
+
 // ControllerSet is a generic aggregator of Reconciler instances.
 // NewDelegator builds one for each CSP cmd/main.go to add its resource controllers to;
 // Delegator.Run then calls SetupWithManager once to bind every controller to the manager.
 type ControllerSet struct {
 	reconcilers []Reconciler
+	regions     []string
 }
 
-// NewControllerSet creates an empty ControllerSet.
-func NewControllerSet() *ControllerSet {
-	return &ControllerSet{}
+// NewControllerSet creates an empty ControllerSet restricted to the regions named: every
+// RegionScoped controller it holds is capped to them as the set is bound to the manager
+// (REGIONS, see NewDelegator). Naming none — the default, and the global deployment —
+// watches every region.
+func NewControllerSet(regions ...string) *ControllerSet {
+	return &ControllerSet{regions: regions}
 }
 
 // Add registers a Reconciler with this ControllerSet and returns the same set
@@ -54,6 +65,9 @@ func (cs *ControllerSet) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	for _, r := range cs.reconcilers {
+		if scoped, ok := r.(RegionScoped); ok {
+			scoped.ScopeToRegions(cs.regions)
+		}
 		if err := r.SetupWithManager(mgr); err != nil {
 			return fmt.Errorf("failed to set up controller: %w", err)
 		}

@@ -80,6 +80,10 @@ func TestEndToEnd(t *testing.T) {
 
 	// Step 2: creating a workspace through the regional gateway provisions its
 	// namespace and reconciles to Active via the delegator's workspace plugin.
+	//
+	// The delegator is deployed for testRegion only, so reaching Active is also the
+	// region round trip: the gateway stamped the region the resource was addressed to, the
+	// delegator's region-scoped watch accepted it, and the region comes back out unchanged.
 	t.Run("workspace created via API reconciles to active", func(t *testing.T) {
 		resp, err := workspaceClient.CreateOrUpdateWorkspaceWithResponse(ctx, testTenant, testWorkspace, nil, schema.Workspace{})
 		require.NoError(t, err)
@@ -95,6 +99,13 @@ func TestEndToEnd(t *testing.T) {
 			}
 			return r.JSON200.Status.State, true, nil
 		})
+
+		got, err := workspaceClient.GetWorkspaceWithResponse(ctx, testTenant, testWorkspace)
+		require.NoError(t, err)
+		require.NotNil(t, got.JSON200)
+		require.NotNil(t, got.JSON200.Metadata)
+		require.Equal(t, testRegion, got.JSON200.Metadata.Region,
+			"the region has to survive the whole round trip, it is what the delegator watch and the plugin both read")
 	})
 
 	// Step 3 (flagship): a block storage created through the regional gateway is
