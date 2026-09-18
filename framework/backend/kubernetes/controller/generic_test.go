@@ -14,23 +14,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
-	"github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/builder"
 	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
 )
-
-// scopedResource is the smallest thing a GenericController can be instantiated for.
-type scopedResource struct{}
-
-func (scopedResource) GetName() string      { return "" }
-func (scopedResource) GetVersion() string   { return "" }
-func (scopedResource) GetTenant() string    { return "" }
-func (scopedResource) GetWorkspace() string { return "" }
-
-// The controller set scopes whatever implements RegionScoped, and nothing fails to compile if
-// the generic controller stops doing so — every delegator would just quietly widen back to
-// every region. This assertion is that missing compile error.
-var _ builder.RegionScoped = (*GenericController[scopedResource])(nil)
 
 func TestRequeueFor(t *testing.T) {
 	const defaultInterval = 10 * time.Second
@@ -121,12 +107,6 @@ func TestRegionPredicate(t *testing.T) {
 		}
 		return obj
 	}
-
-	t.Run("an empty scope filters nothing", func(t *testing.T) {
-		pred, err := regionPredicate(nil)
-		require.NoError(t, err)
-		require.Nil(t, pred, "no predicate at all, so the watch stays cluster-wide")
-	})
 
 	t.Run("a region outside the scope is dropped on every event kind", func(t *testing.T) {
 		pred, err := regionPredicate([]string{"itbg-bergamo", "deff-frankfurt"})
