@@ -34,8 +34,9 @@ helm install ecp-delegator-bergamo charts/delegator \
   --set plugin=aruba --set 'regions={itbg-bergamo}'
 ```
 
-A CR in a region no deployed delegator serves stays pending — including the region-less `Role`
-and `RoleAssignment`, which only an unscoped delegator reconciles. See
+A CR in a region no deployed delegator serves stays pending. `Role` and `RoleAssignment` are
+unaffected either way: they carry no region label, and no delegator reconciles them under any
+scope — the gateway serves both synchronously. See
 [Region-scoped delegators](../../doc/ARCHITECTURE.md#region-scoped-delegators).
 
 ## Prerequisites

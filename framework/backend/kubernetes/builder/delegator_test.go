@@ -131,8 +131,8 @@ func freeAddr(t *testing.T) string {
 // TestNewDelegator_RegionScope covers the one knob a regional delegator deployment is
 // configured with: REGIONS reaches the controllers it restricts. The parse is forgiving on
 // purpose — a trailing comma in a Helm-rendered list must not take the process down — but an
-// entry it keeps becomes a watch filter, so a blank one would leave the delegator reconciling
-// only region-less CRs.
+// entry it keeps becomes a watch filter, so a blank one would match only an empty region
+// label, which nothing sets, and the delegator would reconcile nothing.
 func TestNewDelegator_RegionScope(t *testing.T) {
 	tests := []struct {
 		name string
