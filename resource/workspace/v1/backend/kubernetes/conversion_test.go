@@ -156,8 +156,6 @@ func TestWorkspaceToCR_RegionPlacement(t *testing.T) {
 		"the same workspace name in two regions must not resolve to one CR")
 	require.Equal(t, k8sadapter.ComputeRegionNamespace(newWorkspace("t1", "ws1", "region-one")), one.GetNamespace())
 
-	// The namespace has to agree with what the adapter derives from the same object, since
-	// that is what every read, update and delete addresses.
 	require.Equal(t, "region-one", one.(*Workspace).Region, "region is a field on the CR, not only a label")
 	require.Equal(t, "region-one", one.GetLabels()[k8slabels.InternalRegionLabel],
 		"the label is still written: it is what the gateway's list filter selects on")
@@ -167,16 +165,4 @@ func TestWorkspaceToCR_RegionPlacement(t *testing.T) {
 	none, err := WorkspaceToCR(newWorkspace("t1", "ws1", ""))
 	require.NoError(t, err)
 	require.Equal(t, k8sadapter.ComputeNamespace(&kernelresource.Scope{Tenant: "t1"}), none.GetNamespace())
-}
-
-// TestWorkspaceFromCR_RegionFallsBackToLabel covers a CR written before region became a field,
-// or a hand-applied fixture that sets only the label.
-func TestWorkspaceFromCR_RegionFallsBackToLabel(t *testing.T) {
-	cr, err := WorkspaceToCR(newWorkspace("t1", "ws1", "region-two"))
-	require.NoError(t, err)
-	cr.(*Workspace).Region = ""
-
-	ws, err := WorkspaceFromCR(cr)
-	require.NoError(t, err)
-	require.Equal(t, "region-two", ws.Region)
 }

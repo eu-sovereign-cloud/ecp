@@ -66,14 +66,16 @@ one region never returns the other's, an unserved region is a 404, `bob` — who
 without it, and the **same workspace name in both regions is two workspaces**, each addressable
 and deletable only through its own region. [`e2e/multiregion_test.go`](e2e/multiregion_test.go)
 adds only what needs the whole stack: the second region's base URL is discovered off the region
-catalog, a workspace created through it reconciles to `Active`, and both copies of a shared name
-reconcile independently. See
+catalog and a workspace created through it reconciles to `Active`. See
 [Multi-region gateways](../doc/ARCHITECTURE.md#multi-region-gateways) for the mechanism.
 
 A workspace is keyed by tenant **and** region, so each region's copy lives in its own namespace
 (`sha3-224(@region/<region>/<tenant>)`) and carries `region` as a field on the CR —
-`kubectl get workspace -A` prints it. Every resource below a workspace is still keyed by
-tenant/workspace alone, so those names remain shared across the two regions.
+`kubectl get workspace -A` prints it. The per-region placement itself is asserted against a
+real API server by `TestWorkspaceRegionIdentity` in
+[`resource/workspace/v1/backend/kubernetes`](../resource/workspace/v1/backend/kubernetes/workspace_envtest_test.go)
+(`make test-envtest`). Every resource below a workspace is still keyed by tenant/workspace
+alone, so those names remain shared across the two regions.
 
 ## One stack, every suite
 

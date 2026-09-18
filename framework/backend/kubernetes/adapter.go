@@ -181,7 +181,7 @@ func NewWatcherAdapter[T persistence.IdentifiableResource](
 
 // ComputeNamespace computes the Kubernetes namespace based on tenant and workspace. It never
 // looks at anything beyond persistence.Scope — for resolving the right namespace rule for a
-// given resource (which may be network-scoped instead), see resolveNamespace.
+// given resource (which may be network-scoped instead), see ResolveNamespace.
 func ComputeNamespace(obj persistence.Scope) string {
 	if obj.GetTenant() == "" && obj.GetWorkspace() == "" {
 		return ""
@@ -238,14 +238,15 @@ func regionNamespace(obj persistence.Scope) (namespace, region string, ok bool) 
 	return ComputeRegionNamespace(regionScope), regionScope.GetRegion(), true
 }
 
-// resolveNamespace picks the right namespace rule for obj: ComputeNetworkNamespace when obj
+// ResolveNamespace picks the right namespace rule for obj: ComputeNetworkNamespace when obj
 // also implements NetworkScope, ComputeRegionNamespace when it implements RegionScope with a
-// region set, ComputeNamespace otherwise. This is where "which formula applies to this resource"
-// is decided — the Compute* functions themselves stay dumb, explicit hash formulas with no
+// region set, ComputeNamespace otherwise. It is exported so a slice's ToCR can place its CR
+// through the same call every read, update and delete addresses it by, rather than restating
+// the branch. This is where "which formula applies to this resource" is decided — the Compute* functions themselves stay dumb, explicit hash formulas with no
 // branching on the caller's shape. A NetworkScope object with an empty network is a caller bug,
 // not a fallback case, so it errors instead of silently resolving to the workspace-level
 // namespace.
-func resolveNamespace(obj persistence.Scope) (string, error) {
+func ResolveNamespace(obj persistence.Scope) (string, error) {
 	if networkScope, ok := obj.(persistence.NetworkScope); ok {
 		if networkScope.GetNetwork() == "" {
 			return "", kernel.NewError(kernel.KindValidation, fmt.Errorf("network-scoped resource has empty network"))
@@ -376,7 +377,7 @@ func (a *ReaderAdapter[T]) List(ctx context.Context, params resource.ListFilter,
 		}
 	}
 
-	namespace, err := resolveNamespace(params)
+	namespace, err := ResolveNamespace(params)
 	if err != nil {
 		return nil, err
 	}
@@ -438,7 +439,7 @@ func (a *ReaderAdapter[T]) Load(ctx context.Context, obj *T) (err error) {
 	start := time.Now()
 	defer func() { observeUpstream(a.gvr, OpGet, start, err) }()
 	v := *obj
-	namespace, err := resolveNamespace(v)
+	namespace, err := ResolveNamespace(v)
 	if err != nil {
 		return err
 	}
@@ -467,7 +468,7 @@ func (a *ReaderAdapter[T]) Load(ctx context.Context, obj *T) (err error) {
 func (a *WriterAdapter[T]) Create(ctx context.Context, m T) (res *T, err error) {
 	start := time.Now()
 	defer func() { observeUpstream(a.gvr, OpCreate, start, err) }()
-	namespace, err := resolveNamespace(m)
+	namespace, err := ResolveNamespace(m)
 	if err != nil {
 		return nil, err
 	}
@@ -515,7 +516,7 @@ func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (res *T, err error) 
 		return nil, kernel.NewError(kernel.KindValidation, fmt.Errorf("failed to convert %s to unstructured: %w", a.gvr.Resource, err))
 	}
 
-	namespace, err := resolveNamespace(m)
+	namespace, err := ResolveNamespace(m)
 	if err != nil {
 		return nil, err
 	}
@@ -575,7 +576,7 @@ func (a *WriterAdapter[T]) UpdateStatus(ctx context.Context, m T) (res *T, err e
 		return nil, kernel.NewError(kernel.KindValidation, fmt.Errorf("no status data provided for %s '%s'", a.gvr.Resource, m.GetName()))
 	}
 
-	namespace, err := resolveNamespace(m)
+	namespace, err := ResolveNamespace(m)
 	if err != nil {
 		return nil, err
 	}
@@ -759,7 +760,7 @@ func (a *WriterAdapter[T]) Delete(ctx context.Context, m T) (err error) {
 	start := time.Now()
 	defer func() { observeUpstream(a.gvr, OpDelete, start, err) }()
 
-	namespace, err := resolveNamespace(m)
+	namespace, err := ResolveNamespace(m)
 	if err != nil {
 		return err
 	}
@@ -915,37 +916,6 @@ func childNamespaceFor(kind ChildNamespaceKind, m persistence.IdentifiableResour
 	default:
 		return "", nil
 	}
-}
-
-// ownedNamespace is a namespace to provision together with the owner labels that mark it.
-type ownedNamespace struct {
-	name        string
-	ownerLabels map[string]string
-}
-
-// ownNamespacesFor returns the namespaces a tenant-scoped resource's Create has to provision
-// before writing its CR.
-//
-// The tenant namespace is always one of them: nothing else would ever create it (there is no
-// Tenant entity) and the tenant-scoped resources that are *not* keyed by region — Image, Role,
-// RoleAssignment, the SKU catalogs — live in it. A resource that is keyed by region (Workspace)
-// adds its per-region namespace, which is the one resolveNamespace will put its CR in.
-func ownNamespacesFor(m persistence.IdentifiableResource) []ownedNamespace {
-	var namespaces []ownedNamespace
-
-	if tenantNS, tenantLabels := namespaceOwnerLabels(m.GetTenant(), "", ""); tenantNS != "" {
-		namespaces = append(namespaces, ownedNamespace{name: tenantNS, ownerLabels: tenantLabels})
-	}
-
-	if regionNS, region, ok := regionNamespace(m); ok {
-		regionLabels := map[string]string{
-			labels.InternalTenantLabel: m.GetTenant(),
-			labels.InternalRegionLabel: region,
-		}
-		namespaces = append(namespaces, ownedNamespace{name: regionNS, ownerLabels: regionLabels})
-	}
-
-	return namespaces
 }
 
 // namespaceOwnerLabels builds the namespace and its owner labels for a tenant/workspace[/network]
@@ -1152,18 +1122,30 @@ func namespaceOwnedBy(ctx context.Context, clientset kubernetes.Interface, nsNam
 // children.
 //
 // Only tenant-level namespaces are provisioned on the resource's own behalf, before the CR that
-// lives in one: there is no Tenant entity, so nobody else would ever create them (see
-// ownNamespacesFor for which). Below that level a namespace is owned by a parent entity and its
-// absence *is* the referential-integrity check, so a resource whose scope names a workspace fails
-// with NotFound instead of fabricating one.
+// lives in one: there is no Tenant entity, so nobody else would ever create them. The tenant
+// namespace always, since Image, Role, RoleAssignment and the SKU catalogs live in it; plus the
+// per-region one for a resource keyed by region (Workspace), which is where ResolveNamespace
+// puts its CR. Below that level a namespace is owned by a parent entity and its absence *is* the
+// referential-integrity check, so a resource whose scope names a workspace fails with NotFound
+// instead of fabricating one.
 //
 // The child namespace is created *after* the CR and its failure is only logged — the CR is what
 // makes it recoverable, so a namespace created first and orphaned by a failed CR write is the
 // worse trade. See "Namespace lifecycle" in doc/ARCHITECTURE.md.
 func (a *NamespaceManagingWriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
 	if m.GetWorkspace() == "" {
-		for _, ns := range ownNamespacesFor(m) {
-			if err := CreateNamespace(ctx, a.clientset, ns.name, ns.ownerLabels); err != nil {
+		if tenantNS, tenantLabels := namespaceOwnerLabels(m.GetTenant(), "", ""); tenantNS != "" {
+			if err := CreateNamespace(ctx, a.clientset, tenantNS, tenantLabels); err != nil {
+				return nil, err
+			}
+		}
+
+		if regionNS, region, ok := regionNamespace(m); ok {
+			regionLabels := map[string]string{
+				labels.InternalTenantLabel: m.GetTenant(),
+				labels.InternalRegionLabel: region,
+			}
+			if err := CreateNamespace(ctx, a.clientset, regionNS, regionLabels); err != nil {
 				return nil, err
 			}
 		}

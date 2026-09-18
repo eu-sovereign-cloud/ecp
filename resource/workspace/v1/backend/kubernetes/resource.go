@@ -32,7 +32,6 @@ var (
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=workspaces,scope=Namespaced,shortName=workspace
 // +kubebuilder:printcolumn:name="Region",type=string,JSONPath=`.region`
-// +kubebuilder:selectablefield:JSONPath=`.region`
 // +k8s:openapi-gen=true
 // +ecp:conditioned
 
@@ -44,8 +43,8 @@ type Workspace struct {
 	// Region is the region this workspace belongs to, and part of its identity: the same name
 	// in the same tenant is a different workspace in a different region, and each lives in its
 	// own namespace. It is a field rather than only the internal region label so it is visible
-	// in `kubectl get workspace` and selectable with a field selector; the label is still
-	// written, because that is what the gateway's list filter selects on server-side.
+	// in `kubectl get workspace`; the label is still written, because that is what the
+	// gateway's list filter selects on server-side.
 	Region string `json:"region,omitempty"`
 
 	// WorkspaceSpec is a type alias for map[string]string. Use the underlying

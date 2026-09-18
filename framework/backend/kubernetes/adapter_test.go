@@ -1157,7 +1157,7 @@ func TestResolveNamespace_RegionScope(t *testing.T) {
 	t.Run("a region-keyed resource resolves to its per-region namespace", func(t *testing.T) {
 		obj := &testRegionScopedIdentifiable{name: "ws1", tenant: "t1", region: "region-two"}
 
-		namespace, err := resolveNamespace(obj)
+		namespace, err := ResolveNamespace(obj)
 		require.NoError(t, err)
 		require.Equal(t, ComputeRegionNamespace(obj), namespace)
 	})
@@ -1165,7 +1165,7 @@ func TestResolveNamespace_RegionScope(t *testing.T) {
 	t.Run("no region resolves exactly as before", func(t *testing.T) {
 		obj := &testRegionScopedIdentifiable{name: "ws1", tenant: "t1"}
 
-		namespace, err := resolveNamespace(obj)
+		namespace, err := ResolveNamespace(obj)
 		require.NoError(t, err)
 		require.Equal(t, ComputeNamespace(&kernelresource.Scope{Tenant: "t1"}), namespace,
 			"an empty region must not move the resource out of the tenant namespace")
@@ -1175,39 +1175,8 @@ func TestResolveNamespace_RegionScope(t *testing.T) {
 	t.Run("a resource that does not implement RegionScope is untouched", func(t *testing.T) {
 		obj := &testWorkspaceScopedIdentifiable{name: "n1", tenant: "t1", workspace: "w1"}
 
-		namespace, err := resolveNamespace(obj)
+		namespace, err := ResolveNamespace(obj)
 		require.NoError(t, err)
 		require.Equal(t, ComputeNamespace(&kernelresource.Scope{Tenant: "t1", Workspace: "w1"}), namespace)
-	})
-}
-
-func TestOwnNamespacesFor(t *testing.T) {
-	t.Run("a region-keyed resource provisions the tenant namespace and its own", func(t *testing.T) {
-		obj := &testRegionScopedIdentifiable{name: "ws1", tenant: "t1", region: "region-two"}
-
-		namespaces := ownNamespacesFor(obj)
-
-		require.Equal(t, []ownedNamespace{
-			{
-				name:        ComputeNamespace(&kernelresource.Scope{Tenant: "t1"}),
-				ownerLabels: map[string]string{labels.InternalTenantLabel: "t1"},
-			},
-			{
-				name: ComputeRegionNamespace(obj),
-				ownerLabels: map[string]string{
-					labels.InternalTenantLabel: "t1",
-					labels.InternalRegionLabel: "region-two",
-				},
-			},
-		}, namespaces, "the tenant namespace still has to be bootstrapped: Image, Role and the SKU catalogs live in it")
-	})
-
-	t.Run("everything else provisions the tenant namespace alone", func(t *testing.T) {
-		obj := &testWorkspaceScopedIdentifiable{name: "w1", tenant: "t1"}
-
-		require.Equal(t, []ownedNamespace{{
-			name:        ComputeNamespace(&kernelresource.Scope{Tenant: "t1"}),
-			ownerLabels: map[string]string{labels.InternalTenantLabel: "t1"},
-		}}, ownNamespacesFor(obj))
 	})
 }
