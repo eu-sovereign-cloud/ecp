@@ -14,13 +14,8 @@
 plugin: ""
 
 # Regions this delegator reconciles (the REGIONS env var). Empty — the default —
-# reconciles every region in the cluster, which is what a single-region install
-# and a global deployment both want. Set it to restrict a regional deployment to
-# the regions it serves: a CR whose secapi.cloud/region label is not listed is
-# never reconciled by this delegator, so it stays pending unless another one
-# serves that region. Region-less CRs (the global Role/RoleAssignment) are out of
-# every scope. It is a watch filter only — the region a plugin acts on always
-# comes from the CR it is handed, never from this list.
+# reconciles every region in the cluster; see README.md#regions for what a
+# non-empty list leaves unreconciled.
 # e.g. regions: [itbg-bergamo, deff-frankfurt]
 regions: []
 

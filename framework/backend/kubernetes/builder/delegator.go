@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"slices"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -26,11 +25,8 @@ type Delegator struct {
 	Dynamic dynamic.Interface
 	// Clientset is the typed client for the Namespace API: the Workspace and Network
 	// controllers tear down the namespace they own for their children.
-	Clientset kubernetes.Interface
-	Logger    *slog.Logger
-	// Regions is the region scope read from REGIONS: the only CRs this delegator reconciles.
-	// Empty means every region. It never reaches a plugin — see ControllerSet.ScopeToRegions.
-	Regions     []string
+	Clientset   kubernetes.Interface
+	Logger      *slog.Logger
 	Controllers *ControllerSet
 }
 
@@ -91,26 +87,23 @@ func NewDelegator(opts ctrl.Options, schemes ...func(*runtime.Scheme) error) (*D
 	} else {
 		logger.Info("scoped to regions", "regions", regions)
 	}
-	controllers := NewControllerSet()
-	controllers.ScopeToRegions(regions)
 
 	return &Delegator{
 		Manager:     mgr,
 		Dynamic:     dynClient,
 		Clientset:   clientset,
 		Logger:      logger,
-		Regions:     regions,
-		Controllers: controllers,
+		Controllers: NewControllerSet(regions...),
 	}, nil
 }
 
 // regionsFromEnv parses REGIONS, the delegator's region scope: a comma-separated list, with
-// blanks and duplicates dropped so a trailing comma or a repeated entry is not a startup
-// failure. An unset or all-blank value yields no scope at all, i.e. every region.
+// blanks dropped so a trailing comma in a Helm-rendered list is not a startup failure. An
+// unset or all-blank value yields no scope at all, i.e. every region.
 func regionsFromEnv() []string {
 	var regions []string
 	for _, r := range strings.Split(os.Getenv("REGIONS"), ",") {
-		if r = strings.TrimSpace(r); r != "" && !slices.Contains(regions, r) {
+		if r = strings.TrimSpace(r); r != "" {
 			regions = append(regions, r)
 		}
 	}

@@ -18,6 +18,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	k8srt "sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/builder"
 	frameworkcontroller "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/controller"
 	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
 	schemav1 "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/schema/v1"
@@ -25,6 +26,11 @@ import (
 
 	. "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1/backend/kubernetes"
 )
+
+// A controller set only scopes what implements builder.RegionScoped, so a generic controller
+// that stopped doing so would silently widen every delegator back to every region instead of
+// failing to compile. This assertion is that missing compile error.
+var _ builder.RegionScoped = (*frameworkcontroller.GenericController[*wsdom.Workspace])(nil)
 
 func TestWorkspaceController_Reconcile(t *testing.T) {
 	const (

@@ -26,21 +26,17 @@ match.
 ## Regions
 
 A delegator reconciles **every** region in its cluster by default. `regions` restricts it to
-the ones a deployment serves, so a cluster can run one delegator per region (or one per group
-of regions) instead of one for everything:
+the ones a deployment serves, so a cluster can run one delegator per region instead of one for
+everything:
 
 ```bash
 helm install ecp-delegator-bergamo charts/delegator \
   --set plugin=aruba --set 'regions={itbg-bergamo}'
 ```
 
-A CR whose `secapi.cloud/region` label is not in the list is never reconciled by that
-delegator — it stays pending unless another one serves its region, which is deliberate: a
-delegator adopting a region it was not deployed for provisions into the wrong backend.
-Region-less CRs (`Role`, `RoleAssignment`) are outside every scope, so leave a delegator
-unscoped if it is to reconcile those. The list only selects **which** resources are
-reconciled; the region a plugin acts in always comes from the CR it is handed. See
-[doc/ARCHITECTURE.md](../../doc/ARCHITECTURE.md#region-scoped-delegators).
+A CR in a region no deployed delegator serves stays pending — including the region-less `Role`
+and `RoleAssignment`, which only an unscoped delegator reconciles. See
+[Region-scoped delegators](../../doc/ARCHITECTURE.md#region-scoped-delegators).
 
 ## Prerequisites
 

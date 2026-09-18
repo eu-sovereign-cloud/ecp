@@ -38,17 +38,12 @@ type ControllerSet struct {
 	regions     []string
 }
 
-// NewControllerSet creates an empty ControllerSet.
-func NewControllerSet() *ControllerSet {
-	return &ControllerSet{}
-}
-
-// ScopeToRegions restricts every controller in the set to the regions named, applied when
-// the set is bound to the manager. It is how a delegator is deployed for one part of a
-// cluster rather than all of it (REGIONS, see NewDelegator); an empty set watches every
-// region, which is the default and the global deployment.
-func (cs *ControllerSet) ScopeToRegions(regions []string) {
-	cs.regions = regions
+// NewControllerSet creates an empty ControllerSet restricted to the regions named: every
+// RegionScoped controller it holds is capped to them as the set is bound to the manager
+// (REGIONS, see NewDelegator). Naming none — the default, and the global deployment —
+// watches every region.
+func NewControllerSet(regions ...string) *ControllerSet {
+	return &ControllerSet{regions: regions}
 }
 
 // Add registers a Reconciler with this ControllerSet and returns the same set
@@ -70,7 +65,7 @@ func (cs *ControllerSet) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	for _, r := range cs.reconcilers {
-		if scoped, ok := r.(RegionScoped); ok && len(cs.regions) > 0 {
+		if scoped, ok := r.(RegionScoped); ok {
 			scoped.ScopeToRegions(cs.regions)
 		}
 		if err := r.SetupWithManager(mgr); err != nil {

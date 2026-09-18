@@ -108,9 +108,7 @@ err = d.Run(ctrl.SetupSignalHandler())
 
 `resource/scheme.AddToScheme` registers every slice's CR types in one call. Registering a type starts no informer, so a plugin registers all of them whether or not it reconciles them.
 
-`NewDelegator` also reads **`REGIONS`** (comma-separated), the deployment's region scope: with it set, every controller in the set only reconciles CRs whose `secapi.cloud/region` label names one of those regions, so one cluster can run a delegator per region. Unset — the default — reconciles all of them. Nothing in a plugin changes either way; see [Region-scoped delegators](ARCHITECTURE.md#region-scoped-delegators).
-
-**A plugin reads the region off the resource, never off its configuration.** Every regional domain type embeds `domain.RegionalMetadata`, whose `Region` the slice's `FromCR` fills from that same label, so the resource a `PluginHandler` is handed already names the region it belongs to. `REGIONS` only decides *which* resources arrive; it is never a region a plugin is told to act in, and a deployment-level default is worse than nothing — one delegator may serve several regions at once, and a resource placed in the wrong one is not something a later reconcile can correct.
+`NewDelegator` also reads **`REGIONS`** (comma-separated), the deployment's region scope: with it set, every controller in the set only reconciles CRs whose `secapi.cloud/region` label names one of those regions, so one cluster can run a delegator per region. Unset — the default — reconciles all of them. Nothing in a plugin changes either way, because **a plugin reads the region off the resource it is handed** — `domain.RegionalMetadata.Region`, filled from that same label by the slice's `FromCR` — and never off its configuration: one delegator may serve several regions at once, and a resource placed in the wrong one is not something a later reconcile can correct. See [Region-scoped delegators](ARCHITECTURE.md#region-scoped-delegators).
 
 No framework package ever names a concrete resource type. The `framework/backend/kubernetes/builder.ControllerSet` is a generic `[]Reconciler` aggregator with no resource knowledge.
 
