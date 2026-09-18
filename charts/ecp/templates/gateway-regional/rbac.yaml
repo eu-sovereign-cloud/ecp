@@ -59,7 +59,7 @@ rules:
     resources: ["subnets/status"]
     verbs: ["get", "list", "watch"]
   - apiGroups: ["network.v1.secapi.cloud"]
-    resources: ["network-skus"]
+    resources: ["skus"]
     verbs: ["get", "list", "watch"]
   - apiGroups: ["network.v1.secapi.cloud"]
     resources: ["security-groups"]
