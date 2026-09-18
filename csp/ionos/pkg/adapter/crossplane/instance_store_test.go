@@ -12,6 +12,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 
+	"github.com/stretchr/testify/require"
+
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/port/backend"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
@@ -444,12 +446,12 @@ func TestNewNicIpsOmittedWithoutPublicIP(t *testing.T) {
 	store := NewInstanceStore(nil, testLogger())
 	domainInst := testInstance()
 
-	nic := store.newNic(domainInst, ns, "nic-1", "lan-1", "")
+	nic := store.newNic(domainInst, ns, "nic-1", nicNetworking{LanName: "lan-1"})
 	if nic.Spec.ForProvider.Ips != nil {
 		t.Fatalf("newNic Ips = %v, want nil (DHCP fallback)", nic.Spec.ForProvider.Ips)
 	}
 
-	nicWithIP := store.newNic(domainInst, ns, "nic-1", "lan-1", "203.0.113.10")
+	nicWithIP := store.newNic(domainInst, ns, "nic-1", nicNetworking{LanName: "lan-1", PublicIP: "203.0.113.10"})
 	if len(nicWithIP.Spec.ForProvider.Ips) != 1 || nicWithIP.Spec.ForProvider.Ips[0] == nil || *nicWithIP.Spec.ForProvider.Ips[0] != "203.0.113.10" {
 		t.Fatalf("newNic Ips = %v, want [203.0.113.10]", nicWithIP.Spec.ForProvider.Ips)
 	}
@@ -483,7 +485,7 @@ func TestPowerOnAcceptsDHCPAssignedNicIP(t *testing.T) {
 	store := NewInstanceStore(c, testLogger())
 
 	// publicIP="" mirrors readNicNetworking's DHCP-fallback result (no PublicIpRefs).
-	if err := store.ensureNic(context.Background(), testInstance(), ns, "nic-1", "lan-1", ""); err != nil {
+	if err := store.ensureNic(context.Background(), testInstance(), ns, "nic-1", nicNetworking{LanName: "lan-1"}); err != nil {
 		t.Fatalf("ensureNic = %v, want nil (Ready, DHCP fallback accepts whatever ips is)", err)
 	}
 
@@ -519,7 +521,7 @@ func TestPowerOnReassertsStaleNicLan(t *testing.T) {
 	c := fakeclient.NewClientBuilder().WithScheme(instanceScheme(t)).WithObjects(nic).Build()
 	store := NewInstanceStore(c, testLogger())
 
-	err := store.ensureNic(context.Background(), testInstance(), ns, "nic-1", "lan-new", "")
+	err := store.ensureNic(context.Background(), testInstance(), ns, "nic-1", nicNetworking{LanName: "lan-new"})
 	if !errors.Is(err, backend.StillProcessing) {
 		t.Fatalf("ensureNic = %v, want StillProcessing (spec just updated, not yet reconciled)", err)
 	}
@@ -569,4 +571,92 @@ func TestDeleteTearsDownNicVolumeThenServer(t *testing.T) {
 	if err := c.Get(context.Background(), client.ObjectKey{Namespace: ns, Name: "instance-1"}, gotSrv); err != nil {
 		t.Fatalf("server should still exist while nic teardown pending: %v", err)
 	}
+}
+
+// The IONOS Nic attaches the security groups the SECA NIC names together with the instance's
+// own. IONOS combines NSGs across levels, so folding both onto the NIC keeps one code path
+// without changing what is enforced.
+func TestNewNicAttachesNicAndInstanceSecurityGroups(t *testing.T) {
+	ns := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: "tenant-1"})
+	wsNs := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: "tenant-1", Workspace: "workspace-1"})
+	store := NewInstanceStore(nil, testLogger())
+
+	inst := testInstance()
+	inst.Spec.SecurityGroupRef = &commondomain.Reference{Resource: "security-groups/baseline"}
+
+	nic := store.newNic(inst, ns, "nic-1", nicNetworking{
+		LanName:           "lan-1",
+		SecurityGroupRefs: []commondomain.Reference{{Resource: "security-groups/web"}},
+	})
+
+	require.Equal(t, []v1.NamespacedReference{
+		{Name: "web", Namespace: wsNs},
+		{Name: "baseline", Namespace: wsNs},
+	}, nic.Spec.ForProvider.SecurityGroupsIdsRefs)
+}
+
+// A NIC naming no security group must leave the field unset rather than send an empty list:
+// nil is "attach nothing", and the two must not read as different specs across reconciles.
+func TestNewNicWithoutSecurityGroupsLeavesRefsNil(t *testing.T) {
+	ns := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: "tenant-1"})
+	store := NewInstanceStore(nil, testLogger())
+
+	nic := store.newNic(testInstance(), ns, "nic-1", nicNetworking{LanName: "lan-1"})
+	require.Nil(t, nic.Spec.ForProvider.SecurityGroupsIdsRefs)
+}
+
+// The same group named by both the NIC and the instance must be attached once. A duplicate (or
+// a list whose order wandered) would read as drift and be rewritten on every reconcile.
+func TestSecurityGroupRefsAreDeduplicatedAndOrdered(t *testing.T) {
+	wsNs := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: "tenant-1", Workspace: "workspace-1"})
+
+	inst := testInstance()
+	inst.Spec.SecurityGroupRef = &commondomain.Reference{Resource: "security-groups/web"}
+
+	got := securityGroupRefs(inst, []commondomain.Reference{
+		{Resource: "security-groups/web"},
+		{Resource: "security-groups/db"},
+	})
+	require.Equal(t, []v1.NamespacedReference{
+		{Name: "web", Namespace: wsNs},
+		{Name: "db", Namespace: wsNs},
+	}, got)
+}
+
+// A security group added to a NIC while the instance was stopped must take effect on restart.
+// ensureNic re-asserts the desired spec, so the attach has to be part of what it compares —
+// otherwise the group would be attached only to NICs created after the edit.
+func TestPowerOnReassertsChangedSecurityGroups(t *testing.T) {
+	ns := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: "tenant-1"})
+	wsNs := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: "tenant-1", Workspace: "workspace-1"})
+
+	nic := &ionosv1alpha1.Nic{
+		ObjectMeta: metav1.ObjectMeta{Name: "nic-1", Namespace: ns, Generation: 1},
+		Spec: ionosv1alpha1.NicSpec{
+			ForProvider: ionosv1alpha1.NicParameters_2{
+				DatacenterIDRef: &v1.NamespacedReference{Name: "workspace-1", Namespace: ns},
+				ServerIDRef:     &v1.NamespacedReference{Name: "instance-1", Namespace: ns},
+				LanRef:          &v1.NamespacedReference{Name: "lan-1", Namespace: ns},
+				DHCP:            new(true),
+				FirewallActive:  new(false),
+			},
+		},
+	}
+	nic.SetConditions(v1.Available().WithObservedGeneration(1))
+	c := fakeclient.NewClientBuilder().WithScheme(instanceScheme(t)).WithObjects(nic).Build()
+	store := NewInstanceStore(c, testLogger())
+
+	net := nicNetworking{
+		LanName:           "lan-1",
+		SecurityGroupRefs: []commondomain.Reference{{Resource: "security-groups/web"}},
+	}
+	err := store.ensureNic(context.Background(), testInstance(), ns, "nic-1", net)
+	require.ErrorIs(t, err, backend.StillProcessing, "the spec was just updated, not yet reconciled")
+
+	got := &ionosv1alpha1.Nic{}
+	require.NoError(t, c.Get(context.Background(), client.ObjectKey{Namespace: ns, Name: "nic-1"}, got))
+	require.Equal(t, []v1.NamespacedReference{{Name: "web", Namespace: wsNs}}, got.Spec.ForProvider.SecurityGroupsIdsRefs)
+
+	// Re-asserting the same set must not rewrite the NIC again.
+	require.NoError(t, store.ensureNic(context.Background(), testInstance(), ns, "nic-1", net))
 }

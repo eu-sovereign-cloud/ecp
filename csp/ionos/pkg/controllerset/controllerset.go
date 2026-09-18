@@ -20,6 +20,8 @@ import (
 	nicctrl "github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/controller/nic"
 	publicipctrl "github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/controller/public_ip"
 	routetablectrl "github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/controller/route_table"
+	securitygroupctrl "github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/controller/security_group"
+	securitygrouprulectrl "github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/controller/security_group_rule"
 	subnetctrl "github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/controller/subnet"
 	workspacectrl "github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/controller/workspace"
 	"github.com/eu-sovereign-cloud/ecp/csp/ionos/internal/service"
@@ -31,6 +33,8 @@ import (
 	nick8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/nic/backend/kubernetes"
 	publicipk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/public-ip/backend/kubernetes"
 	routetablek8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/route-table/backend/kubernetes"
+	securitygrouprulek8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group-rule/backend/kubernetes"
+	securitygroupk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/security-group/backend/kubernetes"
 	subnetk8s "github.com/eu-sovereign-cloud/ecp/resource/network/v1/subnet/backend/kubernetes"
 	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage/backend/kubernetes"
 	wsk8s "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1/backend/kubernetes"
@@ -50,6 +54,8 @@ func Add(cs *frameworkbuilder.ControllerSet, mgr ctrl.Manager, dynClient dynamic
 	routeTableAdapter := crossplane.NewRouteTableStore(mgr.GetClient(), logger.With("adapter", "route-table"))
 	internetGatewayAdapter := crossplane.NewInternetGatewayStore(mgr.GetClient(), logger.With("adapter", "internet-gateway"))
 	instanceAdapter := crossplane.NewInstanceStore(mgr.GetClient(), logger.With("adapter", "instance"))
+	securityGroupAdapter := crossplane.NewSecurityGroupStore(mgr.GetClient(), logger.With("adapter", "security-group"))
+	securityGroupRuleAdapter := crossplane.NewSecurityGroupRuleStore(mgr.GetClient(), logger.With("adapter", "security-group-rule"))
 
 	wsPlugin := &service.Workspace{
 		Creator: &workspacectrl.CreateWorkspace{Store: wsAdapter},
@@ -90,6 +96,14 @@ func Add(cs *frameworkbuilder.ControllerSet, mgr ctrl.Manager, dynClient dynamic
 		PowerOner:  &instancectrl.PowerOnInstance{Store: instanceAdapter},
 		PowerOffer: &instancectrl.PowerOffInstance{Store: instanceAdapter},
 	}
+	securityGroupPlugin := &service.SecurityGroup{
+		Creator: &securitygroupctrl.CreateSecurityGroup{Store: securityGroupAdapter},
+		Deleter: &securitygroupctrl.DeleteSecurityGroup{Store: securityGroupAdapter},
+	}
+	securityGroupRulePlugin := &service.SecurityGroupRule{
+		Creator: &securitygrouprulectrl.CreateSecurityGroupRule{Store: securityGroupRuleAdapter},
+		Deleter: &securitygrouprulectrl.DeleteSecurityGroupRule{Store: securityGroupRuleAdapter},
+	}
 
 	cs.Add(bsk8s.NewController(mgr.GetClient(), dynClient, bsPlugin, opts...))
 	cs.Add(netk8s.NewController(mgr.GetClient(), dynClient, clientset, netPlugin, opts...))
@@ -100,4 +114,6 @@ func Add(cs *frameworkbuilder.ControllerSet, mgr ctrl.Manager, dynClient dynamic
 	cs.Add(routetablek8s.NewController(mgr.GetClient(), dynClient, routeTablePlugin, opts...))
 	cs.Add(internetgatewayk8s.NewController(mgr.GetClient(), dynClient, internetGatewayPlugin, opts...))
 	cs.Add(instancek8s.NewController(mgr.GetClient(), dynClient, instancePlugin, opts...))
+	cs.Add(securitygroupk8s.NewController(mgr.GetClient(), dynClient, securityGroupPlugin, opts...))
+	cs.Add(securitygrouprulek8s.NewController(mgr.GetClient(), dynClient, securityGroupRulePlugin, opts...))
 }

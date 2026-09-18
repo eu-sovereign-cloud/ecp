@@ -44,7 +44,7 @@ helm repo add crossplane-stable https://charts.crossplane.io/stable
 helm install crossplane crossplane-stable/crossplane --namespace crossplane-system --create-namespace
 
 # Install IonOS Provider
-kubectl crossplane install provider ionos-cloud/provider-upjet-ionoscloud:v0.5.8
+kubectl crossplane install provider ionos-cloud/provider-upjet-ionoscloud:v0.5.9
 ```
 
 Create a ClusterProviderConfig for IonOS with your credentials (replace with actual values).

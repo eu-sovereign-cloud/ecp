@@ -99,19 +99,20 @@ rules:
   # The crossplane managed resources the plugin creates and observes, plus the
   # provider config every one of them references.
   - apiGroups: ["compute.m.ionoscloud.io"]
-    resources: ["datacenters", "volumes", "lans", "servers", "nics", "ipblocks"]
+    resources: ["datacenters", "volumes", "lans", "servers", "nics", "ipblocks", "nsgs", "nsgfirewallrules"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
   - apiGroups: ["compute.m.ionoscloud.io"]
-    resources: ["datacenters/status", "volumes/status", "lans/status", "servers/status", "nics/status", "ipblocks/status"]
+    resources: ["datacenters/status", "volumes/status", "lans/status", "servers/status", "nics/status", "ipblocks/status", "nsgs/status", "nsgfirewallrules/status"]
     verbs: ["get", "list", "watch"]
   - apiGroups: ["upjet-ionoscloud.m.ionoscloud.io"]
     resources: ["clusterproviderconfigs"]
     verbs: ["get", "list", "watch"]
   # The SECA resources the ionos plugin reconciles: block-storage, compute
   # (instances), and every network vertical it registers a controller for —
-  # network, nic, public-ip, subnet, route-table and internet-gateway
-  # (workspace is in the shared block above). See controllerset.Add in
-  # csp/ionos/pkg/controllerset for the full controller list this must match.
+  # network, nic, public-ip, subnet, route-table, internet-gateway,
+  # security-group and security-group-rule (workspace is in the shared block
+  # above). See controllerset.Add in csp/ionos/pkg/controllerset for the full
+  # controller list this must match.
   - apiGroups: ["storage.v1.secapi.cloud"]
     resources: ["block-storages", "block-storages/status"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
@@ -125,7 +126,7 @@ rules:
     resources: ["images", "images/status", "skus"]
     verbs: ["get", "list", "watch"]
   - apiGroups: ["network.v1.secapi.cloud"]
-    resources: ["networks", "networks/status", "nics", "nics/status", "public-ips", "public-ips/status", "subnets", "subnets/status", "route-tables", "route-tables/status", "internet-gateways", "internet-gateways/status"]
+    resources: ["networks", "networks/status", "nics", "nics/status", "public-ips", "public-ips/status", "subnets", "subnets/status", "route-tables", "route-tables/status", "internet-gateways", "internet-gateways/status", "security-groups", "security-groups/status", "security-group-rules", "security-group-rules/status"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
 {{- end }}
 ---

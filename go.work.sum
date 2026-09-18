@@ -638,6 +638,7 @@ github.com/hashicorp/terraform-plugin-framework-validators v0.19.0 h1:Zz3iGgzxe/
 github.com/hashicorp/terraform-plugin-framework-validators v0.19.0/go.mod h1:GBKTNGbGVJohU03dZ7U8wHqc2zYnMUawgCN+gC0itLc=
 github.com/hashicorp/terraform-plugin-go v0.31.0/go.mod h1:A88bDhd/cW7FnwqxQRz3slT+QY6yzbHKc6AOTtmdeS8=
 github.com/hashicorp/terraform-plugin-log v0.10.0/go.mod h1:/9RR5Cv2aAbrqcTSdNmY1NRHP4E3ekrXRGjqORpXyB0=
+github.com/hashicorp/terraform-plugin-mux v0.23.1/go.mod h1:IwuivHNfDVeuDbVvg6fnAYEEEVx881STwJHsl/00UkQ=
 github.com/hashicorp/terraform-plugin-sdk/v2 v2.40.1/go.mod h1:sq8qsxh+PwdvTQFcd17kfCoBgQo46ADNMvCpKE7t/gY=
 github.com/hashicorp/terraform-plugin-testing v1.13.2 h1:mSotG4Odl020vRjIenA3rggwo6Kg6XCKIwtRhYgp+/M=
 github.com/hashicorp/terraform-plugin-testing v1.13.2/go.mod h1:WHQ9FDdiLoneey2/QHpGM/6SAYf4A7AZazVg7230pLE=
@@ -671,6 +672,7 @@ github.com/imkira/go-interpol v1.1.0 h1:KIiKr0VSG2CUW1hl1jpiyuzuJeKUUpC8iM1AIE7N
 github.com/imkira/go-interpol v1.1.0/go.mod h1:z0h2/2T3XF8kyEPpRgJ3kmNv+C43p+I/CoI+jC3w2iA=
 github.com/invopop/jsonschema v0.14.0 h1:MHQqLhvpNUZfw+hM3AZDYK7jxO8FZoQeQM77g8iyZjg=
 github.com/invopop/jsonschema v0.14.0/go.mod h1:ygm6C2EaVNMBDPpaPlnOA2pFAxBnxGjFlMZABxm9n2I=
+github.com/ionos-cloud/provider-upjet-ionoscloud v0.5.9/go.mod h1:zbjR4ZJXvOsQOk+T9jpm8fwT6FpJxlnV8SRhWy6zVbI=
 github.com/ionos-cloud/sdk-go-api-gateway v1.0.0 h1:T+JzarV1Iw7NjWQfEuv5bESnHoCLOMpPtbcKC4T5Uzk=
 github.com/ionos-cloud/sdk-go-api-gateway v1.0.0/go.mod h1:TkSlamP+qKRT8cgBaZEN8rawanVluOR0dXbXXdmmwTY=
 github.com/ionos-cloud/sdk-go-bundle/products/cdn/v2 v2.1.0 h1:8fRICa4i+GJHrCgnLe8t3uwfahkg7pcDDwoLkH3B2Xc=
@@ -733,10 +735,12 @@ github.com/ionos-cloud/sdk-go/v6 v6.3.3 h1:q33Sw1ZqsvqDkFaKG53dGk7BCOvPCPbGZpYqs
 github.com/ionos-cloud/sdk-go/v6 v6.3.3/go.mod h1:wCVwNJ/21W29FWFUv+fNawOTMlFoP1dS3L+ZuztFW48=
 github.com/ionos-cloud/sdk-go/v6 v6.3.10 h1:WLoWsesQo70UqrnG0EeEf8T2mjPSaeWT+t77lUZrJkE=
 github.com/ionos-cloud/sdk-go/v6 v6.3.10/go.mod h1:nUGHP4kZHAZngCVr4v6C8nuargFrtvt7GrzH/hqn7c4=
+github.com/ionos-cloud/sdk-go/v6 v6.3.11/go.mod h1:nUGHP4kZHAZngCVr4v6C8nuargFrtvt7GrzH/hqn7c4=
 github.com/ionos-cloud/terraform-provider-ionoscloud/v6 v6.7.12 h1:mo9CtPF4dkeYRlv1SnCixugiYka0uZ6p+U+8fzZ3JYI=
 github.com/ionos-cloud/terraform-provider-ionoscloud/v6 v6.7.12/go.mod h1:StI1dURIAEnzO1Ivk3YOC91+0/Wiba1ZoWvpFbazjBo=
 github.com/ionos-cloud/terraform-provider-ionoscloud/v6 v6.7.35 h1:xt+b3zUWAb8w7kcN1xZUZ3vTZgn4JVSPjzvIGIv0czQ=
 github.com/ionos-cloud/terraform-provider-ionoscloud/v6 v6.7.35/go.mod h1:RXGmjyn96sqpHond7sQHbPRjav9RDgJWSjJ7at85+k8=
+github.com/ionos-cloud/terraform-provider-ionoscloud/v6 v6.7.37/go.mod h1:cRaD6nhQ76ZbgLeWR4/hzQQXrExBB/NwQBxXlr3EyMU=
 github.com/iris-contrib/httpexpect/v2 v2.15.2 h1:T9THsdP1woyAqKHwjkEsbCnMefsAFvk8iJJKokcJ3Go=
 github.com/iris-contrib/httpexpect/v2 v2.15.2/go.mod h1:JLDgIqnFy5loDSUv1OA2j0mb6p/rDhiCqigP22Uq9xE=
 github.com/iris-contrib/schema v0.0.6 h1:CPSBLyx2e91H2yJzPuhGuifVRnZBBJ3pCOMbOvPZaTw=
