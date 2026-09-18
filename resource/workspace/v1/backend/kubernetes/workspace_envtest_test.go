@@ -225,7 +225,7 @@ func TestWorkspaceBackend(t *testing.T) {
 		del.Tenant = tenant
 
 		cleanup := k8sadapter.NamespaceCleanup[*wsdom.Workspace](
-			dynClient, clientset, slog.Default(), k8sadapter.WorkspaceChildren, nil,
+			dynClient, clientset, slog.Default(), WorkspaceGVR, k8sadapter.WorkspaceChildren, nil,
 		)
 		require.NoError(t, cleanup(ctx, del))
 
@@ -289,6 +289,8 @@ func TestWorkspaceRegionIdentity(t *testing.T) {
 		}
 		_ = k8sadapter.DeleteNamespace(context.Background(), clientset,
 			k8sadapter.ComputeNamespace(&kernelresource.Scope{Tenant: tenant}))
+		_ = k8sadapter.DeleteNamespace(context.Background(), clientset,
+			k8sadapter.ComputeNamespace(&kernelresource.Scope{Tenant: tenant, Workspace: workspaceName}))
 	})
 
 	// Neither namespace is pre-created: the write path has to provision the per-region one
@@ -330,5 +332,32 @@ func TestWorkspaceRegionIdentity(t *testing.T) {
 
 		survivor := newWorkspace(regionTwo, nil)
 		require.NoError(t, readerRepo.Load(ctx, &survivor))
+	})
+
+	// The namespace a workspace owns for its children is hashed from tenant and name alone, so
+	// both regions' copies own the same one. Reclaiming it on the first delete would leave the
+	// survivor's children resolving a namespace that is gone. Against a real API server this is
+	// also what proves the co-owner lookup's metadata.name field selector actually selects.
+	t.Run("the shared children namespace goes with the last region deleted", func(t *testing.T) {
+		childNamespace := k8sadapter.ComputeNamespace(
+			&kernelresource.Scope{Tenant: tenant, Workspace: workspaceName})
+		cleanup := k8sadapter.NamespaceCleanup[*wsdom.Workspace](
+			dynClient, clientset, slog.Default(), WorkspaceGVR, k8sadapter.WorkspaceChildren, nil,
+		)
+
+		// region-one's CR is gone by now, but region-two still owns the namespace.
+		require.NoError(t, cleanup(ctx, newWorkspace(regionOne, nil)))
+		ns, err := clientset.CoreV1().Namespaces().Get(ctx, childNamespace, metav1.GetOptions{})
+		require.NoError(t, err)
+		require.Nil(t, ns.DeletionTimestamp, "the surviving region's workspace still needs this namespace")
+
+		require.NoError(t, writerRepo.Delete(ctx, newWorkspace(regionTwo, nil)))
+		require.NoError(t, cleanup(ctx, newWorkspace(regionTwo, nil)))
+
+		// envtest runs no namespace controller, so a deleted namespace stays Terminating rather
+		// than disappearing — the deletionTimestamp is the proof the delete was accepted.
+		after, err := clientset.CoreV1().Namespaces().Get(ctx, childNamespace, metav1.GetOptions{})
+		require.NoError(t, err)
+		require.NotNil(t, after.DeletionTimestamp, "the last owner deleted must reclaim the namespace")
 	})
 }

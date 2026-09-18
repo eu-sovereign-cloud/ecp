@@ -66,6 +66,7 @@ func NewController(
 		dynClient,
 		clientset,
 		options.Logger,
+		NetworkGVR,
 		k8sadapter.NetworkChildren,
 		ChildResourceGVRs,
 	))

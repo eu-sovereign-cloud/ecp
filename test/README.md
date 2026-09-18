@@ -75,7 +75,8 @@ A workspace is keyed by tenant **and** region, so each region's copy lives in it
 real API server by `TestWorkspaceRegionIdentity` in
 [`resource/workspace/v1/backend/kubernetes`](../resource/workspace/v1/backend/kubernetes/workspace_envtest_test.go)
 (`make test-envtest`). Every resource below a workspace is still keyed by tenant/workspace
-alone, so those names remain shared across the two regions.
+alone, so those names — and the namespace the workspace owns for them — remain shared across the
+two regions; that namespace is reclaimed only once the last of the same-named workspaces is gone.
 
 ## One stack, every suite
 
