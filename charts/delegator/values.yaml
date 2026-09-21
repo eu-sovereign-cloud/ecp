@@ -13,6 +13,12 @@
 # image.repository with a locally built, side-loaded image.
 plugin: ""
 
+# Regions this delegator reconciles (the REGIONS env var). Empty — the default —
+# reconciles every region in the cluster; see README.md#regions for what a
+# non-empty list leaves unreconciled.
+# e.g. regions: [itbg-bergamo, deff-frankfurt]
+regions: []
+
 nameOverride: ""
 fullnameOverride: ""
 

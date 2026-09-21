@@ -60,6 +60,22 @@ type Adapter struct {
 type ReaderAdapter[T persistence.IdentifiableResource] struct {
 	Adapter
 	k8sToDomain K8sToDomain[T]
+	// regionScoped restricts List to the region the request is addressed to; see RegionScoped.
+	regionScoped bool
+}
+
+// RegionScoped marks the reader as serving a regional resource, so List returns only the
+// resources of the region the request is addressed to (resource.RegionFromContext) instead
+// of everything the tenant/workspace namespace holds. It is what lets one gateway process
+// serve several regions: the namespace formula has no region dimension, so without it a list
+// in one region returns another region's resources.
+//
+// Only call it on a resource whose CRs carry the internal region label — the global ones
+// (Role, RoleAssignment, Region) do not, and filtering on it would return nothing.
+// It returns the receiver so it can be chained onto the constructor at wiring time.
+func (a *ReaderAdapter[T]) RegionScoped() *ReaderAdapter[T] {
+	a.regionScoped = true
+	return a
 }
 
 // WriterAdapter implements the persistence.WriterRepo interface for a specific resource type.
@@ -165,7 +181,7 @@ func NewWatcherAdapter[T persistence.IdentifiableResource](
 
 // ComputeNamespace computes the Kubernetes namespace based on tenant and workspace. It never
 // looks at anything beyond persistence.Scope — for resolving the right namespace rule for a
-// given resource (which may be network-scoped instead), see resolveNamespace.
+// given resource (which may be network-scoped instead), see ResolveNamespace.
 func ComputeNamespace(obj persistence.Scope) string {
 	if obj.GetTenant() == "" && obj.GetWorkspace() == "" {
 		return ""
@@ -194,19 +210,53 @@ func ComputeNetworkNamespace(obj persistence.NetworkScope) string {
 	return fmt.Sprintf("%x", hasher.Sum(nil))
 }
 
-// resolveNamespace picks the right namespace rule for obj: ComputeNetworkNamespace when obj
-// also implements NetworkScope, ComputeNamespace otherwise. This is where "which formula applies
-// to this resource" is decided — ComputeNamespace and ComputeNetworkNamespace themselves stay
-// dumb, explicit hash formulas with no branching on the caller's shape. A NetworkScope object
-// with an empty network is a caller bug, not a fallback case, so it errors instead of silently
-// resolving to the workspace-level namespace.
-func resolveNamespace(obj persistence.Scope) (string, error) {
+// ComputeRegionNamespace computes the Kubernetes namespace for a tenant-scoped resource whose
+// name is unique per region rather than per tenant (Workspace), so the same name can name two
+// different resources in two regions of one deployment.
+//
+// The "@region/" prefix is what keeps this formula disjoint from the other two: "@" is not legal
+// in a SECA name, and ComputeNamespace/ComputeNetworkNamespace hash names only, so no
+// tenant/workspace/network triple can ever hash to the same string as a region/tenant pair.
+func ComputeRegionNamespace(obj persistence.RegionScope) string {
+	hasher := sha3.New224()
+	_, _ = fmt.Fprintf(hasher, "@region/%s/%s", obj.GetRegion(), obj.GetTenant())
+
+	return fmt.Sprintf("%x", hasher.Sum(nil))
+}
+
+// regionNamespace returns the per-region namespace for obj and the region it was built from,
+// or ok=false when obj does not ask for one. Implementing persistence.RegionScope with a
+// non-empty region is the opt-in: every other resource carries a region too (it is on
+// domain.RegionalMetadata) but is keyed by tenant/workspace alone, so having a region is not
+// the same as being stored by it.
+func regionNamespace(obj persistence.Scope) (namespace, region string, ok bool) {
+	regionScope, isRegionScoped := obj.(persistence.RegionScope)
+	if !isRegionScoped || regionScope.GetRegion() == "" {
+		return "", "", false
+	}
+
+	return ComputeRegionNamespace(regionScope), regionScope.GetRegion(), true
+}
+
+// ResolveNamespace picks the right namespace rule for obj: ComputeNetworkNamespace when obj
+// also implements NetworkScope, ComputeRegionNamespace when it implements RegionScope with a
+// region set, ComputeNamespace otherwise. It is exported so a slice's ToCR can place its CR
+// through the same call every read, update and delete addresses it by, rather than restating
+// the branch. This is where "which formula applies to this resource" is decided — the Compute* functions themselves stay dumb, explicit hash formulas with no
+// branching on the caller's shape. A NetworkScope object with an empty network is a caller bug,
+// not a fallback case, so it errors instead of silently resolving to the workspace-level
+// namespace.
+func ResolveNamespace(obj persistence.Scope) (string, error) {
 	if networkScope, ok := obj.(persistence.NetworkScope); ok {
 		if networkScope.GetNetwork() == "" {
 			return "", kernel.NewError(kernel.KindValidation, fmt.Errorf("network-scoped resource has empty network"))
 		}
 
 		return ComputeNetworkNamespace(networkScope), nil
+	}
+
+	if namespace, _, ok := regionNamespace(obj); ok {
+		return namespace, nil
 	}
 
 	return ComputeNamespace(obj), nil
@@ -315,7 +365,19 @@ func (a *ReaderAdapter[T]) List(ctx context.Context, params resource.ListFilter,
 		lo.LabelSelector = filter.K8sSelectorForAPI(selector)
 	}
 
-	namespace, err := resolveNamespace(params)
+	// A regional reader is capped to the region the request is addressed to. It is ANDed into
+	// the server-side selector rather than filtered after the fact so the page the API server
+	// returns — and therefore the continue token — is already the caller's region.
+	if a.regionScoped {
+		if region := resource.RegionFromContext(ctx, ""); region != "" {
+			if lo.LabelSelector != "" {
+				lo.LabelSelector += ","
+			}
+			lo.LabelSelector += labels.InternalRegionLabel + "=" + region
+		}
+	}
+
+	namespace, err := ResolveNamespace(params)
 	if err != nil {
 		return nil, err
 	}
@@ -377,7 +439,7 @@ func (a *ReaderAdapter[T]) Load(ctx context.Context, obj *T) (err error) {
 	start := time.Now()
 	defer func() { observeUpstream(a.gvr, OpGet, start, err) }()
 	v := *obj
-	namespace, err := resolveNamespace(v)
+	namespace, err := ResolveNamespace(v)
 	if err != nil {
 		return err
 	}
@@ -406,7 +468,7 @@ func (a *ReaderAdapter[T]) Load(ctx context.Context, obj *T) (err error) {
 func (a *WriterAdapter[T]) Create(ctx context.Context, m T) (res *T, err error) {
 	start := time.Now()
 	defer func() { observeUpstream(a.gvr, OpCreate, start, err) }()
-	namespace, err := resolveNamespace(m)
+	namespace, err := ResolveNamespace(m)
 	if err != nil {
 		return nil, err
 	}
@@ -454,7 +516,7 @@ func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (res *T, err error) 
 		return nil, kernel.NewError(kernel.KindValidation, fmt.Errorf("failed to convert %s to unstructured: %w", a.gvr.Resource, err))
 	}
 
-	namespace, err := resolveNamespace(m)
+	namespace, err := ResolveNamespace(m)
 	if err != nil {
 		return nil, err
 	}
@@ -514,7 +576,7 @@ func (a *WriterAdapter[T]) UpdateStatus(ctx context.Context, m T) (res *T, err e
 		return nil, kernel.NewError(kernel.KindValidation, fmt.Errorf("no status data provided for %s '%s'", a.gvr.Resource, m.GetName()))
 	}
 
-	namespace, err := resolveNamespace(m)
+	namespace, err := ResolveNamespace(m)
 	if err != nil {
 		return nil, err
 	}
@@ -698,7 +760,7 @@ func (a *WriterAdapter[T]) Delete(ctx context.Context, m T) (err error) {
 	start := time.Now()
 	defer func() { observeUpstream(a.gvr, OpDelete, start, err) }()
 
-	namespace, err := resolveNamespace(m)
+	namespace, err := ResolveNamespace(m)
 	if err != nil {
 		return err
 	}
@@ -777,6 +839,56 @@ func namespaceHasChildResources(
 			return true, nil
 		}
 	}
+	return false, nil
+}
+
+// namespaceHasLiveCoOwner reports whether a resource other than m still owns the children
+// namespace m is about to reclaim.
+//
+// Only a region-keyed resource can have one. Its own CR is placed per region, but the namespace
+// it owns for its children is hashed from tenant and name alone — its children resolve that
+// namespace from their own scope, which carries no region — so the same name in two regions is
+// two CRs over one namespace. Tearing it down while the other one is alive would strand it: its
+// children would resolve a namespace that no longer exists, and NamespaceEnsure only repairs
+// that on the survivor's next reconcile, which for a settled resource is a resync away. The
+// last owner deleted is the one that reclaims it.
+//
+// A co-owner that is itself terminating does not count: two simultaneous deletes would
+// otherwise each defer to the other and leak the namespace.
+func namespaceHasLiveCoOwner(
+	ctx context.Context,
+	dyn dynamic.Interface,
+	ownerGVR schema.GroupVersionResource,
+	m persistence.IdentifiableResource,
+) (found bool, err error) {
+	ownNamespace, _, regionKeyed := regionNamespace(m)
+	if !regionKeyed {
+		return false, nil
+	}
+
+	if dyn == nil {
+		return false, kernel.NewError(kernel.KindUnavailable,
+			fmt.Errorf("cannot list co-owners of %s %q: dynamic client is nil", ownerGVR.Resource, m.GetName()))
+	}
+
+	start := time.Now()
+	defer func() { observeUpstream(ownerGVR, OpList, start, err) }()
+
+	list, err := dyn.Resource(ownerGVR).Namespace(metav1.NamespaceAll).List(ctx, metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=%s", labels.InternalTenantLabel, m.GetTenant()),
+		FieldSelector: "metadata.name=" + m.GetName(),
+	})
+	if err != nil {
+		return false, kubeToDomainError(fmt.Errorf("failed to list %s named %q: %w", ownerGVR.Resource, m.GetName(), err))
+	}
+
+	for i := range list.Items {
+		item := &list.Items[i]
+		if item.GetNamespace() != ownNamespace && item.GetDeletionTimestamp() == nil {
+			return true, nil
+		}
+	}
+
 	return false, nil
 }
 
@@ -900,10 +1012,14 @@ func NamespaceEnsure[T persistence.IdentifiableResource](
 // it runs after the plugin has finished deleting instead of racing ahead of it. The emptiness
 // check the write path already did is repeated because that one ran in another process and a
 // namespace delete is irreversible and cascades.
+//
+// ownerGVR is the deleted resource's own GVR, used to find a co-owner of the same children
+// namespace before reclaiming it — see namespaceHasLiveCoOwner.
 func NamespaceCleanup[T persistence.IdentifiableResource](
 	dyn dynamic.Interface,
 	clientset kubernetes.Interface,
 	logger *slog.Logger,
+	ownerGVR schema.GroupVersionResource,
 	childNamespace ChildNamespaceKind,
 	childResourceGVRs []schema.GroupVersionResource,
 ) func(context.Context, T) error {
@@ -923,6 +1039,20 @@ func NamespaceCleanup[T persistence.IdentifiableResource](
 			// rather than taking them down with it.
 			return kernel.NewError(kernel.KindConflict,
 				fmt.Errorf("cannot delete namespace %q of %s: it still holds resources", namespace, m.GetName()))
+		}
+
+		coOwned, err := namespaceHasLiveCoOwner(ctx, dyn, ownerGVR, m)
+		if err != nil {
+			return err
+		}
+		if coOwned {
+			// A same-named resource in another region still resolves this namespace and its
+			// children still need it. Not an error: the co-owner is not a condition this
+			// resource can ever satisfy, so retrying would only wedge the finalizer. The
+			// namespace goes with whichever of them is deleted last.
+			logger.InfoContext(ctx, "leaving namespace in place: another region still owns it",
+				"namespace", namespace, "resource", m.GetName())
+			return nil
 		}
 
 		owned, err := namespaceOwnedBy(ctx, clientset, namespace, ownerLabels)
@@ -1059,19 +1189,31 @@ func namespaceOwnedBy(ctx context.Context, clientset kubernetes.Interface, nsNam
 // Create creates the resource, then opportunistically provisions the namespace it owns for its
 // children.
 //
-// Only the tenant namespace is provisioned on the resource's own behalf, before the CR that lives
-// in it: there is no Tenant entity, so nobody else would ever create it. Below that level a
-// namespace is owned by a parent entity and its absence *is* the referential-integrity check, so
-// a resource whose scope names a workspace fails with NotFound instead of fabricating one.
+// Only tenant-level namespaces are provisioned on the resource's own behalf, before the CR that
+// lives in one: there is no Tenant entity, so nobody else would ever create them. The tenant
+// namespace always, since Image, Role, RoleAssignment and the SKU catalogs live in it; plus the
+// per-region one for a resource keyed by region (Workspace), which is where ResolveNamespace
+// puts its CR. Below that level a namespace is owned by a parent entity and its absence *is* the
+// referential-integrity check, so a resource whose scope names a workspace fails with NotFound
+// instead of fabricating one.
 //
 // The child namespace is created *after* the CR and its failure is only logged — the CR is what
 // makes it recoverable, so a namespace created first and orphaned by a failed CR write is the
 // worse trade. See "Namespace lifecycle" in doc/ARCHITECTURE.md.
 func (a *NamespaceManagingWriterAdapter[T]) Create(ctx context.Context, m T) (*T, error) {
 	if m.GetWorkspace() == "" {
-		tenantNS, tenantLabels := namespaceOwnerLabels(m.GetTenant(), "", "")
-		if tenantNS != "" {
+		if tenantNS, tenantLabels := namespaceOwnerLabels(m.GetTenant(), "", ""); tenantNS != "" {
 			if err := CreateNamespace(ctx, a.clientset, tenantNS, tenantLabels); err != nil {
+				return nil, err
+			}
+		}
+
+		if regionNS, region, ok := regionNamespace(m); ok {
+			regionLabels := map[string]string{
+				labels.InternalTenantLabel: m.GetTenant(),
+				labels.InternalRegionLabel: region,
+			}
+			if err := CreateNamespace(ctx, a.clientset, regionNS, regionLabels); err != nil {
 				return nil, err
 			}
 		}

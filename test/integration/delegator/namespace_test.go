@@ -37,6 +37,7 @@ func TestWorkspaceNamespaceLifecycle(t *testing.T) {
 	newWorkspace := func() *wsdom.Workspace {
 		return &wsdom.Workspace{
 			RegionalMetadata: commondomain.RegionalMetadata{
+				Region:         testRegion,
 				CommonMetadata: commondomain.CommonMetadata{Name: wsName},
 				Scope:          resource.Scope{Tenant: testTenant},
 			},
@@ -45,6 +46,7 @@ func TestWorkspaceNamespaceLifecycle(t *testing.T) {
 	newBlockStorage := func(name string) *bsdom.BlockStorage {
 		return &bsdom.BlockStorage{
 			RegionalMetadata: commondomain.RegionalMetadata{
+				Region:         testRegion,
 				CommonMetadata: commondomain.CommonMetadata{Name: name},
 				Scope:          resource.Scope{Tenant: testTenant, Workspace: wsName},
 			},
@@ -103,6 +105,7 @@ func TestNetworkNamespaceLifecycle(t *testing.T) {
 	newNetwork := func() *netdom.Network {
 		return &netdom.Network{
 			RegionalMetadata: commondomain.RegionalMetadata{
+				Region:         testRegion,
 				CommonMetadata: commondomain.CommonMetadata{Name: netName},
 				Scope:          resource.Scope{Tenant: testTenant, Workspace: testWorkspace},
 			},
@@ -116,6 +119,7 @@ func TestNetworkNamespaceLifecycle(t *testing.T) {
 		s := &subnetdom.Subnet{
 			RegionalNetworkMetadata: commondomain.RegionalNetworkMetadata{
 				RegionalMetadata: commondomain.RegionalMetadata{
+					Region:         testRegion,
 					CommonMetadata: commondomain.CommonMetadata{Name: name},
 				},
 				Network: netName,
@@ -217,6 +221,11 @@ func TestNamespaceOwnerLabelDrift(t *testing.T) {
 
 // touchWorkspace annotates the Workspace CR so the controller reconciles it now. The value is
 // unique per call: an identical patch is a no-op that generates no watch event.
+//
+// The CR is addressed through ResolveNamespace rather than by naming a formula, because a
+// workspace is keyed by tenant AND region and so lives in its per-region namespace, not the
+// plain tenant one — the same call the write path places it with, so this cannot drift from it
+// again (see doc/ARCHITECTURE.md, "Multi-region gateways").
 func touchWorkspace(t *testing.T, name string) {
 	t.Helper()
 	patch, err := json.Marshal(map[string]any{"metadata": map[string]any{"annotations": map[string]any{
@@ -224,8 +233,16 @@ func touchWorkspace(t *testing.T, name string) {
 	}}})
 	require.NoError(t, err)
 
+	namespace, err := k8sadapter.ResolveNamespace(&wsdom.Workspace{
+		RegionalMetadata: commondomain.RegionalMetadata{
+			Region: testRegion,
+			Scope:  resource.Scope{Tenant: testTenant},
+		},
+	})
+	require.NoError(t, err)
+
 	_, err = dynamicClient.Resource(wsk8s.WorkspaceGVR).
-		Namespace(k8sadapter.ComputeNamespace(&resource.Scope{Tenant: testTenant})).
+		Namespace(namespace).
 		Patch(t.Context(), name, types.MergePatchType, patch, metav1.PatchOptions{})
 	require.NoError(t, err)
 }

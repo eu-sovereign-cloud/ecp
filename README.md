@@ -30,7 +30,10 @@ helm install ecp ecp/ecp --version 0.0.2-alpha \
   --set ecp-delegator.plugin=aruba
 ```
 
-`gatewayRegional.region` is **required**. `ecp-delegator.plugin` picks the CSP —
+`gatewayRegional.region` is **required** (or `gatewayRegional.regions`, to serve several
+regions from one deployment — see
+[Multi-region gateways](doc/ARCHITECTURE.md#multi-region-gateways)).
+`ecp-delegator.plugin` picks the CSP —
 it selects both the delegator image and the RBAC the chart grants — and each
 plugin reconciles into a backend you install **out of band**; until it is there,
 resources are accepted and stay pending:
@@ -40,6 +43,9 @@ resources are accepted and stay pending:
 | `aruba` | writing `arubacloud.com` CRs | [arubacloud-resource-operator](https://github.com/Arubacloud/arubacloud-resource-operator) + Aruba credentials |
 | `ionos` | writing Crossplane managed resources | Crossplane + `provider-upjet-ionoscloud` + an IONOS token ([`csp/ionos/deploy`](csp/ionos/deploy)) |
 | `dummy` | nothing — marks resources Active in-process | none; development only, image not published |
+
+The delegator reconciles every region in its cluster unless `ecp-delegator.regions`
+restricts it to the ones that deployment serves — see [Regions](charts/delegator/README.md#regions).
 
 **Auth is off by default** — the API is unauthenticated in that mode, so do not
 expose it outside the cluster until you turn it on with `auth.enabled=true`,

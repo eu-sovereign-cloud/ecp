@@ -40,11 +40,11 @@ func TestBuildKeyPair(t *testing.T) {
 }
 
 func TestBuildSecurityGroup(t *testing.T) {
-	sg := converter.BuildSecurityGroup("web", "my-network", "", "test-tenant", "ws-ns", nil, vpcRef(), projectRef())
+	sg := converter.BuildSecurityGroup("web", "my-network", "ITBG-Bergamo", "test-tenant", "ws-ns", nil, vpcRef(), projectRef())
 	// Name encodes the network so the same SECA group can be materialised in several VPCs.
 	require.Equal(t, "web-my-network", sg.Name)
 	require.Equal(t, "ws-ns", sg.Namespace)
-	require.Equal(t, "ITBG-Bergamo", sg.Spec.Region) // defaulted
+	require.Equal(t, "ITBG-Bergamo", sg.Spec.Region)
 	require.Equal(t, vpcRef(), sg.Spec.VPCReference)
 	require.Equal(t, projectRef(), sg.Spec.ProjectReference)
 }
@@ -61,7 +61,7 @@ func TestBuildSecurityRules_expansion(t *testing.T) {
 			},
 		}, nil)
 
-		out := converter.BuildSecurityRules(rules, sgName, "", "test-tenant", "ws-ns", vpcRef(), projectRef())
+		out := converter.BuildSecurityRules(rules, sgName, "ITBG-Bergamo", "test-tenant", "ws-ns", vpcRef(), projectRef())
 		// 2 protocols x 2 ports x 1 (default) target = 4 rules.
 		require.Len(t, out, 4)
 
@@ -106,7 +106,7 @@ func TestBuildSecurityRules_expansion(t *testing.T) {
 			{Direction: "ingress", Ports: &securitygroup.Ports{From: 8000, To: 8100}},
 		}, nil)
 
-		out := converter.BuildSecurityRules(rules, sgName, "", "test-tenant", "ws-ns", vpcRef(), projectRef())
+		out := converter.BuildSecurityRules(rules, sgName, "ITBG-Bergamo", "test-tenant", "ws-ns", vpcRef(), projectRef())
 		require.Len(t, out, 1)
 		require.Equal(t, "ALL", out[0].Spec.Protocol)
 		require.Equal(t, "8000-8100", out[0].Spec.Port)
@@ -118,6 +118,7 @@ func TestBuildCloudServer(t *testing.T) {
 		RegionalMetadata: commondomain.RegionalMetadata{
 			CommonMetadata: commondomain.CommonMetadata{Name: "vm-1"},
 			Scope:          res.Scope{Tenant: "test-tenant", Workspace: "test-workspace"},
+			Region:         "ITBG-Bergamo",
 		},
 		Spec: instancedom.InstanceSpec{Zone: "ITBG-2"},
 	}
@@ -138,7 +139,7 @@ func TestBuildCloudServer(t *testing.T) {
 	require.Equal(t, "vm-1", cs.Name)
 	require.Equal(t, "n1.small", cs.Spec.FlavorName)
 	require.Equal(t, "ITBG-2", cs.Spec.Zone)
-	require.Equal(t, "ITBG-Bergamo", cs.Spec.Region) // defaulted
+	require.Equal(t, "ITBG-Bergamo", cs.Spec.Region)
 	require.Len(t, cs.Spec.SubnetReferences, 1)
 	require.Len(t, cs.Spec.SecurityGroupReferences, 1)
 	require.Equal(t, "vm-1-key", cs.Spec.KeyPairReference.Name)

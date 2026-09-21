@@ -5,7 +5,7 @@ This module bundles the cluster-backed test suites for ECP and the tooling to ru
 | Suite | What it covers | Where |
 |-------|----------------|-------|
 | **integration** | Each component (delegator, gateway-global, gateway-regional) in **isolation**. The gateway suites test only REST↔CR translation; the delegator suite tests reconciliation. | [`integration/`](integration/) |
-| **e2e** | The **whole stack in one run** — drives the SECA API on both gateways and asserts resources reconcile all the way to the delegator plugin. Single cluster. Also the only place resource **updates** are covered end to end, since an update has to travel API → CR → delegator → plugin → back into what a GET returns ([`e2e/update_test.go`](e2e/update_test.go)), and the only place a **spec enum** is watched across all four converters on that path ([`e2e/public_ip_test.go`](e2e/public_ip_test.go)). | [`e2e/`](e2e/) |
+| **e2e** | The **whole stack in one run** — drives the SECA API on both gateways and asserts resources reconcile all the way to the delegator plugin. Single cluster. Also the only place resource **updates** are covered end to end, since an update has to travel API → CR → delegator → plugin → back into what a GET returns ([`e2e/update_test.go`](e2e/update_test.go)), the only place a **spec enum** is watched across all four converters on that path ([`e2e/public_ip_test.go`](e2e/public_ip_test.go)), the only place a **second region** is discovered off the region catalog and reconciled ([`e2e/multiregion_test.go`](e2e/multiregion_test.go)), and the only place **two region-scoped delegators** share a cluster and each is held to its own region ([`e2e/region_isolation_test.go`](e2e/region_isolation_test.go)). | [`e2e/`](e2e/) |
 | **multicluster e2e** | The **split topology** — global gateway in one cluster, regional gateway + delegator in another, joined only by the Region CR the global gateway advertises. | [`e2e/multicluster/`](e2e/multicluster/) |
 | **conformance** | Runs the SECA conformance suite (`secatest`) against the stack. | [`internal/build/conformance/`](internal/build/conformance/), [`internal/deploy/conformance/`](internal/deploy/conformance/) |
 | **load (k6)** | Black-box **API journeys** (smoke, create-workspace, …) against a deployed stack. Separate from Go `bench` / `TestBench`. | [`load/`](load/) |
@@ -50,9 +50,57 @@ Both the e2e and conformance stacks reconcile with a **delegator plugin**. Each 
 
 Only **dummy** is self-contained, so the one-shot targets (`kind-integration`, `kind-e2e`, `kind-test-all`, `kind-conformance`) always use dummy. aruba/ionos can't run in one command — their resources never reconcile until their backend exists — so they use the two-phase `*-deploy` → (provision backend) → run flow described below. This is why `E2E_PLUGIN` / `CONFORMANCE_PLUGIN` are honoured on the `*-deploy` targets but not on the one-shot targets.
 
+## Two regions, one regional gateway, two delegators
+
+The test stack deploys **one** regional gateway serving **two** regions
+([`internal/deploy/gateway-regional/values.yaml`](internal/deploy/gateway-regional/values.yaml)):
+`itbg-bergamo` is the default — what a request that names no region is served as, so every
+existing suite is unaffected — and `region-two` is reachable only under its
+`/regions/region-two` path prefix, which is the base URL its Region CR in
+[`test-data/regions.yaml`](internal/deploy/test-data/regions.yaml) advertises.
+
+Behind it are **two** delegators, in the one cluster, each scoped to one of those regions
+([`delegator/values.yaml`](internal/deploy/delegator/values.yaml) →
+`ecp-delegator`/`itbg-bergamo`, [`delegator-two/values.yaml`](internal/deploy/delegator-two/values.yaml) →
+`ecp-delegator-two`/`region-two`). They are the same chart, image and plugin; only `regions`
+differs, which is the single-cluster-per-region topology
+[Region-scoped delegators](../doc/ARCHITECTURE.md#region-scoped-delegators) describes. Keep the
+two lists **disjoint**: an overlap would have both reconcile one CR, and the e2e suite asserts
+that exactly one of them ever does. A region in neither list is reconciled by nobody — which is
+what `integration/delegator/region_scope_test.go` asserts, with `region-unserved`.
+
+[`integration/gateway-regional/multiregion_test.go`](integration/gateway-regional/multiregion_test.go)
+drives the REST layer of it: a resource is placed in the region the request names, a list in
+one region never returns the other's, an unserved region is a 404, `bob` — whose
+`ra-bob-scoped` caps him to `itbg-bergamo` — is 403 under the `region-two` prefix and 200
+without it, and the **same workspace name in both regions is two workspaces**, each addressable
+and deletable only through its own region. [`e2e/multiregion_test.go`](e2e/multiregion_test.go)
+adds only what needs the whole stack: the second region's base URL is discovered off the region
+catalog and a workspace created through it reconciles to `Active`. See
+[Multi-region gateways](../doc/ARCHITECTURE.md#multi-region-gateways) for the mechanism.
+
+[`e2e/region_isolation_test.go`](e2e/region_isolation_test.go) is the delegator half, and the
+only suite that needs both of them deployed. It creates one workspace name in **both** regions
+and a block storage in **one**, then asserts, in order: the two workspaces reconcile into two
+different per-region namespaces; the block storage's name appears in `ecp-delegator-two`'s pod
+log and **not** in `ecp-delegator`'s, which is the only evidence of which deployment reconciled
+it (the region scope is a watch predicate, so the skipped delegator leaves no mark on the CR);
+a `GET` in one region does not resolve the other's workspace and a list does not return its
+block storage; and deleting the second region's workspace leaves the first standing, Active,
+with the children namespace the two co-owned still in place.
+
+A workspace is keyed by tenant **and** region, so each region's copy lives in its own namespace
+(`sha3-224(@region/<region>/<tenant>)`) and carries `region` as a field on the CR —
+`kubectl get workspace -A` prints it. The per-region placement itself is asserted against a
+real API server by `TestWorkspaceRegionIdentity` in
+[`resource/workspace/v1/backend/kubernetes`](../resource/workspace/v1/backend/kubernetes/workspace_envtest_test.go)
+(`make test-envtest`). Every resource below a workspace is still keyed by tenant/workspace
+alone, so those names — and the namespace the workspace owns for them — remain shared across the
+two regions; that namespace is reclaimed only once the last of the same-named workspaces is gone.
+
 ## One stack, every suite
 
-Integration and e2e run against the **same deployment**: `test-data`, both gateways and the delegator, all with the same authentication plugin (`AUTH_PLUGIN`, default `dummy`). `deploy-stack` / `kind-deploy-stack` is that deployment; the one-shot targets build, load and deploy it for you.
+Integration and e2e run against the **same deployment**: `test-data`, both gateways and both delegators, all with the same authentication plugin (`AUTH_PLUGIN`, default `dummy`). `deploy-stack` / `kind-deploy-stack` is that deployment; the one-shot targets build, load and deploy it for you.
 
 | Target | Runs |
 |--------|------|
@@ -76,13 +124,15 @@ The point is that there is one deployment path, not two: a template that breaks,
 | `gateway-global` | `charts/ecp/`, other gateway disabled | `ecp-global` |
 | `gateway-regional` | `charts/ecp/`, other gateway disabled | `ecp-regional` |
 | `delegator` | `charts/delegator/`, `plugin` from `PLUGIN_TYPE` | `ecp-delegator` |
+| `delegator-two` | the same chart, `regions: [region-two]` | `ecp-delegator-two` |
 | `test-data` | kustomize — fixture CRs, nothing anyone installs | — |
 | `conformance` | kustomize — the secatest runner | — |
 
-Two consequences worth knowing:
+Three consequences worth knowing:
 
-- **Names come from the chart.** The Deployments and Services are `ecp-global-gateway-global`, `ecp-regional-gateway-regional` and `ecp-delegator`, not the old `*-depl` / `*-svc`. The suites port-forward by pod label (`app=gateway-global`), which the chart still sets, so they are unaffected; anything dialling a gateway by DNS is not, and `internal/scripts/common.sh` holds the service names for it (`test-data/regions.yaml` carries the same ones).
+- **Names come from the chart.** The Deployments and Services are `ecp-global-gateway-global`, `ecp-regional-gateway-regional`, `ecp-delegator` and `ecp-delegator-two`, not the old `*-depl` / `*-svc`. Both delegator pods carry the same `app=delegator` label, so what tells the two releases apart is `app.kubernetes.io/instance`. The suites port-forward by pod label (`app=gateway-global`), which the chart still sets, so they are unaffected; anything dialling a gateway by DNS is not, and `internal/scripts/common.sh` holds the service names for it (`test-data/regions.yaml` carries the same ones).
 - **The delegator's RBAC follows its plugin.** `charts/delegator` grants exactly the controller set `plugin` loads, so adding a resource to a plugin means adding its rules to that plugin's branch in `charts/delegator/templates/rbac.yaml`.
+- **Both delegators are region-scoped.** [`delegator/values.yaml`](internal/deploy/delegator/values.yaml) sets `regions: [itbg-bergamo]` and [`delegator-two/values.yaml`](internal/deploy/delegator-two/values.yaml) sets `regions: [region-two]`, together covering exactly the two regions the regional gateway serves, so every run exercises the scoped watch ([Region-scoped delegators](../doc/ARCHITECTURE.md#region-scoped-delegators)). `itbg-bergamo` is the one every *regional* `test-data` fixture carries (`images.yaml` and the three SKU catalogues; `regions.yaml`, `roles.yaml` and `role-assignments.yaml` are region-less, and no delegator reconciles those). **A CR in a region neither serves — or with none — never reconciles**, so a fixture written straight through a repo adapter must set `Region` (the integration suite's `testRegion`); one stuck `pending` forever is the first symptom of one that does not. `integration/delegator/region_scope_test.go` asserts that exclusion on purpose, with an in-region resource as the control; `e2e/region_isolation_test.go` asserts the positive half, that each delegator picks up its own region and only its own.
 
 To deploy the same stack by hand, or to install it anywhere real, use the charts directly — see [`charts/ecp/README.md`](../charts/ecp/README.md).
 
@@ -200,7 +250,7 @@ same name.
 | `MULTICLUSTER_REGIONAL_CLUSTER` | `e2e-regional` | KIND cluster for the regional gateway + delegator. |
 | `MULTICLUSTER_GLOBAL_CONTEXT` | `kind-$(MULTICLUSTER_GLOBAL_CLUSTER)` | Context the scripts and suite use for the global cluster. |
 | `MULTICLUSTER_REGIONAL_CONTEXT` | `kind-$(MULTICLUSTER_REGIONAL_CLUSTER)` | Context for the regional cluster. |
-| `MULTICLUSTER_REGION` | `itbg-bergamo` | Region name registered. Must match the regional gateway's `REGION` env. |
+| `MULTICLUSTER_REGION` | `itbg-bergamo` | Region name registered. Must be one of the regions the regional gateway serves (`gatewayRegional.region`/`.regions`). |
 | `MULTICLUSTER_REGIONAL_NODE_PORT` | `30080` | Regional gateway NodePort. Must match the `extraPortMappings` entry in `internal/kind-config/regional-cluster.yaml`. |
 | `MULTICLUSTER_ADVERTISE_HOST` | `127.0.0.1` | Host advertised in the Region CR. |
 

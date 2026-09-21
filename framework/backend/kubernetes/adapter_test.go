@@ -40,6 +40,14 @@ const (
 // testAPIVersionNetwork is the sample apiVersion value for fake network-group CRs.
 const testAPIVersionNetwork = "network.test/v1"
 
+// testAPIVersionWorkspace and testKindWorkspace are the apiVersion/kind of the fake parent CRs
+// standing in for Workspace, and testWS1 their sample name.
+const (
+	testAPIVersionWorkspace = "workspace.test/v1"
+	testKindWorkspace       = "Workspace"
+	testWS1                 = "ws1"
+)
+
 // testRT1, testNet1 and testRTDash1 are sample resource names shared by tests in this package.
 const (
 	testRT1     = "rt1"
@@ -301,8 +309,8 @@ func parentListKinds() map[schema.GroupVersionResource]string {
 // testParentToCR places the parent CR in the tenant namespace (like WorkspaceToCR).
 func testParentToCR(m *testWorkspaceScopedIdentifiable) (client.Object, error) {
 	return &unstructured.Unstructured{Object: map[string]any{
-		keyAPIVersion: "workspace.test/v1",
-		keyKind:       "Workspace",
+		keyAPIVersion: testAPIVersionWorkspace,
+		keyKind:       testKindWorkspace,
 		keyMetadata: map[string]any{
 			keyNamespace: ComputeNamespace(&kernelresource.Scope{Tenant: m.tenant}),
 			keyName:      m.name,
@@ -616,8 +624,8 @@ func TestNamespaceManagingWriterAdapter_Delete(t *testing.T) {
 
 	t.Run("refuses delete when child namespace has SECA resources", func(t *testing.T) {
 		parentObj := &unstructured.Unstructured{Object: map[string]any{
-			keyAPIVersion: "workspace.test/v1",
-			keyKind:       "Workspace",
+			keyAPIVersion: testAPIVersionWorkspace,
+			keyKind:       testKindWorkspace,
 			keyMetadata:   map[string]any{keyNamespace: tenantNS, keyName: "w1"},
 		}}
 		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(
@@ -654,8 +662,8 @@ func TestNamespaceManagingWriterAdapter_Delete(t *testing.T) {
 	// keeps it from racing ahead of the plugin's Delete.
 	t.Run("deletes the parent but leaves the child namespace to the controller", func(t *testing.T) {
 		parentObj := &unstructured.Unstructured{Object: map[string]any{
-			keyAPIVersion: "workspace.test/v1",
-			keyKind:       "Workspace",
+			keyAPIVersion: testAPIVersionWorkspace,
+			keyKind:       testKindWorkspace,
 			keyMetadata:   map[string]any{keyNamespace: tenantNS, keyName: "w1"},
 		}}
 		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(
@@ -683,8 +691,8 @@ func TestNamespaceManagingWriterAdapter_Delete(t *testing.T) {
 
 	t.Run("NoChildNamespace skips the empty check", func(t *testing.T) {
 		parentObj := &unstructured.Unstructured{Object: map[string]any{
-			keyAPIVersion: "workspace.test/v1",
-			keyKind:       "Workspace",
+			keyAPIVersion: testAPIVersionWorkspace,
+			keyKind:       testKindWorkspace,
 			keyMetadata:   map[string]any{keyNamespace: tenantNS, keyName: "w1"},
 		}}
 		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(
@@ -832,7 +840,7 @@ func TestNamespaceCleanup(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{Name: childNS, Labels: ownerLabels},
 		})
 
-		cleanup := NamespaceCleanup[*testWorkspaceScopedIdentifiable](dynFake, cs, logger, WorkspaceChildren, gvrs)
+		cleanup := NamespaceCleanup[*testWorkspaceScopedIdentifiable](dynFake, cs, logger, testParentGVR, WorkspaceChildren, gvrs)
 		require.NoError(t, cleanup(context.Background(), parent))
 
 		_, err := cs.CoreV1().Namespaces().Get(context.Background(), childNS, metav1.GetOptions{})
@@ -849,7 +857,7 @@ func TestNamespaceCleanup(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{Name: childNS, Labels: ownerLabels},
 		})
 
-		cleanup := NamespaceCleanup[*testWorkspaceScopedIdentifiable](dynFake, cs, logger, WorkspaceChildren, gvrs)
+		cleanup := NamespaceCleanup[*testWorkspaceScopedIdentifiable](dynFake, cs, logger, testParentGVR, WorkspaceChildren, gvrs)
 		err := cleanup(context.Background(), parent)
 		require.Error(t, err)
 		var domainErr *kernel.Error
@@ -869,7 +877,7 @@ func TestNamespaceCleanup(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{Name: childNS, Labels: map[string]string{"secapi.cloud/tenant-id": "t1"}},
 		})
 
-		cleanup := NamespaceCleanup[*testWorkspaceScopedIdentifiable](dynFake, cs, logger, WorkspaceChildren, gvrs)
+		cleanup := NamespaceCleanup[*testWorkspaceScopedIdentifiable](dynFake, cs, logger, testParentGVR, WorkspaceChildren, gvrs)
 		require.NoError(t, cleanup(context.Background(), parent))
 
 		_, err := cs.CoreV1().Namespaces().Get(context.Background(), childNS, metav1.GetOptions{})
@@ -884,7 +892,7 @@ func TestNamespaceCleanup(t *testing.T) {
 		cs := k8sfake.NewClientset()
 
 		cleanup := NamespaceCleanup[*testWorkspaceScopedIdentifiable](
-			dynFake, cs, slog.New(slog.NewTextHandler(&buf, nil)), WorkspaceChildren, gvrs,
+			dynFake, cs, slog.New(slog.NewTextHandler(&buf, nil)), testParentGVR, WorkspaceChildren, gvrs,
 		)
 		require.NoError(t, cleanup(context.Background(), parent))
 		require.NotContains(t, buf.String(), "owner labels do not match",
@@ -1062,4 +1070,198 @@ func TestWriterAdapter_Update_NoOpDoesNotWrite(t *testing.T) {
 	}
 
 	require.Zerof(t, writes, "an update that changes nothing must not write, got %d writes", writes)
+}
+
+// newRegionObject builds a CR in ns carrying the internal region label, as every regional
+// slice's ToCR stamps it.
+func newRegionObject(namespace, name, region string) *unstructured.Unstructured {
+	obj := newTestObject(namespace, name)
+	obj.SetLabels(map[string]string{labels.InternalRegionLabel: region})
+	return obj
+}
+
+// TestReaderAdapter_List_RegionScoped proves the region cap a multi-region gateway depends on:
+// the namespace formula has no region dimension, so two regions' resources share a namespace
+// and only the label selector keeps a list in one region from returning the other's.
+func TestReaderAdapter_List_RegionScoped(t *testing.T) {
+	ns := ComputeNamespace(&kernelresource.Scope{Tenant: "t1", Workspace: "w1"})
+	dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), testListKinds(),
+		newRegionObject(ns, "in-region-one", "region-one"),
+		newRegionObject(ns, "in-region-two", "region-two"),
+	)
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	newReader := func() *ReaderAdapter[*testIdentifiable] {
+		return NewReaderAdapter[*testIdentifiable](dynFake, testGVR, logger, func(obj client.Object) (*testIdentifiable, error) {
+			return &testIdentifiable{name: obj.GetName()}, nil
+		})
+	}
+	params := kernelresource.ListParams{Scope: kernelresource.Scope{Tenant: "t1", Workspace: "w1"}}
+
+	t.Run("returns only the region the request is addressed to", func(t *testing.T) {
+		var out []*testIdentifiable
+		ctx := kernelresource.ContextWithRegion(context.Background(), "region-two")
+		_, err := newReader().RegionScoped().List(ctx, params, &out)
+		require.NoError(t, err)
+		require.Len(t, out, 1)
+		require.Equal(t, "in-region-two", out[0].name)
+	})
+
+	t.Run("honours a caller selector alongside the region cap", func(t *testing.T) {
+		var out []*testIdentifiable
+		ctx := kernelresource.ContextWithRegion(context.Background(), "region-two")
+		scoped := params
+		scoped.Selector = labels.InternalRegionLabel + "=region-one"
+		_, err := newReader().RegionScoped().List(ctx, scoped, &out)
+		require.NoError(t, err)
+		require.Empty(t, out, "the two terms are ANDed, so a caller cannot select out of its region")
+	})
+
+	t.Run("no region in context leaves the list unfiltered", func(t *testing.T) {
+		var out []*testIdentifiable
+		_, err := newReader().RegionScoped().List(context.Background(), params, &out)
+		require.NoError(t, err)
+		require.Len(t, out, 2)
+	})
+
+	t.Run("a reader that is not region-scoped ignores the request region", func(t *testing.T) {
+		var out []*testIdentifiable
+		ctx := kernelresource.ContextWithRegion(context.Background(), "region-two")
+		_, err := newReader().List(ctx, params, &out)
+		require.NoError(t, err)
+		require.Len(t, out, 2, "global resources (Role, RoleAssignment) carry no region label")
+	})
+}
+
+// --- Region-keyed resources: the per-region tenant namespace (Workspace) ---
+
+// testRegionScopedIdentifiable mirrors Workspace's domain shape: tenant-scoped, with a region
+// it is keyed by. Implementing GetRegion is the opt-in that moves its CRs into a per-region
+// namespace — see persistence.RegionScope.
+type testRegionScopedIdentifiable struct {
+	name, tenant, region string
+}
+
+func (t *testRegionScopedIdentifiable) GetName() string      { return t.name }
+func (t *testRegionScopedIdentifiable) GetVersion() string   { return "" }
+func (t *testRegionScopedIdentifiable) GetTenant() string    { return t.tenant }
+func (t *testRegionScopedIdentifiable) GetWorkspace() string { return "" }
+func (t *testRegionScopedIdentifiable) GetRegion() string    { return t.region }
+
+func TestComputeRegionNamespace(t *testing.T) {
+	r1 := ComputeRegionNamespace(&testRegionScopedIdentifiable{tenant: "t1", region: "region-one"})
+	r2 := ComputeRegionNamespace(&testRegionScopedIdentifiable{tenant: "t1", region: "region-two"})
+
+	require.NotEqual(t, r1, r2, "two regions of one tenant must not share a namespace")
+	require.NotEqual(t, ComputeNamespace(&kernelresource.Scope{Tenant: "t1"}), r1,
+		"the per-region namespace must be distinct from the plain tenant namespace")
+
+	// The "@region/" prefix is what guarantees this: no tenant/workspace/network triple of
+	// legal SECA names can hash to the same string as a region/tenant pair.
+	require.NotEqual(t, ComputeNamespace(&kernelresource.Scope{Tenant: "region-one", Workspace: "t1"}), r1)
+	require.NotEqual(t, ComputeNetworkNamespace(fakeNetworkScope{tenant: "region", workspace: "region-one", network: "t1"}), r1)
+}
+
+func TestResolveNamespace_RegionScope(t *testing.T) {
+	t.Run("a region-keyed resource resolves to its per-region namespace", func(t *testing.T) {
+		obj := &testRegionScopedIdentifiable{name: testWS1, tenant: "t1", region: "region-two"}
+
+		namespace, err := ResolveNamespace(obj)
+		require.NoError(t, err)
+		require.Equal(t, ComputeRegionNamespace(obj), namespace)
+	})
+
+	t.Run("no region resolves exactly as before", func(t *testing.T) {
+		obj := &testRegionScopedIdentifiable{name: testWS1, tenant: "t1"}
+
+		namespace, err := ResolveNamespace(obj)
+		require.NoError(t, err)
+		require.Equal(t, ComputeNamespace(&kernelresource.Scope{Tenant: "t1"}), namespace,
+			"an empty region must not move the resource out of the tenant namespace")
+	})
+
+	// Having a region is not the same as being keyed by it: every regional resource carries one.
+	t.Run("a resource that does not implement RegionScope is untouched", func(t *testing.T) {
+		obj := &testWorkspaceScopedIdentifiable{name: "n1", tenant: "t1", workspace: "w1"}
+
+		namespace, err := ResolveNamespace(obj)
+		require.NoError(t, err)
+		require.Equal(t, ComputeNamespace(&kernelresource.Scope{Tenant: "t1", Workspace: "w1"}), namespace)
+	})
+}
+
+// newRegionKeyedOwner builds the CR of a region-keyed owner (Workspace's shape): placed in its
+// own per-region namespace, carrying the tenant label the co-owner lookup selects on.
+func newRegionKeyedOwner(name, tenant, region string, terminating bool) *unstructured.Unstructured {
+	meta := map[string]any{
+		keyNamespace: ComputeRegionNamespace(&testRegionScopedIdentifiable{tenant: tenant, region: region}),
+		keyName:      name,
+		"labels":     map[string]any{labels.InternalTenantLabel: tenant},
+	}
+	if terminating {
+		meta["deletionTimestamp"] = "2024-01-01T00:00:00Z"
+	}
+
+	return &unstructured.Unstructured{Object: map[string]any{
+		keyAPIVersion: testAPIVersionWorkspace,
+		keyKind:       testKindWorkspace,
+		keyMetadata:   meta,
+	}}
+}
+
+// The namespace a region-keyed owner holds for its children is hashed from tenant and name
+// alone, so the same name in two regions is two CRs over one namespace. Reclaiming it while the
+// other one is alive would leave that one's children resolving a namespace that is gone.
+func TestNamespaceCleanup_RegionCoOwner(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	parent := &testRegionScopedIdentifiable{name: testWS1, tenant: "t1", region: "region-one"}
+	childNS := ComputeNamespace(&kernelresource.Scope{Tenant: "t1", Workspace: testWS1})
+	ownerLabels := map[string]string{
+		labels.InternalTenantLabel:    "t1",
+		labels.InternalWorkspaceLabel: testWS1,
+	}
+	gvrs := []schema.GroupVersionResource{testChildGVR}
+
+	newCleanup := func(objs ...runtime.Object) (func(context.Context, *testRegionScopedIdentifiable) error, *k8sfake.Clientset) {
+		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), parentListKinds(), objs...)
+		cs := k8sfake.NewClientset(&corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{Name: childNS, Labels: ownerLabels},
+		})
+
+		return NamespaceCleanup[*testRegionScopedIdentifiable](dynFake, cs, logger, testParentGVR, WorkspaceChildren, gvrs), cs
+	}
+
+	t.Run("leaves the shared namespace to the surviving region", func(t *testing.T) {
+		cleanup, cs := newCleanup(
+			newRegionKeyedOwner(testWS1, "t1", "region-one", true),
+			newRegionKeyedOwner(testWS1, "t1", "region-two", false),
+		)
+
+		require.NoError(t, cleanup(context.Background(), parent))
+
+		_, err := cs.CoreV1().Namespaces().Get(context.Background(), childNS, metav1.GetOptions{})
+		require.NoError(t, err, "the other region's workspace still needs this namespace")
+	})
+
+	t.Run("the last owner deleted reclaims it", func(t *testing.T) {
+		cleanup, cs := newCleanup(newRegionKeyedOwner(testWS1, "t1", "region-one", true))
+
+		require.NoError(t, cleanup(context.Background(), parent))
+
+		_, err := cs.CoreV1().Namespaces().Get(context.Background(), childNS, metav1.GetOptions{})
+		require.True(t, kerrs.IsNotFound(err), "with no co-owner left the namespace must be reclaimed")
+	})
+
+	// Both regions deleted at once: deferring to a co-owner that is itself terminating would
+	// leave the namespace with no owner to ever reclaim it.
+	t.Run("a terminating co-owner does not hold the namespace", func(t *testing.T) {
+		cleanup, cs := newCleanup(
+			newRegionKeyedOwner(testWS1, "t1", "region-one", true),
+			newRegionKeyedOwner(testWS1, "t1", "region-two", true),
+		)
+
+		require.NoError(t, cleanup(context.Background(), parent))
+
+		_, err := cs.CoreV1().Namespaces().Get(context.Background(), childNS, metav1.GetOptions{})
+		require.True(t, kerrs.IsNotFound(err), "two simultaneous deletes must not leak the namespace")
+	})
 }

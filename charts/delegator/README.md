@@ -23,6 +23,22 @@ vertical, ionos covers compute, storage and network. The RBAC follows the
 plugin, so switching `plugin` on an existing release re-grants the role to
 match.
 
+## Regions
+
+A delegator reconciles **every** region in its cluster by default. `regions` restricts it to
+the ones a deployment serves, so a cluster can run one delegator per region instead of one for
+everything:
+
+```bash
+helm install ecp-delegator-bergamo charts/delegator \
+  --set plugin=aruba --set 'regions={itbg-bergamo}'
+```
+
+A CR in a region no deployed delegator serves stays pending. `Role` and `RoleAssignment` are
+unaffected either way: they carry no region label, and no delegator reconciles them under any
+scope — the gateway serves both synchronously. See
+[Region-scoped delegators](../../doc/ARCHITECTURE.md#region-scoped-delegators).
+
 ## Prerequisites
 
 - The ECP CRDs, installed by the [`ecp`](../ecp) chart (or
@@ -60,6 +76,7 @@ See [values.yaml](values.yaml) for the full commented list. The notable ones:
 | Key | Default | Notes |
 |-----|---------|-------|
 | `plugin` | `""` | **Required** — `aruba`, `dummy` or `ionos`; also selects the RBAC granted |
+| `regions` | `[]` | Regions this delegator reconciles (`REGIONS`). Empty reconciles every region |
 | `image.repository` | `""` → `ghcr.io/eu-sovereign-cloud/ecp/delegator-<plugin>` | Override to mirror the image into your own registry, or for `plugin=dummy`, which is not published |
 | `replicaCount` | `1` | Keep at 1: the delegator runs without leader election |
 | `rbac.create` | `true` | ClusterRole scoped to the selected plugin's controller set |

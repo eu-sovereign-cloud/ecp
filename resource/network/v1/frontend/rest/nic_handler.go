@@ -43,7 +43,7 @@ func (h *Handler) CreateOrUpdateNic(w http.ResponseWriter, r *http.Request, tena
 	if params.IfUnmodifiedSince != nil {
 		id.Version = strconv.Itoa(*params.IfUnmodifiedSince)
 	}
-	region := h.Region
+	region := resource.RegionFromContext(r.Context(), h.Region)
 	frest.HandleUpsert(w, r, logger, frest.UpsertOptions[sdkschema.Nic, *nicdom.Nic, *sdkschema.Nic]{
 		Params:  id,
 		Creator: frest.CreatorFromRepo(h.NicWriter),

@@ -83,6 +83,7 @@ func NewController(
 		dynClient,
 		clientset,
 		options.Logger,
+		WorkspaceGVR,
 		k8sadapter.WorkspaceChildren,
 		ChildResourceGVRs,
 	))

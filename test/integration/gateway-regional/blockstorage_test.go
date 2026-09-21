@@ -49,6 +49,9 @@ func TestBlockStorageAPI(t *testing.T) {
 		require.Equal(t, resourceName, getResp.JSON200.Metadata.Name)
 		require.Equal(t, 1, getResp.JSON200.Spec.SizeGB)
 		require.Equal(t, "sku-1", getResp.JSON200.Spec.SkuRef.Resource)
+		// The region is stamped by the gateway from the region it is deployed to serve, never sent
+		// by the client: the delegator plugins place the resource by it and refuse one without it.
+		require.Equal(t, testRegion, getResp.JSON200.Metadata.Region)
 
 		//
 		// And it can be deleted

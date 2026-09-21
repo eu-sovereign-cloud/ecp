@@ -39,10 +39,13 @@ spec:
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- with .Values.extraEnv }}
           env:
+            # Empty is the default and means every region — see values.yaml.
+            - name: REGIONS
+              value: {{ join "," .Values.regions | quote }}
+            {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
-          {{- end }}
+            {{- end }}
           ports:
             - name: healthz
               containerPort: 8081

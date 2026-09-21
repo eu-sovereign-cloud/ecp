@@ -5,7 +5,7 @@
 // gateways and asserts that resources are reconciled all the way down to the
 // delegator plugin (the dummy plugin by default). Unlike the integration suites
 // — which test one component in isolation and never wait for reconciliation —
-// this suite requires test-data, both gateways and the delegator to be deployed.
+// this suite requires test-data, both gateways and every delegator to be deployed.
 package e2e
 
 import (
@@ -21,6 +21,8 @@ import (
 	regionv1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.region.v1"
 	storagev1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	workspacev1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1"
+
+	"k8s.io/client-go/kubernetes"
 
 	authhelper "github.com/eu-sovereign-cloud/ecp/test/internal/authhelper"
 
@@ -65,6 +67,14 @@ var (
 	// globalURL is the port-forwarded global gateway, for tests that drive it
 	// with raw requests instead of an SDK client (see jwt_test.go).
 	globalURL string
+	// regionalURL is the port-forwarded regional gateway, for tests that build their own
+	// client against it (see multiregion_test.go).
+	regionalURL string
+
+	// k8s is the cluster the stack is deployed in, for the few assertions the SECA API
+	// cannot make: where a CR was placed, and which delegator pod logged it
+	// (see region_isolation_test.go).
+	k8s kubernetes.Interface
 )
 
 func TestMain(m *testing.M) {
@@ -72,6 +82,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("Failed to set up k8s client: %v", err)
 	}
+	k8s = clientset
 
 	regionalPF, err := testenv.StartPortForward(clientset, restConfig, systemNamespace, regionalLabel)
 	if err != nil {
@@ -88,7 +99,7 @@ func TestMain(m *testing.M) {
 	// roles from the subject, not from the token format.
 	editor := authhelper.AdminEditor()
 
-	regionalURL := fmt.Sprintf("http://localhost:%d", regionalPF.LocalPort)
+	regionalURL = fmt.Sprintf("http://localhost:%d", regionalPF.LocalPort)
 	globalURL = fmt.Sprintf("http://localhost:%d", globalPF.LocalPort)
 
 	if storageClient, err = storagev1.NewClientWithResponses(regionalURL+"/providers/seca.storage", storagev1.WithRequestEditorFn(editor)); err != nil {

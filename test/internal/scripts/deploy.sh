@@ -6,7 +6,14 @@ check_component_arg "$1"
 source_config
 
 setup_kube_vars
-setup_registry_vars "$1"
+# Every delegator deployment runs the one delegator image — only its region scope
+# differs — so the extra ones borrow the image built for "delegator" rather than
+# asking for one nobody builds.
+IMAGE_COMPONENT="${COMPONENT}"
+if [[ "${COMPONENT}" == delegator-* ]]; then
+    IMAGE_COMPONENT="delegator"
+fi
+setup_registry_vars "${IMAGE_COMPONENT}"
 
 DEPLOY_DIR="${SCRIPT_DIR}/../deploy/${COMPONENT}"
 CRDS_DIR="${SCRIPT_DIR}/../../../charts/ecp/crds"
@@ -80,7 +87,7 @@ if setup_chart_vars "${COMPONENT}"; then
     # on KIND); the image built for that plugin must match, so the Makefile threads
     # the same PLUGIN_TYPE into build.sh. The chart derives delegator-<plugin> from
     # it, but IMAGE_VALUE_PATH.repository above already pins the locally built image.
-    if [ "$COMPONENT" == "delegator" ]; then
+    if [[ "$COMPONENT" == delegator* ]]; then
         resolve_plugin_type
         echo "Deploying delegator with plugin: ${PLUGIN_TYPE}"
         HELM_ARGS+=(--set "plugin=${PLUGIN_TYPE}")
