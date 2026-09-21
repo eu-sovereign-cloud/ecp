@@ -22,9 +22,22 @@ import (
 // with no indication of which dependency is missing - see csp/aruba/README.md.
 
 // loadActiveWorkspace loads the SECA Workspace owning scope and reports it only once active.
-func loadActiveWorkspace(ctx context.Context, repo persistence.ReaderRepo[*wsdom.Workspace], scope persistence.Scope) (*wsdom.Workspace, error) {
+//
+// region is required, and is the region of the resource whose dependency this is. A workspace is
+// keyed by tenant AND region, so its CR lives in sha3-224("@region/<region>/<tenant>") — the key
+// built here has to carry the region or the read resolves the plain tenant namespace, finds
+// nothing, and every dependent resource requeues forever with no message. It cannot be taken off
+// persistence.Scope, which has no region, and RegionalMetadata deliberately exposes no GetRegion
+// (see resource/workspace/v1/domain.go), so each caller passes its own resource's region.
+func loadActiveWorkspace(
+	ctx context.Context,
+	repo persistence.ReaderRepo[*wsdom.Workspace],
+	scope persistence.Scope,
+	region string,
+) (*wsdom.Workspace, error) {
 	ws := &wsdom.Workspace{
 		RegionalMetadata: commondomain.RegionalMetadata{
+			Region: region,
 			CommonMetadata: commondomain.CommonMetadata{
 				Name: scope.GetWorkspace(),
 			},

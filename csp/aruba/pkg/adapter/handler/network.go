@@ -144,7 +144,7 @@ func (h *NetworkHandler) BypassDependencyResolver(_ context.Context, domain *net
 // required - the operator creates VPCs with preset=false, so Aruba never derives a subnet or a
 // route table from the VPC, and both are created independently afterwards.
 func (h *NetworkHandler) resolveSecaNetworkDependencies(ctx context.Context, domain *netdom.Network) (*SecaNetworkBundle, error) {
-	ws, err := loadActiveWorkspace(ctx, h.wsRepository, domain)
+	ws, err := loadActiveWorkspace(ctx, h.wsRepository, domain, domain.Region)
 	if err != nil {
 		return nil, err
 	}

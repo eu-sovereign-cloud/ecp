@@ -180,7 +180,7 @@ func (h *ComputeInstanceHandler) resolve(ctx context.Context, domain *instancedo
 		ProjectReference: v1alpha1.ResourceReference{Name: workspace, Namespace: prjNamespace},
 	}
 
-	if _, err := loadActiveWorkspace(ctx, h.wsRepository, domain); err != nil {
+	if _, err := loadActiveWorkspace(ctx, h.wsRepository, domain, domain.Region); err != nil {
 		return nil, err
 	}
 
