@@ -221,7 +221,8 @@ kind-clean-crds: ## Clean all CRDs from the KIND cluster
 #   make deploy-stack E2E_PLUGIN=aruba   # deploy the stack with the aruba plugin
 #   <install the aruba operator + credentials>
 #   make e2e                             # run the suite
-# For a full real-backend IONOS run see conformance-ionos* (conformance/ionos/).
+# For a bundled real-backend run — cluster, backend and suite in one command — see
+# conformance-aruba* (conformance/aruba/) and conformance-ionos* (conformance/ionos/).
 E2E_PLUGIN         ?= dummy
 CONFORMANCE_PLUGIN ?= dummy
 
@@ -368,6 +369,30 @@ kind-conformance: ## One-shot (dummy plugin only): build, load, deploy stack + r
 	@$(MAKE) kind-load-all
 	@$(MAKE) kind-conformance-deploy CONFORMANCE_PLUGIN=dummy
 	@USE_KIND=true ./internal/scripts/conformance.sh
+
+# --- Aruba conformance (real backend) ----------------------------------------
+# The aruba plugin can run in the delegator (CONFORMANCE_PLUGIN=aruba), but that
+# only loads the controllers — nothing provisions until the third-party
+# arubacloud-resource-operator is in the cluster too. This flow is the bundled
+# real-backend run: one KIND cluster, the operator installed with your Aruba API
+# client, the stack deployed with the aruba plugin, then secatest. It lives
+# standalone in conformance/aruba/ and is delegated to here.
+#
+#   make conformance-aruba-all ARUBA_CLIENT_ID=<id> ARUBA_CLIENT_SECRET=<secret> ARUBA_TENANT=<ARU-account>
+#
+# The variables are read by that Makefile, so pass them through on the command line.
+.PHONY: conformance-aruba conformance-aruba-all conformance-aruba-scaffolding conformance-aruba-clean
+conformance-aruba-all: ## One command: KIND cluster + aruba operator + stack + secatest (needs ARUBA_CLIENT_ID/SECRET/TENANT)
+	@$(MAKE) -C conformance/aruba conformance-all
+
+conformance-aruba: ## Run the aruba secatest conformance against an already-scaffolded cluster
+	@$(MAKE) -C conformance/aruba conformance
+
+conformance-aruba-scaffolding: ## Create the cluster, install the aruba operator and deploy the aruba stack
+	@$(MAKE) -C conformance/aruba scaffolding
+
+conformance-aruba-clean: ## Delete the provisioned Aruba resources, then the conformance cluster
+	@$(MAKE) -C conformance/aruba clean
 
 # --- IONOS conformance (real backend) ----------------------------------------
 # The IONOS plugin can run in the delegator (CONFORMANCE_PLUGIN=ionos), but that
