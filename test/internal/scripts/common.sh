@@ -120,8 +120,13 @@ setup_chart_vars() {
             CHART_DIR="${root}/charts/ecp"; HELM_RELEASE="ecp-global"; IMAGE_VALUE_PATH="gatewayGlobal.image" ;;
         gateway-regional)
             CHART_DIR="${root}/charts/ecp"; HELM_RELEASE="ecp-regional"; IMAGE_VALUE_PATH="gatewayRegional.image" ;;
-        delegator)
-            CHART_DIR="${root}/charts/delegator"; HELM_RELEASE="ecp-delegator"; IMAGE_VALUE_PATH="image" ;;
+        delegator|delegator-*)
+            # One chart, one release per delegator deployment. The test stack runs two —
+            # one per region it serves — so the release is derived from the component
+            # rather than pinned: "delegator" keeps ecp-delegator, "delegator-two"
+            # becomes ecp-delegator-two, and the chart's fullname scopes every cluster-
+            # scoped RBAC object with it so the two never collide.
+            CHART_DIR="${root}/charts/delegator"; HELM_RELEASE="ecp-${component}"; IMAGE_VALUE_PATH="image" ;;
         *)
             return 1 ;;
     esac

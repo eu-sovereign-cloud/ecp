@@ -17,16 +17,24 @@ import (
 	bsk8s "github.com/eu-sovereign-cloud/ecp/resource/storage/v1/block-storage/backend/kubernetes"
 )
 
-// foreignRegion is a region the deployed delegator does not serve. It is a real entry in
-// test-data/regions.yaml, so this is a resource the API would accept and place — just not
-// one this delegator is responsible for.
-const foreignRegion = "region-two"
+// foreignRegion is a region NO delegator in the test stack serves. It has to be a third
+// region: the stack deploys one delegator per region it serves (itbg-bergamo and
+// region-two — internal/deploy/delegator*/values.yaml), so naming either of those would
+// assert that a delegator which is deployed for a region ignores it.
+//
+// It is deliberately not in test-data/regions.yaml either. Nothing here goes through a
+// gateway — the CR is written straight through a repo adapter — so the region only has to
+// be a legal label value, and a catalog entry advertising a region no gateway serves would
+// be the more misleading fixture.
+const foreignRegion = "region-unserved"
 
 // TestRegionScopedDelegator is the negative half of the region scope the whole suite runs
-// against: the delegator is deployed for testRegion only (internal/deploy/delegator/values.yaml),
-// so a CR in another region must be left strictly alone — no finalizer, no status, nothing.
-// Reconciling it anyway is how one region's delegator ends up provisioning into another's
-// backend, which no later check would catch.
+// against: this delegator is deployed for testRegion only (internal/deploy/delegator/values.yaml)
+// and its sibling for region-two, so a CR in a region neither serves must be left strictly
+// alone — no finalizer, no status, nothing. Reconciling it anyway is how one region's
+// delegator ends up provisioning into another's backend, which no later check would catch.
+// The positive half — that the sibling does pick up its own region — is
+// test/e2e/region_isolation_test.go, which needs the whole stack.
 //
 // The in-region resource is the control. Without it the assertion would also pass against a
 // delegator that had crashed, which is the failure this test is most likely to be masked by.
