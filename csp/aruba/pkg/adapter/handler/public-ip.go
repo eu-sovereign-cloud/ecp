@@ -131,7 +131,7 @@ func (h *PublicIpHandler) BypassDependencyResolver(_ context.Context, domain *pu
 }
 
 func (h *PublicIpHandler) resolveSecaPublicIpDependencies(ctx context.Context, domain *publicipdom.PublicIp) (*SecaPublicIpBundle, error) {
-	ws, err := loadActiveWorkspace(ctx, h.wsRepository, domain)
+	ws, err := loadActiveWorkspace(ctx, h.wsRepository, domain, domain.Region)
 	if err != nil {
 		return nil, err
 	}

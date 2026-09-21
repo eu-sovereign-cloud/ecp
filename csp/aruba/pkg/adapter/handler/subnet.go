@@ -139,7 +139,7 @@ func (h *SubnetHandler) BypassDependencyResolver(_ context.Context, domain *subn
 // check of its own here: the Aruba resolver waits for that network's VPC to be active, which can
 // only happen once the SECA network itself progressed.
 func (h *SubnetHandler) resolveSecaSubnetDependencies(ctx context.Context, domain *subnetdom.Subnet) (*SecaSubnetBundle, error) {
-	ws, err := loadActiveWorkspace(ctx, h.wsRepository, domain)
+	ws, err := loadActiveWorkspace(ctx, h.wsRepository, domain, domain.Region)
 	if err != nil {
 		return nil, err
 	}

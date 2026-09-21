@@ -186,24 +186,12 @@ func (h *BlockStorageHandler) BypassDependencyResolver(ctx context.Context, doma
 }
 
 func (h *BlockStorageHandler) resolveSecaBlockStorageDependencies(ctx context.Context, domain *bsdom.BlockStorage) (*SecaBlockStorageBundle, error) {
-	ws := &wsdom.Workspace{
-		RegionalMetadata: commondomain.RegionalMetadata{
-			CommonMetadata: commondomain.CommonMetadata{
-				Name: domain.GetWorkspace(),
-			},
-			Scope: res.Scope{
-				Tenant: domain.GetTenant(),
-			},
-		},
-	}
-
-	err := h.wsRepository.Load(ctx, &ws)
+	// Through the shared helper rather than a copy of it: the workspace key has to carry the
+	// region, and a second hand-built one is exactly how this path drifted out of step with
+	// where the CR is stored.
+	ws, err := loadActiveWorkspace(ctx, h.wsRepository, domain, domain.Region)
 	if err != nil {
-		return nil, backend.StillProcessing // TODO: better error handling
-	}
-
-	if ws.Status == nil || ws.Status.State != commondomain.ResourceStateActive {
-		return nil, backend.StillProcessing // TODO: better error handling
+		return nil, err
 	}
 
 	// A SKU is tenant-scoped, so the reference may name a tenant other than this block
