@@ -1,0 +1,14 @@
+# Test-stack values for the SECOND delegator, the one serving region-two.
+#
+# It is the same chart, the same image and the same plugin as ../delegator; only the
+# region scope differs, which is the whole point: the two prove that a cluster can run
+# one delegator per region and that each reconciles strictly its own. The release name
+# comes from the component ("ecp-delegator-two" — see setup_chart_vars in
+# internal/scripts/common.sh), so every cluster-scoped RBAC object is distinct from the
+# first delegator's.
+#
+# Keep this list disjoint from ../delegator/values.yaml: an overlap would let both
+# reconcile the same CR and test/e2e/region_isolation_test.go — which asserts that only
+# one of them ever touches a resource — would start failing intermittently.
+regions:
+  - region-two

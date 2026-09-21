@@ -152,6 +152,7 @@ $(foreach comp,$(DEPLOYMENTS),$(eval $(call kind_deploy_rule,$(comp))))
 #   * test-data        — tenant namespace + storage SKUs + regions (leaf fixture);
 #                        the tenant namespace is where workspace/role CRs are created.
 #   * delegator        — reconciles CRs to Active (dummy plugin); needs test-data.
+#   * delegator-two    — the same, for the second region the stack serves; needs test-data.
 #   * gateway-regional — a pure REST↔CR gateway suite; needs only test-data (tenant
 #                        namespace + SKUs). It never waits for reconciliation, so it
 #                        needs neither the delegator nor the global gateway.
@@ -159,10 +160,12 @@ $(foreach comp,$(DEPLOYMENTS),$(eval $(call kind_deploy_rule,$(comp))))
 # These add-only prerequisite lines augment the recipes generated above; make merges
 # duplicate prerequisites, so test-data is applied once per invocation.
 deploy-delegator: deploy-test-data
+deploy-delegator-two: deploy-test-data
 deploy-gateway-regional: deploy-test-data
 deploy-gateway-global: deploy-test-data
 
 kind-deploy-delegator: kind-deploy-test-data
+kind-deploy-delegator-two: kind-deploy-test-data
 kind-deploy-gateway-regional: kind-deploy-test-data
 kind-deploy-gateway-global: kind-deploy-test-data
 
@@ -210,8 +213,10 @@ kind-clean-crds: ## Clean all CRDs from the KIND cluster
 # The test stack — one deployment for every suite
 # =====================================================================================
 # Integration and e2e run against the SAME stack: test-data (via the prerequisites
-# above), both gateways and the delegator, all with the same AUTH_PLUGIN. Deploy it
-# once and run whatever suite you want; nothing has to be redeployed in between.
+# above), both gateways and one delegator per region the regional gateway serves, all
+# with the same AUTH_PLUGIN. Deploy it once and run whatever suite you want; nothing has
+# to be redeployed in between. The two delegators run the one image with disjoint
+# REGIONS, which is what test/e2e/region_isolation_test.go drives.
 #
 # Which delegator plugin the stack reconciles with. Only the dummy plugin is
 # self-contained (no external backend), so the one-shot targets (kind-integration,
@@ -226,11 +231,11 @@ E2E_PLUGIN         ?= dummy
 CONFORMANCE_PLUGIN ?= dummy
 
 .PHONY: deploy-stack kind-deploy-stack
-deploy-stack: ## Deploy the full test stack (both gateways + delegator + test-data) with AUTH_PLUGIN / E2E_PLUGIN
-	@PLUGIN_TYPE=$(E2E_PLUGIN) $(MAKE) deploy-gateway-global deploy-gateway-regional deploy-delegator
+deploy-stack: ## Deploy the full test stack (both gateways + two delegators + test-data) with AUTH_PLUGIN / E2E_PLUGIN
+	@PLUGIN_TYPE=$(E2E_PLUGIN) $(MAKE) deploy-gateway-global deploy-gateway-regional deploy-delegator deploy-delegator-two
 
 kind-deploy-stack: ## Deploy the full test stack into KIND with AUTH_PLUGIN / E2E_PLUGIN
-	@PLUGIN_TYPE=$(E2E_PLUGIN) $(MAKE) kind-deploy-gateway-global kind-deploy-gateway-regional kind-deploy-delegator
+	@PLUGIN_TYPE=$(E2E_PLUGIN) $(MAKE) kind-deploy-gateway-global kind-deploy-gateway-regional kind-deploy-delegator kind-deploy-delegator-two
 
 .PHONY: kind-stack
 kind-stack: ## Build the component images, load them into KIND and deploy the stack
