@@ -57,6 +57,14 @@ func WorkspaceFromCR(obj client.Object) (*wsdom.Workspace, error) {
 	ws.Provider = strings.ReplaceAll(internalLabels[k8slabels.InternalProviderLabel], "_", "/")
 	ws.Tenant = internalLabels[k8slabels.InternalTenantLabel]
 	ws.Region = cr.Region
+	if ws.Region == "" {
+		// A CR written before region became a field on the CRD carries it only as the
+		// internal label. ToCR writes both, so this only ever fires for an object already
+		// in etcd from an earlier version — but there an empty region would hand the
+		// plugin no region to provision into, and place the domain object in the plain
+		// tenant namespace instead of its per-region one.
+		ws.Region = internalLabels[k8slabels.InternalRegionLabel]
+	}
 	ws.Labels = k8slabels.KeyedToOriginal(keyedLabels, cr.CommonData.Labels)
 	ws.Annotations = cr.CommonData.Annotations
 	ws.Extensions = cr.CommonData.Extensions
