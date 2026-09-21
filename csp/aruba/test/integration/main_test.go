@@ -155,7 +155,14 @@ func TestMain(m *testing.M) {
 	tenantNS = k8sadapter.ComputeNamespace(&kres.Scope{Tenant: tenant})
 	wsNS = k8sadapter.ComputeNamespace(&kres.Scope{Tenant: tenant, Workspace: workspace})
 	netNS = k8sadapter.ComputeNetworkNamespace(&rtdom.RouteTable{RegionalNetworkMetadata: rnMeta("probe")})
-	for _, ns := range []string{tenantNS, wsNS, netNS} {
+	// A workspace is keyed by tenant AND region, so its own CR lives in a per-region namespace
+	// rather than the tenant one. Resolve it through the same call the write path places it with,
+	// so this cannot drift from where the repo will look.
+	wsRegionNS, err := k8sadapter.ResolveNamespace(newWorkspace(workspace))
+	if err != nil {
+		log.Fatalf("workspace namespace: %v", err)
+	}
+	for _, ns := range []string{tenantNS, wsNS, netNS, wsRegionNS} {
 		if err := ensureNamespace(ns); err != nil {
 			log.Fatalf("namespace %s: %v", ns, err)
 		}
