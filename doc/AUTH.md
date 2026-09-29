@@ -359,8 +359,8 @@ all `Role` and `RoleAssignment` resources in the claim's tenant namespace.
 `claim.Region` is the region the **request** was addressed to, not a property of the
 process: a gateway serving several regions resolves it per request (see
 [ARCHITECTURE.md](ARCHITECTURE.md#multi-region-gateways)), and `SECAClaimExtractor` reads
-it back off the request context, falling back to the single region the process was
-configured with. A region-scoped `RoleAssignment` therefore denies the same subject in one
+it back off the request context, falling back to the process's default region (the first of
+`--regions`). A region-scoped `RoleAssignment` therefore denies the same subject in one
 region and allows them in another within one deployment. It is empty on the global gateway,
 where the scope check skips the region dimension.
 

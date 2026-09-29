@@ -42,10 +42,14 @@ type Workspace struct {
 
 	// Region is the region this workspace belongs to, and part of its identity: the same name
 	// in the same tenant is a different workspace in a different region, and each lives in its
-	// own namespace. It is a field rather than only the internal region label so it is visible
-	// in `kubectl get workspace`; the label is still written, because that is what the
-	// gateway's list filter selects on server-side.
-	Region string `json:"region,omitempty"`
+	// own namespace. It is required, and immutable because that namespace is derived from it.
+	// It is the source of truth, visible in `kubectl get workspace`; WorkspaceToCR writes the
+	// internal region label from the same value, because that label is what the gateway's list
+	// filter and the delegator's region scope select on.
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="region is immutable"
+	Region string `json:"region"`
 
 	// WorkspaceSpec is a type alias for map[string]string. Use the underlying
 	// map type here to avoid a controller-gen v0.20 panic on type aliases.

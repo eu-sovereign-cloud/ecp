@@ -121,7 +121,10 @@ func TestWorkspaceController_Reconcile(t *testing.T) {
 				return nil
 			}).Times(1)
 
+		// As WorkspaceToCR writes it: the field is what the plugin is handed, the label what
+		// routed the CR to this delegator.
 		creating := newK8sResource()
+		creating.Region = testRegion
 		creating.Labels[k8slabels.InternalRegionLabel] = testRegion
 		creating.Status = &WorkspaceStatus{State: schemav1.ResourceStateCreating}
 

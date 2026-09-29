@@ -1,19 +1,22 @@
 package cmd
 
 import (
-	"fmt"
+	"errors"
+	"os"
 	"slices"
 	"strings"
 )
 
 // resolveRegions returns the set of regions the regional gateway serves and the region an
-// unprefixed request falls back to.
+// unprefixed request is served as.
 //
-// One region (--region, the only form before multi-region support) keeps behaving exactly as
-// it did: it is both the served set and the default. --regions widens the served set; --region
-// then names which of them an unprefixed request means, and defaults to the first listed.
-func resolveRegions(region string, regions []string) (served []string, defaultRegion string, err error) {
-	defaultRegion = strings.TrimSpace(region)
+// The set is --regions, or the REGIONS environment variable when the flag is unset, trimmed
+// and with blanks and duplicates dropped. The default is always the first entry, so a single
+// region is both the whole served set and the default, and a list is ordered by intent.
+func resolveRegions(regions []string) (served []string, defaultRegion string, err error) {
+	if len(regions) == 0 {
+		regions = strings.Split(os.Getenv("REGIONS"), ",")
+	}
 
 	for _, r := range regions {
 		if r = strings.TrimSpace(r); r != "" && !slices.Contains(served, r) {
@@ -21,18 +24,11 @@ func resolveRegions(region string, regions []string) (served []string, defaultRe
 		}
 	}
 
-	switch {
-	case len(served) == 0 && defaultRegion == "":
+	if len(served) == 0 {
 		// Fail fast: no region mis-scopes every regional request (authz region, resource
 		// placement, list filtering) for the process life.
-		return nil, "", fmt.Errorf("region is required: set --region/--regions or the REGION/REGIONS environment variable")
-	case len(served) == 0:
-		served = []string{defaultRegion}
-	case defaultRegion == "":
-		defaultRegion = served[0]
-	case !slices.Contains(served, defaultRegion):
-		return nil, "", fmt.Errorf("--region %q is not listed in --regions %v", defaultRegion, served)
+		return nil, "", errors.New("regions is required: set --regions or the REGIONS environment variable")
 	}
 
-	return served, defaultRegion, nil
+	return served, served[0], nil
 }

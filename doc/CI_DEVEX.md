@@ -331,7 +331,9 @@ Stage 1 — cheap gates, run in parallel
   module-diff      Detect which Go modules changed (dorny/paths-filter, config derived from go.work)
   branch-rebase    Verify branch is rebased onto its target (make branch-rebase-verify)
   go-sdk-verify    Verify go-sdk submodule and go.mod pins agree (make go-sdk-verify)
-  chart-lint       helm lint + template both charts (every delegator plugin)
+  chart-lint       helm lint + template both charts (every delegator plugin),
+                   and assert gatewayRegional.regions renders into --regions in
+                   order and that rendering fails without it
   chart-smoke      Install both charts on KIND from the published Dockerfiles,
                    assert the gateway enforces the auth the values asked for,
                    then seed test-data and run the test/load k6 smoke journey

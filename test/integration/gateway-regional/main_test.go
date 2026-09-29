@@ -20,6 +20,7 @@ import (
 	"github.com/eu-sovereign-cloud/go-sdk/pkg/spec/schema"
 
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/dynamic"
 
 	"github.com/eu-sovereign-cloud/ecp/test/internal/testenv"
 )
@@ -49,6 +50,10 @@ var (
 	workspaceClient *workspacev1.ClientWithResponses
 
 	regionalLocalPort uint16
+
+	// dynClient reads back the CRs the gateway writes, for the checks on what a request
+	// translates to that its response does not show (the Workspace CR's region label).
+	dynClient dynamic.Interface
 )
 
 // TestMain wires the suite to the regional gateway alone. The regional suite
@@ -62,6 +67,11 @@ func TestMain(m *testing.M) {
 	restConfig, clientset, err := testenv.SetupK8sClient()
 	if err != nil {
 		log.Fatalf("Failed to set up k8s client: %v", err)
+	}
+
+	dynClient, err = dynamic.NewForConfig(restConfig)
+	if err != nil {
+		log.Fatalf("Failed to create dynamic client: %v", err)
 	}
 
 	pf, err := testenv.StartPortForward(clientset, restConfig, systemNamespace, gatewayLabel)

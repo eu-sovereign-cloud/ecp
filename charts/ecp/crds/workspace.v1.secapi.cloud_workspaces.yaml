@@ -73,10 +73,15 @@ spec:
             description: |-
               Region is the region this workspace belongs to, and part of its identity: the same name
               in the same tenant is a different workspace in a different region, and each lives in its
-              own namespace. It is a field rather than only the internal region label so it is visible
-              in `kubectl get workspace`; the label is still written, because that is what the
-              gateway's list filter selects on server-side.
+              own namespace. It is required, and immutable because that namespace is derived from it.
+              It is the source of truth, visible in `kubectl get workspace`; WorkspaceToCR writes the
+              internal region label from the same value, because that label is what the gateway's list
+              filter and the delegator's region scope select on.
+            minLength: 1
             type: string
+            x-kubernetes-validations:
+            - message: region is immutable
+              rule: self == oldSelf
           spec:
             additionalProperties:
               type: string
@@ -156,6 +161,8 @@ spec:
             required:
             - conditions
             type: object
+        required:
+        - region
         type: object
     served: true
     storage: true

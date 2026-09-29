@@ -55,8 +55,9 @@ type GenericController[D persistence.IdentifiableResource] struct {
 // global delegator — and every single-region deployment before this existed — runs.
 //
 // It is a watch filter and nothing else. The region a plugin acts on always comes from the CR
-// it is handed (domain.RegionalMetadata.Region, read off the same label by the slice's FromCR),
-// never from this set, so a delegator cannot place a resource in a region its CR does not name.
+// it is handed (domain.RegionalMetadata.Region, read off the same label by the slice's FromCR —
+// for Workspace, off its required region field, written together with the label), never from
+// this set, so a delegator cannot place a resource in a region its CR does not name.
 //
 // builder.ControllerSet calls it on every controller it holds, so a delegator is scoped once
 // for its whole controller set rather than per resource.

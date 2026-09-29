@@ -21,7 +21,8 @@ type Handler struct {
 	Logger         *slog.Logger
 	// Region is the default region this handler serves: what a request that named no
 	// region is served as. A gateway may serve several, in which case the region resolved
-	// for the request (resource.RegionFromContext) wins. Empty on the global server.
+	// for the request (resource.RegionFromContext) wins. Always set: it is the first of the
+	// gateway's --regions (this handler is served only by the regional gateway).
 	Region string
 }
 

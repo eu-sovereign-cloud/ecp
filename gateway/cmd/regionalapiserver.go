@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strings"
 	"syscall"
 
 	"github.com/spf13/cobra"
@@ -69,7 +68,6 @@ import (
 )
 
 var (
-	region             string
 	regions            []string
 	regionalHost       string
 	regionalPort       string
@@ -94,13 +92,10 @@ var regionalApiServerCMD = &cobra.Command{
 }
 
 func init() {
-	regionalApiServerCMD.Flags().StringVar(
-		&region, "region", "", "The region served by the regional gateway, and the one a request that names none is served as",
-	)
 	regionalApiServerCMD.Flags().StringSliceVar(
 		&regions, "regions", nil,
-		"Comma-separated regions this gateway serves; a request selects one with a /regions/<region> path prefix, "+
-			"and --region (the first of these when unset) is the default for requests that name none",
+		"Comma-separated regions this gateway serves (required; REGIONS when unset). The first is the default "+
+			"a request that names no region is served as; a request selects another with a /regions/<region> path prefix",
 	)
 	regionalApiServerCMD.Flags().StringVar(
 		&regionalHost, "regionalHost", "0.0.0.0", "Host to bind the server to",
@@ -119,13 +114,7 @@ func init() {
 
 // startRegional starts the backend HTTP server on the given address.
 func startRegional(logger *slog.Logger, addr string, kubeconfigPath string) error {
-	if region == "" {
-		region = os.Getenv("REGION")
-	}
-	if len(regions) == 0 && os.Getenv("REGIONS") != "" {
-		regions = strings.Split(os.Getenv("REGIONS"), ",")
-	}
-	servedRegions, defaultRegion, err := resolveRegions(region, regions)
+	servedRegions, defaultRegion, err := resolveRegions(regions)
 	if err != nil {
 		return err
 	}

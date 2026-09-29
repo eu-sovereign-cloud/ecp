@@ -16,6 +16,19 @@ import (
 	wsdom "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1"
 )
 
+// newTestWorkspace is the workspace name in testTenant and testRegion: what a create writes and
+// the identity every load and delete addresses it by.
+func newTestWorkspace(name string) *wsdom.Workspace {
+	return &wsdom.Workspace{
+		RegionalMetadata: commondomain.RegionalMetadata{
+			CommonMetadata: commondomain.CommonMetadata{Name: name},
+			Scope:          kernelresource.Scope{Tenant: testTenant},
+			Region:         testRegion,
+		},
+		Spec: wsdom.WorkspaceSpec{},
+	}
+}
+
 func TestWorkspace(t *testing.T) {
 	t.Parallel()
 
@@ -23,24 +36,13 @@ func TestWorkspace(t *testing.T) {
 		t.Parallel()
 
 		resourceName := "test-ws-create-" + uuid.New().String()[:8]
-		wsDomain := &wsdom.Workspace{
-			RegionalMetadata: commondomain.RegionalMetadata{
-				CommonMetadata: commondomain.CommonMetadata{Name: resourceName},
-				Scope:          kernelresource.Scope{Tenant: "test-tenant"},
-			},
-			Spec: wsdom.WorkspaceSpec{},
-		}
+		wsDomain := newTestWorkspace(resourceName)
 
 		_, err := workspaceRepo.Create(t.Context(), wsDomain)
 		require.NoError(t, err)
 
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
-			loadedWs := &wsdom.Workspace{
-				RegionalMetadata: commondomain.RegionalMetadata{
-					CommonMetadata: commondomain.CommonMetadata{Name: resourceName},
-					Scope:          kernelresource.Scope{Tenant: "test-tenant"},
-				},
-			}
+			loadedWs := newTestWorkspace(resourceName)
 			if err := workspaceRepo.Load(ctx, &loadedWs); err != nil {
 				return false, err
 			}
@@ -53,23 +55,12 @@ func TestWorkspace(t *testing.T) {
 		t.Parallel()
 
 		resourceName := "test-ws-delete-" + uuid.New().String()[:8]
-		wsDomain := &wsdom.Workspace{
-			RegionalMetadata: commondomain.RegionalMetadata{
-				CommonMetadata: commondomain.CommonMetadata{Name: resourceName},
-				Scope:          kernelresource.Scope{Tenant: "test-tenant"},
-			},
-			Spec: wsdom.WorkspaceSpec{},
-		}
+		wsDomain := newTestWorkspace(resourceName)
 		_, err := workspaceRepo.Create(t.Context(), wsDomain)
 		require.NoError(t, err)
 
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
-			loadedWs := &wsdom.Workspace{
-				RegionalMetadata: commondomain.RegionalMetadata{
-					CommonMetadata: commondomain.CommonMetadata{Name: resourceName},
-					Scope:          kernelresource.Scope{Tenant: "test-tenant"},
-				},
-			}
+			loadedWs := newTestWorkspace(resourceName)
 			if err := workspaceRepo.Load(ctx, &loadedWs); err != nil {
 				return false, err
 			}
@@ -81,12 +72,7 @@ func TestWorkspace(t *testing.T) {
 		require.NoError(t, err)
 
 		err = wait.PollUntilContextTimeout(t.Context(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
-			loadedWs := &wsdom.Workspace{
-				RegionalMetadata: commondomain.RegionalMetadata{
-					CommonMetadata: commondomain.CommonMetadata{Name: resourceName},
-					Scope:          kernelresource.Scope{Tenant: "test-tenant"},
-				},
-			}
+			loadedWs := newTestWorkspace(resourceName)
 			if err := workspaceRepo.Load(ctx, &loadedWs); err != nil {
 				if domainErr := kernel.AsError(err); domainErr != nil && domainErr.Kind == kernel.KindNotFound {
 					return true, nil

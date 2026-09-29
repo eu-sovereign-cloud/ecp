@@ -18,7 +18,7 @@ spec:
         - name: server
           image: registry.secapi.cloud/regional-server:latest
           env:
-            - name: REGION
+            - name: REGIONS
               value: "itbg-bergamo"
           imagePullPolicy: IfNotPresent
           ports:

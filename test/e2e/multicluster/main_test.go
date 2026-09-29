@@ -32,7 +32,8 @@ import (
 const (
 	globalLabel = "app=gateway-global"
 
-	// testRegion must match both the regional gateway's REGION env and the name
+	// testRegion must be the regional gateway's default region — the first of its
+	// gatewayRegional.regions, since the suite calls it unprefixed — and the name
 	// register-region.sh writes.
 	testRegion    = "itbg-bergamo"
 	testWorkspace = "mc-workspace"

@@ -9,13 +9,17 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
 	k8sinterface "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	kernelresource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
@@ -45,7 +49,10 @@ func TestWorkspaceBackend(t *testing.T) {
 	if len(tenant) > 63 {
 		tenant = tenant[:63]
 	}
-	const workspaceName = "test-workspace"
+	const (
+		workspaceName   = "test-workspace"
+		workspaceRegion = "region-one"
+	)
 
 	writerRepo := k8sadapter.NewNamespaceManagingWriterAdapter[*wsdom.Workspace](
 		dynClient,
@@ -66,13 +73,25 @@ func TestWorkspaceBackend(t *testing.T) {
 
 	ctx := context.Background()
 
-	// The tenant namespace is deliberately NOT pre-created: against a real API server, a write
-	// into a missing namespace fails, so create_workspace below passing is the proof that the
-	// writer provisions the namespace the Workspace CR itself lives in.
-	namespace := k8sadapter.ComputeNamespace(&kernelresource.Scope{Tenant: tenant})
+	// lookup is the identity every read, update and delete addresses the workspace by: a
+	// workspace is keyed by tenant, name and region.
+	lookup := func(name string) *wsdom.Workspace {
+		ws := &wsdom.Workspace{}
+		ws.Name = name
+		ws.Tenant = tenant
+		ws.Region = workspaceRegion
+		return ws
+	}
+
+	// Neither the tenant nor the per-region namespace is pre-created: against a real API
+	// server, a write into a missing namespace fails, so create_workspace below passing is the
+	// proof that the writer provisions the namespace the Workspace CR itself lives in.
+	tenantNamespace := k8sadapter.ComputeNamespace(&kernelresource.Scope{Tenant: tenant})
+	namespace := k8sadapter.ComputeRegionNamespace(lookup(workspaceName))
 	childNamespace := k8sadapter.ComputeNamespace(&kernelresource.Scope{Tenant: tenant, Workspace: workspaceName})
 
 	t.Cleanup(func() {
+		_ = k8sadapter.DeleteNamespace(context.Background(), clientset, tenantNamespace)
 		_ = k8sadapter.DeleteNamespace(context.Background(), clientset, namespace)
 		_ = k8sadapter.DeleteNamespace(context.Background(), clientset, childNamespace)
 	})
@@ -82,6 +101,7 @@ func TestWorkspaceBackend(t *testing.T) {
 			RegionalMetadata: commondomain.RegionalMetadata{
 				CommonMetadata: commondomain.CommonMetadata{Name: workspaceName},
 				Scope:          kernelresource.Scope{Tenant: tenant},
+				Region:         workspaceRegion,
 				Labels:         map[string]string{k8slabels.InternalTenantLabel: tenant},
 			},
 			Spec: wsdom.WorkspaceSpec{
@@ -129,9 +149,7 @@ func TestWorkspaceBackend(t *testing.T) {
 	})
 
 	t.Run("get_workspace", func(t *testing.T) {
-		ws := &wsdom.Workspace{}
-		ws.Name = workspaceName
-		ws.Tenant = tenant
+		ws := lookup(workspaceName)
 		err := readerRepo.Load(ctx, &ws)
 		require.NoError(t, err)
 		retrieved := ws
@@ -150,16 +168,15 @@ func TestWorkspaceBackend(t *testing.T) {
 	})
 
 	t.Run("get_nonexistent_workspace", func(t *testing.T) {
-		ws := &wsdom.Workspace{}
-		ws.Name = "missing-workspace"
-		ws.Tenant = tenant
+		ws := lookup("missing-workspace")
 		err := readerRepo.Load(ctx, &ws)
 		require.Error(t, err)
 	})
 
 	t.Run("list_workspace", func(t *testing.T) {
 		var workspaces []*wsdom.Workspace
-		_, err := readerRepo.List(ctx, kernelresource.ListParams{Scope: kernelresource.Scope{Tenant: tenant}}, &workspaces)
+		params := regionListParams{ListParams: kernelresource.ListParams{Scope: kernelresource.Scope{Tenant: tenant}}, region: workspaceRegion}
+		_, err := readerRepo.List(ctx, params, &workspaces)
 		require.NoError(t, err)
 		require.Len(t, workspaces, 1)
 		require.Equal(t, workspaceName, workspaces[0].Name)
@@ -167,9 +184,7 @@ func TestWorkspaceBackend(t *testing.T) {
 
 	t.Run("update_workspace", func(t *testing.T) {
 		// First get the current resource version
-		ws := &wsdom.Workspace{}
-		ws.Name = workspaceName
-		ws.Tenant = tenant
+		ws := lookup(workspaceName)
 		err := readerRepo.Load(ctx, &ws)
 		require.NoError(t, err)
 
@@ -179,7 +194,8 @@ func TestWorkspaceBackend(t *testing.T) {
 					Name:            workspaceName,
 					ResourceVersion: ws.ResourceVersion,
 				},
-				Scope: kernelresource.Scope{Tenant: tenant},
+				Scope:  kernelresource.Scope{Tenant: tenant},
+				Region: workspaceRegion,
 			},
 			Spec: wsdom.WorkspaceSpec{
 				"test-string": "updated-value",
@@ -199,9 +215,7 @@ func TestWorkspaceBackend(t *testing.T) {
 	})
 
 	t.Run("delete_workspace", func(t *testing.T) {
-		del := &wsdom.Workspace{}
-		del.Name = workspaceName
-		del.Tenant = tenant
+		del := lookup(workspaceName)
 		err := writerRepo.Delete(ctx, del)
 		require.NoError(t, err)
 
@@ -220,9 +234,7 @@ func TestWorkspaceBackend(t *testing.T) {
 		require.Equal(t, tenant, ns.Labels[k8slabels.InternalTenantLabel])
 		require.Equal(t, workspaceName, ns.Labels[k8slabels.InternalWorkspaceLabel])
 
-		del := &wsdom.Workspace{}
-		del.Name = workspaceName
-		del.Tenant = tenant
+		del := lookup(workspaceName)
 
 		cleanup := k8sadapter.NamespaceCleanup[*wsdom.Workspace](
 			dynClient, clientset, slog.Default(), WorkspaceGVR, k8sadapter.WorkspaceChildren, nil,
@@ -239,6 +251,15 @@ func TestWorkspaceBackend(t *testing.T) {
 		require.NoError(t, cleanup(ctx, del), "cleanup must tolerate a namespace already deleted")
 	})
 }
+
+// regionListParams is the list filter the workspace handler builds: ListParams plus the region
+// the request is addressed to, which is what resolves the per-region namespace to list.
+type regionListParams struct {
+	kernelresource.ListParams
+	region string
+}
+
+func (p regionListParams) GetRegion() string { return p.region }
 
 // TestWorkspaceRegionIdentity is the whole point of issue #396, against a real API server:
 // one tenant can hold a workspace of the same name in two regions, each addressable only
@@ -359,5 +380,179 @@ func TestWorkspaceRegionIdentity(t *testing.T) {
 		after, err := clientset.CoreV1().Namespaces().Get(ctx, childNamespace, metav1.GetOptions{})
 		require.NoError(t, err)
 		require.NotNil(t, after.DeletionTimestamp, "the last owner deleted must reclaim the namespace")
+	})
+}
+
+// TestWorkspaceRegionFieldAndLabelInSync holds a Workspace CR's region field and its internal
+// region label together against a real API server, with the generated CRD loaded. The field is
+// what the plugin provisions into and the namespace is derived from; the label is what the
+// gateway's list filter and the delegator's region scope select on. A CR on which they disagree is
+// listed and reconciled as one region and created in another, so: the CRD refuses a CR with no
+// region and a region change, every adapter write path leaves the two equal, a write that could
+// only split them is refused rather than applied, and one that can repair a diverged label does.
+func TestWorkspaceRegionFieldAndLabelInSync(t *testing.T) {
+	t.Parallel()
+
+	testCfg := rest.CopyConfig(cfg)
+	testCfg.QPS = 50
+	testCfg.Burst = 100
+
+	dynClient, err := dynamic.NewForConfig(testCfg)
+	require.NoError(t, err)
+	clientset, err := k8sinterface.NewForConfig(testCfg)
+	require.NoError(t, err)
+
+	const (
+		workspaceName = "in-sync"
+		region        = "region-one"
+		otherRegion   = "region-two"
+	)
+	tenant := "t-region-sync"
+
+	writerRepo := k8sadapter.NewNamespaceManagingWriterAdapter[*wsdom.Workspace](
+		dynClient, clientset, WorkspaceGVR, slog.Default(), Converter, k8sadapter.WorkspaceChildren, nil,
+	)
+	readerRepo := k8sadapter.NewReaderAdapter[*wsdom.Workspace](
+		dynClient, WorkspaceGVR, slog.Default(), WorkspaceFromCR,
+	)
+
+	newWorkspace := func(name, region string, spec wsdom.WorkspaceSpec) *wsdom.Workspace {
+		return &wsdom.Workspace{
+			RegionalMetadata: commondomain.RegionalMetadata{
+				CommonMetadata: commondomain.CommonMetadata{Name: name},
+				Scope:          kernelresource.Scope{Tenant: tenant},
+				Region:         region,
+			},
+			Spec: spec,
+		}
+	}
+	namespace := k8sadapter.ComputeRegionNamespace(newWorkspace(workspaceName, region, nil))
+	crs := dynClient.Resource(WorkspaceGVR).Namespace(namespace)
+
+	ctx := context.Background()
+	t.Cleanup(func() {
+		for _, name := range []string{workspaceName, "hand-written"} {
+			_ = crs.Delete(context.Background(), name, metav1.DeleteOptions{})
+		}
+		for _, ns := range []string{
+			namespace,
+			k8sadapter.ComputeNamespace(&kernelresource.Scope{Tenant: tenant}),
+			k8sadapter.ComputeNamespace(&kernelresource.Scope{Tenant: tenant, Workspace: workspaceName}),
+		} {
+			_ = k8sadapter.DeleteNamespace(context.Background(), clientset, ns)
+		}
+	})
+
+	// requireInSync reads the stored CR and fails unless its field and label both say want.
+	requireInSync := func(t *testing.T, name, want string) {
+		t.Helper()
+		cr, err := crs.Get(ctx, name, metav1.GetOptions{})
+		require.NoError(t, err)
+		require.Equal(t, want, cr.Object["region"], "region field")
+		require.Equal(t, want, cr.GetLabels()[k8slabels.InternalRegionLabel], "region label")
+	}
+
+	t.Run("a workspace without a region is refused", func(t *testing.T) {
+		_, err := writerRepo.Create(ctx, newWorkspace(workspaceName, "", nil))
+		require.Error(t, err)
+		require.Equal(t, kernel.KindValidation, kernel.AsError(err).Kind)
+		require.ErrorContains(t, err, "region is required", "the converter refuses it before the CR write")
+		require.False(t, apierrors.IsInvalid(err), "the refusal must not be the API server's")
+
+		// Past the converter, the CRD itself refuses a CR with the field missing or empty.
+		require.NoError(t, k8sadapter.CreateNamespace(ctx, clientset, namespace, nil))
+		raw := &unstructured.Unstructured{Object: map[string]any{
+			"apiVersion": GroupVersion.String(),
+			"kind":       WorkspaceKind,
+			"metadata":   map[string]any{"name": "no-region", "namespace": namespace},
+		}}
+		_, err = crs.Create(ctx, raw, metav1.CreateOptions{})
+		require.True(t, apierrors.IsInvalid(err), "a CR with no region field must be invalid, got %v", err)
+
+		raw.Object["region"] = ""
+		_, err = crs.Create(ctx, raw, metav1.CreateOptions{})
+		require.True(t, apierrors.IsInvalid(err), "a CR with an empty region must be invalid, got %v", err)
+	})
+
+	t.Run("every write path leaves field and label equal", func(t *testing.T) {
+		_, err := writerRepo.Create(ctx, newWorkspace(workspaceName, region, wsdom.WorkspaceSpec{"step": "create"}))
+		require.NoError(t, err)
+		requireInSync(t, workspaceName, region)
+
+		// No resourceVersion: the read-modify-write arm, the one that copies fields one by one.
+		_, err = writerRepo.Update(ctx, newWorkspace(workspaceName, region, wsdom.WorkspaceSpec{"step": "unversioned"}))
+		require.NoError(t, err)
+		requireInSync(t, workspaceName, region)
+
+		// With the resourceVersion just read: the full-replace arm, as a plugin writes.
+		current := newWorkspace(workspaceName, region, nil)
+		require.NoError(t, readerRepo.Load(ctx, &current))
+		current.Spec = wsdom.WorkspaceSpec{"step": "versioned"}
+		_, err = writerRepo.Update(ctx, current)
+		require.NoError(t, err)
+		requireInSync(t, workspaceName, region)
+
+		// The status subresource, as the delegator writes it.
+		require.NoError(t, readerRepo.Load(ctx, &current))
+		current.Status = &wsdom.WorkspaceStatus{}
+		current.Status.PushCondition(commondomain.DefaultPendingCondition)
+		_, err = writerRepo.UpdateStatus(ctx, current)
+		require.NoError(t, err)
+		requireInSync(t, workspaceName, region)
+	})
+
+	t.Run("the region is immutable", func(t *testing.T) {
+		patch := []byte(`{"region":"` + otherRegion + `"}`)
+		_, err := crs.Patch(ctx, workspaceName, types.MergePatchType, patch, metav1.PatchOptions{})
+		require.True(t, apierrors.IsInvalid(err), "changing the region must be refused, got %v", err)
+		require.ErrorContains(t, err, "region is immutable")
+
+		_, err = crs.Patch(ctx, workspaceName, types.MergePatchType, []byte(`{"region":null}`), metav1.PatchOptions{})
+		require.True(t, apierrors.IsInvalid(err), "removing the region must be refused, got %v", err)
+
+		requireInSync(t, workspaceName, region)
+	})
+
+	// The label is not covered by the CRD — no CRD rule can read metadata.labels — so an edit
+	// out of band can still move it. The next write through the adapter puts it back.
+	t.Run("the next write repairs a label moved out of band", func(t *testing.T) {
+		patch := []byte(`{"metadata":{"labels":{"` + k8slabels.InternalRegionLabel + `":"` + otherRegion + `"}}}`)
+		_, err := crs.Patch(ctx, workspaceName, types.MergePatchType, patch, metav1.PatchOptions{})
+		require.NoError(t, err)
+
+		ws := newWorkspace(workspaceName, region, nil)
+		require.NoError(t, readerRepo.Load(ctx, &ws))
+		require.Equal(t, region, ws.Region, "the reader takes the field, never the label")
+
+		_, err = writerRepo.Update(ctx, newWorkspace(workspaceName, region, wsdom.WorkspaceSpec{"step": "repair"}))
+		require.NoError(t, err)
+		requireInSync(t, workspaceName, region)
+	})
+
+	// A CR written by hand into this region's namespace, but naming another region, agrees with
+	// itself and not with where it lives. An update addressed to this region would move the
+	// label to it; carrying the field along runs into the immutability rule, so the write is
+	// refused and the CR is left as it was — never half-moved.
+	t.Run("a write that could only split them is refused", func(t *testing.T) {
+		stray := &unstructured.Unstructured{Object: map[string]any{
+			"apiVersion": GroupVersion.String(),
+			"kind":       WorkspaceKind,
+			"metadata": map[string]any{
+				"name":      "hand-written",
+				"namespace": namespace,
+				"labels": map[string]any{
+					k8slabels.InternalTenantLabel: tenant,
+					k8slabels.InternalRegionLabel: otherRegion,
+				},
+			},
+			"region": otherRegion,
+		}}
+		_, err := crs.Create(ctx, stray, metav1.CreateOptions{})
+		require.NoError(t, err)
+
+		_, err = writerRepo.Update(ctx, newWorkspace("hand-written", region, wsdom.WorkspaceSpec{"step": "split"}))
+		require.Error(t, err)
+		require.Equal(t, kernel.KindValidation, kernel.AsError(err).Kind)
+		requireInSync(t, "hand-written", otherRegion)
 	})
 }

@@ -9,12 +9,11 @@ gatewayGlobal:
   enabled: false
 
 gatewayRegional:
-  # The default region: what a request that names none is served as. Must match a region
-  # in test-data/regions.yaml.
-  region: itbg-bergamo
-  # One deployment, two regions. region-two is reachable only under its
-  # /regions/region-two prefix, which is what the multi-region suites drive; every other
-  # request is still served as itbg-bergamo, so the rest of the suites are unaffected.
+  # One deployment, two regions. The first, itbg-bergamo, is the default: what a request
+  # that names none is served as, so it must stay first and match a region in
+  # test-data/regions.yaml — every suite's testRegion depends on it. region-two is
+  # reachable only under its /regions/region-two prefix, which is what the multi-region
+  # suites drive.
   regions:
     - itbg-bergamo
     - region-two

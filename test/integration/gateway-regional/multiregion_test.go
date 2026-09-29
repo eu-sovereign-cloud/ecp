@@ -24,8 +24,8 @@ import (
 // path prefix; an unprefixed request is still served as the default region.
 const secondRegion = "region-two"
 
-// defaultRegion is the region an unprefixed request is served as
-// (gatewayRegional.region in internal/deploy/gateway-regional/values.yaml).
+// defaultRegion is the region an unprefixed request is served as: the first entry of
+// gatewayRegional.regions in internal/deploy/gateway-regional/values.yaml.
 const defaultRegion = "itbg-bergamo"
 
 // regionalPathClient returns a workspace client rooted at the gateway's region path prefix,
@@ -185,6 +185,38 @@ func TestMultiRegionRouting(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, survivor.StatusCode(),
 			"deleting a workspace in one region must not delete the same name in another")
+	})
+
+	// The response echoes the region, but the CR is what the list filter, the delegator's region
+	// scope and the plugin read, and it carries the region twice: as its field and as its label.
+	// Both must be the region the request was addressed to, through a create and an update.
+	t.Run("the workspace CR carries the addressed region as field and label", func(t *testing.T) {
+		name := "mr-sync-" + uuid.New().String()[:8]
+		clients := map[string]*workspacev1.ClientWithResponses{
+			defaultRegion: workspaceClient,
+			secondRegion:  secondClient,
+		}
+		t.Cleanup(func() {
+			for _, c := range clients {
+				testenv.DeleteUntilGone(context.Background(), func() (*http.Response, error) {
+					return c.DeleteWorkspace(context.Background(), testTenant, name, nil)
+				})
+			}
+		})
+
+		for region, client := range clients {
+			for _, step := range []string{"create", "update"} {
+				resp, err := client.CreateOrUpdateWorkspaceWithResponse(context.Background(), testTenant, name, nil,
+					schema.Workspace{Spec: map[string]any{"step": step}})
+				require.NoError(t, err)
+				require.Equalf(t, http.StatusOK, resp.StatusCode(), "%s in %q", step, region)
+
+				field, label, err := testenv.WorkspaceRegion(context.Background(), dynClient, testTenant, name, region)
+				require.NoError(t, err)
+				require.Equalf(t, region, field, "region field after %s in %q", step, region)
+				require.Equalf(t, region, label, "region label after %s in %q", step, region)
+			}
+		}
 	})
 
 	t.Run("a region this gateway does not serve is a 404", func(t *testing.T) {

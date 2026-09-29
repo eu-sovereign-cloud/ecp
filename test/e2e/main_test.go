@@ -22,6 +22,7 @@ import (
 	storagev1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.storage.v1"
 	workspacev1 "github.com/eu-sovereign-cloud/go-sdk/pkg/spec/foundation.workspace.v1"
 
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 
 	authhelper "github.com/eu-sovereign-cloud/ecp/test/internal/authhelper"
@@ -75,6 +76,9 @@ var (
 	// cannot make: where a CR was placed, and which delegator pod logged it
 	// (see region_isolation_test.go).
 	k8s kubernetes.Interface
+	// dyn reads the SECA CRs themselves, for what a response does not show: the region a
+	// Workspace CR carries as its label beside its field (see region_isolation_test.go).
+	dyn dynamic.Interface
 )
 
 func TestMain(m *testing.M) {
@@ -83,6 +87,9 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Failed to set up k8s client: %v", err)
 	}
 	k8s = clientset
+	if dyn, err = dynamic.NewForConfig(restConfig); err != nil {
+		log.Fatalf("Failed to create dynamic client: %v", err)
+	}
 
 	regionalPF, err := testenv.StartPortForward(clientset, restConfig, systemNamespace, regionalLabel)
 	if err != nil {

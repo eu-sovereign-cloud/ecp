@@ -5,7 +5,8 @@ Helm chart for the European Control Plane (ECP) API servers:
 - **gateway-global** — serves the global SECA providers (`seca.region`,
   `seca.authorization`).
 - **gateway-regional** — serves the regional SECA providers (`seca.workspace`,
-  `seca.storage`, `seca.network`, `seca.compute`) for one region.
+  `seca.storage`, `seca.network`, `seca.compute`) for the regions listed in
+  `gatewayRegional.regions`; the first is the default.
 
 Reconciliation is done by the [`delegator`](../delegator), which runs
 alongside the regional gateway with `plugin` set to the CSP you run. It ships
@@ -23,13 +24,12 @@ binary) and the chart supports either layout via the `enabled` toggles:
 - **Split** (the realistic production layout, as in the IONOS split demo —
   see `doc/PLUGINS.md`): install the chart once per cluster —
   `--set gatewayRegional.enabled=false` on the global cluster,
-  `--set gatewayGlobal.enabled=false --set gatewayRegional.region=<region>`
+  `--set gatewayGlobal.enabled=false --set 'gatewayRegional.regions={<region>}'`
   on each regional cluster.
-- **Multi-region** (one self-installable cluster serving several regions): add
-  `--set gatewayRegional.regions={<region-a>,<region-b>}`. One regional gateway then
-  serves all of them, selected per request by a `/regions/<region>` path prefix;
-  `gatewayRegional.region` stays the default for requests that name none, and defaults to
-  the first entry. Advertise the prefixed URLs in each Region CR's `providers[].url` so
+- **Multi-region** (one self-installable cluster serving several regions): list them all,
+  `--set 'gatewayRegional.regions={<region-a>,<region-b>}'`. One regional gateway then
+  serves all of them, selected per request by a `/regions/<region>` path prefix; the
+  **first** is the default for requests that name none. Advertise the prefixed URLs in each Region CR's `providers[].url` so
   clients discover the right base URL. A `Workspace` is identified by tenant **and** region, so
   a tenant can use the same workspace name in each region; every resource below a workspace is
   still keyed by tenant/workspace alone and is shared across the regions of one deployment. See
@@ -58,7 +58,7 @@ release instead has the dependency already embedded and needs none of this.
 # Global and Regional clusters
 helm install ecp charts/ecp \
   --namespace ecp --create-namespace \
-  --set gatewayRegional.region=itbg-bergamo
+  --set 'gatewayRegional.regions={itbg-bergamo}'
 
 # Global cluster only
 helm install ecp charts/ecp -n ecp --create-namespace \
@@ -67,11 +67,11 @@ helm install ecp charts/ecp -n ecp --create-namespace \
 # Regional cluster only
 helm install ecp charts/ecp -n ecp --create-namespace \
   --set gatewayGlobal.enabled=false \
-  --set gatewayRegional.region=itbg-bergamo
+  --set 'gatewayRegional.regions={itbg-bergamo}'
 
 # Global and Regional clusters, with the delegator as a subchart
 helm install ecp charts/ecp -n ecp --create-namespace \
-  --set gatewayRegional.region=itbg-bergamo \
+  --set 'gatewayRegional.regions={itbg-bergamo}' \
   --set ecp-delegator.enabled=true \
   --set ecp-delegator.plugin=aruba
 ```
@@ -90,6 +90,30 @@ CRDs on an existing cluster apply them directly:
 kubectl apply -f charts/ecp/crds/
 ```
 
+A `Workspace` must carry a `region` field, and it can never change. Every workspace created
+by a release up to `v0.0.3-alpha` predates that field: it has only the internal
+`secapi.cloud/region` label, and it lives in the tenant namespace rather than its per-region
+one. Once the new CRD is applied, the API server refuses every update to such a workspace,
+including the delegator releasing its finalizer. So **delete those workspaces before
+upgrading**, while the old gateway and delegator can still tear them down:
+
+```bash
+kubectl get workspaces -A -o custom-columns='NS:.metadata.namespace,NAME:.metadata.name,REGION:.region'
+```
+
+One that is left over after the upgrade cannot be deleted normally. The upgraded delegator
+addresses it in its per-region namespace, where it does not live, so its finalizer is never
+released. Remove it by hand: in one patch, add its region and drop its finalizers, then delete
+it. Adding the field is allowed, because the immutability rule applies only to a region that is
+already set. This skips the plugin's teardown, so whatever the CSP created for the workspace,
+and the namespace it owned for its children, must be removed by hand too:
+
+```bash
+kubectl patch workspace <name> -n <ns> --type merge \
+  -p '{"region":"<its secapi.cloud/region label>","metadata":{"finalizers":null}}'
+kubectl delete workspace <name> -n <ns>
+```
+
 ## Authentication
 
 Auth is **disabled by default**, mirroring the gateway binary's opt-in
@@ -101,7 +125,7 @@ cluster in that mode. Two authentication plugins exist (`auth.plugin`):
 
   ```bash
   helm install ecp charts/ecp -n ecp --create-namespace \
-    --set gatewayRegional.region=itbg-bergamo \
+    --set 'gatewayRegional.regions={itbg-bergamo}' \
     --set auth.enabled=true \
     --set auth.dummyUsers.users.admin=some-password
   ```
@@ -114,7 +138,7 @@ cluster in that mode. Two authentication plugins exist (`auth.plugin`):
 
   ```bash
   helm install ecp charts/ecp -n ecp --create-namespace \
-    --set gatewayRegional.region=itbg-bergamo \
+    --set 'gatewayRegional.regions={itbg-bergamo}' \
     --set auth.enabled=true \
     --set auth.plugin=jwt \
     --set-file auth.jwt.key=jwt-public-key.pem
@@ -149,8 +173,7 @@ See [values.yaml](values.yaml) for the full commented list. The notable ones:
 |-----|---------|-------|
 | `gatewayGlobal.enabled` | `true` | Deploy the global gateway |
 | `gatewayRegional.enabled` | `true` | Deploy the regional gateway |
-| `gatewayRegional.region` | `""` | The region served, and the default for a request that names none. **Required** unless `gatewayRegional.regions` is set |
-| `gatewayRegional.regions` | `[]` | Serve several regions from one deployment; a request picks one with a `/regions/<region>` path prefix. `region`, when set, must be one of these |
+| `gatewayRegional.regions` | `[]` | **Required.** The regions served (`--regions`). The first is the default for a request that names none; any other is reachable only under its `/regions/<region>` path prefix. The single-region `gatewayRegional.region` was removed, and setting it fails the render |
 | `auth.enabled` | `false` | Bearer-token authn + SECA RBAC authz on both gateways |
 | `auth.plugin` | `dummy` | Authenticator for both gateways: `dummy` or `jwt` |
 | `auth.jwt.signingMethod` | `ES256` | Pinned JWT `alg` when `auth.plugin=jwt` |
@@ -165,5 +188,5 @@ See [values.yaml](values.yaml) for the full commented list. The notable ones:
 | `ecp-delegator.plugin` | `""` | **Required** when enabled — `aruba`, `dummy` or `ionos`; any other `ecp-delegator.*` value from that chart passes through |
 | `ecp-delegator.regions` | `[]` | Regions the delegator reconciles; empty reconciles every one. See [charts/delegator](../delegator#regions) |
 
-`helm lint`/CI note: because neither `gatewayRegional.region` nor `.regions` has a sane default,
+`helm lint`/CI note: because `gatewayRegional.regions` has no sane default,
 lint with the CI values: `helm lint charts/ecp -f charts/ecp/ci/default-values.yaml`.

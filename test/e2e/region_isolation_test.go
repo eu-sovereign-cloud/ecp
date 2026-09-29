@@ -125,6 +125,16 @@ func TestRegionIsolationEndToEnd(t *testing.T) {
 			_, err := k8s.CoreV1().Namespaces().Get(ctx, ns, metav1.GetOptions{})
 			require.NoErrorf(t, err, "the per-region namespace for %q (%s) must exist", region, ns)
 		}
+
+		// And each CR carries its region twice, as the field its plugin provisioned into and as
+		// the label that routed it to its delegator: after that delegator's writes — the
+		// finalizer, every status update, the plugin's own update — the two still agree.
+		for region := range regions {
+			field, label, err := testenv.WorkspaceRegion(ctx, dyn, testTenant, wsName, region)
+			require.NoError(t, err)
+			require.Equalf(t, region, field, "the region field of the workspace in %q", region)
+			require.Equalf(t, region, label, "the region label of the workspace in %q", region)
+		}
 	})
 
 	// Step 2: a block storage created through the second region is reconciled by the
