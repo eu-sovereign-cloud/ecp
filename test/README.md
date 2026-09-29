@@ -73,8 +73,10 @@ what `integration/delegator/region_scope_test.go` asserts, with `region-unserved
 drives the REST layer of it: a resource is placed in the region the request names, a list in
 one region never returns the other's, an unserved region is a 404, `bob` — whose
 `ra-bob-scoped` caps him to `itbg-bergamo` — is 403 under the `region-two` prefix and 200
-without it, and the **same workspace name in both regions is two workspaces**, each addressable
-and deletable only through its own region. [`e2e/multiregion_test.go`](e2e/multiregion_test.go)
+without it, a block storage created in `region-two` is a 404 to a `GET` or `DELETE` and a 409
+to a `PUT` through the default region — and a 404 to `bob`, who may read block storages
+in `itbg-bergamo` and reads that region's own — and the **same workspace name in both
+regions is two workspaces**, each addressable and deletable only through its own region. [`e2e/multiregion_test.go`](e2e/multiregion_test.go)
 adds only what needs the whole stack: the second region's base URL is discovered off the region
 catalog and a workspace created through it reconciles to `Active`. See
 [Multi-region gateways](../doc/ARCHITECTURE.md#multi-region-gateways) for the mechanism.
@@ -85,8 +87,8 @@ and a block storage in **one**, then asserts, in order: the two workspaces recon
 different per-region namespaces; the block storage's name appears in `ecp-delegator-two`'s pod
 log and **not** in `ecp-delegator`'s, which is the only evidence of which deployment reconciled
 it (the region scope is a watch predicate, so the skipped delegator leaves no mark on the CR);
-a `GET` in one region does not resolve the other's workspace and a list does not return its
-block storage; and deleting the second region's workspace leaves the first standing, Active,
+a `GET` in one region resolves neither the other's workspace nor its block storage, and a
+list does not return that block storage; and deleting the second region's workspace leaves the first standing, Active,
 with the children namespace the two co-owned still in place.
 
 A workspace is keyed by tenant **and** region, so each region's copy lives in its own namespace
@@ -105,7 +107,8 @@ writes. The `the workspace CR carries the addressed region` case of `TestMultiRe
 of `TestRegionIsolationEndToEnd` (e2e) checks it once each region's delegator has reconciled.
 All three read the CR through `testenv.WorkspaceRegion`. Every resource below a workspace is still keyed by tenant/workspace
 alone, so those names — and the namespace the workspace owns for them — remain shared across the
-two regions; that namespace is reclaimed only once the last of the same-named workspaces is gone.
+two regions, and only the region label confines each resource to its own; that namespace is
+reclaimed only once the last of the same-named workspaces is gone.
 
 ## One stack, every suite
 
@@ -387,7 +390,7 @@ No fixture token carries a `tenants` membership, so the issuer-asserted gate is 
 |---------|----------|----------------|-------------------------|-------|-----------------|
 | `admin` | `e2e-admin-pass` | `ra-admin` | `e2e-admin` (all providers, all resources) | all | ✅ All operations |
 | `alice` | `alice-pass` | `ra-alice-region-viewer` | `e2e-region-viewer` (`seca.region`) | `test-tenant` | ❌ cross-provider ops (her only role covers `seca.region`, which is authn-only anyway) |
-| `bob` | `bob-pass` | `ra-bob-scoped` | `e2e-storage-viewer` (`seca.storage` get/list: `block-storages`, `images`, `storage-skus`) | `test-tenant` + region `itbg-bergamo` | ✅ List block-storages in that region; ❌ other regions (incl. token down-scoped elsewhere) |
+| `bob` | `bob-pass` | `ra-bob-scoped` | `e2e-storage-viewer` (`seca.storage` get/list: `block-storages` and `block-storages/*`, `images`, `storage-skus`) | `test-tenant` + region `itbg-bergamo` | ✅ List and get block-storages in that region; ❌ other regions (incl. token down-scoped elsewhere) |
 | `carol` | `carol-pass` | `ra-multi-subject` | `e2e-workspace-editor` | `test-tenant` | ✅ Workspace CRUD |
 | `dave` | `dave-pass` | `ra-multi-subject` | `e2e-workspace-editor` | `test-tenant` | ✅ Workspace CRUD |
 | `erin` | `erin-pass` | `ra-wrong-tenant` | `e2e-admin` scoped to `other-tenant` | `other-tenant` | ❌ admin ops in `test-tenant` (out of scope) |

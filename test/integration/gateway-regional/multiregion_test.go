@@ -55,7 +55,8 @@ func listWorkspaceNames(t *testing.T, c *workspacev1.ClientWithResponses) []stri
 // request is addressed to decides where the resource is placed, what a list returns, and —
 // for workspace, whose identity is region-qualified — which resource an item operation
 // addresses. Regional resources below workspace still share one tenant/workspace namespace
-// across regions, so for those nothing but the region label keeps the two lists apart.
+// across regions, so for those nothing but the region label keeps the two regions apart, on
+// lists and item operations alike.
 func TestMultiRegionRouting(t *testing.T) {
 	secondClient := regionalPathClient(t, secondRegion)
 	clients := map[string]*workspacev1.ClientWithResponses{testRegion: workspaceClient, secondRegion: secondClient}
@@ -133,6 +134,70 @@ func TestMultiRegionRouting(t *testing.T) {
 		require.Equal(t, http.StatusOK, inRegion.StatusCode())
 		require.Equal(t, http.StatusForbidden, outOfRegion.StatusCode(),
 			"the region the request is addressed to must reach the authorization claim")
+	})
+
+	// Below a workspace the namespace has no region dimension, so an item operation addresses the
+	// CR by name alone. Its region label is what confines a GET, PUT or DELETE to the region that
+	// owns it — without it the claim above would be checked for one region and the operation
+	// carried out on another's resource.
+	t.Run("an item operation reaches only its own region's resource", func(t *testing.T) {
+		//
+		// Given a block storage created through the second region
+		base := fmt.Sprintf("http://localhost:%d", regionalLocalPort)
+		away, err := storagev1.NewClientWithResponses(base+"/regions/"+secondRegion+"/providers/seca.storage",
+			storagev1.WithRequestEditorFn(authhelper.AdminEditor()))
+		require.NoError(t, err)
+		name := "mr-bs-" + uuid.New().String()[:8]
+		t.Cleanup(func() {
+			testenv.DeleteUntilGone(context.Background(), func() (*http.Response, error) {
+				return away.DeleteBlockStorage(context.Background(), testTenant, testWorkspace, name, nil)
+			})
+		})
+
+		created, err := away.CreateOrUpdateBlockStorageWithResponse(context.Background(), testTenant, testWorkspace, name, nil, newBlockStorageBody(1))
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, created.StatusCode())
+
+		//
+		// When the default region reads, writes and deletes it by name
+		got, err := storageClient.GetBlockStorageWithResponse(context.Background(), testTenant, testWorkspace, name)
+		require.NoError(t, err)
+		put, err := storageClient.CreateOrUpdateBlockStorageWithResponse(context.Background(), testTenant, testWorkspace, name, nil, newBlockStorageBody(2))
+		require.NoError(t, err)
+		del, err := storageClient.DeleteBlockStorageWithResponse(context.Background(), testTenant, testWorkspace, name, nil)
+		require.NoError(t, err)
+
+		//
+		// Then it is not there to read or delete, and its name is taken
+		require.Equal(t, http.StatusNotFound, got.StatusCode())
+		require.Equal(t, http.StatusConflict, put.StatusCode(),
+			"the create found the name taken, and the update may not take another region's resource over")
+		require.Equal(t, http.StatusNotFound, del.StatusCode())
+
+		//
+		// And it is untouched: still the second region's, with the spec it was created with
+		own, err := away.GetBlockStorageWithResponse(context.Background(), testTenant, testWorkspace, name)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, own.StatusCode())
+		require.Equal(t, secondRegion, own.JSON200.Metadata.Region)
+		require.Equal(t, 1, own.JSON200.Spec.SizeGB)
+
+		//
+		// And bob, whose assignment lets him read block storages in the default region only,
+		// reads the default region's own but not this one by naming it through the default
+		if !authhelper.AuthEnabled() {
+			return
+		}
+		bob, err := storagev1.NewClientWithResponses(base+"/providers/seca.storage",
+			storagev1.WithRequestEditorFn(authhelper.IdentityEditor("bob", "bob-pass")))
+		require.NoError(t, err)
+		bobOwn, err := bob.GetBlockStorageWithResponse(context.Background(), testTenant, testWorkspace, sourceBlockStorage)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, bobOwn.StatusCode(), "bob may read block storages in his region")
+		bobGot, err := bob.GetBlockStorageWithResponse(context.Background(), testTenant, testWorkspace, name)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusNotFound, bobGot.StatusCode(),
+			"a role assignment scoped to one region must not read another region's resource")
 	})
 
 	// Issue #396: a workspace is identified by tenant *and* region, so the same name is a

@@ -68,7 +68,9 @@ type ReaderAdapter[T persistence.IdentifiableResource] struct {
 // resources of the region the request is addressed to (resource.RegionFromContext) instead
 // of everything the tenant/workspace namespace holds. It is what lets one gateway process
 // serve several regions: below the workspace level the namespace formula has no region
-// dimension, so without it a list in one region returns another region's resources.
+// dimension, so without it a list in one region returns another region's resources. Item
+// operations need no such opt-in: Load, Update and Delete check the CR they address and refuse
+// another region's by its label, on every adapter (see confinedRegion).
 //
 // Only call it on a resource whose CRs carry the internal region label — the global ones
 // (Role, RoleAssignment, Region) do not, and filtering on it would return nothing.
@@ -236,6 +238,50 @@ func regionNamespace(obj persistence.Scope) (namespace, region string, ok bool) 
 	}
 
 	return ComputeRegionNamespace(regionScope), regionScope.GetRegion(), true
+}
+
+// confinedRegion returns the region an item operation on obj is confined to: the one the request
+// is addressed to (resource.RegionFromContext), or "" when there is nothing to confine it to.
+//
+// Below the workspace level the namespace formula has no region dimension, so a GET, PUT or DELETE
+// that addresses a CR by tenant/workspace/name would reach it whichever region created it — under
+// an authorization claim checked for the region the request named. This is the item-operation half
+// of the cap RegionScoped puts on List. It is "" for a request with no region (the delegator, the
+// global gateway) and for a region-keyed resource (Workspace), whose CR already sits in its own
+// region's namespace.
+func confinedRegion(ctx context.Context, obj persistence.Scope) string {
+	if _, _, regionKeyed := regionNamespace(obj); regionKeyed {
+		return ""
+	}
+	return resource.RegionFromContext(ctx, "")
+}
+
+// inOtherRegion reports whether stored belongs to a region other than region. A CR with no region
+// label (Role, RoleAssignment) belongs to none, and an empty region confines nothing.
+func inOtherRegion(stored *unstructured.Unstructured, region string) bool {
+	got := stored.GetLabels()[labels.InternalRegionLabel]
+	return region != "" && got != "" && got != region
+}
+
+// getInRegion reads m's CR, answering one that belongs to another region than the request is
+// confined to (see confinedRegion) exactly as the API server answers a missing one, so the 404
+// does not tell the caller that the name is taken elsewhere.
+func getInRegion(ctx context.Context, ri dynamic.ResourceInterface, gvr schema.GroupVersionResource, m persistence.IdentifiableResource) (*unstructured.Unstructured, error) {
+	stored, err := ri.Get(ctx, m.GetName(), metav1.GetOptions{})
+	if err == nil && inOtherRegion(stored, confinedRegion(ctx, m)) {
+		return nil, kerrs.NewNotFound(gvr.GroupResource(), m.GetName())
+	}
+	return stored, err
+}
+
+// refuseOtherRegion refuses a write to stored when it belongs to a region other than region. It is
+// a conflict, not a 404: a PUT lands here after its create found the name taken, and it is taken —
+// by another region's resource, which this request may not take over.
+func refuseOtherRegion(gvr schema.GroupVersionResource, stored *unstructured.Unstructured, region string) error {
+	if !inOtherRegion(stored, region) {
+		return nil
+	}
+	return kernel.NewError(kernel.KindConflict, fmt.Errorf("%s '%s' already exists in another region", gvr.Resource, stored.GetName()))
 }
 
 // ResolveNamespace picks the right namespace rule for obj: ComputeNetworkNamespace when obj
@@ -445,7 +491,7 @@ func (a *ReaderAdapter[T]) Load(ctx context.Context, obj *T) (err error) {
 	}
 	ri := a.client.Resource(a.gvr).Namespace(namespace)
 
-	uobj, err := ri.Get(ctx, v.GetName(), metav1.GetOptions{})
+	uobj, err := getInRegion(ctx, ri, a.gvr, v)
 	if err != nil {
 		if !kerrs.IsNotFound(err) {
 			a.logger.ErrorContext(ctx, "failed to get resource", "name", v.GetName(), "resource", a.gvr.Resource, "error", err)
@@ -522,9 +568,15 @@ func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (res *T, err error) 
 		return nil, err
 	}
 	resourceInterface := a.client.Resource(a.gvr).Namespace(namespace)
+	// Checked on the object each arm reads and then writes, so another region's CR cannot slip in
+	// between the check and the write.
+	region := confinedRegion(ctx, m)
 
 	if m.GetVersion() == "" {
-		if err := a.updateMetadataAndSpecRetry(ctx, resourceInterface, m.GetName(), uobj); err != nil {
+		if err := a.updateMetadataAndSpecRetry(ctx, resourceInterface, m.GetName(), uobj, region); err != nil {
+			if domainErr := kernel.AsError(err); domainErr != nil {
+				return nil, domainErr
+			}
 			return nil, kubeToDomainError(fmt.Errorf("failed to update metadata and spec %s '%s': %w", a.gvr.Resource, m.GetName(), err))
 		}
 	} else {
@@ -533,7 +585,7 @@ func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (res *T, err error) 
 		// resource whose deletion is already under way has nothing left holding it, so the API
 		// server reclaims it on the spot, before its controller's cleanup hook has run. That is
 		// silent: the plugin is mid-delete and simply never gets another reconcile.
-		if err := a.preserveFinalizers(ctx, resourceInterface, m.GetName(), uobj); err != nil {
+		if err := a.preserveFinalizers(ctx, resourceInterface, m.GetName(), uobj, region); err != nil {
 			return nil, err
 		}
 
@@ -608,11 +660,15 @@ func (a *WriterAdapter[T]) UpdateStatus(ctx context.Context, m T) (res *T, err e
 // the caller of Update — and no domain type models them, so they can only be carried across
 // from the live object. A NotFound is left to the Update that follows, which reports it in the
 // caller's own terms.
+//
+// It is also where the full-replace arm refuses another region's CR (see refuseOtherRegion): the
+// replace that follows carries the resourceVersion, so it can only write the object read here.
 func (a *WriterAdapter[T]) preserveFinalizers(
 	ctx context.Context,
 	ri dynamic.ResourceInterface,
 	name string,
 	desired *unstructured.Unstructured,
+	region string,
 ) error {
 	curr, err := ri.Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
@@ -621,6 +677,10 @@ func (a *WriterAdapter[T]) preserveFinalizers(
 		}
 
 		return kubeToDomainError(fmt.Errorf("failed to read %s '%s' before update: %w", a.gvr.Resource, name, err))
+	}
+
+	if err := refuseOtherRegion(a.gvr, curr, region); err != nil {
+		return err
 	}
 
 	if fins := curr.GetFinalizers(); len(fins) > 0 {
@@ -635,6 +695,7 @@ func (a *WriterAdapter[T]) updateMetadataAndSpecRetry(
 	ri dynamic.ResourceInterface,
 	name string,
 	desired *unstructured.Unstructured,
+	region string,
 ) error {
 	desiredLabels := desired.GetLabels()
 	desiredAnnotations := desired.GetAnnotations()
@@ -643,6 +704,10 @@ func (a *WriterAdapter[T]) updateMetadataAndSpecRetry(
 		currObj, getErr := ri.Get(ctx, name, metav1.GetOptions{})
 		if getErr != nil {
 			return getErr
+		}
+
+		if err := refuseOtherRegion(a.gvr, currObj, region); err != nil {
+			return err
 		}
 
 		if !currObj.GetDeletionTimestamp().IsZero() {
@@ -745,14 +810,21 @@ func (a *WriterAdapter[T]) Delete(ctx context.Context, m T) (err error) {
 	}
 	ri := a.client.Resource(a.gvr).Namespace(namespace)
 
-	deleteOptions := metav1.DeleteOptions{}
+	var preconditions metav1.Preconditions
 	if m.GetVersion() != "" {
-		deleteOptions.Preconditions = &metav1.Preconditions{
-			ResourceVersion: new(m.GetVersion()),
-		}
+		preconditions.ResourceVersion = new(m.GetVersion())
 	}
 
-	if err := ri.Delete(ctx, m.GetName(), deleteOptions); err != nil {
+	if confinedRegion(ctx, m) != "" {
+		stored, err := getInRegion(ctx, ri, a.gvr, m)
+		if err != nil {
+			return kubeToDomainError(fmt.Errorf("failed to delete %s '%s': %w", a.gvr.Resource, m.GetName(), err))
+		}
+		// The CR just checked, not one another region has created under its name since.
+		preconditions.UID = new(stored.GetUID())
+	}
+
+	if err := ri.Delete(ctx, m.GetName(), metav1.DeleteOptions{Preconditions: &preconditions}); err != nil {
 		a.logger.ErrorContext(ctx, "failed to delete resource", "name", m.GetName(), "resource", a.gvr.Resource, "error", err, slog.Any("m", m))
 		return kubeToDomainError(fmt.Errorf("failed to delete %s '%s': %w", a.gvr.Resource, m.GetName(), err))
 	}
@@ -760,14 +832,25 @@ func (a *WriterAdapter[T]) Delete(ctx context.Context, m T) (err error) {
 	return nil
 }
 
-// Delete refuses the delete when the child namespace still holds SECA resources, then deletes the
-// resource CR.
+// Delete answers 404 for a resource that is not there for this request (see getInRegion), refuses
+// the delete when the child namespace still holds SECA resources, then deletes the resource CR.
 //
 // Only the refusal lives here. It is a user-facing invariant ("a workspace with resources in it
 // cannot be deleted") and has to answer synchronously with 409, so it cannot become eventually
 // consistent. Tearing the namespace down afterwards is a side effect with no caller waiting on it
 // and belongs to the owning controller's finalizer — see NamespaceCleanup.
 func (a *NamespaceManagingWriterAdapter[T]) Delete(ctx context.Context, m T) error {
+	// The resource itself first. Its children namespace is shared with same-named resources in other
+	// regions, so counting the children of one that is not there — or not there for this request's
+	// region — would answer with a 409 about another region's resource instead of a 404.
+	namespace, err := ResolveNamespace(m)
+	if err != nil {
+		return err
+	}
+	if _, err := getInRegion(ctx, a.client.Resource(a.gvr).Namespace(namespace), a.gvr, m); err != nil {
+		return kubeToDomainError(fmt.Errorf("failed to delete %s '%s': %w", a.gvr.Resource, m.GetName(), err))
+	}
+
 	childNS, _ := childNamespaceFor(a.childNamespace, m)
 
 	if childNS != "" {
@@ -1052,8 +1135,9 @@ func NamespaceCleanup[T persistence.IdentifiableResource](
 
 // NamespaceManagingWriterAdapter wraps a WriterAdapter and, on Create, ensures the tenant
 // namespace (plus the per-region one for a region-keyed resource such as Workspace) and the one
-// computed for childNamespace exist. On Delete it refuses when
-// childResourceGVRs still list objects in that namespace, then deletes the CR — the namespace
+// computed for childNamespace exist. On Delete it answers 404 for a resource that is not there for
+// this request, refuses when childResourceGVRs still list objects in that namespace, then deletes
+// the CR — the namespace
 // itself is torn down by the owning controller's NamespaceCleanup finalizer.
 // It uses a typed clientset for Namespace operations when available.
 // The dynamic client and logger are read through the embedded WriterAdapter's Adapter — keeping

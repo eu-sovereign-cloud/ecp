@@ -32,7 +32,8 @@ binary) and the chart supports either layout via the `enabled` toggles:
   **first** is the default for requests that name none. Advertise the prefixed URLs in each Region CR's `providers[].url` so
   clients discover the right base URL. A `Workspace` is identified by tenant **and** region, so
   a tenant can use the same workspace name in each region; every resource below a workspace is
-  still keyed by tenant/workspace alone and is shared across the regions of one deployment. See
+  still keyed by tenant/workspace alone, so its name is taken in every region of one deployment,
+  but only the region that created it can read, update or delete it. See
   [doc/ARCHITECTURE.md](../../doc/ARCHITECTURE.md#multi-region-gateways).
 
 ## Installing

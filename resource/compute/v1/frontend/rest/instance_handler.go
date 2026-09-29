@@ -55,8 +55,9 @@ func (h *Handler) CreateOrUpdateInstance(w http.ResponseWriter, r *http.Request,
 	// Power intent (desired power state, in-flight restart) is controller-managed internal state,
 	// not part of the API body. Load the existing instance first so an ordinary spec/label update
 	// carries it forward rather than erasing a pending power op or restart phase. A not-found is a
-	// create (nothing to preserve); any other load error must fail the request, so a transient
-	// backend issue can never silently drop in-flight power intent.
+	// create, or another region's instance the upsert then refuses with 409 — nothing to preserve
+	// either way; any other load error must fail the request, so a transient backend issue can
+	// never silently drop in-flight power intent.
 	existing := newInstanceWithIdentity(id)
 	preserve, err := h.loadForPreserve(r.Context(), &existing)
 	if err != nil {
@@ -87,8 +88,9 @@ func (h *Handler) CreateOrUpdateInstance(w http.ResponseWriter, r *http.Request,
 }
 
 // loadForPreserve loads the existing instance so its controller-managed power intent can be carried
-// across an update. It returns (nil, nil) when the instance does not yet exist (a create), the
-// loaded instance when it exists, and a non-nil error for any other load failure — which the caller
+// across an update. It returns (nil, nil) when the instance does not exist in the request's region
+// (a create, or a 409 once the upsert finds the name held by another region), the loaded instance
+// when it exists, and a non-nil error for any other load failure — which the caller
 // must surface rather than proceed with empty internal control state.
 func (h *Handler) loadForPreserve(ctx context.Context, existing **instancedom.Instance) (*instancedom.Instance, error) {
 	if err := h.InstanceReader.Load(ctx, existing); err != nil {

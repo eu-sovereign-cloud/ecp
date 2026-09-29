@@ -195,17 +195,16 @@ func TestRegionIsolationEndToEnd(t *testing.T) {
 		}
 
 		// Below a workspace the namespace formula has no region dimension, so the region
-		// label on the CR is the only thing separating the two regions' resources — and it
-		// is enforced on lists, which is where a tenant enumerates what a region holds.
+		// label on the CR is the only thing separating the two regions' resources — on a
+		// list, and on a GET that addresses the CR by name.
 		require.Contains(t, blockStorageNames(t, ctx, awayStorage, wsName), bsName)
 		require.NotContains(t, blockStorageNames(t, ctx, homeStorage, wsName), bsName,
 			"a list in %s must not return a resource created in %s", testRegion, secondRegion)
 
-		// Deliberately not asserted: a GET of that same block storage through the
-		// testRegion prefix. Item operations below a workspace are region-blind by design
-		// — both regions' resources share sha3-224(tenant/workspace) and a GET addresses
-		// the CR by name — so requiring a 404 here would be requiring the opposite of what
-		// doc/ARCHITECTURE.md ("Multi-region gateways") specifies.
+		elsewhere, err := homeStorage.GetBlockStorageWithResponse(ctx, testTenant, wsName, bsName)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusNotFound, elsewhere.StatusCode(),
+			"a block storage created in %s must not be addressable in %s", secondRegion, testRegion)
 	})
 
 	// Step 4 (delete): a delete is confined to the region it was addressed to.

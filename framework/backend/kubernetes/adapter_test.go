@@ -795,6 +795,32 @@ func TestNamespaceManagingWriterAdapter_Delete_NetworkChildren(t *testing.T) {
 		require.NoError(t, nsErr, "network child namespace must remain when children exist")
 	})
 
+	// A 409 would tell a caller in another region that the network is there and what it holds.
+	t.Run("another region's network is a 404 before the children are counted", func(t *testing.T) {
+		parentObj := &unstructured.Unstructured{Object: map[string]any{
+			keyAPIVersion: testAPIVersionNetwork,
+			keyKind:       "Network",
+			keyMetadata: map[string]any{
+				keyNamespace: workspaceNS,
+				keyName:      testNet1,
+				"labels":     map[string]any{labels.InternalRegionLabel: "region-two"},
+			},
+		}}
+		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(
+			runtime.NewScheme(), networkParentListKinds(), parentObj, newChildObject(networkChildNS, "subnet-1"),
+		)
+
+		writer := NewNamespaceManagingWriterAdapter[*testWorkspaceScopedIdentifiable](
+			dynFake, k8sfake.NewClientset(), testNetworkParentGVR, logger, testNetworkParentConv,
+			NetworkChildren, []schema.GroupVersionResource{testChildGVR},
+		)
+
+		err := writer.Delete(kernelresource.ContextWithRegion(context.Background(), "region-one"), network)
+		var domainErr *kernel.Error
+		require.ErrorAs(t, err, &domainErr)
+		require.Equal(t, kernel.KindNotFound, domainErr.Kind)
+	})
+
 	t.Run("deletes the network but leaves its child namespace to the controller", func(t *testing.T) {
 		parentObj := &unstructured.Unstructured{Object: map[string]any{
 			keyAPIVersion: testAPIVersionNetwork,
@@ -823,6 +849,27 @@ func TestNamespaceManagingWriterAdapter_Delete_NetworkChildren(t *testing.T) {
 		_, nsErr := cs.CoreV1().Namespaces().Get(context.Background(), networkChildNS, metav1.GetOptions{})
 		require.NoError(t, nsErr, "the write path must not delete the network child namespace")
 	})
+}
+
+// A workspace is placed per region, but the namespace it owns for its children is not, so a
+// same-named workspace in another region can fill it. Deleting a workspace this region does not have
+// must be the 404 its absence is, not a 409 about the other region's children.
+func TestNamespaceManagingWriterAdapter_Delete_AbsentInRegion(t *testing.T) {
+	childNS := ComputeNamespace(&kernelresource.Scope{Tenant: "t1", Workspace: testWS1})
+	dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), parentListKinds(),
+		newRegionKeyedOwner(testWS1, "t1", "region-two", false),
+		newChildObject(childNS, "bs-1"),
+	)
+	writer := NewNamespaceManagingWriterAdapter[*testRegionScopedIdentifiable](
+		dynFake, k8sfake.NewClientset(), testParentGVR, slog.New(slog.NewTextHandler(io.Discard, nil)),
+		TwoWayConverter[*testRegionScopedIdentifiable]{FromCR: testRegionedFromCR, ToCR: testRegionedToCR},
+		WorkspaceChildren, []schema.GroupVersionResource{testChildGVR},
+	)
+
+	err := writer.Delete(context.Background(), &testRegionScopedIdentifiable{name: testWS1, tenant: "t1", region: "region-one"})
+	var domainErr *kernel.Error
+	require.ErrorAs(t, err, &domainErr)
+	require.Equal(t, kernel.KindNotFound, domainErr.Kind)
 }
 
 func TestNamespaceCleanup(t *testing.T) {
@@ -1211,6 +1258,121 @@ func TestReaderAdapter_List_RegionScoped(t *testing.T) {
 		_, err := newReader().List(ctx, params, &out)
 		require.NoError(t, err)
 		require.Len(t, out, 2, "global resources (Role, RoleAssignment) carry no region label")
+	})
+}
+
+// TestAdapter_ItemOperations_RegionConfined is the item-operation half of that cap. A GET, PUT or
+// DELETE addresses a CR by tenant/workspace/name, which below the workspace level has no region
+// dimension, so without it a request would act on another region's resource under an
+// authorization claim checked for the region it named.
+func TestAdapter_ItemOperations_RegionConfined(t *testing.T) {
+	ns := ComputeNamespace(&kernelresource.Scope{Tenant: "t1", Workspace: "w1"})
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	inRegionOne := kernelresource.ContextWithRegion(context.Background(), "region-one")
+	inRegionTwo := kernelresource.ContextWithRegion(context.Background(), "region-two")
+	newAdapters := func(objs ...runtime.Object) (*fake.FakeDynamicClient, *ReaderAdapter[*testLabelled], *WriterAdapter[*testLabelled]) {
+		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), testListKinds(), objs...)
+		return dynFake, NewReaderAdapter(dynFake, testGVR, logger, testLabelledFromCR), NewWriterAdapter(dynFake, testGVR, logger, testLabelledConv)
+	}
+	requireKind := func(t *testing.T, err error, kind kernel.ErrKind) {
+		t.Helper()
+		var domainErr *kernel.Error
+		require.ErrorAs(t, err, &domainErr)
+		require.Equal(t, kind, domainErr.Kind)
+	}
+
+	t.Run("another region's resource is not found, not writable and not deletable", func(t *testing.T) {
+		dynFake, reader, writer := newAdapters(newRegionObject(ns, testRT1, "region-two"))
+		_, nothingReader, nothingWriter := newAdapters()
+
+		// Not there, down to the wording: a 404 that differed from a real miss would tell a caller
+		// who may only read in its own region that the name exists in another.
+		loaded := &testLabelled{name: testRT1}
+		loadErr := reader.Load(inRegionOne, &loaded)
+		requireKind(t, loadErr, kernel.KindNotFound)
+		missing := &testLabelled{name: testRT1}
+		require.EqualError(t, loadErr, nothingReader.Load(inRegionOne, &missing).Error())
+
+		// Where a PUT lands once its create has found the name taken, on either update arm.
+		_, err := writer.Update(inRegionOne, &testLabelled{name: testRT1, labels: map[string]string{labelEnv: labelValueProd}})
+		requireKind(t, err, kernel.KindConflict)
+		_, err = writer.Update(inRegionOne, &testLabelled{name: testRT1, version: "1"})
+		requireKind(t, err, kernel.KindConflict)
+
+		deleteErr := writer.Delete(inRegionOne, &testLabelled{name: testRT1})
+		requireKind(t, deleteErr, kernel.KindNotFound)
+		require.EqualError(t, deleteErr, nothingWriter.Delete(inRegionOne, &testLabelled{name: testRT1}).Error())
+
+		stored, err := dynFake.Resource(testGVR).Namespace(ns).Get(context.Background(), testRT1, metav1.GetOptions{})
+		require.NoError(t, err, "a refused delete must leave the CR in place")
+		require.Equal(t, "region-two", stored.GetLabels()[labels.InternalRegionLabel],
+			"a refused update must not re-stamp the CR into the request's region")
+	})
+
+	t.Run("its own region reaches it", func(t *testing.T) {
+		_, reader, writer := newAdapters(newRegionObject(ns, testRT1, "region-two"))
+
+		loaded := &testLabelled{name: testRT1}
+		require.NoError(t, reader.Load(inRegionTwo, &loaded))
+		_, err := writer.Update(inRegionTwo, &testLabelled{name: testRT1})
+		require.NoError(t, err)
+		require.NoError(t, writer.Delete(inRegionTwo, &testLabelled{name: testRT1}))
+	})
+
+	// Checking one CR and then deleting whatever holds the name by then would let a delete race
+	// another region's create of it.
+	t.Run("a delete is pinned to the CR it checked", func(t *testing.T) {
+		stored := newRegionObject(ns, testRT1, "region-two")
+		stored.SetUID("uid-checked")
+		dynFake, _, writer := newAdapters(stored)
+
+		var pinned *metav1.Preconditions
+		dynFake.PrependReactor("delete", "*", func(action k8stesting.Action) (bool, runtime.Object, error) {
+			pinned = action.(k8stesting.DeleteAction).GetDeleteOptions().Preconditions
+			return false, nil, nil // Record it, then fall through to the tracker.
+		})
+
+		require.NoError(t, writer.Delete(inRegionTwo, &testLabelled{name: testRT1}))
+		require.NotNil(t, pinned)
+		require.NotNil(t, pinned.UID)
+		require.Equal(t, "uid-checked", string(*pinned.UID))
+	})
+
+	// The delegator and the global gateway carry no request region, and Role and RoleAssignment
+	// carry no region label: neither has anything to confine.
+	t.Run("no request region, or no region label, confines nothing", func(t *testing.T) {
+		_, reader, _ := newAdapters(newRegionObject(ns, testRT1, "region-two"), newTestObject(ns, testRTDash1))
+
+		regioned := &testLabelled{name: testRT1}
+		require.NoError(t, reader.Load(context.Background(), &regioned))
+		unlabelled := &testLabelled{name: testRTDash1}
+		require.NoError(t, reader.Load(inRegionOne, &unlabelled))
+	})
+
+	// A Workspace is already confined by its per-region namespace, and there the field, not the
+	// label, is the source of truth: a label edited out of band must neither hide it from its own
+	// region nor stop the next update from putting the label back.
+	t.Run("a region-keyed resource is confined by its namespace instead", func(t *testing.T) {
+		desired := &testRegionScopedIdentifiable{name: testWS1, tenant: "t1", region: "region-one"}
+		created, err := testRegionedToCR(desired)
+		require.NoError(t, err)
+		stored := created.(*unstructured.Unstructured)
+		stored.SetLabels(map[string]string{labels.InternalRegionLabel: "region-stale"})
+
+		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), testListKinds(), stored)
+		reader := NewReaderAdapter(dynFake, testGVR, logger, testRegionedFromCR)
+		writer := NewWriterAdapter(dynFake, testGVR, logger,
+			TwoWayConverter[*testRegionScopedIdentifiable]{FromCR: testRegionedFromCR, ToCR: testRegionedToCR})
+
+		loaded := &testRegionScopedIdentifiable{name: testWS1, tenant: "t1", region: "region-one"}
+		require.NoError(t, reader.Load(inRegionOne, &loaded))
+		_, err = writer.Update(inRegionOne, desired)
+		require.NoError(t, err)
+
+		after, err := dynFake.Resource(testGVR).Namespace(stored.GetNamespace()).
+			Get(context.Background(), testWS1, metav1.GetOptions{})
+		require.NoError(t, err)
+		require.Equal(t, "region-one", after.GetLabels()[labels.InternalRegionLabel])
 	})
 }
 

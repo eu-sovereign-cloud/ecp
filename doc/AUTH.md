@@ -361,8 +361,15 @@ process: a gateway serving several regions resolves it per request (see
 [ARCHITECTURE.md](ARCHITECTURE.md#multi-region-gateways)), and `SECAClaimExtractor` reads
 it back off the request context, falling back to the process's default region (the first of
 `--regions`). A region-scoped `RoleAssignment` therefore denies the same subject in one
-region and allows them in another within one deployment. It is empty on the global gateway,
-where the scope check skips the region dimension.
+region and allows them in another within one deployment. The resources it lets them address
+are that region's own: below the workspace level, and for `Image` and the SKU catalogs in the
+tenant namespace, two regions share a namespace, so the persistence adapters refuse a `GET`,
+`PUT` or `DELETE` on a resource labelled with another region — naming it through the allowed
+region is a 404 for a read or delete and a 409 for a write, never access. A create under a
+parent, and a spec reference, are not region-checked yet (see
+[ARCHITECTURE.md](ARCHITECTURE.md#multi-region-gateways)). `claim.Region` is empty on the
+global gateway. There the token down-scope skips the region dimension, but a `RoleAssignment`
+scope that lists `regions` never covers the request (see [Scope matching](#scope-matching)).
 
 ### Algorithm
 

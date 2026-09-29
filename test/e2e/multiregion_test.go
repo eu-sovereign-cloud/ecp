@@ -26,8 +26,8 @@ const secondRegion = "region-two"
 
 // TestMultiRegionEndToEnd is the multi-region counterpart of TestEndToEnd: one gateway
 // deployment, two regions, discovered the way a client discovers them — off the region
-// catalog — and reconciled all the way to the delegator. Routing, list isolation and
-// region-scoped authorization are the REST layer's, and are covered by
+// catalog — and reconciled all the way to the delegator. Routing, list and item-operation
+// isolation and region-scoped authorization are the REST layer's, and are covered by
 // test/integration/gateway-regional/multiregion_test.go against this same stack.
 func TestMultiRegionEndToEnd(t *testing.T) {
 	ctx := context.Background()
