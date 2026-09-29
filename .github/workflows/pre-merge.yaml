@@ -126,7 +126,7 @@ jobs:
   # breaks at render time would otherwise not surface until someone installs
   # the released chart, since `helm package` never evaluates templates.
   #
-  # Both charts have values with no universal default (gatewayRegional.region,
+  # Both charts have values with no universal default (gatewayRegional.regions,
   # the delegator's plugin) and fail to render without them — each chart's
   # ci/default-values.yaml supplies them, following the chart-testing
   # convention. The delegator chart renders one RBAC set per plugin, so every
@@ -151,6 +151,18 @@ jobs:
           helm dependency update charts/ecp
           helm lint charts/ecp -f charts/ecp/ci/default-values.yaml
           helm template ecp charts/ecp -f charts/ecp/ci/default-values.yaml > /dev/null
+          # gatewayRegional.regions is the regional gateway's only region input: it
+          # renders into --regions in order (the first is the default), and leaving it
+          # unset — or setting the removed gatewayRegional.region — fails the render
+          # rather than deploying a gateway that cannot start or serves the wrong default.
+          helm template ecp charts/ecp -f charts/ecp/ci/default-values.yaml | grep -q -- '- --regions=itbg-bergamo$'
+          helm template ecp charts/ecp --set 'gatewayRegional.regions={b,a}' | grep -q -- '- --regions=b,a$'
+          if helm template ecp charts/ecp > /dev/null 2>&1; then
+            echo "rendered without gatewayRegional.regions" >&2; exit 1
+          fi
+          if helm template ecp charts/ecp -f charts/ecp/ci/default-values.yaml --set gatewayRegional.region=a > /dev/null 2>&1; then
+            echo "rendered with the removed gatewayRegional.region" >&2; exit 1
+          fi
           helm lint charts/delegator -f charts/delegator/ci/default-values.yaml
           for plugin in aruba dummy ionos; do
             helm template ecp-delegator charts/delegator --set "plugin=$plugin" > /dev/null

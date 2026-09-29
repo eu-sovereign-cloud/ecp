@@ -7,7 +7,7 @@ Components:
       curl http://localhost:8080/providers/seca.region/v1/regions
 {{- end }}
 {{- if .Values.gatewayRegional.enabled }}
-  * gateway-regional — region "{{ .Values.gatewayRegional.region }}", providers: seca.workspace, seca.storage, seca.network, seca.compute
+  * gateway-regional — regions {{ join ", " .Values.gatewayRegional.regions }} (the first is the default), providers: seca.workspace, seca.storage, seca.network, seca.compute
       kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "ecp.gatewayRegional.fullname" . }} 8081:{{ .Values.gatewayRegional.service.port }}
       curl http://localhost:8081/providers/seca.workspace/v1/tenants/<tenant>/workspaces
 {{- end }}

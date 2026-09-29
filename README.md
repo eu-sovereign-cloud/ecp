@@ -19,20 +19,22 @@ helm search repo ecp --devel
 | `ecp/ecp` | Global + regional gateways, and the ECP CRDs |
 | `ecp/ecp-delegator` | The delegator — reconciles the CRs through **one** CSP plugin. Also available as a subchart of `ecp/ecp` |
 
-Releases so far are **prereleases** (`0.0.2-alpha`), which Helm skips unless
-you ask for them with `--version 0.0.2-alpha` or `--devel`:
+Releases so far are **prereleases** (`0.0.4-alpha`), which Helm skips unless
+you ask for them with `--version 0.0.4-alpha` or `--devel`:
 
 ```bash
-helm install ecp ecp/ecp --version 0.0.2-alpha \
+helm install ecp ecp/ecp --version 0.0.4-alpha \
   --namespace ecp --create-namespace \
-  --set gatewayRegional.region=itbg-bergamo \
+  --set 'gatewayRegional.regions={itbg-bergamo}' \
   --set ecp-delegator.enabled=true \
   --set ecp-delegator.plugin=aruba
 ```
 
-`gatewayRegional.region` is **required** (or `gatewayRegional.regions`, to serve several
-regions from one deployment — see
-[Multi-region gateways](doc/ARCHITECTURE.md#multi-region-gateways)).
+`gatewayRegional.regions` is **required**: the regions the regional gateway serves. List
+several to serve them all from one deployment; the **first** is the default for a request
+that names no region — see
+[Multi-region gateways](doc/ARCHITECTURE.md#multi-region-gateways). Releases up to
+`0.0.3-alpha` took a single `gatewayRegional.region` instead, which now fails the install.
 `ecp-delegator.plugin` picks the CSP —
 it selects both the delegator image and the RBAC the chart grants — and each
 plugin reconciles into a backend you install **out of band**; until it is there,
@@ -144,7 +146,7 @@ make -C csp/dummy kind-start
 
 # Run the API servers (in separate terminals)
 go run ./gateway globalapiserver
-go run ./gateway regionalapiserver --region local -p 8081
+go run ./gateway regionalapiserver --regions local -p 8081
 
 # Run all tests
 make test
@@ -175,7 +177,7 @@ For containerized development, persistent dev containers, and the full Makefile 
 
 ## Current Version
 
-`v0.0.2-alpha` — the latest release, and the version the charts and images above
+`v0.0.4-alpha` — the latest release, and the version the charts and images above
 are published under. API surface and CRD schemas are subject to breaking changes
 before v1.0.
 

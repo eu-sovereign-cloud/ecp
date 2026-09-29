@@ -45,15 +45,13 @@ spec:
           {{- end }}
           args:
             - regionalapiserver
-            {{- if not (or .Values.gatewayRegional.region .Values.gatewayRegional.regions) }}
-            {{- fail "gatewayRegional.region or gatewayRegional.regions is required when gatewayRegional.enabled is true" }}
+            {{- if .Values.gatewayRegional.region }}
+            {{- fail "gatewayRegional.region was removed: list the regions in gatewayRegional.regions, the first is the default" }}
             {{- end }}
-            {{- with .Values.gatewayRegional.region }}
-            - --region={{ . }}
+            {{- if not .Values.gatewayRegional.regions }}
+            {{- fail "gatewayRegional.regions is required when gatewayRegional.enabled is true" }}
             {{- end }}
-            {{- with .Values.gatewayRegional.regions }}
-            - --regions={{ join "," . }}
-            {{- end }}
+            - --regions={{ join "," .Values.gatewayRegional.regions }}
             {{- with (include "ecp.authArgs" . | trim) }}
             {{- . | nindent 12 }}
             {{- end }}

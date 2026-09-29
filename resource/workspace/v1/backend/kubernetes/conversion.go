@@ -56,15 +56,9 @@ func WorkspaceFromCR(obj client.Object) (*wsdom.Workspace, error) {
 	ws.UpdatedAt = cr.GetCreationTimestamp().Time
 	ws.Provider = strings.ReplaceAll(internalLabels[k8slabels.InternalProviderLabel], "_", "/")
 	ws.Tenant = internalLabels[k8slabels.InternalTenantLabel]
+	// The field, never the label: it is required and immutable on the CRD, and WorkspaceToCR
+	// writes the label from it.
 	ws.Region = cr.Region
-	if ws.Region == "" {
-		// A CR written before region became a field on the CRD carries it only as the
-		// internal label. ToCR writes both, so this only ever fires for an object already
-		// in etcd from an earlier version — but there an empty region would hand the
-		// plugin no region to provision into, and place the domain object in the plain
-		// tenant namespace instead of its per-region one.
-		ws.Region = internalLabels[k8slabels.InternalRegionLabel]
-	}
 	ws.Labels = k8slabels.KeyedToOriginal(keyedLabels, cr.CommonData.Labels)
 	ws.Annotations = cr.CommonData.Annotations
 	ws.Extensions = cr.CommonData.Extensions
@@ -95,6 +89,11 @@ func WorkspaceToCR(ws *wsdom.Workspace) (client.Object, error) {
 	if ws == nil {
 		return nil, kernel.NewError(kernel.KindInternal, fmt.Errorf("workspace is nil"))
 	}
+	// A workspace is keyed by region, so one without it has no namespace of its own to live in.
+	// The CRD rejects an empty region too; failing here names the problem before any write.
+	if ws.Region == "" {
+		return nil, kernel.NewError(kernel.KindValidation, fmt.Errorf("workspace %s: region is required", ws.Name))
+	}
 
 	spec := make(WorkspaceSpec, len(ws.Spec))
 	for k, v := range ws.Spec {
@@ -104,6 +103,9 @@ func WorkspaceToCR(ws *wsdom.Workspace) (client.Object, error) {
 	crLabels := k8slabels.OriginalToKeyed(ws.Labels)
 	crLabels[k8slabels.InternalTenantLabel] = ws.Tenant
 	crLabels[k8slabels.InternalProviderLabel] = strings.ReplaceAll(ws.Provider, "/", "_")
+	// The label mirrors the Region field below: both are written here, from one value, on every
+	// write path, so the list filter and the delegator's region scope select exactly what the
+	// field says.
 	crLabels[k8slabels.InternalRegionLabel] = ws.Region
 
 	// The CR is placed through the same call every read, update and delete addresses it by:

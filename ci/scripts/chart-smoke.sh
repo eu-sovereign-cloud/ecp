@@ -54,7 +54,7 @@ helm dependency update charts/ecp
 echo "==> helm install ecp"
 helm install ecp charts/ecp \
     --namespace "${NAMESPACE}" --create-namespace \
-    --set "gatewayRegional.region=${REGION}" \
+    --set "gatewayRegional.regions={${REGION}}" \
     --set "gatewayGlobal.image.repository=ecp/gateway-global" \
     --set "gatewayGlobal.image.tag=${TAG}" \
     --set "gatewayRegional.image.repository=ecp/gateway-regional" \

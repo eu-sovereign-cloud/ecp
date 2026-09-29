@@ -171,7 +171,9 @@ func AuthzMiddleware(checker authzport.Checker, provider, baseURL, region string
 //	    ),
 //	})
 //
-// region is the region served by the calling process; pass "" on the global server.
+// region is the calling process's default region (the first of --regions), what the
+// authorization claim falls back to when the request context carries none; pass "" on the
+// global server.
 //
 // A provider listed in flags.AuthzSkipProviders gets the authn-only chain even when
 // the checker is non-nil: its routes are authenticated but never authorized.

@@ -64,6 +64,9 @@ const (
 
 	testTenant    = "test-tenant"
 	testWorkspace = "test-workspace"
+	// testRegion is the region every workspace here is created in: a workspace is keyed by
+	// it, and this suite's delegator is unscoped, so any region reconciles.
+	testRegion = "test-region"
 )
 
 var (
@@ -249,6 +252,9 @@ func createTestNamespaces(ctx context.Context) error {
 		k8sadapter.ComputeNamespace(&kernelresource.Scope{Tenant: "test-tenant"}),
 		k8sadapter.ComputeNamespace(&kernelresource.Scope{Tenant: "test-tenant", Workspace: "test-workspace"}),
 		k8sadapter.ComputeNetworkNamespace(networkScopedRouteTable),
+		// The plain repo adapter provisions no namespace, and a workspace lives in its
+		// per-region one.
+		k8sadapter.ComputeRegionNamespace(newTestWorkspace("")),
 	}
 
 	for _, nsName := range nsToCreate {

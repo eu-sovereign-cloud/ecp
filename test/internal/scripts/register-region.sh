@@ -15,8 +15,9 @@ setup_env
 source_config
 
 SYSTEM_NAMESPACE="${SYSTEM_NAMESPACE:-e2e-ecp}"
-# Must match the REGION env of the regional gateway deployment, otherwise it
-# serves a region nobody advertises.
+# Must be the regional gateway's default region, the first of gatewayRegional.regions
+# (--regions): the suite calls it unprefixed, and a region the gateway does not serve is
+# one nobody can reach.
 REGION_NAME="${MULTICLUSTER_REGION:-itbg-bergamo}"
 GLOBAL_CONTEXT="${MULTICLUSTER_GLOBAL_CONTEXT:-kind-e2e-global}"
 REGIONAL_CONTEXT="${MULTICLUSTER_REGIONAL_CONTEXT:-kind-e2e-regional}"

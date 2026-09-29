@@ -5,10 +5,14 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/json"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	k8slabels "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes/labels"
+	"github.com/eu-sovereign-cloud/ecp/framework/kernel"
 	kernelresource "github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
 	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
 	wsdom "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1"
@@ -24,40 +28,41 @@ import (
 // the original and domain2, but domain2 and domain3 must be identical.
 func FuzzWorkspaceSpecRoundTrip(f *testing.F) {
 	// (specJSON, name, provider, tenant, region)
-	f.Add(`{"k":"hello"}`, "ws", "", "t", "")
+	f.Add(`{"k":"hello"}`, "ws", "", "t", "") // no region: rejected
+	f.Add(`{"k":"hello"}`, "ws", "", "t", "r")
 	f.Add(`{"k":42}`, "ws", "ionos/de", "t", "de-fra")
-	f.Add(`{"k":-1}`, "ws", "", "t", "")
-	f.Add(`{"k":true}`, "ws", "", "t", "")
-	f.Add(`{"k":null}`, "ws", "", "t", "")
-	f.Add(`{"k":{"nested":"value"}}`, "ws", "", "t", "")
-	f.Add(`{"k":[1,2,3]}`, "ws", "", "t", "")
-	f.Add(`{"k":"not-json-value"}`, "ws", "", "t", "")
-	f.Add(`{"k e y":"space in key"}`, "ws", "", "t", "")
-	f.Add(`{"":"empty key"}`, "ws", "", "t", "")
+	f.Add(`{"k":-1}`, "ws", "", "t", "r")
+	f.Add(`{"k":true}`, "ws", "", "t", "r")
+	f.Add(`{"k":null}`, "ws", "", "t", "r")
+	f.Add(`{"k":{"nested":"value"}}`, "ws", "", "t", "r")
+	f.Add(`{"k":[1,2,3]}`, "ws", "", "t", "r")
+	f.Add(`{"k":"not-json-value"}`, "ws", "", "t", "r")
+	f.Add(`{"k e y":"space in key"}`, "ws", "", "t", "r")
+	f.Add(`{"":"empty key"}`, "ws", "", "t", "r")
 	// full realistic workspace
 	f.Add(`{"test-string":"test-value","test-number":42,"test-bool":true}`, "test-workspace", "ionos/de-fra", "my-tenant", "de-fra")
 
 	// Kubernetes length limits
-	f.Add(`{"k":"v"}`, strings.Repeat("a", 254), "", "t", "")
-	f.Add(`{"k":"v"}`, strings.Repeat("a", 253), "", "t", "")
-	f.Add(`{"k":"v"}`, strings.Repeat("a", 64), "", "t", "")
-	f.Add(`{"k":"v"}`, "ws", "", strings.Repeat("t", 64), "")
+	f.Add(`{"k":"v"}`, strings.Repeat("a", 254), "", "t", "r")
+	f.Add(`{"k":"v"}`, strings.Repeat("a", 253), "", "t", "r")
+	f.Add(`{"k":"v"}`, strings.Repeat("a", 64), "", "t", "r")
+	f.Add(`{"k":"v"}`, "ws", "", strings.Repeat("t", 64), "r")
 	f.Add(`{"k":"v"}`, "ws", "", "t", strings.Repeat("r", 64))
 
 	// Provider slash/underscore edge cases
-	f.Add(`{"k":"v"}`, "ws", "///", "t", "")
-	f.Add(`{"k":"v"}`, "ws", "___", "t", "")
-	f.Add(`{"k":"v"}`, "ws", "a/b/c/d/e", "t", "")
-	f.Add(`{"k":"v"}`, "ws", "/leading", "t", "")
-	f.Add(`{"k":"v"}`, "ws", "trailing/", "t", "")
-	f.Add(`{"k":"v"}`, "ws", "a/_b", "t", "")
-	f.Add(`{"k":"v"}`, "ws", "ionos/München", "t", "")
-	f.Add(`{"k":"v"}`, "ws", "provider/nihongo", "t", "")
-	f.Add(`{"k":"v"}`, "ws", strings.Repeat("a/", 30)+"b", "t", "")
+	f.Add(`{"k":"v"}`, "ws", "///", "t", "r")
+	f.Add(`{"k":"v"}`, "ws", "___", "t", "r")
+	f.Add(`{"k":"v"}`, "ws", "a/b/c/d/e", "t", "r")
+	f.Add(`{"k":"v"}`, "ws", "/leading", "t", "r")
+	f.Add(`{"k":"v"}`, "ws", "trailing/", "t", "r")
+	f.Add(`{"k":"v"}`, "ws", "a/_b", "t", "r")
+	f.Add(`{"k":"v"}`, "ws", "ionos/München", "t", "r")
+	f.Add(`{"k":"v"}`, "ws", "provider/nihongo", "t", "r")
+	f.Add(`{"k":"v"}`, "ws", strings.Repeat("a/", 30)+"b", "t", "r")
 
 	// Deeply nested JSON spec values
-	f.Add(`{"k":{"a":{"b":{"c":"deep"}}}}`, "ws", "", "t", "")
-	f.Add(`{"k":[[[[1]]]]}`, "ws", "", "t", "")
+	f.Add(`{"k":{"a":{"b":{"c":"deep"}}}}`, "ws", "", "t", "r")
+	f.Add(`{"k":[[[[1]]]]}`, "ws", "", "t", "r")
 
 	f.Fuzz(func(t *testing.T, specJSON, name, provider, tenant, region string) {
 		var spec wsdom.WorkspaceSpec
@@ -78,9 +83,17 @@ func FuzzWorkspaceSpecRoundTrip(f *testing.F) {
 		}
 
 		cr1, err := WorkspaceToCR(domain)
+		if region == "" {
+			// A workspace is keyed by region: without one it must not be written anywhere.
+			if err == nil {
+				t.Errorf("domain→CR accepted a workspace with no region, placing it in %q", cr1.GetNamespace())
+			}
+			return
+		}
 		if err != nil {
 			return
 		}
+		requireRegionInSync(t, cr1, region)
 
 		domain2, err := WorkspaceFromCR(cr1)
 		if err != nil {
@@ -99,6 +112,7 @@ func FuzzWorkspaceSpecRoundTrip(f *testing.F) {
 			t.Errorf("second CR→domain failed: %v", err)
 			return
 		}
+		requireRegionInSync(t, cr2, region)
 
 		// Spec: compare CR specs (map[string]string) for stability
 		ws1 := cr1.(*Workspace)
@@ -125,10 +139,29 @@ func FuzzWorkspaceSpecRoundTrip(f *testing.F) {
 		if domain2.Tenant != domain3.Tenant {
 			t.Errorf("Tenant not stable: %q → %q", domain2.Tenant, domain3.Tenant)
 		}
-		if domain2.Region != domain3.Region {
-			t.Errorf("Region not stable: %q → %q", domain2.Region, domain3.Region)
+		if domain2.Region != region || domain3.Region != region {
+			t.Errorf("Region not preserved: %q → %q → %q", region, domain2.Region, domain3.Region)
 		}
 	})
+}
+
+// requireRegionInSync fails unless cr carries region both as its field and as its internal
+// region label. The field is what the plugin provisions into and the namespace is derived from;
+// the label is what the gateway's list filter and the delegator's region scope select on, so a
+// CR on which they disagree is listed, and reconciled, as one region and created in another.
+func requireRegionInSync(t *testing.T, cr client.Object, region string) {
+	t.Helper()
+
+	ws, ok := cr.(*Workspace)
+	if !ok {
+		t.Fatalf("WorkspaceToCR returned %T, want *Workspace", cr)
+	}
+	if ws.Region != region {
+		t.Errorf("CR region field = %q, want %q", ws.Region, region)
+	}
+	if got := ws.GetLabels()[k8slabels.InternalRegionLabel]; got != region {
+		t.Errorf("CR region label = %q, want %q (the field is %q)", got, region, ws.Region)
+	}
 }
 
 // newWorkspace builds a minimal domain workspace for the region-placement tests below.
@@ -160,9 +193,48 @@ func TestWorkspaceToCR_RegionPlacement(t *testing.T) {
 	require.Equal(t, "region-one", one.GetLabels()[k8slabels.InternalRegionLabel],
 		"the label is still written: it is what the gateway's list filter selects on")
 
-	// A workspace with no region — a unit test, or an object built by hand — is placed
-	// exactly where it was before.
-	none, err := WorkspaceToCR(newWorkspace("t1", "ws1", ""))
-	require.NoError(t, err)
-	require.Equal(t, k8sadapter.ComputeNamespace(&kernelresource.Scope{Tenant: "t1"}), none.GetNamespace())
+	// A workspace with no region has no namespace of its own, so it is refused rather than
+	// placed in the plain tenant namespace, where no request addressed to a region finds it.
+	_, err = WorkspaceToCR(newWorkspace("t1", "ws1", ""))
+	require.Error(t, err)
+	require.Equal(t, kernel.KindValidation, kernel.AsError(err).Kind)
+}
+
+// TestWorkspaceFromCR_RegionFromField pins the field as the one source of the region: a CR's
+// label is never consulted, so a CR that carries only the label (hand-written, or from before
+// the field existed) reads as region-less instead of being quietly adopted, and one on which the
+// two disagree reads as the region its namespace was derived from.
+func TestWorkspaceFromCR_RegionFromField(t *testing.T) {
+	tests := []struct {
+		name       string
+		field      string
+		label      string
+		wantRegion string
+	}{
+		{name: "field and label agree", field: "region-one", label: "region-one", wantRegion: "region-one"},
+		{name: "the field wins over a diverged label", field: "region-one", label: "region-two", wantRegion: "region-one"},
+		{name: "a label alone is not a region", label: "region-one", wantRegion: ""},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cr := &Workspace{Region: tc.field}
+			cr.SetName("ws1")
+			cr.SetLabels(map[string]string{
+				k8slabels.InternalTenantLabel: "t1",
+				k8slabels.InternalRegionLabel: tc.label,
+			})
+
+			typed, err := WorkspaceFromCR(cr)
+			require.NoError(t, err)
+			require.Equal(t, tc.wantRegion, typed.Region)
+
+			// The dynamic client hands the reader unstructured objects: same answer.
+			raw, err := runtime.DefaultUnstructuredConverter.ToUnstructured(cr)
+			require.NoError(t, err)
+			untyped, err := WorkspaceFromCR(&unstructured.Unstructured{Object: raw})
+			require.NoError(t, err)
+			require.Equal(t, tc.wantRegion, untyped.Region)
+		})
+	}
 }

@@ -503,9 +503,10 @@ func (a *WriterAdapter[T]) Create(ctx context.Context, m T) (res *T, err error) 
 	return &converted, nil
 }
 
-// Update implements the persistence.WriterRepo interface. It updates the resource's
-// metadata (labels, annotations) and spec. Status updates are handled separately
-// by UpdateStatus.
+// Update implements the persistence.WriterRepo interface. Without a resourceVersion it copies the
+// desired labels, annotations, spec, commonData and every other top-level field onto the stored
+// object (see syncTopLevelFields); with one it is a full replace that keeps only the stored
+// finalizers. Status updates are handled separately by UpdateStatus.
 func (a *WriterAdapter[T]) Update(ctx context.Context, m T) (res *T, err error) {
 	start := time.Now()
 	defer func() { observeUpstream(a.gvr, OpUpdate, start, err) }()
@@ -678,6 +679,8 @@ func (a *WriterAdapter[T]) updateMetadataAndSpecRetry(
 			return err
 		}
 
+		fieldsChanged := syncTopLevelFields(currObj, desired)
+
 		labelsChanged := !cmp.Equal(currObj.GetLabels(), desiredLabels)
 		if labelsChanged {
 			currObj.SetLabels(desiredLabels)
@@ -688,7 +691,7 @@ func (a *WriterAdapter[T]) updateMetadataAndSpecRetry(
 			currObj.SetAnnotations(desiredAnnotations)
 		}
 
-		if !specChanged && !commonDataChanged && !labelsChanged && !annotationsChanged {
+		if !specChanged && !commonDataChanged && !fieldsChanged && !labelsChanged && !annotationsChanged {
 			return nil
 		}
 
@@ -696,6 +699,29 @@ func (a *WriterAdapter[T]) updateMetadataAndSpecRetry(
 
 		return err
 	})
+}
+
+// syncTopLevelFields copies every other top-level field desired carries onto curr — any the CR
+// declares beside spec and commonData, such as Workspace's region — reporting whether it wrote.
+// A field set beside spec is as much the caller's as spec is, and one mirrored by a label must
+// move with it: the labels are replaced wholesale above, so taking the label and leaving the field
+// would leave the two disagreeing. A field the CRD makes immutable then fails the update loudly
+// instead. As with syncNestedMap, a field absent from desired is left alone.
+func syncTopLevelFields(curr, desired *unstructured.Unstructured) bool {
+	changed := false
+	for field, value := range desired.Object {
+		switch field {
+		case "apiVersion", "kind", "metadata", "status", "spec", "commonData":
+			continue
+		}
+		if cmp.Equal(curr.Object[field], value) {
+			continue
+		}
+		curr.Object[field] = runtime.DeepCopyJSONValue(value)
+		changed = true
+	}
+
+	return changed
 }
 
 // syncNestedMap copies an already-extracted desired value onto curr's named top-level field when

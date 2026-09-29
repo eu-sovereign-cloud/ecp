@@ -1072,6 +1072,87 @@ func TestWriterAdapter_Update_NoOpDoesNotWrite(t *testing.T) {
 	require.Zerof(t, writes, "an update that changes nothing must not write, got %d writes", writes)
 }
 
+// testRegionedToCR writes the region the way WorkspaceToCR does: as a top-level field beside spec,
+// and as the internal region label the list filter and the delegator's region scope select on.
+func testRegionedToCR(d *testRegionScopedIdentifiable) (client.Object, error) {
+	namespace, err := ResolveNamespace(d)
+	if err != nil {
+		return nil, err
+	}
+
+	return &unstructured.Unstructured{Object: map[string]any{
+		keyAPIVersion: testAPIVersionNetwork,
+		keyKind:       "RouteTable",
+		keyMetadata: map[string]any{
+			keyNamespace: namespace,
+			keyName:      d.name,
+			"labels":     map[string]any{labels.InternalRegionLabel: d.region},
+		},
+		"region": d.region,
+		"spec":   map[string]any{},
+	}}, nil
+}
+
+func testRegionedFromCR(obj client.Object) (*testRegionScopedIdentifiable, error) {
+	u, ok := obj.(*unstructured.Unstructured)
+	if !ok {
+		return nil, fmt.Errorf("unexpected type %T", obj)
+	}
+	region, _, err := unstructured.NestedString(u.Object, "region")
+	if err != nil {
+		return nil, err
+	}
+
+	return &testRegionScopedIdentifiable{name: u.GetName(), tenant: "t1", region: region}, nil
+}
+
+// TestWriterAdapter_Update_SyncsTopLevelFields pins that an update without a resourceVersion
+// carries a top-level field beside spec — Workspace's region — along with the labels. The labels
+// are replaced wholesale, so an update that took the region label and left the region field would
+// leave a CR that the list filter and the delegator's region scope route as one region while its
+// plugin provisions into another. On a real API server the CRD's immutability rule refuses such a
+// write outright (TestWorkspaceRegionFieldAndLabelInSync); either way nothing is left disagreeing.
+func TestWriterAdapter_Update_SyncsTopLevelFields(t *testing.T) {
+	desired := &testRegionScopedIdentifiable{name: testWS1, tenant: "t1", region: "region-one"}
+	created, err := testRegionedToCR(desired)
+	require.NoError(t, err)
+
+	// Diverged out of band: label and namespace say region-one, the field says otherwise. Spec
+	// and labels already match desired, so only the field sync has anything to write.
+	stored := created.(*unstructured.Unstructured)
+	stored.Object["region"] = "region-stale"
+	stored.Object["untouched"] = "kept"
+
+	dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), testListKinds(), stored)
+
+	var writes int
+	dynFake.PrependReactor("update", "*", func(k8stesting.Action) (bool, runtime.Object, error) {
+		writes++
+		return false, nil, nil // Count it, then fall through to the tracker.
+	})
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	writer := NewWriterAdapter[*testRegionScopedIdentifiable](dynFake, testGVR, logger,
+		TwoWayConverter[*testRegionScopedIdentifiable]{FromCR: testRegionedFromCR, ToCR: testRegionedToCR})
+
+	updated, err := writer.Update(context.Background(), desired)
+	require.NoError(t, err)
+	require.Equal(t, "region-one", (*updated).region)
+
+	after, err := dynFake.Resource(testGVR).Namespace(stored.GetNamespace()).
+		Get(context.Background(), testWS1, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.Equal(t, "region-one", after.Object["region"], "the field must move with its label")
+	require.Equal(t, "region-one", after.GetLabels()[labels.InternalRegionLabel])
+	require.Equal(t, "kept", after.Object["untouched"], "a top-level field desired does not carry is left alone")
+	require.Equal(t, 1, writes)
+
+	// In sync, the same update has nothing to write.
+	_, err = writer.Update(context.Background(), desired)
+	require.NoError(t, err)
+	require.Equal(t, 1, writes, "an in-sync field must not cost a write")
+}
+
 // newRegionObject builds a CR in ns carrying the internal region label, as every regional
 // slice's ToCR stamps it.
 func newRegionObject(namespace, name, region string) *unstructured.Unstructured {
