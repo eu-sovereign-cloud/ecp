@@ -306,7 +306,8 @@ func parentListKinds() map[schema.GroupVersionResource]string {
 	}
 }
 
-// testParentToCR places the parent CR in the tenant namespace (like WorkspaceToCR).
+// testParentToCR places the parent CR in the plain tenant namespace, as a region-less namespace
+// owner does (WorkspaceToCR places its CR in the per-region namespace instead — see testRegionedToCR).
 func testParentToCR(m *testWorkspaceScopedIdentifiable) (client.Object, error) {
 	return &unstructured.Unstructured{Object: map[string]any{
 		keyAPIVersion: testAPIVersionWorkspace,

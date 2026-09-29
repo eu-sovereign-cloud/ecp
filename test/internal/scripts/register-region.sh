@@ -32,10 +32,10 @@ ADVERTISE_HOST="${MULTICLUSTER_ADVERTISE_HOST:-127.0.0.1}"
 echo "--- Registering region '${REGION_NAME}' (${REGIONAL_CONTEXT} -> ${GLOBAL_CONTEXT}) ---"
 
 # The suite reaches the regional gateway at whatever the Region CR advertises, so
-# that address has to be routable from outside the regional cluster. ClusterIP —
-# what the single-cluster stack deploys — is not, so the multicluster overlay
-# deploys the regional gateway as a NodePort with a pinned port (see the
-# kind-multicluster-stack target and gateway-regional/multicluster-values.yaml).
+# that address has to be routable from outside the regional cluster. The
+# single-cluster values already make the regional gateway a NodePort, but on
+# 30081; the multicluster overlay re-pins it to the port this script expects (see
+# the kind-multicluster-stack target and gateway-regional/multicluster-values.yaml).
 # Here we only read that port back and confirm the pin, so the advertised host
 # port lines up with what the chart exposed and what regional-cluster.yaml
 # publishes — an auto-assigned port would not be reachable from the host.

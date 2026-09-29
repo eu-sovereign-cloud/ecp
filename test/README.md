@@ -223,7 +223,9 @@ make kind-conformance CONFORMANCE_SCENARIOS=Storage.V1.BlockStorageLifeCycle
 ## Multicluster e2e (two clusters)
 
 Everything above runs both gateways in **one** cluster, where the region catalog's
-provider URLs are an unasserted fixture pointing at in-cluster DNS. This suite runs the
+provider URLs point at in-cluster DNS the suites cannot dial: at most their path is used
+(`e2e/multiregion_test.go` reads `region-two`'s prefix off it), never the advertised host.
+This suite runs the
 real split topology instead: the global gateway in `e2e-global`, the regional gateway
 and delegator in `e2e-regional`.
 

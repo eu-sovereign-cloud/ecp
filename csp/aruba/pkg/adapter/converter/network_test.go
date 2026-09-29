@@ -31,8 +31,8 @@ func secaNetwork(region string) *netdom.Network {
 }
 
 func TestNetworkVPCConverter_FromSECAToAruba(t *testing.T) {
-	// The VPC lands in the workspace namespace and points at the Project named after the
-	// workspace, which lives in the tenant namespace.
+	// The VPC lands in the workspace namespace and points at the Aruba Project named after the
+	// workspace; the Project lives in the tenant namespace.
 	wantNamespace := k8sadapter.ComputeNamespace(&res.Scope{Tenant: "test-tenant", Workspace: "test-workspace"})
 	wantProjectNamespace := k8sadapter.ComputeNamespace(&res.Scope{Tenant: "test-tenant"})
 

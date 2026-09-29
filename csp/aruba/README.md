@@ -213,11 +213,11 @@ So a Network with no Internet Gateway, or an Instance with no ssh key, sits in `
 
 ## Namespaces and references
 
-Aruba CRs are created in the same namespace as the SECA resource they mirror (hashed by scope, via `ComputeNamespace`/`ComputeNetworkNamespace` in `framework/backend/kubernetes/adapter.go`):
+Aruba CRs are created in the namespace of the SECA resource they mirror (hashed by scope, via `ComputeNamespace`/`ComputeNetworkNamespace` in `framework/backend/kubernetes/adapter.go`), with one exception: the `Project` stays in the tenant namespace, although its SECA Workspace lives in the per-region `sha3-224(@region/<region>/<tenant>)` (`ComputeRegionNamespace`):
 
 - `VPC`, `ElasticIP`, `CloudServer`, `KeyPair` and the materialised `SecurityGroup`/`SecurityRule` → workspace namespace, `hash(tenant/workspace)`.
 - `Subnet` → its network's namespace, `hash(tenant/workspace/network)`.
-- `Project` (from the SECA Workspace) → tenant namespace, `hash(tenant)`.
+- `Project` (from the SECA Workspace) → tenant namespace, `hash(tenant)`, not the Workspace's own per-region namespace. It is named after the workspace, so a same-named workspace of the same tenant in another region maps to the same `Project`.
 
 Every Aruba CR references its `Project` by `{name: <workspace>, namespace: hash(tenant)}`; the Aruba `Subnet`, `SecurityGroup`, `SecurityRule` and `CloudServer` additionally reference their `VPC` by `{name: <seca network>, namespace: hash(tenant/workspace)}`. The `CloudServer` references subnets in the network namespace and its key pair, security groups and volumes in the workspace namespace — cross-namespace references the operator supports.
 
@@ -237,7 +237,7 @@ The suite connects to the **current kube-context** and expects the stack already
 
 1. **A running cluster.** For a local KIND cluster: `make -C ../../test kind-start`.
 2. **The [`arubacloud-resource-operator`](https://github.com/Arubacloud/arubacloud-resource-operator) and its Aruba credentials** installed in that cluster. This is installed **out of band** — there is no in-repo tooling for it — and is what actually provisions resources against the Aruba CMP.
-3. **The `delegator-aruba` deployed** with the SECA CRDs and the test-data fixtures (which provide the SKUs the suite references — `sku-1`, `network-sku-1`, `compute-sku-1`): `make -C ../../test kind-deploy-stack E2E_PLUGIN=aruba E2E_TENANT=<your-aruba-account>`.
+3. **The `delegator-aruba` deployed** with the SECA CRDs and the test-data fixtures (which provide the SKUs the suite references — `sku-1`, `network-sku-1`, `compute-sku-1`): `make -C ../../test kind-deploy-stack E2E_PLUGIN=aruba E2E_TENANT=<your-aruba-account>`. The stack's two delegators are region-scoped (`ecp-delegator` → `itbg-bergamo`, `ecp-delegator-two` → `region-two`, see `test/internal/deploy/delegator*/values.yaml`), and this suite writes every CR in region `ITBG-Bergamo`, which neither serves, so widen the first one's scope before running: `helm upgrade ecp-delegator ../../charts/delegator -n e2e-ecp --reuse-values --set 'regions={itbg-bergamo,ITBG-Bergamo}'`.
 4. **A real Aruba account in `ARUBA_TENANT`.** The operator provisions real cloud resources, so a resource only reaches `Active` against a genuine tenant (the default, `test-tenant`, will not provision). It **must match** the `E2E_TENANT` the stack was deployed with, so the fixture SKUs land in the same `hash(tenant)` namespace the plugin reads them from.
 
 ### What the test does

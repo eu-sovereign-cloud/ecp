@@ -20,7 +20,7 @@ From the harness root (`test/`), it's the two-phase flow — deploy → provisio
 backend → run:
 
 ```shell
-# 1. Deploy the stack (gateways + delegator) with the aruba plugin.
+# 1. Deploy the stack (both gateways + both region-scoped delegators) with the aruba plugin.
 make conformance-deploy CONFORMANCE_PLUGIN=aruba     # or: make deploy-stack E2E_PLUGIN=aruba
 
 # 2. Install the arubacloud-resource-operator and its Aruba credentials in the

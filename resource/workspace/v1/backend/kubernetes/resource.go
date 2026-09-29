@@ -46,7 +46,6 @@ type Workspace struct {
 	// It is the source of truth, visible in `kubectl get workspace`; WorkspaceToCR writes the
 	// internal region label from the same value, because that label is what the gateway's list
 	// filter and the delegator's region scope select on.
-	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="region is immutable"
 	Region string `json:"region"`

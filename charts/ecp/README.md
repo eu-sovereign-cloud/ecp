@@ -102,16 +102,19 @@ kubectl get workspaces -A -o custom-columns='NS:.metadata.namespace,NAME:.metada
 ```
 
 One that is left over after the upgrade cannot be deleted normally. The upgraded delegator
-addresses it in its per-region namespace, where it does not live, so its finalizer is never
-released. Remove it by hand: in one patch, add its region and drop its finalizers, then delete
-it. Adding the field is allowed, because the immutability rule applies only to a region that is
+reads it back with no region, and refuses to write a workspace without one, so the delete never
+gets going and its finalizer is never released. Remove it by hand: request the delete first,
+then, in one patch, add its region and drop its finalizers. The order matters: once the region
+is set, a running delegator puts its finalizer back on a workspace that is not yet being deleted,
+then addresses it in its per-region namespace, where it does not live, and never releases it.
+Adding the field is allowed, because the immutability rule applies only to a region that is
 already set. This skips the plugin's teardown, so whatever the CSP created for the workspace,
 and the namespace it owned for its children, must be removed by hand too:
 
 ```bash
+kubectl delete workspace <name> -n <ns> --wait=false
 kubectl patch workspace <name> -n <ns> --type merge \
   -p '{"region":"<its secapi.cloud/region label>","metadata":{"finalizers":null}}'
-kubectl delete workspace <name> -n <ns>
 ```
 
 ## Authentication
@@ -157,7 +160,9 @@ cluster in that mode. Two authentication plugins exist (`auth.plugin`):
   signature alone.
 
 Every auth value becomes a **command-line flag** on the gateway container: the
-images are the bare binary, and it reads only `APP_ENV` from the environment.
+images are the bare binary, and it reads only `APP_ENV` from the environment (plus
+`REGIONS` on the regional gateway, as a fallback for an unset `--regions`, which the chart
+always sets).
 Adding a knob to this chart therefore means adding it to `ecp.authArgs` in
 [_helpers.tpl](templates/_helpers.tpl) — a value that renders into an env var
 reaches nothing. `ci/scripts/chart-smoke.sh` guards that in CI by installing the

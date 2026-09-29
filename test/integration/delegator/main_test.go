@@ -214,8 +214,8 @@ func TestMain(m *testing.M) {
 }
 
 // newTestWorkspace builds the workspace every workspace-scoped fixture and test lives in.
-// Creating it through workspaceRepo provisions both the tenant namespace and the
-// workspace's own child namespace.
+// Creating it through workspaceRepo provisions the tenant namespace, the per-region namespace
+// the Workspace CR itself lives in, and the workspace's own child namespace.
 func newTestWorkspace() *wsdom.Workspace {
 	return &wsdom.Workspace{
 		RegionalMetadata: commondomain.RegionalMetadata{
@@ -322,25 +322,7 @@ func testNetworkNamespace() string {
 // depend on. It lives in the test workspace; image resources reference it with a
 // workspace-qualified "block-storages/source-bs" reference.
 func newSourceBlockStorage() *bsdom.BlockStorage {
-	return &bsdom.BlockStorage{
-		RegionalMetadata: commondomain.RegionalMetadata{
-			Region: testRegion,
-			CommonMetadata: commondomain.CommonMetadata{
-				Name: sourceBlockStorage,
-			},
-			Scope: resource.Scope{
-				Tenant:    testTenant,
-				Workspace: testWorkspace,
-			},
-		},
-		Spec: bsdom.BlockStorageSpec{
-			SizeGB: 1,
-			SkuRef: commondomain.Reference{
-				Region:   testRegion,
-				Resource: "sku-1",
-			},
-		},
-	}
+	return newRegionalBlockStorage(sourceBlockStorage, testRegion)
 }
 
 func createSourceBlockStorage(ctx context.Context, repo persistence.Repo[*bsdom.BlockStorage]) error {
@@ -362,7 +344,6 @@ func waitForBlockStorageActive(ctx context.Context, repo persistence.Repo[*bsdom
 	return wait.PollUntilContextTimeout(ctx, pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
 		loaded := &bsdom.BlockStorage{
 			RegionalMetadata: commondomain.RegionalMetadata{
-				Region: testRegion,
 				CommonMetadata: commondomain.CommonMetadata{
 					Name: name,
 				},

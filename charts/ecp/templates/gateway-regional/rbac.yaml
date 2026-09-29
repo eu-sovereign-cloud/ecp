@@ -88,10 +88,12 @@ rules:
   - apiGroups: ["workspace.v1.secapi.cloud"]
     resources: ["workspaces/status"]
     verbs: ["get", "list", "watch"]
-  # create: on write the gateway provisions the tenant namespace, plus — opportunistically — the
-  # child namespace an owning entity (Workspace, Network) creates for its children. Losing the
-  # verb degrades rather than breaks: the delegator's ensure hook is the backstop, and teardown
-  # is its job either way. See "Namespace lifecycle" in doc/ARCHITECTURE.md.
+  # create: on write the gateway provisions the tenant namespace and, for a Workspace, the
+  # per-region namespace its CR lives in (sha3-224(@region/<region>/<tenant>)); both come before
+  # the CR, and a failure fails the write. It also creates, opportunistically, the child
+  # namespace an owning entity (Workspace, Network) creates for its children; for that one,
+  # losing the verb only degrades: the delegator's ensure hook is the backstop, and teardown is
+  # its job either way. See "Namespace lifecycle" in doc/ARCHITECTURE.md.
   # patch: provisioning a namespace that already exists stamps the owner labels onto it, and
   # without the verb every write into an already-provisioned namespace fails with 403.
   - apiGroups: [""]

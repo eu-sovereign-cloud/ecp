@@ -8,9 +8,9 @@ type regionContextKey struct{}
 
 // ContextWithRegion returns ctx carrying the region this request is addressed to.
 //
-// A gateway process may serve several regions at once (selected per request by URL
-// path segment or by host), so the region is request-scoped rather than a property
-// of the process. It is set once, at the edge, by the region router middleware.
+// A gateway process may serve several regions at once (selected per request by the
+// /regions/<region> URL path prefix), so the region is request-scoped rather than a
+// property of the process. It is set once, at the edge, by the region router middleware.
 func ContextWithRegion(ctx context.Context, region string) context.Context {
 	return context.WithValue(ctx, regionContextKey{}, region)
 }

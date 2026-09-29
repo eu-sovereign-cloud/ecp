@@ -35,8 +35,9 @@ const (
 	globalLabel   = "app=gateway-global"
 
 	testWorkspace = "e2e-workspace"
-	// testRegion is one of the regions provisioned by the test-data fixture and
-	// the region the regional gateway is configured for.
+	// testRegion is one of the regions provisioned by the test-data fixture and the
+	// regional gateway's default region — the first of gatewayRegional.regions, which the
+	// suite's unprefixed clients are served as.
 	testRegion = "itbg-bergamo"
 )
 

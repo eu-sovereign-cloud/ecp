@@ -66,7 +66,7 @@ Division of labor — each fact lives with its natural authority:
 | Member of which tenant(s)? | Token — tenant claim | Membership gate vs URL tenant |
 | What may this token exercise? | Token — `scope` (optional) | Attenuation cap; can only narrow |
 | Which resources are targeted? | URL path | `{tenant}/{workspace}`, resource, verb extraction |
-| Which region / API family? | Server config / route registration | Regional server knows its region; provider baked into route |
+| Which region / API family? | URL path prefix / route registration | Regional server resolves the region per request from a `/regions/<region>` prefix (none = the first of `--regions`, see [ARCHITECTURE.md](ARCHITECTURE.md#multi-region-gateways)); provider baked into route |
 | What may the **user** do? | Gateway RBAC store | Role + RoleAssignment in the tenant's namespace |
 
 There is **no user→tenant membership directory in the gateway**: membership is emergent.

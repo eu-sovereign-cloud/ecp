@@ -67,8 +67,8 @@ type ReaderAdapter[T persistence.IdentifiableResource] struct {
 // RegionScoped marks the reader as serving a regional resource, so List returns only the
 // resources of the region the request is addressed to (resource.RegionFromContext) instead
 // of everything the tenant/workspace namespace holds. It is what lets one gateway process
-// serve several regions: the namespace formula has no region dimension, so without it a list
-// in one region returns another region's resources.
+// serve several regions: below the workspace level the namespace formula has no region
+// dimension, so without it a list in one region returns another region's resources.
 //
 // Only call it on a resource whose CRs carry the internal region label — the global ones
 // (Role, RoleAssignment, Region) do not, and filtering on it would return nothing.
@@ -639,26 +639,6 @@ func (a *WriterAdapter[T]) updateMetadataAndSpecRetry(
 	desiredLabels := desired.GetLabels()
 	desiredAnnotations := desired.GetAnnotations()
 
-	// Both subtrees are extracted once, up front, not per attempt. NestedMap deep-copies what it
-	// returns, so pulling them inside the closure would re-copy them on every conflict retry, and a
-	// structurally invalid desired object would only be caught after a Get round trip rather than
-	// failing immediately.
-	//
-	// commonData is a sibling of spec, not part of it, so it needs copying in its own right. It is
-	// not cosmetic: commonData.labels holds the *key list* that KeyedToOriginal walks to rebuild a
-	// resource's labels from the hashed kl/<sha3> entries in metadata.labels. Leaving it behind
-	// means a newly added label key never appears in the domain object - the value is written to
-	// metadata.labels but nothing knows to look it up again.
-	desiredSpec, specFound, err := unstructured.NestedMap(desired.Object, "spec")
-	if err != nil {
-		return err
-	}
-
-	desiredCommonData, commonDataFound, err := unstructured.NestedMap(desired.Object, "commonData")
-	if err != nil {
-		return err
-	}
-
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		currObj, getErr := ri.Get(ctx, name, metav1.GetOptions{})
 		if getErr != nil {
@@ -667,16 +647,6 @@ func (a *WriterAdapter[T]) updateMetadataAndSpecRetry(
 
 		if !currObj.GetDeletionTimestamp().IsZero() {
 			return nil
-		}
-
-		specChanged, err := syncNestedMap(currObj, desiredSpec, specFound, "spec")
-		if err != nil {
-			return err
-		}
-
-		commonDataChanged, err := syncNestedMap(currObj, desiredCommonData, commonDataFound, "commonData")
-		if err != nil {
-			return err
 		}
 
 		fieldsChanged := syncTopLevelFields(currObj, desired)
@@ -691,27 +661,36 @@ func (a *WriterAdapter[T]) updateMetadataAndSpecRetry(
 			currObj.SetAnnotations(desiredAnnotations)
 		}
 
-		if !specChanged && !commonDataChanged && !fieldsChanged && !labelsChanged && !annotationsChanged {
+		if !fieldsChanged && !labelsChanged && !annotationsChanged {
 			return nil
 		}
 
-		_, err = ri.Update(ctx, currObj, metav1.UpdateOptions{})
+		_, err := ri.Update(ctx, currObj, metav1.UpdateOptions{})
 
 		return err
 	})
 }
 
-// syncTopLevelFields copies every other top-level field desired carries onto curr — any the CR
-// declares beside spec and commonData, such as Workspace's region — reporting whether it wrote.
-// A field set beside spec is as much the caller's as spec is, and one mirrored by a label must
-// move with it: the labels are replaced wholesale above, so taking the label and leaving the field
-// would leave the two disagreeing. A field the CRD makes immutable then fails the update loudly
-// instead. As with syncNestedMap, a field absent from desired is left alone.
+// syncTopLevelFields copies every top-level field desired carries beside metadata and status onto
+// curr — spec, its sibling commonData, and any other the CR declares, such as Workspace's region —
+// reporting whether it wrote. A field absent from desired is left alone rather than cleared.
+//
+// commonData is not cosmetic: commonData.labels holds the *key list* that KeyedToOriginal walks to
+// rebuild a resource's labels from the hashed kl/<sha3> entries in metadata.labels, so leaving it
+// behind means a newly added label key never appears in the domain object. A field mirrored by a
+// label must move with it too: the labels are replaced wholesale above, so taking the label and
+// leaving the field would leave the two disagreeing. A field the CRD makes immutable then fails
+// the update loudly instead.
+//
+// The comparison is only as stable as what the converters produce: an equal-but-differently-ordered
+// value counts as a change here and costs a write, a resourceVersion bump, and the reconcile that
+// follows it. commonData.labels is a list built from a Go map, so the converters sort it - see
+// doc/CONVENTIONS.md.
 func syncTopLevelFields(curr, desired *unstructured.Unstructured) bool {
 	changed := false
 	for field, value := range desired.Object {
 		switch field {
-		case "apiVersion", "kind", "metadata", "status", "spec", "commonData":
+		case "apiVersion", "kind", "metadata", "status":
 			continue
 		}
 		if cmp.Equal(curr.Object[field], value) {
@@ -722,32 +701,6 @@ func syncTopLevelFields(curr, desired *unstructured.Unstructured) bool {
 	}
 
 	return changed
-}
-
-// syncNestedMap copies an already-extracted desired value onto curr's named top-level field when
-// the two differ, reporting whether it wrote. spec and its sibling commonData get identical
-// treatment, so they share one path. A field absent from desired (found=false) is left alone rather
-// than cleared.
-//
-// The comparison is only as stable as what the converters produce: an equal-but-differently-ordered
-// value counts as a change here and costs a write, a resourceVersion bump, and the reconcile that
-// follows it. commonData.labels is a list built from a Go map, so the converters sort it - see
-// doc/CONVENTIONS.md.
-func syncNestedMap(curr *unstructured.Unstructured, desiredValue map[string]any, found bool, name string) (bool, error) {
-	if !found {
-		return false, nil
-	}
-
-	currValue, currFound, err := unstructured.NestedMap(curr.Object, name)
-	if err != nil {
-		return false, err
-	}
-
-	if currFound && cmp.Equal(currValue, desiredValue) {
-		return false, nil
-	}
-
-	return true, unstructured.SetNestedMap(curr.Object, desiredValue, name)
 }
 
 func (a *WriterAdapter[T]) updateStatusRetry(
@@ -890,11 +843,6 @@ func namespaceHasLiveCoOwner(
 	ownNamespace, _, regionKeyed := regionNamespace(m)
 	if !regionKeyed {
 		return false, nil
-	}
-
-	if dyn == nil {
-		return false, kernel.NewError(kernel.KindUnavailable,
-			fmt.Errorf("cannot list co-owners of %s %q: dynamic client is nil", ownerGVR.Resource, m.GetName()))
 	}
 
 	start := time.Now()
@@ -1103,7 +1051,8 @@ func NamespaceCleanup[T persistence.IdentifiableResource](
 }
 
 // NamespaceManagingWriterAdapter wraps a WriterAdapter and, on Create, ensures the tenant
-// namespace and the one computed for childNamespace exist. On Delete it refuses when
+// namespace (plus the per-region one for a region-keyed resource such as Workspace) and the one
+// computed for childNamespace exist. On Delete it refuses when
 // childResourceGVRs still list objects in that namespace, then deletes the CR — the namespace
 // itself is torn down by the owning controller's NamespaceCleanup finalizer.
 // It uses a typed clientset for Namespace operations when available.
@@ -1123,8 +1072,9 @@ type NamespaceManagingRepoAdapter[T persistence.IdentifiableResource] struct {
 	*WatcherAdapter[T]
 }
 
-// NewNamespaceManagingWriterAdapter creates a new writer adapter that ensures the tenant
-// namespace and the namespace selected by childNamespace exist before creating resources.
+// NewNamespaceManagingWriterAdapter creates a new writer adapter that provisions the tenant
+// namespace (and, for a region-keyed resource such as Workspace, its per-region namespace) before
+// creating the resource, and the namespace selected by childNamespace opportunistically after it.
 // childResourceGVRs is the closed set of SECA types that may live in the child namespace;
 // Delete uses it for the emptiness check (empty/nil means no types to check).
 func NewNamespaceManagingWriterAdapter[T persistence.IdentifiableResource](

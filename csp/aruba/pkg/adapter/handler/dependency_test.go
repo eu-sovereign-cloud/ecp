@@ -45,8 +45,8 @@ func TestLoadActiveWorkspaceAddressesTheRegionNamespace(t *testing.T) {
 			return nil
 		})
 
-	scope := res.Scope{Tenant: tenant, Workspace: "ws-1"}
-	_, err := loadActiveWorkspace(t.Context(), repo, &scope, region)
+	md := refdom.RegionalMetadata{Scope: res.Scope{Tenant: tenant, Workspace: "ws-1"}, Region: region}
+	_, err := loadActiveWorkspace(t.Context(), repo, &md)
 	require.NoError(t, err)
 	require.NotNil(t, key, "the handler must have issued the read")
 
