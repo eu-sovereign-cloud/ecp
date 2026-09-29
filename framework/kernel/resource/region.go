@@ -17,7 +17,8 @@ func ContextWithRegion(ctx context.Context, region string) context.Context {
 
 // RegionFromContext returns the region stored by ContextWithRegion, or fallback when
 // none is set — the global gateway (no region at all), a handler called directly by a
-// unit test, and any read path that does not originate from an HTTP request.
+// unit test, and any read or write path that does not originate from an HTTP request (the
+// delegator).
 func RegionFromContext(ctx context.Context, fallback string) string {
 	if region, ok := ctx.Value(regionContextKey{}).(string); ok && region != "" {
 		return region

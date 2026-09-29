@@ -26,7 +26,7 @@ func resolveRegions(regions []string) (served []string, defaultRegion string, er
 
 	if len(served) == 0 {
 		// Fail fast: no region mis-scopes every regional request (authz region, resource
-		// placement, list filtering) for the process life.
+		// placement, list filtering, item-operation confinement) for the process life.
 		return nil, "", errors.New("regions is required: set --regions or the REGIONS environment variable")
 	}
 

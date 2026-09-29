@@ -30,7 +30,8 @@ func TestRegionalAuthz(t *testing.T) {
 
 	t.Run("bob can list block-storages (e2e-storage-viewer scoped to itbg-bergamo)", func(t *testing.T) {
 		// bob has ra-bob-scoped: seca.storage viewer scoped to itbg-bergamo region.
-		// The regional gateway runs in itbg-bergamo so the scope matches.
+		// The client is unprefixed, so the request is served as the gateway's default region,
+		// itbg-bergamo, and the scope matches.
 		editor := authhelper.IdentityEditor("bob", "bob-pass")
 		client, err := storagev1.NewClientWithResponses(regionalBaseURL+"/providers/seca.storage", storagev1.WithRequestEditorFn(editor))
 		if err != nil {
@@ -46,8 +47,8 @@ func TestRegionalAuthz(t *testing.T) {
 	})
 
 	t.Run("bob down-scoped to another region is denied (region cap)", func(t *testing.T) {
-		// bob's RBAC (ra-bob-scoped) allows storage in itbg-bergamo, which is the region
-		// this gateway serves. A token down-scoped to a different region must not authorize
+		// bob's RBAC (ra-bob-scoped) allows storage in itbg-bergamo, the region an unprefixed
+		// request to this gateway is served as. A token down-scoped to a different region must not authorize
 		// the request even though RBAC would; a token scoped to itbg-bergamo still works.
 		denied := authhelper.ScopedEditor("bob", "bob-pass", &resource.TokenScope{Regions: []string{"other-region"}})
 		client, err := storagev1.NewClientWithResponses(regionalBaseURL+"/providers/seca.storage", storagev1.WithRequestEditorFn(denied))

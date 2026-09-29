@@ -20,7 +20,8 @@ const RegionPathPrefix = "/regions/"
 // NewRegionRouter returns a middleware that resolves which of the regions this process
 // serves a request is addressed to, and stores it in the request context
 // ([kresource.ContextWithRegion]) for the handlers, the authorization claim extractor and
-// the region-scoped read adapters downstream.
+// the persistence adapters downstream: a region-scoped reader's List, and every adapter's
+// Load, Update and Delete.
 //
 // A request names its region with a "/regions/<region>" path prefix; one that names none —
 // every request to a single-region gateway, plus the probes and /metrics — is served as
