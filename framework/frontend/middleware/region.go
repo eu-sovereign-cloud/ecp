@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"slices"
 	"strings"
 
 	rest "github.com/eu-sovereign-cloud/ecp/framework/frontend/rest"
@@ -32,17 +33,12 @@ const RegionPathPrefix = "/regions/"
 // path is already stripped when the mux matches and r.Pattern is set on the request
 // metrics observes.
 func NewRegionRouter(regions []string, defaultRegion string, log *slog.Logger) func(http.Handler) http.Handler {
-	served := make(map[string]struct{}, len(regions))
-	for _, r := range regions {
-		served[r] = struct{}{}
-	}
-
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			region, handler := defaultRegion, next
 			if tail, ok := strings.CutPrefix(r.URL.Path, RegionPathPrefix); ok {
 				named, _, _ := strings.Cut(tail, "/")
-				if _, isServed := served[named]; !isServed {
+				if !slices.Contains(regions, named) {
 					log.WarnContext(r.Context(), "request for a region this gateway does not serve",
 						slog.String("region", named))
 					rest.WriteErrorResponse(w, r, log,

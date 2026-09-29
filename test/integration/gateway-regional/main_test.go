@@ -30,8 +30,8 @@ const (
 	gatewayLabel    = "app=gateway-regional"
 	testTenant      = "test-tenant"
 	testWorkspace   = "test-workspace"
-	// testRegion is the region this gateway is deployed to serve
-	// (internal/deploy/gateway-regional/values.yaml).
+	// testRegion is the region an unprefixed request is served as: the first entry of
+	// gatewayRegional.regions in internal/deploy/gateway-regional/values.yaml.
 	testRegion = "itbg-bergamo"
 	// sourceBlockStorage is a workspace-scoped block storage that image tests
 	// reference via "block-storages/source-bs". This suite does not wait for it to

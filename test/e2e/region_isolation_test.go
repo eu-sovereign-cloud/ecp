@@ -4,7 +4,6 @@ package e2e
 
 import (
 	"context"
-	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -22,8 +21,6 @@ import (
 
 	k8sadapter "github.com/eu-sovereign-cloud/ecp/framework/backend/kubernetes"
 	"github.com/eu-sovereign-cloud/ecp/framework/kernel/resource"
-	commondomain "github.com/eu-sovereign-cloud/ecp/resource/common/domain"
-	wsdom "github.com/eu-sovereign-cloud/ecp/resource/workspace/v1"
 	authhelper "github.com/eu-sovereign-cloud/ecp/test/internal/authhelper"
 	"github.com/eu-sovereign-cloud/ecp/test/internal/testenv"
 )
@@ -64,10 +61,15 @@ func TestRegionIsolationEndToEnd(t *testing.T) {
 	// workspace name appears in both delegators' logs and cannot tell them apart.
 	bsName := "e2e-ri-bs-" + uuid.New().String()[:8]
 
-	homeWS := workspaceClient                           // testRegion, no prefix — the gateway's default region
-	awayWS := regionWorkspaceClient(t, secondRegion)    // secondRegion, under its /regions/<region> prefix
-	awayStorage := regionStorageClient(t, secondRegion) // the same, for seca.storage
-	homeStorage := storageClient                        // testRegion, no prefix
+	// testRegion is served without a prefix, as the gateway's default region; secondRegion under
+	// its /regions/<region> prefix, the base URL that region's entry in the catalog advertises.
+	homeWS, homeStorage := workspaceClient, storageClient
+	awayWS, err := workspacev1.NewClientWithResponses(regionalURL+"/regions/"+secondRegion+"/providers/seca.workspace",
+		workspacev1.WithRequestEditorFn(authhelper.AdminEditor()))
+	require.NoError(t, err)
+	awayStorage, err := storagev1.NewClientWithResponses(regionalURL+"/regions/"+secondRegion+"/providers/seca.storage",
+		storagev1.WithRequestEditorFn(authhelper.AdminEditor()))
+	require.NoError(t, err)
 	regions := map[string]*workspacev1.ClientWithResponses{testRegion: homeWS, secondRegion: awayWS}
 
 	t.Cleanup(func() {
@@ -115,18 +117,9 @@ func TestRegionIsolationEndToEnd(t *testing.T) {
 		// Both reached Active, so both delegators are alive and each accepted its own
 		// region — the workspace controller is region-scoped on both deployments.
 
-		// And the two CRs really are two objects in two namespaces. This is the
-		// ComputeRegionNamespace formula seen from the cluster: same tenant, same name,
-		// different region, so nothing about the placement is shared.
-		homeNS := workspaceNamespace(testRegion)
-		awayNS := workspaceNamespace(secondRegion)
-		require.NotEqual(t, homeNS, awayNS, "the two regions must not resolve to one namespace")
-		for region, ns := range map[string]string{testRegion: homeNS, secondRegion: awayNS} {
-			_, err := k8s.CoreV1().Namespaces().Get(ctx, ns, metav1.GetOptions{})
-			require.NoErrorf(t, err, "the per-region namespace for %q (%s) must exist", region, ns)
-		}
-
-		// And each CR carries its region twice, as the field its plugin provisioned into and as
+		// And the two CRs really are two objects in two namespaces: each is read from its own
+		// region's ComputeRegionNamespace and carries that region, which one shared object
+		// could not. Each carries it twice, as the field its plugin provisioned into and as
 		// the label that routed it to its delegator: after that delegator's writes — the
 		// finalizer, every status update, the plugin's own update — the two still agree.
 		for region := range regions {
@@ -163,8 +156,8 @@ func TestRegionIsolationEndToEnd(t *testing.T) {
 		// Reaching Active proves *a* delegator reconciled it; the logs are what say which.
 		// The dummy plugin logs every operation it performs with the resource name, and
 		// the region scope is a watch predicate, so a delegator that was not meant to see
-		// this CR never entered Reconcile and never logged the name. Both CRs are in the
-		// same namespace and carry the same fields, so nothing on the CR itself could
+		// this CR never entered Reconcile and never logged the name. Either delegator would
+		// write the same finalizer and status onto it, so nothing on the CR itself could
 		// distinguish the two delegators.
 		require.Contains(t, delegatorLogs(t, ctx, delegatorTwoSelector), bsName,
 			"the delegator deployed for %s must have reconciled it", secondRegion)
@@ -236,13 +229,11 @@ func TestRegionIsolationEndToEnd(t *testing.T) {
 		testenv.DeleteUntilGone(ctx, func() (*http.Response, error) {
 			return awayWS.DeleteWorkspace(ctx, testTenant, wsName, nil)
 		})
-		waitForGone(t, "workspace "+wsName+" in "+secondRegion, func(ctx context.Context) (int, error) {
+		err := wait.PollUntilContextTimeout(ctx, activePollInterval, activeTimeout, true, func(ctx context.Context) (bool, error) {
 			r, err := awayWS.GetWorkspaceWithResponse(ctx, testTenant, wsName)
-			if err != nil {
-				return 0, err
-			}
-			return r.StatusCode(), nil
+			return err == nil && r.StatusCode() == http.StatusNotFound, err
 		})
+		require.NoErrorf(t, err, "workspace %s in %s was still there after %s", wsName, secondRegion, activeTimeout)
 
 		// The first region's workspace of the same name is untouched, and still Active:
 		// nothing re-reconciled it into an error because its namespace went away.
@@ -258,51 +249,15 @@ func TestRegionIsolationEndToEnd(t *testing.T) {
 		// owned it, so the delegator that tore the second region's workspace down had to
 		// find the live co-owner and defer to it; reclaiming it here would strand the
 		// survivor's children until its next resync.
-		shared, err := k8s.CoreV1().Namespaces().Get(ctx, childNamespace(wsName), metav1.GetOptions{})
+		// It has no region dimension, which is exactly why the two copies share it.
+		childNS := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: testTenant, Workspace: wsName})
+		shared, err := k8s.CoreV1().Namespaces().Get(ctx, childNS, metav1.GetOptions{})
 		require.NoError(t, err,
 			"the children namespace is co-owned, so it goes with the last of the two workspaces, not the first")
 		// Still Active, not Terminating: a cleanup that deleted it anyway would leave the
 		// namespace readable for a while yet, so its mere existence is not the assertion.
 		require.Equal(t, corev1.NamespaceActive, shared.Status.Phase)
 	})
-}
-
-// waitForGone polls get until it reports 404, failing the test if that does not happen
-// within activeTimeout. A delete is accepted synchronously but completes when the
-// controller's finalizer has run, so anything asserting on what the delete left behind has
-// to wait for the CR to disappear first.
-func waitForGone(t *testing.T, what string, get func(context.Context) (int, error)) {
-	t.Helper()
-	err := wait.PollUntilContextTimeout(context.Background(), activePollInterval, activeTimeout, true,
-		func(ctx context.Context) (bool, error) {
-			status, err := get(ctx)
-			if err != nil {
-				return false, err
-			}
-			return status == http.StatusNotFound, nil
-		})
-	require.NoErrorf(t, err, "%s was still there after %s", what, activeTimeout)
-}
-
-// regionWorkspaceClient returns a workspace client rooted at one region's path prefix —
-// the base URL that region's entry in the catalog advertises.
-func regionWorkspaceClient(t *testing.T, region string) *workspacev1.ClientWithResponses {
-	t.Helper()
-	c, err := workspacev1.NewClientWithResponses(
-		regionalURL+"/regions/"+region+"/providers/seca.workspace",
-		workspacev1.WithRequestEditorFn(authhelper.AdminEditor()))
-	require.NoError(t, err)
-	return c
-}
-
-// regionStorageClient is regionWorkspaceClient for the seca.storage provider.
-func regionStorageClient(t *testing.T, region string) *storagev1.ClientWithResponses {
-	t.Helper()
-	c, err := storagev1.NewClientWithResponses(
-		regionalURL+"/regions/"+region+"/providers/seca.storage",
-		storagev1.WithRequestEditorFn(authhelper.AdminEditor()))
-	require.NoError(t, err)
-	return c
 }
 
 // blockStorageNames returns every block storage name the client sees in one workspace.
@@ -322,24 +277,6 @@ func blockStorageNames(t *testing.T, ctx context.Context, c *storagev1.ClientWit
 	return names
 }
 
-// workspaceNamespace is the namespace a workspace of testTenant lives in in one region,
-// computed by the product's own formula rather than restated here — a test that hashed it
-// itself would keep passing if the formula changed under it.
-func workspaceNamespace(region string) string {
-	return k8sadapter.ComputeRegionNamespace(&wsdom.Workspace{
-		RegionalMetadata: commondomain.RegionalMetadata{
-			Region: region,
-			Scope:  resource.Scope{Tenant: testTenant},
-		},
-	})
-}
-
-// childNamespace is the namespace a workspace owns for its children. It has no region
-// dimension — that is exactly why two same-named workspaces in two regions share one.
-func childNamespace(workspace string) string {
-	return k8sadapter.ComputeNamespace(&resource.Scope{Tenant: testTenant, Workspace: workspace})
-}
-
 // delegatorLogs returns the concatenated logs of every pod of one delegator release.
 // Reading them is the only way to attribute a reconcile to a deployment: the region scope
 // is a watch predicate, so a delegator outside the scope leaves no trace on the CR — which
@@ -352,14 +289,11 @@ func delegatorLogs(t *testing.T, ctx context.Context, selector string) string {
 
 	var all strings.Builder
 	for _, pod := range pods.Items {
-		stream, err := k8s.CoreV1().Pods(systemNamespace).
-			GetLogs(pod.Name, &corev1.PodLogOptions{}).Stream(ctx)
+		body, err := k8s.CoreV1().Pods(systemNamespace).
+			GetLogs(pod.Name, &corev1.PodLogOptions{}).DoRaw(ctx)
 		if apierrors.IsNotFound(err) {
 			continue // the pod went away between the List and the GetLogs
 		}
-		require.NoError(t, err)
-		body, err := io.ReadAll(stream)
-		_ = stream.Close()
 		require.NoError(t, err)
 		all.Write(body)
 	}

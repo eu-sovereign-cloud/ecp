@@ -81,9 +81,9 @@ func TestEndToEnd(t *testing.T) {
 	// Step 2: creating a workspace through the regional gateway provisions its
 	// namespace and reconciles to Active via the delegator's workspace plugin.
 	//
-	// The delegator is deployed for testRegion only, so reaching Active is also the
-	// region round trip: the gateway stamped the region the resource was addressed to, the
-	// delegator's region-scoped watch accepted it, and the region comes back out unchanged.
+	// ecp-delegator is deployed for testRegion only (ecp-delegator-two serves region-two), so
+	// reaching Active shows a region-scoped watch accepted the region the gateway stamped, and
+	// the region assertion below pins that it was testRegion and came back out unchanged.
 	t.Run("workspace created via API reconciles to active", func(t *testing.T) {
 		resp, err := workspaceClient.CreateOrUpdateWorkspaceWithResponse(ctx, testTenant, testWorkspace, nil, schema.Workspace{})
 		require.NoError(t, err)

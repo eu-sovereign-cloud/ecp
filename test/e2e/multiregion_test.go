@@ -52,7 +52,8 @@ func TestMultiRegionEndToEnd(t *testing.T) {
 	})
 
 	// Step 2: a resource created through the second region is stamped with it and
-	// reconciles to Active — the delegator serves both regions from the one cluster.
+	// reconciles to Active — by ecp-delegator-two, the delegator deployed for that region
+	// alongside ecp-delegator in the one cluster.
 	resp, err := secondWorkspace.CreateOrUpdateWorkspaceWithResponse(ctx, testTenant, name, nil, schema.Workspace{})
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, resp.StatusCode())

@@ -150,7 +150,8 @@ $(foreach comp,$(DEPLOYMENTS),$(eval $(call kind_deploy_rule,$(comp))))
 # component that suite needs, so `make [kind-]deploy-<comp>` is a complete setup for
 # `make [kind-]integration-<comp>`. Dependencies (see test/integration/<comp>):
 #   * test-data        — tenant namespace + storage SKUs + regions (leaf fixture);
-#                        the tenant namespace is where workspace/role CRs are created.
+#                        the tenant namespace holds role/role-assignment and catalog CRs
+#                        (a workspace CR lives in its per-region sha3-224(@region/<region>/<tenant>)).
 #   * delegator        — reconciles CRs to Active (dummy plugin); needs test-data.
 #   * delegator-two    — the same, for the second region the stack serves; needs test-data.
 #   * gateway-regional — a pure REST↔CR gateway suite; needs only test-data (tenant
@@ -268,7 +269,7 @@ endef
 $(foreach comp,$(TEST_COMPONENTS),$(eval $(call TEST_template,$(comp))))
 
 # =====================================================================================
-# End-to-end test — the whole stack (both gateways + delegator) in a single run,
+# End-to-end test — the whole stack (both gateways + both delegators) in a single run,
 # driving the SECA API and asserting reconciliation down to the delegator plugin.
 # See test/e2e/.
 # =====================================================================================

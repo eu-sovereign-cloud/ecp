@@ -24,10 +24,6 @@ import (
 // path prefix; an unprefixed request is still served as the default region.
 const secondRegion = "region-two"
 
-// defaultRegion is the region an unprefixed request is served as: the first entry of
-// gatewayRegional.regions in internal/deploy/gateway-regional/values.yaml.
-const defaultRegion = "itbg-bergamo"
-
 // regionalPathClient returns a workspace client rooted at the gateway's region path prefix,
 // i.e. the base URL a client would read off that region's entry in the region catalog.
 func regionalPathClient(t *testing.T, region string) *workspacev1.ClientWithResponses {
@@ -62,6 +58,7 @@ func listWorkspaceNames(t *testing.T, c *workspacev1.ClientWithResponses) []stri
 // across regions, so for those nothing but the region label keeps the two lists apart.
 func TestMultiRegionRouting(t *testing.T) {
 	secondClient := regionalPathClient(t, secondRegion)
+	clients := map[string]*workspacev1.ClientWithResponses{testRegion: workspaceClient, secondRegion: secondClient}
 
 	t.Run("the region prefix decides which region the resource is created in", func(t *testing.T) {
 		//
@@ -103,7 +100,7 @@ func TestMultiRegionRouting(t *testing.T) {
 		createResp, err := workspaceClient.CreateOrUpdateWorkspaceWithResponse(context.Background(), testTenant, name, nil, schema.Workspace{})
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, createResp.StatusCode())
-		require.Equal(t, defaultRegion, createResp.JSON200.Metadata.Region)
+		require.Equal(t, testRegion, createResp.JSON200.Metadata.Region)
 
 		//
 		// Then the second region does not see it
@@ -145,17 +142,14 @@ func TestMultiRegionRouting(t *testing.T) {
 		// Given one name created in both regions, with a spec that says which is which
 		name := "mr-same-" + uuid.New().String()[:8]
 		t.Cleanup(func() {
-			for _, c := range []*workspacev1.ClientWithResponses{workspaceClient, secondClient} {
+			for _, c := range clients {
 				testenv.DeleteUntilGone(context.Background(), func() (*http.Response, error) {
 					return c.DeleteWorkspace(context.Background(), testTenant, name, nil)
 				})
 			}
 		})
 
-		for region, client := range map[string]*workspacev1.ClientWithResponses{
-			defaultRegion: workspaceClient,
-			secondRegion:  secondClient,
-		} {
+		for region, client := range clients {
 			resp, err := client.CreateOrUpdateWorkspaceWithResponse(context.Background(), testTenant, name, nil,
 				schema.Workspace{Spec: map[string]any{"where": region}})
 			require.NoError(t, err)
@@ -164,10 +158,7 @@ func TestMultiRegionRouting(t *testing.T) {
 
 		//
 		// Then a GET in each region returns that region's own resource
-		for region, client := range map[string]*workspacev1.ClientWithResponses{
-			defaultRegion: workspaceClient,
-			secondRegion:  secondClient,
-		} {
+		for region, client := range clients {
 			resp, err := client.GetWorkspaceWithResponse(context.Background(), testTenant, name)
 			require.NoError(t, err)
 			require.Equal(t, http.StatusOK, resp.StatusCode())
@@ -192,10 +183,6 @@ func TestMultiRegionRouting(t *testing.T) {
 	// Both must be the region the request was addressed to, through a create and an update.
 	t.Run("the workspace CR carries the addressed region as field and label", func(t *testing.T) {
 		name := "mr-sync-" + uuid.New().String()[:8]
-		clients := map[string]*workspacev1.ClientWithResponses{
-			defaultRegion: workspaceClient,
-			secondRegion:  secondClient,
-		}
 		t.Cleanup(func() {
 			for _, c := range clients {
 				testenv.DeleteUntilGone(context.Background(), func() (*http.Response, error) {

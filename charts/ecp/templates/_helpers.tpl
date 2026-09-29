@@ -103,9 +103,10 @@ Auth command-line arguments, identical for both gateways: the plugin (dummy or
 jwt) and its config, plus the authz toggles.
 
 Flags, not environment variables: the gateway images' ENTRYPOINT is the binary
-itself, and the binary reads nothing but APP_ENV from the environment
-(gateway/internal/auth/config.go RegisterFlags). Anything the chart configures
-has to arrive as an argument or it is silently ignored.
+itself, and the binary reads no auth setting from the environment, only APP_ENV
+(plus REGIONS, the regional gateway's fallback for an unset --regions; see
+gateway/internal/auth/config.go RegisterFlags and gateway/cmd/regions.go).
+Anything the chart configures has to arrive as an argument or it is silently ignored.
 
 Flags left at their binary default are omitted — --authz-skip-providers already
 defaults to seca.region.

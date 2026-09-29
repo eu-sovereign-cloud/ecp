@@ -9,11 +9,7 @@ setup_kube_vars
 # Every delegator deployment runs the one delegator image — only its region scope
 # differs — so the extra ones borrow the image built for "delegator" rather than
 # asking for one nobody builds.
-IMAGE_COMPONENT="${COMPONENT}"
-if [[ "${COMPONENT}" == delegator-* ]]; then
-    IMAGE_COMPONENT="delegator"
-fi
-setup_registry_vars "${IMAGE_COMPONENT}"
+setup_registry_vars "${COMPONENT/#delegator-*/delegator}"
 
 DEPLOY_DIR="${SCRIPT_DIR}/../deploy/${COMPONENT}"
 CRDS_DIR="${SCRIPT_DIR}/../../../charts/ecp/crds"

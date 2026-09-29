@@ -348,12 +348,14 @@ WAIT_ACTIVE=1 make -C test/load create-workspace
 ## Tenant namespace (`ensure-tenant`)
 
 A tenant is **not** a SECA REST resource. The gateway stores tenant-scoped CRs
-in a Kubernetes Namespace:
+(roles, role assignments, SKUs, images) in a Kubernetes Namespace; workspaces go to a
+per-region one, `hex(sha3-224(@region/<region>/<tenant>))`, which the gateway creates on
+the first workspace write:
 
 | Piece | Value |
 |-------|--------|
 | Name | `hex(sha3-224(tenant))` (same as `deploy.sh` / test-data) |
-| Label | `secapi.cloud/tenant-id=<tenant>` |
+| Label | `secapi.cloud/tenant=<tenant>` |
 | Default tenant | `test-tenant` → `f7ec6f666803cd9d9814d4c055217581afbff53f3c35fd6c5e6b444d` |
 
 ```bash

@@ -189,7 +189,7 @@ func (h *BlockStorageHandler) resolveSecaBlockStorageDependencies(ctx context.Co
 	// Through the shared helper rather than a copy of it: the workspace key has to carry the
 	// region, and a second hand-built one is exactly how this path drifted out of step with
 	// where the CR is stored.
-	ws, err := loadActiveWorkspace(ctx, h.wsRepository, domain, domain.Region)
+	ws, err := loadActiveWorkspace(ctx, h.wsRepository, &domain.RegionalMetadata)
 	if err != nil {
 		return nil, err
 	}
