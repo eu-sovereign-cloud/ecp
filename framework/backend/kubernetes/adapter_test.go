@@ -1268,8 +1268,6 @@ func TestReaderAdapter_List_RegionScoped(t *testing.T) {
 func TestAdapter_ItemOperations_RegionConfined(t *testing.T) {
 	ns := ComputeNamespace(&kernelresource.Scope{Tenant: "t1", Workspace: "w1"})
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	inRegionOne := kernelresource.ContextWithRegion(context.Background(), "region-one")
-	inRegionTwo := kernelresource.ContextWithRegion(context.Background(), "region-two")
 	newAdapters := func(objs ...runtime.Object) (*fake.FakeDynamicClient, *ReaderAdapter[*testLabelled], *WriterAdapter[*testLabelled]) {
 		dynFake := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), testListKinds(), objs...)
 		return dynFake, NewReaderAdapter(dynFake, testGVR, logger, testLabelledFromCR), NewWriterAdapter(dynFake, testGVR, logger, testLabelledConv)
@@ -1282,6 +1280,7 @@ func TestAdapter_ItemOperations_RegionConfined(t *testing.T) {
 	}
 
 	t.Run("another region's resource is not found, not writable and not deletable", func(t *testing.T) {
+		inRegionOne := kernelresource.ContextWithRegion(context.Background(), "region-one")
 		dynFake, reader, writer := newAdapters(newRegionObject(ns, testRT1, "region-two"))
 		_, nothingReader, nothingWriter := newAdapters()
 
@@ -1310,6 +1309,7 @@ func TestAdapter_ItemOperations_RegionConfined(t *testing.T) {
 	})
 
 	t.Run("its own region reaches it", func(t *testing.T) {
+		inRegionTwo := kernelresource.ContextWithRegion(context.Background(), "region-two")
 		_, reader, writer := newAdapters(newRegionObject(ns, testRT1, "region-two"))
 
 		loaded := &testLabelled{name: testRT1}
@@ -1322,6 +1322,7 @@ func TestAdapter_ItemOperations_RegionConfined(t *testing.T) {
 	// Checking one CR and then deleting whatever holds the name by then would let a delete race
 	// another region's create of it.
 	t.Run("a delete is pinned to the CR it checked", func(t *testing.T) {
+		inRegionTwo := kernelresource.ContextWithRegion(context.Background(), "region-two")
 		stored := newRegionObject(ns, testRT1, "region-two")
 		stored.SetUID("uid-checked")
 		dynFake, _, writer := newAdapters(stored)
@@ -1341,6 +1342,7 @@ func TestAdapter_ItemOperations_RegionConfined(t *testing.T) {
 	// The delegator and the global gateway carry no request region, and Role and RoleAssignment
 	// carry no region label: neither has anything to confine.
 	t.Run("no request region, or no region label, confines nothing", func(t *testing.T) {
+		inRegionOne := kernelresource.ContextWithRegion(context.Background(), "region-one")
 		_, reader, _ := newAdapters(newRegionObject(ns, testRT1, "region-two"), newTestObject(ns, testRTDash1))
 
 		regioned := &testLabelled{name: testRT1}
@@ -1353,6 +1355,7 @@ func TestAdapter_ItemOperations_RegionConfined(t *testing.T) {
 	// label, is the source of truth: a label edited out of band must neither hide it from its own
 	// region nor stop the next update from putting the label back.
 	t.Run("a region-keyed resource is confined by its namespace instead", func(t *testing.T) {
+		inRegionOne := kernelresource.ContextWithRegion(context.Background(), "region-one")
 		desired := &testRegionScopedIdentifiable{name: testWS1, tenant: "t1", region: "region-one"}
 		created, err := testRegionedToCR(desired)
 		require.NoError(t, err)
