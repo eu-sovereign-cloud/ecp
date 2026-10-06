@@ -22,7 +22,7 @@ DEPLOY_DIR="${SCRIPT_DIR}/../deploy/conformance"
 
 # Defaults target the in-cluster global gateway with the dummy test-data tenant.
 : "${CONFORMANCE_PROVIDER_REGION_V1:=http://${GATEWAY_GLOBAL_SVC}:80/providers/seca.region}"
-: "${CONFORMANCE_PROVIDER_AUTHORIZATION_V1:=http://${GATEWAY_REGIONAL_SVC}:80/providers/seca.authorization}}"
+: "${CONFORMANCE_PROVIDER_AUTHORIZATION_V1:=http://${GATEWAY_REGIONAL_SVC}:80/providers/seca.authorization}"
 : "${CONFORMANCE_AUTH_TOKEN:=test-token}"
 : "${CONFORMANCE_TENANT:=test-tenant}"
 : "${CONFORMANCE_REGION:=itbg-bergamo}"

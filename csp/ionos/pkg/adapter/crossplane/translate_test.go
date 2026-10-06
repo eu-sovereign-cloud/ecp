@@ -27,6 +27,36 @@ func TestTranslateImage(t *testing.T) {
 	}
 }
 
+func TestTranslateLocation(t *testing.T) {
+	cases := []struct {
+		region, want string
+		wantErr      bool
+	}{
+		{"de-txl", "de/txl", false},
+		{"de-fra", "de/fra", false},
+		{"de-fra-2", "de/fra/2", false},
+		{"us-las", "us/las", false},
+		{"xx-new", "xx/new", false}, // a location IONOS adds later needs no change
+		{"regionBerlin", "", true},
+		{"itbg-bergamo", "", true},
+		{"DE-TXL", "", true},
+		{"de-txl-", "", true},
+		{"de-txl-2a", "", true},
+		{"de/txl", "", true},
+		{"de", "", true},
+		{"", "", true},
+	}
+	for _, c := range cases {
+		got, err := translateLocation(c.region)
+		if (err != nil) != c.wantErr {
+			t.Fatalf("translateLocation(%q) err=%v wantErr=%v", c.region, err, c.wantErr)
+		}
+		if got != c.want {
+			t.Fatalf("translateLocation(%q)=%q want %q", c.region, got, c.want)
+		}
+	}
+}
+
 func TestTranslateZone(t *testing.T) {
 	cases := map[string]string{"a": "ZONE_1", "b": "ZONE_2", "c": "AUTO", "": "AUTO", "x": "AUTO"}
 	for in, want := range cases {
