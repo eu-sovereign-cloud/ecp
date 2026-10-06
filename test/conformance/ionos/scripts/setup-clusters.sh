@@ -202,9 +202,11 @@ kind: Region
 metadata:
   name: "${REGION_NAME}"
 spec:
+  # The IONOS plugin maps zones a and b to ZONE_1 and ZONE_2; any other name
+  # falls back to AUTO.
   availableZones:
-    - "${REGION_NAME}-a"
-    - "${REGION_NAME}-b"
+    - "a"
+    - "b"
   providers:
     - name: "seca.workspace"
       url: "${REGIONAL_API_ENDPOINT}/providers/seca.workspace"

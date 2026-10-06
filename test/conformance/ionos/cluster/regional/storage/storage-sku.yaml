@@ -7,7 +7,7 @@ metadata:
     # encodes "/" as "_" because "/" is not a legal label value character.
     # The namespace carries the same secapi.cloud/tenant key as its owner label.
     secapi.cloud/provider: seca.storage_v1
-    secapi.cloud/region: region
+    secapi.cloud/region: de-txl
     secapi.cloud/tenant: seca
   name: fast-local
   namespace: 69e09dd4c334335d2f0a4a52c9ff87b76b0f9e1b147d62a5f2b8f965 # seca
