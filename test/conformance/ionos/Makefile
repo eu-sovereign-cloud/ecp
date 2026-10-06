@@ -13,7 +13,9 @@ PLUGIN_IMAGE ?= ionos-plugin:dev
 # ====================================================================================
 # secatest configuration (override via environment or command line)
 # ====================================================================================
-SECATEST_REGION              ?= region
+# The region scripts/setup-clusters.sh registers and the regional gateway serves
+# (cluster/regional-deployment.yaml); the seeded StorageSKU carries it too.
+SECATEST_REGION              ?= de-txl
 SECATEST_TENANT              ?= seca
 SECATEST_AUTH_TOKEN          ?= test
 SECATEST_SCENARIOS_FILTER    ?= Storage.V1.BlockStorageLifeCycle

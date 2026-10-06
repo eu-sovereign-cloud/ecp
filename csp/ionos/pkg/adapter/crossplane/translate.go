@@ -1,6 +1,10 @@
 package crossplane
 
-import "fmt"
+import (
+	"fmt"
+	"regexp"
+	"strings"
+)
 
 // imageAliases maps a SECA image's (base,version) labels to an IONOS image alias.
 // POC scope: the public supported images from the SECA image catalog.
@@ -21,21 +25,21 @@ func translateImage(base, version string) (string, error) {
 	return "", fmt.Errorf("unsupported image base=%q version=%q", base, version)
 }
 
-// locationAliases maps a SECA region name to the exact IONOS location it's deployed to.
-// IP blocks are region-bound, so a Workspace and a PublicIp must resolve to the same IONOS
-// location for the reserved address to attach to an instance's NIC.
-var locationAliases = map[string]string{
-	"regionBerlin":    "de/txl",
-	"regionFrankfurt": "de/fra",
-	"itbg-bergamo":    "de/txl",
-}
+// regionName is a SECA region named after an IONOS location: country, city and an optional
+// number, as in de-txl or de-fra-2.
+var regionName = regexp.MustCompile(`^[a-z]{2}-[a-z]{3}(-[0-9]+)?$`)
 
-// translateLocation resolves a SECA region name to an IONOS location.
+// translateLocation resolves a SECA region name to an IONOS location. A region is named
+// after its location with "-" for "/" (de-txl is de/txl, de-fra-2 is de/fra/2), so the name
+// is a DNS label and can be a hostname. Only the shape is checked: IONOS decides which
+// locations exist, so a new one needs no change here. IP blocks are region-bound, so a
+// Workspace and a PublicIp must resolve to the same IONOS location for the reserved address
+// to attach to an instance's NIC.
 func translateLocation(secaRegion string) (string, error) {
-	if location, ok := locationAliases[secaRegion]; ok {
-		return location, nil
+	if !regionName.MatchString(secaRegion) {
+		return "", fmt.Errorf("unsupported region %q: name a region after its IONOS location, such as de-txl for de/txl", secaRegion)
 	}
-	return "", fmt.Errorf("unsupported region %q", secaRegion)
+	return strings.ReplaceAll(secaRegion, "-", "/"), nil
 }
 
 // translateZone maps a SECA zone to an IONOS availability zone. ENTERPRISE servers

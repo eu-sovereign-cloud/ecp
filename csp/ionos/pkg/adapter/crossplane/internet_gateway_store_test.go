@@ -22,7 +22,7 @@ func TestInternetGatewayStoreIsDeclarationOnly(t *testing.T) {
 		Spec: internetgatewaydom.InternetGatewaySpec{EgressOnly: false},
 	}
 	ig.Name = "internet-gateway-1"
-	ig.Region = "regionBerlin"
+	ig.Region = "de-txl"
 
 	if err := store.Create(context.Background(), ig); err != nil {
 		t.Fatalf("Create(egressOnly=false) = %v, want nil", err)
@@ -43,7 +43,7 @@ func TestInternetGatewayStoreRejectsEgressOnly(t *testing.T) {
 		Spec: internetgatewaydom.InternetGatewaySpec{EgressOnly: true},
 	}
 	ig.Name = "internet-gateway-1"
-	ig.Region = "regionBerlin"
+	ig.Region = "de-txl"
 
 	err := store.Create(context.Background(), ig)
 	if !errors.Is(err, backend.ErrNotSupported) {

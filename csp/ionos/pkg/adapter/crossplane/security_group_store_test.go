@@ -33,7 +33,7 @@ func testSecurityGroup() *securitygroupdom.SecurityGroup {
 	sg := &securitygroupdom.SecurityGroup{}
 	sg.Name = "web"
 	sg.Scope = resource.Scope{Tenant: "tenant-1", Workspace: "workspace-1"}
-	sg.Region = "regionBerlin"
+	sg.Region = "de-txl"
 	return sg
 }
 

@@ -34,7 +34,7 @@ func newPublicIP() *publicipdom.PublicIp {
 	p := &publicipdom.PublicIp{}
 	p.Name = "public-ip-1"
 	p.Scope = resource.Scope{Tenant: "tenant-1", Workspace: "workspace-1"}
-	p.Region = "regionBerlin"
+	p.Region = "de-txl"
 	return p
 }
 
