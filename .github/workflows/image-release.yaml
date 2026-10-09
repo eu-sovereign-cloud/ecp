@@ -7,8 +7,9 @@ name: Release Images
 # is exactly the tag pushed here.
 #
 # Each CSP ships its own single-plugin delegator image (delegator-<plugin>),
-# built from csp/<plugin>/cmd. The dummy plugin is development/test-only and is
-# side-loaded into KIND, never pulled, so it is not published here.
+# built from csp/<plugin>/cmd. The dummy plugin is development/test-only, but
+# it is published too, so tools that install ECP locally (seca-manager) can pull
+# it instead of compiling ECP from source.
 #
 # No :latest tag is published on purpose — tags here are prerelease-heavy
 # (v0.1.0-alpha1-preview) and the charts always pin an explicit version.
@@ -50,6 +51,8 @@ jobs:
             dockerfile: csp/aruba/build/Dockerfile
           - image: delegator-ionos
             dockerfile: csp/ionos/build/Dockerfile
+          - image: delegator-dummy
+            dockerfile: csp/dummy/build/Dockerfile
 
     steps:
       - uses: actions/checkout@v6
