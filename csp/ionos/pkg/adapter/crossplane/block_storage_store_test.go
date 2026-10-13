@@ -42,3 +42,18 @@ func TestBlockStorageImageBackedIsObserver(t *testing.T) {
 		t.Fatal("image-backed BlockStorage must NOT create a Volume, but one exists")
 	}
 }
+
+// A data volume has no image, so it must carry a licence type: IONOS refuses a volume
+// with neither.
+func TestNewVolumeDataVolumeHasLicenceType(t *testing.T) {
+	b := bootBlockStorage()
+	b.Spec.SourceImageRef = nil
+
+	vol := newVolume(b)
+	if got := vol.Spec.ForProvider.LicenceType; got == nil || *got != dataVolumeLicenceType {
+		t.Fatalf("LicenceType = %v, want %q", got, dataVolumeLicenceType)
+	}
+	if vol.Spec.ForProvider.ImageName != nil {
+		t.Fatal("a data volume must not name an image")
+	}
+}

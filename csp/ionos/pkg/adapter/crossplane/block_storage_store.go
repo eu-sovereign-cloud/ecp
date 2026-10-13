@@ -101,6 +101,10 @@ func blockStorageNamespace(domain *bsdom.BlockStorage) string {
 	return k8sadapter.ComputeNamespace(&resource.Scope{Tenant: domain.GetTenant()})
 }
 
+// dataVolumeLicenceType is the licence type of a volume created without an image, which
+// carries no operating system.
+const dataVolumeLicenceType = "OTHER"
+
 func newVolume(domain *bsdom.BlockStorage) *ionosv1alpha1.Volume {
 	namespace := k8sadapter.ComputeNamespace(&resource.Scope{Tenant: domain.GetTenant()})
 	return &ionosv1alpha1.Volume{
@@ -119,6 +123,10 @@ func newVolume(domain *bsdom.BlockStorage) *ionosv1alpha1.Volume {
 				Size:             new(float64(domain.Spec.SizeGB)),
 				DiskType:         new("SSD"),
 				AvailabilityZone: new("AUTO"),
+				// IONOS refuses a volume with neither an image nor a licence type, and a
+				// data volume has no image: "either 'image_name', 'licence_type', or
+				// 'image_alias' must be set".
+				LicenceType: new(dataVolumeLicenceType),
 			},
 			ManagedResourceSpec: v2.ManagedResourceSpec{
 				ProviderConfigReference: &v1.ProviderConfigReference{
