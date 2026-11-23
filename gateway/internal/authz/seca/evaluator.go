@@ -34,7 +34,7 @@ import (
 //	      ∧ ∃ roleName ∈ ra.Roles:
 //	            role := rolesByName[roleName]
 //	            ∃ p ∈ role.Permissions:
-//	                p.Provider == claim.Provider
+//	                providerMatches(p.Provider, claim.Provider)
 //	              ∧ matchResource(p.Resources, claim.Resource, claim.Name)
 //	              ∧ matchVerb(p.Verb, claim.Verb)
 //
@@ -72,7 +72,7 @@ func Evaluate(
 				continue
 			}
 			for _, p := range role.Spec.Permissions {
-				if p.Provider == claim.Provider &&
+				if providerMatches(p.Provider, claim.Provider) &&
 					matchResource(p.Resources, claim.Resource, claim.Name) &&
 					matchVerb(p.Verb, claim.Verb) {
 					return true
@@ -81,6 +81,19 @@ func Evaluate(
 		}
 	}
 	return false
+}
+
+// apiVersionSuffix is the API version the gateway serves for every provider (the claim
+// extractor anchors on "/v1/tenants/"). The SECA spec writes Permission.provider in the
+// versioned form ("seca.compute/v1"), while the claim carries the bare provider name.
+const apiVersionSuffix = "/v1"
+
+// providerMatches reports whether a Permission.provider covers the claim's provider. Both
+// the versioned spec form ("seca.compute/v1") and the bare form ("seca.compute") match.
+// Matching is otherwise exact: "*" is not a wildcard and other versions never match.
+func providerMatches(permProvider, claimProvider string) bool {
+	return permProvider == claimProvider ||
+		strings.TrimSuffix(permProvider, apiVersionSuffix) == claimProvider
 }
 
 // tokenScopeCovers reports whether an optional token cap — a token-scope dimension
