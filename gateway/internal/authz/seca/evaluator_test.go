@@ -87,7 +87,16 @@ func TestEvaluate(t *testing.T) {
 		{Provider: providerCompute, Resources: []string{"*"}, Verb: []string{"*"}},
 	})
 
+	versionedRole := makeRole("versioned", []roledom.Permission{
+		{Provider: providerCompute + "/v1", Resources: []string{"*"}, Verb: []string{"*"}},
+	})
+	v2Role := makeRole("v2", []roledom.Permission{
+		{Provider: providerCompute + "/v2", Resources: []string{"*"}, Verb: []string{"*"}},
+	})
+
 	rolesByName := map[string]*roledom.Role{
+		"versioned":  versionedRole,
+		"v2":         v2Role,
 		roleViewer:   viewerRole,
 		roleAdmin:    adminRole,
 		"all-access": wildcardRole,
@@ -113,6 +122,25 @@ func TestEvaluate(t *testing.T) {
 		assignments []*radom.RoleAssignment
 		want        bool
 	}{
+		// ── Provider format ───────────────────────────────────────────────────
+		{
+			name:        "versioned permission provider (spec form) matches bare claim provider",
+			claim:       baseClaim,
+			assignments: []*radom.RoleAssignment{assign([]string{"versioned"}, allScope)},
+			want:        true,
+		},
+		{
+			name:        "versioned permission provider of another provider is denied",
+			claim:       with(baseClaim, func(c *authzport.AuthorizationClaim) { c.Provider = "seca.storage" }),
+			assignments: []*radom.RoleAssignment{assign([]string{"versioned"}, allScope)},
+			want:        false,
+		},
+		{
+			name:        "permission provider with another API version is denied",
+			claim:       baseClaim,
+			assignments: []*radom.RoleAssignment{assign([]string{"v2"}, allScope)},
+			want:        false,
+		},
 		// ── Basic allow/deny ──────────────────────────────────────────────────
 		{
 			name:        "exact match: viewer can list instances",
